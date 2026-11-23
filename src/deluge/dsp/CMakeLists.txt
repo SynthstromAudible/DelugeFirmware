@@ -12,6 +12,7 @@ target_include_directories(deluge_dsp PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/..
   ${SHARED_INCLUDE}
   ${CMAKE_SOURCE_DIR}/include # <libdeluge/...> boundary headers
+  ${DELUGE_CRATE_INCLUDE_DIRS} # the Rust crates' C headers the sample reader's headers include
 )
 
 target_include_directories(deluge_dsp PUBLIC

@@ -1,4 +1,4 @@
-//! The Deluge's cached-asset resource manager, behind the C ABI in `deluge_resource.h`.
+//! The Deluge's cached-asset resource manager, behind the C ABI in `deluge_storage_resource.h`.
 //!
 //! A value-scored, lease-based cache of reconstructable assets on the `deluge_base_alloc` TLSF heap.
 //! [`manager`] holds the core and the C ABI, [`facade`] a safe Rust interface, [`value`] the

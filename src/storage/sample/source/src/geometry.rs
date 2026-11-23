@@ -2,7 +2,7 @@
 
 /// Immutable per-sample audio geometry, parsed once above the port.
 ///
-/// `#[repr(C)]` mirror of `DelugeSampleGeometry` (`libdeluge/sample_source.h`).
+/// `#[repr(C)]` mirror of `DelugeSampleGeometry` (`deluge_storage_sample_source.h`).
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Geometry {

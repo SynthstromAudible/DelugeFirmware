@@ -3,10 +3,10 @@
 // Test fixture for the resource manager C ABI: a malloc-backed DelugeHeap + a
 // DelugeResource manager + a mock Source whose "file contents" are a deterministic
 // byte pattern per (owner, chunk index) so a reload is verifiable. Mirrors the Rust
-// unit tests, but drives everything through the FFI boundary (deluge_resource.h).
+// unit tests, but drives everything through the FFI boundary (deluge_storage_resource.h).
 
-#include "deluge_resource.h"
-#include "libdeluge/alloc.h"
+#include "deluge_base_alloc.h"
+#include "deluge_storage_resource.h"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>

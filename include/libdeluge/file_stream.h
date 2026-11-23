@@ -20,7 +20,7 @@
 ///        handle, one operation at a time, without holding the caller.
 ///
 /// Request/collect, the same non-blocking shape @ref file_bytes.h, @ref audio_load.h and
-/// `streaming_fill.h` use. It exists for `SampleRecorder`, whose per-cluster write runs for the
+/// `streaming_loader.h` use. It exists for `SampleRecorder`, whose per-cluster write runs for the
 /// whole length of a recording and is the recorder's dominant blocking.
 ///
 /// **It carries no handle table.** One already exists: `storage/efatfs/device.rs`'s `STREAM_WRITE_CTX`, a
@@ -29,7 +29,7 @@
 /// `stream_write_at` is already an async fn; `deluge_efatfs_stream_write_at` merely blocks on it.
 /// This header adds the request/collect pair over that future and nothing else.
 ///
-/// **The pointer crosses, not the bytes.** Zero-copy, the shape `streaming_fill.h`'s `uint8_t* dest`
+/// **The pointer crosses, not the bytes.** Zero-copy, the shape `StreamingFillDescriptor`'s `uint8_t* dest`
 /// already uses in the read direction. There is no staging buffer on either side, so this approaches
 /// none of the device-link pressure @ref file_bytes.h's `DELUGE_FILE_BYTES_MAX_BYTES` documents.
 ///

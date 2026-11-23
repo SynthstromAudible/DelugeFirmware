@@ -17,4 +17,4 @@
 
 #pragma once
 
-#include "libdeluge/streaming_fill.h" // StreamingFillDescriptor (the C-ABI descriptor type)
+#include "deluge_storage_sample_fill.h" // StreamingFillDescriptor (the C-ABI descriptor type)

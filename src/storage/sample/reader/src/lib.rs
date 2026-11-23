@@ -1,4 +1,4 @@
-//! The sample range-reader C ABI (`libdeluge/sample_reader.h`).
+//! The sample range-reader C ABI (`deluge_storage_sample_reader.h`).
 //!
 //! A zero-copy reader handle over a sample's source residency, for non-voice consumers that read
 //! raw-PCM frame ranges without touching `StreamedChunk` internals: the non-voice twin of

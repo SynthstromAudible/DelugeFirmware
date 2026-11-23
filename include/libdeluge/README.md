@@ -13,8 +13,10 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    (`abi.h`), so the compiler holds every C++ definition to it. A failure that carries a reason crosses as
    `DelugeStatus`, a channel's collect answers a `DelugeChannelStatus` (`DELUGE_CHANNEL_*`), and a path is bounded
    by `DELUGE_PATH_MAX`.
-2. **The header is the contract.** bindgen reads every header (`src/platform/device/wrapper.h`, just
-   `#include <libdeluge/libdeluge.h>`), and every
+2. **The header is the contract.** bindgen reads every header: `src/platform/device/wrapper.h` includes the umbrella
+   `<libdeluge/libdeluge.h>`, then each crate header, from the directories in `CRATE_INCLUDE_DIRS`
+   (`src/platform/device/build/bindgen.rs`). The crate headers (`src/**/include/deluge_*.h`) follow rules 1, 2 and 4 and
+   are checked by the same hook, except `deluge_storage_resource.h` (see `TODO.md`). Every
    Rust export is pinned to its generated declaration by `abi_pin!` — beside the definition it pins (including the
    one rename form, `abi_pin!(yield_ => r#yield)` in `scheduler.rs`), and for another crate's own exports and
    imports, via its `in path:` form, in `src/platform/device/src/abi/pins.rs`. That file also holds the `abi_layout!`
@@ -26,8 +28,9 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    when a declaration lacks `DELUGE_NOEXCEPT`. Change a signature in the header, and the build tells you every place
    that disagrees.
 3. **Direction is one-way.** The app includes `<libdeluge/…>`. The platform implements it. `app.h` is the other
-   direction: callbacks the app implements and the platform calls. `scripts/check_layers.py`'s `platform-boundary` rule keeps the
-   app from including platform headers.
+   direction: callbacks the app implements and the platform calls. Other app-defined seams live here too, such as
+   `streaming_loader.h`'s resource-manager accessor and asset lookup. `scripts/check_layers.py`'s `platform-boundary`
+   rule keeps the app from including platform headers.
 4. **Call context is documented per function.** Each declaration's doc carries the tags of every context it may
    be called from; a function with several tags may be called from each of them. `scripts/check_abi_surface.py
    --tags` (in the pre-commit hook) fails any declaration without one.
@@ -55,7 +58,8 @@ Every table handle that crosses the ABI (an open file, directory or stream) is a
 `uint32_t`), and `DELUGE_HANDLE_NONE` (0) is none: no call hands it out, and a caller tests a stored handle against
 it. The tables behind the handles index their slots from 0, so a slot crosses as `slot + 1`; the Rust exports
 convert with `src/platform/device/src/abi/handle.rs`'s `to_abi`/`from_abi`, at the exports only; the tables themselves
-work in slots. `sample_stream.h`'s registry numbers its handles the same way.
+work in slots. The stream registry (`deluge_storage_stream.h`, beside the `deluge_storage_stream` crate) numbers its
+handles the same way.
 
 A call passed `DELUGE_HANDLE_NONE` does nothing and gives its bad-argument answer: a status-returning call (a stream
 close included) answers `DELUGE_ERR_PARAM`, a close that returns nothing does nothing, a channel request answers
@@ -78,8 +82,8 @@ the collect that reports READY, so it needs no such call.
 `file_prefix.h`, `file_directory.h`, `file_bytes.h`, `file_stream.h` and `audio_load.h` are the channels. Before
 boot finishes (`deluge::boot::finished()`), the app uses blocking calls instead.
 
-`streaming_fill.h` is not one of these: it is the sample-streaming fill queue (enqueue/drain of the loader
-queue and fill-context registration), not a keyed request/collect channel.
+`streaming_loader.h` is not one of these: it is the streaming loader's seams (enqueue/drain of the loader queue,
+the fill task's wake-up and the fill trace), not a keyed request/collect channel.
 
 ## Host-only declarations
 

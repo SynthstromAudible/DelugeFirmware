@@ -20,8 +20,8 @@
 #include "definitions_cxx.hpp"
 #include "memory/heaps.h" // deluge::memory heaps (+ opaque DelugeHeap)
 
-struct DelugeSlab;     // libdeluge/alloc.h — opaque here; full C ABI included in the .cpp
-struct DelugeResource; // deluge_resource.h — the resource manager handle (opaque here)
+struct DelugeSlab;     // deluge_base_alloc.h — opaque here; full C ABI included in the .cpp
+struct DelugeResource; // deluge_storage_resource.h — the resource manager handle (opaque here)
 
 /*
  * ======================= MEMORY ALLOCATION ========================
@@ -38,7 +38,7 @@ struct DelugeResource; // deluge_resource.h — the resource manager handle (opa
  *
  * Various objects or pieces of data remain loaded (cached) in RAM even when they are no longer
  * strictly needed (the main example being audio Clusters). Eviction of these is owned entirely by
- * the Rust resource manager (deluge_resource.h), layered on the TLSF heap + cluster slab: it is the
+ * the Rust resource manager (deluge_storage_resource.h), layered on the TLSF heap + cluster slab: it is the
  * SDRAM heap's sole reclaim hook. The GMA is now just thin forwarding to deluge::memory (heaps.h)
  * plus lazy creation of the cluster slab + resource manager.
  */
@@ -91,7 +91,7 @@ public:
 	}
 
 	// MEM_GUARD periodic heap-integrity walk (called from AudioEngine::routine()). Validates every heap's
-	// physical block chain via deluge_heap_check() across the libdeluge/alloc.h boundary (the Rust
+	// physical block chain via deluge_heap_check() across the deluge_base_alloc.h boundary (the Rust
 	// deluge_base_alloc replacement for the legacy MemoryRegion boundary-tag walk); freezes on corruption.
 	void checkEverythingOk(char const* errorString);
 

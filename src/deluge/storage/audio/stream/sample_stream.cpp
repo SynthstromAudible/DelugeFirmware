@@ -30,9 +30,10 @@
 #include <span>
 #include <utility>
 
-#include "deluge_resource.h"         // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
-#include "libdeluge/sample_stream.h" // the deluge_sample_stream_* registry C-ABI this facade forwards to
-#include "libdeluge/streaming_fill.h" // DelugeStreamingFillContext + deluge_streaming_set_fill_context (no-slot fallback)
+#include "deluge_storage_resource.h"    // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
+#include "deluge_storage_sample_fill.h" // DelugeStreamingFillContext + deluge_streaming_set_fill_context
+#include "deluge_storage_stream.h"      // the deluge_sample_stream_* registry C-ABI this facade forwards to
+#include "libdeluge/streaming_loader.h" // deluge_sample_stream_asset_id, deluge_streaming_resource_manager
 
 namespace deluge::audio::stream {
 
@@ -208,7 +209,7 @@ std::unique_ptr<ReadSource> SampleStream::make_read_source() {
 extern "C" {
 
 // The region-port open() bridge's stream-backing -> resource-asset accessor (declared in
-// libdeluge/sample_stream.h alongside its sibling deluge_streaming_resource_manager): forwards to the
+// libdeluge/streaming_loader.h alongside its sibling deluge_streaming_resource_manager): forwards to the
 // asset-definition entry point (chunk_residency.cpp).
 uint32_t deluge_sample_stream_asset_id(DelugeStreamBacking* stream_backing) noexcept {
 	try {

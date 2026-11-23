@@ -1,4 +1,4 @@
-# TLSF + slab allocator core behind the C ABI in `libdeluge/alloc.h`. `no_std`. The BSP links it
+# TLSF + slab allocator core behind the C ABI in `deluge_base_alloc.h`. `no_std`. The BSP links it
 # directly; the C++ conformance suite in `tests/unit/base/alloc` links it through `deluge_test_rust`.
 [package]
 name = "deluge_base_alloc"

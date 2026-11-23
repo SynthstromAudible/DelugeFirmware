@@ -17,7 +17,7 @@
 
 #include "storage/audio/stream/async_fill.h"
 
-#include "libdeluge/sample_stream.h" // deluge_streaming_resource_manager
+#include "libdeluge/streaming_loader.h" // deluge_streaming_resource_manager
 
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -29,10 +29,10 @@
 #include <optional>
 #include <span>
 
-#include "deluge_resource.h" // deluge_resource_mark_ready
+#include "deluge_storage_resource.h" // deluge_resource_mark_ready
 
 // FFI layout guard: `StreamingFillDescriptor` crosses the C++/Rust boundary by value (see
-// streaming_fill.h) with a hand-written `#[repr(C)]` mirror in streaming_loader.rs. These
+// deluge_storage_sample_fill.h) with a hand-written `#[repr(C)]` mirror in streaming_loader.rs. These
 // static_asserts catch field drift at compile time on whichever side notices first. Expressed
 // pointer-width-relative (not hardcoded byte offsets) so the same assertions hold unchanged on
 // both the 32-bit ARM device and the 64-bit host_app build: `dest` leads at offset 0, then

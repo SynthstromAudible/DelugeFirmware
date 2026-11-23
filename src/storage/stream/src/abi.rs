@@ -1,4 +1,4 @@
-//! The `deluge_sample_stream_*` C ABI (`libdeluge/sample_stream.h`): pass-through wrappers over
+//! The `deluge_sample_stream_*` C ABI (`deluge_storage_stream.h`): pass-through wrappers over
 //! [`registry`], which validates every handle.
 
 use core::ffi::c_char;

@@ -70,7 +70,7 @@ pub struct DelugeBootInfo {
 pub use deluge_storage_sample_fill::chunk::DelugeChunkBacking;
 
 unsafe extern "C" {
-    /// `libdeluge/sample_stream.h`: returns the resource-manager singleton (`DelugeResource` is
+    /// `libdeluge/streaming_loader.h`: returns the resource-manager singleton (`DelugeResource` is
     /// opaque, so it binds as `c_void`).
     pub fn deluge_streaming_resource_manager() -> *mut core::ffi::c_void;
 }

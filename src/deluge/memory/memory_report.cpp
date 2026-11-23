@@ -16,8 +16,8 @@
  */
 
 #include "memory/memory_report.h"
+#include "deluge_base_alloc.h"
 #include "io/debug/log.h"
-#include "libdeluge/alloc.h"
 #include "memory/heaps.h"
 #include <cstddef>
 

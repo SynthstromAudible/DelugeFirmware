@@ -1,4 +1,4 @@
-//! The `deluge_sample_source_*` / `deluge_sample_region_*` C ABI (`libdeluge/sample_source.h`).
+//! The `deluge_sample_source_*` / `deluge_sample_region_*` C ABI (`deluge_storage_sample_source.h`).
 //!
 //! Wraps [`SampleSource<ManagerResidency>`](SampleSource) behind a fixed, allocation-free static
 //! pool of cursors. The symbols are exported under the `c_abi` feature.
@@ -8,7 +8,7 @@
 //! The reader passes its opaque `DelugeStreamBacking*` (a C++ `SampleStream`). This module never
 //! dereferences it; it recovers the `{manager handle, asset id}` pair [`ManagerResidency`] needs
 //! from [`deluge_streaming_resource_manager`] and [`deluge_sample_stream_asset_id`]
-//! (`libdeluge/sample_stream.h`).
+//! (`libdeluge/streaming_loader.h`).
 //!
 //! # `retain` / `release` and the single manager
 //!
@@ -26,7 +26,7 @@ use crate::manager_residency::ManagerResidency;
 use deluge_storage_resource::sync::{m_get, m_set, Masked};
 use deluge_storage_resource::{DelugeResource, Resource};
 
-// C-ABI types, mirroring `libdeluge/sample_source.h`.
+// C-ABI types, mirroring `deluge_storage_sample_source.h`.
 
 /// Opaque per-reader cursor handle, mirroring `DelugeSampleSource`.
 ///

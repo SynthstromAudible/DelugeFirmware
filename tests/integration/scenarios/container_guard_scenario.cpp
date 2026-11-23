@@ -33,6 +33,7 @@
 #include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge_base_alloc.h"
 #include "dsp-next/core/buffer_view.h"
 #include "effects/delay.h"
 #include "effects/granular.h"
@@ -44,7 +45,6 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "instruments/classic/words.h"
-#include "libdeluge/alloc.h"
 #include "libdeluge/app.h"
 #include "libdeluge/types.h"
 #include "memory/fast_allocator.h"

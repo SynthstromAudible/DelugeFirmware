@@ -1,5 +1,5 @@
 //! The streaming-file slot registry behind the `deluge_sample_stream_*` C ABI
-//! (`libdeluge/sample_stream.h`).
+//! (`deluge_storage_stream.h`).
 //!
 //! [`registry`] holds a fixed table of open efatfs streaming handles. Each slot pairs a read handle
 //! with the resource-manager asset id and geometry the C++ `SampleStream` facade supplies, and
@@ -12,13 +12,13 @@ use core::ffi::{c_char, c_void};
 pub mod abi;
 pub mod registry;
 
-/// `DELUGE_RESOURCE_NO_ASSET` from `deluge_resource.h`: the asset id of a slot that has none yet.
+/// `DELUGE_RESOURCE_NO_ASSET` from `deluge_storage_resource.h`: the asset id of a slot that has none yet.
 ///
 /// Mirrored by hand: this crate reaches the resource manager only through late-bound externs,
 /// never a `deluge_storage_resource` dependency.
 pub const DELUGE_RESOURCE_NO_ASSET: u32 = 0xFFFF_FFFF;
 
-/// Mirrors `DelugeSampleStreamGeometry` (`libdeluge/sample_stream.h`) field for field.
+/// Mirrors `DelugeSampleStreamGeometry` (`deluge_storage_stream.h`) field for field.
 ///
 /// This is `DelugeStreamingFillContext` minus `efatfs_handle`, which the registry fills in from
 /// the slot's own handle when it builds the context.
@@ -35,7 +35,7 @@ pub struct DelugeSampleStreamGeometry {
     pub num_channels: u8,
 }
 
-/// `DelugeStreamingFillContext` (`libdeluge/streaming_fill.h`), as passed by value to
+/// `DelugeStreamingFillContext` (`deluge_storage_sample_fill.h`), as passed by value to
 /// `deluge_streaming_set_fill_context`.
 pub(crate) use deluge_storage_sample_fill::FillContext as DelugeStreamingFillContext;
 
@@ -65,16 +65,16 @@ unsafe extern "C" {
         count: u32,
         out_read: *mut u32,
     ) -> deluge_storage_sample_fill::DelugeStatus;
-    /// Returns the process-wide resource manager (`libdeluge/sample_stream.h`).
+    /// Returns the process-wide resource manager (`libdeluge/streaming_loader.h`).
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
-    /// Registers or replaces an asset's fill-context (`libdeluge/streaming_fill.h`).
+    /// Registers or replaces an asset's fill-context (`deluge_storage_sample_fill.h`).
     #[cfg(not(test))]
     pub fn deluge_streaming_set_fill_context(
         mgr: *mut c_void,
         asset: u32,
         ctx: DelugeStreamingFillContext,
     );
-    /// Retires an asset, freeing its resident chunks (`deluge_resource.h`).
+    /// Retires an asset, freeing its resident chunks (`deluge_storage_resource.h`).
     fn deluge_resource_release_asset(mgr: *mut c_void, asset: u32);
 }
 

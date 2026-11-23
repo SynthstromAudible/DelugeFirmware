@@ -1,4 +1,4 @@
-//! The lookahead reservation handle (`DelugeSampleReservation` in `libdeluge/sample_reader.h`).
+//! The lookahead reservation handle (`DelugeSampleReservation` in `deluge_storage_sample_reader.h`).
 //!
 //! Where [`crate::reader::peek`] glances at what is already resident, a reservation pins a small
 //! forward or backward window of clusters (one `Lease` each) for as long as it stays open — the
@@ -16,7 +16,7 @@ use deluge_storage_resource::DelugeResource;
 /// `kNumClustersLoadedAhead` (`src/definitions_cxx.hpp`).
 const DEPTH: usize = 2;
 
-/// Mirrors `DelugeLoadMode` (`libdeluge/sample_reader.h`). `repr(u8)` matches the header's
+/// Mirrors `DelugeLoadMode` (`deluge_storage_sample_reader.h`). `repr(u8)` matches the header's
 /// `: uint8_t`, as it crosses the FFI by value.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -32,7 +32,7 @@ pub enum LoadMode {
 }
 
 unsafe extern "C" {
-    /// Returns the process-wide resource manager (`libdeluge/sample_stream.h`).
+    /// Returns the process-wide resource manager (`libdeluge/streaming_loader.h`).
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// Reads synchronously from the card (`libdeluge/file_io.h`); see `fill_now`.
     pub fn deluge_efatfs_read_at(
@@ -42,7 +42,7 @@ unsafe extern "C" {
         count: u32,
         out_read: *mut u32,
     ) -> deluge_storage_sample_fill::DelugeStatus;
-    /// Wakes the async loader after a `Resource::loader_enqueue` (`libdeluge/streaming_fill.h`).
+    /// Wakes the async loader after a `Resource::loader_enqueue` (`libdeluge/streaming_loader.h`).
     pub fn deluge_streaming_signal_fill();
 }
 

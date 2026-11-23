@@ -15,17 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/alloc.h — the C ABI for different allocator cores
+/// deluge_base_alloc.h — the C header of the `deluge_base_alloc` crate: the C ABI for different allocator cores
 ///
 /// A `DelugeHeap` is built over a caller-provided memory region (in firmware,
 /// a BSP region from libdeluge/memory.h; in tests, a malloc'd arena). Placement
 /// (fast SRAM vs slow SDRAM) is a property of *which heap* — there is no
 /// allocMaxSpeed/allocLowSpeed split. Hand-written for now; cbindgen-generated
 /// later. Must stay in sync with src/base/alloc/src/lib.rs.
-#ifndef LIBDELUGE_ALLOC_H
-#define LIBDELUGE_ALLOC_H
+#ifndef DELUGE_BASE_ALLOC_H
+#define DELUGE_BASE_ALLOC_H
 
-#include "abi.h"
+#include "libdeluge/abi.h"
 #include <stddef.h>
 #include <stdint.h>
 #ifndef __cplusplus
@@ -155,4 +155,4 @@ bool deluge_slab_release(DelugeSlab* slab, void* slot) DELUGE_NOEXCEPT;
 }
 #endif
 
-#endif // LIBDELUGE_ALLOC_H
+#endif // DELUGE_BASE_ALLOC_H

@@ -28,7 +28,7 @@
 #include "chrono"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "deluge_resource.h" // deluge_resource_stats (loader instrumentation)
+#include "deluge_storage_resource.h" // deluge_resource_stats (loader instrumentation)
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/dynamics/hit_strength.h" // combine_hit_strengths
 #include "dsp-next/fixed/mix/output_fold.h"
@@ -51,8 +51,8 @@
 #include "libdeluge/audio_io.h"
 #include "libdeluge/clock.h"
 #include "libdeluge/file_stream.h"
-#include "libdeluge/sample_stream.h" // deluge_streaming_resource_manager()
 #include "libdeluge/signals.h"
+#include "libdeluge/streaming_loader.h" // deluge_streaming_resource_manager()
 #include "libdeluge/system.h"
 #include "libdeluge/tier.h"
 #include "memory/general_memory_allocator.h"

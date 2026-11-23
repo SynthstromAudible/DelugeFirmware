@@ -4,7 +4,7 @@
 #include "support/matchers/value_matchers.h"
 
 // The Rust resource manager (src/storage/resource) driven through its C ABI
-// (deluge_resource.h) from C++ — the same cache invariants the Rust unit tests
+// (deluge_storage_resource.h) from C++ — the same cache invariants the Rust unit tests
 // assert, validated across the FFI boundary apples-to-apples with how the firmware
 // will call it. See docs/dev/resource_manager.md.
 
@@ -12,7 +12,7 @@ constexpr size_t kChunk = 64 * 1024;
 constexpr size_t kSmallHeap = 256 * 1024; // ~3 chunks → forces eviction
 
 // clang-format off
-describe deluge_resource_conformance("resource manager (Rust cache) conformance", $ {
+describe deluge_storage_resource_conformance("resource manager (Rust cache) conformance", $ {
 	it("materializes a chunk and serves cache hits from the same pointer", _{
 		ResourceFixture f;
 		expect(f.valid()).to_be_true();
@@ -91,4 +91,4 @@ describe deluge_resource_conformance("resource manager (Rust cache) conformance"
 	});
 });
 
-CPPSPEC_SPEC(deluge_resource_conformance)
+CPPSPEC_SPEC(deluge_storage_resource_conformance)

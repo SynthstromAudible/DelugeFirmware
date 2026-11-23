@@ -17,7 +17,7 @@
 
 #include "model/mod_controllable/delay_arena_app.h"
 
-#include "libdeluge/alloc.h"
+#include "deluge_base_alloc.h"
 #include "libdeluge/system.h"
 #include "memory/memory_allocator_interface.h"
 #include "runtime/app_loop.h"

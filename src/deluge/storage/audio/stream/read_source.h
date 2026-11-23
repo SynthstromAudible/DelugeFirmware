@@ -6,9 +6,9 @@
 #include <span>
 
 extern "C" {
+#include "deluge_storage_stream.h"
 #include "libdeluge/file_io.h" // deluge_efatfs_read_at
-#include "libdeluge/sample_stream.h"
-#include "libdeluge/types.h" // DelugeHandle, DelugeStatus
+#include "libdeluge/types.h"   // DelugeHandle, DelugeStatus
 }
 
 namespace deluge::audio::stream {

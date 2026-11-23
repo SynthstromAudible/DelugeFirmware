@@ -36,10 +36,10 @@
 #include "libdeluge/file_stream.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_source.h" // DELUGE_REGION_LOADING
 #include "dsp-next/core/stereo_sample.h"
 #include "io/file.hpp"
 #include "io/stream.hpp"
-#include "libdeluge/sample_source.h" // DELUGE_REGION_LOADING
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"

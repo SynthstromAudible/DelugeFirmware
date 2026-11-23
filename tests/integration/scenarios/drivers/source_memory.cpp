@@ -25,7 +25,7 @@
 //     to a saw and back, and whether the sample was bound at each point
 
 #include "definitions_cxx.hpp"
-#include "libdeluge/alloc.h"
+#include "deluge_base_alloc.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/edits/edit.h"

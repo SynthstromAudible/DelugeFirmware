@@ -24,7 +24,7 @@ directories.
 ## The tree
 
 ```
-include/libdeluge/        the C ABI to deluge-sdk: the one published interface
+include/libdeluge/        the platform interface: what the platform, the app and deluge-sdk define
 third_party/              unmodified vendor code: gsl, printf, the CLAP headers, foreign-engine sources
 src/                      directories and CMakeLists.txt only
   base/                   deluge::base       leaf utilities, standard library only
@@ -194,7 +194,9 @@ The legacy tree's destinations:
    its destination; only `app/` includes it.
 8. **Rust crates live in their layer.** Each crate's directory holds its `Cargo.toml`; the root `Cargo.toml` is a
    workspace over every in-tree crate (the `src/**` libraries, the device image, the harnesses and the differentials),
-   with one lock. A crate is named `deluge_<path>`, and C++ reaches it only through the C header in its own directory.
+   with one lock. A crate is named `deluge_<path>`; a crate's C header, if it has one, is `include/<crate name>.h`
+   in the crate's directory, and C++ reaches the crate only through it. A crate header includes the platform's types
+   as `libdeluge/types.h` and `libdeluge/abi.h`.
 9. **Tests mirror sources** under `tests/<level>/`; the registry (`tests/registry.toml`) names them by path.
 10. **C++23 or later outside `src/deluge`**, and every library has a README stating its rules.
 
@@ -207,8 +209,8 @@ the top-level and shadowing checks, with today's directories grandfathered in. N
 becomes the enforced one.
 
 **Step 2: the relocation pass.** The clean C++ libraries are at their paths, each with the namespace its path calls
-for. The Rust crates and the platform directories are at their paths too. One item remains, its own task:
-rule 8's C header in its own directory for the crates that publish through `include/libdeluge/`.
+for. The Rust crates and the platform directories are at their paths too, each crate that publishes a C ABI with its
+header beside it.
 
 `synth/`'s `Fixed` instantiations move to `instruments/classic` as part of the classic instrument's state work, not
 in this pass: that is a design change, gated on the goldens like any other.

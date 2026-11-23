@@ -17,13 +17,13 @@
 
 #include "model/sample/sample.h"
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_reader.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
-#include "libdeluge/sample_reader.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/pitch_scan.h"
 #include "model/sample/sample_cache.h"
@@ -41,7 +41,7 @@
 #include <limits>
 #include <new>
 
-#include "deluge_resource.h" // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
+#include "deluge_storage_resource.h" // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
 
 namespace {
 // While a Sample's length is still unknown (mid-recording), its cluster count is the number of clusters
@@ -187,7 +187,7 @@ Sample::~Sample() {
 	// Retire our Asset first so the manager frees every backing this sample still has resident
 	// (directly -- there is no evict callback; a StreamedChunk is a trivially-destructible POD in the
 	// manager's slab). No-op if we never defined one. This explicit, early call is the clean ordering
-	// (see sample_stream.h's release_asset() doc); ~SampleStream() also calls it, as an idempotent
+	// (see SampleStream::release_asset()'s doc); ~SampleStream() also calls it, as an idempotent
 	// backstop, once stream_ destructs below.
 	stream_.release_asset();
 

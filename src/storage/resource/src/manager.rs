@@ -244,7 +244,7 @@ pub const COST_BUCKETS: usize = 8;
 
 /// Cumulative manager counters, for instrumentation only.
 ///
-/// Mirrors `DelugeResourceStats` in `deluge_resource.h`; read with `deluge_resource_stats`, zeroed
+/// Mirrors `DelugeResourceStats` in `deluge_storage_resource.h`; read with `deluge_resource_stats`, zeroed
 /// with `deluge_resource_stats_reset`.
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -2105,9 +2105,9 @@ extern "C" fn resource_reclaim(ctx: *mut c_void, _bytes_needed: usize) -> bool {
     m.evict_lowest()
 }
 
-// C ABI (`deluge_resource.h`)
+// C ABI (`deluge_storage_resource.h`)
 
-/// Opaque manager handle (`DelugeResource` in `deluge_resource.h`).
+/// Opaque manager handle (`DelugeResource` in `deluge_storage_resource.h`).
 #[repr(C)]
 pub struct DelugeResource {
     _opaque: [u8; 0],

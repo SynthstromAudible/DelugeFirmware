@@ -8,6 +8,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/golden.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deps.cmake)
 
 get_filename_component(DELUGE_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../.. ABSOLUTE)
+include(${DELUGE_REPO_ROOT}/cmake/deluge_crate_includes.cmake) # DELUGE_CRATE_INCLUDE_DIRS
 set(DELUGE_SPECS_MAIN_IN ${CMAKE_CURRENT_LIST_DIR}/specs_main.cpp.in)
 
 # The trees: the -m32 host tree, the ARM tree cross-built and run under qemu, and the host's UBSan tree.

@@ -1,4 +1,4 @@
-//! The `deluge_sample_reader_*` / `deluge_sample_read` C ABI (`libdeluge/sample_reader.h`).
+//! The `deluge_sample_reader_*` / `deluge_sample_read` C ABI (`deluge_storage_sample_reader.h`).
 //!
 //! `open` heap-boxes a [`Reader`] and `close` drops it; `window`/`advance`/`ok` are the read core.
 //! The stateless `deluge_sample_read`, `deluge_sample_peek` and `deluge_sample_invalidate` are
@@ -69,7 +69,7 @@ pub unsafe extern "C" fn deluge_sample_reader_close(reader: *mut DelugeSampleRea
     drop(reader);
 }
 
-/// Mirrors `DelugeFrameWindow` (`libdeluge/sample_reader.h`) field for field.
+/// Mirrors `DelugeFrameWindow` (`deluge_storage_sample_reader.h`) field for field.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct DelugeFrameWindow {

@@ -24,7 +24,6 @@
 #define LIBDELUGE_H
 
 #include "abi.h"
-#include "alloc.h"
 #include "app.h"
 #include "audio_format.h"
 #include "audio_io.h"
@@ -48,14 +47,11 @@
 #include "flash.h"
 #include "memory.h"
 #include "midi_io.h"
-#include "sample_reader.h"
-#include "sample_source.h"
-#include "sample_stream.h"
 #include "scheduler.h"
 #include "signals.h"
 #include "storage_busy.h"
 #include "stream_io.h"
-#include "streaming_fill.h"
+#include "streaming_loader.h"
 #include "system.h"
 #include "tier.h"
 #include "types.h"

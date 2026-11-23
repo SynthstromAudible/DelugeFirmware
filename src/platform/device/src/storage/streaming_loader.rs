@@ -1,5 +1,5 @@
 //! The async cluster-fill task: drains the resource manager's loader queue, awaiting each SD read,
-//! and the `libdeluge/streaming_fill.h` C ABI around it.
+//! and the `libdeluge/streaming_loader.h` C ABI around it.
 //!
 //! These are the only definitions of the C-ABI symbols; there is no C++ fallback. The production
 //! wiring (`ProdOps`, `streaming_fill_task`) needs the app's C symbols, so it exists only on device

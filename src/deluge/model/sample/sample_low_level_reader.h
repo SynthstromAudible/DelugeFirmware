@@ -20,9 +20,9 @@
 #include "arm_neon_shim.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_source.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
-#include "libdeluge/sample_source.h"
 #include <array>
 #include <cstdint>
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0
@@ -30,7 +30,7 @@
 
 class VoiceSamplePlaybackGuide;
 class Sample;
-struct DelugeSampleSource; // per-reader residency cursor over the region port (libdeluge/sample_source.h)
+struct DelugeSampleSource; // per-reader residency cursor over the region port (deluge_storage_sample_source.h)
 class TimeStretcher;
 class SamplePlaybackGuide;
 
@@ -205,7 +205,7 @@ protected:
 	///       can reach them.
 	/// @{
 
-	/// @brief Per-reader residency cursor over the region port (libdeluge/sample_source.h), opened
+	/// @brief Per-reader residency cursor over the region port (deluge_storage_sample_source.h), opened
 	///        lazily against the sample's `stream()` (see ensureSource). Holds the current + prefetch
 	///        pins.
 	DelugeSampleSource* source_ = nullptr;
