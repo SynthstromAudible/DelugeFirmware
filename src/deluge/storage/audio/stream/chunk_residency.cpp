@@ -22,7 +22,7 @@
 
 #include "deluge_storage_resource.h" // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
 
-// Resource-manager Source callbacks (contract documented in sample_stream.h and chunk_residency.h).
+// Resource-manager Source callbacks (contract documented in deluge_storage_resource.h and chunk_residency.h).
 // `owner` is the Sample* registered by deluge_streaming_define_asset() below. The chunk IS the
 // manager's slab backing (placement-new'd at `dest`); residency lives entirely in the manager, and
 // these callbacks do not mirror anything into SampleStream.

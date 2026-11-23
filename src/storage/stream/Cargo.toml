@@ -1,5 +1,5 @@
 # The streaming-file slot registry behind the `deluge_sample_stream_*` C ABI
-# (`include/deluge_storage_stream.h`). A plain `no_std` rlib with no `#[panic_handler]`: the final
+# (`deluge_storage_stream.h`). A plain `no_std` rlib with no `#[panic_handler]`: the final
 # artifact provides one.
 [package]
 name = "deluge_storage_stream"

@@ -187,7 +187,7 @@ Sample::~Sample() {
 	// Retire our Asset first so the manager frees every backing this sample still has resident
 	// (directly -- there is no evict callback; a StreamedChunk is a trivially-destructible POD in the
 	// manager's slab). No-op if we never defined one. This explicit, early call is the clean ordering
-	// (see sample_stream.h's release_asset() doc); ~SampleStream() also calls it, as an idempotent
+	// (see SampleStream::release_asset()'s doc); ~SampleStream() also calls it, as an idempotent
 	// backstop, once stream_ destructs below.
 	stream_.release_asset();
 

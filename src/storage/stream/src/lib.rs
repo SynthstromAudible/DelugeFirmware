@@ -1,5 +1,5 @@
 //! The streaming-file slot registry behind the `deluge_sample_stream_*` C ABI
-//! (`include/deluge_storage_stream.h`).
+//! (`deluge_storage_stream.h`).
 //!
 //! [`registry`] holds a fixed table of open efatfs streaming handles. Each slot pairs a read handle
 //! with the resource-manager asset id and geometry the C++ `SampleStream` facade supplies, and
@@ -18,7 +18,7 @@ pub mod registry;
 /// never a `deluge_storage_resource` dependency.
 pub const DELUGE_RESOURCE_NO_ASSET: u32 = 0xFFFF_FFFF;
 
-/// Mirrors `DelugeSampleStreamGeometry` (`include/deluge_storage_stream.h`) field for field.
+/// Mirrors `DelugeSampleStreamGeometry` (`deluge_storage_stream.h`) field for field.
 ///
 /// This is `DelugeStreamingFillContext` minus `efatfs_handle`, which the registry fills in from
 /// the slot's own handle when it builds the context.

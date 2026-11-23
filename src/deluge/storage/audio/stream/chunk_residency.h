@@ -29,7 +29,7 @@ class Sample;
 /// so this callback only constructs a chunk's bytes (`loaded` stays false; the async streaming-fill
 /// task then reads the card bytes into it — `streaming_loader.rs`, over `deluge_storage_sample_fill`'s
 /// `native_begin`/`native_finish`).
-/// See sample_stream.h's "Cluster residency" section for the broader contract this implements.
+/// See deluge_storage_resource.h's `DelugeResourceConstructFn` for the broader contract this implements.
 
 extern "C" {
 
