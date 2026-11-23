@@ -28,7 +28,5 @@ SamplePercCacheZone::SamplePercCacheZone(int32_t newStartPos) {
 void SamplePercCacheZone::resetEndPos(int32_t newEndPos) {
 	endPos = newEndPos;
 
-	memset(&angleLPFMem, 0, sizeof(angleLPFMem));
-	lastSampleRead = 0;
-	lastAngle = 0;
+	perc = {};
 }

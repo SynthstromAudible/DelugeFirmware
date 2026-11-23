@@ -399,8 +399,20 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 		                     && (playSample - timeStretcher->percCacheFillStartPos) * playDirection >= 0
 		                     && (timeStretcher->percCacheFillEndPos - endPos) * playDirection >= 0;
 		if (!alreadyFilled) {
-			sample->fillPercCache(timeStretcher, playSample, endPos + numSamples * 4 * playDirection, playDirection,
-			                      maxNumSamplesToProcess);
+			const deluge::synth::PercFill fill = sample->fillPercCache(
+			    playSample, endPos + numSamples * 4 * playDirection, playDirection, maxNumSamplesToProcess);
+			// The fill reports what the stretcher keeps: the chunks it touched, in order, and its lookahead
+			timeStretcher->percCacheFillEndPos = fill.filled_end;
+			for (uint8_t i = 0; i < fill.touched_count; i++) {
+				const deluge::synth::PercChunk chunk = fill.touched[i];
+				timeStretcher->rememberPercCacheCluster(sample->percCacheClusters[chunk.reversed ? 1 : 0][chunk.index]);
+			}
+			if (fill.lookahead == deluge::synth::PercFill::Lookahead::LET_GO) {
+				timeStretcher->unassignAllReasonsForPercLookahead();
+			}
+			else if (fill.lookahead == deluge::synth::PercFill::Lookahead::MOVE_TO) {
+				timeStretcher->updateClustersForPercLookahead(sample, fill.lookahead_byte, playDirection);
+			}
 			timeStretcher->percCacheFillStartPos = playSample;
 			timeStretcher->percCacheFillDirection = playDirection;
 		}

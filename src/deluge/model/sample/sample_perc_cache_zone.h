@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/fixed/timestretch/perc_analysis.h"
 
 class SamplePercCacheZone {
 public:
@@ -32,7 +33,5 @@ public:
 	                                             // "suss", and we'll wanna overwrite all of those if another zone is
 	                                             // gonna connect from behind
 
-	int32_t lastAngle{};
-	int32_t lastSampleRead{};
-	int32_t angleLPFMem[kDifferenceLPFPoles]{};
+	deluge::dsp::fixed::timestretch::PercState perc{}; ///< The zone's slope follower and the slope of the frame before.
 };
