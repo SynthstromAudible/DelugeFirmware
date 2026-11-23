@@ -36,6 +36,13 @@ mapfile -t files < <(python3 scripts/tasks/stretcher_coverage.py files)
 mapfile -t tree_defines < <(python3 scripts/tasks/stretcher_coverage.py tree-defines)
 mapfile -t cargo_build < <(python3 scripts/tasks/stretcher_coverage.py cargo-build)
 
+# A failure inside the substitutions above does not trip set -e, and an empty files list makes llvm-cov report the whole binary.
+for list in files tree_defines cargo_build; do
+	declare -n ref="$list"
+	(( ${#ref[@]} )) || { echo "stretcher_coverage.sh: stretcher_coverage.py gave an empty $list list" >&2; exit 1; }
+	unset -n ref
+done
+
 mkdir -p "$out"
 
 if [[ " $steps " == *" build "* ]]; then
