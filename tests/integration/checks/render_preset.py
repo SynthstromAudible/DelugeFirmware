@@ -36,7 +36,7 @@ RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed 
 finding to explain in the commit that records the new one.
 
 Gate golden-synth:
-    every synth golden master must render as recorded: each of the 454 presets (tests/golden/render/presets:
+    every synth golden master must render as recorded: each of the 468 presets (tests/golden/render/presets:
     synthesized cases for each oscillator, filter, envelope and modulation path, the voice's own note-change, release,
     sample-cache and zone-change paths, the factory and community preset packs, sample and wavetable playback, and live
     input, pitch-shifted up and down, in stereo, with unison and linear interpolation, through unity, in a chord, and on
@@ -96,11 +96,22 @@ INPUT = {
 # in mono, as through the device's speaker.
 STEREO_DIR = "stereo/"
 # Cases whose osc 1 zone end moves mid-note, as the sample marker editor moves it: "<captured block> <new end frame>".
-ZONE_END = {"voice/zone_end_loop": "60 2048", "voice/zone_end_once": "50 1024"}
+ZONE_END = {
+    "voice/zone_end_loop": "60 2048",
+    "voice/zone_end_once": "50 1024",
+    "sample/ts_zone_end_loop": "60 1024",
+    "sample/ts_zone_end_once": "60 1024",
+    "sample/ts_zone_end_ahead": "60 3072",
+    "sample/ts_zone_end_cached": "100 1024",
+    "sample/ts_zone_end_released": "60 1024",
+    "sample/ts_zone_end_cached_ahead": "100 4095",
+    "sample/ts_zone_end_cached_once": "60 1024",
+}
 # Cases that change a setting mid-render, as its menu does: "<captured block> <settings path> <value>".
 SETTING = {
     "voice/type_change_mono_saw_square": "150 osc1/type square",
     "voice/type_change_mono_saw_supersaw": "150 osc1/type supersaw",
+    "sample/ts_cache_linear": "150 osc1/linearInterpolation 1",
 }
 # The loudest sample of silence: 16 in 16-bit terms, the C-host harness's threshold. The render's dither floor sits
 # far below it.

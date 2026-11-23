@@ -89,6 +89,7 @@ builds only `golden-vt-render`.
 | render-audio-stretch | integration | scenario | property | gate | audio clips stretched to the song's tempo render as recorded, and differ from the same clips resampled | pr | render | ~20s |
 | render-audio-stretch-native | integration | scenario | property | gate | audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops | pr | render | ~20s |
 | render-audio-stretch-arranged | integration | scenario | property | gate | stretched audio clips render as recorded from arrangement instances that end without looping | pr | render | ~20s |
+| render-audio-stretch-edges | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded | pr | render | ~20s |
 | render-audio-track-fx | integration | scenario | property | gate | an audio track's effect chain renders as recorded | pr | render | ~20s |
 | render-master-fx | integration | scenario | property | gate | the song master's effect chain renders as recorded | pr | render | ~20s |
 | render-master-pan-stereo | integration | scenario | property | gate | the song master's pan renders as recorded in stereo, where it applies | pr | render | ~20s |
@@ -279,6 +280,13 @@ profile (`build/cargo-harness/harness/golden_vt_render`); the C++ unit-test tree
 Running `cargo` by hand without the runner's target directory creates a local `target/`, and duplicate build trees add
 up to tens of gigabytes. Prefer `./dbt test <name>`;
 `./dbt test --clean` drops every tree the runner builds.
+
+`scripts/tasks/stretcher_coverage.sh [out-dir]` is the one build outside the runner: it compiles the host app with
+clang source coverage into its own trees under `out-dir` (default `build/stretcher-coverage`), links its own
+`golden_vt_render`, runs golden-synth and every x86 render-song gate on it through their own checks, and reports the
+line and branch coverage of the time stretcher and of its users' functions that call into it. Only renders compared
+with a record count. Run it again after a change to the stretcher or its callers, to see which branches the goldens
+still pin; `llvm-profdata` and `llvm-cov` must be the version of the `clang` on the path.
 
 ## Adding a test
 

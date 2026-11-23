@@ -1,0 +1,5 @@
+# Stretched, reversed and looping, held at the C4 root at half speed (timeStretchAmount -12), so the voice has no
+# sample cache: the stretcher runs backwards to the start of the waveform, its loop point in that direction, and
+# re-initialises there at every loop.
+4608 90 3C 64
+80000 80 3C 40

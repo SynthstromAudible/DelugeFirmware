@@ -1,0 +1,6 @@
+# Stretched, looping, held C#4 (+1): the voice writes a sample cache and reads it from the first loop end. A pitch bend
+# of one semitone down, well after that, brings the note to the root, where the stretch ratio is exactly unity: the
+# voice stops reading the stretched cache and crossfades out of it into a stretcher that does not stretch.
+4608 90 3D 64
+30000 E0 00 20
+80000 80 3D 40

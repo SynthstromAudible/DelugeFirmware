@@ -87,6 +87,18 @@ end part-way through a loop or after a single pass, so the clip does not loop at
 reversed tone have waveform past the end they play to, so each fades out before its instance ends. Compared with its
 record in songs.json; its dry twin plays the clips resampled and must render differently (RS-FX)
 
+## render-audio-stretch-edges
+
+audio clips at the edges of the stretcher's paths and its caller's render as recorded: a generated song
+(make_render_song.py --song RS_AUDIO_STRETCH_EDGES) at 120 BPM whose clips each take a path RS_AUDIO_STRETCH leaves
+out: a pre-margin of 8 frames, too short for a loop's crossfade, whose hops also reach back before the waveform's
+start; clips with pitch and speed tied and a fine tune, a transpose or neither (resampled, its loop crossfade fudged at
+the resampled rate), and reversed; a 48 kHz file and a mono file, stretched; an end marker past the file's end, so the
+clip does not loop at the stretcher's level; the percussive source at its native tempo with a 2-frame and a 50-frame
+pre-margin, too short to fudge a whole crossfade into; a clip whose pitch adjust is raised; and a source over 2^21
+frames long, whose percussiveness cache is kept in clusters. Compared with its
+record in songs.json; its dry twin ties pitch and speed on every clip and must render differently (RS-FX)
+
 ## render-audio-stretch-arm
 
 audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86: render-audio-stretch's song and

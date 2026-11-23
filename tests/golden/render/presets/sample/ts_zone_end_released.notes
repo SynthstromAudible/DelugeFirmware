@@ -1,0 +1,5 @@
+# Stretched, CUT, at the C4 root at half speed (timeStretchAmount -12), released at once into the longest release. The
+# zone's end moves to 1,024 during the release (render_preset.py's ZONE_END): a released voice does not check its
+# stretch position against the new end, and plays its release out.
+4608 90 3C 64
+5120 80 3C 40
