@@ -195,6 +195,7 @@ builds only `golden-vt-render`.
 | layers-selftest | unit | script | unit | gate | the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth | pr | tooling | ~1s |
 | registry-selftest | unit | script | unit | gate | this registry's loader, selection and probes, the SDRAM packer, four source checkers, the Cargo members, the crate-header lists, and temp-dir removal | pr | tooling | ~1s |
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
+| make-sample-selftest | unit | script | unit | gate | the sample golden cases' synthetic sources are what their cases assume, and the committed WAVs are their generator's output | pr | tooling | ~1s |
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
 | relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | pr | tooling | ~1s |

@@ -1,0 +1,6 @@
+# A stretched note at G3 (-5) twice: released before the 4,096-frame source ends, then held long past its end,
+# so the repeat modes part: CUT stops at the note-off, ONCE plays on to the end, LOOP keeps going while held.
+4608 90 37 64
+6144 80 37 40
+22050 90 37 64
+80000 80 37 40

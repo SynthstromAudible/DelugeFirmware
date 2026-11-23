@@ -35,7 +35,7 @@ RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed 
 finding to explain in the commit that records the new one.
 
 Gate golden-synth:
-    every synth golden master must render as recorded: each of the 431 presets (tests/golden/render/presets:
+    every synth golden master must render as recorded: each of the 451 presets (tests/golden/render/presets:
     synthesized cases for each oscillator, filter, envelope and modulation path, the voice's own note-change, release,
     sample-cache and zone-change paths, the factory and community preset packs, sample and wavetable playback, and live
     input, pitch-shifted up and down, in stereo, with unison and linear interpolation, through unity, in a chord, and on
@@ -71,7 +71,7 @@ RECORDS = Path("tests/golden/render/presets.json")
 FRAMES_PER_SECOND = 44100
 DEFAULT_SECONDS = 2.0
 # Per-case capture lengths, for the cases whose sound outlasts the default.
-SECONDS = {"env_shape": 3.0}
+SECONDS = {"env_shape": 3.0, "sample/ts_long_hold": 4.0}
 # Cases whose sources read the audio input, and the harness test signal each is fed instead of silence: 1 the
 # sawtooth, 2 the percussive signal (noise bursts over a stepped-period saw).
 INPUT = {

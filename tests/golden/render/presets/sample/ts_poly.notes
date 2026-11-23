@@ -1,0 +1,9 @@
+# Four stretched notes, each entering 1,024 frames after the last while the others still sound: C5, E5, G5, C6.
+4608 90 48 64
+5632 90 4C 64
+6656 90 4F 64
+7680 90 54 64
+80000 80 48 40
+80000 80 4C 40
+80000 80 4F 40
+80000 80 54 40

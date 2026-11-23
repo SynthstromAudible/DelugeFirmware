@@ -1864,6 +1864,13 @@ gates = "the golden preset render's staging removes a JSON preset's own MIDI lea
 run = ["python3", "-m", "unittest", "test_render_preset", "test_render_song"]
 
 [[harness]]
+name = "make-sample-selftest"
+template = "unittest"
+path = "tests/golden/render/presets"
+gates = "the sample golden cases' synthetic sources are what their cases assume, and the committed WAVs are their generator's output"
+run = ["python3", "-m", "unittest", "test_make_sample"]
+
+[[harness]]
 name = "dsp-bench-parser"
 template = "unittest"
 path = "tools"
