@@ -29,10 +29,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/tasks"))
 
 # The files reported, by repo-relative path, and the functions of each that are: None for every function (the
-# stretcher's own files), else the prefixes of the demangled names of its functions that call into TimeStretcher, branch
-# on whether a voice has one, or keep the hop budget and the culling bypass a hop sets (renderAudio and
-# renderAudioForStemExport reset numHopsEndedThisRoutineCall; setDireness passes bypassCulling to cullVoices).
-# readSamplesNative and readSamplesResampled take a TimeStretcher* only to pass along, and never read it.
+# stretcher's own files, and the sample reader's, which the read head replaces whole), else the prefixes of the
+# demangled names of its functions that call into TimeStretcher, branch on whether a voice has one, or keep the hop
+# budget and the culling bypass a hop sets (renderAudio and renderAudioForStemExport reset
+# numHopsEndedThisRoutineCall; setDireness passes bypassCulling to cullVoices).
 SCOPE: dict[str, tuple[str, ...] | None] = {
     "src/deluge/dsp_legacy/timestretch/time_stretcher.cpp": None,
     "src/deluge/dsp_legacy/timestretch/time_stretcher.h": None,
@@ -48,9 +48,7 @@ SCOPE: dict[str, tuple[str, ...] | None] = {
         "Sample::getAveragesForCrossfade(",
         "Sample::prepareToReadPercCache(",
     ),
-    "src/deluge/model/sample/sample_low_level_reader.cpp": (
-        "SampleLowLevelReader::readSamplesForTimeStretching(",
-    ),
+    "src/deluge/model/sample/sample_low_level_reader.cpp": None,
     "src/deluge/model/voice/voice_sample.cpp": (
         "VoiceSample::beenUnassigned(",
         "VoiceSample::noteOn(",
