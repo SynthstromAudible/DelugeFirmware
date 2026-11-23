@@ -565,13 +565,12 @@ Each is a decision with a recommendation first.
    - (b) A verbatim test-only reference of the legacy computations under `tests/unit/dsp/`, as the live pitch shifter's
      rewrite kept, checked against the new components on generated workloads.
 5. **The plain begin's shadow reader** (X3, E1). The legacy seats the spare as a level copy of the newer, reads it once
-   at level 0 in the first segment (adding exactly 0: `mixed_in` rounds a zero product to 0), and then it stops where
-   it is. E1 is never checked in the block a stretcher begins (the begin skips the check), so the copy matters from the
-   next block on: having read the same frames as the newer from the same cursor, at an increment of 1.0 it stops on
-   the newer's cursor, and a stretch that lasted one block, in one segment, ends at the next block's start, before any
-   hop. Pitched, or after a resampled block left the newer a nonzero interpolation width, the copy's width of 0 can leave its
-   cursor elsewhere, and E1 then waits for a hop. The
-   copy's read can also hit a card error and cut the voice.
+   at level 0 in the first segment (adding exactly 0: `mixed_in` rounds a zero product to 0), and then it stops where it
+   is. E1 is never checked in the block a stretcher begins (the begin skips the check), so the copy matters from the
+   next block on: having read the same frames as the newer from the same cursor, at an increment of 1.0 it stops on the
+   newer's cursor, and a stretch that lasted one block, in one segment, ends at the next block's start, before any hop.
+   Pitched, or after a resampled block left the newer a nonzero interpolation width, the copy's width of 0 can leave its
+   cursor elsewhere, and E1 then waits for a hop. The copy's read can also hit a card error and cut the voice.
    - (a) **Recommended:** keep it, as the `Shadowed` phase: E1's timing and the card-error cut stay as they are, at
      the cost of one silent read of one segment per plain begin.
    - (b) Drop the copy and the read, and let E1 wait for a hop: a one-block stretch would run on until its first hop,
