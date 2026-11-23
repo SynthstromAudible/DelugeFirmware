@@ -42,16 +42,56 @@ extern "C" {
 class SampleFolderIndex {
 public:
 	/// Where the file at filePath starts and how big it is, if its folder has been indexed. The folder gets indexed
-	/// when a second file in a row is looked up in it - reading a whole folder isn't worth it for one file.
+	/// when files keep being looked up in it - reading a whole folder isn't worth it for one file.
 	std::optional<FilePointer> find(char const* filePath);
 
 	/// Forgets every folder, and frees the memory
 	void clear();
 
+	/// Whether find() can look up this file name. It only does for names it can match just the way FatFs does:
+	/// printable ASCII characters that FatFs allows in names, not ending in a dot or space - nearly every sample's
+	/// name. FatFs matches other names in ways not copied here, like ignoring the case of accented letters or a dot at
+	/// the end, so those are always left to it.
+	static constexpr bool canLookUp(char const* fileName) {
+		char const* c = fileName;
+		for (; *c; c++) {
+			unsigned char ch = *c;
+			if (ch < ' ' || ch > '~') {
+				return false; // Control characters, and anything not ASCII
+			}
+			switch (ch) {
+			case '\\': // FatFs takes this as a folder separator
+			case '*':
+			case ':':
+			case '<':
+			case '>':
+			case '|':
+			case '"':
+			case '?': // Also what f_readdir() gives for a name it can't read
+				return false;
+			default:
+				break;
+			}
+		}
+		return c != fileName && c[-1] != '.' && c[-1] != ' ';
+	}
+
 	static constexpr size_t kMaxFolders = 4;
 	static constexpr size_t kMaxPathLength = 256;
 	static constexpr int32_t kMaxFiles = 512;       ///< A bigger folder is only indexed in part
 	static constexpr size_t kNamesSize = 24 * 1024; ///< Room for long and short file names while indexing
+	/// A folder is read up to this many directory entries (32 bytes each, a long name taking several), however few
+	/// files they hold, and only indexed that far
+	static constexpr uint32_t kMaxEntriesToRead = 4096;
+
+	/// Reading a whole folder costs about as much as finding two of its files the normal way, so an index has paid for
+	/// itself once it's found two files. Until indexes start getting thrown away before that - because the card keeps
+	/// getting written to, or memory is short - a folder is indexed on the second lookup in a row. Each index thrown
+	/// away too early doubles the lookups in a row needed for the next, up to the maximum, and one that pays for
+	/// itself brings it back down. That way indexing never costs much more than it saves.
+	static constexpr uint32_t kHitsToPayOff = 2;
+	static constexpr uint32_t kMinLookupsBeforeIndexing = 2;
+	static constexpr uint32_t kMaxLookupsBeforeIndexing = 64;
 
 private:
 	struct Entry {
@@ -62,12 +102,16 @@ private:
 	class Folder;
 
 	Folder* findFolder(char const* path, size_t pathLength);
-	Folder* indexFolder(char const* path, size_t pathLength);
+	Folder* indexFolder(char const* path);
 	void forget(size_t slot);
 	void folderStolen(Folder* folder);
+	void folderLost(Folder const& folder);
+	void indexingDidNotPay();
 
 	std::array<Folder*, kMaxFolders> folders_{};
 	char lastFolderLookedUp_[kMaxPathLength] = {};
+	uint32_t lookupsInARow_ = 0; ///< Of files in lastFolderLookedUp_
+	uint32_t lookupsBeforeIndexing_ = kMinLookupsBeforeIndexing;
 	uint32_t useCounter_ = 0;
 };
 

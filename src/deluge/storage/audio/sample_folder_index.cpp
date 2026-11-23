@@ -19,6 +19,7 @@
 #include "fatfs/fatfs.hpp"
 #include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
+#include <algorithm>
 #include <cstring>
 #include <new>
 #include <strings.h>
@@ -45,6 +46,7 @@ public:
 	char path[kMaxPathLength] = {};
 	uint32_t cardChangeCount = 0;
 	uint32_t lastUsed = 0;
+	uint32_t hits = 0; ///< Files found in it
 	int32_t numEntries = 0;
 	uint32_t namesOffset = sizeof(Folder) + kMaxFiles * sizeof(Entry); // Moved down once the size is known
 	bool complete = false;
@@ -58,7 +60,7 @@ bool samePath(char const* a, char const* b, size_t bLength) {
 
 std::optional<FilePointer> SampleFolderIndex::find(char const* filePath) {
 	char const* slash = strrchr(filePath, '/');
-	if (!slash || slash == filePath || !slash[1]) {
+	if (!slash || slash == filePath || !canLookUp(slash + 1)) {
 		return std::nullopt;
 	}
 	size_t pathLength = slash - filePath;
@@ -71,23 +73,33 @@ std::optional<FilePointer> SampleFolderIndex::find(char const* filePath) {
 		if (!samePath(lastFolderLookedUp_, filePath, pathLength)) {
 			memcpy(lastFolderLookedUp_, filePath, pathLength);
 			lastFolderLookedUp_[pathLength] = 0;
+			lookupsInARow_ = 0;
+		}
+		if (++lookupsInARow_ < lookupsBeforeIndexing_) {
 			return std::nullopt;
 		}
-		folder = indexFolder(filePath, pathLength);
+		lookupsInARow_ = 0; // Whether this works or not, the next try takes as many lookups in a row again
+		folder = indexFolder(lastFolderLookedUp_);
 		if (!folder) {
+			indexingDidNotPay();
 			return std::nullopt;
 		}
 	}
 
 	// Nothing below allocates memory, so the folder can't be stolen while we look through it
 	folder->lastUsed = ++useCounter_;
-	// Compared the way FAT compares names, ignoring case, by either the long or the short (8.3) name. Names that only
-	// differ in the case of non-ASCII letters won't match here, so they're just opened the normal way.
+	// FatFs takes the first file in the folder whose long name matches, ignoring case, or whose short (8.3) name does.
+	// For a name canLookUp() allows, that's just what this does - for folders written by ordinary systems, anyway,
+	// which keep short names upper case. Where only the start of a folder is indexed, a file found there is the first
+	// match in the whole folder too.
 	char const* name = slash + 1;
 	for (int32_t e = 0; e < folder->numEntries; e++) {
 		Entry const& entry = folder->entries()[e];
 		if (!strcasecmp(name, folder->names() + entry.longName)
 		    || !strcasecmp(name, folder->names() + entry.shortName)) {
+			if (++folder->hits == kHitsToPayOff) {
+				lookupsBeforeIndexing_ = kMinLookupsBeforeIndexing;
+			}
 			return entry.filePointer;
 		}
 	}
@@ -101,6 +113,7 @@ SampleFolderIndex::Folder* SampleFolderIndex::findFolder(char const* path, size_
 			continue;
 		}
 		if (folder->cardChangeCount != sdCardChangeCount) {
+			folderLost(*folder);
 			forget(slot); // Out of date
 			continue;
 		}
@@ -111,19 +124,14 @@ SampleFolderIndex::Folder* SampleFolderIndex::findFolder(char const* path, size_
 	return nullptr;
 }
 
-SampleFolderIndex::Folder* SampleFolderIndex::indexFolder(char const* path, size_t pathLength) {
-	// Use an empty slot, or else the least recently used folder's
-	size_t slot = 0;
-	for (size_t s = 0; s < kMaxFolders; s++) {
-		if (!folders_[s]) {
-			slot = s;
-			break;
-		}
-		if (folders_[s]->lastUsed < folders_[slot]->lastUsed) {
-			slot = s;
-		}
+SampleFolderIndex::Folder* SampleFolderIndex::indexFolder(char const* path) {
+	uint32_t cardChangeCountBefore = sdCardChangeCount;
+
+	// Open the folder before taking any memory for it, so a folder that isn't there costs none
+	auto directory = FatFS::Directory::open(path);
+	if (!directory) {
+		return nullptr;
 	}
-	forget(slot);
 
 	// Room for the most we'll index. Cut down to what's used once done.
 	constexpr size_t kMaxSize = sizeof(Folder) + kMaxFiles * sizeof(Entry) + kNamesSize;
@@ -137,15 +145,8 @@ SampleFolderIndex::Folder* SampleFolderIndex::indexFolder(char const* path, size
 		delugeDealloc(folder);
 		return nullptr;
 	};
+	memcpy(folder->path, path, strlen(path) + 1); // find() has checked it fits
 
-	memcpy(folder->path, path, pathLength);
-	folder->path[pathLength] = 0;
-	uint32_t cardChangeCountBefore = sdCardChangeCount;
-
-	auto directory = FatFS::Directory::open(folder->path);
-	if (!directory) {
-		return discard();
-	}
 	size_t namesUsed = 0;
 	auto addName = [&](char const* name) -> std::optional<uint16_t> {
 		size_t size = strlen(name) + 1;
@@ -158,8 +159,11 @@ SampleFolderIndex::Folder* SampleFolderIndex::indexFolder(char const* path, size
 		return offset;
 	};
 
-	// A folder too big to fit is indexed in part: files past that just get opened the normal way
-	while (folder->numEntries < kMaxFiles) {
+	// A folder too big to fit is indexed in part: files past that just get opened the normal way. So is a folder that
+	// takes too much reading, counting entries that hold no samples, like subfolders' and deleted files'. FatFs skips a
+	// run of deleted files' entries in one go though, so the last read can go past the limit by one such run.
+	constexpr uint32_t kDirectoryEntrySize = 32;
+	while (folder->numEntries < kMaxFiles && directory->inner().dptr < kMaxEntriesToRead * kDirectoryEntrySize) {
 		auto item = directory->read_and_get_filepointer();
 		if (!item) {
 			return discard();
@@ -192,6 +196,20 @@ SampleFolderIndex::Folder* SampleFolderIndex::indexFolder(char const* path, size
 
 	folder->cardChangeCount = cardChangeCountBefore;
 	folder->complete = true;
+
+	// Only now make room for it, in an empty slot or else the least recently used folder's. Not before: getting the
+	// memory may have stolen one of the other folders, and a folder that couldn't be indexed shouldn't push one out.
+	size_t slot = 0;
+	for (size_t s = 0; s < kMaxFolders; s++) {
+		if (!folders_[s]) {
+			slot = s;
+			break;
+		}
+		if (folders_[s]->lastUsed < folders_[slot]->lastUsed) {
+			slot = s;
+		}
+	}
+	forget(slot);
 	GeneralMemoryAllocator::get().putStealableInAppropriateQueue(folder);
 	folders_[slot] = folder;
 	return folder;
@@ -209,9 +227,21 @@ void SampleFolderIndex::forget(size_t slot) {
 void SampleFolderIndex::folderStolen(Folder* folder) {
 	for (Folder*& f : folders_) {
 		if (f == folder) {
+			folderLost(*folder);
 			f = nullptr;
 		}
 	}
+}
+
+/// A folder's index is being thrown away, before it would have been otherwise
+void SampleFolderIndex::folderLost(Folder const& folder) {
+	if (folder.hits < kHitsToPayOff) {
+		indexingDidNotPay();
+	}
+}
+
+void SampleFolderIndex::indexingDidNotPay() {
+	lookupsBeforeIndexing_ = std::min(lookupsBeforeIndexing_ * 2, kMaxLookupsBeforeIndexing);
 }
 
 void SampleFolderIndex::clear() {
@@ -219,4 +249,6 @@ void SampleFolderIndex::clear() {
 		forget(slot);
 	}
 	lastFolderLookedUp_[0] = 0;
+	lookupsInARow_ = 0;
+	lookupsBeforeIndexing_ = kMinLookupsBeforeIndexing;
 }
