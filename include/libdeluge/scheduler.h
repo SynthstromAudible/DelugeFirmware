@@ -20,7 +20,7 @@
 /// The app's work runs as jobs in its own loop (src/deluge/runtime/app_loop.h), which the BSP drives
 /// through deluge_app_service (app.h); the render runs on the BSP's audio tier
 /// (deluge_app_audio_tick). Also declares the clock tick type and rate (`dTime`,
-/// `DELUGE_CLOCKS_PER*`) that the C++ `Time` wrapper (`task_scheduler/clock_type.h`) is built on.
+/// `DELUGE_CLOCKS_PER*`).
 #ifndef LIBDELUGE_SCHEDULER_H
 #define LIBDELUGE_SCHEDULER_H
 

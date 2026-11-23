@@ -164,8 +164,8 @@ target_include_directories(deluge_ui_scenes PUBLIC
 #
 # Consequence: deluge_ui_scenes does not provide deluge_app's actual symbols to whatever links it.
 # EVERY CONSUMER OF deluge_ui_scenes MUST ALSO LINK deluge_app ITSELF to get those symbols --
-# deluge_ui_scenes_spec already does this (tests/integration/ui/scenes/CMakeLists.txt: `deluge_ui_scenes deluge_app
-# deluge_scheduler ...`), and so do deluge_host's and the firmware device build's link lines --
+# deluge_ui_scenes_spec already does this (tests/integration/ui/scenes/CMakeLists.txt: `deluge_app deluge_ui_scenes
+# ...`), and so do deluge_host's and the firmware device build's link lines --
 # a fact about those link lines, not a guarantee `COMPILE_ONLY` provides.
 # deluge_ui_scenes_bind: what a menu node edits, bound to the model's records and the engines' descriptors.
 if(NOT TARGET deluge_ui_scenes_bind)

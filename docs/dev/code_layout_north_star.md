@@ -116,8 +116,8 @@ Rules inside the layers:
 ### Where today's directories go
 
 The libraries that are already clean move as they are; legacy directories are rewritten into their destinations.
-The library rows are done (every `src/` row except `src/synth`'s `Fixed` instantiations, the `src/OSLikeStuff` row and
-the `src/*.h` row); the paths in the left column are the pre-relocation ones.
+The library rows are done (every `src/` row except `src/synth`'s `Fixed` instantiations and the `src/*.h` row); the
+paths in the left column are the pre-relocation ones.
 
 | today | target |
 |---|---|
@@ -147,7 +147,6 @@ the `src/*.h` row); the paths in the left column are the pre-relocation ones.
 | `src/bsp/rust/harness` | `tests/harness/` |
 | `sim` | `platform/host/` |
 | `sim/scenes_spec` | `tests/integration/ui/scenes/` |
-| `src/OSLikeStuff` | retires with the Embassy scheduler; what remains goes to `platform/` |
 | `src/*.h`, `src/*.hpp` (board config and layout, `definitions*`, the NEON shim, `mem_functions.h`) | dissolved into their owners: `ui/shell/` profiles, `platform/`, `third_party/`, `base/` |
 
 `sample-view` is three things and sits in three places:
