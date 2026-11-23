@@ -16,6 +16,9 @@
  */
 #pragma once
 
+#include "dsp/core/divide.h"
+#include "dsp/core/fixed_point.h"
+
 #include <cstdint>
 #include <span>
 
@@ -47,3 +50,64 @@ namespace deluge::dsp::fixed {
 }
 
 } // namespace deluge::dsp::fixed
+
+namespace deluge::dsp::fixed::timestretch {
+
+/// @brief A crossfade between a stretcher's two heads: its progress from the older head to the newer, and its step per
+/// output frame (X1 of docs/dev/time_stretcher_contracts.md).
+struct CrossfadeRamp {
+	uint32_t progress = 1u << 24; ///< Q24 of 1.0 (2^24 is done); runs unsigned and may step past 2^24.
+	uint32_t increment = 0;       ///< Per output frame.
+
+	/// A hop's crossfade over @p frames output frames: 2^24 / frames.
+	[[nodiscard]] static constexpr CrossfadeRamp over_hop(int32_t frames) {
+		return {.progress = 0, .increment = (1u << 24) / static_cast<uint32_t>(frames)};
+	}
+	/// A crossfade into a loop's pre-margin: rounded up from 2^24 - 1.
+	[[nodiscard]] static constexpr CrossfadeRamp over_loop(int32_t frames) {
+		return {.progress = 0,
+		        .increment = static_cast<uint32_t>((1u << 24) - 1 + frames) / static_cast<uint32_t>(frames)};
+	}
+	/// A fudged crossfade at a loop end: rounded up from 2^24, so it is one more than over_loop() where @p frames
+	/// divides 2^24 (X1's quirk).
+	[[nodiscard]] static constexpr CrossfadeRamp over_fudge(int32_t frames) {
+		return {.progress = 0, .increment = static_cast<uint32_t>((1u << 24) + frames) / static_cast<uint32_t>(frames)};
+	}
+	/// A crossfade out of a cache tail of @p frames (at most 255): 2^24 over the frames' low 16 bits, plus one.
+	[[nodiscard]] static constexpr CrossfadeRamp over_cache_tail(int32_t frames) {
+		return {.progress = 0, .increment = (1u << 24) / static_cast<uint16_t>(frames) + 1};
+	}
+	[[nodiscard]] constexpr bool done() const { return progress >= (1u << 24); }
+};
+
+/// @brief Each head's level over one segment of output: where it starts and its step per frame.
+struct HeadGains {
+	Q<31> newer;
+	Q<31> newer_step;
+	Q<31> older;
+	Q<31> older_step;
+};
+
+/// The progress is an unsigned word read as Q24, and the step a word quotient (divide_by_small), so three values cross
+/// from words.
+/// @brief The heads' gains over the next @p frames of output at source level @p level stepping by @p level_step, the
+/// ramp moved on by them (X2). Linear: the newer head at the ramp's progress, the older at the rest of full scale.
+[[nodiscard]] inline HeadGains segment_gains(CrossfadeRamp& ramp, int32_t frames, Q<31> level, Q<31> level_step) {
+	// The progress word read as signed Q24 (it runs 0 to 2^24, so the bits agree) as the newer head's Q31 level
+	const auto newer_now = as_wrap<Q<31>>(Q<24>::from_raw(static_cast<int32_t>(ramp.progress)));
+	const Q<31> older_now = sub_wrap(Q<31>::max(), newer_now);
+	ramp.progress += ramp.increment * static_cast<uint32_t>(frames);
+	// Where the progress will be, held under 1.0 before its move to Q31: the step can carry it past 2^24
+	const auto newer_after = as_clamp_then_shift<Q<31>>(Q<24>::from_raw(static_cast<int32_t>(ramp.progress)));
+	const Q<31> newer_step =
+	    Q<31>::from_raw(deluge::dsp::divide_by_small(sub_wrap(newer_after, newer_now).raw(), frames));
+	const auto change = mul_as_wrap<Q<31>>(level, newer_step);
+	return {
+	    .newer = mul_as_wrap<Q<31>>(level, newer_now),
+	    .newer_step = add_wrap(level_step, change),
+	    .older = mul_as_wrap<Q<31>>(level, older_now),
+	    .older_step = sub_wrap(level_step, change),
+	};
+}
+
+} // namespace deluge::dsp::fixed::timestretch
