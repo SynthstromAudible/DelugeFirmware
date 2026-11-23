@@ -1,4 +1,4 @@
-# dsp-next — the clean L0 DSP library (synth untangling, Phase 1).
+# The DSP library: the clean L0 DSP library (synth untangling, Phase 1).
 #
 # Strangler-fig replacement for src/deluge/dsp_legacy/: primitives migrate here one at a
 # time, callers switch under golden-master cover, the old impl is deleted. Built

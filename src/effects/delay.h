@@ -72,7 +72,7 @@ struct DelayChange {
 /// @return The block count.
 [[nodiscard]] uint32_t delay_off_silenced_blocks();
 
-/// @brief An owner's delay: the dsp-next delay processor over a primary tape and, while the rate settles at a new
+/// @brief An owner's delay: the DSP library delay processor over a primary tape and, while the rate settles at a new
 /// size, a secondary tape that grows until it is swapped in; the tapes come from the arena and go back to it.
 ///
 /// The render starts the delay when its feedback can sound and sound comes in, takes a new tape when the rate moves

@@ -26,7 +26,7 @@
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
-// Named rather than anonymous: dsp-next is a unity build
+// Named rather than anonymous: the DSP library is a unity build
 namespace supersaw_internal {
 
 constexpr double constexpr_sqrt(double v) {

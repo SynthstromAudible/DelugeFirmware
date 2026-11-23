@@ -5,7 +5,7 @@
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """clang-tidy on the lines a commit changes, in the libraries that hold themselves to the house style.
 
-The libraries (dsp-next, synth, effects, the Deluge instrument, plugin, serialization) are checked with the
+The libraries (the DSP library, synth, effects, the Deluge instrument, plugin, serialization) are checked with the
 .clang-tidy that governs each file: the repo root's, plus the library's own stricter one where it has one. Only
 the staged lines are checked, so legacy code is cleaned as it is touched rather than all at once.
 

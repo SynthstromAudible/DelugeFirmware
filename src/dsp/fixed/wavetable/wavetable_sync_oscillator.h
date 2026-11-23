@@ -28,7 +28,7 @@
 
 namespace deluge::dsp::fixed {
 
-/// @brief A hard-synced wavetable oscillator, as a dsp-next component.
+/// @brief A hard-synced wavetable oscillator, as a DSP library component.
 ///
 /// Like @ref WavetableOscillator, but each @ref CycleChunk is rendered through a @ref SyncWindower,
 /// which restarts the wave at every @ref Resetter crossover (classic osc-sync) and seam-blends each

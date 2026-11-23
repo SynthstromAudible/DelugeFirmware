@@ -136,8 +136,8 @@ struct SeededStatic {
 	static std::size_t draws() { return count; }
 };
 
-/// @brief The same draws as a noise stream the dsp-next voice is passed: each `next()` is SeededStatic's next draw, so
-/// the reference and the voice share one sequence and its count.
+/// @brief The same draws as a noise stream the DSP library voice is passed: each `next()` is SeededStatic's next draw,
+/// so the reference and the voice share one sequence and its count.
 struct SeededStream {
 	[[nodiscard]] uint32_t next() { return static_cast<uint32_t>(SeededStatic::render()); }
 };

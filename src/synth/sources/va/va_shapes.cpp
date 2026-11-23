@@ -156,7 +156,7 @@ Resolved resolve_multiply(Phasor original, const BlockControls& controls, uint32
 	return Resolved{.render = original, .sync = controls.sync, .retrigger = uq32(retrigger)};
 }
 
-/// out = (scratch · amplitude) + out — the dsp-next Amplitude mixer with a ramped amplitude vector. The hard-sync
+/// out = (scratch · amplitude) + out — the DSP library Amplitude mixer with a ramped amplitude vector. The hard-sync
 /// arms render the wave into `scratch`, then mix it into `output`'s prior contents (the normal voice path).
 void mix_through_vca(Ramp amplitude, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch) {
 	fixed::Amplitude vca{amplitude};

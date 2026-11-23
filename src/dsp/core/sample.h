@@ -19,7 +19,7 @@
 #include "dsp/core/fixed_point.h"
 #include <concepts>
 
-// Numeric vocabulary for dsp-next. The library is numeric-agnostic at the
+// Numeric vocabulary for the DSP library. The library is numeric-agnostic at the
 // interface (decision 1): a primitive is written once against a SampleType and
 // realised in the q31 (fixed/) and f32 (float/) backends.
 namespace deluge::dsp {
@@ -35,7 +35,7 @@ using q31 = Q<31>;
 // float32 sample: nominal range [-1, 1].
 using f32 = float;
 
-// The scalar types a dsp-next primitive may be instantiated over.
+// The scalar types a DSP library primitive may be instantiated over.
 template <typename T>
 concept sample_type = std::same_as<T, q31> || std::same_as<T, f32>;
 

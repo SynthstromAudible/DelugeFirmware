@@ -1,4 +1,4 @@
-# The float specs under the fused policy an FMA target runs: -mfma, against dsp-next's float library built with it too
+# The float specs under the fused policy an FMA target runs: -mfma, against the DSP library's float library built with it too
 # (deluge_dsp_float_fma). The A9 has no fused multiply-add and an arm64 host rejects -mfma, so only an x86 host builds
 # them, and a host tree off Linux none (CMakeLists.txt above). A spec here that #includes a spec from the directory
 # above runs that spec again under these flags.

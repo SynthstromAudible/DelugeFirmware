@@ -2,7 +2,7 @@
 # fakes (tests/support/ui/scenes), with no legacy song and no host. A source that still reaches the app -- a `host_*`
 # hook, the menu scene or the scene registry, or a legacy symbol -- cannot link here and is not listed. The model's host
 # hooks (its memory) come from model_hooks_for_tests.cpp. The l10n sources are the strings' definitions, which the app
-# builds for itself. NEON: the knob push reads the compressor's settings, whose header reaches dsp-next's kernel core
+# builds for itself. NEON: the knob push reads the compressor's settings, whose header reaches the DSP library's kernel core
 # and argon.
 if(NOT TARGET deluge_ui_scenes_fakes)
   add_subdirectory(${DELUGE_REPO_ROOT}/tests/support/ui/scenes ${CMAKE_CURRENT_BINARY_DIR}/scenes_fakes)

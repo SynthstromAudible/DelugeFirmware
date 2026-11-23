@@ -111,7 +111,7 @@ deluge::synth::
                        namespaced, not flat LOCAL_*. Filled by the Patcher from ParamManager-world (CLAP param events).
 
   ── DSP (CLAP "audio") ──
-    Phasor, Oscillator         L0 dsp-next (exist)
+    Phasor, Oscillator         L0 DSP library (exist)
     Source : interface         L1 per-source renderer (exist, in synth/sources/)
       VirtualAnalogSource, WavetableSource, SampleSource, InputSource, DX7Source
     Engine : interface         L1 coordinator / SWAP UNIT (lean native C++, NOT CLAP); one unison-part's worth

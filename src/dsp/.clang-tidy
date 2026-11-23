@@ -1,5 +1,5 @@
 ---
-# Stricter clang-tidy for dsp-next (the L0 component library).
+# Stricter clang-tidy for the DSP library (the L0 component library).
 #
 # Idiomatic C++23, so it holds itself to a higher bar than the legacy tree. It inherits the repo-root .clang-tidy
 # (naming: lower_case functions, methods, variables and members; kCamelCase constants; snake_case traits and

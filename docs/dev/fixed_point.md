@@ -70,7 +70,7 @@ says why in a comment.
 ## The instructions
 
 Every operation is plain C or an ACLE intrinsic that clang 23 compiles to the instruction below, in ARM and in Thumb-2.
-The app's files are Thumb-2; dsp-next's own libraries are ARM. Two kinds of inline asm remain: the high-word multiplies
+The app's files are Thumb-2; the DSP library's own libraries are ARM. Two kinds of inline asm remain: the high-word multiplies
 (below) and the fixed-point VFP `vcvt`, which clang does not form by itself.
 
 `tests/unit/dsp/core` disassembles each operation in both instruction sets, built with
@@ -306,7 +306,7 @@ operation: on the x86 host through SIMDe, and under qemu on the A9's own instruc
   adjust reaches the sound and the audio clip as Q24. The recorder's input gain is a run-time
   `scale_shl_clamp_then_shift`. What stays integer: the 64-bit tick and increment arithmetic, MIDI and menu scalings,
   and the UI's display mappings.
-- **dsp-next's interfaces** are typed: `q31` is `Q<31>`, and `fixed::Buffer` and `Signal` are spans of it. A fixed-point
+- **The DSP library's interfaces** are typed: `q31` is `Q<31>`, and `fixed::Buffer` and `Signal` are spans of it. A fixed-point
   kernel's value type is a `Q<F>` (the DX7 engine's `Q<24>`) stepped as itself or as `QVec<F>`, or a `StereoSample`
   stepped as itself or as `StereoVector`; the float kernels step `f32` as `Argon<float>`. The component framework has no
   raw-integer path. `fixed::SeededNoise` gives raw noise words, the specs' and benches' inputs.
@@ -359,7 +359,7 @@ source change, so an empty result is not the gate. Each changed function is clas
   ladder's asm saturate, the granular grain size and the wavetable chunker's index scaling, integer products of a count
   and a fraction. They are not for new code. The specs reach them through `tests/unit/dsp/raw_words.h`, with the full-scale
   words the references were written with.
-- **The words that stay** outside dsp-next, each with its reason in a comment where it crosses:
+- **The words that stay** outside the DSP library, each with its reason in a comment where it crosses:
   - codec and DMA words: the audio engine's input and output rings, the CV DAC, the MIDI wire;
   - file, cache and settings words: stored params (`ParamSet::getKnob` reads one typed), settings, sample data, the UI's
     display values;

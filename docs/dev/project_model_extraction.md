@@ -104,7 +104,7 @@ the engine never depends on the concrete model type.
   OK=15, arm-none-eabi firmware builds + links clean; hardware test pending
   before merge). Created `src/project/` (target `deluge_project`,
   namespace `deluge::project`) — the boundary for the modern, idiomatic, OO
-  C++23 project model, mirroring the synth work's clean library (`deluge_dsp_legacy` is
+  C++23 project model, mirroring the synth work's clean library (`deluge_dsp` is
   the structural precedent). The serialized project data **is** the model: moved
   off the legacy `::Song` god-object into `deluge::project::Song`. `::Song` is
   now the controller (keeps `runtimeView`, execution flags, playback/UI methods

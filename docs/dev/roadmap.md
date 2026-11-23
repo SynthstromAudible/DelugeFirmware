@@ -231,7 +231,7 @@ Two instruments (decided 2026-10-31). The **q31 Deluge instrument** is frozen in
 as they always did, and only accepted bug fixes change it, so its remaining work is structural and bit-exact. The
 **float instrument** is new: the uniform matrix rules and float arithmetic belong to it from day one.
 
-**Done:** dsp-next L0; wave 1 (reverb, DX7, wavetable; NE10 gone); effects as components; the L1 engines and sources;
+**Done:** DSP library L0; wave 1 (reverb, DX7, wavetable; NE10 gone); effects as components; the L1 engines and sources;
 the L2 voice lifted to `synth::Voice`; the q31 mod matrix (M3) in place of the Patcher, with cables owned by the
 instrument (M1); params A, B1, B2, C1a, C1b; the float poly kernels, voice slice, and ladder with drift; the voice
 budget.
@@ -269,7 +269,7 @@ budget.
 | Area | Where | Size (lines) | State |
 | --- | --- | --- | --- |
 | DX7 app glue | `src/deluge/processing/dx7` | small | Kernels in `dsp/fixed/dx7`; the device keeps `neon_fm_kernel.s` for modern no-input and bus-input ops |
-| Wavetable loading | `src/deluge/storage/wave_table` | 1.2k | Render, hard sync, FFT and band building in dsp-next; loading and the holder app-side |
+| Wavetable loading | `src/deluge/storage/wave_table` | 1.2k | Render, hard sync, FFT and band building in the DSP library; loading and the holder app-side |
 | Time-stretch, sample playback | `src/deluge/dsp_legacy/timestretch`, `model/voice/voice_sample` | 1.4k+ | Waits on the SampleSource port; belongs with P4 |
 | Pitch detection | `model/sample/pitch_scan`, `synth/source/live/live_pitch_shifter` | ~0.3k + shifter | App-side; no plan entry names it |
 | Voice adapter | `src/deluge/model/voice` (`SoundVoice`, `VoicePart`, `voice_setup`) | n/a | The kernel is `synth::Voice` in `src/synth/voice`; the slot and the pool are the instrument's (`src/instruments/classic/voice_pool.h`); `SoundVoice` is that slot over the app's `VoicePart` (ports, playback guides); note-on setup and the sample adapter are app-side |

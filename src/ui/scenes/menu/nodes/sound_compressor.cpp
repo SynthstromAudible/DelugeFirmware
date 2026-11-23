@@ -24,7 +24,7 @@
 #include "ui/scenes/menu/context.h"
 
 #include "base/string_format.h"
-#include "effects/compressor.h" // the dsp-next display functions
+#include "effects/compressor.h" // the DSP library display functions
 #include "plugin/types/display_mapping.h"
 
 #include <algorithm>

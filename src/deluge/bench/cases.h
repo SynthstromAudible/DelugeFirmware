@@ -1,7 +1,8 @@
 #pragma once
 
 /// @file
-/// @brief The DSP benchmark's case list: one case per dsp-next component, each configured as the voice configures it.
+/// @brief The DSP benchmark's case list: one case per DSP library component, each configured as the voice configures
+/// it.
 ///
 /// **Buffers.** Every case reads and writes the same statically allocated SRAM blocks: two q31 input blocks and one
 /// q31 output block of kMaxBlock samples, one stereo block of kMaxBlock frames, and a lanes input and output block of

@@ -1,4 +1,4 @@
-# The dsp-next and synth specs built with the tree's own flags: on the x86 host (NEON through SIMDe), on the A9 under
+# The DSP library and synth specs built with the tree's own flags: on the x86 host (NEON through SIMDe), on the A9 under
 # qemu (its own NEON) and on the host under UBSan, so every assertion that holds on both architectures is also an
 # x86-against-NEON check of a vector kernel. The specs held to other flags build beside them, one driver per
 # directory: fused/ (an FMA target's -mfma), unsafe_math/ (the device's float flags) and arm/ (the A9's own assembly).

@@ -43,7 +43,7 @@ struct WaveTableBand {
 /// @brief A read-only, storage-independent view of a loaded wavetable for the renderer.
 ///
 /// It exposes the render scalars plus indexed band access — pick the band for a pitch with
-/// @ref select_band, walk bands for the cross-cycle morph with @ref band — without dsp-next seeing
+/// @ref select_band, walk bands for the cross-cycle morph with @ref band — without the DSP library seeing
 /// how WaveTable stores them. Bands are addressed by base pointer + stride: the view spans storage's
 /// band array as it is, a `fast_vector` of its own `WaveTableBand`, at that type's size.
 class WaveTableData {

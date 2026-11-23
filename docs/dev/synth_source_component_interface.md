@@ -9,7 +9,7 @@
 >
 > Status: **REFINED — see `synth_source_ownership.md`.** This doc sketched a `SourceComponent` interface as
 > dispatch-polymorphism *over the legacy flat param plane*. That conflated three separable concerns (dispatch
-> boundary / param ownership / dsp-next residence). The reframe: **the lift (L-vi) needs only the ports** — the
+> boundary / param ownership / the DSP library residence). The reframe: **the lift (L-vi) needs only the ports** — the
 > oscType switch doesn't trip the boundary; the app reaches inside the sample/input engines do. So **L-vi = the
 > `SampleSource` + live-input ports + the `Source::renderInStereo` `AudioEngine` globals**, keeping the oscType
 > dispatch. The **polymorphic, param-owning `SourceComponent`** moves to the OO Source phase (`synth_source_ownership.md`,

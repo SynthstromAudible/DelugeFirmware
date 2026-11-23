@@ -35,7 +35,7 @@ static_assert(tables::kDecaySmall8[0] == 65535);                              //
 static_assert(fingerprint(tables::kSineSmall) == kSineSmallFingerprint);
 
 // clang-format off
-describe dsp_tables("dsp-next's lookup tables", ${
+describe dsp_tables("the DSP library's lookup tables", ${
 	it("hold the values the synth was recorded with", _ {
 		expect(fingerprint(tables::kSineSmall)).to_equal(kSineSmallFingerprint);
 		expect(fingerprint(tables::kDecaySmall4)).to_equal(kDecaySmall4Fingerprint);

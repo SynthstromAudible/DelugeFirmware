@@ -73,7 +73,7 @@ namespace deluge::effects {
 
 /// @brief The filter set's route for @p route (the same three orders).
 /// @param route The owner's filter route.
-/// @return The dsp-next route.
+/// @return The DSP library route.
 [[nodiscard]] constexpr dsp::fixed::FilterRoute filter_route(FilterRoute route) noexcept {
 	switch (route) {
 	case FilterRoute::HIGH_TO_LOW:

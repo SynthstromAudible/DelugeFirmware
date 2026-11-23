@@ -1,10 +1,10 @@
-# The OO Source model — owned params + dsp-next residence (end-state design)
+# The OO Source model — owned params + the DSP library residence (end-state design)
 
 > Status: **design / target architecture.** Prompted by the question: *is the `SourceComponent` dispatch boundary
-> the right way, when do Sources own their own parameters, and when do components migrate to dsp-next?* This doc
+> the right way, when do Sources own their own parameters, and when do components migrate to the DSP library?* This doc
 > defines the end-state so the `synth::Voice` lift (`synth_voice_lift.md`) doesn't bake in the legacy flat-param
-> model, and so the OO/dsp-next migration has a target. It separates three concerns the earlier
-> `synth_source_component_interface.md` conflated: **dispatch boundary** vs **param ownership** vs **dsp-next
+> model, and so the OO/the DSP library migration has a target. It separates three concerns the earlier
+> `synth_source_component_interface.md` conflated: **dispatch boundary** vs **param ownership** vs **DSP library
 > residence**.
 
 ## The three concerns (kept separate)
@@ -13,7 +13,7 @@
    switch) and how app-coupled sources reach storage/`AudioEngine` (ports). *Needed for the lift.*
 2. **Param ownership** — whether a source reads its modulated params from the Voice's **flat plane** by global
    index, or **owns typed params** fed to it. *The OO question; gated on the patcher.*
-3. **dsp-next residence** — whether the DSP primitive lives in `dsp/` owning its state + config. *The dsp-next
+3. **DSP library residence** — whether the DSP primitive lives in `dsp/` owning its state + config. *The DSP library
    track.*
 
 These are orthogonal. The lift only needs (1)-as-ports. (2) and (3) are the OO migration and should not be
@@ -40,7 +40,7 @@ not a lift change.
 
 ## End-state: typed, source-owned params
 
-- Each **L0 dsp-next component** owns its DSP state + config and consumes a **typed per-block param input** — its
+- Each **L0 DSP library component** owns its DSP state + config and consumes a **typed per-block param input** — its
   modulated values as a struct (e.g. a VA osc takes `{ pulseWidth, pitchIncrement, … }`, a wavetable adds
   `waveIndex`), *not* a flat array + `LOCAL_*` offset. The component has **no knowledge of the Deluge param enum**.
   (This is the L1-doc `BlockControls` split: oscillator-only params move to the component layer; amplitude/
@@ -65,11 +65,11 @@ Two stages, strangler-fig:
   flat local plane is retired. Invasive (the patcher/cable engine is built on `LOCAL_*`); its own phase, gated on
   Stage A. May never be fully necessary if the bridge cost is negligible.
 
-## dsp-next residence
+## The DSP library residence
 
-The L0 primitives are the dsp-next citizens — `VirtualAnalogEngine` (already `synth::`), `WavetableEngine`
+The L0 primitives are the DSP library citizens — `VirtualAnalogEngine` (already `synth::`), `WavetableEngine`
 (`dsp::`), the band-limited oscillators (migrated). The **typed-param-input shape is precisely what lets them be
-pure dsp-next** (no Voice / param-plane / `LOCAL_*` coupling). The dsp-next track (`[[wavetable-storage-port]]`,
+pure DSP library** (no Voice / param-plane / `LOCAL_*` coupling). The DSP library track (`[[wavetable-storage-port]]`,
 `[[dsp-next-fixed-layout]]`) reworks each primitive to own its bits + consume typed params; this OO model is the L1
 seam that sits above them.
 
@@ -99,7 +99,7 @@ the next phase.
    dispatch *here* (now it carries typed params — OO-correct). Per-component slices.
 3. **OO Source phase B (optional/with the modulation rework)** — patcher writes typed natively; retire the flat
    local plane.
-4. **dsp-next residence** — fold the now-typed-param components into `dsp/` proper (ongoing on the dsp-next
+4. **DSP library residence** — fold the now-typed-param components into `dsp/` proper (ongoing on the DSP library
    track).
 
 This makes the **L1 engine API** real: a third-party engine receives typed params, not the Deluge's `LOCAL_*`

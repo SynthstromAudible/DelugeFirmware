@@ -1,11 +1,11 @@
 # The fixed-point core (src/dsp/core) on the A9 itself, so the ARM tree alone builds this directory: every
 # fixed-point operation (and its portable twin) must match the A9 instruction it stands for (fixed_point_isa_spec.cpp),
 # and must compile, at the shipping image's codegen flags, to the instruction its comment names (the probe below).
-deluge_specs_driver(dsp_next_core_specs TREES arm NEON
+deluge_specs_driver(dsp_core_specs TREES arm NEON
   INCLUDES ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src)
 
 # Every fixed-point operation must compile to the instruction its comment names, in both instruction sets the image
-# uses: Thumb-2 (the app's TUs) and ARM (dsp-next's libraries). Both probes take -O2 -fno-inline-functions, which
+# uses: Thumb-2 (the app's TUs) and ARM (the DSP library's libraries). Both probes take -O2 -fno-inline-functions, which
 # inlines only always_inline functions: stricter than either of the image's inliners (the app's threshold of 5, the
 # libraries' default with -fno-lto), so an operation that inlines here inlines in both. The image is bare metal, so
 # neither the Linux toolchain's stack protector nor its PIC applies.

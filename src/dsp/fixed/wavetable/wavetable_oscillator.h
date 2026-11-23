@@ -27,7 +27,7 @@
 
 namespace deluge::dsp::fixed {
 
-/// @brief A free-running (non-synced) wavetable oscillator, as a dsp-next component.
+/// @brief A free-running (non-synced) wavetable oscillator, as a DSP library component.
 ///
 /// Walks the @ref WaveTableData view as @ref CycleChunk "chunks" (single-cycle: one; morphing: one
 /// per cross-cycle run) and renders each straight from the running phase. A plain @ref block_generator with no vptr:

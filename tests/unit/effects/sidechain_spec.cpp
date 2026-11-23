@@ -82,7 +82,7 @@ std::vector<int32_t> lateHitBetweenBlocks(deluge::dsp::Q<31> shape) {
 } // namespace
 
 // clang-format off
-describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
+describe sidechain("an owner's sidechain on the DSP library duck envelope", ${
 	it("passes the attack and release through unsynced, whatever the tempo", _ {
 		const DuckEnvelope::Settings settings = Sidechain::settings(state(SyncLevel::NONE), kFastInverse, deluge::dsp::Q<31>{});
 		expect(settings.attack).to_equal(kAttack);

@@ -35,8 +35,8 @@ namespace deluge::dsp {
 /// Holds the source's voice + cached `DxPatch`, soliciting/releasing from the global `getDxEngine()` pool, and per
 /// block derives the log pitch and controls and renders the voice over the patch's clamped bytes, which it renews at
 /// note-on and when the patch changes. It is the
-/// app-coupled half of `DX7Source`: the voice is dsp-next's, and the app keeps the pool, the patch and this adapter.
-/// Ownership of the pooled voice is
+/// app-coupled half of `DX7Source`: the voice is the DSP library's, and the app keeps the pool, the patch and this
+/// adapter. Ownership of the pooled voice is
 /// **explicit** (freed only in @ref unassign, never in a destructor) — the per-source objects are pooled and
 /// reused in place, so an owning dtor would risk a double-free.
 class DxVoiceAdapter final : public synth::DxVoicePort {

@@ -589,6 +589,15 @@ class RealTable(unittest.TestCase):
             if file == rel
         }
 
+    def test_the_dsp_library_reaches_neither_the_app_nor_the_synth(self):
+        self.assertEqual(
+            self.counts(
+                "src/dsp/core/planted.h",
+                '#include "model/song/song.h"\n#include "synth/sources/va/va_shapes.h"\n',
+            ),
+            {"dsp-boundary": 2},
+        )
+
     def test_the_effects_library_may_use_the_l0_dsp_library(self):
         accepted = '#include "dsp/core/stereo_sample.h"\n#include "dsp/core/detail/raw_ops.h"\n'
         self.assertEqual(self.library_found("effects", accepted), [])

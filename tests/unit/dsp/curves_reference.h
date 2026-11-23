@@ -14,8 +14,8 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// dsp-next's curve functions instant_tan and exp_curve in raw q31, copied verbatim as the oracle for their typed forms
-// in dsp/fixed/curves.
+// the DSP library's curve functions instant_tan and exp_curve in raw q31, copied verbatim as the oracle for their typed
+// forms in dsp/fixed/curves.
 #pragma once
 
 #include "dsp/fixed/curves/exp_curve.h"

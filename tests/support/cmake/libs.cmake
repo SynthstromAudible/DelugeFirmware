@@ -52,7 +52,7 @@ if(DELUGE_TEST_TREE STREQUAL "host")
   add_subdirectory(${DELUGE_REPO_ROOT}/tests/harness/level3 ${_deluge_libs}/level3 EXCLUDE_FROM_ALL)
 endif()
 
-# dsp-next (deluge_dsp_fixed, deluge_dsp_float) and the synth library (deluge_synth), built as the firmware builds them,
+# The DSP library (deluge_dsp_fixed, deluge_dsp_float) and the synth library (deluge_synth), built as the firmware builds them,
 # and what they reach outside themselves. Spec directories link them; none compiles their sources. A host tree off Linux
 # builds only the triangle distribution spec of the dsp specs (tests/unit/dsp), which links none of them.
 #
@@ -67,7 +67,7 @@ add_subdirectory(${DELUGE_REPO_ROOT}/src/base ${CMAKE_BINARY_DIR}/libs/base EXCL
 add_subdirectory(${DELUGE_REPO_ROOT}/src/dsp ${CMAKE_BINARY_DIR}/libs/dsp EXCLUDE_FROM_ALL)
 add_subdirectory(${DELUGE_REPO_ROOT}/src/synth ${CMAKE_BINARY_DIR}/libs/synth EXCLUDE_FROM_ALL)
 
-# The app's code dsp-next reaches outside itself, and the panic contract: the lookup tables, the noise stream, and a
+# The app's code the DSP library reaches outside itself, and the panic contract: the lookup tables, the noise stream, and a
 # freeze that records rather than halts. On the device these are app objects; here they are one archive, so a driver
 # pulls in only what its code reaches. Nothing in it depends on a library.
 add_library(deluge_test_dsp_closure STATIC EXCLUDE_FROM_ALL
@@ -76,7 +76,7 @@ add_library(deluge_test_dsp_closure STATIC EXCLUDE_FROM_ALL
   ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_panic.cpp)
 target_include_directories(deluge_test_dsp_closure PRIVATE
   ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src ${DELUGE_REPO_ROOT}/tests/support/mocks)
-# The synth library's: the param math, which reads dsp-next's table interpolation.
+# The synth library's: the param math, which reads the DSP library's table interpolation.
 add_library(deluge_test_synth_closure STATIC EXCLUDE_FROM_ALL
   ${DELUGE_REPO_ROOT}/src/deluge/util/param_functions.cpp)
 target_include_directories(deluge_test_synth_closure PRIVATE ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src)

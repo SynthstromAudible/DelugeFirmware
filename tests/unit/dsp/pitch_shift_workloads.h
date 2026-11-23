@@ -19,7 +19,7 @@
 /// @brief The live pitch shifter's workloads: input signals, an input ring as the codec fills it, the workload list,
 /// and the driver that renders one into a record, as the voice's input source drives its shifter.
 /// @details A record is three hashes: of every output word, of each block's hop count, and of each block's
-/// removability. The oracle (reference_live_pitch_shifter.h), the legacy classes while they exist, and the dsp-next
+/// removability. The oracle (reference_live_pitch_shifter.h), the legacy classes while they exist, and the DSP library
 /// component each render every workload through an adapter with the same small protocol (see @ref ReferenceSystem),
 /// and must make the same records.
 

@@ -373,11 +373,11 @@ pattern = '^(RZA1|drivers|bsp)/'
 reason = "the application reaches the hardware only through libdeluge"
 
 [[rule]]
-name = "dsp-next-boundary"
+name = "dsp-boundary"
 files = ["src/dsp/**"]
-pattern = '^(storage|model|processing|gui|playback|modulation|hid|io|dsp_legacy|RZA1|bsp|drivers|memory|util)/'
+pattern = '^(synth|effects|storage|model|processing|gui|playback|modulation|hid|io|dsp_legacy|RZA1|bsp|drivers|memory|util)/'
 allow = ["memory/memory_allocator_interface.h", "util/misc.h"]
-reason = "the L0 kernels reach no app layer, the legacy dsp library or the platform"
+reason = "the L0 kernels reach no app layer, the synth and effects libraries, the legacy dsp library or the platform"
 
 [[rule]]
 name = "synth-boundary"

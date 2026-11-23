@@ -5,7 +5,7 @@
 
 > **Status:** Planning (2026-06-14). Re-scoped from the original
 > `synth_untangling_plan.md` §Phase-2 ("Kill the offsetof data plane") after
-> auditing the current tree — see §1. Prerequisite Phase 1 (the `dsp-next` L0
+> auditing the current tree — see §1. Prerequisite Phase 1 (the DSP library L0
 > library + full oscillator migration) is complete.
 > **Goal:** Make the per-voice modulation core — **Patcher, Envelope, LFO** —
 > data-driven and free of `Sound&` / `Voice&` / `ParamManager&` back-references,
@@ -81,7 +81,7 @@ ParamManager-world into `ControlBlock`s").
 
 ### `deluge::synth` (the new home)
 Patcher/Envelope/LFO (+ `VoiceParams`/`ControlBlock`) move into a `deluge::synth`
-namespace and, eventually, a `libdeluge-synth` static lib that — like `dsp-next`
+namespace and, eventually, a `libdeluge-synth` static lib that — like the DSP library
 — may not include `model/`, `processing/`, `storage/`, `gui/`. A boundary lint
 (mirroring `check_dsp_boundary.py`) enforces it and measures progress.
 
@@ -89,7 +89,7 @@ namespace and, eventually, a `libdeluge-synth` static lib that — like `dsp-nex
 
 ## 3. Phased steps (each bisectable, bit-exact, golden-gated)
 
-Discipline matches the dsp-next migration: structural-only, no mid-move
+Discipline matches the DSP library migration: structural-only, no mid-move
 arithmetic changes; every step keeps the golden masters bit-identical on **x86
 (SIMDe) and ARM/QEMU**, and lands with a dual-arch CppSpec for the decoupled
 unit where practical. Run the goldens `--filter`-targeted to the families a step
@@ -196,8 +196,8 @@ phase boundaries.
    `lfo.{h,cpp}`, `param_plane.h`, `patcher.{h,cpp}`, `control_block.h` — out of
    `modulation/` into a new `src/synth/` (flat). Added
    `scripts/check_synth_boundary.py` (mirrors `check_dsp_boundary.py` but ALLOWS
-   `modulation/` + `util/` + `dsp/`; forbids the app layers model/processing/
-   storage/gui/playback/hid/io, the legacy dsp/, and the HAL/BSP) + a shrink-only
+   `modulation/` + `util/` + `dsp/` (the DSP library); forbids the app layers model/processing/
+   storage/gui/playback/hid/io, the legacy `dsp_legacy/`, and the HAL/BSP) + a shrink-only
    `synth_boundary_allowlist.txt` (seeded **EMPTY**), a `synth-boundary` pre-commit
    hook, and a step of `.github/workflows/ci.yml`'s lint job. The one direct violation —
    `lfo.h → model/sync.h` — was cleared by relocating the small sync-enum leaf
@@ -284,16 +284,16 @@ include lint.
 the shared `util/` dep TUs also being globbed into the app — an ODR concern the link-*test* sidesteps), and the
 `namespace deluge::synth` wrap (~44 files, cosmetic).
 
-**DSP-foundation migration into dsp-next — DONE.** Rather than carry the synth's general DSP deps in `util/`,
-they moved into **dsp-next** (the L0 lib everything may depend on; its boundary lint *allows* `util/`). Not a
-verbatim relocation — each arrived as a proper OO component in dsp-next's idioms, behaviour held bit-exact (the
-LUTs themselves stayed in `util/lookuptables`, which dsp-next is permitted to read — no risky table moves). Three
+**DSP-foundation migration into the DSP library — DONE.** Rather than carry the synth's general DSP deps in `util/`,
+they moved into **the DSP library** (the L0 lib everything may depend on; its boundary lint *allows* `util/`). Not a
+verbatim relocation — each arrived as a proper OO component in the DSP library's idioms, behaviour held bit-exact (the
+LUTs themselves stayed in `util/lookuptables`, which the DSP library is permitted to read — no risky table moves). Three
 bisectable commits, each x86 golden 333/333 + ARM/qemu oracle, both arches' dsp specs + `synth_link_test` green:
 - **Interpolation → `dsp/fixed/interpolation/table_interpolation.{h,cpp}`:** `LinearTableInterpolator`
   (`interpolate`/`inverse`/`interpolate_signed`) + shared `inline constexpr kLinearTableInterpolator`, mirroring
   `WindowedSincKernel`; `getDecay4/8` alongside. The 7 unsigned-interp consumers repointed; `util/interpolation.*`
   deleted.
-- **LFO square/triangle → the dsp-next wave kernels** (`deluge::dsp::fixed::square` / `triangle_full`, the latter
+- **LFO square/triangle → the DSP library wave kernels** (`deluge::dsp::fixed::square` / `triangle_full`, the latter
   added beside the half-scale `triangle`). `util/waves.h`'s now-dead `getSquare`/`getTriangle*` dropped.
 - **Scalar sine → `dsp/fixed/osc/sine_table.h`** (`SineTable` evaluator + `kSineTable` instance) and
   **`CrudeSine`** completing the crude-osc family. The LFO/envelope/sync-seam/GUI eval-at-a-phase consumers call

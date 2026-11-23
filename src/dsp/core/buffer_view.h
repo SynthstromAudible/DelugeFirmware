@@ -25,12 +25,13 @@
 #include <type_traits>
 
 /// @file
-/// @brief The seam between dsp-next's typed buffers and raw int32_t buffers.
+/// @brief The seam between the DSP library's typed buffers and raw int32_t buffers.
 ///
-/// dsp-next's kernels take samples as `std::span<Q<F>>` (Q31 for audio, Q24 for DX7's). Raw callers, which hold
+/// the DSP library's kernels take samples as `std::span<Q<F>>` (Q31 for audio, Q24 for DX7's). Raw callers, which hold
 /// int32_t buffers (the legacy synth, the app, the effects, the bench and the specs), and raw machine code inside
-/// dsp-next meet them here: typed_view() and raw_view() view one as the other, over the same storage, each keeping its
-/// span's extent. Each use is counted by scripts/check_fixed_point_raw.py, whose `view` counts may only shrink.
+/// the DSP library meet them here: typed_view() and raw_view() view one as the other, over the same storage, each
+/// keeping its span's extent. Each use is counted by scripts/check_fixed_point_raw.py, whose `view` counts may only
+/// shrink.
 
 namespace deluge::dsp {
 

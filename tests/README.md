@@ -43,7 +43,7 @@ builds only `golden-vt-render`.
 | song-preview-ab | integration | scenario | differential | gate | the Rust prefix channel draws the same song artwork, and reports the same decode outcome and error, as the same file decoded synchronously | nightly | render | ~5m |
 | preemptive-race-tsan | integration | script | sanitizer | gate | every cross-tier race site seen during sustained playback-while-record under ThreadSanitizer must have an entry in races.txt (the second invariant's inventory) | manual | unit | ~30m |
 | snapshot-primitive-tsan | component | script | sanitizer | gate | Published<T> and SpscRing<E,N> must be race-free under concurrent stress | pr | unit | ~3m |
-| dsp-ubsan | unit | ctest | sanitizer | gate | the dsp-next specs (tests/unit/dsp) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan | pr | unit-cpp-variants | ~5s |
+| dsp-ubsan | unit | ctest | sanitizer | gate | the DSP library specs (tests/unit/dsp) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan | pr | unit-cpp-variants | ~5s |
 | param-mapping-sweep | component | script | differential | gate | every one of the 2^32 stored words maps to the same knob position and menu number through each plugin mapping kind as the reference arithmetic | nightly | unit | ~40s |
 | dsp-diff | component | script | differential | gate | the ARM/NEON DSP fast paths must be byte-identical to the portable host fallback | nightly | unit | ~5m |
 | corpus-guard | integration | script | property | gate | golden_vt_render refuses, with exit 2, a run that asks for the corpus fixture's card without declaring the song corpus | pr | unit | ~1s |
@@ -145,8 +145,8 @@ builds only `golden-vt-render`.
 | streaming-margin | integration | scenario | property | gate | sample playback must keep up when storage is as slow as the device's | nightly | render | ~30s |
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
-| unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree (the dsp-next specs among them), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
-| unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
+| unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree (the DSP library specs among them), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
+| unit-arm | unit | ctest | unit | gate | the DSP library, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
 | crates | unit | cargo | unit | gate | every #[test] in the core libraries: the allocator, the resource manager and the sample crates | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
 | sample-convert | unit | cargo | unit | gate | deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |

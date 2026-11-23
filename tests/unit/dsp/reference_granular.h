@@ -31,7 +31,7 @@
 ///    result the target computes;
 ///  - the pitch class's triangle draw is the mean of two draws, where the app's saturating sum clipped a quarter of
 ///    them to the rails: the one change from the legacy arithmetic;
-///  - the pan law and the quick log are dsp-next's own (`pan_amplitudes`, `quick_log`);
+///  - the pan law and the quick log are the DSP library's own (`pan_amplitudes`, `quick_log`);
 ///  - the unused tempo argument and `grainLastTickCountIsZero` are dropped;
 ///  - counters and read accessors the spec asserts through, which the output does not depend on.
 

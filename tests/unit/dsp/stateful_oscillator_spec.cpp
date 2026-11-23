@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Pins the *stateful* contract the dsp-next oscillators gained: phase persists across blocks, and per-block
+// Pins the *stateful* contract the DSP library oscillators gained: phase persists across blocks, and per-block
 // param updates (set_increment / setTable) are bit-identical to constructing a fresh oscillator. This is the
 // foundation the persistent voice model relies on; the band-reselect-on-set_increment case is the key hazard.
 // Run on x86 (SIMDe) + ARM/QEMU via CTest.
@@ -57,7 +57,7 @@ std::array<int32_t, kN> block(Osc& osc) {
 } // namespace
 
 // clang-format off
-describe stateful_oscillator("dsp-next stateful oscillators", ${
+describe stateful_oscillator("the DSP library stateful oscillators", ${
 	constexpr int32_t kMag = 2;
 	constexpr uint32_t kInc = 0x08000000u;
 	constexpr uint32_t kInc2 = 0x01000000u;

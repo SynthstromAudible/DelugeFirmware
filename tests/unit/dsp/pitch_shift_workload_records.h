@@ -17,7 +17,7 @@
 
 /// @file
 /// @brief The live pitch shifter's records over every workload (pitch_shift_workloads.h), recorded from the legacy
-/// classes in the app before their rewrite; the oracle and the dsp-next component must equal them.
+/// classes in the app before their rewrite; the oracle and the DSP library component must equal them.
 
 #pragma once
 

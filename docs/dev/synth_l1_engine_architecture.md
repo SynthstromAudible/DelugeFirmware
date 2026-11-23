@@ -16,7 +16,7 @@ Engines are loaded by the Deluge instrument, never by the host: what the host lo
 
 | Tier | What it is | Here | To come |
 |---|---|---|---|
-| L0 kernels (`dsp-next`) | DSP building blocks | band-limited tables, oscillators, sinc interpolator, DX7 operator graph, filters | — |
+| L0 kernels (the DSP library) | DSP building blocks | band-limited tables, oscillators, sinc interpolator, DX7 operator graph, filters | — |
 | Sources | one generator in one slot of one unison part | VA, wavetable, supersaw, sample, live input, DX7 | Karplus-Strong, Plaits models, granular from a sample, additive |
 | Dual-source engines | the relationship between the two slots, plus noise | Subtractive (mix, A→B sync), RingMod (multiply, A→B sync) | AM, phase modulation A→B, exciter→resonator (Rings, a Clouds-style granular slot B) |
 | Whole-voice engines | one generator is the voice | FM (two modulators into two carriers, with feedback) | a whole-voice DX7, Plaits as the voice, physical models (a piano: exciter and strings per voice) |
@@ -144,7 +144,7 @@ when every part's sources ended. It derives each engine's controls from its para
 
 A float instrument instantiates the same contracts over its own backend (float samples and controls, its phase type,
 its own per-type blocks, voice and controls), with its own voice deriving controls from its own params (no Deluge param
-indices, no legacy format, per-block ramps) and sources built from dsp-next's `float/` backend. The tiers, the source
+indices, no legacy format, per-block ramps) and sources built from the DSP library's `float/` backend. The tiers, the source
 lifecycle, the slots, the engine families and the declared hooks carry over. See `TODO.md`.
 
 ## Tests

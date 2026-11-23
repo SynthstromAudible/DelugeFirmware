@@ -17,8 +17,8 @@
 
 // Behavioural spec for the L1 deluge::synth::VirtualAnalogSource, run on x86 (SIMDe) and ARM/QEMU via CTest.
 // Bit-exact equivalence with the legacy renderOsc on real presets is the golden harness's job; here we pin that
-// the engine composes the right dsp-next oscillator and applies the right standalone scale per wave. We drive it
-// with apply_amplitude=false (the raw "standalone" wave) and cross-check against the dsp-next kernel built
+// the engine composes the right the DSP library oscillator and applies the right standalone scale per wave. We drive it
+// with apply_amplitude=false (the raw "standalone" wave) and cross-check against the DSP library kernel built
 // directly. cpu_direness is set high to force the crude (non-band-limited) arms for deterministic comparison.
 
 #include "synth/sources/va/virtual_analog_source.h"

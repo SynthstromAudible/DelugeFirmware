@@ -1,4 +1,4 @@
-# Oscillator-domain migration (dsp-next, Phase 1)
+# Oscillator-domain migration (the DSP library, Phase 1)
 
 Status: **planned** (2026-06-13). Companion to
 [synth_phase1_l0_plan.md](synth_phase1_l0_plan.md). Follows the sine kernel (S2,
@@ -104,7 +104,7 @@ sine owns `sineWaveDiff`):
 Shared machinery, factored **out** of the megaswitch into reusable pieces (not
 per-type branches):
 - the vector wave-render core (`waveRenderingFunctionGeneral`/`Pulse`, the
-  `renderOscSync` crossover) relocated from `processing/` into `dsp-next`;
+  `renderOscSync` crossover) relocated from `processing/` into the DSP library;
 - `bandLimit` — `get_table_number` + table pick + the crude/antialiased decision,
   taking an **injected quality** input (today `AudioEngine::cpuDireness`);
 - `pulseWidth` setup; the osc-sync wrapper;
@@ -174,7 +174,7 @@ deferred filters; don't force a unified concept before then.)
 Sequenced to isolate the *behavioural* restructure from the *relocation*: do the
 risky structural work **in place first**, gated bit-exactly on the existing x86
 golden hashes (no relocation/SIMDe/ARM/namespace confounds), and only then move
-clean code into `dsp-next`. Each step is a bisectable commit.
+clean code into the DSP library. Each step is a bisectable commit.
 
 ### Phase A — in-place structural refactor (old `dsp/`, gated on the existing x86 hashes)
 Pure behaviour-preserving restructuring of `oscillator.cpp`/`basic_waves`; the
@@ -184,14 +184,14 @@ caught with the cleanest possible signal.
   `callRenderWave` goto target with a `renderFromTable` helper, so `renderOsc`
   is a goto-free `if/else-if` dispatcher. (Done — two bit-exact commits.) The
   remaining inline per-wave arms need not be extracted in place; they become
-  `dsp-next` kernels in Phase B.
+  the DSP library kernels in Phase B.
 - **A1b — untangle `renderOscSync`.** The hard-sync crossover engine (in
   `render_wave.h`, shared by oscillators **and** wavetables — 4 call sites) has
   a backward `goto startRenderingASync` loop. Convert it to a structured loop in
   place; bit-exact, gated on the sync golden cases (Sync Bass, Saw/Square Sync,
   Sync Squared, …). It is stateless (phase in/out by ref) and a higher-order
   function (parameterised by a per-window wave renderer) — keep that factoring;
-  in Phase B it becomes a first-class `dsp-next` osc-sync component with its own
+  in Phase B it becomes a first-class the DSP library osc-sync component with its own
   spec, used by both the oscillator kernels and the wavetable renderer.
 - **A2 — separate the VCA, per-path-exact.** Each wave generates a raw block into
   scratch, then that path's **existing** VCA op runs over it; delete the
@@ -202,7 +202,7 @@ caught with the cleanest possible signal.
 Now near-mechanical: relocate the already-split, already-clean pieces.
 - **B1 — render core + LUTs.** Move the vector wave-render core
   (`waveRenderingFunctionGeneral`/`Pulse`, `renderOscSync`) and the per-wave LUTs
-  in as `dsp-next`-owned data (out of `processing/` and `util/lookuptables`).
+  in as the DSP-library-owned data (out of `processing/` and `util/lookuptables`).
 - **B2 — per-wave kernel+LUT primitives.** `saw`, `square`(+PW), `triangle`,
   `analog_saw`, `analog_square`, band-limited `sine` — each a stateless
   `std::span` kernel + its table; plus the shared `bandLimit` (injected quality),
@@ -217,7 +217,7 @@ bit-exact** → one-time golden re-baseline + an ear check + a hardware
 voice-count/CPU spot-check. Isolated, clearly-flagged commit.
 
 ### Later — wavetable
-The `WaveTable` → `core::WaveTableView` inversion (kernel moves to `dsp-next`,
+The `WaveTable` → `core::WaveTableView` inversion (kernel moves to the DSP library,
 storage keeps loading). Its own arc.
 
 ## Deferred / out of scope here

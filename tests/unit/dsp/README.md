@@ -1,6 +1,6 @@
 # dsp specs
 
-[CppSpec](https://github.com/toroidal-code/cppspec) specs for dsp-next (`src/dsp`), the synth library
+[CppSpec](https://github.com/toroidal-code/cppspec) specs for the DSP library (`src/dsp`), the synth library
 (`src/synth`) and the effect kernels they share, run as CTest tests in three trees: the x86 host, where NEON is
 SIMDe's (`unit`); the A9 under qemu, with real NEON (`unit-arm`); and the host under UndefinedBehaviorSanitizer
 (`dsp-ubsan`). Every assertion that holds on both architectures is also an x86-against-NEON check of a vector kernel.
@@ -9,7 +9,7 @@ SIMDe's (`unit`); the A9 under qemu, with real NEON (`unit-arm`); and the host u
 
 Each directory is one executable (`deluge_specs_driver`, `tests/support/cmake/specs.cmake`) holding its specs, and
 one ctest test per spec file, named after the file. `core/` is the fixed-point core's A9 ISA spec and codegen probe
-(`dsp_next_core_specs`, ARM tree), outside this table's flag sets.
+(`dsp_core_specs`, ARM tree), outside this table's flag sets.
 
 | Directory | Driver | Trees | Flags |
 | --- | --- | --- | --- |
@@ -20,9 +20,9 @@ one ctest test per spec file, named after the file. `core/` is the fixed-point c
 
 The drivers link the libraries as each tree builds them (`tests/support/cmake/libs.cmake`): `deluge_dsp_fixed`,
 `deluge_dsp_float`, `deluge_synth`, `deluge_effects`, and the archives of app code they reach
-(`deluge_test_dsp_closure`, `deluge_test_synth_closure`). `fused/` and `unsafe_math/` link variants of dsp-next built
+(`deluge_test_dsp_closure`, `deluge_test_synth_closure`). `fused/` and `unsafe_math/` link variants of the DSP library built
 under their own flags (`deluge_dsp_float_fma`, `deluge_dsp_fixed_unsafe_math`, `deluge_dsp_float_unsafe_math`), so
-the library code a spec reaches is held to the same flags as the spec. On the A9, dsp-next is built as the device
+the library code a spec reaches is held to the same flags as the spec. On the A9, the DSP library is built as the device
 builds it: the DX7's modern operators run `fixed/dx7/neon_fm_kernel.s`.
 
 A spec in `fused/` or `unsafe_math/` that `#include`s a spec from this directory runs that spec again under its

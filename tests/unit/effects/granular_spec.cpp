@@ -330,7 +330,7 @@ private:
 } // namespace
 
 // clang-format off
-describe granular("an owner's granular effect on the dsp-next kernel", ${
+describe granular("an owner's granular effect on the DSP library kernel", ${
 	it("renders every workload as the reference granular does: each block's frames, post-FX volume and reverb feed, and "
 	   "the State and the ring at the end", _ {
 		for (const gw::GranularWorkload& workload : gw::all_granular_workloads()) {

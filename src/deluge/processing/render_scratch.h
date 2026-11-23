@@ -25,7 +25,7 @@
 #include <span>
 
 /// @file
-/// @brief The per-block scratch the render hands its dsp-next components.
+/// @brief The per-block scratch the render hands its DSP library components.
 ///
 /// A render runs on whichever tier is rendering: the audio tier in real time, or the routine that renders an offline
 /// stem export, which the audio tier never renders alongside (it stops rendering while an export runs offline). Each

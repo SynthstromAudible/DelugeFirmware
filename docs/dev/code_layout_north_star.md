@@ -153,7 +153,7 @@ paths in the left column are the pre-relocation ones.
 
 | file | target | why |
 |---|---|---|
-| `divide.h` | `base/divide.h`, beside `dsp-next/core/divide.h`'s reciprocal divide | the A9 has no integer divide; every layer needs the workaround |
+| `divide.h` | `base/divide.h`, beside `dsp/core/divide.h`'s reciprocal divide | the A9 has no integer divide; every layer needs the workaround |
 | `peaks.h`, `view.h` | `ui/views/waveform/` | what the screen shows of a waveform: UI value types, owned by the consumer |
 | `peak_cache.h` | `app/ports/waveforms/` | the host's cache behind the waveforms port, until the sample-owned peak index in `storage/sample/` replaces it |
 
@@ -170,8 +170,8 @@ The legacy tree's destinations:
 | `processing/` | `instruments/classic/` (`Sound`), `host/` (mixing, live input, metronome, stem export) |
 | `playback/`, `sequence/`, `sync/`, `runtime/` | `host/sequencer/` |
 | `hid/` | `ui/shell/` (input lowering), `ui/gfx/` |
-| `dsp-next/` | `dsp/`, a plain move: it is new code |
-| `dsp/` | `dsp/` and `synth/sources/`: the time stretcher is rewritten |
+| `dsp-next/` | `dsp/`, a plain move: it is new code. **Done** (`src/dsp`) |
+| `dsp/` (now `src/deluge/dsp_legacy/`) | `dsp/` and `synth/sources/`: the time stretcher is rewritten, and the rewrite deletes `dsp_legacy/` |
 | `bench/`, `harness/` | `tests/device/bench/`, `tests/harness/` |
 
 ## Rules
@@ -214,8 +214,8 @@ header beside it.
 `synth/`'s `Fixed` instantiations move to `instruments/classic` as part of the classic instrument's state work, not
 in this pass: that is a design change, gated on the goldens like any other.
 
-**Step 3: `dsp-next` → `dsp/`.** After the legacy `dsp/` is retired by the time-stretcher rewrite: until then both
-trees hold `dsp/…` paths and rule 6 refuses the move.
+**Step 3: `dsp-next` → `dsp/` moved first.** No file collided once the legacy stretcher stepped aside to
+`src/deluge/dsp_legacy/`, which the stretcher rewrite deletes.
 
 **Step 4 onward: extraction lands in place.** Branches in flight are re-cut to the final paths before they merge;
 work started after step 2 uses only final paths.

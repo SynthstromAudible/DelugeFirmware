@@ -1,5 +1,5 @@
 # The specs held to the device's float flags (-O2 -funsafe-math-optimizations): the float kernels, Poly and Bank, the
-# DX7 graph and vector operator, and the FFT's tables and transform, against dsp-next built with the same flags
+# DX7 graph and vector operator, and the FFT's tables and transform, against the DSP library built with the same flags
 # (deluge_dsp_fixed_unsafe_math, deluge_dsp_float_unsafe_math). A spec here that #includes a spec from the directory
 # above runs that spec again under these flags. A host tree off Linux builds none of them (CMakeLists.txt above).
 if(DELUGE_TEST_TREE STREQUAL "host" AND NOT (UNIX AND NOT APPLE))

@@ -1,5 +1,5 @@
 # Gate unit-arm:
-#     the dsp-next, NEON, model, effects, instrument, music, serialization, plugin, host-chain and
+#     the DSP library, NEON, model, effects, instrument, music, serialization, plugin, host-chain and
 #     bench specs and model equality hold on ARM, cross-built with clang and run under qemu: tests/unit/dsp
 #     and the test directories under tests/unit that name this tree, the fixed-point and VFP specs among them. The NEON
 #     conversion kernels must match their scalar references bit for bit, every fixed-point operation (and its portable
@@ -15,7 +15,7 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
 endif()
 project(DelugeTestsArm)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ccache.cmake)
-# dsp-next's DX7 kernel (fixed/dx7/neon_fm_kernel.s) and the dsp specs' test-local copy of it are assembled here.
+# The DSP library's DX7 kernel (fixed/dx7/neon_fm_kernel.s) and the dsp specs' test-local copy of it are assembled here.
 enable_language(ASM)
 
 set(CPU_OPTIONS

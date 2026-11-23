@@ -187,7 +187,7 @@ std::uint64_t naive_hash() {
 } // namespace
 
 // clang-format off
-describe supersaw("the dsp-next supersaw", ${
+describe supersaw("the DSP library supersaw", ${
 	it("keeps the naive pass's output for every saw count", _ {
 		// The naive pass's output hash over the sweep: a change means the kernel's output changed.
 		expect(naive_hash()).to_equal(std::uint64_t{9833080644123533529ULL});

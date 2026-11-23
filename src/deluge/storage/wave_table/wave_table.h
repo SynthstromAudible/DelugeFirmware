@@ -28,13 +28,13 @@ class Sample;
 class FileByteSource;
 class WaveTableCycleReader;
 
-// The render fields (maxPhaseIncrement, cycle geometry, dataAccessAddress) live in the dsp-next
+// The render fields (maxPhaseIncrement, cycle geometry, dataAccessAddress) live in the DSP library
 // base @ref deluge::dsp::fixed::WaveTableBand — the prefix the renderer sees via WaveTableData;
 // this class adds ownership of the band's samples. The base is at offset 0, so the bands array's
 // 32-bit key (maxPhaseIncrement) and the view's strided access both read it correctly.
 class WaveTableBand : public deluge::dsp::fixed::WaveTableBand {
 public:
-	// Value-initialize the dsp-next render-field base: the fast_vector grows by default-constructing slots.
+	// Value-initialize the DSP library render-field base: the fast_vector grows by default-constructing slots.
 	WaveTableBand() : deluge::dsp::fixed::WaveTableBand{} {}
 
 	BandSamples samples; ///< Owns the memory dataAccessAddress points at.
@@ -66,7 +66,7 @@ public:
 	                    uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat);
 	void deleteAllBandsAndData();
 
-	/// A read-only, storage-independent view of this wavetable for the dsp-next renderer (the bands
+	/// A read-only, storage-independent view of this wavetable for the DSP library renderer (the bands
 	/// addressed by base + stride, so storage's container stays its own concern).
 	[[nodiscard]] deluge::dsp::fixed::WaveTableData view();
 

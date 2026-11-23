@@ -42,7 +42,7 @@ struct Table {
 
 /// @brief Build a Table from a legacy raw table pointer + its magnitude, sizing the span
 /// to the read extent (2^magnitude entries + the one interpolation neighbour). Bridges
-/// the still-pointer-based legacy LUTs until they migrate into dsp-next as sized arrays.
+/// the still-pointer-based legacy LUTs until they migrate into the DSP library as sized arrays.
 [[nodiscard]] constexpr Table table_from_pointer(const int16_t* data, int32_t magnitude) {
 	return Table{std::span<const int16_t>{data, (static_cast<std::size_t>(1) << magnitude) + 1}, magnitude};
 }

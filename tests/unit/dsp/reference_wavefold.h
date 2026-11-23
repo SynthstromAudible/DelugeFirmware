@@ -16,9 +16,9 @@
  */
 #pragma once
 
-// The app's wavefolder before dsp-next owned it, kept as the oracle the Wavefolder spec checks against. It is verbatim
-// but for its doublings and ×8, written as the wrapping operations the target computes, so the spec's signed-overflow
-// sanitizer sees the same two's-complement result.
+// The app's wavefolder before the DSP library owned it, kept as the oracle the Wavefolder spec checks against. It is
+// verbatim but for its doublings and ×8, written as the wrapping operations the target computes, so the spec's
+// signed-overflow sanitizer sees the same two's-complement result.
 
 #include "raw_words.h"
 

@@ -1,9 +1,9 @@
-# dsp-next: the component architecture
+# The DSP library: the component architecture
 
-The shape every `dsp-next` component takes, and the conventions every component
-follows. `dsp-next` (`src/dsp/`) is the L0 DSP library: freestanding,
+The shape every DSP library component takes, and the conventions every component
+follows. `src/dsp/` is the L0 DSP library: freestanding,
 header-first C++23 that may include only `util/`, `definitions*`, Argon, the
-standard library and its own headers (`scripts/check_layers.py`'s `dsp-next-boundary` rule). Related:
+standard library and its own headers (`scripts/check_layers.py`'s `dsp-boundary` rule). Related:
 [synth_phase1_l0_plan.md](synth_phase1_l0_plan.md),
 [synth_oscillator_plan.md](synth_oscillator_plan.md).
 
@@ -12,7 +12,7 @@ reviewer applies its [review checklist](#review-checklist).
 
 ## Prime directive: structural, not behavioural
 
-Moving code into `dsp-next` changes **code organisation only**. Every step is
+Moving code into the DSP library changes **code organisation only**. Every step is
 **bit-exact**, gated on the golden hashes (x86) and the ARM oracle. A component
 takes the shape described here but carries the synth's exact arithmetic. Audible
 improvements (analytic waves, a unified VCA arithmetic, better band-limiting,
@@ -108,7 +108,7 @@ a path.
 units inline only the cheapest calls, at an inline threshold of 5 at compile time
 and at the ThinLTO link (`CMakeLists.txt`), so a function above that stays a
 call unless it is `always_inline`. The mixins are header templates instantiated in those
-translation units, so `dsp-next`'s own `-finline-functions` does not reach
+translation units, so the DSP library's own `-finline-functions` does not reach
 them. The mixins' per-step lambdas are therefore `[[gnu::always_inline]]` and
 their scalar path is a plain loop with no library calls in it, and every
 function a component calls per sample or per vector (its `render`, the
@@ -853,7 +853,7 @@ to 0 at a slow tempo.
 
 **What not to copy from it.** `DuckEnvelope`'s `Settings` are rates the owner
 has already resolved only because tempo sync needs `plugin::SyncLevel`, which
-dsp-next must not see. A kernel whose mapping from params to rates is pure does
+The DSP library must not see. A kernel whose mapping from params to rates is pure does
 that mapping in `coefficients()`.
 
 ### Modes
@@ -1307,7 +1307,7 @@ overloads it on non-const `Coefficients`.
   `next()` returning `uint32_t`), so a wrapper can copy it into a local for a
   block and write it back.
 - **The app owns the one stream.** `deluge::synth_noise` (`util/synth_noise.h`)
-  is the synth's only stream; dsp-next and the synth library hold no global.
+  is the synth's only stream; the DSP library and the synth library hold no global.
   The app passes it at every call site that draws: the voice's filter set and
   sources, the LFOs, the effect chains (through `FxInputs::noise` and
   `MasterPostInputs::noise`), DX7's note-on and the live pitch shift (through
@@ -1758,7 +1758,7 @@ These are the reference blocks that later rewrites compose rather than re-derive
 - **`wrapping_add` / `wrapping_sub`** (`wrapping.h`): q31 add and subtract with two's-complement wrap, defined for every
   input.
 - **The tables** (`tables/`): `kSineSmall` (one turn of sine, Q15, 257 entries with the wrap) and `kDecaySmall4` /
-  `kDecaySmall8` (the decay curves, UQ16), `constexpr` arrays dsp-next owns. The control-rate sine, the real DFT, the
+  `kDecaySmall8` (the decay curves, UQ16), `constexpr` arrays the DSP library owns. The control-rate sine, the real DFT, the
   sine band and the decay lookups read them.
 - **`fft::magnitude`** (`fft/magnitude.h`): an FFT bin's magnitude within about 0.15%, from a table of √(1 + q²) at the
   rounded ratio of the smaller part to the larger, formed in 32 bits. The wavetable band builder and pitch detection use

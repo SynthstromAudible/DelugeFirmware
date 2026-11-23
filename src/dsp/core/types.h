@@ -21,7 +21,7 @@
 #include <span>
 
 /// @file
-/// @brief The signal vocabulary for dsp-next components: samples, blocks, stereo.
+/// @brief The signal vocabulary for the DSP library components: samples, blocks, stereo.
 ///
 /// A @ref Buffer is a writable block a component fills; a @ref Signal is a read-only
 /// block it consumes. The fixed-point backend's sample is q31, fixed_point.h's Q<31>: layout-compatible with the

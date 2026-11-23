@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 // One function per fixed-point operation, raw integers in and out, for check_codegen.py to disassemble. Built with
-// the shipping image's codegen flags, once as ARM and once as Thumb-2 (the app's TUs are Thumb; dsp-next's are ARM).
+// the shipping image's codegen flags, once as ARM and once as Thumb-2 (the app's TUs are Thumb; the DSP library's are
+// ARM).
 
 #include "dsp/core/fixed_point.h"
 #include "dsp/core/fixed_point_lanes.h"

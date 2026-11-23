@@ -1,7 +1,7 @@
 ---
 # Stricter clang-tidy for the synth library (deluge::synth): the voice kernel, its sources and its modulation.
 #
-# The library holds itself to the same bar as dsp-next and the instrument. It inherits the repo-root .clang-tidy
+# The library holds itself to the same bar as the DSP library and the instrument. It inherits the repo-root .clang-tidy
 # (naming conventions — lower_case functions, variables and members, kCamelCase constants — and the bulk of the
 # checks) and adds the checks the root leaves off for the legacy code:
 #

@@ -23,9 +23,9 @@
 
 namespace deluge::effects {
 
-/// @brief @p state's knobs as the dsp-next compressor takes them.
+/// @brief @p state's knobs as the DSP library compressor takes them.
 /// @param state The compressor state to read.
-/// @return The knobs for the dsp-next compressor.
+/// @return The knobs for the DSP library compressor.
 [[nodiscard]] constexpr dsp::fixed::CompressorKnobs compressor_knobs(const CompressorState& state) {
 	return {
 	    .attack = dsp::Q<31>::from_raw(state.attack),
@@ -37,7 +37,7 @@ namespace deluge::effects {
 	};
 }
 
-/// @brief An owner's compressor: its CompressorState's knobs on the dsp-next compressor.
+/// @brief An owner's compressor: its CompressorState's knobs on the DSP library compressor.
 ///
 /// A sound's and a track chain's threshold is a param, which the owner sets on dsp() after configure every block; the
 /// song master's is its knob, which configure takes.
@@ -46,13 +46,13 @@ public:
 	/// @brief The threshold param: its word, used as stored, is non-negative.
 	static constexpr EffectParam kThreshold = params::kCompressorThreshold;
 
-	/// @brief Takes @p state's knobs (cheap when unchanged: the dsp-next compressor recomputes only on a change).
+	/// @brief Takes @p state's knobs (cheap when unchanged: the DSP library compressor recomputes only on a change).
 	/// @param state The compressor state to take the knobs from.
 	void configure(const CompressorState& state);
 
-	/// @brief The dsp-next compressor, for the owner's threshold, base gain, reset, render and LED reads.
+	/// @brief The DSP library compressor, for the owner's threshold, base gain, reset, render and LED reads.
 	[[nodiscard]] dsp::fixed::RmsFeedbackCompressor& dsp() { return dsp_; }
-	/// @brief The dsp-next compressor, for the owner's threshold, time-constant and LED reads.
+	/// @brief The DSP library compressor, for the owner's threshold, time-constant and LED reads.
 	[[nodiscard]] const dsp::fixed::RmsFeedbackCompressor& dsp() const { return dsp_; }
 
 private:

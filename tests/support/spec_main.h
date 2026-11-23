@@ -44,7 +44,7 @@ int run_specs(int argc, char** const argv, Specs&... specs) {
 /// (tests/support/cmake/specs.cmake), `<dir>_<stem>` under tests/integration/ui/scenes's generated table.
 ///
 /// Include "support/spec_main.h" after every project header: it brings in CppSpec, whose `context`, `_` and `$`
-/// macros break a header that uses those names (dsp-next's `kernel.h` among them).
+/// macros break a header that uses those names (the DSP library's `kernel.h` among them).
 ///
 /// A twin (a spec file that `#include`s another spec file to run its groups under other flags) defines
 /// `DELUGE_SPEC_TWIN` as 1 around that include, so the included file's DELUGE_SPEC defines nothing and the twin's TU

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The param curves in dsp-next against verbatim copies of the app's functions they replace.
+// The param curves in the DSP library against verbatim copies of the app's functions they replace.
 
 #include "dsp/fixed/curves/param_curve.h"
 #include "param_curve_reference.h"

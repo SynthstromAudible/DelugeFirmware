@@ -17,9 +17,9 @@
 
 /// @file
 /// @brief The live pitch shifter's oracle: the shifter, its play heads and its input buffer as they were before their
-/// rewrite as dsp-next components, verbatim but for owning their storage. The shifter is handed its buffer and reads
-/// the input ring through a plain @ref ReferencePort; the compile-time-dead repitched-buffer and hop-timing paths are
-/// resolved away. Never edit its arithmetic: the components are proven against it (pitch_shift_workloads.h).
+/// rewrite as the DSP library components, verbatim but for owning their storage. The shifter is handed its buffer and
+/// reads the input ring through a plain @ref ReferencePort; the compile-time-dead repitched-buffer and hop-timing paths
+/// are resolved away. Never edit its arithmetic: the components are proven against it (pitch_shift_workloads.h).
 
 #pragma once
 

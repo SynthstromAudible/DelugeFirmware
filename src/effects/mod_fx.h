@@ -91,8 +91,8 @@ struct ModFxInputs {
 	}
 }
 
-/// @brief An owner's mod FX: the dsp-next mod FX kernel, the 4 KB ring it reads through an allocator, the soft off and
-/// the pass-through of a ring type that holds no ring.
+/// @brief An owner's mod FX: the DSP library mod FX kernel, the 4 KB ring it reads through an allocator, the soft off
+/// and the pass-through of a ring type that holds no ring.
 ///
 /// A ring type's change runs in three steps around the owner's audio-excluded section: @ref prepare allocates, @ref
 /// commit swaps the kernel's ring inside the section, @ref finish frees. A change to a type that needs a ring while one

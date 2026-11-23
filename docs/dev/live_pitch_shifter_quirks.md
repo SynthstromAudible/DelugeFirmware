@@ -1,7 +1,7 @@
 # The live pitch shifter's quirks
 
 The live pitch shifter (`src/dsp/fixed/pitch_shift/`, `src/synth/sources/input/live/`) was rewritten as
-dsp-next components bit-exactly: not one output sample changed. What that kept is listed here, each with where it is,
+The DSP library components bit-exactly: not one output sample changed. What that kept is listed here, each with where it is,
 what it does, what it may be, and how to settle it. The code names each quirk at its line (`quirk Qn`).
 
 Settling one is a behaviour change of its own: an A/B render with the quirk fixed, a spectrum or ear check, a decision,
