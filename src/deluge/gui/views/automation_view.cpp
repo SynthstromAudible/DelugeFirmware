@@ -2567,7 +2567,8 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	if (is_step_editing) {
 		if ((instrumentClipView.numEditPadPresses > 0
-		     && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0))
+		     && ((int32_t)(instrumentClipView.timeLastEditPadPress + kEditPadHoldTime - AudioEngine::audioSampleTimer)
+		         < 0))
 		    || padSelectionOn) {
 
 			if (automationEditorLayoutModControllable.automationModEncoderActionForSelectedPad(

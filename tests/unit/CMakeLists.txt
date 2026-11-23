@@ -46,6 +46,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For value scaling
         ../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests
+        ../../src/deluge/model/scale/accidentals.cpp
         ../../src/deluge/model/scale/musical_key.cpp
         ../../src/deluge/model/scale/note_set.cpp
         ../../src/deluge/model/scale/preset_scales.cpp
@@ -53,6 +54,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/model/scale/preset_scales.cpp
         ../../src/deluge/model/scale/scale_change.cpp
         ../../src/deluge/model/scale/scale_mapper.cpp
+        ../../src/deluge/model/scale/scale_degrees.cpp
         # For clip iterator tests
         ../../src/deluge/model/song/clip_iterators.cpp
         # For sync tests
@@ -74,6 +76,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/io/midi/midi_queue.cpp
         # For FFT magnitude tests
         ../../src/deluge/util/fast_pythag.cpp
+        # For note parameter lock tests
+        ../../src/deluge/model/note/note_locks.cpp
+        ../../src/deluge/model/note/note_lock_playback.cpp
 )
 
 add_executable(UnitTests
@@ -81,6 +86,7 @@ add_executable(UnitTests
         scheduler_tests.cpp
         lfo_tests.cpp
         scale_tests.cpp
+        accidentals_tests.cpp
         value_scaling_tests.cpp
         clip_iterator_tests.cpp
         function_tests.cpp
@@ -103,6 +109,7 @@ add_executable(UnitTests
         fast_divide_tests.cpp
         tick_interpolation_tests.cpp
         envelope_curve_tests.cpp
+        note_locks_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

@@ -32,3 +32,24 @@ Note* NoteVector::getElement(int32_t index) {
 Note* NoteVector::getLast() {
 	return getElement(getNumElements() - 1);
 }
+
+Error NoteVector::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotToStealFrom) {
+	Error error = OrderedResizeableArrayWith32bitKey::insertAtIndex(i, numToInsert, thingNotToStealFrom);
+	if (error == Error::NONE) {
+		for (int32_t n = i; n < i + numToInsert; n++) {
+			Note* note = static_cast<Note*>(getElementAddress(n));
+			note->lockSet = 0;
+			note->anchorMarker = AnchorMarker::derived();
+		}
+	}
+	return error;
+}
+
+int32_t NoteVector::insertAtKey(int32_t key, bool isDefinitelyLast) {
+	int32_t i = isDefinitelyLast ? numElements : search(key, GREATER_OR_EQUAL);
+	if (insertAtIndex(i) != Error::NONE) {
+		return -1;
+	}
+	setKeyAtIndex(key, i);
+	return i;
+}

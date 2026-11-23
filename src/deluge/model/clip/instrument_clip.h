@@ -43,6 +43,10 @@ class ModelStackWithNoteRow;
 
 struct PendingNoteOn;
 
+namespace deluge::accidentals {
+enum class AccidentalHandling;
+}
+
 enum class VerticalNudgeType { ROW, OCTAVE };
 
 class InstrumentClip final : public Clip {
@@ -68,10 +72,26 @@ public:
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true) override;
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos,
 	            bool useActualPosForParamManagers = true) override;
-	void replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack);
-	void seeWhatNotesWithinOctaveArePresent(NoteSet&, MusicalKey);
+	/// Moves the notes of a scale-mode clip for a scale change (see NoteRegrouper), and adjusts yScroll for the new
+	/// scale's size. pendingTranspose is a uniform shift in semitones which the caller is still to apply to every row
+	/// and to the key's root afterwards. Returns whether rows were restructured (notes changed NoteRow, or rows
+	/// merged), which makes undo history from before it stale.
+	[[nodiscard]] bool replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack,
+	                                      deluge::accidentals::AccidentalHandling accidentalHandling,
+	                                      int32_t pendingTranspose = 0);
+	/// Adds, as intervals above key's root, every pitch this clip has notes on. Also deletes empty rows.
+	void seeWhatNotesWithinOctaveArePresent(NoteSet&, MusicalKey key);
+	/// Like seeWhatNotesWithinOctaveArePresent(), but counts what each note hangs off instead of its own pitch: its
+	/// lineage anchor under lineageKey (see model/scale/accidentals.h). So an accidental counts as the in-key note it
+	/// is displayed on, not as itself, and a note whose anchor is not in lineageKey counts for nothing. Also deletes
+	/// empty rows.
+	void seeWhatAnchorsWithinOctaveArePresent(NoteSet&, MusicalKey key, const MusicalKey& lineageKey);
+	/// The yNote whose row an accidental is drawn on (below it in a sharp key, above it in a flat key); yNote itself
+	/// if it is in key or the clip isn't in scale mode.
+	int32_t getDisplayAnchorYNote(int32_t yNote, Song* song);
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
-	/// Returns false, changing nothing, if the transpose would leave the playable note range.
+	/// Returns false, changing nothing, if the transpose would leave the playable note range. Not undoable: the
+	/// caller must clear the undo history.
 	bool nudgeNotesVertically(int32_t direction, VerticalNudgeType, ModelStackWithTimelineCounter* modelStack);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
 	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const override;
@@ -79,7 +99,6 @@ public:
 	int32_t getYVisualFromYNote(int32_t, Song* song);
 	int32_t getYNoteFromYVisual(int32_t, Song* song);
 	int32_t getYNoteFromYDisplay(int32_t yDisplay, Song* song);
-	int32_t guessRootNote(Song* song, int32_t previousRoot);
 	int32_t getNumNoteRows();
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithTimelineCounter* modelStack,
 	                                                            Sound* sound);
@@ -168,8 +187,7 @@ public:
 	ModelStackWithNoteRow* getNoteRowForSelectedDrum(ModelStackWithTimelineCounter* modelStack);
 	ModelStackWithNoteRow* getNoteRowForDrum(ModelStackWithTimelineCounter* modelStack, Drum* drum);
 	NoteRow* getNoteRowForDrum(Drum* drum, int32_t* getIndex = nullptr);
-	ModelStackWithNoteRow* getOrCreateNoteRowForYNote(int32_t yNote, ModelStackWithTimelineCounter* modelStack,
-	                                                  Action* action = nullptr, bool* scaleAltered = nullptr);
+	ModelStackWithNoteRow* getOrCreateNoteRowForYNote(int32_t yNote, ModelStackWithTimelineCounter* modelStack);
 
 	bool hasSameInstrument(InstrumentClip* otherClip);
 	bool isScaleModeClip();
@@ -182,7 +200,6 @@ public:
 	void reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) override;
 	void stopAllNotesForMIDIOrCV(ModelStackWithTimelineCounter* modelStack);
 	void sendMIDIPGM();
-	void noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song);
 	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
 	           bool clearSequenceAndMPE) override;
 	bool doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability = -1);

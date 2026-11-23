@@ -24,6 +24,7 @@
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "model/instrument/instrument.h"
+#include "model/note/note_locks.h"
 #include "model/output.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
@@ -61,6 +62,10 @@ class Output;
 class AudioOutput;
 class ModelStack;
 class ModelStackWithTimelineCounter;
+
+namespace deluge::accidentals {
+enum class AccidentalHandling;
+}
 Clip* getCurrentClip();
 InstrumentClip* getCurrentInstrumentClip();
 AudioClip* getCurrentAudioClip();
@@ -104,14 +109,25 @@ class Song final : public TimelineCounter {
 public:
 	Song();
 	~Song() override;
+
+	/// Parameter-lock sets for every Note in this Song's clips (Note::lockSet indexes into this). See note_locks.h.
+	deluge::note_locks::Pool noteLocks;
+
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
 	void transposeAllScaleModeClips(int32_t interval);
 	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();
+	/// Flattens or sharpens one degree of the scale in all scale mode clips. Accidentals keep their pitch.
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
-	void rotateMusicalMode(int8_t change);
-	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose);
+	/// Rotates the scale's intervals by a number of scale steps (see the definition). pendingTranspose is a uniform
+	/// shift in semitones which the caller is still to apply to every row and to the key's root afterwards (in-key
+	/// transposition moves the root to the new mode's), so that accidentals are marked for the key as it will be then.
+	void rotateMusicalMode(int8_t change, int32_t pendingTranspose = 0);
+	/// Changes the musical mode of all scale mode clips. pendingTranspose is as for rotateMusicalMode(). If this
+	/// moves notes between NoteRows or merges rows, the undo history is invalidated.
+	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose,
+	                        deluge::accidentals::AccidentalHandling accidentalHandling, int32_t pendingTranspose = 0);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key);
 	int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, bool inKey) const;
@@ -148,10 +164,19 @@ public:
 	/// Returns true if the song has a user scale.
 	bool hasUserScale();
 	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
-	/// can result in a new user scale being set.
+	/// can result in a new user scale being set. Accidentals don't count for that: see anchorsInScaleModeClips().
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = nullptr);
-	/// Returns a NoteSet with all notes currently in used in scale mdoe clips.
+	/// Sets root note of key for a clip which is being put into scale mode. The clip takes on the key: its notes
+	/// outside it become accidentals, and the scale is kept whenever the notes counted fit it (even a user scale), so
+	/// that entering scale mode doesn't change the scale. The clip's scroll is left to the caller.
+	void setRootNoteForClipEnteringScaleMode(int32_t newRootNote, InstrumentClip* clip);
+	/// Returns a NoteSet with every pitch in use in scale mode clips, accidentals included, as intervals above the
+	/// root.
 	NoteSet notesInScaleModeClips();
+	/// Returns a NoteSet with the in-key notes in use in scale mode clips, as intervals above the root: each note
+	/// counts as its lineage anchor under lineageKey (see model/scale/accidentals.h), so an accidental counts as the
+	/// in-key note it hangs off and not as itself. clipToSkip, if given, isn't counted at all.
+	NoteSet anchorsInScaleModeClips(const MusicalKey& lineageKey, InstrumentClip* clipToSkip = nullptr);
 
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
@@ -280,14 +305,12 @@ public:
 	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);
-	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	Clip* syncScalingClip;
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();
 	void resyncLFOs(bool reset_state = false);
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound);
 	bool areAllClipsInSectionPlaying(int32_t section);
-	void removeYNoteFromMode(int32_t yNoteWithinOctave);
 	void turnSoloingIntoJustPlaying(bool getRidOfArmingToo = true);
 	void reassessWhetherAnyClipsSoloing();
 	float getTimePerTimerTickFloat();
@@ -466,6 +489,8 @@ public:
 	ThresholdRecordingMode thresholdRecordingMode;
 
 private:
+	void changeRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor,
+	                    InstrumentClip* clipEnteringScaleMode);
 	ScaleMapper scaleMapper;
 	NoteSet userScaleNotes;
 	bool fillModeActive;

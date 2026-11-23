@@ -25,6 +25,7 @@ CopiedNoteRow::CopiedNoteRow() {
 	// A pattern file may omit these tags, and paste reads both
 	yDisplay = 0;
 	yNote = 0;
+	accidentalOffset = 0;
 }
 
 CopiedNoteRow::~CopiedNoteRow() {

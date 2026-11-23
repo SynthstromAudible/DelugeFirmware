@@ -8,6 +8,7 @@
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
 #include "gui/menu_item/note/iterance_step_toggle.h"
+#include "gui/menu_item/note/param_locks.h"
 #include "gui/menu_item/note/probability.h"
 #include "gui/menu_item/note/velocity.h"
 #include "gui/menu_item/note_row/fill.h"
@@ -91,6 +92,8 @@ extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep6;
 extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep7;
 extern gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep8;
 extern gui::menu_item::note::Fill noteFillMenu;
+extern gui::menu_item::note::ParamLocks noteParamLocksMenu;
+extern gui::menu_item::note::ParamLockValue noteParamLockValueMenu;
 // note row editor menu's
 extern gui::menu_item::HorizontalMenu noteRowEditorRootMenu;
 extern gui::menu_item::note_row::Probability noteRowProbabilityMenu;

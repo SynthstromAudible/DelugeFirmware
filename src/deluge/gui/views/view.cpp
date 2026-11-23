@@ -858,7 +858,21 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-	int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+	// Holding note pads in the clip view and turning the knob for a local (per-voice) param locks it on those notes,
+	// instead of step-automating the param over their region
+	int32_t value;
+	HeldNoteLock held = instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &value);
+	if (held == HeldNoteLock::NO_NOTE) {
+		return; // No held note plays this param's Sound, so there's nothing to lock it on
+	}
+	bool noteLock = (held == HeldNoteLock::LOCK);
+	if (!noteLock) {
+		value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+	}
+	HeldPadEdit heldPadEdit = noteLock ? HeldPadEdit::NOTE_LOCK
+	                          : instrumentClipView.noteLocks.automatesHeldNotes(modelStackWithParam)
+	                              ? HeldPadEdit::AUTOMATING
+	                              : HeldPadEdit::NONE;
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 	int32_t newKnobPos = calculateKnobPosForModEncoderTurn(kind, knobPos, offset);
 
@@ -896,10 +910,20 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 				source2 = paramDescriptor.getTopLevelSource();
 			}
 		}
-		displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, source1, source2);
+		displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, source1, source2, heldPadEdit);
 	}
 
 	if (newKnobPos == knobPos) {
+		return;
+	}
+
+	if (noteLock) {
+		instrumentClipView.noteLocks.setHeldValue(
+		    modelStackWithParam,
+		    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam));
+		sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
+		setKnobIndicatorLevel(whichModEncoder);
+		potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 		return;
 	}
 
@@ -1092,7 +1116,7 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 }
 
 void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
-                                       PatchSource source2) {
+                                       PatchSource source2, HeldPadEdit heldPadEdit) {
 
 	// Cache last displayed values to avoid unnecessary notifications
 	static params::Kind last_param_kind = params::Kind::NONE;
@@ -1100,6 +1124,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	static int32_t last_display_value = INT32_MIN;
 	static PatchSource last_source1 = PatchSource::NONE;
 	static PatchSource last_source2 = PatchSource::NONE;
+	static HeldPadEdit last_held_pad_edit = HeldPadEdit::NONE;
+	static uint32_t not_lockable_notice_time = 0; // When the "not lockable" notice went up
 
 	// Display arbitration for multiple mod encoders ("juggling ball" system)
 	static params::Kind display_owner_kind = params::Kind::NONE;
@@ -1126,6 +1152,14 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			output = static_cast<Clip*>(activeModControllableModelStack.getTimelineCounter())->output;
 		}
 
+		if (heldPadEdit == HeldPadEdit::NOTE_LOCK) {
+			parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_LOCK_POPUP));
+			parameter_name.append(" ");
+		}
+		else if (heldPadEdit == HeldPadEdit::AUTOMATING) {
+			parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_AUTOMATING_POPUP));
+			parameter_name.append(" ");
+		}
 		if (kind == params::Kind::PATCH_CABLE) {
 			parameter_name.append(sourceToStringShort(source1));
 			parameter_name.append("->");
@@ -1219,6 +1253,30 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 
 	// Check if we need to update the notification (avoid excessive updates)
 	if (display->haveOLED()) {
+		// The first turn of a param that can't be locked, on each held pad, says so - and that it's being automated
+		// instead - for long enough to read before the values take over
+		constexpr uint32_t kNotLockableNoticeTime = kSampleRate;
+		if (heldPadEdit == HeldPadEdit::AUTOMATING) {
+			if (instrumentClipView.noteLocks.takeNotLockableNotice()) {
+				display->displayNotification(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_NOT_LOCKABLE),
+				                             std::nullopt);
+				not_lockable_notice_time = current_time;
+				last_param_kind = params::Kind::NONE; // So the next value is shown, whatever it is
+			}
+			uint32_t time_since_notice = current_time - not_lockable_notice_time;
+			if (time_since_notice < kNotLockableNoticeTime) {
+				hasPendingModEncoderValuePopup = true;
+				pendingPopupKind = kind;
+				pendingPopupParamID = paramID;
+				pendingPopupKnobPos = newKnobPos;
+				pendingPopupSource1 = source1;
+				pendingPopupSource2 = source2;
+				pendingPopupHeldPadEdit = heldPadEdit;
+				uiTimerManager.setTimerSamples(TimerName::MOD_ENCODER_POPUP_FLUSH,
+				                               kNotLockableNoticeTime - time_since_notice);
+				return;
+			}
+		}
 
 		// Check if notification popup is active and if the parameter info has changed
 		bool has_param_info_changed = true;
@@ -1226,7 +1284,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 			has_param_info_changed =
 			    (kind != last_param_kind || paramID != last_param_id || current_display_value != last_display_value
-			     || source1 != last_source1 || source2 != last_source2);
+			     || source1 != last_source1 || source2 != last_source2 || heldPadEdit != last_held_pad_edit);
 
 			// Check if enough time has passed since the last actual display update so we
 			// can still perceive the changes and so we don't exceed the screen's refresh rate.
@@ -1273,6 +1331,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			last_display_value = current_display_value;
 			last_source1 = source1;
 			last_source2 = source2;
+			last_held_pad_edit = heldPadEdit;
 
 			// Update display ownership tracking
 			if (!current_param_owns_display) {
@@ -1297,6 +1356,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			pendingPopupKnobPos = newKnobPos;
 			pendingPopupSource1 = source1;
 			pendingPopupSource2 = source2;
+			pendingPopupHeldPadEdit = heldPadEdit;
 
 			uint32_t time_since_last_actual_display = current_time - last_actual_display_time;
 			uint32_t samples_until_flush = MIN_UPDATE_INTERVAL - time_since_last_actual_display;
@@ -1309,7 +1369,12 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 	}
 	else {
-		display->displayPopup(parameter_value.c_str());
+		// 7SEG: a lock shows its value with the dot after its last digit lit
+		uint8_t dot = 255;
+		if (heldPadEdit == HeldPadEdit::NOTE_LOCK) {
+			dot = std::clamp<int32_t>(static_cast<int32_t>(parameter_value.size()), 1, kNumericDisplayLength) - 1;
+		}
+		display->displayPopup(parameter_value.c_str(), 3, false, dot);
 	}
 }
 
@@ -1321,7 +1386,7 @@ void View::flushPendingModEncoderValuePopup() {
 	}
 
 	displayModEncoderValuePopup(pendingPopupKind, pendingPopupParamID, pendingPopupKnobPos, pendingPopupSource1,
-	                            pendingPopupSource2);
+	                            pendingPopupSource2, pendingPopupHeldPadEdit);
 }
 
 // convert deluge internal knobPos range to same range as used by menu's.
@@ -1440,7 +1505,10 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	bool isBipolar = false;
 
 	if (modelStackWithParam->autoParam) {
-		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+		int32_t value;
+		if (instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &value) == HeldNoteLock::NONE) {
+			value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+		}
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
 		params::Kind kind = paramCollection->getParamKind();
 		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);

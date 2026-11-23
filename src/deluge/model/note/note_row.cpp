@@ -33,6 +33,8 @@
 #include "model/iterance/iterance_migration.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
+#include "model/note/note_lock_file.h"
+#include "model/note/note_lock_playback.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
@@ -141,6 +143,8 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 						newNote->setLift(oldNote->getLift());
 						newNote->setIterance(oldNote->getIterance());
 						newNote->setFill(oldNote->getFill());
+						newNote->setLockSet(oldNote->getLockSet());
+						newNote->anchorMarker = oldNote->anchorMarker;
 					}
 				}
 
@@ -158,6 +162,8 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
+					newNote->anchorMarker = oldNote->anchorMarker;
 				}
 			}
 
@@ -186,6 +192,8 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
+					newNote->anchorMarker = oldNote->anchorMarker;
 				}
 			}
 		}
@@ -489,7 +497,7 @@ addNewNote:
 		if (noteEnd > squareStart) {
 
 			// We have a tail! But if tails aren't allowed, cut it off and make a new note here instead
-			if (!allowNoteTails) {
+			if (!noteHasTail(note, allowNoteTails, modelStack->song)) {
 				if (action) {
 					action->recordNoteArrayChangeIfNotAlreadySnapshotted(
 					    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, false);
@@ -506,7 +514,7 @@ addNewNote:
 		else {
 
 			// If we're wanting to extend, and tails are allowed...
-			if (extendPreviousNoteIfPossible && allowNoteTails) {
+			if (extendPreviousNoteIfPossible && noteHasTail(note, allowNoteTails, modelStack->song)) {
 
 				int32_t newLength;
 
@@ -722,7 +730,7 @@ int32_t NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do
 // something else yourself. Returns distanceToNextNote, or 0 on fail.
 int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
-                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action) {
+                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action, uint16_t lockSet) {
 
 	int32_t loopLength = modelStack->getLoopLength();
 
@@ -780,6 +788,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 	newNote->setProbability(probability);
 	newNote->setIterance(iterance);
 	newNote->setFill(fill);
+	newNote->setLockSet(lockSet);
 
 	// Record consequence
 	if (action) {
@@ -1087,6 +1096,8 @@ modifyNote:
 			Iterance iterance = note->getIterance();
 			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
+			uint16_t lockSet = note->getLockSet();
+			AnchorMarker anchorMarker = note->anchorMarker;
 			notes.deleteAtIndex(0, 1, false);
 			i = notes.getNumElements();
 			notes.insertAtIndex(i); // Shouldn't be able to fail.
@@ -1095,6 +1106,8 @@ modifyNote:
 			note->setVelocity(noteOnVelocity);
 			note->setIterance(iterance);
 			note->setFill(fill);
+			note->setLockSet(lockSet);
+			note->anchorMarker = anchorMarker;
 		}
 
 		note->pos = newNoteLeftPos; // This will stay the same if we're pingponging
@@ -1764,8 +1777,49 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 		return Error::NONE;
 	}
 
+	if (action) {
+		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
+		                                                     modelStack->noteRowId, &notes,
+		                                                     false); // Snapshot for undoability. Don't steal data.
+	}
+
+	return forNotesAcrossAllScreens(editPos, modelStack, [&](Note& thisNote) {
+		switch (changeType) {
+		case CORRESPONDING_NOTES_ADJUST_VELOCITY: {
+			int32_t newVelocity = std::clamp<int32_t>(thisNote.getVelocity() + changeValue, 1, 127);
+			thisNote.setVelocity(newVelocity);
+		} break;
+
+		case CORRESPONDING_NOTES_SET_VELOCITY: {
+			thisNote.setVelocity(changeValue);
+		} break;
+
+		case CORRESPONDING_NOTES_SET_PROBABILITY: {
+			thisNote.setProbability(changeValue);
+		} break;
+
+		case CORRESPONDING_NOTES_SET_ITERANCE: {
+			thisNote.setIterance(Iterance::fromInt(changeValue));
+		} break;
+
+		case CORRESPONDING_NOTES_SET_FILL: {
+			thisNote.setFill(changeValue);
+		} break;
+		}
+	});
+}
+
+Error NoteRow::forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack,
+                                        const std::function<void(Note&)>& visit) {
+
+	// If no Notes, nothing to do.
+	if (!notes.getNumElements()) {
+		return Error::NONE;
+	}
+
+	// Start from the first screen, so copies before editPos's screen get it too (without wrap editing, the level is
+	// longer than any row, so this is editPos itself and there's one "screen")
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
-	// Start from the first screen, so copies on screens before editPos's get the change too
 	editPos = (uint32_t)editPos % wrapEditLevel;
 
 	int32_t numScreens = (uint32_t)(modelStack->getLoopLength() - 1) / wrapEditLevel + 1;
@@ -1776,12 +1830,6 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * sizeof(int32_t));
 	if (!searchTerms) {
 		return Error::INSUFFICIENT_RAM;
-	}
-
-	if (action) {
-		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
-		                                                     modelStack->noteRowId, &notes,
-		                                                     false); // Snapshot for undoability. Don't steal data.
 	}
 
 	// Populate big list of all the positions we want to search
@@ -1803,30 +1851,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 
 		Note* __restrict__ thisNote = notes.getElement(indexThisScreen);
 		if (thisNote != nullptr && thisNote->pos == posThisScreen) {
-			// Do the action
-
-			switch (changeType) {
-			case CORRESPONDING_NOTES_ADJUST_VELOCITY: {
-				int32_t newVelocity = std::clamp<int32_t>(thisNote->getVelocity() + changeValue, 1, 127);
-				thisNote->setVelocity(newVelocity);
-			} break;
-
-			case CORRESPONDING_NOTES_SET_VELOCITY: {
-				thisNote->setVelocity(changeValue);
-			} break;
-
-			case CORRESPONDING_NOTES_SET_PROBABILITY: {
-				thisNote->setProbability(changeValue);
-			} break;
-
-			case CORRESPONDING_NOTES_SET_ITERANCE: {
-				thisNote->setIterance(Iterance::fromInt(changeValue));
-			} break;
-
-			case CORRESPONDING_NOTES_SET_FILL: {
-				thisNote->setFill(changeValue);
-			} break;
-			}
+			visit(*thisNote);
 		}
 	}
 
@@ -1886,7 +1911,7 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailColour, RGB rowBlurColour, RGB* image,
                         uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength,
                         bool allowNoteTails, int32_t renderWidth, int32_t xScroll, uint32_t xZoom, int32_t xStartNow,
-                        int32_t xEnd, bool drawRepeats) {
+                        int32_t xEnd, bool drawRepeats, bool showLocks) {
 
 	if (overwriteExisting) {
 		memset(image, 0, renderWidth * 3);
@@ -1901,6 +1926,13 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 
 	int32_t squareEndPos[kMaxImageStoreWidth];
 	int32_t searchTerms[kMaxImageStoreWidth];
+
+	// Notes with parameter locks are drawn white instead of the row colour - head, tail and blur alike, dimmed the
+	// same way the row colour is (a blur colour equal to the main colour means the caller doesn't want blurring).
+	// Row colours are all fully saturated hues, so white can't be mistaken for one, and no other note state uses it.
+	constexpr RGB lockColour = deluge::gui::colours::white_full;
+	constexpr RGB lockTailColour = lockColour.forTail();
+	const RGB lockBlurColour = (rowBlurColour == rowColour) ? lockColour : lockColour.forBlur();
 
 	int32_t whichRepeat = 0;
 
@@ -1952,6 +1984,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			}
 			int32_t i = searchTerms[xDisplay - xStartNow];
 			bool drewNote = false;
+			bool drewHead = false;
 			Note* note = notes.getElement(i - 1); // Subtracting 1 to do "LESS"
 
 			RGB& pixel = image[xDisplay];
@@ -1959,7 +1992,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
 				drewNote = true;
-				pixel = rowBlurColour;
+				pixel = (showLocks && note->lockSet) ? lockBlurColour : rowBlurColour;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -1968,9 +2001,11 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
 				drewNote = true;
+				drewHead = true;
 				// this is just colour * (0.25 + 0.75 * velocity) but in fixed point, i.e. it'll go linearly from 0.25
 				// to max brightness with velocity
-				pixel = rowColour.adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
+				pixel = ((showLocks && note->lockSet) ? lockColour : rowColour)
+				            .adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -1987,18 +2022,18 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				if (wrapping) {
 					noteEnd -= effectiveRowLength;
 				}
-				if (noteEnd > squareStartPos && allowNoteTails) {
+				if (noteEnd > squareStartPos && noteHasTail(note, allowNoteTails, currentSong)) {
 					drewNote = true;
-					pixel = rowTailColour;
+					pixel = (showLocks && note->lockSet) ? lockTailColour : rowTailColour;
 					if (occupancyMask) {
 						occupancyMask[xDisplay] = 64;
 					}
 				}
 			}
-			// if we're not dealing with a blurred note or a note tail
-			if (pixel != rowBlurColour && pixel != rowTailColour) {
+			// if we're dealing with a note head (not a blurred note or a note tail)
+			if (drewHead) {
 				// if fill mode is active, identify the notes that are fill or not-fill
-				if (drewNote && currentSong->isFillModeActive()) {
+				if (currentSong->isFillModeActive()) {
 					if (note->fill == FillMode::FILL) {
 						pixel = deluge::gui::colours::blue;
 					}
@@ -2007,11 +2042,13 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					}
 				}
 				// if you're in the note editor, identify the notes that have non-default parameters
-				else if (drewNote && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
-					// if note has non-default settings for probability, iterance or fill
+				else if (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+					// if note has non-default settings for probability, iterance or fill: yellow, or pale yellow
+					// (yellow and the lock colour averaged) if it has parameter locks too
 					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
 					    || note->getFill() != FillMode::OFF) {
-						pixel = deluge::gui::colours::yellow;
+						pixel = (showLocks && note->lockSet) ? RGB::average(deluge::gui::colours::yellow, lockColour)
+						                                     : deluge::gui::colours::yellow;
 					}
 				}
 			}
@@ -2521,7 +2558,28 @@ bool NoteRow::check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, S
 	                                   &modelStack->getTimelineCounter()->paramManager)
 	               ->addSoundFlags());
 }
+bool NoteRow::locksTakeEffect(const InstrumentClip* clip) const {
+	OutputType type = clip->output->type;
+	return type == OutputType::SYNTH || (type == OutputType::KIT && drum != nullptr && drum->type == DrumType::SOUND);
+}
+
+bool NoteRow::noteHasTail(const Note* note, bool rowAllowsNoteTails, const Song* song) {
+	if (rowAllowsNoteTails) [[likely]] {
+		return true;
+	}
+	if (note == nullptr || note->lockSet == 0) [[likely]] {
+		return false;
+	}
+	return deluge::note_locks::locksSustain(song->noteLocks.get(note->lockSet));
+}
+
+// A held pad's uncommitted parameter-lock edits for this note, if any
+static const deluge::note_locks::LiveEdit* liveEditFor(ModelStackWithNoteRow* modelStack, Note* note) {
+	return deluge::note_locks::liveEdits.find(modelStack->getTimelineCounter(), modelStack->noteRowId, note->pos);
+}
+
 // Note may be NULL if it's a note-off, in which case you don't get lift-velocity
+
 void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNote, int32_t ticksLate,
                        uint32_t samplesLate, bool noteMightBeConstant, PendingNoteOnList* pendingNoteOnList) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -2563,6 +2621,10 @@ storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].sampleSyncLength =
 					    thisNote->getLength();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
+					const deluge::note_locks::LiveEdit* live = liveEditFor(modelStack, thisNote);
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].locks = {
+					    thisNote->lockSet, live != nullptr ? live->tag : uint16_t{0}};
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].locksWhenDue = nullptr;
 					pendingNoteOnList->count++;
 				}
 				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per
@@ -2574,6 +2636,8 @@ storePendingNoteOn:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(
 					    ((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 					    &modelStack->getTimelineCounter()->paramManager);
+					deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, thisNote->lockSet,
+					                                       liveEditFor(modelStack, thisNote));
 					((MelodicInstrument*)output)
 					    ->sendNote(modelStackWithThreeMainThings, true, getNoteCode(), mpeValues, MIDI_CHANNEL_NONE,
 					               thisNote->velocity, thisNote->length, ticksLate, samplesLate);
@@ -2621,6 +2685,8 @@ storePendingNoteOn:
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
+					deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, thisNote->lockSet,
+					                                       liveEditFor(modelStack, thisNote));
 					drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, drum, thisNote->velocity, mpeValues,
 					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
 				}
@@ -2636,9 +2702,12 @@ storePendingNoteOn:
 		}
 	}
 
-	// And for all cases of a note-on, remember that that's what's happening, for later.
+	// And for all cases of a note-on, remember that that's what's happening, for later - so its note-off gets sent.
+	// A sound with no tails gets none, except for a note whose locks give it a sustain, and a note on a held pad,
+	// whose sustain may be locked while it plays.
 	if (on) {
-		if (clip->allowNoteTails(modelStack)) {
+		if (noteHasTail(thisNote, clip->allowNoteTails(modelStack), modelStack->song)
+		    || (thisNote && liveEditFor(modelStack, thisNote))) {
 			sequenced = true;
 		}
 	}
@@ -2909,6 +2978,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
+					newNote->anchorMarker = oldNote->anchorMarker;
 
 					highestNoteIndex = iNew;
 				}
@@ -2959,6 +3030,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
+					newNote->anchorMarker = oldNote->anchorMarker;
 
 					highestNoteIndex = iNew;
 				}
@@ -3217,6 +3290,8 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 
 	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams
 	                           // before we know what kind of Drum (if any) we have.
+
+	deluge::note_locks::FileReader noteLocksReader;
 
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -3542,6 +3617,43 @@ getOut: {}
 			goto doReadNoteData;
 		}
 
+		else if (!strcmp(tagName, "lockParams")) {
+			noteLocksReader.readParams(reader);
+		}
+
+		else if (!strcmp(tagName, "noteLocks")) {
+			// Written after the note data, so the notes it refers to exist by now
+			noteLocksReader.readLocks(reader, notes, song->noteLocks);
+		}
+
+		// Accidental lineage markers (AnchorMarker::raw()), one byte per note, written after the notes. Ignored unless
+		// they match.
+		else if (!strcmp(tagName, "noteAnchors")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					int32_t numMarkers = 0;
+					while (true) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (!hexChars) {
+							break;
+						}
+						auto marker = AnchorMarker::fromRaw(static_cast<int8_t>(hexToIntFixedLength(hexChars, 2)));
+						if (numMarkers < notes.getNumElements()) {
+							notes.getElement(numMarkers)->anchorMarker = marker;
+						}
+						numMarkers++;
+					}
+					// If this doesn't match the notes we read, drop it all
+					if (numMarkers != notes.getNumElements()) {
+						for (int32_t n = 0; n < notes.getNumElements(); n++) {
+							notes.getElement(n)->anchorMarker = AnchorMarker::derived();
+						}
+					}
+				}
+			}
+		}
+
 		else if (!strcmp(tagName, "expressionData")) {
 			paramManager.ensureExpressionParamSetExists();
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
@@ -3567,7 +3679,7 @@ getOut: {}
 	return Error::NONE;
 }
 
-void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip) {
+void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip, Song* song) {
 	writer.writeOpeningTagBeginning("noteRow", true);
 
 	bool forKit = (clip->output->type == OutputType::KIT);
@@ -3623,6 +3735,27 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.write(buffer);
 		}
 		writer.write("\"");
+
+		// Accidental lineage markers (see model/scale/accidentals.h), only if any note has one
+		bool anyAnchors = false;
+		for (int32_t n = 0; n < notes.getNumElements(); n++) {
+			anyAnchors = anyAnchors || !notes.getElement(n)->anchorMarker.isDerived();
+		}
+		if (anyAnchors) {
+			writer.insertCommaIfNeeded();
+			writer.write("\n");
+			writer.printIndents();
+			writer.writeTagNameAndSeperator("noteAnchors");
+			writer.write("\"0x");
+			for (int32_t n = 0; n < notes.getNumElements(); n++) {
+				char buffer[9];
+				intToHex(static_cast<uint8_t>(notes.getElement(n)->anchorMarker.raw()), buffer, 2);
+				writer.write(buffer);
+			}
+			writer.write("\"");
+		}
+
+		deluge::note_locks::writeToFile(writer, notes, song->noteLocks);
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
@@ -4071,8 +4204,17 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 		newLength = std::min(newLength, maxPos - newPos);
 
 		// Prevents pasting of overlapping notes, which leads to sequentialTest Error "E319"
-		attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability, noteSource->iterance,
-		               noteSource->fill, modelStack, nullptr);
+		int32_t added = attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability,
+		                               noteSource->iterance, noteSource->fill, modelStack, nullptr);
+		if (added && noteSource->lockSet) {
+			int32_t i = notes.search(newPos, GREATER_OR_EQUAL);
+			Note* pasted = notes.getElement(i);
+			if (pasted && pasted->pos == newPos) {
+				// Out of memory: the note is pasted without its locks
+				pasted->lockSet =
+				    modelStack->song->noteLocks.intern(copiedNoteRow->locks.get(noteSource->lockSet)).value_or(0);
+			}
+		}
 
 		minPos = newPos + newLength;
 	}
@@ -4224,6 +4366,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setLift(oldNote->getLift());
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
+				newNote->setLockSet(oldNote->getLockSet());
+				newNote->anchorMarker = oldNote->anchorMarker;
 			}
 		}
 
@@ -4254,6 +4398,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setLift(oldNote->getLift());
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
+				newNote->setLockSet(oldNote->getLockSet());
+				newNote->anchorMarker = oldNote->anchorMarker;
 			}
 		}
 	}
@@ -4271,6 +4417,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 			newNote->probability = oldNote->probability;
 			newNote->iterance = oldNote->iterance;
 			newNote->fill = oldNote->fill;
+			newNote->lockSet = oldNote->lockSet;
+			newNote->anchorMarker = oldNote->anchorMarker;
 		}
 	}
 

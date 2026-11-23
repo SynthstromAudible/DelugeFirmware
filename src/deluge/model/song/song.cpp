@@ -45,9 +45,12 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/note/note_lock_playback.h"
 #include "model/sample/sample_recorder.h"
+#include "model/scale/accidentals.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
+#include "model/scale/scale_degrees.h"
 #include "model/scale/utils.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
@@ -135,6 +138,7 @@ OutputType getCurrentOutputType() {
 }
 
 using namespace deluge;
+using deluge::accidentals::AccidentalHandling;
 
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	outputClipInstanceListIsCurrentlyInvalid = false;
@@ -209,6 +213,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 }
 
 Song::~Song() {
+	deluge::note_locks::liveEdits.disarmAllOf(this); // A held pad's uncommitted lock edits can't outlive their Song
 
 	// Delete existing Clips, if any
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
@@ -244,6 +249,7 @@ Song::~Song() {
 
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
+#include "model/song/note_spelling.h"
 #include "timers_interrupts/timers_interrupts.h"
 extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
@@ -507,7 +513,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 		int8_t newModeRoot = key.modeNotes[rootIndex];
 
 		semitones = 12 * octaves + newModeRoot;
-		rotateMusicalMode(offset);
+		rotateMusicalMode(offset, semitones);
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -595,20 +601,47 @@ NoteSet Song::notesInScaleModeClips() {
 	return notes;
 }
 
+NoteSet Song::anchorsInScaleModeClips(const MusicalKey& lineageKey, InstrumentClip* clipToSkip) {
+	NoteSet notes;
+	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
+		if (instrumentClip != clipToSkip && instrumentClip->isScaleModeClip()) {
+			instrumentClip->seeWhatAnchorsWithinOctaveArePresent(notes, key, lineageKey);
+		}
+	}
+	return notes;
+}
+
 void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
-	// Setting the new root affects interpretation of existing notes done by notesInScaleModeClips(),
+	changeRootNote(newRootNote, clipToAvoidAdjustingScrollFor, nullptr);
+}
+
+void Song::setRootNoteForClipEnteringScaleMode(int32_t newRootNote, InstrumentClip* clip) {
+	changeRootNote(newRootNote, clip, clip);
+}
+
+void Song::changeRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor,
+                          InstrumentClip* clipEnteringScaleMode) {
+	// Setting the new root affects interpretation of existing notes done by anchorsInScaleModeClips(),
 	// so we need to do it before anything else.
 	int32_t oldRootNote = key.rootNote;
+	// Accidentals (notes outside the old key) must not influence the new scale
+	MusicalKey oldKey = key;
 	key.rootNote = newRootNote;
 
 	int32_t oldNumModeNotes = key.modeNotes.count();
-	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
+	NoteSet notesWithinOctavePresent = anchorsInScaleModeClips(oldKey, clipEnteringScaleMode);
+	if (clipEnteringScaleMode) {
+		// A clip entering scale mode takes on the key: its notes outside it become accidentals rather than changing
+		// the scale. Judge them against the new root, as that's the key the clip is entering.
+		clipEnteringScaleMode->seeWhatAnchorsWithinOctaveArePresent(notesWithinOctavePresent, key, key);
+	}
 
 	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale.
 	// Check if the previously set scale could fit the notes present in the clips
-	// If so, we need no check at all, we can directly go back to previous scale safely
-	bool previousScaleFits =
-	    getCurrentScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
+	// If so, we need no check at all, we can directly go back to previous scale safely. Entering scale mode keeps a
+	// user scale too.
+	bool previousScaleFits = (getCurrentScale() < NUM_PRESET_SCALES || clipEnteringScaleMode)
+	                         && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
 	if (!previousScaleFits) {
 		key.modeNotes = notesWithinOctavePresent.toImpliedScale();
 		// If this is not a preset, save as the current user scale.
@@ -646,7 +679,7 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
     intervals rotated    [2 1 2 2 2 1  2]
     new mode (Dorian)=  [0,2,3,5,7,9,10](12)
     */
-void Song::rotateMusicalMode(int8_t change) {
+void Song::rotateMusicalMode(int8_t change, int32_t pendingTranspose) {
 	int8_t j;
 	int16_t newRoot;
 	uint8_t noteCount = key.modeNotes.count();
@@ -663,16 +696,18 @@ void Song::rotateMusicalMode(int8_t change) {
 	}
 
 	changes.target = changes.applyTo(changes.source);
-	replaceMusicalMode(changes, false);
+	replaceMusicalMode(changes, false, AccidentalHandling::FOLLOW_ANCHOR, pendingTranspose);
 }
 
 /* Changes the musical mode of all scale mode clips, by
    supplying an array of deltas in semitones */
-void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose) {
+void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose,
+                              AccidentalHandling accidentalHandling, int32_t pendingTranspose) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
+	bool rowsRestructured = false;
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
 		if (!affectMIDITranspose && instrumentClip->output->type == OutputType::MIDI_OUT
 		    && ((NonAudioInstrument*)instrumentClip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
@@ -681,7 +716,16 @@ void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspo
 		}
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
 
-		instrumentClip->replaceMusicalMode(changes, modelStackWithTimelineCounter);
+		if (instrumentClip->replaceMusicalMode(changes, modelStackWithTimelineCounter, accidentalHandling,
+		                                       pendingTranspose)) {
+			rowsRestructured = true;
+		}
+	}
+
+	if (rowsRestructured) {
+		// Undo history from before this finds its notes by NoteRow, so it can't be reverted any more. This can run
+		// from a sequenced transpose during playback, where deleting Actions isn't safe: they are only marked here.
+		actionLogger.invalidateLogs();
 	}
 
 	key.modeNotes = changes.applyTo(key.modeNotes);
@@ -695,14 +739,7 @@ void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
 	changes[yVisualWithinOctave] += change;
 	changes.target = changes.applyTo(changes.source);
 
-	replaceMusicalMode(changes, true);
-}
-
-bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
-	if (!inKeyMode) {
-		return true;
-	}
-	return key.modeNotes.has(key.intervalOf(yNote));
+	replaceMusicalMode(changes, true, AccidentalHandling::KEEP_PITCH);
 }
 
 int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode) {
@@ -835,34 +872,6 @@ bool Song::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) {
 		            key.modeNotes[yVisualWithinOctave - 1]
 		                < key.modeNotes[yVisualWithinOctave] - 1 // The next note down has left us space to move down
 		            ));
-	}
-}
-
-void Song::removeYNoteFromMode(int32_t yNoteWithinOctave) {
-
-	// Why did I get rid of this again?
-
-	/*
-	int32_t i = 0;
-	while (i < key.modeNotes.count) {
-	    if (key.modeNotes[i] == yNoteWithinOctave) goto foundIt;
-	    i++;
-	}
-
-	return;
-
-	foundIt:
-
-	key.modeNotes.count--;
-	while (i < key.modeNotes.count) {
-	    key.modeNotes[i] = key.modeNotes[i + 1];
-	    i++;
-	}
-
-	*/
-
-	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
-		instrumentClip->noteRemovedFromMode(yNoteWithinOctave, this);
 	}
 }
 
@@ -3076,23 +3085,43 @@ Scale Song::setScale(Scale newScale) {
 bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	newScaleNotes.add(0); // ensure root
 
-	// Always count the root note as present, to avoid changing the root note when cycling scales.
-	//
-	// Note: it is important we always use the actual notes, instead of eg. picking all scale notes
-	// when transforming between scales of same size - otherwise scale transformations don't necessarily
-	// remain reversible across sizes, even if the user didn't change the notes used.
-	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
-	notesWithinOctavePresent.add(0);
+	ScaleChange changes;
 
-	// If the new scale cannot fit the notes from the old one, we can't change scale
-	if (notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize()) {
-		return false;
+	// Scales of up to 7 notes: every note moves by its degree letter (1st, b3rd, ...), so this never refuses, and
+	// notes whose letter the new scale lacks keep their pitch (see model/scale/scale_degrees.h).
+	if (std::optional<ScaleChange> byLetter = deluge::scale_degrees::letterChange(key, newScaleNotes)) {
+		changes = *byLetter;
+	}
+	else {
+		// User scales with more than 7 notes have no letters: map by index with the mapper.
+		//
+		// Always count the root note as present, to avoid changing the root note when cycling scales.
+		//
+		// Note: it is important we always use the actual notes, instead of eg. picking all scale notes
+		// when transforming between scales of same size - otherwise scale transformations don't necessarily
+		// remain reversible across sizes, even if the user didn't change the notes used.
+		NoteSet notesWithinOctavePresent = anchorsInScaleModeClips(key);
+		notesWithinOctavePresent.add(0);
+
+		// A pitch-preserving change (below) leaves more pitch classes in use than the scale has degrees, which a
+		// mapping of degrees never does. If we find that, and all of them are in the new scale, nothing needs to
+		// move: this takes such a state back to the scale it came from with every note where it was.
+		NoteSet allPitches = notesInScaleModeClips();
+		bool nothingNeedsToMove = allPitches.isSubsetOf(newScaleNotes) && allPitches.count() > key.modeNotes.count();
+
+		if (nothingNeedsToMove || notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize()) {
+			// Either nothing needs to move, or the new scale cannot fit the notes of the old one, so the mapper has
+			// no degrees to put them on. Keep every pitch and just swap the scale around the notes; those not in the
+			// new scale become accidentals, which are derived from pitch and key.
+			changes.source = key.modeNotes;
+			changes.target = newScaleNotes;
+		}
+		else if (!scaleMapper.computeChangeFrom(notesWithinOctavePresent, key.modeNotes, newScaleNotes, changes)) {
+			return false;
+		}
 	}
 
-	ScaleChange changes;
-	scaleMapper.computeChangeFrom(notesWithinOctavePresent, key.modeNotes, newScaleNotes, changes);
-
-	replaceMusicalMode(changes, true);
+	replaceMusicalMode(changes, true, AccidentalHandling::FOLLOW_ANCHOR);
 
 	key.modeNotes = newScaleNotes;
 
@@ -6004,7 +6033,7 @@ doHibernatingInstruments:
 void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
 	char noteName[kNoteCodeStringBufferSize];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural, true, useSharpsForNoteNames());
 
 	buffer.append(noteName);
 	if (display->haveOLED()) {

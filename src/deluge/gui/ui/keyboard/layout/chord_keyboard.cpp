@@ -25,6 +25,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/note_spelling.h"
 #include "util/functions.h"
 #include <stdlib.h>
 
@@ -266,7 +267,7 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
 	char noteName[3] = {0};
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(noteCode, noteName, &isNatural, false);
+	noteCodeToString(noteCode, noteName, &isNatural, false, useSharpsForNoteNames());
 
 	char fullChordName[300];
 

@@ -19,6 +19,7 @@
 
 #include "algorithm"
 #include "definitions_cxx.hpp"
+#include "model/note/note_lock_playback.h"
 #include "model/sync.h"
 #include "storage/storage_manager.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -172,6 +173,9 @@ struct ArpNote {
 	uint8_t baseVelocity{0};
 	// Keep the stretch length with the note for when the arp hands it back (takeNoteHeldThroughArpOff())
 	uint32_t sampleSyncLength{0};
+	// Parameter locks of the sequenced note that put this note in the arp (note_locks::pending at its note-on), so
+	// the notes the arp generates from it later carry them too
+	deluge::note_locks::NoteRef locks;
 
 	// For note-ons
 	std::array<ArpNoteStatus, ARP_MAX_INSTRUCTION_NOTES> noteStatus{};
