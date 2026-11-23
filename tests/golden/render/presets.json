@@ -2141,6 +2141,18 @@
   "rms_db": -35.63,
   "sha256": "1bc8b58c620a93751ce45955ed70f1070ae9bd6986d1b3ceb145d4ee93775145"
  },
+ "sample/ts_cache_crossfade": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -34.71,
+  "sha256": "c28d083b53677eb49becc6ac848b751c504cccf806bd7e6bfb2109be92871e14"
+ },
+ "sample/ts_cached_loop": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.23,
+  "sha256": "b86b25bbb5c17a6541fb5efc7089c8ddf52bb88d90dc80df17dc6abd19ceb8e6"
+ },
  "sample/ts_long_hold": {
   "frames": 176400,
   "peak": 245172224,
