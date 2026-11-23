@@ -1,5 +1,5 @@
 # Conformance specs for deluge_storage_resource (src/storage/resource, the Rust cached-asset manager), driven
-# through its C ABI (src/storage/resource/include/deluge_resource.h) with a mock Source and linked from the
+# through its C ABI (src/storage/resource/include/deluge_storage_resource.h) with a mock Source and linked from the
 # deluge_test_rust umbrella staticlib the host tree builds. Its masking discipline calls the interrupt-masking C ABI on
 # every acquire and release, so the shared host bodies for it are linked in too.
 #
@@ -14,6 +14,6 @@ deluge_specs_driver(resource_specs TREES host
     deluge_rust_rs
     pthread dl m  # the Rust std staticlib's system libraries
   INCLUDES
-    ${DELUGE_CRATE_INCLUDE_DIRS}                      # deluge_resource.h
+    ${DELUGE_CRATE_INCLUDE_DIRS}                      # deluge_storage_resource.h
     ${DELUGE_REPO_ROOT}/include                       # libdeluge/alloc.h, libdeluge/system.h
 )

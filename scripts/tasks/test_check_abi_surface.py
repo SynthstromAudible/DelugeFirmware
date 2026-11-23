@@ -71,7 +71,7 @@ class Headers(unittest.TestCase):
         self.assertNotIn(vendored, self.headers())
 
     def test_an_unchecked_crate_header_is_not_read(self):
-        resource = self.plant("src/storage/resource/include/deluge_resource.h")
+        resource = self.plant("src/storage/resource/include/deluge_storage_resource.h")
         self.assertNotIn(resource, self.headers())
 
     def test_a_crate_include_file_not_named_deluge_is_not_read(self):

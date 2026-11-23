@@ -24,7 +24,7 @@
 #include "util/misc.h"
 #include <new>
 
-#include "deluge_resource.h" // resource manager: cache clusters are a construct-only Asset
+#include "deluge_storage_resource.h" // resource manager: cache clusters are a construct-only Asset
 
 // === Resource-manager Source for a SampleCache's clusters =====================
 // A cache cluster is written incrementally during playback (not read from disk), so the

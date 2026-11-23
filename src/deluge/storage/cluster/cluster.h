@@ -98,7 +98,7 @@ struct ComputedChunk final {
 	/// Handle to this cluster's chunk slot in the resource manager (set at creation via
 	/// deluge_resource_slot_of).
 	/// @note `0xFFFFFFFF` == DELUGE_RESOURCE_NO_SLOT (literal here so this widely-included header
-	///       needn't pull in deluge_resource.h).
+	///       needn't pull in deluge_storage_resource.h).
 	uint32_t resource_slot = 0xFFFFFFFF;
 	Sample* sample = nullptr;
 	SampleCache* sampleCache = nullptr; ///< Written by sampleCacheConstruct; currently no reads.

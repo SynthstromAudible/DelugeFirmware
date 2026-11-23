@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// deluge_resource.h — the C ABI for the cached-asset / resource manager.
+/// deluge_storage_resource.h — the C ABI for the cached-asset / resource manager.
 ///
 /// A value-scored, lease-based cache of *reconstructable* assets, layered on a
 /// `DelugeHeap` (libdeluge/alloc.h). Replaces the C++ Stealable / CacheManager /
@@ -30,8 +30,8 @@
 /// Owned by the `deluge_storage_resource` crate; implemented in Rust, must stay in sync
 /// with src/storage/resource/src/manager.rs. C-ABI: fixed-width types + function
 /// pointers only (no C `enum`s across the boundary).
-#ifndef DELUGE_RESOURCE_H
-#define DELUGE_RESOURCE_H
+#ifndef DELUGE_STORAGE_RESOURCE_H
+#define DELUGE_STORAGE_RESOURCE_H
 
 #include "libdeluge/alloc.h" // DelugeHeap
 #include <stddef.h>
@@ -326,4 +326,4 @@ void deluge_resource_mark_dirty(DelugeResource* mgr, void* ptr, bool dirty);
 }
 #endif
 
-#endif // DELUGE_RESOURCE_H
+#endif // DELUGE_STORAGE_RESOURCE_H

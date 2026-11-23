@@ -22,7 +22,7 @@
 #endif
 #include "board_config.h" // PLACE_SDRAM_BSS
 #include "definitions_cxx.hpp"
-#include "deluge_resource.h" // deluge_resource_loader_has_lowest
+#include "deluge_storage_resource.h" // deluge_resource_loader_has_lowest
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"

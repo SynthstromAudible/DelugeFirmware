@@ -12,7 +12,7 @@ use core::ffi::{c_char, c_void};
 pub mod abi;
 pub mod registry;
 
-/// `DELUGE_RESOURCE_NO_ASSET` from `deluge_resource.h`: the asset id of a slot that has none yet.
+/// `DELUGE_RESOURCE_NO_ASSET` from `deluge_storage_resource.h`: the asset id of a slot that has none yet.
 ///
 /// Mirrored by hand: this crate reaches the resource manager only through late-bound externs,
 /// never a `deluge_storage_resource` dependency.
@@ -74,7 +74,7 @@ unsafe extern "C" {
         asset: u32,
         ctx: DelugeStreamingFillContext,
     );
-    /// Retires an asset, freeing its resident chunks (`deluge_resource.h`).
+    /// Retires an asset, freeing its resident chunks (`deluge_storage_resource.h`).
     fn deluge_resource_release_asset(mgr: *mut c_void, asset: u32);
 }
 

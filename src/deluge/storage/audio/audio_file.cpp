@@ -23,7 +23,7 @@
 #include "storage/audio/audio_file_format.h"
 #include "storage/wave_table/wave_table.h"
 
-#include "deluge_resource.h" // resource manager: adopted AudioFile objects route reasons to leases
+#include "deluge_storage_resource.h" // resource manager: adopted AudioFile objects route reasons to leases
 
 // Decode the file header (storage/audio/audio_file_format) then apply the result to this object: a Sample
 // takes the parsed fields wholesale; a WaveTable hands them to WaveTable::setup. The chunk-by-chunk decode

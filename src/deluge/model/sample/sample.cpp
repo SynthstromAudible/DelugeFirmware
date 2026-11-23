@@ -41,7 +41,7 @@
 #include <limits>
 #include <new>
 
-#include "deluge_resource.h" // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
+#include "deluge_storage_resource.h" // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
 
 namespace {
 // While a Sample's length is still unknown (mid-recording), its cluster count is the number of clusters

@@ -4,7 +4,7 @@
 //! member libraries so their `#[no_mangle]` C ABIs land in the archive:
 //!
 //! - `deluge_base_alloc` — TLSF + slab allocator (`libdeluge/alloc.h`)
-//! - `deluge_storage_resource` — cached-asset / resource manager (`deluge_resource.h`)
+//! - `deluge_storage_resource` — cached-asset / resource manager (`deluge_storage_resource.h`)
 //! - `deluge_audio_format` — WAV/AIFF header decoding (`libdeluge/audio_format.h`)
 //!
 //! The `sample_abi` feature adds the sample crates' C ABIs, for the `sample_reader` spec.

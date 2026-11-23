@@ -1,4 +1,4 @@
-# The cached-asset resource manager behind `deluge_resource.h`. A `no_std` rlib with no panic
+# The cached-asset resource manager behind `deluge_storage_resource.h`. A `no_std` rlib with no panic
 # handler and no global allocator (the reclaim hook must never re-enter the manager); backing
 # memory comes from `deluge_base_alloc`.
 [package]

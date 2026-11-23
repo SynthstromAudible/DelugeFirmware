@@ -42,7 +42,7 @@
 #include "storage/audio/card_reinsert.h"
 #include "util/notify.h"
 
-#include "deluge_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
+#include "deluge_storage_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
 #include "libdeluge/sample_reader.h"
 #include "libdeluge/sample_source.h"
 #include "model/sample/sample_cache.h"

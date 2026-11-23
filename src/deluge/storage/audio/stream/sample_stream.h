@@ -171,7 +171,7 @@ private:
 	/// set_resource_asset_id() also write-through-mirrors it onto the registry slot once one exists,
 	/// purely so the registry can fire its own fill-context registration once a geometry is also
 	/// present (see register_fill_context()). The sentinel is a literal (rather than including
-	/// `deluge_resource.h`) because this header is pulled in transitively by every includer of
+	/// `deluge_storage_resource.h`) because this header is pulled in transitively by every includer of
 	/// `sample.h`.
 	uint32_t resource_asset_id_ = 0xFFFFFFFFu;
 

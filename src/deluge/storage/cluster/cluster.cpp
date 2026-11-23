@@ -23,7 +23,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "util/misc.h"
 
-#include "deluge_resource.h" // resource manager: manager-owned clusters lease instead of queueing
+#include "deluge_storage_resource.h" // resource manager: manager-owned clusters lease instead of queueing
 #include <algorithm>
 #include <cstddef>
 #include <cstring>

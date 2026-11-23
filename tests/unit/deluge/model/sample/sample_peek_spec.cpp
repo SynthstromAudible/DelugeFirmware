@@ -11,7 +11,7 @@
 // `set_active_manager` now makes settable.
 #include "mock_streaming_fill.h"
 
-#include "deluge_resource.h"
+#include "deluge_storage_resource.h"
 #include "libdeluge/alloc.h"
 #include "libdeluge/sample_reader.h"
 #include "libdeluge/sample_stream.h"

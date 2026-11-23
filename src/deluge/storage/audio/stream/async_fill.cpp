@@ -29,7 +29,7 @@
 #include <optional>
 #include <span>
 
-#include "deluge_resource.h" // deluge_resource_mark_ready
+#include "deluge_storage_resource.h" // deluge_resource_mark_ready
 
 // FFI layout guard: `StreamingFillDescriptor` crosses the C++/Rust boundary by value (see
 // streaming_fill.h) with a hand-written `#[repr(C)]` mirror in streaming_loader.rs. These

@@ -19,7 +19,7 @@
 #include "bench/render_profile.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge_resource.h"
+#include "deluge_storage_resource.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"

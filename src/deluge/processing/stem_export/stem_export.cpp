@@ -17,7 +17,7 @@
 
 #include "processing/stem_export/stem_export.h"
 #include "definitions_cxx.hpp"
-#include "deluge_resource.h"
+#include "deluge_storage_resource.h"
 #include "extern.h"
 #include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/l10n/l10n.h"

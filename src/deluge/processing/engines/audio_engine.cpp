@@ -28,7 +28,7 @@
 #include "chrono"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "deluge_resource.h" // deluge_resource_stats (loader instrumentation)
+#include "deluge_storage_resource.h" // deluge_resource_stats (loader instrumentation)
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/dynamics/hit_strength.h" // combine_hit_strengths
 #include "dsp-next/fixed/mix/output_fold.h"

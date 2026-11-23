@@ -61,7 +61,7 @@ public:
 	// Handle to this object's chunk slot in the resource manager (an AudioFile is an *adopted* chunk;
 	// set at adoption via deluge_resource_slot_of). The object's hard-lease ("reason") count lives in
 	// that slot — read O(1) via leaseCount(). 0xFFFFFFFF == DELUGE_RESOURCE_NO_SLOT (literal here so
-	// this widely-included header needn't pull in deluge_resource.h).
+	// this widely-included header needn't pull in deluge_storage_resource.h).
 	uint32_t resourceSlot{0xFFFFFFFFu};
 
 	// Hard-lease ("reason") count for this object — the single source of truth lives in the manager's

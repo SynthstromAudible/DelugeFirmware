@@ -83,8 +83,8 @@
 #include "unit/deluge/dsp-next/wavetable_band_crc.h"
 #include "unit/deluge/dsp-next/wavetable_band_records.h"
 
-#include "deluge_resource.h"   // DelugeResourceStats, deluge_resource_stats(_reset)
-#include "libdeluge/channel.h" // DELUGE_PATH_MAX
+#include "deluge_storage_resource.h" // DelugeResourceStats, deluge_resource_stats(_reset)
+#include "libdeluge/channel.h"       // DELUGE_PATH_MAX
 
 #include <array>
 #include <bit>
