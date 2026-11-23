@@ -86,6 +86,31 @@ name = "plugin-types"
 root = "src/plugin/types"
 prefix = "plugin/types/"
 
+# The L0 DSP library: the kernels reach only the base, the plugin contract's types and the SIMD headers. The legacy
+# headers below hold vocabulary that leaves the legacy tree with the DSP library's next move.
+[[library]]
+name = "dsp"
+root = "src/dsp"
+prefix = "dsp/"
+may_include = [
+    "base/",
+    "plugin/types/",
+    "util/misc.h",
+    "definitions_cxx.hpp",
+    "board_config.h",
+    # Argon, which one header names in quotes
+    "argon.hpp",
+]
+system = [
+    "argon.hpp",
+    "argon/vectorize/first_n.hpp",
+    "argon/vectorize/for_each.hpp",
+    "arm_acle.h",
+    "arm_neon.h",
+    "math.h",
+    "xmmintrin.h",
+]
+
 [[library]]
 name = "plugin"
 root = "src/plugin"
@@ -371,13 +396,6 @@ name = "platform-boundary"
 files = ["src/deluge/**", "src/definitions.h", "src/definitions_cxx.hpp"]
 pattern = '^(RZA1|drivers|bsp)/'
 reason = "the application reaches the hardware only through libdeluge"
-
-[[rule]]
-name = "dsp-boundary"
-files = ["src/dsp/**"]
-pattern = '^(synth|effects|storage|model|processing|gui|playback|modulation|hid|io|dsp_legacy|RZA1|bsp|drivers|memory|util)/'
-allow = ["memory/memory_allocator_interface.h", "util/misc.h"]
-reason = "the L0 kernels reach no app layer, the synth and effects libraries, the legacy dsp library or the platform"
 
 [[rule]]
 name = "synth-boundary"

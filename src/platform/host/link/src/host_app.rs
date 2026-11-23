@@ -188,8 +188,8 @@ fn emit_staleness_hash(app_objs_dir: &Path, hash: &str, prev: Option<&str>, stam
 }
 
 /// Links the app archive and its static libraries as one group, because the C++ and Rust sides
-/// call each other. The host tree's layout differs from the device tree's: the DSP libraries sit
-/// under `app/`.
+/// call each other. The host tree's layout differs from the device tree's: the legacy DSP library
+/// sits under `app/`, and the DSP library's archives under `dsp/`.
 fn link_closure(build_dir: &Path, archive: &Path) {
     const DEPS: [(&str, &str); 26] = [
         ("printf", "libeyalroz_printf.a"),

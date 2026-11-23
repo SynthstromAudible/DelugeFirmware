@@ -2,8 +2,10 @@
 
 The shape every DSP library component takes, and the conventions every component
 follows. `src/dsp/` is the L0 DSP library: freestanding,
-header-first C++23 that may include only `util/`, `definitions*`, Argon, the
-standard library and its own headers (`scripts/check_layers.py`'s `dsp-boundary` rule). Related:
+header-first C++23 that may include only `base/`, `plugin/types/`, Argon, the
+standard library and its own headers, plus the legacy `util/misc.h`,
+`definitions_cxx.hpp` and `board_config.h` until they leave the legacy tree
+(`scripts/layers.toml`'s `dsp` library). Related:
 [synth_phase1_l0_plan.md](synth_phase1_l0_plan.md),
 [synth_oscillator_plan.md](synth_oscillator_plan.md).
 

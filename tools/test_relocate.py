@@ -427,6 +427,25 @@ class LegacyRoot(unittest.TestCase):
         self.assertFalse((repo.root / "src/y").exists())
         self.assertEqual(repo.read("docs/d.md"), "see `x/b.h`\n")
 
+    def test_a_new_name_src_also_holds_is_refused(self):
+        repo = Repo(
+            {
+                "src/deluge/x/a.h": "",
+                "src/y/b.h": "",
+                "src/deluge/model/m.cpp": '#include "x/a.h"\n',
+                "docs/d.md": "see `x/a.h` and `y/b.h`\n",
+            }
+        )
+        self.addCleanup(repo.close)
+        with self.assertRaises(relocate.Refused):
+            relocate.apply(
+                repo.root, moves=[("deluge/x", "deluge/y")], namespaces=[], targets=[]
+            )
+        self.assertTrue((repo.root / "src/deluge/x/a.h").is_file())
+        self.assertFalse((repo.root / "src/deluge/y").exists())
+        self.assertEqual(repo.read("src/deluge/model/m.cpp"), '#include "x/a.h"\n')
+        self.assertEqual(repo.read("docs/d.md"), "see `x/a.h` and `y/b.h`\n")
+
 
 class Refusals(unittest.TestCase):
     def test_a_move_the_legacy_root_shadows_is_refused(self):

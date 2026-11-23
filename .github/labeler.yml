@@ -6,6 +6,9 @@
   - changed-files:
       - any-glob-to-any-file:
           - src/deluge/dsp_legacy/**
+          - src/dsp/**
+          - src/synth/**
+          - src/effects/**
           - src/deluge/processing/**
           - src/deluge/model/voice/**
           - src/deluge/model/sample/**

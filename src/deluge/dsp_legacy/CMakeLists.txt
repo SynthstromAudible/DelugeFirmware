@@ -1,12 +1,12 @@
 
-file (GLOB_RECURSE deluge_dsp_SOURCES
+file (GLOB_RECURSE deluge_dsp_legacy_SOURCES
   CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.c
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
   ${CMAKE_CURRENT_LIST_DIR}/*.s
 )
 
-add_library(deluge_dsp_legacy STATIC ${deluge_dsp_SOURCES})
+add_library(deluge_dsp_legacy STATIC ${deluge_dsp_legacy_SOURCES})
 
 target_include_directories(deluge_dsp_legacy PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/..
