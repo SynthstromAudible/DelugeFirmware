@@ -12,9 +12,8 @@ use core::ffi::c_void;
 use core::ptr;
 
 use deluge_storage_resource::{
-    BACKING_HEAP, DelugeResource, deluge_resource_create, deluge_resource_define_asset,
-    deluge_resource_mark_ready, deluge_resource_release, deluge_resource_request,
-    deluge_resource_set_construct, deluge_resource_try_acquire,
+    BACKING_HEAP, DelugeResource, resource_create, resource_define_asset, resource_mark_ready,
+    resource_release, resource_request, resource_set_construct, resource_try_acquire,
 };
 
 use deluge_storage_sample_fill::fill_logic;
@@ -74,11 +73,11 @@ impl TestManager {
         // `TestManager` and so alive as long as `handle`.
         let heap = unsafe { fs_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
         // SAFETY: `heap` is the live handle just created above.
-        let handle = unsafe { deluge_resource_create(heap, 4, chunk_cap) };
+        let handle = unsafe { resource_create(heap, 4, chunk_cap) };
         assert!(!handle.is_null());
         // SAFETY: `handle` is live for the duration of this call.
         let asset = unsafe {
-            deluge_resource_define_asset(
+            resource_define_asset(
                 handle,
                 ptr::null_mut(),
                 None,
@@ -89,7 +88,7 @@ impl TestManager {
             )
         };
         // SAFETY: `handle`/`asset` are live and valid.
-        unsafe { deluge_resource_set_construct(handle, asset, Some(mock_construct)) };
+        unsafe { resource_set_construct(handle, asset, Some(mock_construct)) };
         TestManager {
             handle,
             asset,
@@ -101,24 +100,24 @@ impl TestManager {
     /// caller fills it.
     fn request(&self, index: u32) -> *mut u8 {
         // SAFETY: `self.handle`/`self.asset` are live and valid.
-        unsafe { deluge_resource_request(self.handle, self.asset, index, PAYLOAD_LEN) }
+        unsafe { resource_request(self.handle, self.asset, index, PAYLOAD_LEN) }
     }
 
     fn release(&self, chunk: *mut u8) {
         // SAFETY: `chunk` was returned by `request` above and is still resident.
-        unsafe { deluge_resource_release(self.handle, chunk) };
+        unsafe { resource_release(self.handle, chunk) };
     }
 
     fn mark_ready(&self, chunk: *mut u8) {
         // SAFETY: same as `release`.
-        unsafe { deluge_resource_mark_ready(self.handle, chunk) };
+        unsafe { resource_mark_ready(self.handle, chunk) };
     }
 
     /// The RT-safe resident-and-ready probe the fill uses to gather neighbours: null until
     /// `mark_ready`.
     fn try_acquire(&self, index: u32) -> *mut u8 {
         // SAFETY: `self.handle`/`self.asset` are live and valid.
-        unsafe { deluge_resource_try_acquire(self.handle, self.asset, index) }
+        unsafe { resource_try_acquire(self.handle, self.asset, index) }
     }
 }
 

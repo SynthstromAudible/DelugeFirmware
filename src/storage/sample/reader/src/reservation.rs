@@ -470,13 +470,13 @@ mod tests {
             };
             assert!(!slab.is_null());
             // SAFETY: `h` is live.
-            let handle = unsafe { deluge_storage_resource::deluge_resource_create(h, 4, 16) };
+            let handle = unsafe { deluge_storage_resource::resource_create(h, 4, 16) };
             assert!(!handle.is_null());
             // SAFETY: `handle` and `slab` are live, over the same heap.
-            unsafe { deluge_storage_resource::deluge_resource_set_slab(handle, slab) };
+            unsafe { deluge_storage_resource::resource_set_slab(handle, slab) };
             // SAFETY: `handle` is live.
             let asset = unsafe {
-                deluge_storage_resource::deluge_resource_define_asset(
+                deluge_storage_resource::resource_define_asset(
                     handle,
                     core::ptr::null_mut(),
                     None,
@@ -487,7 +487,7 @@ mod tests {
                 )
             };
             unsafe {
-                deluge_storage_resource::deluge_resource_set_construct(
+                deluge_storage_resource::resource_set_construct(
                     handle,
                     asset,
                     Some(real_chunk_construct),
@@ -546,7 +546,7 @@ mod tests {
         fn acquire_generation(&self) -> u64 {
             let mut stats = deluge_storage_resource::Stats::default();
             // SAFETY: `self.handle` lives as long as `self`.
-            unsafe { deluge_storage_resource::deluge_resource_stats(self.handle, &mut stats) };
+            unsafe { deluge_storage_resource::resource_stats(self.handle, &mut stats) };
             stats.requests
         }
 
@@ -565,10 +565,7 @@ mod tests {
                 if let Some(chunk) = resource.peek(self.asset, index) {
                     // SAFETY: `self.handle` is live; `peek` just reported `chunk` resident.
                     unsafe {
-                        deluge_storage_resource::deluge_resource_evict_chunk(
-                            self.handle,
-                            chunk.as_ptr(),
-                        )
+                        deluge_storage_resource::resource_evict_chunk(self.handle, chunk.as_ptr())
                     };
                 }
             }

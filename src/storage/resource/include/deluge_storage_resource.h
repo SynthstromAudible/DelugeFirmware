@@ -183,6 +183,13 @@ void deluge_resource_mark_ready(DelugeResource* mgr, void* ptr) DELUGE_NOEXCEPT;
 /// callers cache the result at chunk creation so later lease reads go through lease_count_by_slot. [task] [audio]
 uint32_t deluge_resource_slot_of(DelugeResource* mgr, void* ptr) DELUGE_NOEXCEPT;
 
+/// Recover the `(asset, index)` of the resident chunk backing `ptr`: writes them to `*out_asset` and `*out_index` and
+/// returns true, or returns false, leaving both untouched, if `ptr` isn't resident or an argument is NULL. The cluster
+/// fill (`native_begin`/`native_finish` in `deluge_storage_sample_fill`) resolves a queued chunk's file and position
+/// through it. [task]
+bool deluge_resource_chunk_ident(DelugeResource* mgr, void* ptr, uint32_t* out_asset,
+                                 uint32_t* out_index) DELUGE_NOEXCEPT;
+
 /// O(1) hard-lease count of the chunk at `slot` — 0 if `slot` is NO_SLOT / out of range / free. The
 /// single source of truth for a cluster's reason count, read via the C++ slot handle (no scan). [task] [audio]
 uint32_t deluge_resource_lease_count_by_slot(DelugeResource* mgr, uint32_t slot) DELUGE_NOEXCEPT;

@@ -11,7 +11,7 @@ use crate::{DelugeChunkConvertState, FillContext, StreamingFillDescriptor, fill_
 unsafe extern "C" {
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     // Recovers a chunk's `(asset, index)` through the out-params; false on a miss.
-    fn deluge_resource_chunk_ident(
+    pub fn deluge_resource_chunk_ident(
         mgr: *mut c_void,
         ptr: *mut c_void,
         out_asset: *mut u32,

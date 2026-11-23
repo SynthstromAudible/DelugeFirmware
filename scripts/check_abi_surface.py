@@ -42,13 +42,10 @@ from pathlib import Path
 import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
-# deluge_storage_resource.h stays out: the resource crate's exports take its `DelugeResource` struct and `*mut u8` where
-# the header has the untyped `DelugeResource` and `void*`, so `abi_pin!` cannot pin them until the two agree.
-UNCHECKED_CRATE_HEADERS = {"deluge_storage_resource.h"}
 CRATE_HEADERS = sorted(
     p
     for p in (ROOT / "src").glob("**/include/deluge_*.h")
-    if "third_party" not in p.parts and p.name not in UNCHECKED_CRATE_HEADERS
+    if "third_party" not in p.parts
 )
 HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h")) + CRATE_HEADERS
 

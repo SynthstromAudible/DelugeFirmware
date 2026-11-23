@@ -1,5 +1,5 @@
 //! The resource manager: a value-scored, lease-based cache of reconstructable assets on the
-//! `deluge_base_alloc` TLSF heap, and its C ABI.
+//! `deluge_base_alloc` TLSF heap, and the typed functions the C ABI ([`crate::abi`]) forwards to.
 //!
 //! An **asset** (an owner token, a [`Source`] recipe, soft references) is split into **chunks**,
 //! the unit that is individually leased and evicted. Both live in fixed-capacity tables allocated
@@ -77,7 +77,7 @@ pub type AdoptEvictFn = unsafe extern "C" fn(ctx: *mut c_void, ptr: *mut u8);
 
 /// Chunks are allocated from the heap at their requested size.
 pub const BACKING_HEAP: u32 = 0;
-/// Chunks are uniform slots of the slab set by `deluge_resource_set_slab`; heap if none is set.
+/// Chunks are uniform slots of the slab set by `resource_set_slab`; heap if none is set.
 pub const BACKING_SLAB: u32 = 1;
 
 /// How an asset's chunks are rebuilt, evicted and backed.
@@ -85,7 +85,7 @@ pub const BACKING_SLAB: u32 = 1;
 pub struct Source {
     pub materialize: Option<MaterializeFn>,
     pub on_evict: Option<EvictFn>,
-    /// Set by `deluge_resource_set_construct`; `None` means the asset cannot be `request`ed, only
+    /// Set by `resource_set_construct`; `None` means the asset cannot be `request`ed, only
     /// `acquire`d.
     pub construct: Option<ConstructFn>,
     /// Passed as the first argument to every callback.
@@ -244,8 +244,8 @@ pub const COST_BUCKETS: usize = 8;
 
 /// Cumulative manager counters, for instrumentation only.
 ///
-/// Mirrors `DelugeResourceStats` in `deluge_storage_resource.h`; read with `deluge_resource_stats`, zeroed
-/// with `deluge_resource_stats_reset`.
+/// Mirrors `DelugeResourceStats` in `deluge_storage_resource.h`; read with `resource_stats`, zeroed
+/// with `resource_stats_reset`.
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Stats {
@@ -2105,7 +2105,7 @@ extern "C" fn resource_reclaim(ctx: *mut c_void, _bytes_needed: usize) -> bool {
     m.evict_lowest()
 }
 
-// C ABI (`deluge_storage_resource.h`)
+// The typed functions behind the C ABI (`deluge_storage_resource.h`, [`crate::abi`])
 
 /// Opaque manager handle (`DelugeResource` in `deluge_storage_resource.h`).
 #[repr(C)]
@@ -2238,7 +2238,7 @@ pub(crate) unsafe fn debug_find_resident_both(
 ///
 /// # Safety
 ///
-/// `h` must be a non-null live handle from `deluge_resource_create`.
+/// `h` must be a non-null live handle from `resource_create`.
 #[inline]
 pub(crate) unsafe fn mgr<'a>(h: *mut DelugeResource) -> &'a Manager {
     &*(h as *mut Manager)
@@ -2253,8 +2253,7 @@ pub(crate) unsafe fn mgr<'a>(h: *mut DelugeResource) -> &'a Manager {
 /// # Safety
 ///
 /// `heap` must be null or a live heap that outlives every use of the returned handle.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_create(
+pub unsafe fn resource_create(
     heap: *mut DelugeHeap,
     asset_cap: usize,
     chunk_cap: usize,
@@ -2262,14 +2261,13 @@ pub unsafe extern "C" fn deluge_resource_create(
     create_inner(heap, asset_cap, chunk_cap, true)
 }
 
-/// Like [`deluge_resource_create`] but without registering the reclaim hook, for a caller whose
-/// own reclaim hook drives eviction through [`deluge_resource_try_evict`].
+/// Like [`resource_create`] but without registering the reclaim hook, for a caller whose
+/// own reclaim hook drives eviction through [`resource_try_evict`].
 ///
 /// # Safety
 ///
-/// As for [`deluge_resource_create`].
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_create_unhooked(
+/// As for [`resource_create`].
+pub unsafe fn resource_create_unhooked(
     heap: *mut DelugeHeap,
     asset_cap: usize,
     chunk_cap: usize,
@@ -2282,9 +2280,8 @@ pub unsafe extern "C" fn deluge_resource_create_unhooked(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_try_evict(handle: *mut DelugeResource) -> bool {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_try_evict(handle: *mut DelugeResource) -> bool {
     if handle.is_null() {
         return false;
     }
@@ -2410,13 +2407,9 @@ unsafe fn create_inner(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`. `slab` must be null or a
+/// `handle` must be null or a live handle from `resource_create`. `slab` must be null or a
 /// live slab that outlives the manager.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_set_slab(
-    handle: *mut DelugeResource,
-    slab: *mut DelugeSlab,
-) {
+pub unsafe fn resource_set_slab(handle: *mut DelugeResource, slab: *mut DelugeSlab) {
     if !handle.is_null() {
         mgr(handle).set_slab(slab);
     }
@@ -2427,10 +2420,9 @@ pub unsafe extern "C" fn deluge_resource_set_slab(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`. The callbacks and `ctx`
+/// `handle` must be null or a live handle from `resource_create`. The callbacks and `ctx`
 /// must stay valid until the asset is released.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_define_asset(
+pub unsafe fn resource_define_asset(
     handle: *mut DelugeResource,
     owner: *mut c_void,
     materialize: Option<MaterializeFn>,
@@ -2447,7 +2439,7 @@ pub unsafe extern "C" fn deluge_resource_define_asset(
         Source {
             materialize,
             on_evict,
-            construct: None, // set by deluge_resource_set_construct
+            construct: None, // set by resource_set_construct
             ctx,
             cost,
             backing,
@@ -2460,10 +2452,9 @@ pub unsafe extern "C" fn deluge_resource_define_asset(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`. Not safe against
+/// `handle` must be null or a live handle from `resource_create`. Not safe against
 /// concurrent access to the same manager.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_release_asset(handle: *mut DelugeResource, asset: u32) {
+pub unsafe fn resource_release_asset(handle: *mut DelugeResource, asset: u32) {
     if !handle.is_null() {
         mgr(handle).release_asset(asset);
     }
@@ -2473,9 +2464,8 @@ pub unsafe extern "C" fn deluge_resource_release_asset(handle: *mut DelugeResour
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_set_construct(
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_set_construct(
     handle: *mut DelugeResource,
     asset: u32,
     construct: Option<ConstructFn>,
@@ -2490,13 +2480,8 @@ pub unsafe extern "C" fn deluge_resource_set_construct(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_set_evict_tail_first(
-    handle: *mut DelugeResource,
-    asset: u32,
-    on: bool,
-) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_set_evict_tail_first(handle: *mut DelugeResource, asset: u32, on: bool) {
     if !handle.is_null() {
         mgr(handle).set_evict_tail_first(asset, on);
     }
@@ -2507,27 +2492,21 @@ pub unsafe extern "C" fn deluge_resource_set_evict_tail_first(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_set_self_protect(
-    handle: *mut DelugeResource,
-    asset: u32,
-    on: bool,
-) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_set_self_protect(handle: *mut DelugeResource, asset: u32, on: bool) {
     if !handle.is_null() {
         mgr(handle).set_self_protect(asset, on);
     }
 }
 
 /// Returns chunk `index` of `asset` under a hard lease, constructing it without I/O if not
-/// resident; the loader fills it and calls [`deluge_resource_mark_ready`]. Null on OOM or if the
+/// resident; the loader fills it and calls [`resource_mark_ready`]. Null on OOM or if the
 /// asset has no `construct` callback.
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_request(
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_request(
     handle: *mut DelugeResource,
     asset: u32,
     index: u32,
@@ -2544,9 +2523,8 @@ pub unsafe extern "C" fn deluge_resource_request(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_acquire(
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_acquire(
     handle: *mut DelugeResource,
     asset: u32,
     index: u32,
@@ -2563,13 +2541,8 @@ pub unsafe extern "C" fn deluge_resource_acquire(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_try_acquire(
-    handle: *mut DelugeResource,
-    asset: u32,
-    index: u32,
-) -> *mut u8 {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_try_acquire(handle: *mut DelugeResource, asset: u32, index: u32) -> *mut u8 {
     if handle.is_null() {
         return ptr::null_mut();
     }
@@ -2581,13 +2554,8 @@ pub unsafe extern "C" fn deluge_resource_try_acquire(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_peek(
-    handle: *mut DelugeResource,
-    asset: u32,
-    index: u32,
-) -> *mut u8 {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_peek(handle: *mut DelugeResource, asset: u32, index: u32) -> *mut u8 {
     if handle.is_null() {
         return ptr::null_mut();
     }
@@ -2599,9 +2567,8 @@ pub unsafe extern "C" fn deluge_resource_peek(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_mark_ready(handle: *mut DelugeResource, ptr: *mut u8) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_mark_ready(handle: *mut DelugeResource, ptr: *mut u8) {
     if !handle.is_null() {
         mgr(handle).mark_ready(ptr);
     }
@@ -2611,9 +2578,8 @@ pub unsafe extern "C" fn deluge_resource_mark_ready(handle: *mut DelugeResource,
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_slot_of(handle: *mut DelugeResource, ptr: *mut u8) -> u32 {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_slot_of(handle: *mut DelugeResource, ptr: *mut u8) -> u32 {
     if handle.is_null() {
         return NO_SLOT;
     }
@@ -2626,10 +2592,9 @@ pub unsafe extern "C" fn deluge_resource_slot_of(handle: *mut DelugeResource, pt
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`. Non-null `out_asset` and
+/// `handle` must be null or a live handle from `resource_create`. Non-null `out_asset` and
 /// `out_index` must be valid for a `u32` write.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_chunk_ident(
+pub unsafe fn resource_chunk_ident(
     handle: *mut DelugeResource,
     ptr: *mut u8,
     out_asset: *mut u32,
@@ -2654,12 +2619,8 @@ pub unsafe extern "C" fn deluge_resource_chunk_ident(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_lease_count_by_slot(
-    handle: *mut DelugeResource,
-    slot: u32,
-) -> u32 {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_lease_count_by_slot(handle: *mut DelugeResource, slot: u32) -> u32 {
     if handle.is_null() {
         return 0;
     }
@@ -2667,16 +2628,12 @@ pub unsafe extern "C" fn deluge_resource_lease_count_by_slot(
 }
 
 /// Returns the hard leases on the chunk at `slot` excluding the load queue's own (see
-/// [`deluge_resource_loader_enqueue_owned`]): whether anyone besides the queue still wants it.
+/// [`resource_loader_enqueue_owned`]): whether anyone besides the queue still wants it.
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_external_lease_count_by_slot(
-    handle: *mut DelugeResource,
-    slot: u32,
-) -> u32 {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_external_lease_count_by_slot(handle: *mut DelugeResource, slot: u32) -> u32 {
     if handle.is_null() {
         return 0;
     }
@@ -2690,13 +2647,8 @@ pub unsafe extern "C" fn deluge_resource_external_lease_count_by_slot(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_loader_enqueue(
-    handle: *mut DelugeResource,
-    slot: u32,
-    priority: u32,
-) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_loader_enqueue(handle: *mut DelugeResource, slot: u32, priority: u32) {
     if !handle.is_null() {
         mgr(handle).loader_enqueue(slot, priority);
     }
@@ -2705,34 +2657,25 @@ pub unsafe extern "C" fn deluge_resource_loader_enqueue(
 /// Enqueues the chunk at `slot` and takes a queue-owned hard lease, for a caller that cannot hold
 /// its own lease until the load lands. A re-enqueue takes no second lease.
 ///
-/// Every terminal path of the loader must call [`deluge_resource_loader_release_owned`]; a
+/// Every terminal path of the loader must call [`resource_loader_release_owned`]; a
 /// stranded queue lease pins the chunk forever.
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_loader_enqueue_owned(
-    handle: *mut DelugeResource,
-    slot: u32,
-    priority: u32,
-) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_loader_enqueue_owned(handle: *mut DelugeResource, slot: u32, priority: u32) {
     if !handle.is_null() {
         mgr(handle).loader_enqueue_owned(slot, priority);
     }
 }
 
-/// Releases the queue-owned lease from [`deluge_resource_loader_enqueue_owned`]. Returns whether
+/// Releases the queue-owned lease from [`resource_loader_enqueue_owned`]. Returns whether
 /// there was one. Idempotent; does not de-queue.
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_loader_release_owned(
-    handle: *mut DelugeResource,
-    slot: u32,
-) -> bool {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_loader_release_owned(handle: *mut DelugeResource, slot: u32) -> bool {
     !handle.is_null() && mgr(handle).loader_release_owned(slot)
 }
 
@@ -2740,9 +2683,8 @@ pub unsafe extern "C" fn deluge_resource_loader_release_owned(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_loader_remove(handle: *mut DelugeResource, slot: u32) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_loader_remove(handle: *mut DelugeResource, slot: u32) {
     if !handle.is_null() {
         mgr(handle).loader_remove(slot);
     }
@@ -2753,9 +2695,8 @@ pub unsafe extern "C" fn deluge_resource_loader_remove(handle: *mut DelugeResour
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_loader_next(handle: *mut DelugeResource) -> *mut u8 {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_loader_next(handle: *mut DelugeResource) -> *mut u8 {
     if handle.is_null() {
         return ptr::null_mut();
     }
@@ -2766,19 +2707,17 @@ pub unsafe extern "C" fn deluge_resource_loader_next(handle: *mut DelugeResource
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_loader_has_lowest(handle: *mut DelugeResource) -> bool {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_loader_has_lowest(handle: *mut DelugeResource) -> bool {
     !handle.is_null() && mgr(handle).loader_has_lowest()
 }
 
-/// Returns whether [`deluge_resource_loader_next`] would return a chunk, without popping it.
+/// Returns whether [`resource_loader_next`] would return a chunk, without popping it.
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_loader_has_any(handle: *mut DelugeResource) -> bool {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_loader_has_any(handle: *mut DelugeResource) -> bool {
     !handle.is_null() && mgr(handle).loader_has_any()
 }
 
@@ -2786,10 +2725,9 @@ pub unsafe extern "C" fn deluge_resource_loader_has_any(handle: *mut DelugeResou
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`. A non-null `out` must be
+/// `handle` must be null or a live handle from `resource_create`. A non-null `out` must be
 /// valid for a `Stats` write.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_stats(handle: *mut DelugeResource, out: *mut Stats) {
+pub unsafe fn resource_stats(handle: *mut DelugeResource, out: *mut Stats) {
     if handle.is_null() || out.is_null() {
         return;
     }
@@ -2801,9 +2739,8 @@ pub unsafe extern "C" fn deluge_resource_stats(handle: *mut DelugeResource, out:
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_stats_reset(handle: *mut DelugeResource) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_stats_reset(handle: *mut DelugeResource) {
     if !handle.is_null() {
         mgr(handle).stats_reset();
     }
@@ -2814,10 +2751,9 @@ pub unsafe extern "C" fn deluge_resource_stats_reset(handle: *mut DelugeResource
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`. The caller must not use
+/// `handle` must be null or a live handle from `resource_create`. The caller must not use
 /// `ptr` afterwards.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_evict_chunk(handle: *mut DelugeResource, ptr: *mut u8) {
+pub unsafe fn resource_evict_chunk(handle: *mut DelugeResource, ptr: *mut u8) {
     if !handle.is_null() {
         mgr(handle).evict_chunk(ptr);
     }
@@ -2825,17 +2761,16 @@ pub unsafe extern "C" fn deluge_resource_evict_chunk(handle: *mut DelugeResource
 
 /// Registers an owner-built heap block of `size` bytes as an unleased chunk the manager may evict.
 /// On eviction it calls `on_evict(ctx, ptr)` and then frees `ptr`. Pin it with
-/// [`deluge_resource_add_lease`].
+/// [`resource_add_lease`].
 ///
 /// Returns `ptr`, or null if the chunk table is full and nothing is evictable.
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`. `ptr` must be a live block
+/// `handle` must be null or a live handle from `resource_create`. `ptr` must be a live block
 /// allocated from the manager's heap; once adopted, the manager may free it. `on_evict` and `ctx`
 /// must stay valid while the block is adopted.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_adopt(
+pub unsafe fn resource_adopt(
     handle: *mut DelugeResource,
     ptr: *mut u8,
     size: usize,
@@ -2853,9 +2788,8 @@ pub unsafe extern "C" fn deluge_resource_adopt(
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_add_lease(handle: *mut DelugeResource, ptr: *mut u8) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_add_lease(handle: *mut DelugeResource, ptr: *mut u8) {
     if !handle.is_null() {
         mgr(handle).add_lease(ptr);
     }
@@ -2865,9 +2799,8 @@ pub unsafe extern "C" fn deluge_resource_add_lease(handle: *mut DelugeResource, 
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_release(handle: *mut DelugeResource, ptr: *mut u8) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_release(handle: *mut DelugeResource, ptr: *mut u8) {
     if !handle.is_null() {
         mgr(handle).release(ptr);
     }
@@ -2878,20 +2811,18 @@ pub unsafe extern "C" fn deluge_resource_release(handle: *mut DelugeResource, pt
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_reference(handle: *mut DelugeResource, asset: u32) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_reference(handle: *mut DelugeResource, asset: u32) {
     if !handle.is_null() {
         mgr(handle).reference(asset, 1);
     }
 }
-/// Drops a soft reference taken by [`deluge_resource_reference`].
+/// Drops a soft reference taken by [`resource_reference`].
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_unreference(handle: *mut DelugeResource, asset: u32) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_unreference(handle: *mut DelugeResource, asset: u32) {
     if !handle.is_null() {
         mgr(handle).reference(asset, -1);
     }
@@ -2901,9 +2832,8 @@ pub unsafe extern "C" fn deluge_resource_unreference(handle: *mut DelugeResource
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_touch(handle: *mut DelugeResource, ptr: *mut u8) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_touch(handle: *mut DelugeResource, ptr: *mut u8) {
     if !handle.is_null() {
         mgr(handle).touch(ptr);
     }
@@ -2913,13 +2843,8 @@ pub unsafe extern "C" fn deluge_resource_touch(handle: *mut DelugeResource, ptr:
 ///
 /// # Safety
 ///
-/// `handle` must be null or a live handle from `deluge_resource_create`.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_mark_dirty(
-    handle: *mut DelugeResource,
-    ptr: *mut u8,
-    dirty: bool,
-) {
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_mark_dirty(handle: *mut DelugeResource, ptr: *mut u8, dirty: bool) {
     if !handle.is_null() {
         mgr(handle).set_dirty(ptr, dirty);
     }
@@ -2950,7 +2875,7 @@ mod tests {
             deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
         };
         // SAFETY: `h` is the live heap handle just created above.
-        let handle = unsafe { deluge_resource_create(h, 4, 1) }; // 1 chunk slot
+        let handle = unsafe { resource_create(h, 4, 1) }; // 1 chunk slot
         assert!(!handle.is_null());
         (handle, buf)
     }
@@ -2959,7 +2884,7 @@ mod tests {
     fn define_requestable_test_asset(handle: *mut DelugeResource) -> u32 {
         // SAFETY: `handle` is live (from `test_manager`).
         let asset = unsafe {
-            deluge_resource_define_asset(
+            resource_define_asset(
                 handle,
                 ptr::null_mut(),
                 None,
@@ -2970,7 +2895,7 @@ mod tests {
             )
         };
         // SAFETY: handle and asset are live and valid for this call.
-        unsafe { deluge_resource_set_construct(handle, asset, Some(mock_construct)) };
+        unsafe { resource_set_construct(handle, asset, Some(mock_construct)) };
         asset
     }
 
@@ -3113,7 +3038,7 @@ mod tests {
                 deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
             };
             // SAFETY: `h` is the live heap just created.
-            let handle = unsafe { deluge_resource_create(h, 8, 64) };
+            let handle = unsafe { resource_create(h, 8, 64) };
             assert!(!handle.is_null());
             // SAFETY: live for the sequence, with `buf`.
             let m = unsafe { mgr(handle) };
@@ -3266,7 +3191,7 @@ mod tests {
             deluge_base_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
         };
         // SAFETY: `h` is the live heap just created.
-        let handle = unsafe { deluge_resource_create(h, 4, SLOTS) };
+        let handle = unsafe { resource_create(h, 4, SLOTS) };
         assert!(!handle.is_null());
         // SAFETY: live for the test, with `buf`.
         let m = unsafe { mgr(handle) };
@@ -3278,7 +3203,7 @@ mod tests {
         }
         m.stats_reset();
         // SAFETY: `handle` is live.
-        assert!(unsafe { deluge_resource_try_evict(handle) });
+        assert!(unsafe { resource_try_evict(handle) });
         let s = m.stats_snapshot();
         assert_eq!(s.scan_evict_calls, 1);
         std::println!(

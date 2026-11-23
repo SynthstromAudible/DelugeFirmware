@@ -22,6 +22,22 @@ abi_pin!(in deluge_audio_format::abi: deluge_audio_header_parser_init, deluge_au
     deluge_audio_header_parser_container, deluge_audio_header_parser_finish_here,
     deluge_audio_header_accept_as_wavetable);
 
+// The constructors and slab setter take `deluge_base_alloc`'s types, which `sys` binds to that crate only on the
+// device, where the device crate depends on it.
+#[cfg(target_os = "none")]
+abi_pin!(in deluge_storage_resource::abi: deluge_resource_create, deluge_resource_create_unhooked,
+    deluge_resource_set_slab);
+abi_pin!(in deluge_storage_resource::abi: deluge_resource_try_evict, deluge_resource_define_asset,
+    deluge_resource_release_asset, deluge_resource_set_construct, deluge_resource_set_evict_tail_first,
+    deluge_resource_set_self_protect, deluge_resource_request, deluge_resource_acquire, deluge_resource_try_acquire,
+    deluge_resource_peek, deluge_resource_mark_ready, deluge_resource_slot_of, deluge_resource_chunk_ident,
+    deluge_resource_lease_count_by_slot, deluge_resource_external_lease_count_by_slot, deluge_resource_loader_enqueue,
+    deluge_resource_loader_remove, deluge_resource_loader_enqueue_owned, deluge_resource_loader_release_owned,
+    deluge_resource_loader_next, deluge_resource_loader_has_lowest, deluge_resource_loader_has_any,
+    deluge_resource_stats, deluge_resource_stats_reset, deluge_resource_adopt, deluge_resource_add_lease,
+    deluge_resource_evict_chunk, deluge_resource_release, deluge_resource_reference, deluge_resource_unreference,
+    deluge_resource_touch, deluge_resource_mark_dirty);
+
 abi_pin!(in deluge_storage_sample_fill: deluge_streaming_set_fill_context);
 abi_pin!(in deluge_storage_sample_fill::chunk: deluge_streamed_chunk_payload_offset);
 
@@ -43,8 +59,8 @@ abi_pin!(in deluge_storage_stream::abi: deluge_sample_stream_open,
 
 abi_pin!(in deluge_storage_resource::manager: deluge_debug_now_frames);
 abi_pin!(in deluge_storage_resource::sync: ENTER_CRITICAL_SECTION, EXIT_CRITICAL_SECTION, deluge_in_audio_context);
-abi_pin!(in deluge_storage_sample_fill::native: deluge_streaming_resource_manager, deluge_resource_try_acquire,
-    deluge_resource_release, deluge_resource_mark_ready);
+abi_pin!(in deluge_storage_sample_fill::native: deluge_streaming_resource_manager, deluge_resource_chunk_ident,
+    deluge_resource_try_acquire, deluge_resource_release, deluge_resource_mark_ready);
 abi_pin!(in deluge_storage_sample_reader::reader: deluge_streaming_resource_manager, deluge_streaming_request_chunk);
 abi_pin!(in deluge_storage_sample_reader::reservation: deluge_streaming_resource_manager, deluge_efatfs_read_at,
     deluge_streaming_signal_fill);

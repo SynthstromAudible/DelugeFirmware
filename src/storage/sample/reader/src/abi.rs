@@ -267,11 +267,11 @@ mod tests {
         let h = unsafe { deluge_base_alloc::deluge_heap_create(ptr, words * 16) };
         std::mem::forget(TestHeap { _buf: buf });
         // SAFETY: `h` is the live heap handle just created above.
-        let handle = unsafe { deluge_storage_resource::deluge_resource_create(h, 4, 16) };
+        let handle = unsafe { deluge_storage_resource::resource_create(h, 4, 16) };
         assert!(!handle.is_null());
         // SAFETY: `handle` is live. No materialize callback: these tests only `Resource::request`.
         let asset = unsafe {
-            deluge_storage_resource::deluge_resource_define_asset(
+            deluge_storage_resource::resource_define_asset(
                 handle,
                 core::ptr::null_mut(),
                 None,
@@ -283,7 +283,7 @@ mod tests {
         };
         // SAFETY: `handle` and `asset` are live.
         unsafe {
-            deluge_storage_resource::deluge_resource_set_construct(
+            deluge_storage_resource::resource_set_construct(
                 handle,
                 asset,
                 Some(real_chunk_construct),
