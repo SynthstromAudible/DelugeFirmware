@@ -25,7 +25,8 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    The pre-commit hook `python3 scripts/check_abi_surface.py --check --pins --tags --noexcept` fails when a declared
    function has no definition, when a Rust definition or `extern "C"` import of one has no pin that reaches it, or when
    a declaration lacks `DELUGE_NOEXCEPT`. Change a signature in the header, and the build tells you every place that
-   disagrees.
+   disagrees. A crate whose own types differ from the header's (the resource crate) exports thin shims in the header's
+   types (`abi.rs`), which the pins compare.
 3. **Direction is one-way.** The app includes `<libdeluge/…>`. The platform implements it. `app.h` is the other
    direction: callbacks the app implements and the platform calls. Other app-defined seams live here too, such as
    `streaming_loader.h`'s resource-manager accessor and asset lookup. `scripts/check_layers.py`'s `platform-boundary`

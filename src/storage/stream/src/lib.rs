@@ -75,7 +75,7 @@ unsafe extern "C" {
         ctx: DelugeStreamingFillContext,
     );
     /// Retires an asset, freeing its resident chunks (`deluge_storage_resource.h`). `pub` only so
-    /// pins.rs can pin it; call the typed API, not this.
+    /// pins.rs can pin it; other crates call `deluge_storage_resource`'s typed functions, not this import.
     pub fn deluge_resource_release_asset(mgr: *mut c_void, asset: u32);
 }
 

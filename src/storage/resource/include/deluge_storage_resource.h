@@ -20,7 +20,7 @@
 ///
 /// A value-scored, lease-based cache of *reconstructable* assets, layered on a
 /// `DelugeHeap` (deluge_base_alloc.h). Replaces the C++ Stealable / CacheManager /
-/// numReasonsToBeLoaded machinery. See docs/dev/resource_manager.md.
+/// numReasonsToBeLoaded machinery. See docs/dev/sram_residency_streaming_perf.md.
 ///
 /// Model: an **Asset** is an opaque owner token + a reconstruction `Source`
 /// (a `materialize` callback + cost). A **Chunk** is the resident, individually
@@ -28,9 +28,9 @@
 /// valuable chunks resident and rebuilds the rest on demand; a chunk under a hard
 /// lease (or marked dirty) is never evicted.
 ///
-/// Owned by the `deluge_storage_resource` crate; implemented in Rust, must stay in sync
-/// with src/storage/resource/src/manager.rs. C-ABI: fixed-width types + function
-/// pointers only (no C `enum`s across the boundary).
+/// Owned by the `deluge_storage_resource` crate; implemented in Rust by the shims in
+/// src/storage/resource/src/abi.rs, which `abi_pin!` keeps in sync with this header. C-ABI: fixed-width types +
+/// function pointers only (no C `enum`s across the boundary).
 #ifndef DELUGE_STORAGE_RESOURCE_H
 #define DELUGE_STORAGE_RESOURCE_H
 
@@ -161,7 +161,7 @@ void* deluge_resource_acquire(DelugeResource* mgr, uint32_t asset, uint32_t inde
 
 /// RT-safe acquire: take a hard lease + return chunk `index` of `asset` only if it is resident **and**
 /// ready (loaded). Never allocates, materializes, or blocks — returns NULL on a miss (incl. a chunk
-/// that is `request`ed but not yet `mark_ready`'d). The seam for the RT render / embassy storage path. [task]
+/// that is `request`ed but not yet `mark_ready`'d). [task]
 void* deluge_resource_try_acquire(DelugeResource* mgr, uint32_t asset, uint32_t index) DELUGE_NOEXCEPT;
 
 /// @brief Non-leasing residency peek: the backing pointer for `(asset, index)` if resident (ready

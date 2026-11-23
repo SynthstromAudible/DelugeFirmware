@@ -165,6 +165,24 @@ mod tests {
         mock_materialize(ctx, owner, index, dest.cast(), len)
     }
 
+    thread_local! {
+        static C_CONSTRUCTED: Cell<(usize, u32, usize)> = const { Cell::new((0, 0, 0)) };
+        static C_ADOPT_EVICTED: Cell<usize> = const { Cell::new(0) };
+    }
+    // A construct callback typed as the C header declares it: `void* dest`.
+    unsafe extern "C" fn c_construct(
+        _ctx: *mut c_void,
+        owner: *mut c_void,
+        index: u32,
+        dest: *mut c_void,
+    ) {
+        C_CONSTRUCTED.with(|c| c.set((owner as usize, index, dest as usize)));
+    }
+    // An adopt-evict callback typed as the C header declares it: `void* ptr`.
+    unsafe extern "C" fn c_adopt_evict(_ctx: *mut c_void, ptr: *mut c_void) {
+        C_ADOPT_EVICTED.with(|c| c.set(ptr as usize));
+    }
+
     #[test]
     fn the_c_shims_resolve_and_forward() {
         use crate::abi::*;
@@ -203,6 +221,54 @@ mod tests {
         assert_eq!(
             unsafe { deluge_resource_lease_count_by_slot(mgr, deluge_resource_slot_of(mgr, q)) },
             0
+        );
+
+        // The construct callback, transmuted from the C-typed `void* dest`.
+        let b = unsafe {
+            deluge_resource_define_asset(
+                mgr,
+                owner(9),
+                Some(c_materialize),
+                None,
+                core::ptr::null_mut(),
+                COST_IO,
+                BACKING_HEAP,
+            )
+        };
+        unsafe { deluge_resource_set_construct(mgr, b, Some(c_construct)) };
+        let r = unsafe { deluge_resource_request(mgr, b, 3, 4096) };
+        assert!(!r.is_null());
+        assert_eq!(
+            C_CONSTRUCTED.with(Cell::get),
+            (9, 3, r as usize),
+            "construct ran with the owner, index and the chunk's backing"
+        );
+        unsafe { deluge_resource_release(mgr, r) };
+    }
+
+    #[test]
+    fn the_c_adopt_shim_forwards_its_evict_callback() {
+        use crate::abi::*;
+        let (_buf, h) = arena(1 << 20);
+        let mgr = unsafe { deluge_resource_create(h, 16, 64) };
+        let block = unsafe { deluge_base_alloc::deluge_alloc(h, 32 * 1024, 16) };
+        assert!(!block.is_null());
+        let adopted = unsafe {
+            deluge_resource_adopt(
+                mgr,
+                block.cast(),
+                32 * 1024,
+                COST_CPU,
+                core::ptr::null_mut(),
+                Some(c_adopt_evict),
+            )
+        };
+        assert_eq!(adopted, block.cast());
+        assert!(unsafe { deluge_resource_try_evict(mgr) });
+        assert_eq!(
+            C_ADOPT_EVICTED.with(Cell::get),
+            block as usize,
+            "the evict callback ran with the adopted pointer"
         );
     }
 
