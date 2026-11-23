@@ -48,7 +48,8 @@ at the increment.
 - The first hop comes 200 output frames into the note, give or take 32 at random.
 - Later hops come every few thousand output frames: the width depends on the ratio through tuned tables (a fine band
   within an octave of 1.0, a coarse band out to two octaves, clamped beyond: `RS_AUDIO_STRETCH`'s RSCLAMP and RSHALT
-  tracks, stretched at 4.46 and 0.238, `sample/ts_pitch_up36` and `_down36`), and the crossfade is a share of the hop plus a fixed part.
+  tracks, stretched at 4.46 and 0.238, `sample/ts_pitch_up36` and `_down36`), and the crossfade is a share of the hop
+  plus a fixed part.
 - The new head's start is moved a few frames, and given a sub-sample phase, so that its waveform lines up with the old
   head's at the crossfade's middle: a search over three moving averages either way.
 - At most three hops run in one audio routine call across all voices; a voice whose hop is due waits, and the more
@@ -283,8 +284,8 @@ private:
 ```
 
 **The head phase.** Each alternative holds only what its phase needs, so the states the legacy's two flags and a
-progress word allow but cannot mean (an older head marked reading with its ramp done outside a plain begin's first segment, a ramp running with no older
-head, a cache tail and a reader both older) cannot be written:
+progress word allow but cannot mean (an older head marked reading with its ramp done outside a plain begin's first
+segment, a ramp running with no older head, a cache tail and a reader both older) cannot be written:
 
 ```cpp
 /// The older head: the voice-sample's spare reader, or a cache tail.
@@ -491,7 +492,7 @@ a few hundred bytes of today's total (the DSP components are header-first and in
 comparison is the users' and the stretcher's functions together, about 11.7 KB). In memory, the spare reader (128
 bytes) moves from the stretcher into every voice-sample (160 bytes today, so 288), and the stretcher loses it: at the
 default pool sizes, 48 voice-samples and 48 stretchers, that is +6,144 bytes and about −6,144 bytes, a net change of
-about 0 (the new stretcher's exact size is settled when it is written); the pooled stretcher no larger than
+about 0 (the new stretcher's exact size is settled when it is written). The pooled stretcher is no larger than
 today's unless open question 2 chooses to embed the tail.
 
 ## 6. The rewrite's steps
@@ -535,18 +536,29 @@ Each is a decision with a recommendation first.
    - (b) Embed the 2 KB buffer in every stretcher: the pool grows by about 96 KB of fast memory.
    - (c) Keep allocating on the render; the ceiling still holds.
 3. **The stretch ratio far below the root** (an accepted difference already decided: the rewrite fixes it; no golden
-   pins it). Past 8 octaves below the root the ratio wraps; at 12 a zero combined increment divides by zero. In the
-   same range a planned hop can come to one frame (B5: `hop = 1` when under 1), its crossfade is then capped at
-   `1 >> 1` = 0, and `2^24 / 0` divides by zero again. What the fix does:
-   - (a) **Recommended:** two changes. The ratio saturates at `2^32 − 1` instead of wrapping (in
-     `SampleSource::stretch_to_undo_pitch`, beside the playback side), so the combined increment is never 0. And B5's
-     floor becomes `hop = max(hop, 2)`, applied where `hop = 1` is today, before the crossfade. Then the uncapped
-     crossfade is at least 39 frames (the fixed part is at least 40; at a 2-frame hop the share's product rounds to 0
-     or −1), so it is capped at `2 >> 1` = 1; `hop −= 1` leaves 1; the ceiling is at least 32, so `hop` stays 1; and
-     `xf = min(1, 1)` = 1, `over_hop(1)` = 2^24: a one-frame hop with a one-frame crossfade. At planned hops of 2 or
-     more the legacy computes exactly this already, so nothing it reaches without dividing by zero changes.
-   - (b) Stretching stops (the voice plays unstretched) once the ratio would leave the range.
-   - (c) The voice is cut there.
+   pins any of this range). Three things change there, from about 7 octaves below the root down:
+   - **7 to 8 octaves down.** The ratio (`2^48 / increment` with no other pitch) passes 2^31 − 2^24, and the legacy,
+     which passes it to B3, B4, B7 and the hop-back reach as `int32_t`, reads it as negative or wraps `ratio + 2^24`.
+     It divides by nothing there, but the arithmetic is wrong: B3's beam edges and B4's back edge move the wrong way,
+     B7's divisor is a sign-extended 64-bit value, and the hop-back reach takes its speed-up branch on a slowed-down
+     voice. The rewrite reads the ratio unsigned (the contracts file's "ratio's signedness"), so all four change here.
+   - **Past 8 octaves.** The ratio itself wraps in `SampleSource::stretch_to_undo_pitch`; at 12 it is 0, the combined
+     increment is 0 and a cache-length divide divides by zero.
+   - **A one-frame hop.** In the same far range a planned hop can come to one frame (B5: `hop = 1` when under 1), its
+     crossfade is then capped at `1 >> 1` = 0, and `2^24 / 0` divides by zero.
+
+   What the fix does:
+   - (a) **Recommended:** read the ratio unsigned everywhere, saturate it at `2^32 − 1` (a ratio of 256) instead of
+     wrapping, and floor B5's hop at 2 (`hop = max(hop, 2)`, where `hop = 1` is today, before the crossfade). Then the
+     uncapped crossfade is at least 39 frames (the fixed part is at least 40; at a 2-frame hop the share's product
+     rounds to 0 or −1), so it is capped at `2 >> 1` = 1; `hop −= 1` leaves 1; the ceiling is at least 32, so `hop`
+     stays 1; and `xf = min(1, 1)` = 1, `over_hop(1)` = 2^24: a one-frame hop with a one-frame crossfade. The floor
+     changes nothing at planned hops of 2 or more, but the unsigned reading changes the 7-to-8-octave range above.
+   - (b) Keep the legacy's signed reading from 7 to 8 octaves (bit-exact there), and saturate and floor only past 8.
+     This keeps arithmetic that is wrong by construction, and the rewrite would have to reproduce the wrapping int32
+     sums on purpose (signed overflow is undefined in C++), to keep a range no golden pins.
+   - (c) Stretching stops (the voice plays unstretched) once the ratio passes 2^31 − 2^24, about 7 octaves down.
+   - (d) The voice is cut there.
 4. **How the contracts' values are recorded.**
    - (a) **Recommended:** a temporary probe of the legacy code writes workloads' inputs and results; only the records
      header is committed. No legacy code enters the tree's tests.
@@ -557,7 +569,8 @@ Each is a decision with a recommendation first.
    it is. E1 is never checked in the block a stretcher begins (the begin skips the check), so the copy matters from the
    next block on: having read the same frames as the newer from the same cursor, at an increment of 1.0 it stops on
    the newer's cursor, and a stretch that lasted one block, in one segment, ends at the next block's start, before any
-   hop. Pitched, the copy's interpolation width of 0 can leave its cursor elsewhere, and E1 then waits for a hop. The
+   hop. Pitched, or after a resampled block left the newer a nonzero interpolation width, the copy's width of 0 can leave its
+   cursor elsewhere, and E1 then waits for a hop. The
    copy's read can also hit a card error and cut the voice.
    - (a) **Recommended:** keep it, as the `Shadowed` phase: E1's timing and the card-error cut stay as they are, at
      the cost of one silent read of one segment per plain begin.
