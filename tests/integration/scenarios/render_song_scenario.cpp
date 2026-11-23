@@ -83,6 +83,8 @@
 ///   - `RS-CAPTURE frames=<n> stereo=<0|1>`: frames captured, and whether headphones were plugged in. A failure if
 ///     the app rendered in the other width at any tick while playing.
 ///   - `RS-MODEL fill_delay_ms=<n> fill_read_us=<n> burst=<start>:<blocks>:<ms>`: the storage model it ran under.
+///   - `RS-ALLOC render_allocations=<n>`: audio-tier allocations made while the output was captured, counted as
+///     render_preset counts its own; a gate may hold it to a ceiling (`RENDER_ALLOC_MAX`, read by the check).
 ///   - `RS-RESULT failures=<n>`.
 
 #include "scenarios/support/scenario_declare.h"
@@ -98,6 +100,7 @@
 #include "gui/views/session_view.h"
 #include "harness/streaming_underrun.h"
 #include "libdeluge/tier.h"
+#include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -925,6 +928,9 @@ int32_t g_voicesMax = 0;
 /// Playing ticks whose output was not in the channel count the run asked for.
 int32_t g_wrongWidthTicks = 0;
 uint64_t g_captured = 0;
+// Audio-tier allocations at the capture's start, and those made while it ran (RS-ALLOC).
+uint32_t g_allocationBase = 0;
+uint32_t g_allocations = 0;
 
 /// The song's name as the load gives it: the file name without its folder or extension.
 std::string expectedName(const std::string& path) {
@@ -1030,6 +1036,7 @@ void stepPlay() {
 		// the headphones plugged in at the start count from the first captured block.
 		inputRoutine();
 	}
+	g_allocationBase = deluge::memory::audioTierAllocations();
 	deluge_host_capture_start();
 	if (g_arrangeRecord) {
 		beginArrangementRecording();
@@ -1106,6 +1113,7 @@ void stepPlaying() {
 	if (g_blocksRendered >= g_blocksWanted) {
 		g_reads = deluge_sim_card_reads() - g_readsBase;
 		g_captured = deluge_host_capture_stop();
+		g_allocations = deluge::memory::audioTierAllocations() - g_allocationBase;
 		if (playing) {
 			playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 		}
@@ -1116,6 +1124,7 @@ void stepPlaying() {
 	if (++g_ticks > static_cast<int64_t>(g_blocksWanted) * 2 + 1000) {
 		g_report.fail("RENDER the render stopped short of the blocks asked for");
 		g_captured = deluge_host_capture_stop();
+		g_allocations = deluge::memory::audioTierAllocations() - g_allocationBase;
 		g_stage = Stage::Report;
 	}
 }
@@ -1293,6 +1302,7 @@ void report() {
 		    "POSITIONS the interaction tier moved the playhead while the render could tick, not excluding it");
 	}
 #endif
+	printf("RS-ALLOC render_allocations=%u\n", g_allocations);
 	g_report.printResult();
 	g_stage = Stage::Done;
 }
@@ -1312,6 +1322,7 @@ void deluge_scenario_render_song_begin(void) {
 	g_voicesMax = 0;
 	g_wrongWidthTicks = 0;
 	g_captured = 0;
+	g_allocations = 0;
 	// Headphones plugged in from boot make the app render in stereo, as the device does through them; otherwise it
 	// renders in mono, as through the speaker.
 	const char* stereo = std::getenv("RENDER_STEREO");

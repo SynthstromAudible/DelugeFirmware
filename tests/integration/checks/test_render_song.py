@@ -16,6 +16,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "tasks"))
 
 from render_song import (
+    _check_allocations,
     _check_metronome,
     _check_mod_fx_hooks,
     _check_reverb_switch,
@@ -222,6 +223,33 @@ class MetronomeTest(unittest.TestCase):
 
     def test_a_gate_without_the_switch_checks_nothing(self):
         self.assertEqual(_metronome_failures({}, ""), [])
+
+
+ALLOC_CEILING = {"RENDER_ALLOC_MAX": "2"}
+
+
+def _allocation_failures(env: dict[str, str], *lines: str) -> list[str]:
+    gate = _Gate(env)
+    _check_allocations(gate, Run(0, "\n".join(lines), ""))
+    return gate.failures
+
+
+class AllocationTest(unittest.TestCase):
+    def test_a_count_at_the_ceiling_passes(self):
+        self.assertEqual(
+            _allocation_failures(ALLOC_CEILING, "RS-ALLOC render_allocations=2"), []
+        )
+
+    def test_a_count_over_the_ceiling_fails(self):
+        failures = _allocation_failures(ALLOC_CEILING, "RS-ALLOC render_allocations=3")
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].startswith("RS-ALLOC —"))
+
+    def test_a_ceiling_with_no_line_fails(self):
+        self.assertEqual(len(_allocation_failures(ALLOC_CEILING, "")), 1)
+
+    def test_a_gate_without_a_ceiling_checks_nothing(self):
+        self.assertEqual(_allocation_failures({}, ""), [])
 
 
 KNOB_FIRST = {"RENDER_REVERB_SWITCH": "600:room=0.3,800:model=2"}

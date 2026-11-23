@@ -33,6 +33,9 @@ adds what depends on the song, and why each check is here:
     RS-DELAY-ARENA    no tape the render could not take from the delay arena: a delay that finds it short passes the
                       audio through until the arena's job tops it up, so on these songs every delay starts on the
                       block it asks to.
+    RS-ALLOC          a gate that sets a ceiling (RENDER_ALLOC_MAX) only: the audio-tier allocations made while the
+                      output was captured are no more than it. A stretched song's render allocates where a stretcher
+                      crossfades out of a cache, and a rewrite that allocated more would still render the same output.
     RS-STUTTER        a gate that stutters an owner (RENDER_STUTTER) only: the scenario's summary must show every begin
                       and end asked for made, and scenario ticks in which an owner stuttered. A begin the owner refused
                       would leave the song rendering unstuttered for some of its span and still compare with a record
@@ -302,6 +305,21 @@ def _check_delay_arena(gate, result) -> None:
         gate.fail(f"RS-DELAY-ARENA — {shortfalls} tapes found the arena short ({line})")
 
 
+def _check_allocations(gate, result) -> None:
+    """The render allocated no more than the gate's ceiling (see RS-ALLOC)."""
+    ceiling = gate.env.get("RENDER_ALLOC_MAX")
+    if not ceiling:
+        return
+    line = result.last("RS-ALLOC ")
+    allocations = int_field(line, "render_allocations")
+    if allocations is None:
+        gate.fail("RS-ALLOC — no RS-ALLOC render_allocations= line")
+    elif allocations > int(ceiling):
+        gate.fail(
+            f"RS-ALLOC — {allocations} render allocations, over the ceiling of {ceiling} ({line})"
+        )
+
+
 def _check_stutter(gate, result) -> None:
     """Every stutter asked for began and ended, and an owner stuttered in some tick (see RS-STUTTER)."""
     if not gate.env.get("RENDER_STUTTER"):
@@ -404,6 +422,7 @@ def run(gate):
     _check_delay_off(gate, result)
     _check_song_automation(gate, result)
     _check_delay_arena(gate, result)
+    _check_allocations(gate, result)
     _check_stutter(gate, result)
     _check_metronome(gate, result)
 
