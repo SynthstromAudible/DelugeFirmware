@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright © 2025 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,23 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/consequence/consequence_scale_add_note.h"
-#include "model/model_stack.h"
+#include "model/song/note_spelling.h"
 #include "model/song/song.h"
 
-ConsequenceScaleAddNote::ConsequenceScaleAddNote(int32_t newNoteWithinOctave) {
-	noteWithinOctave = newNoteWithinOctave;
-}
-
-Error ConsequenceScaleAddNote::revert(TimeType time, ModelStack* modelStack) {
-
-	// The only thing we actually have to do is delete any NoteRows that had the new yNoteWithinOctave.
-	// The changing back of the scale itself is handled by the Action, which
-	// keeps a record
-	if (time == BEFORE) {
-		modelStack->song->removeYNoteFromMode(noteWithinOctave);
-	}
-	else {}
-
-	return Error::NONE;
+bool useSharpsForNoteNames() {
+	return currentSong == nullptr || !currentSong->key.prefersFlats();
 }

@@ -176,6 +176,7 @@ public:
 	bool isNoteVelocityEditorShortcut(int32_t x, int32_t y);
 
 private:
+	void endAutomationEditPadPresses();
 	// button action functions
 	void handleSessionButtonAction(Clip* clip, bool on);
 	void handleKeyboardButtonAction(bool on);
@@ -237,6 +238,7 @@ private:
 	bool selectPatchCable(int32_t offset, Clip* clip);
 	bool selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex, bool& foundCurrentPatchCable);
 	void selectMIDICC(int32_t offset, Clip* clip);
+	void selectExpressionParam(int32_t offset, Clip* clip);
 	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
 	                                          int32_t numParams);
 	void getLastSelectedNonGlobalParamArrayPosition(Clip* clip);
@@ -254,6 +256,7 @@ private:
 	void initMIDICCShortcutsForAutomation();
 	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
 	bool midiCCShortcutsLoaded;
+	uint32_t getMIDICCForAutomation(int32_t x, int32_t y) const;
 
 	bool probabilityChanged;
 	uint32_t timeSelectKnobLastReleased;

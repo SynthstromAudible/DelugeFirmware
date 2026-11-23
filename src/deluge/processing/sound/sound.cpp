@@ -34,12 +34,14 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/note/note_lock_playback.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_low_level_reader.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "model/voice/voice.h"
+#include "model/voice/voice_note_locks_inline.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/envelope.h"
@@ -1554,8 +1556,8 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 
 	if (!((synthMode == SynthMode::RINGMOD) || (modelStackWithSoundFlags->checkSourceEverActive(0))
 	      || (modelStackWithSoundFlags->checkSourceEverActive(1))
-	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648))))
-	    [[unlikely]] {
+	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648))
+	      || VoiceNoteLocks::pendingTurnsOnASource(*this))) [[unlikely]] {
 		return;
 	}
 
@@ -1578,7 +1580,6 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
 	bool atLeastOneNoteOn = false;
-	bool atLeastOneNoteLeftPending = false;
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
@@ -1586,20 +1587,22 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			}
 			atLeastOneNoteOn = true;
 
-			if (AudioEngine::allowedToStartVoice()) {
-
-				invertReversed = instruction.invertReversed;
-				noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp,
-				                      instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-				                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate,
-				                      fromMIDIChannel);
-				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
-			}
-			else {
-				// D_PRINTLN("couldn't start note from sound::noteon");
-				// It stays PENDING, and render() will start it as soon as a voice is available
-				atLeastOneNoteLeftPending = true;
-			}
+			// Starts its voice now, or in a later render if this one can't start any more
+			DeferredNoteOns::startVoice(modelStackWithSoundFlags, *this,
+			                            {
+			                                .noteCodePreArp = noteCodePreArp,
+			                                .noteCodePostArp = instruction.arpNoteOn->noteCodeOnPostArp[n],
+			                                .velocity = instruction.arpNoteOn->velocity,
+			                                .mpeValues = mpeValues,
+			                                .sampleSyncLength = instruction.sampleSyncLengthOn,
+			                                .ticksLate = ticksLate,
+			                                .samplesLate = samplesLate,
+			                                .fromMIDIChannel = fromMIDIChannel,
+			                                .invertReversed = instruction.invertReversed,
+			                                // With the arp on, the note it starts may be another held one
+			                                .locks = instruction.arpNoteOn->locks,
+			                            });
+			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
 	}
 	if (!atLeastOneNoteOn) {
@@ -1608,11 +1611,6 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		if (arpSettings != nullptr && arpeggiator->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
 			reassessRenderSkippingStatus(modelStackWithSoundFlags);
 		}
-	}
-	else if (atLeastOneNoteLeftPending) {
-		// We started no voice for that note, so nothing else will have taken us out of render-skipping - and render()
-		// is the only thing that can start the pending note (issue #2262)
-		reassessRenderSkippingStatus(modelStackWithSoundFlags);
 	}
 }
 
@@ -1637,6 +1635,25 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	}
 
 	reassessRenderSkippingStatus(modelStackWithSoundFlags);
+}
+
+void Sound::updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, ModelStackWithSoundFlags* modelStack) {
+	if (tag == 0) {
+		return;
+	}
+	// FM modulators skip their phase increments while off (Voice::calculatePhaseIncrements), as a knob turn up
+	// from -inf would also recalculate (patchedParamPresetValueChanged)
+	bool volume = param == params::LOCAL_MODULATOR_0_VOLUME || param == params::LOCAL_MODULATOR_1_VOLUME
+	              || param == params::LOCAL_OSC_A_VOLUME || param == params::LOCAL_OSC_B_VOLUME;
+	for (const ActiveVoice& voice : voices_) {
+		if (voice->noteLocks.liveEditTag == tag && voice->noteLocks.set(param, value)) {
+			voicesMayHaveNoteLocks = true;
+			voice->patcher.performInitialPatching(*this, *modelStack->paramManager);
+			if (volume) {
+				voice->calculatePhaseIncrements(modelStack);
+			}
+		}
+	}
 }
 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
@@ -1664,7 +1681,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			    synthMode == SynthMode::FM
 			    || std::ranges::any_of(std::views::iota(0, kNumSources),
 			                           [&](int32_t s) {
-				                           return isSourceActiveCurrently(s, paramManager)
+				                           return voice->noteLocks.sourceActiveCurrently(*this, s, paramManager)
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
 			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
@@ -1685,7 +1702,13 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	}
 
 	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
-		(*voiceForLegato)->changeNoteCode(modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeValues);
+		Voice& legatoVoice = **voiceForLegato;
+		// The new note's parameter locks (or lack of them) take over the gliding voice
+		if (legatoVoice.noteLocks.takePending()) [[unlikely]] {
+			voicesMayHaveNoteLocks = true;
+			legatoVoice.patcher.performInitialPatching(*this, *modelStack->paramManager);
+		}
+		legatoVoice.changeNoteCode(modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeValues);
 	}
 	else {
 		try {
@@ -1816,6 +1839,9 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 // noteCode = ALL_NOTES_OFF (default) means stop *any* voice, regardless of noteCode
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
+	// A note-on for it that hasn't got its voice yet mustn't start now
+	DeferredNoteOns::forgetNoteOff(this, noteCode);
+
 	// Send midi note offs out for specific notes,
 	// but only if the type of sound allows note tails (if not, note off was already sent right after its note on)
 	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
@@ -1938,6 +1964,10 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 						// I think we could just return here, too?
 					}
 					else { // PolyphonyMode::MONO
+						// Not through DeferredNoteOns: this retriggers the voice that's being released (it's reused
+						// for the new note), so it's no extra voice, and waiting would leave a gap in a mono line. If
+						// that note was itself still waiting for a voice, it's starting now instead
+						DeferredNoteOns::forgetNoteOff(this, newNoteCode);
 						noteOnPostArpeggiator(
 						    modelStack, newNoteCode, newNoteCode,
 						    arpeggiator->lastVelocity, // Interesting - I've made it keep the velocity of presumably the
@@ -2211,12 +2241,11 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// ModelStack, cos many deeper-nested functions called by this one need it too!
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	// A note that couldn't get a voice yet is only ever started from render(), so we must keep rendering while one is
-	// pending - otherwise it'd stay pending forever (issue #2262)
+	// A note still waiting for a voice doesn't need us rendering: DeferredNoteOns starts it, and the new voice takes us
+	// out of render-skipping
 	bool skippingStatusNow =
 	    (voices_.empty() && (delay.repeatsUntilAbandon == 0u) && !stutterer.isStuttering(this)
-	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF)
-	     && !getArp()->hasPendingNotes(arpSettings));
+	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF));
 
 	if (skippingStatusNow != skippingRendering) {
 
@@ -2376,32 +2405,31 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
-void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
-                                  ArpReturnInstruction instruction) {
-	if (instruction.arpNoteOn) {
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			// do we have a note to start? if no, exit early
-			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-				break;
-			}
-			// has the note already started? if yes, skip it
-			if (instruction.arpNoteOn->noteStatus[n] != ArpNoteStatus::PENDING) {
-				continue;
-			}
-			// note is pending, are we allowing to start it? if no, exit early
-			if (!AudioEngine::allowedToStartVoice()) {
-				break; // Leave the remaining notes pending for the next render.
-			}
-			invertReversed = instruction.invertReversed;
-
-			noteOnPostArpeggiator(
-			    modelStackWithSoundFlags,
-			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+void Sound::startArpNoteOns(ModelStackWithSoundFlags* modelStack, ArpReturnInstruction const& instruction) {
+	ArpNote* arpNote = instruction.arpNoteOn;
+	if (arpNote == nullptr) {
+		return;
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (arpNote->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+			break;
 		}
+		DeferredNoteOns::startVoice(
+		    modelStack, *this,
+		    {
+		        .noteCodePreArp = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+		        .noteCodePostArp = arpNote->noteCodeOnPostArp[n],
+		        .velocity = arpNote->velocity,
+		        .mpeValues = arpNote->mpeValues,
+		        .sampleSyncLength = instruction.sampleSyncLengthOn,
+		        .ticksLate = 0,
+		        .samplesLate = 0,
+		        .fromMIDIChannel = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
+		        .invertReversed = instruction.invertReversed,
+		        // The locks of the sequenced note that's holding this arp note
+		        .locks = arpNote->locks,
+		    });
+		arpNote->noteStatus[n] = ArpNoteStatus::PLAYING;
 	}
 }
 
@@ -2495,9 +2523,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 	}
-	else {
-		getArp()->handlePendingNotes(arpSettings, &instruction);
-	}
 	bool atLeastOneOff = false;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
@@ -2516,7 +2541,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (atLeastOneOff) {
 		invertReversed = false;
 	}
-	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction);
+	startArpNoteOns(modelStackWithSoundFlags, instruction);
 
 	// Setup delay
 	Delay::State delayWorkingState{};
@@ -2530,8 +2555,19 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	delay.setupWorkingState(delayWorkingState, timePerTickInverse, !voices_.empty());
 	delayWorkingState.analog_saturation = 8;
 
+	// Union of the params locked by this Sound's voices' notes. Some per-voice params are also gated at Sound level
+	// on the knob value (is the filter on, is pan applied per voice) - a lock has to open those gates for its voice.
+	uint64_t lockedParams = 0;
+	if (voicesMayHaveNoteLocks) [[unlikely]] {
+		for (ActiveVoice& voice : voices_) {
+			lockedParams |= voice->noteLocks.mask();
+		}
+		voicesMayHaveNoteLocks = (lockedParams != 0);
+	}
+
 	// Render each voice into a local buffer here
-	bool voice_rendered_in_stereo = renderingVoicesInStereo(modelStackWithSoundFlags);
+	bool voice_rendered_in_stereo = renderingVoicesInStereo(modelStackWithSoundFlags)
+	                                || ((lockedParams & VoiceNoteLocks::kStereo) && AudioEngine::renderInStereo);
 
 	// FIXME(@stellar-aria): if we have simulataneous sounds rendering, they'll overwrite
 	// each other in this buffer. It probably should be object or thread-local
@@ -2546,7 +2582,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// Very often, we'll just apply panning here at the Sound level rather than the Voice level
 		bool applyingPanAtVoiceLevel =
 		    (AudioEngine::renderInStereo
-		     && paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_PAN));
+		     && ((lockedParams & VoiceNoteLocks::kPan)
+		         || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_PAN)));
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
@@ -2565,9 +2602,18 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
+			bool voiceLPF = doLPF;
+			bool voiceHPF = doHPF;
+			if (lockedParams) [[unlikely]] {
+				// A voice whose note locks a filter param runs that filter even if the knob value has it off
+				// (the same params the Sound-level decision above looks at)
+				voiceLPF = voiceLPF || (thisHasFilters && voice->noteLocks.hasAnyOf(VoiceNoteLocks::kLPF));
+				voiceHPF = voiceHPF || (thisHasFilters && voice->noteLocks.hasAnyOf(VoiceNoteLocks::kHPF));
+			}
+
 			bool stillGoing =
 			    voice->render(modelStackWithSoundFlags, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			                  applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
+			                  applyingPanAtVoiceLevel, sourcesChanged, voiceLPF, voiceHPF, pitchAdjust);
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
@@ -3163,7 +3209,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 	for (const ActiveVoice& voice : voices_) {
 		if (synthMode == SynthMode::SUBTRACTIVE) {
 			for (int32_t s = 0; s < kNumSources; s++) {
-				bool sourceEverActive = modelStack->checkSourceEverActive(s);
+				bool sourceEverActive = voice->noteLocks.sourceEverActive(modelStack, s);
 
 				if (sourceEverActive && synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
 				    && voice->guides[s].audioFileHolder && voice->guides[s].audioFileHolder->audioFile) {
@@ -4402,7 +4448,8 @@ Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	return Error::NONE;
 }
 
-bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager) {
+bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager,
+                                        const deluge::note_locks::LockSet* locks) {
 	switch (envelopeConfig[e].mode) {
 	case deluge::modulation::EnvelopeMode::AHD:
 		return false; // one-shot
@@ -4414,14 +4461,18 @@ bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* para
 	}
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
+	auto value = [&](int32_t p) {
+		std::optional<int32_t> locked = locks != nullptr ? locks->get(p) : std::nullopt;
+		return locked.value_or(patchedParams->getValue(p));
+	};
 
 	// These params are fetched "pre-LPF"
-	return (patchedParams->getValue(params::LOCAL_ENV_0_SUSTAIN + e) != -2147483648
-	        || patchedParams->getValue(params::LOCAL_ENV_0_DECAY + e)
-	               > patchedParams->getValue(params::LOCAL_ENV_0_RELEASE + e));
+	return (value(params::LOCAL_ENV_0_SUSTAIN + e) != -2147483648
+	        || value(params::LOCAL_ENV_0_DECAY + e) > value(params::LOCAL_ENV_0_RELEASE + e));
 }
 
-bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager) {
+bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager,
+                                   const deluge::note_locks::LockSet* locks) {
 	switch (envelopeConfig[e].mode) {
 	case deluge::modulation::EnvelopeMode::AHD:
 		return false;
@@ -4434,11 +4485,18 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
-	return (patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].containsSomething(-2147483648)
-	        || patchedParams->params[params::LOCAL_ENV_0_DECAY + e].isAutomated()
-	        || patchedParams->params[params::LOCAL_ENV_0_RELEASE + e].isAutomated()
-	        || patchedParams->getValue(params::LOCAL_ENV_0_DECAY + e)
-	               > patchedParams->getValue(params::LOCAL_ENV_0_RELEASE + e));
+	// A lock replaces the knob value and its automation for the whole note
+	auto lock = [&](int32_t p) { return locks != nullptr ? locks->get(p) : std::nullopt; };
+	std::optional<int32_t> sustainLock = lock(params::LOCAL_ENV_0_SUSTAIN + e);
+	std::optional<int32_t> decayLock = lock(params::LOCAL_ENV_0_DECAY + e);
+	std::optional<int32_t> releaseLock = lock(params::LOCAL_ENV_0_RELEASE + e);
+
+	return (sustainLock ? *sustainLock != -2147483648
+	                    : patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].containsSomething(-2147483648))
+	       || (!decayLock && patchedParams->params[params::LOCAL_ENV_0_DECAY + e].isAutomated())
+	       || (!releaseLock && patchedParams->params[params::LOCAL_ENV_0_RELEASE + e].isAutomated())
+	       || (decayLock ? *decayLock : patchedParams->getValue(params::LOCAL_ENV_0_DECAY + e))
+	              > (releaseLock ? *releaseLock : patchedParams->getValue(params::LOCAL_ENV_0_RELEASE + e));
 }
 
 void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
@@ -4998,6 +5056,8 @@ void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* 
 }
 
 void Sound::killAllVoices() {
+	DeferredNoteOns::forgetSound(this); // Nor start any that are still waiting
+
 	// Reset invertReversed flag so all voices get its reverse settings back to normal
 	invertReversed = false;
 

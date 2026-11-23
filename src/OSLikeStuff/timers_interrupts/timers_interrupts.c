@@ -71,6 +71,51 @@ void EXIT_CRITICAL_SECTION() {
 	}
 }
 
+// ICCPMR holds the mask level in bits [7:3] (see R_INTC_SetMaskLevel())
+static inline uint8_t readInterruptMask() {
+	return (uint8_t)(INTC.ICCPMR >> 3);
+}
+
+static inline void writeInterruptMask(uint8_t level) {
+	// Let anything done under the old mask finish before an interrupt it allowed or held off can see it
+	__asm volatile("DSB" ::: "memory");
+	INTC.ICCPMR = (uint32_t)level << 3;
+	// Reading it back makes sure the GIC has taken the write, then the ISB makes sure nothing after here runs under
+	// the old mask
+	(void)INTC.ICCPMR;
+	__asm volatile("DSB" ::: "memory");
+	__asm volatile("ISB" ::: "memory");
+}
+
+// The read-modify-write of ICCPMR needs no locking or atomics (which it couldn't have anyway: exclusives don't work on
+// Device memory). There's one core, and interrupts only preempt by nesting - so any ISR that runs between the read and
+// the write has finished, and put the mask back as it found it, before the write happens.
+
+uint8_t mask_interrupts(uint8_t level) {
+	if (level > INTERRUPT_PRIORITY_LOWEST) {
+		level = INTERRUPT_PRIORITY_LOWEST;
+	}
+	uint8_t previous = readInterruptMask();
+	if (level < previous) {
+		writeInterruptMask(level);
+	}
+	return previous;
+}
+
+void restore_interrupt_mask(uint8_t previous) {
+	uint8_t current = readInterruptMask();
+	// mask_interrupts() only tightens, so if the mask is now looser than what we're putting back, something nested
+	// inside restored out of order
+	if (current > previous) {
+#if ALPHA_OR_BETA_VERSION
+		FREEZE_WITH_ERROR("IM01");
+#endif
+	}
+	if (current != previous) {
+		writeInterruptMask(previous);
+	}
+}
+
 void clearIRQInterrupt(int irqNumber) {
 	uint16_t flagRead = INTC.IRQRR.WORD;
 	if (flagRead & (1 << irqNumber)) {

@@ -21,9 +21,11 @@
 #include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
 #include "model/iterance/iterance.h"
+#include "model/note/note_lock_playback.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"
+#include <functional>
 
 #define SQUARE_NEW_NOTE 1
 #define SQUARE_NOTE_HEAD 2
@@ -78,6 +80,10 @@ struct PendingNoteOn {
 	uint8_t velocity;
 	Iterance iterance;
 	uint8_t fill;
+	deluge::note_locks::NoteRef locks; // Note::lockSet, and its held pad's live-edit tag if it has one
+	/// Set for a note that waited (DeferredNoteOns): its locks as they were when it was due, played instead of
+	/// looking `locks` up now
+	const deluge::note_locks::LockSet* locksWhenDue;
 };
 
 struct PendingNoteOnList {
@@ -102,7 +108,10 @@ public:
 	~NoteRow();
 	void renderRow(TimelineView* editorScreen, RGB, RGB, RGB, RGB* image, uint8_t[], bool, uint32_t,
 	               bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
-	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
+	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false, bool showLocks = true);
+	/// This row's notes' parameter locks do something: it plays a Sound (a synth, or a kit's sound drum). Where they
+	/// don't (MIDI / CV, gate and MIDI drums), locked notes aren't drawn as such.
+	[[nodiscard]] bool locksTakeEffect(const InstrumentClip* clip) const;
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
 	                              Note* note = nullptr);
@@ -112,9 +121,12 @@ public:
 	void maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos);
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
-	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
+	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip, Song* song);
 	Error readFromFile(Deserializer& reader, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y; }
+	/// Whether this note has a tail: if the row's sound allows them, or regardless if the note's locks give it a
+	/// sustain (note_locks::locksSustain). `rowAllowsNoteTails` is InstrumentClip::allowNoteTails for this row.
+	static bool noteHasTail(const Note* note, bool rowAllowsNoteTails, const Song* song);
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
 	uint32_t getNumNotes();
@@ -170,7 +182,7 @@ public:
 	Iterance getDefaultIterance();
 	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
-	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
+	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action, uint16_t lockSet = 0);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);
 	Error addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
@@ -212,8 +224,14 @@ public:
 	void trimParamManager(ModelStackWithNoteRow* modelStack);
 	void deleteNoteByIndex(int32_t index, Action* action, int32_t noteRowId, InstrumentClip* clip);
 	void complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
+	/// Changes a note parameter (velocity, probability, iterance, fill) of the note at editPos and, if the clip is wrap
+	/// (cross-screen) editing, of every copy of it on the other screens. Snapshots the row into `action` for undo.
 	Error changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
 	                                  int32_t changeType, int32_t changeValue);
+	/// Calls `visit` on the note at editPos and, if the clip is wrap (cross-screen) editing, on every copy of it on the
+	/// other screens - before and after editPos's, as addCorrespondingNotes creates them. Doesn't snapshot.
+	Error forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack,
+	                               const std::function<void(Note&)>& visit);
 	/// Nudge the note at editPos by either +1 (if nudgeOffset > 0) or -1 (if nudgeOffset < 0)
 	///
 	/// The caller must call Clip::expectEvent on the clip containing this `NoteRow` after this.

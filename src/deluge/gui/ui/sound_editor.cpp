@@ -719,6 +719,13 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 					menu_item::multiRangeMenu.deletePress();
 				}
+				// Note editor: delete a parameter lock
+				else if (getCurrentMenuItem() == &noteParamLocksMenu) {
+					noteParamLocksMenu.deletePress();
+				}
+				else if (getCurrentMenuItem() == &noteParamLockValueMenu) {
+					noteParamLockValueMenu.deletePress();
+				}
 			}
 			else {
 				openUI(&saveInstrumentPresetUI);
@@ -980,6 +987,10 @@ ActionResult SoundEditor::exitCompletely() {
 		display->removeWorkingAnimation();
 	}
 	else if (inNoteEditor()) {
+		// A lock value being edited is written when its item ends, which needs the notes still targeted
+		if (getCurrentMenuItem() == &noteParamLockValueMenu) {
+			noteParamLockValueMenu.commit();
+		}
 		instrumentClipView.exitNoteEditor();
 		// refresh grid to potentially unhighlight edited notes
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -2099,7 +2110,10 @@ doMIDIOrCV:
 
 	// This isn't a very nice solution, but we have to set currentParamManager before calling
 	// checkPermissionToBeginSession(), because in a minority of cases, like "patch cable strength" / "modulation
-	// depth", it needs this.
+	// depth", it needs this. If permission is refused, the menu that's open stays open, so put these back - or it'd
+	// be left reading through another output's ParamManager (E411 if that has no patched params)
+	ParamManagerForTimeline* const previousParamManager = currentParamManager;
+	ModControllableAudio* const previousModControllable = currentModControllable;
 	currentParamManager = newParamManager;
 	// And we also have to set currentModControllable before focusing on the child item in a horizontal menu
 	currentModControllable = newModControllable;
@@ -2119,6 +2133,8 @@ doMIDIOrCV:
 	if (result == MenuPermission::NO) {
 		// The browser won't be opened so forget where maybeGetParentMenu() said to go once a file is chosen
 		sampleBrowser.clearMenuHeadingTo();
+		currentParamManager = previousParamManager;
+		currentModControllable = previousModControllable;
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return false;
 	}

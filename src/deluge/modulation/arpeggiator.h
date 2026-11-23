@@ -19,6 +19,7 @@
 
 #include "algorithm"
 #include "definitions_cxx.hpp"
+#include "model/note/note_lock_playback.h"
 #include "model/sync.h"
 #include "storage/storage_manager.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -148,8 +149,10 @@ public:
 };
 enum class ArpNoteStatus : uint8_t {
 	OFF,
-	PENDING,
 	PLAYING,
+	/// A held note (in Arpeggiator::notes) the arp has played. If the arp is switched off while it's still held, the
+	/// arp hands it back to be played as a plain note (Arpeggiator::takeNoteHeldThroughArpOff())
+	ARPEGGIATED,
 };
 
 struct ArpNote {
@@ -157,14 +160,6 @@ struct ArpNote {
 		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
 		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
 		noteStatus.fill(ArpNoteStatus::OFF);
-	}
-	bool isPending() {
-		return std::ranges::any_of(noteStatus, [](ArpNoteStatus status) { return status == ArpNoteStatus::PENDING; });
-	}
-	/// Whether this note is waiting to start AND actually has a note to play. Only slot 0 can be pending when the arp
-	/// is off, which is the only time notes pend in the `notes` array.
-	bool isStartablePending() {
-		return noteStatus[0] == ArpNoteStatus::PENDING && noteCodeOnPostArp[0] != ARP_NOTE_NONE;
 	}
 	void resetPostArpArrays() {
 		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
@@ -176,8 +171,11 @@ struct ArpNote {
 	int16_t mpeValues[kNumExpressionDimensions]{};
 	uint8_t velocity{0};
 	uint8_t baseVelocity{0};
-	// Keep the stretch length with the note when its voice start is deferred to a later render.
+	// Keep the stretch length with the note for when the arp hands it back (takeNoteHeldThroughArpOff())
 	uint32_t sampleSyncLength{0};
+	// Parameter locks of the sequenced note that put this note in the arp (note_locks::pending at its note-on), so
+	// the notes the arp generates from it later carry them too
+	deluge::note_locks::NoteRef locks;
 
 	// For note-ons
 	std::array<ArpNoteStatus, ARP_MAX_INSTRUCTION_NOTES> noteStatus{};
@@ -230,12 +228,11 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	virtual void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) = 0;
-	/// Looks for pending notes and sets arp return to the pending note if found
-	/// Returns true if it sets the arp return note
-	virtual bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
-	/// Whether a note is waiting to start because it couldn't get a voice yet. handlePendingNotes() only runs from
-	/// Sound::render(), so a Sound must keep rendering while this is true or the note will never start.
-	virtual bool hasPendingNotes(ArpeggiatorSettings* settings);
+	/// With the arp switched off, hands back one held note it had been arpeggiating, to be played as a plain note:
+	/// sets the instruction's note-on and returns true. Called from doTickForward()
+	virtual bool takeNoteHeldThroughArpOff(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+		return false;
+	}
 	void render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
 	            uint32_t gateThreshold, uint32_t phaseIncrement);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
@@ -245,7 +242,7 @@ public:
 	virtual void reset() = 0;
 	virtual ArpType getArpType() = 0;
 	/// A null settings means no arpeggiation, same as ArpMode::OFF. Everything that branches on "is the arp on" must
-	/// agree on this, or notes pend in one place and get looked for in another.
+	/// agree on this.
 	static bool arpIsOff(ArpeggiatorSettings* settings) {
 		return (settings == nullptr) || settings->mode == ArpMode::OFF;
 	}
@@ -373,8 +370,7 @@ public:
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) override;
-	bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) override;
-	bool hasPendingNotes(ArpeggiatorSettings* settings) override;
+	bool takeNoteHeldThroughArpOff(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) override;
 	bool hasAnyInputNotesActive() override;
 	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
@@ -385,8 +381,16 @@ public:
 
 protected:
 	void rearrangePatterntArpNotes(ArpeggiatorSettings* settings);
+	void rebuildNotesByPatternIfStale();
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
-	bool anyPending{false};
+	bool anyArpeggiated{false}; ///< Some note in `notes` may be ArpNoteStatus::ARPEGGIATED
+	// notesByPattern is only read by switchNoteOn() in PATTERN note mode, so rearrangePatterntArpNotes() just marks it
+	// stale and switchNoteOn() rebuilds it when it needs it. Rebuilding is one insert per held note, and it used to
+	// happen on every note-on and note-off, arp on or off: 20 inserts per note for a 20-row kit, on every step. The
+	// pattern is copied when the rebuild is requested, so the result is the same as an immediate rebuild even if the
+	// settings' pattern (or the settings object) changes in between.
+	bool notesByPatternStale{false};
+	std::array<int8_t, PATTERN_MAX_BUFFER_SIZE> notePatternForRebuild{};
 };
 
 class ArpeggiatorForKit : public Arpeggiator {

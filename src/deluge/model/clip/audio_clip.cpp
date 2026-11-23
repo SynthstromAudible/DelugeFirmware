@@ -158,7 +158,7 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 		inputChannel = ((AudioOutput*)output)->inputChannel;
 		outputRecordingFrom = ((AudioOutput*)output)->getOutputRecordingFrom();
 		numChannels = (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
-		               || inputChannel == AudioInputChannel::STEREO || inputChannel == AudioInputChannel::USB)
+		               || inputChannel == AudioInputChannel::STEREO || AudioEngine::isUSBInput(inputChannel))
 		                  ? 2
 		                  : 1;
 		// if reading from the codec input we need this. USB audio arrives at whatever level the host meant it to be

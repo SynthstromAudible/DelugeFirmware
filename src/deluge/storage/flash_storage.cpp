@@ -212,14 +212,15 @@ enum Entries {
 181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
 185: defaultFavouritesLayout
 186: unused (formerly defaultLoopRecordingCommand)
-188: defaultUseSharps
+188: always 1 (formerly defaultUseSharps; note names now follow the song key)
 189: default patch cable polarity
 190: GlobalMIDICommand::SHIFT channel + 1
 191: GlobalMIDICommand::SHIFT noteCode + 1
 192-195: GlobalMIDICommand::SHIFT product / vendor ids
 196: screensaver mode
 197: screensaver timeout minutes
-198: USB audio disabled - stored inverted, so a unit that has never saved it (all zeros) has USB audio on
+198: USB audio mode (usb_audio::Mode): 0 stereo, 1 off, 2 multitrack - so a unit that has never saved it (all zeros)
+     has stereo USB audio on, and firmware from before multitrack reads multitrack as stereo
 199: USB input not mixed to outputs (usb_audio::directMonitoring) - stored inverted, so it defaults to on
 200: USB audio output source (usb_audio::OutputSource)
 */
@@ -289,9 +290,7 @@ ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::O
 
 Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 
-bool defaultUseSharps = true;
-
-bool usbAudioEnabled = true;
+usb_audio::Mode usbAudioMode = usb_audio::Mode::STEREO;
 
 void resetSettings() {
 
@@ -399,9 +398,7 @@ void resetSettings() {
 
 	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
-	defaultUseSharps = true;
-
-	usbAudioEnabled = true;
+	usbAudioMode = usb_audio::Mode::STEREO;
 	usb_audio::directMonitoring = true;
 	usb_audio::outputSource = usb_audio::OutputSource::MAIN_MIX;
 }
@@ -844,13 +841,6 @@ void readSettings() {
 		defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(buffer[185]);
 	}
 
-	if (buffer[188] != 0 && buffer[188] != 1) {
-		defaultUseSharps = true;
-	}
-	else {
-		defaultUseSharps = buffer[188];
-	}
-
 	if (buffer[189] != util::to_underlying(Polarity::BIPOLAR)
 	    && buffer[189] != util::to_underlying(Polarity::UNIPOLAR)) {
 		defaultPatchCablePolarity = Polarity::BIPOLAR;
@@ -882,7 +872,8 @@ void readSettings() {
 		    (buffer[196] < kNumScreensaverModes) ? static_cast<ScreensaverMode>(buffer[196]) : kDefaultScreensaverMode;
 	}
 
-	usbAudioEnabled = (buffer[198] != 1);
+	usbAudioMode =
+	    (buffer[198] < usb_audio::kNumModes) ? static_cast<usb_audio::Mode>(buffer[198]) : usb_audio::Mode::STEREO;
 	usb_audio::directMonitoring = (buffer[199] != 1);
 	usb_audio::outputSource = (buffer[200] < usb_audio::kNumOutputSources)
 	                              ? static_cast<usb_audio::OutputSource>(buffer[200])
@@ -1148,14 +1139,14 @@ void writeSettings() {
 
 	buffer[185] = util::to_underlying(defaultFavouritesLayout);
 
-	buffer[188] = defaultUseSharps;
+	buffer[188] = 1; // Formerly defaultUseSharps: keep older firmware on sharps
 
 	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
 
 	buffer[196] = util::to_underlying(screensaverMode);
 	buffer[197] = screensaverTimeoutMinutes;
 
-	buffer[198] = usbAudioEnabled ? 0 : 1;
+	buffer[198] = util::to_underlying(usbAudioMode);
 	buffer[199] = usb_audio::directMonitoring ? 0 : 1;
 	buffer[200] = util::to_underlying(usb_audio::outputSource);
 

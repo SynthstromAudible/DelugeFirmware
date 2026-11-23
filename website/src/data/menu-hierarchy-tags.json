@@ -219,10 +219,11 @@
 
   "__subsection_04_02_specificOutputSelectorMenu": "Subsection: Specific Track",
   "specificOutputSelectorMenu": "c1.2",
-  "virtualSelector_audioInputSelector_8": "c1.2",
+  "virtualSelector_audioInputSelector_9": "c1.2",
 
   "__subsection_04_03_audioInputSelector": "Subsection: Audio Source",
   "virtualSelector_audioInputSelector_5": "c1.4",
+  "virtualSelector_audioInputSelector_6": "c1.4",
 
   "__section_05_soundMenu": "Hierarchy: Sound",
   "__subsection_05_01_soundEditorRootActionsMenu": "Subsection: Actions",
@@ -324,6 +325,9 @@
   "outputMidiSubmenu": "c1.3",
   "outputMidiChannelMenu": "c1.3",
   "outputMidiNoteForDrumMenu": "c1.3",
+
+  "__subsection_05_15_usbTrackBusMenu": "Subsection: USB bus (also in Audio clip and Kit FX)",
+  "usbTrackBusMenu": "c1.4",
 
   "__section_06_kitFxMenu": "Hierarchy: Kit FX",
   "__subsection_06_00_root": "Subsection: Kit FX (root)",

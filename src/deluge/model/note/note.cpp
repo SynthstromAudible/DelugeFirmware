@@ -19,8 +19,13 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
-Note::Note() {
+Note::Note() : lockSet(0) {
 }
+
+#if defined(__arm__)
+// lockSet and anchorMarker must stay in the padding: NoteVectors are big and their memory traffic is hot.
+static_assert(sizeof(Note) == 24, "Note grew");
+#endif
 
 /*
 

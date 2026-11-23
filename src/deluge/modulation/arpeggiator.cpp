@@ -116,14 +116,14 @@ void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_
 	}
 }
 
-// Both resets must clear the note statuses, not just the note lists / velocity: switchNoteOn() leaves a note PENDING
-// until the next render picks it up, and a PENDING note surviving a reset would keep the Sound out of render-skipping
-// forever (FREEZE E322 in Sound::wontBeRenderedForAWhile), and could be started spuriously later
+// Both resets must clear the note statuses, not just the note lists / velocity, or a note could be handed back
+// (takeNoteHeldThroughArpOff()) and started spuriously later
 void Arpeggiator::reset() {
 	notes.empty();
 	notesAsPlayed.empty();
 	notesByPattern.empty();
-	anyPending = false;
+	anyArpeggiated = false;
+	notesByPatternStale = false;
 	active_note.resetPostArpArrays();
 	active_note.velocity = 0;
 }
@@ -165,6 +165,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 	active_note.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	active_note.baseVelocity = originalVelocity;
 	active_note.velocity = originalVelocity; // Means note is on.
+	active_note.locks = deluge::note_locks::pending.ref;
 
 	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
 	// in the survey that will happen of existing output member channels.
@@ -208,7 +209,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 
 			// Set the note to be played
 			active_note.noteCodeOnPostArp[0] = noteCode;
-			active_note.noteStatus[0] = ArpNoteStatus::PENDING;
+			active_note.noteStatus[0] = ArpNoteStatus::PLAYING;
 			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Clean rest of slots
 				active_note.noteCodeOnPostArp[n] = ARP_NOTE_NONE;
@@ -267,10 +268,6 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	lastVelocity = originalVelocity;
 
 	bool note_exists = false;
-	// Sticky on purpose: with the arp on, switchNoteOn() leaves the `notes` element PENDING (only the active_note copy
-	// of it gets marked PLAYING), and that's what lets handlePendingNotes() start the held note if the arp is switched
-	// off later. Don't scope this to the arp-off branch.
-	anyPending = true;
 
 	ArpNote* arp_note = nullptr;
 
@@ -286,6 +283,8 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// If note exists already, do nothing if we are an arpeggiator, and if not, go to noteinserted to update
 		// midiChannel
 		if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
+			// Except take the latest note-on's parameter locks, as the arp-off path below does
+			arp_note->locks = deluge::note_locks::pending.ref;
 			return; // If we're an arpeggiator, return
 		}
 	}
@@ -338,6 +337,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	// editing. Kind of a hacky solution, but it works for now.
 	arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	arp_note->sampleSyncLength = instruction->sampleSyncLengthOn;
+	arp_note->locks = deluge::note_locks::pending.ref;
 
 	// If we're an arpeggiator...
 	if (!arpIsOff(settings)) {
@@ -387,7 +387,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 
 			// Set the note to be played
 			arp_note->noteCodeOnPostArp[0] = noteCode;
-			arp_note->noteStatus[0] = ArpNoteStatus::PENDING;
+			arp_note->noteStatus[0] = ArpNoteStatus::PLAYING;
 			for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				// Clean rest of chord note slots
 				arp_note->noteCodeOnPostArp[n] = ARP_NOTE_NONE;
@@ -497,52 +497,29 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 		playedFirstArpeggiatedNoteYet = false;
 	}
 }
-bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
-	if (arpIsOff(settings)) {
-		// if off make sure there aren't any notes waiting to start
-		if (anyPending) {
-			for (int i = 0; i < notes.getNumElements(); i++) {
-				if (auto* arp_note = static_cast<ArpNote*>(notes.getElementAddress(i));
-				    arp_note->noteStatus[0] == ArpNoteStatus::PENDING) {
-					if (arp_note->isStartablePending()) {
-						instruction->arpNoteOn = arp_note;
-						instruction->sampleSyncLengthOn = arp_note->sampleSyncLength;
-						ARP_PRINTLN("found a pending a live note, starting it");
-						// arp note status will be marked playing after it is started
-						return true;
-					}
-					// Pending, but with nothing to actually play
-					arp_note->noteStatus[0] = ArpNoteStatus::OFF;
-				}
-			}
-			anyPending = false;
-		}
-	}
-	else {
-		// if on then we just want to check if the active arp note is pending
-		return ArpeggiatorBase::handlePendingNotes(settings, instruction);
-	}
-
-	return false;
-}
-
-// Must agree with handlePendingNotes() about where a pending note lives, otherwise a Sound gets held out of
-// render-skipping waiting for a note that handlePendingNotes() will never find and start
-bool Arpeggiator::hasPendingNotes(ArpeggiatorSettings* settings) {
-	if (!arpIsOff(settings)) {
-		return ArpeggiatorBase::hasPendingNotes(settings);
-	}
-
-	if (!anyPending) {
+bool Arpeggiator::takeNoteHeldThroughArpOff(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+	if (!arpIsOff(settings) || !anyArpeggiated) {
 		return false;
 	}
-
 	for (int i = 0; i < notes.getNumElements(); i++) {
-		if (static_cast<ArpNote*>(notes.getElementAddress(i))->isStartablePending()) {
-			return true;
+		auto* arp_note = static_cast<ArpNote*>(notes.getElementAddress(i));
+		if (arp_note->noteStatus[0] != ArpNoteStatus::ARPEGGIATED) {
+			continue;
 		}
+		if (arp_note->noteCodeOnPostArp[0] == ARP_NOTE_NONE) {
+			arp_note->noteStatus[0] = ArpNoteStatus::OFF; // Nothing to play
+			continue;
+		}
+		for (auto& status : arp_note->noteStatus) {
+			if (status == ArpNoteStatus::ARPEGGIATED) {
+				status = ArpNoteStatus::PLAYING;
+			}
+		}
+		instruction->arpNoteOn = arp_note;
+		instruction->sampleSyncLengthOn = arp_note->sampleSyncLength;
+		return true;
 	}
-
+	anyArpeggiated = false;
 	return false;
 }
 
@@ -886,7 +863,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		// Set the note to be played
 		// (Only one note, chord polyphony/probability is not available in kit rows)
 		active_note.noteCodeOnPostArp[0] = note;
-		active_note.noteStatus[0] = ArpNoteStatus::PENDING;
+		active_note.noteStatus[0] = ArpNoteStatus::PLAYING;
 		for (int32_t n = 1; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			// Clean rest of chord note slots
 			active_note.noteStatus[n] = ArpNoteStatus::OFF;
@@ -1270,7 +1247,19 @@ void ArpeggiatorBase::setInitialNoteAndOctave(ArpeggiatorSettings* settings, uin
 	}
 }
 
+// Call whenever `notes` changes. Only records the pattern to use: see notesByPatternStale.
 void Arpeggiator::rearrangePatterntArpNotes(ArpeggiatorSettings* settings) {
+	if (settings != nullptr) {
+		notePatternForRebuild = settings->notePattern;
+	}
+	notesByPatternStale = true;
+}
+
+void Arpeggiator::rebuildNotesByPatternIfStale() {
+	if (!notesByPatternStale) {
+		return;
+	}
+	notesByPatternStale = false;
 	// Wipe the array
 	notesByPattern.empty();
 	// Add again the note codes in the order dictated by the pattern
@@ -1278,7 +1267,7 @@ void Arpeggiator::rearrangePatterntArpNotes(ArpeggiatorSettings* settings) {
 	uint32_t notesByPatternIndex;
 	int32_t numNotes = notes.getNumElements();
 	for (uint32_t i = 0; i < numNotes; i++) {
-		notesByPatternIndex = std::min((uint32_t)settings->notePattern[std::min(i, PATTERN_MAX_BUFFER_SIZE - 1)], i);
+		notesByPatternIndex = std::min((uint32_t)notePatternForRebuild[std::min(i, PATTERN_MAX_BUFFER_SIZE - 1)], i);
 		// insert at the position in the array indicated by the pattern
 		error = notesByPattern.insertAtIndex(notesByPatternIndex);
 		if (error != Error::NONE) {
@@ -1336,6 +1325,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	}
 	else if (settings->noteMode == ArpNoteMode::PATTERN) {
 		// Defined-pattern step
+		rebuildNotesByPatternIfStale();
 		ArpJustNoteCode* arpByPatternNote =
 		    (ArpJustNoteCode*)notesByPattern.getElementAddress(whichNoteCurrentlyOnPostArp);
 		int32_t notesKey = notes.search(arpByPatternNote->noteCode, GREATER_OR_EQUAL);
@@ -1414,7 +1404,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 		// Set the note(s) to be played
 		arpNote->noteCodeOnPostArp[0] = note; // This is the main note, whether we play chord or not
-		arpNote->noteStatus[0] = ArpNoteStatus::PENDING;
+		arpNote->noteStatus[0] = ArpNoteStatus::ARPEGGIATED;
 		// Now get additional notes to be played
 		const MusicalKey musical_key = currentSong->key;
 		const int8_t degree = musical_key.degreeOf(note);
@@ -1452,15 +1442,22 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 							target_offset += 12;
 						}
 						arpNote->noteCodeOnPostArp[n] = note + target_offset - base_offset;
-						arpNote->noteStatus[n] = ArpNoteStatus::PENDING;
-						ARP_PRINTLN("pending a note in an arp chord");
+						arpNote->noteStatus[n] = ArpNoteStatus::ARPEGGIATED;
 					}
 				}
 			}
 		}
 
 		instruction->invertReversed = shouldPlayReverseNote;
+		// The held note keeps ARPEGGIATED, for if the arp is switched off while it's held; the copy that's played now
+		// is PLAYING
+		anyArpeggiated = true;
 		active_note = *arpNote;
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (active_note.noteStatus[n] == ArpNoteStatus::ARPEGGIATED) {
+				active_note.noteStatus[n] = ArpNoteStatus::PLAYING;
+			}
+		}
 		instruction->arpNoteOn = &active_note;
 		active_note.sampleSyncLength = instruction->sampleSyncLengthOn;
 
@@ -1479,26 +1476,10 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 	return active_note.velocity;
 }
 
-bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
-	if (active_note.isPending()) {
-		instruction->arpNoteOn = &active_note;
-		instruction->sampleSyncLengthOn = active_note.sampleSyncLength;
-		return true;
-	}
-	instruction->arpNoteOn = nullptr;
-	return false;
-}
-
-bool ArpeggiatorBase::hasPendingNotes(ArpeggiatorSettings* settings) {
-	return active_note.isPending();
-}
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
                              uint32_t gateThreshold, uint32_t phaseIncrement) {
-	if (handlePendingNotes(settings, instruction)) {
-		return;
-	}
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
 	}
@@ -1570,8 +1551,8 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 		notesPlayedFromLockedRandomizer = 0;
 	}
 
-	if (handlePendingNotes(settings, instruction)) {
-		ARP_PRINTLN("pending during tick forward");
+	// Hand back, one per tick, held notes the arp was playing before it was switched off
+	if (takeNoteHeldThroughArpOff(settings, instruction)) {
 		return 0;
 	}
 	// Make sure we actually intended to sync

@@ -1,0 +1,56 @@
+name: Request a feature
+description: Suggest a concrete new feature or change to how something works. For early ideas or open-ended brainstorming, please start a thread in the Discussions tab
+type: Feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest an improvement!
+
+        Please search the existing issues and discussions first. If someone has already asked for this, add a 👍 and any extra details there instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: "Describe what you are trying to do and what necessitates the change. For example: \"I want to change the swing of a single clip, but swing only applies to the whole song.\""
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+      description: "Describe the feature or change. If you have ideas for which buttons, pads or menus it would use, please include them."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Other examples
+      description: "Describe how other gear or software handles it."
+    validations:
+      required: false
+  - type: input
+    id: discussion
+    attributes:
+      label: Is there a related discussion or pull request?
+      description: "A link to a GitHub discussion, Discord thread or pull request, if there is one."
+    validations:
+      required: false
+  - type: dropdown
+    id: hardware_type
+    attributes:
+      label: Which hardware does this apply to?
+      multiple: true
+      options:
+        - OLED
+        - 7SEG
+        - Both / not sure
+    validations:
+      required: false
+  - type: textarea
+    id: media
+    attributes:
+      label: Anything else?
+      description: "Sketches, screenshots, videos or references. You can drag and drop image and video files into the input box."
+    validations:
+      required: false

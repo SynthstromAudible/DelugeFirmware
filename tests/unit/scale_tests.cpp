@@ -7,6 +7,8 @@
 #include "model/scale/utils.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <random>
 #include <vector>
 
@@ -448,6 +450,48 @@ TEST(MusicalKeyTest, degreeOf) {
 	}
 }
 
+TEST(MusicalKeyTest, prefersFlats) {
+	auto flats = [](int root, NoteSet notes) {
+		MusicalKey k;
+		k.rootNote = root;
+		k.modeNotes = notes;
+		return k.prefersFlats();
+	};
+	CHECK_FALSE(flats(0, presetScaleNotes[MAJOR_SCALE]));      // C major
+	CHECK_TRUE(flats(5, presetScaleNotes[MAJOR_SCALE]));       // F major
+	CHECK_TRUE(flats(10, presetScaleNotes[MAJOR_SCALE]));      // Bb major
+	CHECK_FALSE(flats(7, presetScaleNotes[MAJOR_SCALE]));      // G major
+	CHECK_TRUE(flats(2, presetScaleNotes[MINOR_SCALE]));       // D minor
+	CHECK_FALSE(flats(9, presetScaleNotes[MINOR_SCALE]));      // A minor
+	CHECK_FALSE(flats(4, presetScaleNotes[MINOR_SCALE]));      // E minor
+	CHECK_TRUE(flats(0, presetScaleNotes[MINOR_SCALE]));       // C minor
+	CHECK_FALSE(flats(2, presetScaleNotes[DORIAN_SCALE]));     // D dorian (parent C)
+	CHECK_FALSE(flats(7, presetScaleNotes[MIXOLYDIAN_SCALE])); // G mixolydian (parent C)
+	CHECK_FALSE(flats(6, presetScaleNotes[MAJOR_SCALE]));      // F# major
+	CHECK_TRUE(flats(1, presetScaleNotes[MAJOR_SCALE]));       // Db major
+	CHECK_TRUE(flats(10, NoteSet({0, 3, 5, 7, 10})));          // Bb pentatonic minor (parent Db)
+	CHECK_TRUE(flats(0, NoteSet({0, 2, 3, 5, 7, 8, 11})));     // C harmonic minor
+	// rootNote isn't normalised: -7 and 65 are both F
+	CHECK_TRUE(flats(-7, presetScaleNotes[MAJOR_SCALE]));
+	CHECK_TRUE(flats(65, presetScaleNotes[MAJOR_SCALE]));
+}
+
+TEST(MusicalKeyTest, accidentalAnchor) {
+	MusicalKey key; // C major
+	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
+	CHECK_EQUAL(60, key.accidentalAnchor(61, false));
+	CHECK_EQUAL(62, key.accidentalAnchor(61, true));
+	CHECK_EQUAL(71, key.accidentalAnchor(70, true));
+	CHECK_EQUAL(71, key.accidentalAnchor(71, true));
+	CHECK_EQUAL(71, key.accidentalAnchor(71, false));
+
+	key.modeNotes = NoteSet({0, 3, 5, 7, 10}); // C pentatonic minor
+	CHECK_EQUAL(60, key.accidentalAnchor(61, false));
+	CHECK_EQUAL(60, key.accidentalAnchor(62, false));
+	CHECK_EQUAL(63, key.accidentalAnchor(61, true));
+	CHECK_EQUAL(72, key.accidentalAnchor(71, true));
+}
+
 TEST_GROUP(UtilTest){};
 
 TEST(UtilTest, isSameNote) {
@@ -730,4 +774,101 @@ TEST(ScaleMapperTest, randomTest) {
 			CHECK_EQUAL(sourceNotes, reverse);
 		}
 	}
+}
+
+#include "model/scale/scale_degrees.h"
+
+TEST_GROUP(ScaleDegreesTest){};
+
+namespace {
+std::array<int8_t, 12> lettersOf(NoteSet scale) {
+	auto letters = deluge::scale_degrees::degreeLetters(scale);
+	CHECK(letters.has_value());
+	return *letters;
+}
+/// Monotone, injective, alterations within 2
+void checkSane(NoteSet scale, const std::array<int8_t, 12>& l) {
+	static const int major[7] = {0, 2, 4, 5, 7, 9, 11};
+	int prev = -1;
+	int uses[7] = {0};
+	for (int i = 0; i < 12; i++) {
+		if (!scale.has(i)) {
+			CHECK_EQUAL(-1, l[i]);
+			continue;
+		}
+		CHECK(l[i] >= prev && l[i] <= 6); // Non-decreasing: a letter may be shared
+		prev = l[i];
+		CHECK(++uses[l[i]] <= 2);
+		CHECK(l[i] != 0 || i == 0); // The root is alone on the 1st
+		CHECK(std::abs(i - major[l[i]]) <= 2);
+	}
+}
+} // namespace
+
+TEST(ScaleDegreesTest, pentatonicMinor) {
+	auto l = lettersOf({0, 3, 5, 7, 10});
+	CHECK_EQUAL(0, l[0]);
+	CHECK_EQUAL(2, l[3]);
+	CHECK_EQUAL(3, l[5]);
+	CHECK_EQUAL(4, l[7]);
+	CHECK_EQUAL(6, l[10]);
+}
+
+TEST(ScaleDegreesTest, hirajoshi) {
+	auto l = lettersOf({0, 2, 3, 7, 8});
+	CHECK_EQUAL(0, l[0]);
+	CHECK_EQUAL(1, l[2]);
+	CHECK_EQUAL(2, l[3]);
+	CHECK_EQUAL(4, l[7]);
+	CHECK_EQUAL(5, l[8]);
+}
+
+TEST(ScaleDegreesTest, sevenNoteScalesAreIndex) {
+	for (int s = 0; s < NUM_PRESET_SCALES; s++) {
+		NoteSet scale = presetScaleNotes[s];
+		auto l = lettersOf(scale);
+		checkSane(scale, l);
+		if (scale.count() == 7) {
+			for (int i = 0; i < 7; i++) {
+				CHECK_EQUAL(i, l[scale[i]]);
+			}
+		}
+	}
+}
+
+TEST(ScaleDegreesTest, wholeToneAndBluesPinned) {
+	NoteSet whole{0, 2, 4, 6, 8, 10};
+	auto w = lettersOf(whole);
+	checkSane(whole, w);
+	// 1 2 3 b5 b6 b7: flats are cheaper than sharps
+	CHECK_EQUAL(0, w[0]);
+	CHECK_EQUAL(1, w[2]);
+	CHECK_EQUAL(2, w[4]);
+	CHECK_EQUAL(4, w[6]);
+	CHECK_EQUAL(5, w[8]);
+	CHECK_EQUAL(6, w[10]);
+
+	NoteSet blues{0, 3, 5, 6, 7, 10};
+	auto b = lettersOf(blues);
+	checkSane(blues, b);
+	// 1 b3 4 b5 5 b7: b5 and 5 share the 5th
+	CHECK_EQUAL(0, b[0]);
+	CHECK_EQUAL(2, b[3]);
+	CHECK_EQUAL(3, b[5]);
+	CHECK_EQUAL(4, b[6]);
+	CHECK_EQUAL(4, b[7]);
+	CHECK_EQUAL(6, b[10]);
+}
+
+TEST(ScaleDegreesTest, moreThanSevenNotesHaveNone) {
+	CHECK_FALSE(deluge::scale_degrees::degreeLetters({0, 1, 2, 3, 4, 5, 7, 9}).has_value());
+}
+
+TEST(ScaleDegreesTest, letterNotesPrimaryAndSecondary) {
+	auto notes = deluge::scale_degrees::letterNotes(lettersOf({0, 3, 5, 6, 7, 10}));
+	CHECK_EQUAL(7, notes.primary[4]); // the natural 5th is primary, b5 secondary
+	CHECK_EQUAL(6, notes.secondary[4]);
+	CHECK_EQUAL(5, notes.primary[3]);
+	CHECK_EQUAL(-1, notes.secondary[3]);
+	CHECK_EQUAL(-1, notes.primary[1]);
 }

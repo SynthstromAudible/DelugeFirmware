@@ -51,6 +51,27 @@ static inline __attribute__((no_instrument_function)) void ENABLE_ALL_INTERRUPTS
 	__asm volatile("ISB");
 }
 
+/// Lowest interrupt priority - setupAndEnableInterrupt() priorities run from 0 (highest) to this
+#define INTERRUPT_PRIORITY_LOWEST 31
+
+/// What audio rendering masks interrupts with (Song::renderAudio()): only those with priority numbers below this still
+/// run during a render, which are only the ones that can't wait a millisecond or more - USB audio's
+#define RENDER_INTERRUPT_MASK 3
+
+/// Holds off interrupts with priority `level` or lower (numerically `level` or higher), by raising the GIC's priority
+/// mask. Only interrupts with a priority number below `level` can still fire, so mask_interrupts(11) still lets the SD
+/// interrupt (priority 10) through, along with anything of higher priority. mask_interrupts(0) holds off all of them.
+/// Unlike ENTER_CRITICAL_SECTION(), interrupts that aren't masked can still preempt the caller.
+///
+/// Only ever tightens the mask: if it's already masking more than `level` asks for, it's left as it is. Returns the
+/// previous mask, to hand to restore_interrupt_mask(). Re-entrancy safe without disabling interrupts, so it can be
+/// nested, used inside critical sections and used from ISRs, as long as each call is undone in reverse order (and an
+/// ISR undoes its own before returning). Use the RAII InterruptMaskGuard from C++.
+uint8_t mask_interrupts(uint8_t level);
+
+/// Undoes a mask_interrupts() call, putting back the mask it returned
+void restore_interrupt_mask(uint8_t previous);
+
 void clearIRQInterrupt(int irqNumber);
 
 /// Configure external interrupt `irqNumber` (0–7) for both-edge detection.
@@ -89,6 +110,17 @@ struct CriticalSectionGuard : InterruptsDisabled {
 
 /// Does nothing - for use from within an ISR, where interrupts are already disabled
 struct ISRCriticalSectionGuard : InterruptsDisabled {};
+
+/// Holds off interrupts with priority `level` or lower while in scope - see mask_interrupts()
+struct InterruptMaskGuard {
+	explicit InterruptMaskGuard(uint8_t level) : previous_(mask_interrupts(level)) {}
+	~InterruptMaskGuard() { restore_interrupt_mask(previous_); }
+	InterruptMaskGuard(const InterruptMaskGuard&) = delete;
+	InterruptMaskGuard& operator=(const InterruptMaskGuard&) = delete;
+
+private:
+	uint8_t previous_;
+};
 }
 #endif
 

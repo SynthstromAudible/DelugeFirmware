@@ -17,6 +17,7 @@
 
 #include "gui/context_menu/audio_input_selector.h"
 #include "definitions_cxx.hpp"
+#include "drivers/usb/usb_audio.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/session_view.h"
@@ -35,11 +36,12 @@ enum class AudioInputSelector::Value {
 	STEREO,
 	BALANCED,
 	USB,
+	USB_2,
 	MASTER,
 	OUTPUT,
 	TRACK,
 };
-constexpr size_t kNumValues = 9;
+constexpr size_t kNumValues = 10;
 
 PLACE_SDRAM_BSS AudioInputSelector audioInputSelector{};
 
@@ -81,8 +83,10 @@ std::span<const char*> AudioInputSelector::getOptions() {
 	static const char* options[] = {
 	    l10n::get(STRING_FOR_DISABLED),     l10n::get(STRING_FOR_LEFT_INPUT),     l10n::get(STRING_FOR_RIGHT_INPUT),
 	    l10n::get(STRING_FOR_STEREO_INPUT), l10n::get(STRING_FOR_BALANCED_INPUT), l10n::get(STRING_FOR_USB_INPUT),
-	    l10n::get(STRING_FOR_MIX_PRE_FX),   l10n::get(STRING_FOR_MIX_POST_FX),    l10n::get(STRING_FOR_TRACK),
+	    l10n::get(STRING_FOR_USB_INPUT_2),  l10n::get(STRING_FOR_MIX_PRE_FX),     l10n::get(STRING_FOR_MIX_POST_FX),
+	    l10n::get(STRING_FOR_TRACK),
 	};
+	static_assert(std::size(options) == kNumValues);
 	return {options, kNumValues};
 }
 
@@ -110,6 +114,10 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 		valueOption = Value::USB;
 		break;
 
+	case AudioInputChannel::USB_2:
+		valueOption = Value::USB_2;
+		break;
+
 	case AudioInputChannel::MIX:
 		valueOption = Value::MASTER;
 		break;
@@ -130,6 +138,13 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 
 	scrollPos = currentOption;
 	return true;
+}
+
+// The second USB input only exists with multitrack USB audio - or it's what this track already has, from a song made
+// with it
+bool AudioInputSelector::isCurrentOptionAvailable() {
+	return static_cast<Value>(currentOption) != Value::USB_2 || usb_audio::numInputs() > 1
+	       || audioOutput->inputChannel == AudioInputChannel::USB_2;
 }
 
 bool AudioInputSelector::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -176,6 +191,10 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	case Value::USB:
 		audioOutput->inputChannel = AudioInputChannel::USB;
+		break;
+
+	case Value::USB_2:
+		audioOutput->inputChannel = AudioInputChannel::USB_2;
 		break;
 
 	case Value::MASTER:

@@ -27,11 +27,24 @@
 namespace params = deluge::modulation::params;
 
 // If NULL Destination, that means no cables - just the preset value
-void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound& sound,
-                                                        ParamManagerForTimeline& param_manager) {
+template <bool kLocks>
+[[gnu::always_inline]] inline int32_t Patcher::presetValue(uint32_t param, Sound& sound,
+                                                           ParamManager& param_manager) const {
+	if constexpr (kLocks) {
+		if (std::optional<int32_t> locked = locks_->get(param)) {
+			return *locked;
+		}
+	}
+	return sound.getSmoothedPatchedParamValue(param, param_manager);
+}
 
-	int32_t cable_combination = (p < config.firstHybridParam) ? combineCablesLinear(nullptr, p, sound, param_manager)
-	                                                          : combineCablesExp(nullptr, p, sound, param_manager);
+template <bool kLocks>
+void Patcher::recalculateFinalValueForParamWithNoCablesImpl(int32_t p, Sound& sound,
+                                                            ParamManagerForTimeline& param_manager) {
+
+	int32_t cable_combination = (p < config.firstHybridParam)
+	                                ? combineCablesLinear<kLocks>(nullptr, p, sound, param_manager)
+	                                : combineCablesExp<kLocks>(nullptr, p, sound, param_manager);
 
 	int32_t final_value = 0;
 	int32_t param_neutral_value = paramNeutralValues[p];
@@ -60,7 +73,9 @@ int32_t rangeFinalValues[kMaxNumPatchCables]; // TODO: storing these in permanen
                                               // of time... actually so minor though, maybe not worth it.
 
 // You may as well check sourcesChanged before calling this.
-void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManagerForTimeline& param_manager) {
+
+template <bool kLocks>
+void Patcher::performPatchingImpl(uint32_t sourcesChanged, Sound& sound, ParamManagerForTimeline& param_manager) {
 
 	PatchCableSet& patch_cable_set = *param_manager.getPatchCableSet();
 	int32_t globality = config.globality;
@@ -94,7 +109,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 		}
 
 		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
-		cable_combos.push_back({param, combineCablesLinear(destination, param, sound, param_manager)});
+		cable_combos.push_back({param, combineCablesLinear<kLocks>(destination, param, sound, param_manager)});
 	}
 
 	for (; destination->sources != 0u; destination++) {
@@ -103,7 +118,7 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManage
 		}
 
 		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
-		cable_combos.push_back({param, combineCablesExp(destination, param, sound, param_manager)});
+		cable_combos.push_back({param, combineCablesExp<kLocks>(destination, param, sound, param_manager)});
 	}
 
 	// sort by param_id
@@ -209,6 +224,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 // Linear param - combine all cables by multiplying their values (values centred around 1). Inputs effectively range
 // from "0" to "2". Output (product) clips off at "4". Call this if (p < getFirstHybridParam()) - "Pan" sits at the end
 // of the linear params and is the exception to the rule - it doesn't want this multiplying treatment
+template <bool kLocks>
 [[gnu::always_inline]] inline int32_t Patcher::combineCablesLinear(const Destination* destination, uint32_t p,
                                                                    Sound& sound, ParamManager& param_manager) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
@@ -218,7 +234,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 
 	// Do the "preset value" (which we treat like a "cable" here)
 	running_total = cableToLinearParamWithoutRangeAdjustment(
-	    running_total, sound.getSmoothedPatchedParamValue(p, param_manager), paramRanges[p]);
+	    running_total, presetValue<kLocks>(p, sound, param_manager), paramRanges[p]);
 
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
@@ -239,6 +255,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 
 // Exp param - combine all cables by adding their values (centred around 0)
 // Call this if (p >= getFirstHybridParam())
+template <bool kLocks>
 [[gnu::always_inline]] inline int32_t Patcher::combineCablesExp(const Destination* destination, uint32_t param,
                                                                 Sound& sound, ParamManager& param_manager) {
 
@@ -267,14 +284,15 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 
 	// Do the "preset value" (which we treat like a "cable" here)
 	running_total = cableToExpParamWithoutRangeAdjustment(
-	    running_total, sound.getSmoothedPatchedParamValue(param, param_manager), paramRanges[param]);
+	    running_total, presetValue<kLocks>(param, sound, param_manager), paramRanges[param]);
 
 	return running_total;
 }
 
 // NOTE: parameter preset values can't be bigger than 536870912, otherwise overflowing will occur
 
-void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) {
+template <bool kLocks>
+void Patcher::performInitialPatchingImpl(Sound& sound, ParamManager& param_manager) {
 	// In this function, we are sneaky and write the "cable combination" working value in to paramFinalValues, before
 	// going back over that array with the final step. This saves memory. Didn't seem to have a real effect on speed.
 
@@ -285,12 +303,12 @@ void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) 
 	// First for the params whose cables get multiplied, we go do them all as if they have no patching, and then for
 	// the few which do, we overwrite those values
 	for (int32_t p = config.firstParam; p < config.firstHybridParam; p++) {
-		param_final_values_[p - config.firstParam] = combineCablesLinear(nullptr, p, sound, param_manager);
+		param_final_values_[p - config.firstParam] = combineCablesLinear<kLocks>(nullptr, p, sound, param_manager);
 	}
 
 	// And now we do the same for params whose cables get added
 	for (int32_t p = config.firstHybridParam; p < config.endParams; p++) {
-		param_final_values_[p - config.firstParam] = combineCablesExp(nullptr, p, sound, param_manager);
+		param_final_values_[p - config.firstParam] = combineCablesExp<kLocks>(nullptr, p, sound, param_manager);
 	}
 
 	Destination* destination = param_manager.getPatchCableSet()->destinations[config.globality];
@@ -306,11 +324,12 @@ void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) 
 		// Now, regular Destinations going directly to a param
 		for (; destination->destinationParamDescriptor.data < (config.firstHybridParam | 0xFFFFFF00); destination++) {
 			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-			param_final_values_[p - config.firstParam] = combineCablesLinear(destination, p, sound, param_manager);
+			param_final_values_[p - config.firstParam] =
+			    combineCablesLinear<kLocks>(destination, p, sound, param_manager);
 		}
 		for (; destination->sources; destination++) {
 			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-			param_final_values_[p - config.firstParam] = combineCablesExp(destination, p, sound, param_manager);
+			param_final_values_[p - config.firstParam] = combineCablesExp<kLocks>(destination, p, sound, param_manager);
 		}
 	}
 
@@ -339,3 +358,11 @@ void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) 
 		    paramNeutralValues[param], param_final_values_[param - config.firstParam], param);
 	}
 }
+
+// The entry points in patcher.h call these from other files
+template void Patcher::performInitialPatchingImpl<false>(Sound&, ParamManager&);
+template void Patcher::performInitialPatchingImpl<true>(Sound&, ParamManager&);
+template void Patcher::performPatchingImpl<false>(uint32_t, Sound&, ParamManagerForTimeline&);
+template void Patcher::performPatchingImpl<true>(uint32_t, Sound&, ParamManagerForTimeline&);
+template void Patcher::recalculateFinalValueForParamWithNoCablesImpl<false>(int32_t, Sound&, ParamManagerForTimeline&);
+template void Patcher::recalculateFinalValueForParamWithNoCablesImpl<true>(int32_t, Sound&, ParamManagerForTimeline&);
