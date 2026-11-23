@@ -16,10 +16,14 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "tasks"))
 
 from render_song import (
+    SWITCHES,
     _check_allocations,
     _check_metronome,
     _check_mod_fx_hooks,
+    _check_play_from,
+    _check_resize,
     _check_reverb_switch,
+    _check_underrun,
     dry_twin,
     generated_song,
     song_reverb_model,
@@ -250,6 +254,108 @@ class AllocationTest(unittest.TestCase):
 
     def test_a_gate_without_a_ceiling_checks_nothing(self):
         self.assertEqual(_allocation_failures({}, ""), [])
+
+
+RESIZE = {"RENDER_CLIP_RESIZE": "600:end:96"}
+
+
+def _resize_failures(env: dict[str, str], *lines: str) -> list[str]:
+    gate = _Gate(env)
+    _check_resize(gate, Run(0, "\n".join(lines), ""))
+    return gate.failures
+
+
+class ResizeTest(unittest.TestCase):
+    def test_every_resize_applied_live_passes(self):
+        lines = [
+            "RS-RESIZE block=600 kind=end length=96 voice=1 stretching=1",
+            "RS-RESIZE applied=1 asked=1 live=1",
+        ]
+        self.assertEqual(_resize_failures(RESIZE, *lines), [])
+
+    def test_a_resize_on_no_stretched_voice_fails(self):
+        lines = [
+            "RS-RESIZE block=600 kind=end length=96 voice=1 stretching=0",
+            "RS-RESIZE applied=1 asked=1 live=0",
+        ]
+        failures = _resize_failures(RESIZE, *lines)
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].startswith("RS-RESIZE —"))
+
+    def test_no_summary_fails(self):
+        self.assertEqual(len(_resize_failures(RESIZE, "")), 1)
+
+    def test_a_gate_without_resizes_checks_nothing(self):
+        self.assertEqual(_resize_failures({}, ""), [])
+
+
+PLAY_FROM = {"RENDER_PLAY_FROM": "200"}
+
+
+def _play_from_failures(env: dict[str, str], *lines: str) -> list[str]:
+    gate = _Gate(env)
+    _check_play_from(gate, Run(0, "\n".join(lines), ""))
+    return gate.failures
+
+
+class PlayFromTest(unittest.TestCase):
+    def test_a_late_start_where_asked_passes(self):
+        self.assertEqual(
+            _play_from_failures(PLAY_FROM, "RS-PLAYFROM tick=200 late=1"), []
+        )
+
+    def test_no_late_start_fails(self):
+        failures = _play_from_failures(PLAY_FROM, "RS-PLAYFROM tick=200 late=0")
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].startswith("RS-PLAYFROM —"))
+
+    def test_another_tick_fails(self):
+        failures = _play_from_failures(PLAY_FROM, "RS-PLAYFROM tick=0 late=1")
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].startswith("RS-PLAYFROM —"))
+
+    def test_a_gate_without_a_start_checks_nothing(self):
+        self.assertEqual(_play_from_failures({}, ""), [])
+
+
+def _underrun_failures(env: dict[str, str], *lines: str) -> list[str]:
+    gate = _Gate(env)
+    _check_underrun(gate, Run(0, "\n".join(lines), ""))
+    return gate.failures
+
+
+class UnderrunTest(unittest.TestCase):
+    def test_no_underrun_passes(self):
+        self.assertEqual(_underrun_failures({}, "RS-UNDERRUN wait=0 unassign=0"), [])
+
+    def test_a_wait_fails_by_default(self):
+        failures = _underrun_failures({}, "RS-UNDERRUN wait=1 unassign=0")
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].startswith("RS-UNDERRUN —"))
+
+    def test_waits_up_to_the_gate_s_allowance_pass(self):
+        env = {"RENDER_UNDERRUN_WAIT_MAX": "1"}
+        self.assertEqual(_underrun_failures(env, "RS-UNDERRUN wait=1 unassign=0"), [])
+
+    def test_waits_past_the_allowance_fail(self):
+        env = {"RENDER_UNDERRUN_WAIT_MAX": "1"}
+        self.assertEqual(
+            len(_underrun_failures(env, "RS-UNDERRUN wait=2 unassign=0")), 1
+        )
+
+    def test_an_unassign_fails_whatever_the_allowance(self):
+        env = {"RENDER_UNDERRUN_WAIT_MAX": "1"}
+        self.assertEqual(
+            len(_underrun_failures(env, "RS-UNDERRUN wait=0 unassign=1")), 1
+        )
+
+    def test_no_line_fails(self):
+        self.assertEqual(len(_underrun_failures({}, "")), 1)
+
+
+class SwitchesTest(unittest.TestCase):
+    def test_the_new_knobs_are_switches(self):
+        self.assertLessEqual({"RENDER_CLIP_RESIZE", "RENDER_PLAY_FROM"}, set(SWITCHES))
 
 
 KNOB_FIRST = {"RENDER_REVERB_SWITCH": "600:room=0.3,800:model=2"}

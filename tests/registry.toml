@@ -925,6 +925,24 @@ runtime_s = 8
 override = ["runtime_s"]
 
 [[harness]]
+name = "render-audio-stretch-marker"
+template = "render-song"
+gates = "a stretched audio clip's end marker dragged in while its voice plays renders as recorded, and differs from the clip left alone"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_MARKER", RENDER_CLIP_RESIZE = "600:end:96" }
+
+[[harness]]
+name = "render-audio-stretch-length"
+template = "render-song"
+gates = "a stretched audio clip lengthened by a stretch while its voice plays renders as recorded, and differs from the clip left alone"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_LENGTH", RENDER_CLIP_RESIZE = "600:stretch:160" }
+
+[[harness]]
+name = "render-audio-stretch-late"
+template = "render-song"
+gates = "playback started part-way through stretched arrangement instances renders as recorded, each clip starting late"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_LATE", RENDER_PLAY_FROM = "200", RENDER_UNDERRUN_WAIT_MAX = "1" }
+
+[[harness]]
 name = "render-audio-track-fx"
 template = "render-song"
 gates = "an audio track's effect chain renders as recorded"

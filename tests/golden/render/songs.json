@@ -101,6 +101,24 @@
   "rms_db": -15.38,
   "sha256": "8e9b7b91d1204004b08d25dc9307eb75bfe18f18cce959fbbbcd4899964234f9"
  },
+ "RS_AUDIO_STRETCH_LATE": {
+  "frames": 384000,
+  "peak": 213654016,
+  "rms_db": -30.93,
+  "sha256": "66a7c2281b6acb3801801ab46f914442eb79b73dab76105139d9fbc732c27cd3"
+ },
+ "RS_AUDIO_STRETCH_LENGTH": {
+  "frames": 384000,
+  "peak": 87172352,
+  "rms_db": -50.29,
+  "sha256": "9f5b64500003e29bc9ba6845370f9fc9ef660268cf48e272d4750979cf641431"
+ },
+ "RS_AUDIO_STRETCH_MARKER": {
+  "frames": 384000,
+  "peak": 87173376,
+  "rms_db": -50.95,
+  "sha256": "addf9a71671c19588f4c6e2042997e814fd5587eeb5779963995b98afc95f78b"
+ },
  "RS_AUDIO_STRETCH_NATIVE": {
   "frames": 384000,
   "peak": 218768384,

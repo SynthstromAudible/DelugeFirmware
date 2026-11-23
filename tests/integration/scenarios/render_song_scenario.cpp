@@ -38,6 +38,12 @@
 ///     counted from playback's start, the mod FX type of every audio track, or of the owner named (`master`, or the
 ///     outputs of that name: a synth, a kit, an audio track), is set to it by the Edit the mod FX type menu makes. None
 ///     by default.
+///   - `RENDER_CLIP_RESIZE`: `<block>:<end|stretch>:<ticks>,...`, ascending: at each block, counted from playback's
+///     start, the song's first audio clip is resized to @c ticks by the Edit its view's length gesture makes
+///     (ResizeAudioClip): `end` drags the sample's end marker with the clip's end, `stretch` timestretches the sample
+///     to the new length. None by default.
+///   - `RENDER_PLAY_FROM`: `<tick>`: before the play press the arranger is scrolled to @c tick with its cross-screen
+///     mode on, so the press starts playback there, as <> + play does. Unset by default.
 ///   - `RENDER_MODFX_CLEAR`: `<block>[:<owner>],...`, ascending: at each block, the mod FX memory of every audio
 ///     track, or of the owner named as for the switch, is cleared by model::clearModFXMemory, as a
 ///     sound's cut tail clears it (a chain's grain only once the render has made its processor). None by default.
@@ -62,6 +68,12 @@
 ///     ended, or its rate turned (RENDER_STUTTER, RENDER_STUTTER_RATE). After the run,
 ///     `RS-STUTTER applied=<n> asked=<m> stuttered=<k>`: a failure unless every begin and end was made, an owner
 ///     stuttered in some scenario tick, and the rate change asked for was made.
+///   - `RS-RESIZE block=<b> kind=<k> length=<ticks> voice=<0|1> stretching=<0|1>`: the first audio clip resized at
+///     block @c b (RENDER_CLIP_RESIZE), and whether it had a voice, and that voice a time stretcher, when the edit
+///     applied. After the run, `RS-RESIZE applied=<n> asked=<m> live=<k>`: the resizes made, those asked for, and
+///     those made while the voice stretched.
+///   - `RS-PLAYFROM tick=<t> late=<0|1>`: the tick playback was asked to start from (RENDER_PLAY_FROM), and whether
+///     an audio clip started late into its sample, which it does only when playback starts part-way through it.
 ///   - `RS-TEMPO block=<b> bpm=<t>`: the song's tempo set at block @c b (RENDER_TEMPO).
 ///   - `RS-DELAY-SWITCH block=<b> analog=<0|1>`: one audio track's delay switched at block @c b, and its mode after.
 ///     Then, after the run, `RS-DELAY-SWITCH switches=<n> asked=<m> tracks=<k>`: a failure unless every switch asked
@@ -107,15 +119,19 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/change_effect.h"
+#include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/resize_audio_clip.h"
 #include "model/edits/set_param_value.h"
 #include "model/fx/song_stutter.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/model_stack.h"
 #include "model/output.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "model/voice/voice_sample.h"
 #include "modulation/automation/record_events.h"
 #include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
@@ -560,6 +576,101 @@ void readMetronome() {
 	const uint64_t block = std::strtoull(at, &end, 10);
 	if (end != nullptr && *end == '\0') {
 		g_metronomeAt = block;
+	}
+}
+
+/// RENDER_CLIP_RESIZE (see the file comment): each resize's block, gesture and new length in ticks.
+struct ClipResize {
+	uint64_t block;
+	deluge::edits::ResizeAudioClip::Kind kind;
+	int32_t ticks;
+};
+std::vector<ClipResize> g_resizeAt;
+size_t g_resizesDone = 0;
+int32_t g_resizesApplied = 0;
+int32_t g_resizesLive = 0;
+
+void readResizes() {
+	g_resizeAt.clear();
+	g_resizesDone = 0;
+	g_resizesApplied = 0;
+	g_resizesLive = 0;
+	const char* list = std::getenv("RENDER_CLIP_RESIZE");
+	if (list == nullptr || *list == '\0') {
+		return;
+	}
+	std::string spec{list};
+	size_t from = 0;
+	while (from <= spec.size()) {
+		const size_t comma = std::min(spec.find(',', from), spec.size());
+		const std::string item = spec.substr(from, comma - from);
+		const size_t first = item.find(':');
+		const size_t second = item.find(':', first == std::string::npos ? first : first + 1);
+		if (first == std::string::npos || second == std::string::npos) {
+			g_report.fail("RESIZE a RENDER_CLIP_RESIZE item is not <block>:<end|stretch>:<ticks>");
+			g_resizeAt.clear();
+			return;
+		}
+		const std::string kind = item.substr(first + 1, second - first - 1);
+		using Kind = deluge::edits::ResizeAudioClip::Kind;
+		if (kind != "end" && kind != "stretch") {
+			g_report.fail("RESIZE a RENDER_CLIP_RESIZE gesture is neither end nor stretch");
+			g_resizeAt.clear();
+			return;
+		}
+		g_resizeAt.push_back({std::strtoull(item.substr(0, first).c_str(), nullptr, 10),
+		                      kind == "end" ? Kind::END : Kind::STRETCH,
+		                      static_cast<int32_t>(std::strtol(item.substr(second + 1).c_str(), nullptr, 10))});
+		from = comma + 1;
+	}
+}
+
+/// The song's first audio clip, in session order then the arrangement's.
+AudioClip* firstAudioClip() {
+	for (AudioClip* clip : AudioClips::everywhere(currentSong)) {
+		return clip;
+	}
+	return nullptr;
+}
+
+/// @brief Resize the first audio clip at render block @p block, as its view's length gesture does.
+void resizeClip(uint64_t block, const ClipResize& resize) {
+	AudioClip* clip = firstAudioClip();
+	if (clip == nullptr) {
+		g_report.fail("RESIZE the song has no audio clip");
+		return;
+	}
+	const bool voice = clip->voiceSample != nullptr;
+	const bool stretching = voice && clip->voiceSample->timeStretcher != nullptr;
+	deluge::edits::Context context{*currentSong, currentSong->project};
+	deluge::edits::ResizeAudioClip edit{*deluge::edits::clipAddressFor(*clip), resize.kind, resize.ticks,
+	                                    clip->loopLength()};
+	const bool applied = deluge::edits::apply(context, edit) == Error::NONE;
+	g_resizesApplied += applied ? 1 : 0;
+	g_resizesLive += applied && stretching ? 1 : 0;
+	printf("RS-RESIZE block=%llu kind=%s length=%d voice=%d stretching=%d\n", static_cast<unsigned long long>(block),
+	       resize.kind == deluge::edits::ResizeAudioClip::Kind::END ? "end" : "stretch", resize.ticks, voice ? 1 : 0,
+	       stretching ? 1 : 0);
+}
+
+/// RENDER_PLAY_FROM (see the file comment), and whether any audio clip was seen starting late.
+std::optional<int32_t> g_playFrom;
+bool g_lateSeen = false;
+
+void readPlayFrom() {
+	g_playFrom.reset();
+	g_lateSeen = false;
+	const char* at = std::getenv("RENDER_PLAY_FROM");
+	if (at == nullptr || *at == '\0') {
+		return;
+	}
+	char* end = nullptr;
+	const long tick = std::strtol(at, &end, 10);
+	if (end != nullptr && *end == '\0') {
+		g_playFrom = static_cast<int32_t>(tick);
+	}
+	else {
+		g_report.fail("PLAYFROM RENDER_PLAY_FROM is not a tick");
 	}
 }
 
@@ -1042,6 +1153,11 @@ void stepPlay() {
 		beginArrangementRecording();
 	}
 	else {
+		if (g_playFrom) {
+			// <> + play from the arranger's screen: the press starts from its scroll in cross-screen mode.
+			currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] = *g_playFrom;
+			currentSong->persistentView.arrangerAutoScrollModeActive = true;
+		}
 		playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	}
 	g_wasPlaying = false;
@@ -1071,6 +1187,15 @@ void stepPlaying() {
 		g_tempoDone = true;
 		printf("RS-TEMPO block=%llu bpm=%.1f\n", static_cast<unsigned long long>(g_blocksRendered),
 		       static_cast<double>(g_tempoBpm));
+	}
+	if (g_playFrom && !g_lateSeen) {
+		for (AudioClip* clip : AudioClips::everywhere(currentSong)) {
+			g_lateSeen = g_lateSeen || clip->doingLateStart;
+		}
+	}
+	while (g_resizesDone < g_resizeAt.size() && g_blocksRendered >= g_resizeAt[g_resizesDone].block) {
+		resizeClip(g_blocksRendered, g_resizeAt[g_resizesDone]);
+		g_resizesDone++;
 	}
 	while (g_switchesDone < g_switchAt.size() && g_blocksRendered >= g_switchAt[g_switchesDone]) {
 		switchDelays(g_blocksRendered);
@@ -1203,6 +1328,15 @@ void report() {
 		    || g_reverbSwitched != static_cast<int32_t>(g_reverbSwitchAt.size())) {
 			g_report.fail("REVERB-SWITCH a reverb switch asked for was not applied");
 		}
+	}
+	if (!g_resizeAt.empty()) {
+		printf("RS-RESIZE applied=%d asked=%zu live=%d\n", g_resizesApplied, g_resizeAt.size(), g_resizesLive);
+		if (g_resizesApplied != static_cast<int32_t>(g_resizeAt.size())) {
+			g_report.fail("RESIZE a clip resize asked for was not applied");
+		}
+	}
+	if (g_playFrom) {
+		printf("RS-PLAYFROM tick=%d late=%d\n", *g_playFrom, g_lateSeen ? 1 : 0);
 	}
 	if (g_metronomeAt) {
 		printf("RS-METRONOME applied=%d on=%d\n", g_metronomeDone ? 1 : 0, playbackHandler.metronomeOn ? 1 : 0);
@@ -1347,6 +1481,8 @@ void deluge_scenario_render_song_begin(void) {
 	g_modFxSwitchedNoRing = 0;
 	g_modFxSwitchedGrain = 0;
 	readMetronome();
+	readResizes();
+	readPlayFrom();
 	readArrangeRecord();
 	deluge::modulation::setTakeLoopEndHook(g_arrangeRecord ? &checkTakePlayed : nullptr);
 	g_playedChecked = 0;

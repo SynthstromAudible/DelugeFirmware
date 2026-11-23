@@ -90,6 +90,9 @@ builds only `golden-vt-render`.
 | render-audio-stretch-native | integration | scenario | property | gate | audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops | pr | render | ~20s |
 | render-audio-stretch-arranged | integration | scenario | property | gate | stretched audio clips render as recorded from arrangement instances that end without looping | pr | render | ~20s |
 | render-audio-stretch-edges | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded | pr | render | ~8s |
+| render-audio-stretch-marker | integration | scenario | property | gate | a stretched audio clip's end marker dragged in while its voice plays renders as recorded, and differs from the clip left alone | pr | render | ~20s |
+| render-audio-stretch-length | integration | scenario | property | gate | a stretched audio clip lengthened by a stretch while its voice plays renders as recorded, and differs from the clip left alone | pr | render | ~20s |
+| render-audio-stretch-late | integration | scenario | property | gate | playback started part-way through stretched arrangement instances renders as recorded, each clip starting late | pr | render | ~20s |
 | render-audio-track-fx | integration | scenario | property | gate | an audio track's effect chain renders as recorded | pr | render | ~20s |
 | render-master-fx | integration | scenario | property | gate | the song master's effect chain renders as recorded | pr | render | ~20s |
 | render-master-pan-stereo | integration | scenario | property | gate | the song master's pan renders as recorded in stereo, where it applies | pr | render | ~20s |
