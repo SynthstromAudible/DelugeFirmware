@@ -32,7 +32,7 @@ pub enum LoadMode {
 }
 
 unsafe extern "C" {
-    /// Returns the process-wide resource manager (`libdeluge/sample_stream.h`).
+    /// Returns the process-wide resource manager (`libdeluge/streaming_loader.h`).
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// Reads synchronously from the card (`libdeluge/file_io.h`); see `fill_now`.
     pub fn deluge_efatfs_read_at(
@@ -42,7 +42,7 @@ unsafe extern "C" {
         count: u32,
         out_read: *mut u32,
     ) -> deluge_storage_sample_fill::DelugeStatus;
-    /// Wakes the async loader after a `Resource::loader_enqueue` (`libdeluge/streaming_fill.h`).
+    /// Wakes the async loader after a `Resource::loader_enqueue` (`libdeluge/streaming_loader.h`).
     pub fn deluge_streaming_signal_fill();
 }
 

@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge_storage_sample_source.h"
 #include "dsp-next/core/stereo_sample.h"
-#include "libdeluge/streaming_fill.h" // deluge_streaming_request_drain
+#include "libdeluge/streaming_loader.h" // deluge_streaming_request_drain
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "storage/cluster/cluster.h"

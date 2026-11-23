@@ -29,7 +29,7 @@
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
 #include "libdeluge/file_stream.h"
-#include "libdeluge/streaming_fill.h" // deluge_streaming_request_drain
+#include "libdeluge/streaming_loader.h" // deluge_streaming_request_drain
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/non_audio_instrument.h"

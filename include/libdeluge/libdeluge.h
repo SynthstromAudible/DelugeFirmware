@@ -53,6 +53,7 @@
 #include "storage_busy.h"
 #include "stream_io.h"
 #include "streaming_fill.h"
+#include "streaming_loader.h"
 #include "system.h"
 #include "tier.h"
 #include "types.h"

@@ -78,8 +78,8 @@ the collect that reports READY, so it needs no such call.
 `file_prefix.h`, `file_directory.h`, `file_bytes.h`, `file_stream.h` and `audio_load.h` are the channels. Before
 boot finishes (`deluge::boot::finished()`), the app uses blocking calls instead.
 
-`streaming_fill.h` is not one of these: it is the sample-streaming fill queue (enqueue/drain of the loader
-queue and fill-context registration), not a keyed request/collect channel.
+`streaming_loader.h` is not one of these: it is the streaming loader's seams (enqueue/drain of the loader queue,
+the fill task's wake-up and the fill trace), not a keyed request/collect channel.
 
 ## Host-only declarations
 

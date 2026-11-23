@@ -8,7 +8,7 @@
 //! The reader passes its opaque `DelugeStreamBacking*` (a C++ `SampleStream`). This module never
 //! dereferences it; it recovers the `{manager handle, asset id}` pair [`ManagerResidency`] needs
 //! from [`deluge_streaming_resource_manager`] and [`deluge_sample_stream_asset_id`]
-//! (`libdeluge/sample_stream.h`).
+//! (`libdeluge/streaming_loader.h`).
 //!
 //! # `retain` / `release` and the single manager
 //!

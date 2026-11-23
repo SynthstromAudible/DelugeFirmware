@@ -15,17 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/streaming_fill.h — the sample-streaming fill queue.
+/// libdeluge/streaming_fill.h — the sample-streaming fill's per-asset geometry.
 ///
 /// The Rust async fill task (deluge_platform_device's `streaming_loader.rs`, over `deluge_storage_sample_fill`'s
 /// `native_begin`/`native_finish`) resolves each queued chunk's read geometry into a
 /// `StreamingFillDescriptor`, performs the read, then converts/stitches/publishes. This header
-/// carries the queue's entry points (wake, enqueue a chunk, drain, drained?) and the per-asset
-/// fill-context the task reads its geometry from. The streaming-asset lookups live in
+/// carries the per-asset fill-context the task reads its geometry from. The loader queue's entry points
+/// (wake, enqueue a chunk, drain, drained?) are in `streaming_loader.h`; the stream slot registry is in
 /// `sample_stream.h`; the efatfs handle calls the fill reads through live in `file_io.h`.
 #pragma once
 #include "abi.h"
-#include "libdeluge/types.h" // DelugeChunkBacking, DelugeHandle, DelugeResource
+#include "libdeluge/types.h" // DelugeHandle, DelugeResource
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -43,33 +43,6 @@ typedef struct StreamingFillDescriptor {
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// @brief Wake the async streaming-fill task out of its idle wait. [task] [audio]
-///
-/// The async task (`streaming_fill_task`, `streaming_loader.rs`) owns and drains the loader queue.
-/// Called by the Rust residency code right after it enqueues a chunk on the loader queue: a reservation's
-/// unfilled clusters (`deluge_storage_sample_reader`'s `reservation.rs`) and a region acquire's miss
-/// (`deluge_storage_sample_source`'s `manager_residency.rs`). Harmless before the task first waits: the wake latches.
-void deluge_streaming_signal_fill(void) DELUGE_NOEXCEPT;
-
-/// @brief Enqueue a chunk for filling, and return immediately. [task]
-///
-/// A caller that cannot block -- because its predicate needs another task to be polled, and it is itself
-/// inside the executor's poll -- requests the fill and returns to its own loop. The range reader's
-/// fill route (deluge_storage_sample_reader's `reader.rs`) is one such caller.
-/// The chunk is enqueued under a queue-owned lease, so the fill survives the requester walking away.
-/// @param chunk_backing The resident StreamedChunk to fill. NULL is ignored.
-void deluge_streaming_request_chunk(DelugeChunkBacking* chunk_backing) DELUGE_NOEXCEPT;
-
-/// @brief Wake the fill task to drain the loader queue, and return immediately. [task]
-///
-/// Pair with deluge_streaming_queue_drained().
-void deluge_streaming_request_drain(void) DELUGE_NOEXCEPT;
-
-/// @brief Report whether the loader queue holds nothing outstanding. Never waits. [task]
-/// @return true when drained. Also true when there is no resource manager, since then there is
-///         nothing to wait for and reporting otherwise would loop a poller forever.
-bool deluge_streaming_queue_drained(void) DELUGE_NOEXCEPT;
 
 /// @brief Per-asset geometry the native Rust fill task reads directly.
 ///
@@ -102,71 +75,6 @@ typedef struct DelugeStreamingFillContext {
 /// @param ctx   The geometry to register for @p asset.
 void deluge_streaming_set_fill_context(DelugeResource* mgr, uint32_t asset,
                                        DelugeStreamingFillContext ctx) DELUGE_NOEXCEPT;
-
-/// @brief Buckets in a DelugeFillTraceHist: bucket 0 holds 0 µs, bucket i holds [2^(i-1), 2^i) µs, and the last
-///        also holds everything longer (about 1 s and up).
-#define DELUGE_FILL_TRACE_BUCKETS 22
-
-/// @brief One phase of the fill trace: a histogram of its durations, in µs.
-typedef struct DelugeFillTraceHist {
-	uint32_t n;                                  ///< durations recorded
-	uint32_t max_us;                             ///< the longest
-	uint64_t total_us;                           ///< their sum, for the mean
-	uint32_t buckets[DELUGE_FILL_TRACE_BUCKETS]; ///< log2 histogram, see DELUGE_FILL_TRACE_BUCKETS
-} DelugeFillTraceHist;
-
-/// @brief Where the streaming fill task's time goes, since the last deluge_fill_trace_reset().
-///
-/// The queue wait before a chunk is popped is DelugeResourceStats' queue_wait_*; this splits up what follows.
-typedef struct DelugeFillTrace {
-	DelugeFillTraceHist wake;    ///< from a wake signalled while the fill task waits, to its drain pass starting
-	DelugeFillTraceHist fs_wait; ///< from asking for a chunk's read to taking the filesystem mutex
-	DelugeFillTraceHist read;    ///< the read, with the mutex held
-	DelugeFillTraceHist finish;  ///< the convert/stitch/publish tail after a successful read
-	DelugeFillTraceHist gap;     ///< from one read's end to the next read's start in the same drain pass
-	DelugeFillTraceHist pop;     ///< popping the next chunk off the loader queue
-	DelugeFillTraceHist begin;   ///< resolving a popped chunk's read (its destination and file offset)
-	DelugeFillTraceHist interaction_fs_wait; ///< an interaction-tier filesystem call waiting for the mutex
-	DelugeFillTraceHist interaction_fs_hold; ///< an interaction-tier filesystem call holding the mutex
-	/// Within one read: the time in single-sector card reads (the FAT and directory lookups of its seek) ...
-	DelugeFillTraceHist read_meta;
-	/// ... and in multi-sector card reads (its data).
-	DelugeFillTraceHist read_data;
-	uint32_t read_meta_sectors; ///< Single-sector card reads, over every read.
-	uint32_t read_data_calls;   ///< Multi-sector card reads, over every read.
-	uint32_t read_data_sectors; ///< The sectors those multi-sector reads moved.
-	/// The audio loader's work, by kind: one request is a sample's whole header load; an open by path that finds
-	/// the file (a hit) or not (a miss, a candidate that is not there); its header reads; and the rest (sizing, the
-	/// location, the close). Each a count and a total in µs.
-	uint32_t loader_requests;
-	uint32_t loader_request_us;
-	uint32_t loader_request_max_us;
-	uint32_t loader_open_hits;
-	uint32_t loader_open_hit_us;
-	uint32_t loader_open_misses;
-	uint32_t loader_open_miss_us;
-	uint32_t loader_reads;
-	uint32_t loader_read_us;
-	uint32_t loader_other_us;
-	uint32_t loader_open_card_reads;   ///< Card reads the opens by path made, hits and misses together.
-	uint32_t loader_open_card_sectors; ///< The sectors those reads moved.
-	/// The longest any caller held the filesystem mutex, in µs, and where in the BSP's source it took it: the file,
-	/// NUL-terminated (truncated to fit), and the line.
-	uint32_t longest_fs_hold_us;
-	uint32_t longest_fs_hold_line;
-	char longest_fs_hold_file[48];
-	/// Filesystem waits of 2 ms or more, by the tier (interaction, storage, audio) that last held the mutex.
-	uint32_t long_fs_waits_by_tier[3];
-	/// The longest of those waits, in µs, by the same tier.
-	uint32_t long_fs_wait_max_by_tier[3];
-} DelugeFillTrace;
-
-/// @brief Copy the fill trace into @p out. [task]
-/// @param out Where to write it. NULL is ignored.
-void deluge_fill_trace_snapshot(DelugeFillTrace* out) DELUGE_NOEXCEPT;
-
-/// @brief Zero the fill trace. [task]
-void deluge_fill_trace_reset(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

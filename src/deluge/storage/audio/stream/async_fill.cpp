@@ -17,7 +17,7 @@
 
 #include "storage/audio/stream/async_fill.h"
 
-#include "libdeluge/sample_stream.h" // deluge_streaming_resource_manager
+#include "libdeluge/streaming_loader.h" // deluge_streaming_resource_manager
 
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"

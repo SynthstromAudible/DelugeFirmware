@@ -1,4 +1,4 @@
-//! Where a streaming chunk's fill time goes, as histograms: the `libdeluge/streaming_fill.h`
+//! Where a streaming chunk's fill time goes, as histograms: the `libdeluge/streaming_loader.h`
 //! fill-trace C ABI.
 //!
 //! The fill task records each phase of a chunk's service (see [`DelugeFillTrace`]), and every

@@ -148,7 +148,7 @@ typedef struct DelugeAudioLoadResult {
 ///
 /// Pair with @ref deluge_audio_load_collect: request, return to your own loop, and ask for the
 /// result on a later tick. This is the same non-blocking shape `deluge_streaming_request_chunk`
-/// (streaming_fill.h) already uses.
+/// (streaming_loader.h) already uses.
 ///
 /// The candidates are supplied rather than resolved by the loader -- see this section's header
 /// comment for why. The app builds them on the calling tier

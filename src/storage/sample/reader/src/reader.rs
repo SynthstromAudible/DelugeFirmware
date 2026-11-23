@@ -98,11 +98,11 @@ fn locate(frame: u64, geo: &Geometry) -> Option<(u32, u32, u32)> {
 }
 
 unsafe extern "C" {
-    /// Returns the process-wide resource manager (`libdeluge/sample_stream.h`), which lives for the
+    /// Returns the process-wide resource manager (`libdeluge/streaming_loader.h`), which lives for the
     /// rest of the process once non-null.
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// Enqueues a reserved chunk's fill on the async drain and returns at once
-    /// (`libdeluge/streaming_fill.h`; the BSP's `storage::streaming_loader`). The queue holds its
+    /// (`libdeluge/streaming_loader.h`; the BSP's `storage::streaming_loader`). The queue holds its
     /// own lease, so the fill survives the reader dropping its lease.
     pub fn deluge_streaming_request_chunk(chunk_backing: *mut DelugeChunkBacking);
 }

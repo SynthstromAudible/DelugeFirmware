@@ -65,7 +65,7 @@ unsafe extern "C" {
         count: u32,
         out_read: *mut u32,
     ) -> deluge_storage_sample_fill::DelugeStatus;
-    /// Returns the process-wide resource manager (`libdeluge/sample_stream.h`).
+    /// Returns the process-wide resource manager (`libdeluge/streaming_loader.h`).
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// Registers or replaces an asset's fill-context (`libdeluge/streaming_fill.h`).
     #[cfg(not(test))]

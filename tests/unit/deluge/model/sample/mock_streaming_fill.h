@@ -1,7 +1,7 @@
 #pragma once
 
-// This header pulls in the C-ABI declarations (`libdeluge/streaming_fill.h`'s fill queue,
-// `libdeluge/sample_stream.h`'s manager lookup, `libdeluge/file_io.h`'s efatfs read +
+// This header pulls in the C-ABI declarations (`libdeluge/streaming_loader.h`'s fill queue and
+// manager lookup, `libdeluge/file_io.h`'s efatfs read +
 // `storage/audio/stream/chunk_residency.h`'s `deluge_streaming_define_asset`) that
 // `mock_streaming_fill.cpp` DEFINES as trivial link-time stand-ins -- real bodies normally supplied
 // by the app's `chunk_residency.cpp`/`async_fill.cpp`, which this host test does NOT link.
@@ -14,8 +14,7 @@
 // `deluge_storage_sample_reader`'s own `#[cfg(test)] host_streaming_stubs` module (Rust side) and this test
 // suite's sibling `mock_source.h`/`mock_read_source.h` mocks.
 #include "libdeluge/file_io.h"
-#include "libdeluge/sample_stream.h"
-#include "libdeluge/streaming_fill.h"
+#include "libdeluge/streaming_loader.h"
 #include "storage/audio/stream/chunk_residency.h"
 
 /// @brief Test control: set the process-wide "active manager" that `deluge_streaming_resource_manager()`
