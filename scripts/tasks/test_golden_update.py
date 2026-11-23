@@ -10,6 +10,7 @@ import importlib.util
 import io
 import json
 import multiprocessing
+import multiprocessing.util
 import os
 import shutil
 import stat
@@ -32,6 +33,27 @@ _spec = importlib.util.spec_from_file_location(
 )
 tt = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(tt)
+
+
+# The suite's temporary files, the put-back's kept copies among them, go in one directory removed when it ends, so a
+# run outside `./dbt test` leaves nothing in the system temp directory either.
+_SUITE_TMP: tempfile.TemporaryDirectory | None = None
+
+
+def setUpModule():
+    global _SUITE_TMP
+    # multiprocessing removes its own temporary directory at exit, after the suite's has gone: made now, it is not
+    # inside it.
+    multiprocessing.util.get_temp_dir()
+    _SUITE_TMP = tempfile.TemporaryDirectory(
+        prefix="test_golden_update.", ignore_cleanup_errors=True
+    )
+    tempfile.tempdir = _SUITE_TMP.name
+
+
+def tearDownModule():
+    tempfile.tempdir = None
+    _SUITE_TMP.cleanup()
 
 
 def _env(log: Path) -> dict[str, str]:

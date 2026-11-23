@@ -40,6 +40,7 @@ import corpus_gate
 import golden_records
 import golden_update
 import harness_registry as hr
+import run_scratch
 import scenario_gate
 import test_builds as tb
 
@@ -673,8 +674,8 @@ def existing_dirs(root: Path) -> set[str]:
 
 class StrayKeep:
     """Where put_back_strays() copies what a stray holds before putting it back, so a write the run should not have
-    made can still be read: one directory per update run under the system temp directory, made on first use and never
-    removed."""
+    made can still be read: one directory per update run under the system temp directory (not the run's own, which goes
+    when the run ends), made on first use and never removed."""
 
     def __init__(self) -> None:
         self.dir: Path | None = None
@@ -685,7 +686,11 @@ class StrayKeep:
         if not (src.is_file() or src.is_symlink()):
             return None
         if self.dir is None:
-            self.dir = Path(tempfile.mkdtemp(prefix="dbt-test-update-strays."))
+            self.dir = Path(
+                tempfile.mkdtemp(
+                    prefix="dbt-test-update-strays.", dir=run_scratch.kept_root()
+                )
+            )
         dst = self.dir / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst, follow_symlinks=False)
@@ -1248,7 +1253,12 @@ def cmd_clean(root: Path) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    argv = sys.argv[1:] if argv is None else argv
+    # Every temporary file of the run, its children's included, goes in one directory removed when it ends.
+    with run_scratch.run_directory():
+        return _main(sys.argv[1:] if argv is None else argv)
+
+
+def _main(argv: list[str]) -> int:
     passthrough: list[str] = []
     if "--" in argv:
         cut = argv.index("--")
