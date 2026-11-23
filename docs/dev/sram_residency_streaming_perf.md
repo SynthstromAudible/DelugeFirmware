@@ -212,7 +212,7 @@ manager an SRAM pool:
 - **Option 1 — second slab (uniform, matches today's model).** Add an SRAM cluster slab
   `deluge_slab_create_unmanaged(sram_heap(), slot, sramCap)` alongside `clusterSlab_`
   (`general_memory_allocator.cpp:80`). Requires the resource manager to support *two* slabs and a per-asset
-  slab selector (today `deluge_resource_set_slab` sets exactly one — `deluge_storage_resource.h:117`). Rust change
+  slab selector (today `deluge_resource_set_slab` sets exactly one — `deluge_storage_resource.h`). Rust change
   in `src/storage/resource` + a new backing constant or a slab-id on the asset.
 - **Option 2 — SampleStream owns a small SRAM pool directly** for Tier-1/Tier-2 chunks, bypassing the
   resource manager for those, allocating from `sram_heap()` / a dedicated SRAM slab. Simpler manager, but
