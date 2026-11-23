@@ -23,8 +23,9 @@ enclosing namespace is left for the compiler to name. Each --target OLD=NEW rena
 in every tracked text file the same way.
 
 A move is refused, and nothing is changed, when src/deluge/OLD or src/deluge/NEW exists (the legacy root precedes
-src/ on the include path, so the spelling would name two directories) or when src/NEW or tests/unit/NEW already exists, or when two moves name
-the same directory or one inside the other (a chain would move on disk differently from how the text reads). The
+src/ on the include path, so the spelling would name two directories), when OLD is `deluge/x` and src/x exists (its
+`x/` spelling would also name src/x), when src/NEW or tests/unit/NEW already exists, or when two moves name the same
+directory or one inside the other (a chain would move on disk differently from how the text reads). The
 north-star layout document is never rewritten: its tables name today's paths beside their targets. Nor is any file
 under third_party/, toolchain/, lib/ or website/. An include spelled from tests/ (`"unit/OLD/..."`) is not respelled.
 
@@ -325,6 +326,9 @@ def check(repo: Path, moves: list[tuple[str, str]]) -> None:
             raise Refused(f"src/{new} already exists")
         if (repo / "src" / "deluge" / new).exists():
             raise Refused(f"src/deluge/{new} exists: {new}/ would name two directories")
+        if old.startswith(LEGACY) and (repo / "src" / old[len(LEGACY) :]).exists():
+            short = old[len(LEGACY) :]
+            raise Refused(f"src/{short} exists: {short}/ would name two directories")
         if (repo / "tests" / "unit" / new).exists():
             raise Refused(f"tests/unit/{new} already exists")
         if not (repo / "src" / old).is_dir():
