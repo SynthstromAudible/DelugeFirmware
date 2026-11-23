@@ -94,33 +94,35 @@ opt-level = 1
 debug = true
 panic = "abort"
 
-# The libraries, sample-convert and the differentials test at cargo's default opt-level 0, and their build scripts'
-# C++ reference slices follow it (`cc` reads OPT_LEVEL). The device crate keeps the image's 1.
-[profile.dev.package.deluge_base_alloc]
+# `cargo test`, `cargo build --tests` and nextest build every unit, dependencies included, under the test profile, which
+# inherits dev. There the libraries, sample-convert and the differentials keep cargo's default opt-level 0, and their
+# build scripts' C++ reference slices follow it (`cc` reads OPT_LEVEL); a dev build (the device's Debug image, the
+# TSan harness, card-manifest) keeps 1.
+[profile.test.package.deluge_base_alloc]
 opt-level = 0
-[profile.dev.package.deluge_storage_resource]
+[profile.test.package.deluge_storage_resource]
 opt-level = 0
-[profile.dev.package.deluge_storage_stream]
+[profile.test.package.deluge_storage_stream]
 opt-level = 0
-[profile.dev.package.deluge_storage_sample_fill]
+[profile.test.package.deluge_storage_sample_fill]
 opt-level = 0
-[profile.dev.package.deluge_storage_sample_reader]
+[profile.test.package.deluge_storage_sample_reader]
 opt-level = 0
-[profile.dev.package.deluge_storage_sample_source]
+[profile.test.package.deluge_storage_sample_source]
 opt-level = 0
-[profile.dev.package.deluge_test_rust]
+[profile.test.package.deluge_test_rust]
 opt-level = 0
-[profile.dev.package.deluge_storage_sample_convert]
+[profile.test.package.deluge_storage_sample_convert]
 opt-level = 0
-[profile.dev.package.audio_format_corpus]
+[profile.test.package.audio_format_corpus]
 opt-level = 0
-[profile.dev.package.fs-differential]
+[profile.test.package.fs-differential]
 opt-level = 0
-[profile.dev.package.region-fill-differential]
+[profile.test.package.region-fill-differential]
 opt-level = 0
-[profile.dev.package.region-read-differential]
+[profile.test.package.region-read-differential]
 opt-level = 0
-[profile.dev.package.region-source-differential]
+[profile.test.package.region-source-differential]
 opt-level = 0
 
 # golden_vt_render (`--profile harness`): Cargo's default release profile, unwinding. A custom profile inherits the
