@@ -1042,6 +1042,21 @@ class BuildsTest(unittest.TestCase):
         (step,) = known["golden-vt-render"].steps(Path("/repo"))
         self.assertEqual(step.env["DELUGE_HOSTAPP_BUILD_DIR"], "/repo/build/host-app")
 
+    def test_the_arm_golden_vt_render_compiles_its_cxx_for_the_arm_host_app_cpu(self):
+        # cc names the target to clang by rustc's LLVM triple, `arm-unknown-linux-gnueabihf`, which leaves the CPU at
+        # ARMv4T without NEON; the build scripts' C++ needs the arm-linux host app's CPU and FPU.
+        known = tb.products(Path("/repo"))
+        (step,) = known["golden-vt-render-arm"].steps(Path("/repo"))
+        for var in (
+            "CFLAGS_armv7_unknown_linux_gnueabihf",
+            "CXXFLAGS_armv7_unknown_linux_gnueabihf",
+        ):
+            with self.subTest(var):
+                self.assertEqual(
+                    step.env[var].split(),
+                    ["-mcpu=cortex-a9", "-mfpu=neon", "-mfloat-abi=hard"],
+                )
+
     TEST_TREES = ("host-app", "host-app-asan", "host-app-arm")
 
     def _configured_tree(self, root, tree, extra=""):

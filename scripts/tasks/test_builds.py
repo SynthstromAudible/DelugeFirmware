@@ -37,6 +37,10 @@ HOST_APP_ASAN_TREE = Path("build") / "host-app-asan"
 ASAN_TARGET_SUBDIR = Path("build") / "cargo-harness-asan"
 # The Rust target the ARM golden_vt_render is built for: 32-bit ARM Linux, hard float, run under qemu.
 ARM_TARGET = "armv7-unknown-linux-gnueabihf"
+# The CPU and FPU the arm-linux host app is compiled for (cmake/arm-linux-clang.cmake), which the build scripts' C++ in
+# the ARM golden_vt_render gets too. cc names the target to clang by rustc's LLVM triple, `arm-unknown-linux-gnueabihf`,
+# which carries no architecture: clang would take ARMv4T without NEON, and argon's NEON code would not compile.
+ARM_CPU_FLAGS = "-mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard"
 
 
 def needs_configure(tree: Path, source: Path, cxx: str | None = None) -> bool:
@@ -254,6 +258,8 @@ class GoldenVtRenderArm(Product):
                     "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ARM_TREE),
                     # The GCC cross driver only links: the objects are clang's.
                     "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER": "arm-linux-gnueabihf-gcc",
+                    "CFLAGS_armv7_unknown_linux_gnueabihf": ARM_CPU_FLAGS,
+                    "CXXFLAGS_armv7_unknown_linux_gnueabihf": ARM_CPU_FLAGS,
                 },
             )
         ]
