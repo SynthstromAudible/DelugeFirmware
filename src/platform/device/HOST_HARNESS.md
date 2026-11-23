@@ -51,7 +51,7 @@ cmake -B build-embassy-hostapp-tsan -S src/platform/host -G Ninja \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
   -DCMAKE_C_FLAGS="-fsanitize=thread" -DCMAKE_CXX_FLAGS="-fsanitize=thread"
 ninja -C build-embassy-hostapp-tsan deluge_app deluge_scenarios eyalroz_printf \
-  deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_base deluge_serialization deluge_music deluge_project deluge_ui_controls deluge_instruments_classic deluge_effects deluge_host_chains deluge_midi \
+  deluge_dsp_legacy deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_base deluge_serialization deluge_music deluge_project deluge_ui_controls deluge_instruments_classic deluge_effects deluge_host_chains deluge_midi \
   deluge_ui_gfx_oled deluge_ui_gfx_grid deluge_ui_widgets_core deluge_ui_widgets_oled deluge_ui_widgets_grid deluge_ui_shell deluge_base_notify deluge_ui_scenes deluge_ui_level3 deluge_ui_scenes_spec
 ```
 

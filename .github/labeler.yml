@@ -5,7 +5,7 @@
 "area: audio":
   - changed-files:
       - any-glob-to-any-file:
-          - src/deluge/dsp/**
+          - src/deluge/dsp_legacy/**
           - src/deluge/processing/**
           - src/deluge/model/voice/**
           - src/deluge/model/sample/**

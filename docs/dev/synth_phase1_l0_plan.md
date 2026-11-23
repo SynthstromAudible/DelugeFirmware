@@ -8,7 +8,7 @@ oracle.
 
 ## Strategy: build `dsp-next`, strangle the old `dsp/`
 
-Rather than scrub the accreted `src/deluge/dsp/` in place, stand up a **new,
+Rather than scrub the accreted `src/deluge/dsp_legacy/` in place, stand up a **new,
 clean L0 library — `dsp-next` — and migrate primitives into it one at a
 time**. Each primitive is ported as idiomatic C++23, its caller is switched
 over under golden-master cover, and the old implementation is deleted once no
@@ -51,7 +51,7 @@ src/deluge/dsp-next/
   proof; **populating it is later work** (decision 3 keeps the core q31 for
   now) — the point here is that the home exists and the interface is shared.
 
-Both are STATIC libs mirroring the existing `deluge_dsp` target (unity build,
+Both are STATIC libs mirroring the existing `deluge_dsp_legacy` target (unity build,
 `-fno-lto -finline-functions`, `-marm` on hardware, link `argon`); the app and
 host-sim link whichever primitives have migrated. Targets: `deluge_dsp_fixed`,
 `deluge_dsp_float` (output names `libdeluge-dsp-fixed`, `libdeluge-dsp-float`).
@@ -140,7 +140,7 @@ change.
 - **S0 — Scaffold. ✅ done (2026-06-13).** Created `dsp-next/{core,fixed,float}`:
   `core` is a header-only INTERFACE target (`deluge_dsp_core`); `fixed`/`float`
   are STATIC libs (`deluge_dsp_fixed`→`libdeluge-dsp-fixed`,
-  `deluge_dsp_float`→`libdeluge-dsp-float`) mirroring `deluge_dsp` (unity,
+  `deluge_dsp_float`→`libdeluge-dsp-float`) mirroring `deluge_dsp_legacy` (unity,
   `-fno-lto -finline-functions`, `-marm` on HW); an umbrella `deluge_dsp_next`
   INTERFACE links all three and is linked into `deluge_app` (so firmware + sim
   pick it up). Namespaces: `deluge::dsp` (core), `deluge::dsp::fixed`,

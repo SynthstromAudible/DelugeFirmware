@@ -22,7 +22,7 @@
 #include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/shaping/tanh.h"
-#include "dsp/timestretch/time_stretcher.h"
+#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/pitch_scan.h"

@@ -31,7 +31,7 @@ boundary inside it.
 
 ### 1.1 The synth is not where it says it is
 
-`src/deluge/dsp/` (~6k LOC) is **not** the synth engine — it is a collection
+`src/deluge/dsp_legacy/` (~6k LOC) is **not** the synth engine — it is a collection
 of mostly-clean leaf kernels: filters (SVF, ladders), reverb (header-only,
 Mutable-derived `fx_engine.hpp`), delay, granular, compressor, the DX7 port,
 and the oscillator wave renderers. The actual synthesizer lives outside it,
@@ -208,7 +208,7 @@ Thumb and a low inline threshold (5).
 | The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin/` | `deluge_plugin` |
 
 The end state is `code_layout_north_star.md`: `src/dsp/` (today `src/deluge/dsp-next/`, once the legacy
-`src/deluge/dsp/` is retired); `src/synth/` as the backend-templated voice-building library that names no backend;
+`src/deluge/dsp_legacy/` is retired); `src/synth/` as the backend-templated voice-building library that names no backend;
 one directory per instrument plugin under `src/instruments/` (`classic/`, the q31 instrument that holds `Fixed`, and
 `modern/`, the float one); `src/effects/` and `src/note_devices/` beside them. Only instruments include `synth/`, no
 instrument includes another, and the host reaches plugins only through `src/plugin/`.

@@ -6,20 +6,20 @@ file (GLOB_RECURSE deluge_dsp_SOURCES
   ${CMAKE_CURRENT_LIST_DIR}/*.s
 )
 
-add_library(deluge_dsp STATIC ${deluge_dsp_SOURCES})
+add_library(deluge_dsp_legacy STATIC ${deluge_dsp_SOURCES})
 
-target_include_directories(deluge_dsp PRIVATE
+target_include_directories(deluge_dsp_legacy PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/..
   ${SHARED_INCLUDE}
   ${CMAKE_SOURCE_DIR}/include # <libdeluge/...> boundary headers
   ${DELUGE_CRATE_INCLUDE_DIRS} # the Rust crates' C headers the sample reader's headers include
 )
 
-target_include_directories(deluge_dsp PUBLIC
+target_include_directories(deluge_dsp_legacy PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-set_target_properties(deluge_dsp
+set_target_properties(deluge_dsp_legacy
     PROPERTIES
         C_STANDARD ${DELUGE_C_STANDARD}
         C_STANDARD_REQUIRED ON
@@ -29,18 +29,18 @@ set_target_properties(deluge_dsp
         UNITY_BUILD true
 )
 
-target_link_libraries(deluge_dsp PRIVATE
+target_link_libraries(deluge_dsp_legacy PRIVATE
     eyalroz_printf
     argon
     etl::etl
 )
 
-target_compile_definitions(deluge_dsp PUBLIC
+target_compile_definitions(deluge_dsp_legacy PUBLIC
         $<$<CONFIG:DEBUG,RELWITHDEBINFO>:IN_HARDWARE_DEBUG=1>
         $<$<CONFIG:DEBUG,RELWITHDEBINFO>:ENABLE_TEXT_OUTPUT=1>
 )
 
-target_compile_options(deluge_dsp PRIVATE
+target_compile_options(deluge_dsp_legacy PRIVATE
     ${DELUGE_COMMON_COMPILE_OPTIONS}
     # use a unity build instead (combine all cpp to one before compiling), which has similar gains without the arm/thumb issues
     "-fno-lto"

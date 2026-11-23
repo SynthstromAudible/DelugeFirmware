@@ -193,7 +193,7 @@ fn emit_staleness_hash(app_objs_dir: &Path, hash: &str, prev: Option<&str>, stam
 fn link_closure(build_dir: &Path, archive: &Path) {
     const DEPS: [(&str, &str); 26] = [
         ("printf", "libeyalroz_printf.a"),
-        ("app/dsp", "libdeluge_dsp.a"),
+        ("app/dsp_legacy", "libdeluge_dsp_legacy.a"),
         ("app/dsp-next", "libdeluge-dsp-fixed.a"),
         ("app/dsp-next", "libdeluge-dsp-float.a"),
         ("synth", "libdeluge_synth.a"),

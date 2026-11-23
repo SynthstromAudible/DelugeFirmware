@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "dsp/timestretch/time_stretcher.h"
+#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "definitions_cxx.hpp"
 #include "deluge/model/sample/sample_low_level_reader.h"
 #include "deluge_storage_sample_reader.h"

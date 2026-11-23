@@ -32,7 +32,7 @@
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/dynamics/hit_strength.h" // combine_hit_strengths
 #include "dsp-next/fixed/mix/output_fold.h"
-#include "dsp/timestretch/time_stretcher.h"
+#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "effects/reverb.h"
 #include "effects/sidechain.h"
 #include "extern.h"

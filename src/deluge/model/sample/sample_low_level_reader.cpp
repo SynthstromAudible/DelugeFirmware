@@ -20,7 +20,7 @@
 #include "deluge_storage_sample_source.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
-#include "dsp/timestretch/time_stretcher.h"
+#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"

@@ -150,7 +150,7 @@
  */
 
 /// @file
-/// @brief The DX7 engine (src/deluge/dsp/dx, the Dexed/MSFA code) as the app renders it on the host, verbatim but
+/// @brief The DX7 engine (the Dexed/MSFA code) as the app renders it on the host, verbatim but
 /// for the allowed edits below. Copied from:
 ///   - math_lut.h (Exp2::lookup, Sin::lookup's SIN_DELTA branch) and math_lut.cpp (exp2_init, sin_init,
 ///     freq_lut_init, Freqlut::lookup, dx_init_lut_data without tanh_init);

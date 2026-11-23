@@ -20,7 +20,7 @@
 #include "dsp-next/core/divide.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
-#include "dsp/timestretch/time_stretcher.h"
+#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
 #include "io/debug/log.h"
 #include "libdeluge/memory.h"

@@ -92,7 +92,7 @@ src/deluge/dsp-next/fixed/wavetable/wavetable_oscillator.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/wavetable/wavetable_sync_oscillator.h raw=0 boundary=1
 src/deluge/dsp-next/float/dynamics/level_detector.cpp raw=0 boundary=2
 src/deluge/dsp-next/float/reverb/plate.h raw=0 boundary=4
-src/deluge/dsp/timestretch/time_stretcher.cpp raw=0 boundary=11
+src/deluge/dsp_legacy/timestretch/time_stretcher.cpp raw=0 boundary=11
 src/deluge/model/clip/audio_clip.cpp raw=0 boundary=1
 src/deluge/model/drum/drum.cpp raw=0 boundary=2
 src/deluge/model/drum/expression_combine.h raw=0 boundary=2
