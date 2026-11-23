@@ -193,8 +193,8 @@ The legacy tree's destinations:
 7. **`src/deluge` only shrinks.** A ratchet on its file count refuses additions; code leaves it only by rewrite into
    its destination; only `app/` includes it.
 8. **Rust crates live in their layer.** Each crate's directory holds its `Cargo.toml`; the root `Cargo.toml` is a
-   workspace over `src/**` (until the Cargo roots merge, `crates/` holds the workspace root of the library crates). A
-   crate is named `deluge_<path>`, and C++ reaches it only through the C header in its own directory.
+   workspace over every in-tree crate (the `src/**` libraries, the device image, the harnesses and the differentials),
+   with one lock. A crate is named `deluge_<path>`, and C++ reaches it only through the C header in its own directory.
 9. **Tests mirror sources** under `tests/<level>/`; the registry (`tests/registry.toml`) names them by path.
 10. **C++23 or later outside `src/deluge`**, and every library has a README stating its rules.
 
@@ -207,9 +207,8 @@ the top-level and shadowing checks, with today's directories grandfathered in. N
 becomes the enforced one.
 
 **Step 2: the relocation pass.** The clean C++ libraries are at their paths, each with the namespace its path calls
-for. The Rust crates and the platform directories are at their paths too. Two items remain, each its own task:
-merging the Cargo roots into one workspace, and rule 8's C header in its own directory for the crates that publish
-through `include/libdeluge/`.
+for. The Rust crates and the platform directories are at their paths too. One item remains, its own task:
+rule 8's C header in its own directory for the crates that publish through `include/libdeluge/`.
 
 `synth/`'s `Fixed` instantiations move to `instruments/classic` as part of the classic instrument's state work, not
 in this pass: that is a design change, gated on the goldens like any other.

@@ -49,7 +49,7 @@ def default_binary() -> Path:
     return (
         Path(target)
         / os.environ.get("GOLDEN_VT_RENDER_TARGET", "")
-        / "release"
+        / "harness"
         / "golden_vt_render"
     )
 

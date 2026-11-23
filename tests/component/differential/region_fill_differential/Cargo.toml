@@ -5,8 +5,7 @@ edition = "2024"
 publish = false
 license = "GPL-3.0-or-later"
 
-# Standalone crate, not a workspace member: it `cc`-compiles a C++ reference slice into its test
-# binary and must stay off the firmware Cargo graph.
+# It `cc`-compiles a C++ reference slice into its test binary; nothing in the firmware depends on it.
 
 [dependencies]
 # Supplies the compiled `convert_word`/`stitch_boundaries` objects `cpp/harness_shim.cpp` links

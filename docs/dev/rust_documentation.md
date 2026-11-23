@@ -1,7 +1,6 @@
 # Rust documentation style
 
-How the Rust in this repository is documented: the library crates under `src/base/` and `src/storage/` (the
-`crates/` workspace), `src/platform/device/`, `src/platform/host/link/`, and the Rust harnesses under `tests/harness/`
+How the Rust in this repository is documented: the library crates under `src/base/` and `src/storage/`, `src/platform/device/`, `src/platform/host/link/`, and the Rust harnesses under `tests/harness/`
 and `tests/component/differential/`.
 
 Two goals, in order: **accurate**, then **short**. A comment says what the code is and guarantees

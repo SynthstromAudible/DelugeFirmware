@@ -17,7 +17,7 @@ import songs as song_set
 from dump import read_dump, save_npz
 
 SONG_BLOCKS = 10336  # 30 s of 128-frame blocks at 44.1 kHz
-HARNESS = Path("build") / "cargo-harness" / "release" / "golden_vt_render"
+HARNESS = Path("build") / "cargo-harness" / "harness" / "golden_vt_render"
 
 
 def _pack(raw: Path, packed: Path) -> bool:

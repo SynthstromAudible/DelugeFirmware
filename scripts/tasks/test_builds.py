@@ -13,8 +13,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 # The cargo target dir every cargo-built test and product shares. Cargo namespaces artifacts by fingerprint, so
-# packages with divergent [patch] sections coexist safely; the cost is that concurrent builds serialize on its lock.
+# packages built with different features coexist safely; the cost is that concurrent builds serialize on its lock.
 SHARED_TARGET_SUBDIR = Path("build") / "cargo-harness"
+# The root workspace's profile golden_vt_render builds with (Cargo.toml's [profile.harness]); cargo puts its outputs
+# in a directory of that name under the target dir (and under the target triple, for a cross build).
+HARNESS_PROFILE = "harness"
+# cargo's arguments for golden_vt_render, from the repo root.
+GOLDEN_CARGO_BUILD = [
+    "cargo",
+    "build",
+    "-p",
+    "golden_vt_render",
+    "--profile",
+    HARNESS_PROFILE,
+]
 
 # The C++ app's object closure for the Embassy host harnesses: the app, its libraries and the host BSP's C side,
 # compiled for x86-64. Nothing links here; golden_vt_render's build script archives these objects.
@@ -25,6 +37,10 @@ HOST_APP_ASAN_TREE = Path("build") / "host-app-asan"
 ASAN_TARGET_SUBDIR = Path("build") / "cargo-harness-asan"
 # The Rust target the ARM golden_vt_render is built for: 32-bit ARM Linux, hard float, run under qemu.
 ARM_TARGET = "armv7-unknown-linux-gnueabihf"
+# The CPU and FPU the arm-linux host app is compiled for (cmake/arm-linux-clang.cmake), which the build scripts' C++ in
+# the ARM golden_vt_render gets too. cc names the target to clang by rustc's LLVM triple, `arm-unknown-linux-gnueabihf`,
+# which carries no architecture: clang would take ARMv4T without NEON, and argon's NEON code would not compile.
+ARM_CPU_FLAGS = "-mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard"
 
 
 def needs_configure(tree: Path, source: Path, cxx: str | None = None) -> bool:
@@ -225,19 +241,25 @@ class GoldenVtRenderArm(Product):
 
     def outputs(self, root: Path) -> list[Path]:
         return [
-            root / SHARED_TARGET_SUBDIR / ARM_TARGET / "release" / "golden_vt_render"
+            root
+            / SHARED_TARGET_SUBDIR
+            / ARM_TARGET
+            / HARNESS_PROFILE
+            / "golden_vt_render"
         ]
 
     def steps(self, root: Path) -> list[Step]:
         return [
             Step(
                 "build",
-                ["cargo", "build", "--release", "--target", ARM_TARGET],
-                root / "tests/harness/golden_vt_render",
+                [*GOLDEN_CARGO_BUILD, "--target", ARM_TARGET],
+                root,
                 {
                     "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ARM_TREE),
                     # The GCC cross driver only links: the objects are clang's.
                     "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER": "arm-linux-gnueabihf-gcc",
+                    "CFLAGS_armv7_unknown_linux_gnueabihf": ARM_CPU_FLAGS,
+                    "CXXFLAGS_armv7_unknown_linux_gnueabihf": ARM_CPU_FLAGS,
                 },
             )
         ]
@@ -245,14 +267,14 @@ class GoldenVtRenderArm(Product):
 
 class GoldenVtRender(Product):
     def outputs(self, root: Path) -> list[Path]:
-        return [root / SHARED_TARGET_SUBDIR / "release" / "golden_vt_render"]
+        return [root / SHARED_TARGET_SUBDIR / HARNESS_PROFILE / "golden_vt_render"]
 
     def steps(self, root: Path) -> list[Step]:
         return [
             Step(
                 "build",
-                ["cargo", "build", "--release"],
-                root / "tests/harness/golden_vt_render",
+                GOLDEN_CARGO_BUILD,
+                root,
                 {"DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_TREE)},
             )
         ]
@@ -262,14 +284,14 @@ class GoldenVtRenderAsan(Product):
     """golden_vt_render linked against the AddressSanitizer host app, with the allocator's heap poisoning on."""
 
     def outputs(self, root: Path) -> list[Path]:
-        return [root / ASAN_TARGET_SUBDIR / "release" / "golden_vt_render"]
+        return [root / ASAN_TARGET_SUBDIR / HARNESS_PROFILE / "golden_vt_render"]
 
     def steps(self, root: Path) -> list[Step]:
         return [
             Step(
                 "build",
-                ["cargo", "build", "--release", "--features", "asan"],
-                root / "tests/harness/golden_vt_render",
+                [*GOLDEN_CARGO_BUILD, "--features", "asan"],
+                root,
                 {
                     "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ASAN_TREE),
                     "CARGO_TARGET_DIR": str(root / ASAN_TARGET_SUBDIR),
@@ -359,6 +381,8 @@ def order(wanted: list[str], known: dict[str, Product]) -> list[str]:
 
 
 __all__ = [
+    "GOLDEN_CARGO_BUILD",
+    "HARNESS_PROFILE",
     "HOST_APP_TREE",
     "SHARED_TARGET_SUBDIR",
     "Product",

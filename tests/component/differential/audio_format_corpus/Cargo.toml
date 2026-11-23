@@ -1,13 +1,6 @@
 # Corpus gate for the audio-format decoder: `deluge-audio-format`'s `parse` against the C++ header entry points
-# over real WAV/AIFF files. Standalone crate, not a workspace member; its C++ side is the
-# `golden_vt_render` binary the `golden-vt-render` product builds.
-#
-# Gate audio-format-corpus:
-#     Compares `deluge-audio-format`'s decoder with the C++ `parseSampleHeader` and `parseWaveTableHeader` entry points over
-#     the WAV and AIFF files under the roots DELUGE_AUDIO_CORPUS names, so a defect in the C++ adapter's window
-#     buffering, short-tail handling or C-ABI marshalling shows as a differing header. With the variable unset the
-#     test is skipped. The C++ side is golden_vt_render's audio_header_dump scenario, which the test finds under
-#     build/cargo-harness or at GOLDEN_VT_RENDER_BIN.
+# over real WAV/AIFF files. Its C++ side is the `golden_vt_render` binary the `golden-vt-render`
+# product builds; its gate's explanation is in the root Cargo.toml.
 [package]
 name = "audio_format_corpus"
 version = "0.1.0"

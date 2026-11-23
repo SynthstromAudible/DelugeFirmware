@@ -19,7 +19,8 @@ import util
 test_builds = importlib.import_module("test_builds")
 
 RUST_BSP_DIR = Path("src/platform/device")
-BINARY = RUST_BSP_DIR / "target" / "release" / "deluge-rust"
+# The device crate, built from the root workspace into its target dir.
+BINARY = Path("target") / "release" / "deluge-rust"
 
 
 def argparser():
@@ -75,12 +76,10 @@ def argparser():
 
 
 def sdk_config_args(root: Path) -> list[str]:
-    """`cargo --config local-sdk.toml` when the local deluge-sdk override exists (see task-build.py)."""
-    return (
-        ["--config", "local-sdk.toml"]
-        if (root / RUST_BSP_DIR / "local-sdk.toml").is_file()
-        else []
-    )
+    """`cargo --config src/platform/device/local-sdk.toml` when the local deluge-sdk override exists (see
+    task-build.py)."""
+    override = RUST_BSP_DIR / "local-sdk.toml"
+    return ["--config", str(override)] if (root / override).is_file() else []
 
 
 def build(root: Path) -> int:
@@ -95,7 +94,7 @@ def build(root: Path) -> int:
             return rc
 
     config = sdk_config_args(root)
-    lock = root / RUST_BSP_DIR / "Cargo.lock"
+    lock = root / "Cargo.lock"
     # A build through local-sdk.toml rewrites the lockfile's deluge-sdk pins to local paths; put it back as it was.
     held = lock.read_bytes() if config else None
     print("==> sim: emulator", flush=True)
@@ -103,8 +102,17 @@ def build(root: Path) -> int:
         # cargo does not see C++ changes: touching the build script makes it archive the freshly built objects again.
         (root / RUST_BSP_DIR / "build" / "main.rs").touch()
         return subprocess.run(
-            ["cargo", "build", "--release", "--features", "sim", *config],
-            cwd=root / RUST_BSP_DIR,
+            [
+                "cargo",
+                "build",
+                "-p",
+                "deluge_platform_device",
+                "--release",
+                "--features",
+                "sim",
+                *config,
+            ],
+            cwd=root,
             env=dict(
                 os.environ,
                 DELUGE_HOSTAPP_BUILD_DIR=str(root / test_builds.HOST_APP_TREE),

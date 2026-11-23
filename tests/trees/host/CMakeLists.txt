@@ -46,7 +46,7 @@ set(DELUGE_TEST_TREE host)
 include(${CMAKE_CURRENT_LIST_DIR}/../../support/cmake/specs.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../../support/cmake/libs.cmake)
 
-# The allocator, resource and sample crates are members of the crates workspace that live outside it.
+# The allocator, resource and sample crates, members of the root Cargo workspace.
 set(RUST_ALLOC ${CMAKE_CURRENT_LIST_DIR}/../../../src/base/alloc)
 set(RUST_RESOURCE ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/resource)
 set(RUST_SAMPLE_FILL ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/fill)
@@ -61,16 +61,19 @@ if (UNIX AND NOT APPLE)
     # conformance specs (it re-exports both the allocator and resource-manager C
     # ABIs). Defining the build here avoids two subdirs emitting colliding rules for
     # the same output.
-    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../../crates)
+    # Built from the root workspace with its host-test profile (opt 3, LTO, panic=abort: the C++ binaries abort on
+    # panic), into this tree's own target dir.
+    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../..)
     set(RUST_TARGET i686-unknown-linux-gnu)
-    set(RUST_LIB ${RUST_WS}/target/${RUST_TARGET}/release/libdeluge_test_rust.a)
+    set(RUST_LIB ${RUST_WS}/target/tests-host/${RUST_TARGET}/host-test/libdeluge_test_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
         ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs ${RUST_TEST_RUST}/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
         # The target dir is named, as RUST_LIB is: `dbt test` sets CARGO_TARGET_DIR for its own cargo builds, and a
         # build that followed it would leave RUST_LIB as it was, so the specs would link a stale decoder.
-        COMMAND cargo build -p deluge_test_rust --release --target ${RUST_TARGET} --target-dir ${RUST_WS}/target
+        COMMAND cargo build -p deluge_test_rust --profile host-test --target ${RUST_TARGET}
+            --target-dir ${RUST_WS}/target/tests-host
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES}
             ${RUST_WS}/Cargo.lock
@@ -86,7 +89,7 @@ if (UNIX AND NOT APPLE)
     # A second umbrella build, with `sample_abi` on, for the sample_reader spec: the sample
     # crates export their C ABI on a host build only with their `c_abi` feature, which
     # `sample_abi` turns on. Its own --target-dir keeps the two feature sets' outputs apart.
-    set(RUST_LIB_SIM ${RUST_WS}/target-tests-sim/${RUST_TARGET}/release/libdeluge_test_rust.a)
+    set(RUST_LIB_SIM ${RUST_WS}/target/tests-host-sim/${RUST_TARGET}/host-test/libdeluge_test_rust.a)
     # Own glob (not layered on RUST_SOURCES -- GLOB_RECURSE patterns are wildcards, not a list of
     # already-resolved paths to re-glob), mirroring src/platform/host/CMakeLists.txt's own SIM_RUST_SOURCES.
     file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
@@ -96,8 +99,8 @@ if (UNIX AND NOT APPLE)
         ${RUST_TEST_RUST}/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB_SIM}
-        COMMAND cargo build -p deluge_test_rust --release --target ${RUST_TARGET} --features sample_abi
-            --target-dir ${RUST_WS}/target-tests-sim
+        COMMAND cargo build -p deluge_test_rust --profile host-test --target ${RUST_TARGET} --features sample_abi
+            --target-dir ${RUST_WS}/target/tests-host-sim
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES_SIM}
             ${RUST_WS}/Cargo.lock
@@ -117,15 +120,15 @@ elseif (APPLE)
     # target rather than i686 -- the specs are 64-bit native here (no -m32 above), and letting cargo
     # pick the host beats guessing an apple-darwin triple. The alloc/resource conformance specs stay
     # Linux-only; this branch defines nothing but the shared archive.
-    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../../crates)
-    set(RUST_LIB ${RUST_WS}/target/release/libdeluge_test_rust.a)
+    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../..)
+    set(RUST_LIB ${RUST_WS}/target/tests-host/host-test/libdeluge_test_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
         ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs ${RUST_TEST_RUST}/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
         # The target dir is named for the reason the Linux branch gives: `dbt test` sets CARGO_TARGET_DIR, and a
         # build that followed it would leave RUST_LIB stale.
-        COMMAND cargo build -p deluge_test_rust --release --target-dir ${RUST_WS}/target
+        COMMAND cargo build -p deluge_test_rust --profile host-test --target-dir ${RUST_WS}/target/tests-host
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES}
             ${RUST_WS}/Cargo.lock

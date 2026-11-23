@@ -34,7 +34,6 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CRATE_DIR="$REPO/tests/harness/golden_vt_render"
 
 FIXTURE="${1:-}"
 case "$FIXTURE" in
@@ -46,7 +45,7 @@ cordae | highsiderr | icoustic) ;;
 esac
 
 # `dbt test` builds the harness once, before any gate runs, into CARGO_TARGET_DIR.
-BIN="${CARGO_TARGET_DIR:-$CRATE_DIR/target}/release/golden_vt_render"
+BIN="${CARGO_TARGET_DIR:-$REPO/build/cargo-harness}/harness/golden_vt_render"
 [ -x "$BIN" ] || { echo "ERROR: '$BIN' is not built -- run this gate through ./dbt test, which builds it first"; exit 2; }
 
 OUT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/embassy_layout_invariance.${FIXTURE}.XXXXXX")"

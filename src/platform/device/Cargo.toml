@@ -1,12 +1,6 @@
 # The Deluge firmware image: implements the libdeluge C ABI on the deluge-sdk HAL+BSP, owns reset
-# and the Embassy executors, and links the C++ application (libdeluge_app.a). Standalone crate, not
-# a workspace member.
-#
-# Gate bsp-host:
-#     the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix
-#     channels, the SD image path, the SD bus card init, the audio loader, and the card manifest parser and builder
-#     (storage/card_manifest.rs). --locked, so a lock that has lost its deluge-sdk pin fails here instead of being
-#     rewritten.
+# and the Embassy executors, and links the C++ application (libdeluge_app.a). Its release profile and
+# the embassy `[patch]` are the root workspace's (Cargo.toml), which also holds its gate's explanation.
 [package]
 name = "deluge_platform_device"
 version = "0.1.0"
@@ -178,48 +172,3 @@ sim = ["host_app", "dep:deluge-simulator", "deluge-bsp/host-panel"]
 deluge_platform_host_link = { path = "../host/link" }
 # Generates the Rust side of the libdeluge headers, so the boundary cannot drift.
 bindgen = "0.70"
-
-# The embassy fork that ports the InterruptExecutor to platform-cortex-ar (GIC SGI pender). Same
-# version, so it replaces embassy-executor across the whole graph.
-#
-# The integrated timer queue is intrusive: the executor stores a `TimerQueueItem` in each task
-# header and embassy-time-queue-utils reads it back. `embassy-executor-timer-queue` has no `links`
-# key, so without patching the whole trio Cargo links two copies, the item types disagree, the alarm
-# is never armed, and every `Timer` await hangs.
-[patch.crates-io]
-embassy-executor = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
-embassy-executor-timer-queue = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
-embassy-time-queue-utils = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
-
-# Built for size: the image must fit in on-chip SRAM (docs/dev/image_size.md). The crates the audio
-# render and sample streaming run, the allocator and the executor keep "s" below. Under the
-# whole-graph LTO that "s" holds as each function's `optsize` attribute, while the shared pass
-# pipeline follows this crate's "z".
-[profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1
-debug = true
-panic = "abort"
-
-[profile.release.package.deluge_storage_sample_fill]
-opt-level = "s"
-[profile.release.package.deluge_storage_sample_reader]
-opt-level = "s"
-[profile.release.package.deluge_storage_stream]
-opt-level = "s"
-[profile.release.package.deluge_storage_sample_source]
-opt-level = "s"
-[profile.release.package.deluge_storage_resource]
-opt-level = "s"
-[profile.release.package.deluge_base_alloc]
-opt-level = "s"
-[profile.release.package.rza1-hal]
-opt-level = "s"
-[profile.release.package.embassy-executor]
-opt-level = "s"
-
-[profile.dev]
-opt-level = 1
-debug = true
-panic = "abort"

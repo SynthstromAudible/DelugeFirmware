@@ -1,6 +1,5 @@
 [package]
 name = "deluge_storage_sample_source"
-workspace = "../../../../crates"
 version = "0.1.0"
 edition = "2021"
 

@@ -147,7 +147,7 @@ builds only `golden-vt-render`.
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
 | unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree (the dsp-next specs among them), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
 | unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
-| crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
+| crates | unit | cargo | unit | gate | every #[test] in the core libraries: the allocator, the resource manager and the sample crates | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
 | sample-convert | unit | cargo | unit | gate | deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
 | param-projection | integration | scenario | unit | gate | the param/automation DOM leaf must agree with the engine it replaces | pr | model | ~1s |
@@ -193,7 +193,7 @@ builds only `golden-vt-render`.
 | fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
 | spec-comparisons | unit | script | unit | gate | no C++ spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy(), so every failed comparison prints its values | pr | tooling | ~2s |
 | layers-selftest | unit | script | unit | gate | the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth | pr | tooling | ~1s |
-| registry-selftest | unit | script | unit | gate | this registry's loader, validation, selection and probes (golden data only under tests/golden), the SDRAM packer's format, and three source checkers | pr | tooling | ~1s |
+| registry-selftest | unit | script | unit | gate | this registry's loader, validation, selection and probes, the SDRAM packer's format, three source checkers, and that every Cargo member is formatted and tested | pr | tooling | ~1s |
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
@@ -242,18 +242,16 @@ Placement follows coupling to the BSP source tree, not language or purpose.
   library. `golden_vt_render` runs the BSP under its own executor and virtual clock; its build script links the
   host app through `src/platform/host/link`. `src/platform/device/HOST_HARNESS.md` documents both.
 
-Three constraints keep these as separate Cargo packages rather than one
-workspace, and they are worth knowing before adding a tenth:
+All of these are members of the one Cargo workspace at the repository root, with one `Cargo.lock`, one
+`rust-toolchain.toml` and one `[patch.crates-io]` (the embassy fork). Build them with `-p <package>`, never
+`--workspace`:
 
-1. `[patch.crates-io]` is workspace-global. Only `src/platform/device/Cargo.toml`
-   carries the embassy fork patch; a workspace spanning it and the host clock
-   harnesses would force the fork onto them silently.
-2. `embassy-time`'s `std` and `mock-driver` features both emit
-   `#[no_mangle] _embassy_time_now`. Cargo unifies features across all targets
-   of one package, so two time drivers cannot share a package — and
-   `cargo build --workspace` cannot span them either.
-3. Feature unification makes a shared workspace build a hazard even where the
-   symbols do not collide.
+1. `embassy-time`'s `std` and `mock-driver` features both emit `#[no_mangle] _embassy_time_now`. Cargo unifies
+   features across all the packages of one build, so two time drivers cannot share a build.
+2. The device crate's platform features are mutually exclusive with the host ones, so a build that spans it and a host
+   harness would unify them wrongly.
+
+`src/base/alloc/fuzz` and `tools/deluge-upgrade` are the exceptions: each is its own workspace root, with its own lock.
 
 ## Build products and trees
 
@@ -269,12 +267,12 @@ itself, so none can run against a stale one.
 A ctest entry's own tree (`build/test-host`, `build/test-arm`, `build/test-ubsan`) is configured and built by its
 runner.
 
-Every cargo-built test and product shares `build/cargo-harness`. Cargo namespaces artifacts by fingerprint, so
-packages with different `[patch]` sections coexist there safely, but cargo takes an exclusive lock per target
-directory, so two runs at once serialize rather than run in parallel.
+Every cargo-built test and product shares `build/cargo-harness`, and cargo takes an exclusive lock per target
+directory, so two runs at once serialize rather than run in parallel. `golden_vt_render` builds under the `harness`
+profile (`build/cargo-harness/harness/golden_vt_render`); the C++ unit-test tree's staticlib builds under `host-test`.
 
-Running `cargo` by hand inside a harness directory bypasses this and creates a local `target/`, and one per
-harness directory adds up to tens of gigabytes of duplicate build trees. Prefer `./dbt test <name>`;
+Running `cargo` by hand without the runner's target directory creates a local `target/`, and duplicate build trees add
+up to tens of gigabytes. Prefer `./dbt test <name>`;
 `./dbt test --clean` drops every tree the runner builds.
 
 ## Adding a test

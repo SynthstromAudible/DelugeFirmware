@@ -948,7 +948,7 @@ class BuildsTest(unittest.TestCase):
         root = Path("/repo")
         self.assertEqual(
             tb.products(root)["golden-vt-render"].outputs(root),
-            [root / "build/cargo-harness/release/golden_vt_render"],
+            [root / "build/cargo-harness/harness/golden_vt_render"],
         )
 
     def test_prebuilt_outputs_rejects_unprebuildable(self):
@@ -1041,6 +1041,21 @@ class BuildsTest(unittest.TestCase):
         known = tb.products(Path("/repo"))
         (step,) = known["golden-vt-render"].steps(Path("/repo"))
         self.assertEqual(step.env["DELUGE_HOSTAPP_BUILD_DIR"], "/repo/build/host-app")
+
+    def test_the_arm_golden_vt_render_compiles_its_cxx_for_the_arm_host_app_cpu(self):
+        # cc names the target to clang by rustc's LLVM triple, `arm-unknown-linux-gnueabihf`, which leaves the CPU at
+        # ARMv4T without NEON; the build scripts' C++ needs the arm-linux host app's CPU and FPU.
+        known = tb.products(Path("/repo"))
+        (step,) = known["golden-vt-render-arm"].steps(Path("/repo"))
+        for var in (
+            "CFLAGS_armv7_unknown_linux_gnueabihf",
+            "CXXFLAGS_armv7_unknown_linux_gnueabihf",
+        ):
+            with self.subTest(var):
+                self.assertEqual(
+                    step.env[var].split(),
+                    ["-mcpu=cortex-a9", "-mfpu=neon", "-mfloat-abi=hard"],
+                )
 
     TEST_TREES = ("host-app", "host-app-asan", "host-app-arm")
 
@@ -2512,7 +2527,7 @@ class ExplanationTest(unittest.TestCase):
             "registry-selftest": "scripts/tasks/test_harness_registry.py",
             "ptm-trace-tool": "tools/deluge_trace/deluge_trace.py",
             "snapshot-primitive-tsan": "tests/component/stress/run.sh",
-            "crates": "crates/Cargo.toml",
+            "crates": "Cargo.toml",
             "unit": "tests/trees/host/CMakeLists.txt",
         }
         by_name = {h.name: h for h in hr.load_registry(self.ROOT)}

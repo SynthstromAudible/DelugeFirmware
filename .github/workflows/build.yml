@@ -78,7 +78,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: toolchain
-          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/platform/device/rust-toolchain.toml') }}
+          key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'rust-toolchain.toml') }}
 
       - name: Run build
         env:

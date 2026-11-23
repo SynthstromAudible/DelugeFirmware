@@ -38,7 +38,7 @@ golden_vt_render uses too.
 
 While the deluge-sdk revision this repository pins lacks the simulator, the build needs a sibling `../deluge-sdk`
 checkout on that branch and `src/platform/device/local-sdk.toml` pointing at it; `dbt sim` uses the override when the file
-exists and leaves `Cargo.lock` as it found it.
+exists and leaves the root `Cargo.lock` as it found it.
 
 ## The card
 
@@ -83,7 +83,7 @@ virtual clock, through the BSP's own input path, as the `ui-scripts` gate does. 
 ```sh
 ./dbt test -n ui-scripts
 GOLDEN_SCENARIO=ui_script UI_SCRIPT=tests/ui-scripts/app/a02-menu.txt UI_SNAPSHOT_DIR=/tmp/got \
-    UI_CARD=tests/fixtures/card build/cargo-harness/release/golden_vt_render
+    UI_CARD=tests/fixtures/card build/cargo-harness/harness/golden_vt_render
 python3 scripts/ui_snapshot_diff.py /tmp/got tests/golden/ui/app/a02-menu
 ```
 
@@ -106,10 +106,10 @@ hand, or list them:
 
 ```sh
 ./dbt test -n ui-scenes-spec
-GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=menu_scene_spec build/cargo-harness/release/golden_vt_render
+GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=menu_scene_spec build/cargo-harness/harness/golden_vt_render
 GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=browser_scene_spec SCENES_SPEC_CARD=tests/fixtures/scenes_spec/browser_scene \
-    build/cargo-harness/release/golden_vt_render
-GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=--list build/cargo-harness/release/golden_vt_render
+    build/cargo-harness/harness/golden_vt_render
+GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=--list build/cargo-harness/harness/golden_vt_render
 ```
 
 `./dbt test --update ui-scenes-spec` re-records the files' goldens. The net is temporary: as each scene moves onto

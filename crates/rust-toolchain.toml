@@ -1,6 +1,0 @@
-# Nightly with `rust-src`, like the rest of the tree. Targets beyond the host: the device; i686,
-# which the C++ unit tests link `deluge_test_rust` as; and armv7 Linux, the arm-linux host tree's target.
-[toolchain]
-channel = "nightly"
-components = ["rust-src", "clippy", "rustfmt"]
-targets = ["armv7a-none-eabihf", "armv7-unknown-linux-gnueabihf", "i686-unknown-linux-gnu"]

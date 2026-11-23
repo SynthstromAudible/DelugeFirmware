@@ -24,7 +24,7 @@
 //! The C++ side is `golden_vt_render`'s `audio_header_dump` scenario
 //! (`tests/integration/scenarios/audio_header_dump*.cpp`), which reads paths on stdin and prints
 //! one `AUDIO-HEADER <json>` line per file. `./dbt test` builds it as the `golden-vt-render`
-//! product; this test runs `<repo root>/build/cargo-harness/release/golden_vt_render`, or
+//! product; this test runs `<repo root>/build/cargo-harness/harness/golden_vt_render`, or
 //! `GOLDEN_VT_RENDER_BIN`.
 //!
 //! The JSON number parser does not handle `nan`/`inf`; `midi_note` is always finite, so the
@@ -293,7 +293,7 @@ fn cpp_dumper_binary() -> PathBuf {
     }
     // CARGO_MANIFEST_DIR is tests/component/differential/audio_format_corpus; the repo root is four levels up.
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let bin = "../../../../build/cargo-harness/release/golden_vt_render";
+    let bin = "../../../../build/cargo-harness/harness/golden_vt_render";
     manifest_dir
         .join(bin)
         .canonicalize()

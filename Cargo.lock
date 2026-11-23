@@ -413,6 +413,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
+name = "audio_format_corpus"
+version = "0.1.0"
+dependencies = [
+ "deluge-audio-format",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1336,6 +1343,9 @@ dependencies = [
 [[package]]
 name = "deluge_base_alloc"
 version = "0.1.0"
+dependencies = [
+ "proptest",
+]
 
 [[package]]
 name = "deluge_platform_device"
@@ -1382,7 +1392,9 @@ version = "0.1.0"
 name = "deluge_storage_resource"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
  "deluge_base_alloc",
+ "proptest",
 ]
 
 [[package]]
@@ -1396,6 +1408,7 @@ dependencies = [
 name = "deluge_storage_sample_fill"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
  "deluge_storage_sample_convert",
  "embassy-sync",
 ]
@@ -1404,6 +1417,8 @@ dependencies = [
 name = "deluge_storage_sample_reader"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
+ "deluge_base_alloc",
  "deluge_storage_resource",
  "deluge_storage_sample_fill",
 ]
@@ -1412,6 +1427,8 @@ dependencies = [
 name = "deluge_storage_sample_source"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
+ "deluge_base_alloc",
  "deluge_storage_resource",
  "deluge_storage_sample_fill",
 ]
@@ -1420,8 +1437,23 @@ dependencies = [
 name = "deluge_storage_stream"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
  "deluge_storage_sample_fill",
  "embassy-sync",
+]
+
+[[package]]
+name = "deluge_test_rust"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "deluge-audio-format",
+ "deluge_base_alloc",
+ "deluge_storage_resource",
+ "deluge_storage_sample_fill",
+ "deluge_storage_sample_reader",
+ "deluge_storage_sample_source",
+ "deluge_storage_stream",
 ]
 
 [[package]]
@@ -2013,6 +2045,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
+name = "fs-differential"
+version = "0.1.0"
+dependencies = [
+ "aligned",
+ "block-device-driver",
+ "deluge-block-device-adapters",
+ "deluge-embedded-fatfs",
+ "deluge_platform_device",
+ "embassy-futures",
+ "embedded-io-async 0.7.0",
+]
+
+[[package]]
 name = "futures"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2213,6 +2258,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2c4ee00b289aba7a9e5306d57c2d05499b2e5dc427f84ac708bd2c090212cf3e"
 dependencies = [
  "gl_generator",
+]
+
+[[package]]
+name = "golden_vt_render"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "deluge_base_alloc",
+ "deluge_platform_device",
+ "deluge_platform_host_link",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-time",
+ "embassy-time-driver",
+ "embassy-time-queue-utils",
+ "env_logger",
+ "log",
 ]
 
 [[package]]
@@ -2611,7 +2673,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "525e9ff3e1a4be2fbea1fdf0e98686a6d98b4d8f937e1bf7402245af1909e8c3"
 dependencies = [
  "byteorder-lite",
- "quick-error",
+ "quick-error 2.0.1",
 ]
 
 [[package]]
@@ -4208,6 +4270,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "proptest"
+version = "1.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b45fcc2344c680f5025fe57779faef368840d0bd1f42f216291f0dc4ace4744"
+dependencies = [
+ "bit-set",
+ "bit-vec",
+ "bitflags 2.13.2",
+ "num-traits",
+ "rand",
+ "rand_chacha",
+ "rand_xorshift",
+ "regex-syntax",
+ "rusty-fork",
+ "tempfile",
+ "unarray",
+]
+
+[[package]]
 name = "pulp"
 version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4244,6 +4325,12 @@ checksum = "7f6d64c71eb498fe9eae14ce4ec935c555749aef511cca85b5568910d6e48001"
 dependencies = [
  "bytemuck",
 ]
+
+[[package]]
+name = "quick-error"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quick-error"
@@ -4311,6 +4398,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_xorshift"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "513962919efc330f829edb2535844d1b912b0fbe2ca165d613e4e8788bb05a5a"
+dependencies = [
+ "rand_core",
+]
+
+[[package]]
 name = "range-alloc"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4366,7 +4462,7 @@ dependencies = [
  "avif-serialize",
  "imgref",
  "loop9",
- "quick-error",
+ "quick-error 2.0.1",
  "rav1e",
  "rayon",
  "rgb",
@@ -4490,6 +4586,40 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+
+[[package]]
+name = "region-fill-differential"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "critical-section",
+ "deluge_base_alloc",
+ "deluge_storage_resource",
+ "deluge_storage_sample_convert",
+ "deluge_storage_sample_fill",
+]
+
+[[package]]
+name = "region-read-differential"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "deluge_base_alloc",
+ "deluge_storage_resource",
+ "deluge_storage_sample_fill",
+ "deluge_storage_sample_reader",
+]
+
+[[package]]
+name = "region-source-differential"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "deluge_base_alloc",
+ "deluge_storage_resource",
+ "deluge_storage_sample_fill",
+ "deluge_storage_sample_source",
+]
 
 [[package]]
 name = "renderdoc-sys"
@@ -4626,6 +4756,18 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "rusty-fork"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc6bf79ff24e648f6da1f8d1f011e9cac26491b619e6b9280f2b47f1774e6ee2"
+dependencies = [
+ "fnv",
+ "quick-error 1.2.3",
+ "tempfile",
+ "wait-timeout",
+]
 
 [[package]]
 name = "rustybuzz"
@@ -5202,7 +5344,7 @@ dependencies = [
  "fax",
  "flate2",
  "half",
- "quick-error",
+ "quick-error 2.0.1",
  "weezl",
  "zune-jpeg",
 ]
@@ -5405,6 +5547,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e87a2ed6b42ec5e28cc3b94c09982969e9227600b2e3dcbc1db927a84c06bd69"
 
 [[package]]
+name = "unarray"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eaea85b334db583fe3274d12b4cd1880032beab409c0d774be044d4480ab9a94"
+
+[[package]]
 name = "unescaper"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5590,6 +5738,15 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "wait-timeout"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09ac3b126d3914f9849036f826e054cbabdc8519970b8998ddaf3b5bd3c65f11"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "walkdir"
@@ -6682,27 +6839,3 @@ dependencies = [
  "syn 3.0.6",
  "winnow",
 ]
-
-[[patch.unused]]
-name = "deluge-audio-format"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "deluge-board"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "deluge-bsp"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "deluge-simulator"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "deluge-usb-classes"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "rza1-hal"
-version = "0.2.0"

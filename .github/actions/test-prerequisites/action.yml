@@ -31,7 +31,7 @@ runs:
       uses: actions/cache@v6
       with:
         path: toolchain
-        key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/platform/device/rust-toolchain.toml') }}
+        key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'rust-toolchain.toml') }}
 
     - name: Fetch the dbt toolchain
       shell: bash
@@ -51,8 +51,8 @@ runs:
       shell: bash
       run: |
         rev=$(sed -n 's|^source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=\([0-9a-f]*\)#.*|\1|p' \
-          src/platform/device/Cargo.lock | head -1)
-        [ -n "$rev" ] || { echo "src/platform/device/Cargo.lock pins no deluge-sdk revision"; exit 1; }
+          Cargo.lock | head -1)
+        [ -n "$rev" ] || { echo "Cargo.lock pins no deluge-sdk revision"; exit 1; }
         echo "rev=$rev" >> "$GITHUB_OUTPUT"
 
     - name: Check out deluge-sdk

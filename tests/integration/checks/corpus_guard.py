@@ -28,7 +28,7 @@ def main() -> int:
     binary = (
         Path(target)
         / os.environ.get("GOLDEN_VT_RENDER_TARGET", "")
-        / "release"
+        / "harness"
         / "golden_vt_render"
     )
     if not binary.is_file():

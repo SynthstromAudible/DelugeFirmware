@@ -1461,6 +1461,7 @@ mod tests {
         // still-queued slot is re-enqueued with a different priority while it may be mid-pop.
         use core::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
+        use std::time::{Duration, Instant};
 
         // Genuine cross-thread contention on the masked helpers.
         #[derive(Clone, Copy)]
@@ -1471,6 +1472,7 @@ mod tests {
         const CHUNK_CAP: usize = 16;
         const NUM_INDICES: u32 = 4; // < CHUNK_CAP: leaves headroom, no eviction pressure
         const ITERS: u32 = 20_000;
+        const DEADLINE: Duration = Duration::from_secs(30);
 
         let mut buf = std::vec![0u128; (512 * 1024usize).div_ceil(16)];
         let heap = unsafe { deluge_heap_create(buf.as_mut_ptr() as *mut u8, buf.len() * 16) };
@@ -1489,10 +1491,14 @@ mod tests {
         unsafe { deluge_resource_set_construct(m, asset, Some(mock_construct)) };
         let handle = H(m);
         let stop = Arc::new(AtomicBool::new(false));
+        // Set by the producer's first enqueue: the consumer waits for it, so a producer the scheduler starts late
+        // still races the drain instead of finding it already finished.
+        let enqueued = Arc::new(AtomicBool::new(false));
 
         // Producer: request (leased, constructed) then enqueue. `priority` cycles on a slower
         // period than `index`, so re-enqueues change the priority.
         let stop_p = Arc::clone(&stop);
+        let enqueued_p = Arc::clone(&enqueued);
         let producer = std::thread::spawn(move || {
             // Force whole-struct capture (see concurrent_lease_churn_holds_invariants).
             let handle = handle;
@@ -1504,6 +1510,7 @@ mod tests {
                 if !p.is_null() {
                     let slot = unsafe { deluge_resource_slot_of(m, p) };
                     unsafe { deluge_resource_loader_enqueue(m, slot, priority) };
+                    enqueued_p.store(true, Ordering::Release);
                 }
                 if stop_p.load(Ordering::Relaxed) {
                     break;
@@ -1511,12 +1518,25 @@ mod tests {
             }
         });
 
-        // Consumer: pop, mark ready, then drop the requester's lease.
+        // Consumer: pop, mark ready, then drop the requester's lease. It starts polling once the producer has
+        // enqueued, and polls until it has drained some work as well as for ITERS polls; the deadline turns a
+        // producer that never enqueues into a failure with a message.
+        let enqueued_c = Arc::clone(&enqueued);
         let consumer = std::thread::spawn(move || {
             let handle = handle; // whole-struct capture, as above
             let H(m) = handle;
+            let deadline = Instant::now() + DEADLINE;
             let mut drained = 0u32;
-            for _ in 0..ITERS {
+            let mut polls = 0u32;
+            while polls < ITERS || drained == 0 {
+                if Instant::now() >= deadline {
+                    return Err((enqueued_c.load(Ordering::Acquire), polls, drained));
+                }
+                if !enqueued_c.load(Ordering::Acquire) {
+                    std::thread::yield_now();
+                    continue;
+                }
+                polls += 1;
                 let p = unsafe { deluge_resource_loader_next(m) };
                 if !p.is_null() {
                     unsafe { deluge_resource_mark_ready(m, p) };
@@ -1524,12 +1544,18 @@ mod tests {
                     drained += 1;
                 }
             }
-            drained
+            Ok(drained)
         });
 
         producer.join().unwrap();
         stop.store(true, Ordering::Relaxed);
-        let drained = consumer.join().unwrap();
+        let drained = match consumer.join().unwrap() {
+            Ok(drained) => drained,
+            Err((started, polls, drained)) => panic!(
+                "the consumer drained nothing within {DEADLINE:?} (producer enqueued: {started}, polls: {polls}, \
+                 drained: {drained})"
+            ),
+        };
 
         // Drain what the producer left queued.
         loop {

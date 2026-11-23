@@ -6,7 +6,7 @@ publish = false
 license = "GPL-3.0-or-later"
 
 # Payload-offset gate for the region cursor (`deluge_storage_sample_source::cursor::SampleSource` over
-# `ManagerResidency`). Standalone crate, not a workspace member. It drives the cursor over a real
+# `ManagerResidency`). It drives the cursor over a real
 # streamed chunk whose payload sits at a non-zero offset from its manager backing, so resolving the
 # chunk header instead of the payload is byte-detectable.
 

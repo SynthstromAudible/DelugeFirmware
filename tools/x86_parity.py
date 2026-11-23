@@ -435,14 +435,30 @@ def build_worktree(rev: str, jobs: int, store: Path) -> Path:
         env=env,
         check=True,
     )
-    golden_dir = (
-        "tests/harness/golden_vt_render"
-        if (root / "tests/harness/golden_vt_render").is_dir()
-        else "src/bsp/rust/harness/golden_vt_render"
-    )
+    # A base with the root workspace builds golden with `-p` and its harness profile from the root. An older base
+    # builds it from its own crate directory with `--release`; this checkout's Cargo.toml excludes `.superpowers`, so
+    # cargo takes that crate as its own root instead of walking up into this checkout's workspace. A --store elsewhere
+    # inside this checkout would need the same exclude.
+    if (root / "Cargo.toml").is_file():
+        cwd, argv, profile = (
+            root,
+            ["cargo", "build", "-p", "golden_vt_render", "--profile", "harness"],
+            "harness",
+        )
+    else:
+        golden_dir = (
+            "tests/harness/golden_vt_render"
+            if (root / "tests/harness/golden_vt_render").is_dir()
+            else "src/bsp/rust/harness/golden_vt_render"
+        )
+        cwd, argv, profile = (
+            root / golden_dir,
+            ["cargo", "build", "--release"],
+            "release",
+        )
     subprocess.run(
-        ["cargo", "build", "--release", "--locked"],
-        cwd=root / golden_dir,
+        [*argv, "--locked"],
+        cwd=cwd,
         env=dict(
             env,
             DELUGE_HOSTAPP_BUILD_DIR=str(tree),
@@ -461,9 +477,7 @@ def build_worktree(rev: str, jobs: int, store: Path) -> Path:
         subprocess.run(["git", "-C", str(root), "checkout", "--", *locks], check=True)
     dest = store / "x86-bin" / sha[:12] / "golden_vt_render"
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(
-        root / "build" / "cargo-harness" / "release" / "golden_vt_render", dest
-    )
+    shutil.copy2(root / "build" / "cargo-harness" / profile / "golden_vt_render", dest)
     return dest
 
 

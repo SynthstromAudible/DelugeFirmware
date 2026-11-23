@@ -65,11 +65,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUST_DIR="$REPO_ROOT/src/platform/device"
-# Honour CARGO_TARGET_DIR rather than assuming the crate-local `target/`. `dbt test`
+# Honour CARGO_TARGET_DIR rather than assuming the workspace's `target/`. `dbt test`
 # sets it (task-harness.py points every harness at one shared `target/harness` root), so a
 # hard-coded path looks in the wrong place: the run dies with "missing … — build failed?"
 # immediately after cargo reports success.
-TARGET_ROOT="${CARGO_TARGET_DIR:-$RUST_DIR/target}"
+TARGET_ROOT="${CARGO_TARGET_DIR:-$REPO_ROOT/target}"
 TSAN_BUILD_DIR="${TSAN_BUILD_DIR:-$REPO_ROOT/build-embassy-hostapp-tsan}"
 
 normalize() {
@@ -258,7 +258,7 @@ if [[ -z "${SKIP_BUILD:-}" ]]; then
     rm -rf "$TARGET_ROOT/x86_64-unknown-linux-gnu-tsan"
     DELUGE_HOSTAPP_BUILD_DIR="$TSAN_BUILD_DIR" \
     RUSTFLAGS="-Zsanitizer=thread" TSAN_OPTIONS="halt_on_error=0" \
-    cargo +nightly build --features host_app \
+    cargo +nightly build -p deluge_platform_device --features host_app \
         -Zbuild-std=core,alloc,std,panic_abort \
         -Zjson-target-spec \
         --target "$SCRIPT_DIR/sanitizer/x86_64-unknown-linux-gnu-tsan.json"
