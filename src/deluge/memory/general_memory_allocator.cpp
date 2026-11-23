@@ -47,9 +47,9 @@ namespace {
 }
 } // namespace
 
-bool GeneralMemoryAllocator::ensureClusterSystem() {
+void GeneralMemoryAllocator::initClusterSystem() {
 	if (clusterSlab_ != nullptr) {
-		return true;
+		return;
 	}
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 	// Sim/golden only: a deliberate, leaked SDRAM pad to perturb allocation *layout*. Allocated here —
@@ -66,11 +66,11 @@ bool GeneralMemoryAllocator::ensureClusterSystem() {
 		}
 	}
 #endif
-	// Lazily create on the first cluster / asset use, when Cluster::size has been finalized to the
-	// session maximum (AudioFileManager reads the card before any cluster is made, and the firmware
-	// never raises cluster size after boot — see cardReinserted). setCardRead() commits the size
-	// before we size the slab. Uniform slots of that size accommodate every cluster for the session;
-	// a smaller reinserted card simply under-fills its slots.
+	// Boot calls this right after AudioFileManager::init() has set Cluster::size to the session
+	// maximum (the card's cluster size, or the FAT16 maximum with no card; the firmware never raises
+	// cluster size after boot — see cardReinserted). setCardRead() commits that size before we size
+	// the slab, so a card mounted later can't raise it past the slot. Uniform slots of that size
+	// accommodate every cluster for the session; a smaller reinserted card simply under-fills its slots.
 	audioFileManager.setCardRead();
 	// Slot geometry (cluster.h): [chunk header][front guard][Cluster::size payload][trailing guard].
 	// The uniform slab slot must fit BOTH chunk roles: the C++ ComputedChunk (its payload sits at
@@ -83,7 +83,7 @@ bool GeneralMemoryAllocator::ensureClusterSystem() {
 	size_t slabCapacity = (deluge::memory::sdram_size() / slot) + 1; // table never the limiter
 	clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, slabCapacity);
 	if (clusterSlab_ == nullptr) {
-		return false;
+		return;
 	}
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 	// Sim/golden only: zero each cluster slot on acquire so a read-before-write of slot
@@ -104,12 +104,6 @@ bool GeneralMemoryAllocator::ensureClusterSystem() {
 	if (resourceManager_ != nullptr) {
 		deluge_resource_set_slab(resourceManager_, clusterSlab_);
 	}
-	return true;
-}
-
-DelugeResource* GeneralMemoryAllocator::resourceManager() {
-	ensureClusterSystem(); // creates the slab + manager if needed; leaves resourceManager_ set (or null on OOM)
-	return resourceManager_;
 }
 
 void GeneralMemoryAllocator::freeSdram(void* address) {
@@ -125,9 +119,9 @@ void GeneralMemoryAllocator::freeSdram(void* address) {
 GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
 	// Heaps (fast SRAM, unified SDRAM, small-internal frunk) are owned by deluge::memory and built
 	// from the BSP region descriptors + linker symbols. The GMA no longer registers a reclaim hook:
-	// the resource manager is the SDRAM heap's sole reclaim coordinator and registers itself when it
-	// is created (lazily, on first cluster / asset use — see ensureClusterSystem). Nothing evictable
-	// exists before then, so the heap needs no hook in the interim.
+	// the resource manager is the SDRAM heap's sole reclaim coordinator and registers itself when
+	// boot creates it (initClusterSystem). Nothing evictable exists before then, so the heap needs no
+	// hook in the interim.
 	deluge::memory::init_heaps();
 }
 #if TEST_GENERAL_MEMORY_ALLOCATION

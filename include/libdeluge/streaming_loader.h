@@ -63,7 +63,8 @@ bool deluge_streaming_queue_drained(void) DELUGE_NOEXCEPT;
 
 /// @brief The resource-manager instance the streaming loader queue lives on. [task] [audio]
 /// @return The single DelugeResource instance — the same one returned by
-///         GeneralMemoryAllocator's resourceManager() — or null when it could not be created.
+///         GeneralMemoryAllocator's resourceManager() — or null before boot creates it or when it could
+///         not be created.
 DelugeResource* deluge_streaming_resource_manager(void) DELUGE_NOEXCEPT;
 
 /// @brief The resource-manager Asset id backing @p stream_backing, defining it first if needed. [task] [audio]

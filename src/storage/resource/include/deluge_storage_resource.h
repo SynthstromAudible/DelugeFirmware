@@ -99,13 +99,13 @@ typedef void (*DelugeResourceAdoptEvictFn)(void* ctx, void* ptr);
 /// Build a manager over `heap` with fixed-capacity asset/chunk tables (allocated
 /// once from the heap) and register it as the heap's reclaim hook. `chunk_capacity`
 /// must exceed the most chunks that can be resident at once (so the table is never
-/// the limiter). Returns NULL on OOM. [task] [audio]
+/// the limiter). Returns NULL on OOM. [task]
 DelugeResource* deluge_resource_create(DelugeHeap* heap, size_t asset_capacity, size_t chunk_capacity) DELUGE_NOEXCEPT;
 
 /// Configure the slab that backs `BACKING_SLAB` assets (uniform clusters). Until
 /// set, every asset uses the heap. Create it with `deluge_slab_create_unmanaged`
 /// (deluge_base_alloc.h) over the same heap, so eviction stays with this manager (the slab
-/// self-evicts nothing — the manager's reclaim hook releases its slots). [task] [audio]
+/// self-evicts nothing — the manager's reclaim hook releases its slots). [task]
 void deluge_resource_set_slab(DelugeResource* mgr, DelugeSlab* slab) DELUGE_NOEXCEPT;
 
 /// Define an asset: an opaque `owner` token + its reconstruction `Source`
