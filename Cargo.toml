@@ -41,11 +41,12 @@ members = [
     "tests/harness/golden_vt_render",
     "tests/component/differential/*",
 ]
-# The fuzz crate is a cargo-fuzz package with its own profile; deluge-upgrade is a desktop tool with its own workspace.
-# A package below an excluded directory is its own root, not a stray member of this workspace:
-# - `toolchain` holds dbt's CARGO_HOME, whose git checkouts (deluge-sdk's) resolve their own `workspace = true`
-#   fields;
-# - `.superpowers` holds tools/x86_parity.py's base-revision worktrees, whose older layouts have their own Cargo roots.
+# Excluded, so a package there is its own root rather than a stray member of this workspace:
+# - `src/base/alloc/fuzz`, the allocator's cargo-fuzz package, which also declares its own `[workspace]`: it sits under
+#   a member (`src/base/alloc`), and cargo counts a path under a member as one whatever `exclude` says;
+# - `tools/deluge-upgrade`, a desktop tool with its own workspace;
+# - `toolchain`, dbt's CARGO_HOME, whose git checkouts (deluge-sdk's) resolve their own `workspace = true` fields;
+# - `.superpowers`, tools/x86_parity.py's base-revision worktrees, whose older layouts have their own Cargo roots.
 exclude = ["src/base/alloc/fuzz", "tools/deluge-upgrade", "toolchain", ".superpowers"]
 
 # The embassy fork that ports the InterruptExecutor to platform-cortex-ar (GIC SGI pender). Same
@@ -92,6 +93,35 @@ opt-level = "s"
 opt-level = 1
 debug = true
 panic = "abort"
+
+# The libraries, sample-convert and the differentials test at cargo's default opt-level 0, and their build scripts'
+# C++ reference slices follow it (`cc` reads OPT_LEVEL). The device crate keeps the image's 1.
+[profile.dev.package.deluge_base_alloc]
+opt-level = 0
+[profile.dev.package.deluge_storage_resource]
+opt-level = 0
+[profile.dev.package.deluge_storage_stream]
+opt-level = 0
+[profile.dev.package.deluge_storage_sample_fill]
+opt-level = 0
+[profile.dev.package.deluge_storage_sample_reader]
+opt-level = 0
+[profile.dev.package.deluge_storage_sample_source]
+opt-level = 0
+[profile.dev.package.deluge_test_rust]
+opt-level = 0
+[profile.dev.package.deluge_storage_sample_convert]
+opt-level = 0
+[profile.dev.package.audio_format_corpus]
+opt-level = 0
+[profile.dev.package.fs-differential]
+opt-level = 0
+[profile.dev.package.region-fill-differential]
+opt-level = 0
+[profile.dev.package.region-read-differential]
+opt-level = 0
+[profile.dev.package.region-source-differential]
+opt-level = 0
 
 # golden_vt_render (`--profile harness`): Cargo's default release profile, unwinding. A custom profile inherits the
 # release profile's per-package overrides, so each is set back to 3 here.
