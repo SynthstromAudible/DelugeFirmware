@@ -21,7 +21,7 @@
 /// residency, for non-voice consumers that read raw-PCM frame RANGES (pitch detect, waveform
 /// overview, crossfade averages, perc-cache, wavetable build, hop search) without reaching
 /// `StreamedChunk` internals directly. This is the non-voice twin of the voice region port
-/// (`sample_source.h`'s `DelugeSampleSource`/`DelugeSampleRegion`): where that port hands the
+/// (`deluge_storage_sample_source.h`'s `DelugeSampleSource`/`DelugeSampleRegion`): where that port hands the
 /// voice a cluster-indexed region to read itself, this one hides clusters/leases/convert/boundaries
 /// entirely behind a plain frame-cursor, since non-voice callers have no reason to know a cluster
 /// boundary exists.
@@ -53,7 +53,7 @@ typedef struct DelugeSampleReader DelugeSampleReader;
 ///
 /// Fixed underlying type (`: uint8_t`, C23 + C++11): this enum crosses the FFI BY VALUE (`open`'s
 /// parameter), so its width must be pinned explicitly rather than left to the C++ build's default
-/// `int` enum width — mirrors `DelugeRegionState` in `sample_source.h` (see that enum's doc for the
+/// `int` enum width — mirrors `DelugeRegionState` in `deluge_storage_sample_source.h` (see that enum's doc for the
 /// fuller rationale, including why every OTHER libdeluge enum stays unfixed).
 typedef enum DelugeReadHint : uint8_t {
 	/// Share the source residency cache: warm clusters the voice already holds are free hits, and
