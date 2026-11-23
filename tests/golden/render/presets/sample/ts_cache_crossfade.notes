@@ -1,0 +1,5 @@
+# Stretched C5 (+12), struck again 2,048 frames in while the first strike's sample cache is part-written: the
+# second strike reads the cache, and as it nears the cache's written end it crossfades out into a fresh stretcher.
+4608 90 48 64
+6656 90 48 64
+80000 80 48 40

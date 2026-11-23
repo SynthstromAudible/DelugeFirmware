@@ -1,0 +1,4 @@
+# Stretched, looping, held C5 (+12). Off the root the voice writes a sample cache as it stretches, and at the first
+# loop end switches to reading it: the stretcher stops, and the cache carries the rest of the hold.
+4608 90 48 64
+80000 80 48 40

@@ -86,6 +86,10 @@ builds only `golden-vt-render`.
 | render-audio-track-filters | integration | scenario | property | gate | an audio track's filter chain renders as recorded | pr | render | ~20s |
 | render-master-filters | integration | scenario | property | gate | the song master's filter chain renders as recorded | pr | render | ~20s |
 | render-audio-cents | integration | scenario | property | gate | an audio clip's fine tune renders as recorded, and differs from the clip untuned | pr | render | ~20s |
+| render-audio-stretch | integration | scenario | property | gate | audio clips stretched to the song's tempo render as recorded, and differ from the same clips resampled | pr | render | ~20s |
+| render-audio-stretch-native | integration | scenario | property | gate | audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops | pr | render | ~20s |
+| render-audio-stretch-arranged | integration | scenario | property | gate | stretched audio clips render as recorded from arrangement instances that end without looping | pr | render | ~20s |
+| render-audio-stretch-edges | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded | pr | render | ~8s |
 | render-audio-track-fx | integration | scenario | property | gate | an audio track's effect chain renders as recorded | pr | render | ~20s |
 | render-master-fx | integration | scenario | property | gate | the song master's effect chain renders as recorded | pr | render | ~20s |
 | render-master-pan-stereo | integration | scenario | property | gate | the song master's pan renders as recorded in stereo, where it applies | pr | render | ~20s |
@@ -142,6 +146,8 @@ builds only `golden-vt-render`.
 | golden-synth | integration | scenario | differential | gate | every synth golden master must render as recorded | pr | render | ~20s |
 | param-dump | integration | scenario | regression | gate | the audible window's parameter dump | nightly | render | ~5s |
 | golden-synth-arm | integration | scenario | differential | gate | the synth golden masters on 32-bit ARM | nightly | unit | ~1m |
+| render-audio-stretch-arm | integration | scenario | property | gate | audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86 | nightly | unit | ~20s |
+| render-audio-stretch-edges-arm | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths render on 32-bit ARM as recorded on x86 | nightly | unit | ~20s |
 | streaming-margin | integration | scenario | property | gate | sample playback must keep up when storage is as slow as the device's | nightly | render | ~30s |
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
@@ -193,8 +199,9 @@ builds only `golden-vt-render`.
 | fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
 | spec-comparisons | unit | script | unit | gate | no C++ spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy(), so every failed comparison prints its values | pr | tooling | ~2s |
 | layers-selftest | unit | script | unit | gate | the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth | pr | tooling | ~1s |
-| registry-selftest | unit | script | unit | gate | this registry's loader, selection and probes, the SDRAM packer, four source checkers, the Cargo members, the crate-header lists, and temp-dir removal | pr | tooling | ~1s |
+| registry-selftest | unit | script | unit | gate | this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams | pr | tooling | ~1s |
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
+| make-sample-selftest | unit | script | unit | gate | the sample golden cases' synthetic sources are what their cases assume, and the committed WAVs are their generator's output | pr | tooling | ~1s |
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
 | relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | pr | tooling | ~1s |
@@ -274,6 +281,15 @@ profile (`build/cargo-harness/harness/golden_vt_render`); the C++ unit-test tree
 Running `cargo` by hand without the runner's target directory creates a local `target/`, and duplicate build trees add
 up to tens of gigabytes. Prefer `./dbt test <name>`;
 `./dbt test --clean` drops every tree the runner builds.
+
+`scripts/tasks/stretcher_coverage.sh [out-dir]` is the one build outside the runner: it compiles the host app with
+clang source coverage into its own trees under `out-dir` (default `build/stretcher-coverage`), links its own
+`golden_vt_render`, runs golden-synth and every render-song gate compared with songs.json on it through their own
+checks, and reports the line and branch coverage of the time stretcher and of its users' functions that call into it
+(`scripts/tasks/stretcher_coverage.py`'s `SCOPE`). Only renders compared with a record count. Run it again after a
+change to the stretcher or its callers, to see which branches the goldens still pin; `llvm-profdata` and `llvm-cov`
+must be the version of the `clang` on the path. Its trees are its own: `./dbt test --clean` does not remove
+`build/stretcher-coverage` (or another `out-dir`); delete it by hand.
 
 ## Adding a test
 

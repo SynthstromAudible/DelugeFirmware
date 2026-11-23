@@ -31,8 +31,9 @@
 ///     does through them (voices with a stereo source render and filter both channels, ping-pong delay alternates).
 ///     Mono otherwise, as through the device's speaker.
 ///   - `RENDER_PCM_OUT`: where the harness writes the captured output (see `audio/host.rs`).
-///   - `RENDER_ZONE_END`: `<block> <frame>` moves osc 1's first zone's end to `<frame>` once `<block>` captured blocks
-///     have rendered, as the sample marker editor does mid-note. Unmoved otherwise.
+///   - `RENDER_ZONE_MOVE`: `<block> <marker> <frame>` moves one marker of osc 1's first zone -- `start`, `loop_start`,
+///     `loop_end` or `end` -- to `<frame>` once `<block>` captured blocks have rendered, as the sample marker editor
+///     does mid-note. Unmoved otherwise.
 ///   - `RENDER_SETTING`: `<block> <path> <value>` changes the synth's setting at `<path>` (a settings-schema path, e.g.
 ///     `osc1/type`) to `<value>` once `<block>` captured blocks have rendered, as its sound editor menu does.
 ///
@@ -48,7 +49,8 @@
 ///   - `RP-TIER-SYNC-AUDIO total=<n>`: synchronous card calls the render made; the audio tier must make none.
 ///   - `RP-CAPTURE frames=<n> input=<0|1> stereo=<0|1>`: frames captured, whether the test input signal was fed, and
 ///     whether headphones were plugged in. A failure if the app rendered any captured block in the other width.
-///   - `RP-ZONE block=<n> end=<frame>`: the zone's end moved (`RENDER_ZONE_END` only).
+///   - `RP-ZONE block=<n> marker=<m> frame=<frame>`: the zone's marker moved (`RENDER_ZONE_MOVE` only); a failure if
+///     the marker is not one of the four.
 ///   - `RP-SETTING block=<n> path=<p> value=<v>`: the setting changed (`RENDER_SETTING` only); a failure if refused.
 ///   - `RP-RESULT failures=<n>`.
 
@@ -78,6 +80,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <string_view>
 
 // The app's printf.h aliases printf to an implementation that writes through putchar_, which the Rust BSP builds do not
 // define; this harness links the Rust BSP, so the alias would leave every line below an undefined symbol.
@@ -137,9 +140,11 @@ int32_t g_voicesMax = 0;
 /// Captured ticks whose output was not in the channel count the case asked for.
 int32_t g_wrongWidthTicks = 0;
 uint64_t g_captured = 0;
-/// The captured block at which osc 1's first zone takes a new end, as the sample marker editor sets it; 0 for none.
+/// The captured block at which one of osc 1's first zone's markers moves, as the sample marker editor moves it; 0 for
+/// none. The marker and the frame it moves to.
 uint64_t g_zoneMoveBlock = 0;
-uint32_t g_zoneMoveEnd = 0;
+MarkerType g_zoneMoveMarker = MarkerType::END;
+uint32_t g_zoneMoveFrame = 0;
 bool g_zoneMoved = false;
 /// The captured block at which a setting changes, as its menu changes it; 0 for none.
 uint64_t g_settingBlock = 0;
@@ -200,13 +205,57 @@ void stepStart() {
 	g_stage = Stage::Capturing;
 }
 
-/// Moves osc 1's first zone's end mid-note, as the sample marker editor does: the new ranges as one edit, then the
-/// sound's voices told which marker moved.
-void moveZoneEnd() {
+/// The marker a `RENDER_ZONE_MOVE` names, or NONE for a name that is not one.
+MarkerType markerNamed(std::string_view name) {
+	if (name == "start") {
+		return MarkerType::START;
+	}
+	if (name == "loop_start") {
+		return MarkerType::LOOP_START;
+	}
+	if (name == "loop_end") {
+		return MarkerType::LOOP_END;
+	}
+	if (name == "end") {
+		return MarkerType::END;
+	}
+	return MarkerType::NONE;
+}
+
+const char* markerName(MarkerType marker) {
+	switch (marker) {
+	case MarkerType::START:
+		return "start";
+	case MarkerType::LOOP_START:
+		return "loop_start";
+	case MarkerType::LOOP_END:
+		return "loop_end";
+	default:
+		return "end";
+	}
+}
+
+/// Moves one marker of osc 1's first zone mid-note, as the sample marker editor does: the new ranges as one edit, then
+/// the sound's voices told which marker moved.
+void moveZoneMarker() {
 	Clip* clip = currentSong->live.clips.session_clips[0];
 	auto& sound = *static_cast<SoundInstrument*>(clip->output);
 	std::vector<deluge::synth::SourceRange> ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
-	ranges[0].zone.end = g_zoneMoveEnd;
+	deluge::synth::SampleZone& zone = ranges[0].zone;
+	switch (g_zoneMoveMarker) {
+	case MarkerType::START:
+		zone.start = g_zoneMoveFrame;
+		break;
+	case MarkerType::LOOP_START:
+		zone.loop_start = g_zoneMoveFrame;
+		break;
+	case MarkerType::LOOP_END:
+		zone.loop_end = g_zoneMoveFrame;
+		break;
+	default:
+		zone.end = g_zoneMoveFrame;
+		break;
+	}
 	deluge::edits::rangesFor(sound, 0, std::move(ranges));
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)
@@ -214,8 +263,9 @@ void moveZoneEnd() {
 	                                           ->addModControllableButNoNoteRow(&sound)
 	                                           ->addParamManager(&clip->paramManager)
 	                                           ->addSoundFlags();
-	sound.sampleZoneChanged(MarkerType::END, 0, modelStack);
-	printf("RP-ZONE block=%llu end=%u\n", static_cast<unsigned long long>(g_blocksRendered), g_zoneMoveEnd);
+	sound.sampleZoneChanged(g_zoneMoveMarker, 0, modelStack);
+	printf("RP-ZONE block=%llu marker=%s frame=%u\n", static_cast<unsigned long long>(g_blocksRendered),
+	       markerName(g_zoneMoveMarker), g_zoneMoveFrame);
 }
 
 /// Changes the synth's setting at g_settingPath mid-render, as its sound editor menu does (side effects included).
@@ -244,7 +294,7 @@ void stepCapturing() {
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
 	if (g_zoneMoveBlock != 0 && !g_zoneMoved && g_blocksRendered >= g_zoneMoveBlock) {
 		g_zoneMoved = true;
-		moveZoneEnd();
+		moveZoneMarker();
 	}
 	if (g_settingBlock != 0 && !g_settingApplied && g_blocksRendered >= g_settingBlock) {
 		g_settingApplied = true;
@@ -341,12 +391,20 @@ void deluge_scenario_render_preset_begin(void) {
 	const char* midi = std::getenv("RENDER_MIDI");
 	g_midiPath = midi != nullptr ? midi : "";
 	g_zoneMoved = false;
-	const char* zone = std::getenv("RENDER_ZONE_END");
 	g_zoneMoveBlock = 0;
-	if (zone != nullptr) {
-		char* rest = nullptr;
-		g_zoneMoveBlock = std::strtoull(zone, &rest, 10);
-		g_zoneMoveEnd = static_cast<uint32_t>(std::strtoul(rest, nullptr, 10));
+	g_zoneMoveMarker = MarkerType::END;
+	if (const char* move = std::getenv("RENDER_ZONE_MOVE"); move != nullptr) {
+		char marker[16] = {};
+		unsigned long long block = 0;
+		unsigned frame = 0;
+		if (std::sscanf(move, "%llu %15s %u", &block, marker, &frame) != 3 || markerNamed(marker) == MarkerType::NONE) {
+			g_report.fail("ZONE RENDER_ZONE_MOVE names no marker of the four");
+		}
+		else {
+			g_zoneMoveBlock = block;
+			g_zoneMoveMarker = markerNamed(marker);
+			g_zoneMoveFrame = frame;
+		}
 	}
 	g_settingApplied = false;
 	g_settingBlock = 0;

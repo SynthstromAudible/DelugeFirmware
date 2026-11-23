@@ -764,7 +764,7 @@ case(
     **LOOPING_SAMPLE,
     cables=BASE_CABLES + [("aftertouch", "pitch", "0x08000000")],
 )
-# A sample's zone end moved mid-note (RENDER_ZONE_END, in render_preset.py): a looping sample loops at the new end; a
+# A sample's zone end moved mid-note (ZONE_MOVE, in render_preset.py): a looping sample loops at the new end; a
 # play-once sample already past it stops, while osc 2 keeps the voice sounding.
 case("voice/zone_end_loop", **LOOPING_SAMPLE)
 case(

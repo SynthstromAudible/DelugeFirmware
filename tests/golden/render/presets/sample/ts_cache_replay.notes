@@ -1,0 +1,6 @@
+# Stretched, play-once C5 (+12), struck twice: the first strike plays the whole source and writes its sample cache to
+# the end, and the second, long after, reads that cache through to the waveform's end, where it stops.
+4608 90 48 64
+6144 80 48 40
+40000 90 48 64
+80000 80 48 40

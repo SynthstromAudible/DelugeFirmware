@@ -9,8 +9,8 @@ captured from the audio tier. This module stages each case, runs them in paralle
                 record a hash like any other (a preset that failed to load is the scenario's RP-LOADED failure);
     RP-PCM      the output against its record in tests/golden/render/presets.json: sha256, frames, peak and
                 RMS level, the record render-song keeps.
-    RP-ZONE     a case in ZONE_END moved its sample zone's end mid-note (RENDER_ZONE_END, as the sample marker editor
-                moves it).
+    RP-ZONE     a case in ZONE_MOVE moved a marker of its sample zone mid-note (RENDER_ZONE_MOVE, as the sample marker
+                editor moves it).
     RP-SETTING  a case in SETTING changed a setting mid-render (RENDER_SETTING, as its menu changes it).
 And once per run:
     RP-LEARN    a preset's own MIDI learn reaches it: the blank boot song must keep the input a preset was saved with
@@ -30,12 +30,13 @@ RENDER_PARAM_DUMP_DIR=<dir> dumps each case's matrix passes and voice sources th
 (src/deluge/processing/sound/param_dump.h; read by tools/audible_window/dump.py).
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
 much a case depends on its random draws (audio/host.rs).
-`./dbt test --update golden-synth` records the cases run instead of comparing them (RENDER_PRESET_FILTER narrows it;
+`./dbt test --update golden-synth` records the cases run instead of comparing them, and drops the record of any case no
+longer in the corpus (RENDER_PRESET_FILTER narrows it, and then keeps every record it did not render;
 RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed corpus's); a changed hash is a
 finding to explain in the commit that records the new one.
 
 Gate golden-synth:
-    every synth golden master must render as recorded: each of the 431 presets (tests/golden/render/presets:
+    every synth golden master must render as recorded: each of the 479 presets (tests/golden/render/presets:
     synthesized cases for each oscillator, filter, envelope and modulation path, the voice's own note-change, release,
     sample-cache and zone-change paths, the factory and community preset packs, sample and wavetable playback, and live
     input, pitch-shifted up and down, in stereo, with unison and linear interpolation, through unity, in a chord, and on
@@ -71,7 +72,7 @@ RECORDS = Path("tests/golden/render/presets.json")
 FRAMES_PER_SECOND = 44100
 DEFAULT_SECONDS = 2.0
 # Per-case capture lengths, for the cases whose sound outlasts the default.
-SECONDS = {"env_shape": 3.0}
+SECONDS = {"env_shape": 3.0, "sample/ts_long_hold": 4.0}
 # Cases whose sources read the audio input, and the harness test signal each is fed instead of silence: 1 the
 # sawtooth, 2 the percussive signal (noise bursts over a stepped-period saw).
 INPUT = {
@@ -94,12 +95,34 @@ INPUT = {
 # Cases under this directory render with headphones plugged in, so the app renders in stereo; every other case renders
 # in mono, as through the device's speaker.
 STEREO_DIR = "stereo/"
-# Cases whose osc 1 zone end moves mid-note, as the sample marker editor moves it: "<captured block> <new end frame>".
-ZONE_END = {"voice/zone_end_loop": "60 2048", "voice/zone_end_once": "50 1024"}
+# Cases whose osc 1 zone has a marker moved mid-note, as the sample marker editor moves it:
+# "<captured block> <start|loop_start|loop_end|end> <new frame>".
+ZONE_MOVE = {
+    "voice/zone_end_loop": "60 end 2048",
+    "voice/zone_end_once": "50 end 1024",
+    "sample/ts_zone_end_loop": "60 end 1024",
+    "sample/ts_zone_end_once": "60 end 1024",
+    "sample/ts_zone_end_ahead": "60 end 3072",
+    "sample/ts_zone_end_cached": "100 end 1024",
+    "sample/ts_zone_end_released": "60 end 1024",
+    "sample/ts_zone_end_cached_ahead": "100 end 4095",
+    "sample/ts_zone_end_cached_once": "60 end 1024",
+    "sample/ts_marker_start_cached": "100 start 512",
+    "sample/ts_marker_start": "60 start 512",
+    "sample/ts_marker_loop_start": "60 loop_start 1024",
+    "sample/ts_marker_loop_end_cached": "100 loop_end 1024",
+    "sample/ts_marker_loop_end": "60 loop_end 1024",
+    "sample/ts_marker_loop_end_plain": "60 loop_end 1024",
+    "sample/ts_marker_loop_end_ahead": "60 loop_end 3072",
+    "sample/ts_marker_loop_end_cached_ahead": "100 loop_end 4095",
+    "sample/ts_marker_loop_end_released": "60 loop_end 1024",
+}
 # Cases that change a setting mid-render, as its menu does: "<captured block> <settings path> <value>".
 SETTING = {
     "voice/type_change_mono_saw_square": "150 osc1/type square",
     "voice/type_change_mono_saw_supersaw": "150 osc1/type supersaw",
+    "sample/ts_cache_linear": "150 osc1/linearInterpolation 1",
+    "sample/ts_cache_stretch_amount": "150 osc1/timeStretchAmount 3",
 }
 # The loudest sample of silence: 16 in 16-bit terms, the C-host harness's threshold. The render's dither floor sits
 # far below it.
@@ -191,11 +214,33 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
         env["RENDER_INPUT"] = str(INPUT[name])
     if name.startswith(STEREO_DIR):
         env["RENDER_STEREO"] = "1"
-    if name in ZONE_END:
-        env["RENDER_ZONE_END"] = ZONE_END[name]
+    if name in ZONE_MOVE:
+        env["RENDER_ZONE_MOVE"] = ZONE_MOVE[name]
     if name in SETTING:
         env["RENDER_SETTING"] = SETTING[name]
     return env
+
+
+def records_to_write(
+    update: bool,
+    needles: list[str],
+    old: dict,
+    rendered: dict,
+    corpus_cases: list[str],
+) -> dict | None:
+    """What an update writes to the records file, or None when the run only compares.
+
+    The cases rendered take their new records. A filtered update (`needles`) keeps every other record as it was; a
+    whole-corpus update keeps only the records of `corpus_cases`, so a deleted case's record goes with it.
+    """
+    if not update:
+        return None
+    if needles:
+        kept = dict(old)
+    else:
+        kept = {name: record for name, record in old.items() if name in corpus_cases}
+    kept.update(rendered)
+    return kept
 
 
 def _wanted_frames(name: str) -> int:
@@ -268,6 +313,7 @@ def run(gate):
         runs = list(pool.map(render, enumerate(selected)))
 
     records = json.loads(records_path.read_text()) if records_path.exists() else {}
+    rendered = {}
     failed = 0
     for name, where, result in runs:
         before = len(gate.failures)
@@ -284,8 +330,8 @@ def run(gate):
             )
             failed += 1
             continue
-        if name in ZONE_END and result.last("RP-ZONE ") is None:
-            gate.fail(f"RP-ZONE {name}: the zone end never moved")
+        if name in ZONE_MOVE and result.last("RP-ZONE ") is None:
+            gate.fail(f"RP-ZONE {name}: the zone's marker never moved")
             failed += 1
             continue
         if name in SETTING and result.last("RP-SETTING ") is None:
@@ -301,7 +347,7 @@ def run(gate):
         if record["peak"] < SILENCE_PEAK:
             gate.fail(f"RP-SILENT {name}: the render is silent (peak {record['peak']})")
         elif update:
-            records[name] = record
+            rendered[name] = record
         elif name not in records:
             gate.fail(
                 f"RP-PCM {name}: no record; ./dbt test --update golden-synth records one"
@@ -315,8 +361,9 @@ def run(gate):
 
     _check_learn(gate, corpus, pcm_record)
 
-    if update and not gate.failures:
+    written = records_to_write(update, needles, records, rendered, selected)
+    if written is not None and not gate.failures:
         golden_update.write_json(
-            records_path, records, str(RECORDS), indent=1, env=gate.env
+            records_path, written, str(RECORDS), indent=1, env=gate.env
         )
     gate.say(f"RP-CASES run={len(selected)} passed={len(selected) - failed}")

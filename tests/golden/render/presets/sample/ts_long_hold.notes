@@ -1,0 +1,4 @@
+# Stretched, looping, held at the C4 root at half speed (timeStretchAmount -12) for nearly 4 s. At the root the
+# voice sets up no sample cache, so the stretcher renders the whole hold, hopping and re-initialising at every loop.
+4608 90 3C 64
+172000 80 3C 40

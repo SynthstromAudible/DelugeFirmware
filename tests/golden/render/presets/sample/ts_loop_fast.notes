@@ -1,0 +1,6 @@
+# Stretched, looping, held at the C4 root and sped up an octave (timeStretchAmount 12). Each hop lands its new
+# play-head half a beam ahead of the stretch position, so near the source's end it can land past the waveform and
+# that play-head goes silent; the loop end then re-initialises the stretcher with only the older play-head sounding,
+# and the hop it forces starts from silence.
+4608 90 3C 64
+80000 80 3C 40

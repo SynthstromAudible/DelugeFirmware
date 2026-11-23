@@ -83,6 +83,30 @@
   "rms_db": -22.75,
   "sha256": "15509971ae678972d332e758dab40de8eb967f7baff2f0d18d2cedcb3a3a325f"
  },
+ "RS_AUDIO_STRETCH": {
+  "frames": 384000,
+  "peak": 562727424,
+  "rms_db": -24.61,
+  "sha256": "7df655a29b3e66cac32f7fafdcd616af90f5337c06c205cb0cf1f564f512f55e"
+ },
+ "RS_AUDIO_STRETCH_ARRANGED": {
+  "frames": 384000,
+  "peak": 262900480,
+  "rms_db": -30.72,
+  "sha256": "4cd4ec9aa0d184c44f913063392badda8ef6b9bc3c5a160cecd5ce236a6e2138"
+ },
+ "RS_AUDIO_STRETCH_EDGES": {
+  "frames": 384000,
+  "peak": 1456987392,
+  "rms_db": -15.38,
+  "sha256": "8e9b7b91d1204004b08d25dc9307eb75bfe18f18cce959fbbbcd4899964234f9"
+ },
+ "RS_AUDIO_STRETCH_NATIVE": {
+  "frames": 384000,
+  "peak": 218768384,
+  "rms_db": -30.22,
+  "sha256": "6999321f6b2e0bdf12ba752b9bc6135dc378a8838a20c5661bbe111f71b5f000"
+ },
  "RS_BITCRUSH": {
   "frames": 384000,
   "peak": 313873408,

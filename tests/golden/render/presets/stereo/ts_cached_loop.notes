@@ -1,0 +1,4 @@
+# sample/ts_cached_loop rendered in stereo: the voice writes its stretched sample cache, and reads it from the first
+# loop end, with both channels going to the output.
+4608 90 48 64
+80000 80 48 40

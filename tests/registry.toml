@@ -899,6 +899,32 @@ gates = "an audio clip's fine tune renders as recorded, and differs from the cli
 env = { RENDER_GENERATED = "RS_AUDIO_CENTS" }
 
 [[harness]]
+name = "render-audio-stretch"
+template = "render-song"
+gates = "audio clips stretched to the song's tempo render as recorded, and differ from the same clips resampled"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH" }
+
+[[harness]]
+name = "render-audio-stretch-native"
+template = "render-song"
+gates = "audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_NATIVE" }
+
+[[harness]]
+name = "render-audio-stretch-arranged"
+template = "render-song"
+gates = "stretched audio clips render as recorded from arrangement instances that end without looping"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_ARRANGED" }
+
+[[harness]]
+name = "render-audio-stretch-edges"
+template = "render-song"
+gates = "audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_EDGES" }
+runtime_s = 8
+override = ["runtime_s"]
+
+[[harness]]
 name = "render-audio-track-fx"
 template = "render-song"
 gates = "an audio track's effect chain renders as recorded"
@@ -1286,6 +1312,28 @@ builds = ["golden-vt-render-arm"]
 tier = "nightly"
 job = "unit"
 runtime_s = 60
+
+[[harness]]
+name = "render-audio-stretch-arm"
+template = "render-song"
+override = ["builds", "tier", "job", "baseline"]
+gates = "audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH" }
+builds = ["golden-vt-render-arm"]
+baseline = []
+tier = "nightly"
+job = "unit"
+
+[[harness]]
+name = "render-audio-stretch-edges-arm"
+template = "render-song"
+override = ["builds", "tier", "job", "baseline"]
+gates = "audio clips at the edges of the stretcher's paths render on 32-bit ARM as recorded on x86"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_EDGES" }
+builds = ["golden-vt-render-arm"]
+baseline = []
+tier = "nightly"
+job = "unit"
 
 [[harness]]
 name = "streaming-margin"
@@ -1853,8 +1901,8 @@ run = ["python3", "-m", "unittest", "test_check_layers"]
 name = "registry-selftest"
 template = "unittest"
 path = "scripts/tasks"
-gates = "this registry's loader, selection and probes, the SDRAM packer, four source checkers, the Cargo members, the crate-header lists, and temp-dir removal"
-run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names", "test_cargo_workspace", "test_run_scratch", "test_check_abi_surface"]
+gates = "this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams"
+run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names", "test_cargo_workspace", "test_run_scratch", "test_check_abi_surface", "test_stretcher_coverage"]
 
 [[harness]]
 name = "render-preset-selftest"
@@ -1862,6 +1910,13 @@ template = "unittest"
 path = "tests/integration/checks"
 gates = "the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands"
 run = ["python3", "-m", "unittest", "test_render_preset", "test_render_song"]
+
+[[harness]]
+name = "make-sample-selftest"
+template = "unittest"
+path = "tests/golden/render/presets"
+gates = "the sample golden cases' synthetic sources are what their cases assume, and the committed WAVs are their generator's output"
+run = ["python3", "-m", "unittest", "test_make_sample"]
 
 [[harness]]
 name = "dsp-bench-parser"

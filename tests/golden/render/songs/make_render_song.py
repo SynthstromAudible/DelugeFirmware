@@ -28,6 +28,24 @@ on an audio track: the resampled and analog crossings RS_KIT_PINGPONG leaves out
 RS_AUDIO_DELAY_EXTREMES steps an audio track's delay rate from its minimum to its maximum and back: its tape heads at
 the fastest and the slowest the rate's range reaches.
 RS_AUDIO_CENTS plays the audio clip 30 cents up beside its dry twin, so an audio clip's fine tune is pinned.
+RS_AUDIO_STRETCH plays ten audio clips alone, pitch and speed independent, each at its own ratio to the song's tempo, so
+the time stretcher stretches them in step with the song's ticks: the sample goldens' tone (SAMPLES/RS/TONE.WAV) and
+percussive source (SAMPLES/RS/PERC.WAV) sped up and slowed within an octave, past one and past two, reversed and
+transposed, and sample A within a hair of its native tempo, where it is stretched only when it drifts out of sync. Its
+dry twin plays the same clips with pitch and speed tied: nine resample, and the transposed one still stretches, as a
+tied clip with a transpose does.
+RS_AUDIO_STRETCH_NATIVE plays the tone and the percussive source at their native tempo, where they are not stretched but
+a loop end that a render block starts within reach of has a time stretcher fudged in to crossfade into its pre-margin;
+its twin plays the same frames from files that hold only them, with no pre-margin to crossfade into.
+RS_AUDIO_STRETCH_ARRANGED plays stretched clips from arrangement instances that end without looping; the two tones,
+with waveform past the end they play to, fade out before their instances end. Its twin plays them resampled.
+RS_AUDIO_STRETCH_EDGES plays clips at the edges of the stretcher's paths and its caller's: a pre-margin too short for
+a loop's crossfade, tied clips with a fine tune, a transpose and neither, a reversed tied clip, a 48 kHz file, a mono
+file, an end marker past the file's end, two native-tempo loops with pre-margins too short to fudge a crossfade into
+whole, a clip whose pitch adjust is raised, and a source over 2^22 frames long, whose percussiveness cache is kept in
+clusters: played forwards from 0 into a loop's cache zone further on, and looped across a cache cluster's end forwards
+and reversed (STRETCH_EDGE_TRACKS).
+Its twin ties pitch and speed on every clip.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_BITCRUSH covers the bitcrush paths the FX songs leave out: a kit's bit depth alone at preset 6, an audio track's
@@ -74,6 +92,7 @@ RS_MASTER_GRAIN_OFF holds the master's grain in its soft off (its selected knob 
 RS_MASTER_FX's.
 """
 
+import hashlib
 import math
 import re
 import struct
@@ -1171,6 +1190,296 @@ def loud_audio_parts(fx: dict) -> tuple[str, str]:
     return track, clip.replace("SAMPLES/RS/A.WAV", LOUD_SAMPLE)
 
 
+# Audio clips stretched to the song's tempo: pitch and speed independent, each clip's length in ticks set against its
+# sample's length, so a tempo away from a clip's native one makes the time stretcher hop through it in step with the
+# song's ticks. Their sources are the sample goldens' tone and percussive sources (presets/make_sample.py), read from
+# their committed files; each file's sha256 is checked here, so a changed source fails generation rather than reaching
+# a card cached under this generator's unchanged key.
+STRETCH_SOURCES = {
+    "SAMPLES/RS/TONE.WAV": (
+        "_tone.wav",
+        "e39bf9988e513fe346ca81eeb68e1a8adee200cf1ab4f480cead30e073e895b4",
+    ),
+    "SAMPLES/RS/PERC.WAV": (
+        "_perc.wav",
+        "7750c096031b6f669c2df4924a99513680bb175304b60bd3f98415bf8b16969b",
+    ),
+    "SAMPLES/RS/TONE_MONO.WAV": (
+        "_tone_mono.wav",
+        "6dccb81a751e1a3a208599a183408d68da498c0ee5a265222e4d54a6e2ab7210",
+    ),
+}
+# A source's frames from a start marker on, in a file of their own: the native song's twin plays them, so its loops
+# have no pre-margin. Each is its card path: (source card path, first frame kept).
+TRIMMED_SOURCES = {
+    "SAMPLES/RS/TONE_TRIM.WAV": ("SAMPLES/RS/TONE.WAV", 596),
+    "SAMPLES/RS/PERC_TRIM.WAV": ("SAMPLES/RS/PERC.WAV", 1018),
+}
+# A track: its name, sample, start and end markers, clip length in ticks and extra clip attributes. At the song's
+# 120 BPM (229.6875 samples a tick) each clip's ratio, its sample's length over its clip's, is its own:
+#   RSTONE  ~1.115  the tone from 512, so its loops crossfade into the 512 frames before the start marker
+#   RSPERC  ~1.115  the whole percussive source
+#   RSSLOW  ~0.867  the tone slowed, within an octave (the fine hop tables)
+#   RSFAST  ~2.229  the percussive source sped up past an octave (the coarse tables)
+#   RSCRAWL ~0.476  the percussive source slowed past an octave (the coarse tables)
+#   RSREV   ~0.836  the tone reversed between 512 and 3,584, so its reversed loops have a pre-margin after the end marker
+#   RSPITCH ~0.927  the tone two semitones up from 512: a transposed stretch reads a cache, and its loops round into the
+#                   pre-margin at the transposed rate
+#   RSCLAMP ~4.459  the percussive source sped up past two octaves, where the coarse tables clamp at their top
+#   RSHALT  ~0.238  the percussive source slowed past two octaves, where the coarse tables clamp at their bottom
+#   RSDRIFT ~1.003  sample A, six seconds long, within the ratio window where playback is left unstretched until it
+#                   drifts out of sync, which takes it about two seconds: the tone's short loops restart in sync
+#                   before they can drift that far
+STRETCH_TRACKS = (
+    ("RSTONE", "SAMPLES/RS/TONE.WAV", 512, 4096, 14, ""),
+    ("RSPERC", "SAMPLES/RS/PERC.WAV", 0, 32768, 128, ""),
+    ("RSSLOW", "SAMPLES/RS/TONE.WAV", 512, 4096, 18, ""),
+    ("RSFAST", "SAMPLES/RS/PERC.WAV", 0, 32768, 64, ""),
+    ("RSCRAWL", "SAMPLES/RS/PERC.WAV", 0, 32768, 300, ""),
+    ("RSREV", "SAMPLES/RS/TONE.WAV", 512, 3584, 16, ' reversed="1"'),
+    ("RSPITCH", "SAMPLES/RS/TONE.WAV", 512, 4096, 15, ' transpose="2"'),
+    ("RSCLAMP", "SAMPLES/RS/PERC.WAV", 0, 32768, 32, ""),
+    ("RSHALT", "SAMPLES/RS/PERC.WAV", 0, 32768, 600, ""),
+    ("RSDRIFT", "SAMPLES/RS/A.WAV", 0, RATE * SAMPLE_SECONDS, 1148, ""),
+)
+# RS_AUDIO_STRETCH_NATIVE's two clips are both native at 250 samples a tick (about 105.8 BPM): the tone from 596
+# (3,500 frames over 14 ticks) and the percussive source from 1,018 (31,750 frames over 127 ticks). Their ratios fall
+# in the window where nothing is stretched, but a loop end with a pre-margin to crossfade into has a time stretcher
+# fudged in to crossfade it without a click when a render block starts within the crossfade's 100-frame reach of it,
+# where the fudge is set up; a loop end no block start reaches plays unfudged. Neither loop is a whole number of
+# 128-frame render blocks, so the block starts drift across the loop and most loop ends (88 of about 110 for the tone)
+# are reached. Its twin plays the same frames from files that hold only them: no pre-margin, so no fudged crossfade.
+TEMPO_STRETCH_NATIVE = 'timePerTimerTick="250" timerTickFraction="0"'
+STRETCH_NATIVE_TRACKS = (
+    ("RSTONE", "SAMPLES/RS/TONE.WAV", 596, 4096, 14, ""),
+    ("RSPERC", "SAMPLES/RS/PERC.WAV", 1018, 32768, 127, ""),
+)
+STRETCH_NATIVE_DRY_TRACKS = (
+    ("RSTONE", "SAMPLES/RS/TONE_TRIM.WAV", 0, 4096 - 596, 14, ""),
+    ("RSPERC", "SAMPLES/RS/PERC_TRIM.WAV", 0, 32768 - 1018, 127, ""),
+)
+# RS_AUDIO_STRETCH_ARRANGED plays clips from arrangement instances that end without looping: the percussive source for
+# two loops and a half, then once through, its whole file, so it has no waveform past its end and plays to the end
+# unfaded; the tone forwards to 3,584 of its 4,096 frames for three loops and a half; and the reversed tone for twelve
+# and a half, then on past the render's end, so the arrangement plays throughout. The two tones have waveform past the
+# end they play to, so each fades out before its instance ends. Each instance is (position, length) in ticks.
+ARRANGED_TRACKS = (
+    (("RSPERC", "SAMPLES/RS/PERC.WAV", 0, 32768, 128, ""), ((0, 320), (384, 128))),
+    (("RSTONE", "SAMPLES/RS/TONE.WAV", 0, 3584, 14, ""), ((0, 49),)),
+    (
+        ("RSREV", "SAMPLES/RS/TONE.WAV", 512, 3584, 16, ' reversed="1"'),
+        ((0, 200), (208, 1700)),
+    ),
+)
+# RS_AUDIO_STRETCH_EDGES's clips, at 120 BPM, each at an edge of the stretcher's paths or its caller's:
+#   RSTIGHT   ~1.115  the tone from 8 to 3,592: a loop end's crossfade would start further back than its 8-frame
+#                     pre-margin reaches, so that hop is placed as any other, and the phase search can take a hop back
+#                     before the waveform's start
+#   RSTIED    ~1.115  the tone 30 cents up with pitch and speed tied: a tied clip with a fine tune stretches
+#   RSTRANS   ~0.927  the tone two semitones up with pitch and speed tied: a tied clip with a transpose stretches
+#   RSPLAIN   ~1.115  the tone with pitch and speed tied and no pitch change: resampled, its loop crossfade fudged at
+#                     its resampled rate
+#   RSBACK    ~0.836  the tone reversed, pitch and speed tied: resampled backwards, its loop crossfade fudged into the
+#                     pre-margin after its end marker
+#   RS48K     ~1.115  the tone in a 48 kHz file: its playback rate alone keeps it in time, so it is stretched by the
+#                     ratio less that rate
+#   RSMONO    ~1.115  the tone in a mono file
+#   RSPAST    ~0.998  the tone with its end marker 504 frames past the file's end: the clip does not loop at the
+#                     stretcher's level
+#   RSFLUSH   1       the percussive source from 2 at its native tempo: a 2-frame pre-margin, too short to fudge a
+#                     loop crossfade into
+#   RSSHALLOW 1       the percussive source from 50 at its native tempo: a pre-margin shorter than the crossfade, so a
+#                     loop end is fudged only within its 50 frames
+#   RSADJUST  ~1.115  the tone with the clip's pitch adjust raised: a manual pitch change the stretch ratio makes up
+#   RSLONG    ~1.115  the first 2,129,920 frames of the mono tone repeated to 4,259,840 (LONG.WAV): a source this long
+#                     keeps its percussiveness cache in clusters (from 2^21 frames with the card's 32 KB clusters)
+#                     rather than in one block
+#   RSLONGMID ~1.116  a 10,000-frame loop of LONG.WAV from 20,000: RSLONG, filling its percussiveness cache from 0,
+#                     runs into this loop's zone, eats into the part of it due to be replaced, and merges with it
+#   RSLONGRIM ~1.115  a 90,000-frame loop of LONG.WAV across frame 2^22, where one percussiveness cache cluster ends
+#                     and the next begins
+#   RSLONGREV ~1.115  the same loop reversed, so its percussiveness cache is filled backwards, across the same clusters
+STRETCH_EDGE_TRACKS = (
+    ("RSTIGHT", "SAMPLES/RS/TONE.WAV", 8, 3592, 14, ""),
+    (
+        "RSTIED",
+        "SAMPLES/RS/TONE.WAV",
+        512,
+        4096,
+        14,
+        ' pitchSpeedIndependent="0" cents="30"',
+    ),
+    (
+        "RSTRANS",
+        "SAMPLES/RS/TONE.WAV",
+        512,
+        4096,
+        15,
+        ' pitchSpeedIndependent="0" transpose="2"',
+    ),
+    ("RSPLAIN", "SAMPLES/RS/TONE.WAV", 512, 4096, 14, ' pitchSpeedIndependent="0"'),
+    (
+        "RSBACK",
+        "SAMPLES/RS/TONE.WAV",
+        512,
+        3584,
+        16,
+        ' pitchSpeedIndependent="0" reversed="1"',
+    ),
+    ("RS48K", "SAMPLES/RS/TONE48.WAV", 512, 4096, 14, ""),
+    ("RSMONO", "SAMPLES/RS/TONE_MONO.WAV", 512, 4096, 14, ""),
+    ("RSPAST", "SAMPLES/RS/TONE.WAV", 512, 4600, 18, ""),
+    ("RSFLUSH", "SAMPLES/RS/PERC.WAV", 2, 14702, 64, ""),
+    ("RSSHALLOW", "SAMPLES/RS/PERC.WAV", 50, 14750, 64, ""),
+    ("RSADJUST", "SAMPLES/RS/TONE.WAV", 512, 4096, 14, ""),
+    ("RSLONG", "SAMPLES/RS/LONG.WAV", 0, 520 * 4096, 8316, ""),
+    ("RSLONGMID", "SAMPLES/RS/LONG.WAV", 20000, 30000, 39, ""),
+    ("RSLONGRIM", "SAMPLES/RS/LONG.WAV", 4150000, 4240000, 351, ""),
+    ("RSLONGREV", "SAMPLES/RS/LONG.WAV", 4150000, 4240000, 351, ' reversed="1"'),
+)
+# Each clip's extra params: the pitch adjust, and the LONG.WAV clips quieter, so the song's sum stays below full scale.
+STRETCH_EDGE_PARAMS = {
+    "RSADJUST": 'pitchAdjust="0x10000000"',
+    **{
+        name: 'volume="0x90000000"'
+        for name in ("RSLONG", "RSLONGMID", "RSLONGREV", "RSLONGRIM")
+    },
+}
+# Each track's volume, low enough that the clips' sum stays below full scale, so no clipping hides the stretch.
+STRETCH_VOLUME = 'volume="0xA0000000"'
+TEMPO_120 = 'timePerTimerTick="229" timerTickFraction="-1342177280"'
+
+
+def stretch_source(path: str) -> bytes:
+    """The committed sample golden source behind card path @p path, refusing one whose bytes have changed."""
+    name, sha256 = STRETCH_SOURCES[path]
+    data = (
+        Path(__file__).resolve().parents[1] / "presets" / "sample" / name
+    ).read_bytes()
+    if hashlib.sha256(data).hexdigest() != sha256:
+        raise ValueError(
+            f"{name} changed: update its sha256 in make_render_song.py's STRETCH_SOURCES"
+        )
+    return data
+
+
+# A source's bytes in a file whose header gives another sample rate: (source card path, rate).
+RERATED_SOURCES = {"SAMPLES/RS/TONE48.WAV": ("SAMPLES/RS/TONE.WAV", 48000)}
+
+
+def rerated_source(path: str) -> bytes:
+    """The source RERATED_SOURCES gives card path @p path, its fmt chunk's sample and byte rates set to its rate."""
+    source, rate = RERATED_SOURCES[path]
+    data = bytearray(stretch_source(source))
+    pos = 12
+    while data[pos : pos + 4] != b"fmt ":
+        pos += 8 + struct.unpack_from("<I", data, pos + 4)[0]
+    block_align = struct.unpack_from("<H", data, pos + 20)[0]
+    struct.pack_into("<II", data, pos + 12, rate, rate * block_align)
+    return bytes(data)
+
+
+# A source's frames repeated end to end into one long file: (source card path, copies).
+REPEATED_SOURCES = {"SAMPLES/RS/LONG.WAV": ("SAMPLES/RS/TONE_MONO.WAV", 1040)}
+
+
+def repeated_source(path: str) -> bytes:
+    """The source REPEATED_SOURCES gives card path @p path, its data chunk repeated, every other chunk kept."""
+    source, copies = REPEATED_SOURCES[path]
+    data = stretch_source(source)
+    out = bytearray(data[:12])
+    pos = 12
+    while pos < len(data):
+        tag, size = data[pos : pos + 4], struct.unpack_from("<I", data, pos + 4)[0]
+        body = data[pos + 8 : pos + 8 + size]
+        if tag == b"data":
+            body = body * copies
+        out += (
+            tag
+            + struct.pack("<I", len(body))
+            + body
+            + (b"\0" if len(body) % 2 else b"")
+        )
+        pos += 8 + size + (size % 2)
+    struct.pack_into("<I", out, 4, len(out) - 8)
+    return bytes(out)
+
+
+def trimmed_source(path: str) -> bytes:
+    """The 16-bit stereo frames TRIMMED_SOURCES gives card path @p path, in a file of their own."""
+    source, first = TRIMMED_SOURCES[path]
+    data = stretch_source(source)
+    pos = 12
+    while data[pos : pos + 4] != b"data":
+        pos += 8 + struct.unpack_from("<I", data, pos + 4)[0]
+    size = struct.unpack_from("<I", data, pos + 4)[0]
+    return wav(data[pos + 8 + first * 4 : pos + 8 + size])
+
+
+def stretch_parts(
+    tracks: tuple,
+    independent: bool = True,
+    instances: tuple = (),
+    params: dict | None = None,
+) -> tuple[str, str]:
+    """An audio track and clip for each of @p tracks, pitch and speed independent unless not @p independent, each track
+    given the arrangement instances in @p instances at its index, and each clip named in @p params its extra params."""
+    tracks_xml = ""
+    clips = ""
+    for index, (name, path, start, end, ticks, attributes) in enumerate(tracks):
+        extra = (params or {}).get(name, "")
+        fx = _host(params=f"{STRETCH_VOLUME} {extra}" if extra else STRETCH_VOLUME)
+        track_attributes = f'name="{name}"'
+        if instances:
+            codes = "".join(
+                f"{pos:08X}{length:08X}{index:08X}" for pos, length in instances[index]
+            )
+            track_attributes += f' clipInstances="0x{codes}"'
+        tracks_xml += AUDIO_TRACK.format(**fx).replace('name="RSAUD"', track_attributes)
+        clips += (
+            AUDIO_CLIP.format(
+                frames=end,
+                ticks=ticks,
+                clip_attributes=(
+                    attributes
+                    if "pitchSpeedIndependent" in attributes
+                    else f' pitchSpeedIndependent="{int(independent)}"{attributes}'
+                ),
+                params=fx["params"],
+                param_tags=fx["param_tags"],
+            )
+            .replace('trackName="RSAUD"', f'trackName="{name}"')
+            .replace("SAMPLES/RS/A.WAV", path)
+            .replace('startSamplePos="0"', f'startSamplePos="{start}"')
+        )
+    return tracks_xml, clips
+
+
+def stretch_song(
+    tracks: tuple,
+    independent: bool = True,
+    native: bool = False,
+    params: dict | None = None,
+) -> str:
+    """@p tracks alone at 120 BPM, or at 250 samples a tick when @p native, each clip named in @p params given its
+    extra params."""
+    instruments, clips = stretch_parts(tracks, independent, params=params)
+    xml = song_xml([], instruments=instruments, clips=clips)
+    return xml.replace(TEMPO_120, TEMPO_STRETCH_NATIVE) if native else xml
+
+
+def stretch_arranged_song(independent: bool) -> str:
+    """ARRANGED_TRACKS at 120 BPM in the arranger, the song opening in the arranger view so play starts it."""
+    instruments, clips = stretch_parts(
+        tuple(track for track, _ in ARRANGED_TRACKS),
+        independent,
+        tuple(instances for _, instances in ARRANGED_TRACKS),
+    )
+    return song_xml([], instruments=instruments, clips=clips).replace(
+        'inputTickMagnitude="2"', 'inputTickMagnitude="2" inArrangementView="1"'
+    )
+
+
 # A bar at the song's 120 BPM, about 2 s: an arrangement take of RS_ARRANGE_TAKE's clips repeats each of them three
 # times or more within the default render.
 TAKE_TICKS = 384
@@ -1239,6 +1548,24 @@ SONGS = {
     "RS_AUDIO_DRY": lambda v: audio_song(v, DRY),
     "RS_AUDIO_CENTS": lambda v: audio_song(v, AUDIO_CENTS),
     "RS_AUDIO_CENTS_DRY": lambda v: audio_song(v, DRY),
+    "RS_AUDIO_STRETCH": lambda v: stretch_song(STRETCH_TRACKS),
+    # Every clip at 120 BPM as in RS_AUDIO_STRETCH, but pitch and speed tied: nine resample, and the transposed clip
+    # still stretches, as a tied clip with a transpose does.
+    "RS_AUDIO_STRETCH_DRY": lambda v: stretch_song(STRETCH_TRACKS, independent=False),
+    "RS_AUDIO_STRETCH_NATIVE": lambda v: stretch_song(
+        STRETCH_NATIVE_TRACKS, native=True
+    ),
+    "RS_AUDIO_STRETCH_NATIVE_DRY": lambda v: stretch_song(
+        STRETCH_NATIVE_DRY_TRACKS, native=True
+    ),
+    "RS_AUDIO_STRETCH_ARRANGED": lambda v: stretch_arranged_song(independent=True),
+    "RS_AUDIO_STRETCH_ARRANGED_DRY": lambda v: stretch_arranged_song(independent=False),
+    "RS_AUDIO_STRETCH_EDGES": lambda v: stretch_song(
+        STRETCH_EDGE_TRACKS, params=STRETCH_EDGE_PARAMS
+    ),
+    "RS_AUDIO_STRETCH_EDGES_DRY": lambda v: stretch_song(
+        STRETCH_EDGE_TRACKS, independent=False, params=STRETCH_EDGE_PARAMS
+    ),
     "RS_MASTER_FX": lambda v: master_song(v, FX),
     "RS_MASTER_DRY": lambda v: master_song(v, DRY),
     # RS_MASTER_FX under its own name, rendered in stereo, where the master's pan applies.
@@ -1510,6 +1837,10 @@ SAMPLE_FILES = {
     "SAMPLES/RS/A.WAV": lambda: wav(sample_frames(1, [110.0, 220.0, 330.0, 440.0])),
     "SAMPLES/RS/B.WAV": lambda: wav(sample_frames(2, [138.6, 277.2, 415.8])),
     LOUD_SAMPLE: lambda: wav(loud_sample_frames(1, [110.0, 220.0, 330.0, 440.0])),
+    **{path: lambda path=path: stretch_source(path) for path in STRETCH_SOURCES},
+    **{path: lambda path=path: trimmed_source(path) for path in TRIMMED_SOURCES},
+    **{path: lambda path=path: rerated_source(path) for path in RERATED_SOURCES},
+    **{path: lambda path=path: repeated_source(path) for path in REPEATED_SOURCES},
 }
 VOICES = [("RSA", "SAMPLES/RS/A.WAV", 60), ("RSB", "SAMPLES/RS/B.WAV", 64)]
 
@@ -1519,6 +1850,13 @@ def samples_for(name: str) -> list[str]:
     paths = ["SAMPLES/RS/A.WAV", "SAMPLES/RS/B.WAV"]
     if name.startswith("RS_AUDIO_COMP_BLEND"):
         paths.append(LOUD_SAMPLE)
+    # Every stretch song's card holds all the small stretch sources (TONE48.WAV and TONE_MONO.WAV among them, which only
+    # RS_AUDIO_STRETCH_EDGES plays): a file a song does not name is never read. LONG.WAV, 8 MB, goes only on the card
+    # that plays it.
+    if name.startswith("RS_AUDIO_STRETCH"):
+        paths += [*STRETCH_SOURCES, *TRIMMED_SOURCES, *RERATED_SOURCES]
+    if name.startswith("RS_AUDIO_STRETCH_EDGES"):
+        paths += [*REPEATED_SOURCES]
     return paths
 
 

@@ -1,0 +1,5 @@
+# Stretched, looping, at the C4 root at half speed (timeStretchAmount -12), released at once into the longest release.
+# The zone's loop end marker moves to 1,024 during the release (render_preset.py's ZONE_MOVE): a released voice no
+# longer obeys its loop end, so it does not check its stretch position against it.
+4608 90 3C 64
+5120 80 3C 40

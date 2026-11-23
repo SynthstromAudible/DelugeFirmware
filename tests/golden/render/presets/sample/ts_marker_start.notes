@@ -1,0 +1,5 @@
+# Stretched, looping, held at the C4 root at half speed (timeStretchAmount -12), with no sample cache. The zone's start
+# marker moves to 512 mid-note (render_preset.py's ZONE_MOVE): with no cache to drop, the voice plays on, and its later
+# loops restart at the new start.
+4608 90 3C 64
+80000 80 3C 40

@@ -1,0 +1,9 @@
+# Stretched at the C4 root, slowed by 5 semitones (timeStretchAmount -5), so the 4,096-frame source lasts about
+# 5,460 output frames. At the root the voice sets up no sample cache: both notes run the stretcher live, the second
+# no replay of the first. The first note is released before the source ends, the second held long past its end,
+# so the repeat modes part: CUT stops at the note-off, ONCE plays on to the end, and LOOP keeps stretching, looping
+# the source, until its note-off.
+4608 90 3C 64
+6144 80 3C 40
+22050 90 3C 64
+80000 80 3C 40
