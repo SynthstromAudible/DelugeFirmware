@@ -95,9 +95,10 @@ debug = true
 panic = "abort"
 
 # `cargo test` (and `--no-run`) and nextest build every unit, dependencies included, under the test profile, which
-# inherits dev; `cargo build --tests` builds under dev, so the registry builds the tests with `cargo test --no-run`. There the libraries, sample-convert and the differentials keep cargo's default opt-level 0, and their
-# build scripts' C++ reference slices follow it (`cc` reads OPT_LEVEL); a dev build (the device's Debug image, the
-# TSan harness, card-manifest) keeps 1.
+# inherits dev; `cargo build --tests` builds under dev, so the registry builds the tests with `cargo test --no-run`.
+# There the libraries, sample-convert and the differentials keep cargo's default opt-level 0, and their build scripts'
+# C++ reference slices follow it (`cc` reads OPT_LEVEL); a dev build (the device's Debug image, the TSan harness,
+# card-manifest) keeps 1.
 [profile.test.package.deluge_base_alloc]
 opt-level = 0
 [profile.test.package.deluge_storage_resource]
