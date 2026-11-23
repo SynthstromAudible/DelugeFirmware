@@ -22,11 +22,11 @@ result it tests is named (`after`), and repeats are counted in source order.
 
 | Category | Sides | Meaning |
 |---|---|---|
-| **Ruled out by the code** | 64 | |
-| DEF | 42 | defensive: the code before it already rules the condition out (named per side) |
+| **Ruled out by the code** | 67 | |
+| DEF | 45 | defensive: the code before it already rules the condition out (named per side) |
 | CON | 22 | by construction: the condition is fixed by the code itself (named per side) |
-| **Needs a fault or load** | 91 | |
-| RES | 40 | residency: the sample data asked for is not resident (a card read still pending, a chunk evicted, or a card error). The goldens' card answers at once and their gates fail any underrun |
+| **Needs a fault or load** | 88 | |
+| RES | 37 | residency: the sample data asked for is not resident (a card read still pending, a chunk evicted, or a card error). The goldens' card answers at once and their gates fail any underrun |
 | MEM | 31 | memory: an allocation fails, or memory pressure steals a cache or perc-cache chunk; no golden runs out of memory |
 | CULL | 20 | voice culling under CPU load; the gates fail a render whose direness rises, so the cull never runs |
 | **Reachable on the device, no gate scripts it** | 64 | |
@@ -293,7 +293,7 @@ lines there count as run in the table above; they never ran (the render always f
 
 | Condition | Side not taken | True / false | Category | Why |
 |---|---|---|---|---|
-| `hasCurrentRegion()` | true | 0 / 884 | RES | a card error mid-read |
+| `hasCurrentRegion()` | true | 0 / 884 | DEF | every failed window check leaves the reader holding no region, so this card-error exit is never taken (the design note's findings) |
 
 ### `src/deluge/model/voice/voice_sample.cpp`
 
@@ -365,9 +365,9 @@ lines there count as run in the table above; they never ran (the render always f
 | `!timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]` | true | 0 / 315 | CON | a hop runs only with the newer head active, which becomes the older head |
 | `!timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]` | both | 0 / 0 | CON | as above |
 | `swappingOrder` (first of 3) | true | 0 / 199121 | CON | swappingOrder is false: TIME_STRETCH_ENABLE_BUFFER is 0 |
-| `!success` after `readSamplesForTimeStretching` (first of 2) | true | 0 / 197269 | RES | a card error mid-read |
+| `!success` after `readSamplesForTimeStretching` (first of 2) | true | 0 / 197269 | DEF | readSamplesForTimeStretching fails only at its card-error exit, which is never taken |
 | `swappingOrder` (second of 3) | true | 0 / 199120 | CON | as above |
-| `!success` after `readSamplesForTimeStretching` (second of 2) | true | 0 / 102875 | RES | as above |
+| `!success` after `readSamplesForTimeStretching` (second of 2) | true | 0 / 102875 | DEF | as above |
 | `swappingOrder` (third of 3) | true | 0 / 103762 | CON | as above |
 | `cache->writeBytePos != cacheBytePos` | true | 0 / 6181 | MEM | — |
 | `!success` after `stopUsingCache` (fifth of 5) | both | 0 / 0 | MEM | — |

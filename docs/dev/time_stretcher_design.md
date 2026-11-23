@@ -26,8 +26,7 @@ The decisions (section 7), one line each:
     the stopped-clock tail) before step 7.
 11. The sides no golden reaches: fault injection in the probe, a sweep for C1's chunk-end limit, and the third
     perc-cache chunk accepted as unpinned (step 1's table).
-
-Open: 12. When the read head lands: recommended after the playback side, as step 7a, which the steps assume.
+12. When the read head lands: after the playback side, as step 7a.
 
 The differences accepted by name; everything else stays bit-identical, and the contracts file's quirks are kept:
 - **The shared slope follower** (6): each pole's step rounds where the legacy's floors, so the perc bytes, and with them
@@ -49,8 +48,8 @@ The goldens that pin the stretcher are the `sample/ts_*` and `sample/timestretch
 functions. [time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 225 it does not reach, keyed by function
 and condition, each with a category, and a reason where the category's meaning does not already
 give it:
-- 64 the code itself rules out (defensive checks, conditions fixed by construction);
-- 91 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull;
+- 67 the code itself rules out (defensive checks, conditions fixed by construction);
+- 88 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull;
 - 6 are not stretcher paths;
 - 64 are reachable on the device, and no gate scripts them. EDIT (18: an audio clip's marker moved while it plays, a
   clip-length edit with its voice alive), LATE (12: playback started part-way through a clip) and STOP (5: a release
@@ -64,8 +63,8 @@ give it:
 How the residency, memory and unbuilt sides' legacy values are recorded is step 1's table (decision 11).
 
 The script's `SCOPE` leaves out the reader's own functions (`readSamplesNative` and `readSamplesResampled` only pass the
-stretcher along). The read head replaces the reader (decision 8), so step 1, before the read head lands, and step 8
-measure the reader's own functions too.
+stretcher along). The read head replaces the reader (decision 8), so step 1, before the read head lands, measures the
+reader's own functions too, and step 8 measures the read head in their place.
 
 ## Words
 
@@ -283,7 +282,8 @@ DSP library's directories forbids `timestretch/` including `pitch_shift/`, as th
 `timestretch/crossfade.h`.
 
 ```cpp
-/// The source's slope, followed: the shifter's follower, over folded frames (a quarter of each channel's word, summed).
+/// The source's slope, followed: the shifter's follower, over folded frames (a quarter of each channel's word, summed
+/// for stereo: `(left >> 2) + (right >> 2)`; `word >> 2` for mono).
 using SlopeFollower = deluge::dsp::fixed::pitch_shift::SlopeFollower; // contract P2
 /// The follower's state and the slope one frame back, which P3 compares against; kept per perc zone (P5).
 struct PercState { SlopeFollower::State follower; Q<31> previous_slope; };
@@ -302,7 +302,7 @@ stretch port (section 3). Engine-wide resources come in a `StretchContext` the e
 
 **What the behaviour forces, and what is free.** Forced, because each is a point where the voice must be able to
 cause an effect the goldens pin:
-- three ways to begin: plain (S1: one noise draw, the first hop at 200 ± 32, the spare head a level copy, X3);
+- three ways to begin: plain (S1: one noise draw, the first hop at 200 ± 32, the spare head a level copy, X3, R10);
   out of a cache tail (C1 to C3: a plain begin whose older head is the tail; a fresh stretcher is always begun just
   before it); a fudge (S2: a hop into the pre-margin at once, no draw, no later hop);
 - one render per block that fills the perc analysis first (P4), then renders its segments (S3, X2 to X4, Q1);
@@ -325,7 +325,7 @@ public:
 	using Opening = std::variant<Plain, FromCacheTail, Fudge>;
 
 	bool begin(SampleStretchPort&, StretchContext&, int64_t position, Motion, LoopType, Opening);
-	/// P4, then the block's segments. False: the note ended, or a card error cut it.
+	/// P4, then the block's segments. False: the note ended.
 	bool render(SampleStretchPort&, StretchContext&, const Block&);
 	/// The voice's loop check moved the position (Q4); hop now if the newer head has stopped (S5).
 	void wrap_to(SampleStretchPort&, StretchContext&, int64_t position, const Block&);
@@ -430,8 +430,8 @@ struct ReadHead {
 		int8_t width_last;                     ///< The window's width at the last resampled check; 0 after a native one.
 		Interpolator window;
 	};
-	/// What a window check allows: frames to render, or why the head stopped (ended, or cut by a chunk not ready).
-	struct Window { enum class Kind : uint8_t { kRead, kEnded, kCut } kind; int32_t frames; };
+	/// What a window check allows: frames to render, or that the head stopped (its end, or a chunk not ready: R11).
+	struct Window { enum class Kind : uint8_t { kRead, kStopped } kind; int32_t frames; };
 
 	static void seat(State&, int32_t frame, UQ<24> phase);                // R10; the lease is the caller's
 	[[nodiscard]] static State level_copy(const State&);                                    // R10
@@ -451,7 +451,8 @@ struct ReadHead {
 The read loop (R11) is the owner's: the voice's unstretched render and the port's `read` each run check-then-read until
 their frames are rendered. The legacy reader's other users switch with it: `VoiceSample`, which derives from
 `SampleLowLevelReader` today and instead holds two heads; `SamplePlaybackAdapter`'s unison clone, which is a level copy
-(R10); and the DSP bench's reader cases (`src/deluge/bench/pitch_shift_cases.cpp`, `src/deluge/bench/cases.h`).
+and keeps R10's stop at the next chunk; and the DSP bench's reader cases (`src/deluge/bench/pitch_shift_cases.cpp`,
+`src/deluge/bench/cases.h`).
 
 ## 3. The seam to the sample
 
@@ -518,8 +519,8 @@ port is smaller than `SamplePlaybackPort`, which has 23.
   `moving_averages` reads the same frames through `run`.
 - `src/deluge/model/sample/sample_low_level_reader.cpp`: replaced by the read head (2.8, decision 8). In step 7 it
   takes no stretcher: `readSamplesNative` and `readSamplesResampled` drop the parameter they only passed on, and
-  `readSamplesForTimeStretching` returns whether the head still reads, and whether a card error stopped it, instead of
-  writing a flag into the stretcher. In step 7a its arithmetic becomes the read head's (R1 to R11), its residency the
+  `readSamplesForTimeStretching` returns whether the head still reads instead of writing a flag into the stretcher (its
+  card-error exit is never taken: R11). In step 7a its arithmetic becomes the read head's (R1 to R11), its residency the
   app's `SampleReadLease`, its loop for the stretcher the port's `read`, and it is deleted with its other users
   switched (2.8).
 - `src/deluge/model/clip/audio_clip.cpp`: reads `newer_reading()` and `is_fudge()` where it reads the legacy flags
@@ -535,8 +536,9 @@ to S6), planner 8 (B1 to B8), aligner 7 (A0 to A6), crossfader 4 (X1 to X4), cac
 (P1 to P5), heads 1 (H1), position, loop, exit and cache write 6 (Q1 to Q4, E1, W1), read head 11 (R1 to R11). Each
 equals the legacy computation but P2, which equals the pitch shifter's `SlopeFollower` (decision 6). The noise stream's
 draw count is a contract too: one at a plain begin, one per hop attempt. The stretcher's seven named quirks are kept;
-the goldens pin five, and A2's and X1's are kept but not golden-pinned. The read head's four (R1, R2, R8 and R9's
-16-bit taps, R8's mono halving) are kept, and step 1's records say which goldens reach each.
+the goldens pin five, and A2's and X1's are kept but not golden-pinned. The read head's five (R1, R2, R8 and R9's
+16-bit taps, R8's mono halving, R10's level copy that cannot move to the next chunk) are kept, and step 1's records say
+which goldens reach each.
 
 ## 5. Lifetimes, threading and real-time limits
 
@@ -669,7 +671,8 @@ cases; step 7a's set is wider), except step 4, which re-records the goldens the 
   | H1 | its three failure exits: the chunk setup not ready, the chunk move failing, a ready setup holding no region | fault injection at each, for a hop and for a fudge's begin (whose failure unassigns the voice) |
   | B8 | a start before the start marker whose frame is not resident moves to the marker (`hopEnd`'s start clamp) | fault injection at the clamp's residency check, before and after alignment |
   | A4 (and A5's partial phase, decision 7) | a frame not resident abandons the search | fault injection at the aligner's frame read, at a chosen step of a chosen pass |
-  | X3, Q4's reads, R11 | a card error cuts the voice mid-read (`readSamplesForTimeStretching`) | fault injection: the reader loses its region mid-read |
+  | X3, Q4's reads, R11 | a stretcher head's chunk not ready mid-read: zero taps, then a stopped head (the voice is not cut: R11) | fault injection at the walk's acquire (`moveOnToNextCluster`) during a head's read, newer and older |
+  | R10, X3, E1 | a level copy's walk reaching its first chunk boundary, which it never passes (R10's quirk) | no injection: the walk fails whatever the card does, so the probe logs it wherever a plain begin's first segment crosses a chunk; whether a golden-synth case does is the record's to say (render-song's gates fail the underrun it counts) |
   | R3, R6, R10 | the next chunk not ready mid-walk; a low-level loop's restart not ready; a seat loading or unavailable | fault injection at the walk's acquire (`moveOnToNextCluster`) and the seat's (`assignClusters`), stretched and unstretched |
   | C1 | the chunk-end limit: the read position in a cache chunk's last frame at the switch | a sweep: `sample/ts_cache_crossfade` rendered with its note length stepped a frame at a time until the switch lands there (about 1 in 5,400) |
   | P1, P5, and section 5's perc-chunk leases | a third distinct perc-cache chunk, the older of the two held dropped (`rememberPercCacheCluster`) | accepted as unpinned: it decides which chunks stay leased, never a sample; specced from reading against a fake port |
@@ -698,7 +701,7 @@ cases; step 7a's set is wider), except step 4, which re-records the goldens the 
   (`src/synth/sources/sample/sample_source.cpp`) saturates the ratio instead of wrapping it (decision 3). The legacy
   class is deleted in this step, with `src/deluge/dsp_legacy/`, its target and its `scripts/layers.toml` rows.
 
-  7a. **The read head** (2.8; R1 to R11, and A0's play byte), here by decision 12. The `ReadHead` in the DSP library
+  7a. **The read head** (2.8; R1 to R11, and A0's play byte), here by decision 12 (a). The `ReadHead` in the DSP library
   and its app-side `SampleReadLease`; `VoiceSample` holds two heads and stops deriving from `SampleLowLevelReader`; its
   unstretched read loop, the port adapter's head operations (`shadow`, `seat_and_swap`, `read`, `mark`,
   `cursors_meet`), `SamplePlaybackAdapter`'s unison clone and the DSP bench's reader cases switch to it, the bench's
@@ -718,8 +721,7 @@ cases; step 7a's set is wider), except step 4, which re-records the goldens the 
 
 ## 7. Decisions
 
-Each is a decision, its options kept as the rationale; the chosen one is marked. Decision 8 raised one question still
-open, 12, after them.
+Each is a decision, its options kept as the rationale; the chosen one is marked. Decision 12 follows from decision 8.
 
 1. **Where the stretcher reaches the sample.** Audio clips render their voice-sample with no `SamplePlaybackPort`.
    - (a) **Decided:** `SampleStretchPort`, a port of its own (14 operations, section 3), implemented once app-side
@@ -770,12 +772,15 @@ open, 12, after them.
    is. E1 is never checked in the block a stretcher begins (the begin skips the check), so the copy matters from the
    next block on: having read the same frames as the newer from the same cursor, at an increment of 1.0 it stops on the
    newer's cursor, and a stretch that lasted one block, in one segment, ends at the next block's start, before any hop.
-   Pitched, or after a resampled block left the newer a nonzero interpolation width, the copy's width of 0 can leave its
-   cursor elsewhere, and E1 then waits for a hop. The copy's read can also hit a card error and cut the voice.
-   - (a) **Decided:** keep it, as the `Shadowed` phase: E1's timing and the card-error cut stay as they are, at the
-     cost of one silent read of one segment per plain begin. The phase is deleted once the rewrite is proven: the
-     `TODO.md` entry "Delete the time stretcher's `Shadowed` phase once the rewrite is proven" checks the goldens with
-     the shadow read removed and drops it, accepting the one-block-stretch difference by name if any golden changes.
+   That holds only while the segment stays within one chunk: the copy cannot move to the next chunk (R10's quirk), so a
+   segment that crosses a chunk boundary stops the copy at it, the cursors never meet, and E1 waits for a hop. Pitched,
+   or after a resampled block left the newer a nonzero interpolation width, the copy's width of 0 can leave its cursor
+   elsewhere, and E1 then waits for a hop too. The copy's read cannot cut the voice: a failed read only stops it (R11).
+   - (a) **Decided:** keep it, as the `Shadowed` phase, because it decides E1's timing: with it, a one-block stretch
+     whose segment stays within a chunk ends at the next block's start, as the legacy's does, at the cost of one silent
+     read of one segment per plain begin. The phase is deleted once the rewrite is proven: the `TODO.md` entry "Delete
+     the time stretcher's `Shadowed` phase once the rewrite is proven" checks the goldens with the shadow read removed
+     and drops it, accepting the one-block-stretch difference by name if any golden changes.
    - (b) Drop the copy and the read, and let E1 wait for a hop: a one-block stretch would run on until its first hop,
      a sample difference accepted by name.
 6. **The slope follower and the percussiveness byte, shared with the pitch shifter.** The byte (P3) is the same
@@ -809,7 +814,8 @@ open, 12, after them.
      arithmetic already counts in instead of a byte pointer into a chunk, and the window check, the chunk walk and the
      reads get unit specs of their own. Its interpolation and chunk walk are shared with unstretched playback, so both
      switch at once; its step (7a) is gated on unstretched playback staying bit-identical on golden-synth's sample
-     cases and the render-song audio gates, and step 1 and step 8 measure the reader's own functions' coverage.
+     cases and the render-song audio gates; step 1 measures the reader's own functions' coverage, and step 8 the read
+     head's.
 9. **The aligner's search, shared with the pitch shifter.** `deluge::dsp::fixed::pitch_shift::WaveformAligner`
    (`src/dsp/fixed/pitch_shift/waveform_aligner.h`) runs the same search over the same `crossfade.h` metrics: three
    moving averages slid a frame at a time, the best difference kept, a turn at a worse first step of the first pass
@@ -856,12 +862,10 @@ open, 12, after them.
       model, so its record moves whenever that model does.
     - (c) Accept every side no golden reaches as unpinned, specced from reading the legacy code.
 
-**Open, raised by decision 8.** The steps assume the recommendation.
-
 12. **When the read head lands.** The read head replaces the reader behind the port's head operations (`shadow`,
     `seat_and_swap`, `read`, `mark`, `cursors_meet`) and in unstretched playback. The stretcher reaches the heads only
     through those operations, so the order changes the app side only.
-    - (a) **Recommended:** after the playback side, as step 7a. Step 7's adapter drives the legacy reader, which stops
+    - (a) **Decided:** after the playback side, as step 7a. Step 7's adapter drives the legacy reader, which stops
       taking the stretcher, and step 7a swaps it for the read head behind the same operations, with no change to the
       stretcher. Each step changes one thing under the goldens, step 7 the stretcher and step 7a the reader, so a
       difference names its step, and no legacy stretcher code is edited. The adapter's head operations are written
@@ -884,6 +888,17 @@ open, 12, after them.
 - The legacy's `hasLoopedBackIntoPreMargin` is written and never read, the fudge start computes a pre-margin frame
   count it never uses, and its buffered-head mode (`TIME_STRETCH_ENABLE_BUFFER`) is compiled out.
 - The reversed single-row waveform's column −1 (`TODO.md`) is in the waveform view, which the rewrite does not touch.
+- Every failed chunk walk in the reader (`changeClusterIfNecessary` returning false) leaves it holding no region:
+  `moveOnToNextCluster` clears `region_` when its acquire fails, and a low-level loop's restart and the 1,024-turn exit
+  (E227) call `unassignAllReasons` first. So a chunk not ready mid-read gives zero taps and then a stopped head, never a
+  cut voice (a stretcher's head stops and the voice reads on; unstretched, the stopped head ends the voice as its end
+  does), and these branches are dead: `considerUpcomingWindow`'s "a Cluster wasn't loaded in time. So just cut the
+  sound" exit (a failed walk with a region still held); `readSamplesForTimeStretching`'s card-error exit
+  (`hasCurrentRegion()` after a failed check), and with it `VoiceSample::render`'s two exits on that read failing (the
+  coverage list's DEF sides); and the native check's E001 and E147, since a walk that succeeds leaves the cursor
+  strictly before the boundary, and the cursor and every boundary are whole frames from the data's start (the end and
+  loop-end bytes are `data_start + k × frame_bytes`, and E163 checks the forwards chunk boundary). The rewrite's window
+  check has no cut: it reads or the head has stopped (2.8).
 - A hop's culling bypass (S3) never reaches a cull: `hopEnd` sets `AudioEngine::bypassCulling` during the render, the
   render clears it at its end, and `cullVoices` reads it only from `setDireness`, at the next block's start. The
   rewrite's `HopBudget` keeps setting it at the same point, so nothing changes.
