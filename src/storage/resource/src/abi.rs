@@ -43,22 +43,6 @@ pub unsafe extern "C" fn deluge_resource_create(
     resource_create(heap, asset_capacity, chunk_capacity).cast()
 }
 
-/// [`resource_create_unhooked`] in the header's types.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_create_unhooked(
-    heap: *mut DelugeHeap,
-    asset_capacity: usize,
-    chunk_capacity: usize,
-) -> *mut c_void {
-    resource_create_unhooked(heap, asset_capacity, chunk_capacity).cast()
-}
-
-/// [`resource_try_evict`] in the header's types.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_try_evict(mgr: *mut c_void) -> bool {
-    resource_try_evict(mgr.cast())
-}
-
 /// [`resource_set_slab`] in the header's types.
 #[no_mangle]
 pub unsafe extern "C" fn deluge_resource_set_slab(mgr: *mut c_void, slab: *mut DelugeSlab) {
@@ -157,16 +141,6 @@ pub unsafe extern "C" fn deluge_resource_try_acquire(
     resource_try_acquire(mgr.cast(), asset, index).cast()
 }
 
-/// [`resource_peek`] in the header's types.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_peek(
-    mgr: *mut c_void,
-    asset: u32,
-    index: u32,
-) -> *mut c_void {
-    resource_peek(mgr.cast(), asset, index).cast()
-}
-
 /// [`resource_mark_ready`] in the header's types.
 #[no_mangle]
 pub unsafe extern "C" fn deluge_resource_mark_ready(mgr: *mut c_void, ptr: *mut c_void) {
@@ -213,12 +187,6 @@ pub unsafe extern "C" fn deluge_resource_loader_enqueue(
     priority: u32,
 ) {
     resource_loader_enqueue(mgr.cast(), slot, priority)
-}
-
-/// [`resource_loader_remove`] in the header's types.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_resource_loader_remove(mgr: *mut c_void, slot: u32) {
-    resource_loader_remove(mgr.cast(), slot)
 }
 
 /// [`resource_loader_enqueue_owned`] in the header's types.

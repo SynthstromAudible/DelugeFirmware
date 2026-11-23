@@ -264,7 +264,7 @@ mod tests {
             )
         };
         assert_eq!(adopted, block.cast());
-        assert!(unsafe { deluge_resource_try_evict(mgr) });
+        assert!(unsafe { resource_try_evict(mgr.cast()) });
         assert_eq!(
             C_ADOPT_EVICTED.with(Cell::get),
             block as usize,

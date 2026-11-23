@@ -33,7 +33,7 @@ pub struct Resource<'m> {
 }
 
 impl<'m> Resource<'m> {
-    /// Wraps a handle from `resource_create` or `resource_create_unhooked`.
+    /// Wraps a handle from `resource_create`.
     ///
     /// # Safety
     ///

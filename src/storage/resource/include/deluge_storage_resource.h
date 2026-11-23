@@ -102,17 +102,6 @@ typedef void (*DelugeResourceAdoptEvictFn)(void* ctx, void* ptr);
 /// the limiter). Returns NULL on OOM. [task] [audio]
 DelugeResource* deluge_resource_create(DelugeHeap* heap, size_t asset_capacity, size_t chunk_capacity) DELUGE_NOEXCEPT;
 
-/// Like deluge_resource_create but does NOT register the heap reclaim hook — for
-/// coexistence with another reclaim coordinator (the C++ CacheManager during the
-/// raw-cluster migration). The caller's own hook drives eviction by calling
-/// deluge_resource_try_evict first, then the other coordinator. [task]
-DelugeResource* deluge_resource_create_unhooked(DelugeHeap* heap, size_t asset_capacity,
-                                                size_t chunk_capacity) DELUGE_NOEXCEPT;
-
-/// Evict the single lowest-value evictable chunk (the reclaim-hook body, exposed for
-/// an external coordinator). Returns true if it freed something. [task] [audio]
-bool deluge_resource_try_evict(DelugeResource* mgr) DELUGE_NOEXCEPT;
-
 /// Configure the slab that backs `BACKING_SLAB` assets (uniform clusters). Until
 /// set, every asset uses the heap. Create it with `deluge_slab_create_unmanaged`
 /// (deluge_base_alloc.h) over the same heap, so eviction stays with this manager (the slab
@@ -164,17 +153,6 @@ void* deluge_resource_acquire(DelugeResource* mgr, uint32_t asset, uint32_t inde
 /// that is `request`ed but not yet `mark_ready`'d). [task]
 void* deluge_resource_try_acquire(DelugeResource* mgr, uint32_t asset, uint32_t index) DELUGE_NOEXCEPT;
 
-/// @brief Non-leasing residency peek: the backing pointer for `(asset, index)` if resident (ready
-///        or not), else null. [task] [audio]
-///
-/// Does NOT take a lease and does NOT bump recency — a peek must not perturb eviction ordering.
-/// Callers that need loaded data check the chunk's own ready/loaded flag.
-/// @param mgr   Resource manager instance.
-/// @param asset Asset id.
-/// @param index Chunk index within the asset.
-/// @return The backing pointer if resident, else NULL.
-void* deluge_resource_peek(DelugeResource* mgr, uint32_t asset, uint32_t index) DELUGE_NOEXCEPT;
-
 /// Mark a `request`ed (Loading) chunk ready — called when its read completes (the C++ loader after
 /// readClusterData, or an embassy storage task after its async DMA). No-op if `ptr` isn't resident. [task]
 void deluge_resource_mark_ready(DelugeResource* mgr, void* ptr) DELUGE_NOEXCEPT;
@@ -205,10 +183,8 @@ uint32_t deluge_resource_external_lease_count_by_slot(DelugeResource* mgr, uint3
 /// Cluster load queue (per-slot state inside the manager; replaces the C++ ClusterPriorityQueue). The
 /// priority is the caller's audio-domain rating — lower = more urgent.
 /// enqueue the chunk at `slot` (a re-enqueue while still queued only raises the priority, so a less
-/// urgent requester cannot push back a chunk someone more urgent waits on); remove de-queues it (and drops any
-/// queue-owned lease, so an erased entry cannot leave the chunk pinned). [task]
+/// urgent requester cannot push back a chunk someone more urgent waits on). [task]
 void deluge_resource_loader_enqueue(DelugeResource* mgr, uint32_t slot, uint32_t priority) DELUGE_NOEXCEPT;
-void deluge_resource_loader_remove(DelugeResource* mgr, uint32_t slot) DELUGE_NOEXCEPT; ///< [task]
 
 /// @brief Enqueue the chunk at `slot` AND take a queue-owned hard lease. [task]
 ///
