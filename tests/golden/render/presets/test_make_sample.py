@@ -26,6 +26,17 @@ ONSET_LEVEL = 4096
 QUIET_FRAMES = 256
 
 
+# The legacy stretcher's hop lengths, in output frames (src/deluge/dsp_legacy/timestretch/time_stretcher.cpp):
+# the first hop ends TimeStretch::kDefaultFirstHopLength (src/definitions_cxx.hpp) into the note, moved by
+# (int8_t)getRandom255() >> 2, so by -32 to 31; an octave up with the length kept the stretch ratio is 0.5, where
+# getHopParams reads the first entry of minHopSizeFine, so no later hop is shorter than 3,000.
+FIRST_HOP = 200
+FIRST_HOP_JITTER = 32
+OCTAVE_UP_MIN_HOP = 3000
+# An octave up the play-head reads two source frames to each output frame.
+OCTAVE_UP_READ = 2
+
+
 def parse_wav(data: bytes) -> tuple[dict, list[tuple[int, ...]]]:
     """The fmt fields and the frames of a PCM WAV."""
     assert data[:4] == b"RIFF" and data[8:12] == b"WAVE"
@@ -96,12 +107,12 @@ class ShortToneTest(unittest.TestCase):
     def test_an_octave_up_it_outlasts_the_first_hop_and_not_the_next(self):
         fmt, frames = parse_wav(make_sample.short_tone_wav())
         self.assertEqual(fmt["channels"], 2)
-        self.assertEqual(len(frames), 1024)
-        # The first hop ends 200 output frames into the note, give or take 32 at random; an octave up the play-head
-        # reads two source frames to each output frame.
-        self.assertGreater(len(frames), (200 + 32) * 2)
-        # An octave up the shortest hop after it is 3,000 output frames.
-        self.assertLess(len(frames), 3000)
+        self.assertEqual(len(frames), make_sample.SHORT_LENGTH)
+        self.assertGreater(len(frames), (FIRST_HOP + FIRST_HOP_JITTER) * OCTAVE_UP_READ)
+        self.assertLess(
+            len(frames),
+            (FIRST_HOP - FIRST_HOP_JITTER + OCTAVE_UP_MIN_HOP) * OCTAVE_UP_READ,
+        )
 
     def test_two_runs_give_the_same_bytes(self):
         self.assertEqual(make_sample.short_tone_wav(), make_sample.short_tone_wav())

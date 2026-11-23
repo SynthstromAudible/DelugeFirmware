@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <sound firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" polyphonic="poly" voicePriority="1" mode="subtractive" lpfMode="24dB" modFXType="none">
-	<osc1 type="sample" loopMode="0" reversed="0" timeStretchEnable="1" timeStretchAmount="0" transpose="0" cents="0" fileName="SAMPLES/WT.WAV">
+	<osc1 type="sample" loopMode="0" reversed="0" timeStretchEnable="1" timeStretchAmount="-5" transpose="0" cents="0" fileName="SAMPLES/WT.WAV">
 		<zone startSamplePos="0" endSamplePos="4096" />
 	</osc1>
 	<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />

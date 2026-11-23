@@ -8,7 +8,8 @@ Gate render-preset-selftest:
     the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever
     the member stands; each render-song gate plays its own generated song, whatever the shell exports; a render-song
     gate that switches mod FX types, clears mod FX memory or switches the reverb's model or knobs fails unless the
-    scenario's summary shows each applied as asked and reaching its path
+    scenario's summary shows each applied as asked and reaching its path; a whole-corpus update drops the record of a
+    case no longer in the corpus
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "tasks"))
 
-from render_preset import without_learned_input_json
+from render_preset import kept_records, without_learned_input_json
 
 
 class LearnedInputJsonTest(unittest.TestCase):
@@ -41,6 +42,15 @@ class LearnedInputJsonTest(unittest.TestCase):
     def test_the_only_member_leaves_an_empty_object(self):
         text = '{"sound": {"inputMidiChannel": 1}}'
         self.assertEqual(json.loads(without_learned_input_json(text)), {"sound": {}})
+
+
+class KeptRecordsTest(unittest.TestCase):
+    def test_a_whole_corpus_update_drops_the_record_of_a_deleted_case(self):
+        records = {"sample/a": {"sha256": "1"}, "sample/gone": {"sha256": "2"}}
+        self.assertEqual(
+            kept_records(records, ["sample/a", "sample/new"]),
+            {"sample/a": {"sha256": "1"}},
+        )
 
 
 if __name__ == "__main__":

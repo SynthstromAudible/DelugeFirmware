@@ -2144,8 +2144,8 @@
  "sample/ts_long_hold": {
   "frames": 176400,
   "peak": 245172224,
-  "rms_db": -22.76,
-  "sha256": "707ae66655717359c486137476320fd7a76d053c1256e691acc0a3cb96065344"
+  "rms_db": -24.21,
+  "sha256": "68af5ed439f4e9faa63e807271d499cf7c4d1b292a15710720446925ebf405c8"
  },
  "sample/ts_markers": {
   "frames": 88200,
@@ -2177,17 +2177,23 @@
   "rms_db": -36.32,
   "sha256": "792c093613485d4163e346beba5d9cffdbb6c8610877e9aa28d629a264396a0e"
  },
+ "sample/ts_pitch_down36": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -33.9,
+  "sha256": "ae60700c246aee0fa11f5063fd82c6a30b9fbc73ba4a470d8cef10d0e9a0836b"
+ },
  "sample/ts_pitch_fifth": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -37.27,
   "sha256": "32a7ca3cad1d49c74ca370385a0dad71086cdab31f1a6842cc3ca9aee836070f"
  },
- "sample/ts_pitch_up12": {
+ "sample/ts_pitch_up36": {
   "frames": 88200,
   "peak": 245172224,
-  "rms_db": -35.63,
-  "sha256": "1bc8b58c620a93751ce45955ed70f1070ae9bd6986d1b3ceb145d4ee93775145"
+  "rms_db": -44.42,
+  "sha256": "09b8036f5f36cc64ed5772ffd41e6219e61b841fbfbabf990e0e56e8dc1e2893"
  },
  "sample/ts_poly": {
   "frames": 88200,
@@ -2197,27 +2203,21 @@
  },
  "sample/ts_repeat_cut": {
   "frames": 88200,
-  "peak": 245151488,
-  "rms_db": -35.92,
-  "sha256": "1017ae66ce14e11f428227ceac33fb68720b8fbb0531b6763eecff61a0b6ed09"
+  "peak": 245172224,
+  "rms_db": -33.34,
+  "sha256": "dfea2f53661766e19e5907d57fe6d7beabafdb1cbaf3ebc344a09af2e3af12fc"
  },
  "sample/ts_repeat_loop": {
   "frames": 88200,
-  "peak": 245151488,
-  "rms_db": -24.42,
-  "sha256": "2fc9d071a7f6c2ce090465b31f5e99ac5d3536a30590fe3190aed04a5a977c00"
+  "peak": 245172224,
+  "rms_db": -24.81,
+  "sha256": "62a326ea4db9f3ec50cdc4ead4192c90d29a7ec7769a5e792731398dff8d6757"
  },
  "sample/ts_repeat_once": {
   "frames": 88200,
-  "peak": 245151488,
-  "rms_db": -34.12,
-  "sha256": "77614b7145ec550d7d9bc30c8cb72344ca2482e37c7b944627a8dba0fc34f7dc"
- },
- "sample/ts_repeat_stretch": {
-  "frames": 88200,
-  "peak": 245151488,
-  "rms_db": -35.92,
-  "sha256": "1017ae66ce14e11f428227ceac33fb68720b8fbb0531b6763eecff61a0b6ed09"
+  "peak": 245172224,
+  "rms_db": -31.59,
+  "sha256": "232e5118aa0fef0c7ccf57b7f5c419c937ae6bf743d3bce2ac76fe9b8974745d"
  },
  "sample/ts_reversed": {
   "frames": 88200,

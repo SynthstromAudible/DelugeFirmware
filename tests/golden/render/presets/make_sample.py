@@ -14,7 +14,8 @@ Writes, under sample/, each a 44.1 kHz 16-bit WAV with an embedded `smpl` chunk 
   cache) finds hits to place its hops on, where the tone gives it none.
 
 Re-run only to regenerate the committed WAVs; the WAVs are the source of truth, and test_make_sample.py holds them to
-this generator.
+this generator. The bytes depend on the platform's libm (math.sin and math.exp, rounded to 16 bits): the test's
+byte-equality checks hold on the pr tier's Linux, and a libm whose last bits differ could move a sample by one.
 """
 
 import math
@@ -26,7 +27,9 @@ OUT = HERE / "sample"
 
 SAMPLE_RATE = 44100
 LENGTH = 4096  # one fundamental period == the whole buffer, so it loops seamlessly
-SHORT_LENGTH = 1024  # an octave up: past the first hop (up to 232 output frames, 464 source), short of the next (3,000)
+# An octave up it outlasts the stretcher's first hop (at most 232 output frames, so 464 source frames) and runs out long
+# before the next (at least 3,000 output frames later); test_make_sample.py derives both from the stretcher's constants.
+SHORT_LENGTH = 1024
 ROOT_NOTE = 60  # C4: played C4 -> native rate (phaseIncrement 2^24, sinc kernel 0)
 
 # (harmonic, amplitude) per channel — distinct mixes so L != R.

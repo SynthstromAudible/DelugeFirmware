@@ -30,7 +30,8 @@ RENDER_PARAM_DUMP_DIR=<dir> dumps each case's matrix passes and voice sources th
 (src/deluge/processing/sound/param_dump.h; read by tools/audible_window/dump.py).
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
 much a case depends on its random draws (audio/host.rs).
-`./dbt test --update golden-synth` records the cases run instead of comparing them (RENDER_PRESET_FILTER narrows it;
+`./dbt test --update golden-synth` records the cases run instead of comparing them, and drops the record of any case no
+longer in the corpus (RENDER_PRESET_FILTER narrows it, and then keeps every record it did not render;
 RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed corpus's); a changed hash is a
 finding to explain in the commit that records the new one.
 
@@ -198,6 +199,12 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
     return env
 
 
+def kept_records(records: dict, corpus_cases: list[str]) -> dict:
+    """The records a whole-corpus update keeps: those of the cases still in the corpus. A deleted case's record goes
+    with it, where a filtered update keeps every record it did not render."""
+    return {name: record for name, record in records.items() if name in corpus_cases}
+
+
 def _wanted_frames(name: str) -> int:
     return round(SECONDS.get(name, DEFAULT_SECONDS) * FRAMES_PER_SECOND)
 
@@ -268,6 +275,8 @@ def run(gate):
         runs = list(pool.map(render, enumerate(selected)))
 
     records = json.loads(records_path.read_text()) if records_path.exists() else {}
+    if update and not needles:
+        records = kept_records(records, selected)
     failed = 0
     for name, where, result in runs:
         before = len(gate.failures)
