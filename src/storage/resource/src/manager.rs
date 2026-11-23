@@ -2368,6 +2368,7 @@ pub unsafe fn resource_create(
 /// # Safety
 ///
 /// `handle` must be null or a live handle from `resource_create`.
+#[cfg(test)]
 pub unsafe fn resource_try_evict(handle: *mut DelugeResource) -> bool {
     if handle.is_null() {
         return false;
