@@ -123,10 +123,10 @@ void* alloc_sdram(size,align);  void* alloc_external(size,align);
 
 Both chunk types currently land in **one SDRAM slab**:
 
-- `crates/.../general_memory_allocator.cpp:80` —
-  `clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, cap)`.
-- `general_memory_allocator.cpp:99-101` — `resourceManager_ = deluge_resource_create(sdram_heap(), …)`
-  then `deluge_resource_set_slab(resourceManager_, clusterSlab_)`. **One manager, one heap, one slab.**
+- `GeneralMemoryAllocator::initClusterSystem` (`memory/general_memory_allocator.cpp`), run at boot, creates the
+  slab with `deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, cap)`, then the manager with
+  `deluge_resource_create(sdram_heap(), …)`, and attaches the slab with `deluge_resource_set_slab`.
+  **One manager, one heap, one slab.**
 - `storage/audio/stream/sample_stream.cpp:96` — StreamedChunk asset defined with `..._BACKING_SLAB`.
 - `model/sample/sample_cache.cpp:76` — ComputedChunk asset defined with `..._BACKING_SLAB`.
 
@@ -211,7 +211,7 @@ manager an SRAM pool:
 
 - **Option 1 — second slab (uniform, matches today's model).** Add an SRAM cluster slab
   `deluge_slab_create_unmanaged(sram_heap(), slot, sramCap)` alongside `clusterSlab_`
-  (`general_memory_allocator.cpp:80`). Requires the resource manager to support *two* slabs and a per-asset
+  (`GeneralMemoryAllocator::initClusterSystem`). Requires the resource manager to support *two* slabs and a per-asset
   slab selector (today `deluge_resource_set_slab` sets exactly one — `deluge_storage_resource.h`). Rust change
   in `src/storage/resource` + a new backing constant or a slab-id on the asset.
 - **Option 2 — SampleStream owns a small SRAM pool directly** for Tier-1/Tier-2 chunks, bypassing the
@@ -322,7 +322,7 @@ refresh stalls, bus serialization, cache behavior) is a **hardware-timing phenom
 | Prefetch depth | `src/definitions_cxx.hpp:659` (`kNumClustersLoadedAhead = 2`) |
 | Render read pointer (per-sample SDRAM deref) | `model/sample/sample_low_level_reader.cpp:44,69` |
 | Head-cluster pinning (per SampleHolder, all referenced samples) | `model/sample/sample_holder.cpp` (`clustersForStart[]`, `setAudioFile`/`loadClusters`) |
-| Slab/manager creation (one SDRAM slab) | `memory/general_memory_allocator.cpp:80,99-101` |
+| Slab/manager creation (one SDRAM slab) | `GeneralMemoryAllocator::initClusterSystem` (`memory/general_memory_allocator.cpp`) |
 | Memory heap API | `src/deluge/memory/heaps.h` |
 | Resource manager C ABI | `src/storage/resource/include/deluge_storage_resource.h` |
 | Slab pager | `src/base/alloc/src/slab.rs`; manager `src/storage/resource/src/manager.rs` |

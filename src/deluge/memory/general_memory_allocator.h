@@ -40,7 +40,7 @@ struct DelugeResource; // deluge_storage_resource.h — the resource manager han
  * strictly needed (the main example being audio Clusters). Eviction of these is owned entirely by
  * the Rust resource manager (deluge_storage_resource.h), layered on the TLSF heap + cluster slab: it is the
  * SDRAM heap's sole reclaim hook. The GMA is now just thin forwarding to deluge::memory (heaps.h)
- * plus lazy creation of the cluster slab + resource manager.
+ * plus boot's creation of the cluster slab + resource manager.
  */
 
 class GeneralMemoryAllocator {
@@ -60,26 +60,30 @@ public:
 	// Backing-only slab for the uniform Cluster blocks (slab-izing isolates the high-churn cluster
 	// traffic from mixed general SDRAM allocs so it can't fragment the unified pool). The resource
 	// manager allocates its slots and drives eviction (the slab registers no reclaim hook of its
-	// own). Created lazily alongside the manager when Cluster::size is finalized to the session
+	// own). Created at boot alongside the manager, once Cluster::size is set to the session
 	// maximum (the firmware never raises cluster size after boot). nullptr until then.
 	DelugeSlab* clusterSlab_{nullptr};
 
 	// The Rust resource manager: the sole SDRAM reclaim coordinator. Owns cluster residency (SAMPLE
 	// / cache / perc) + adopted AudioFile objects + wavetable bands, value-scoring eviction. Created
-	// lazily with the cluster slab (hooked as the heap's reclaim callback). nullptr until then.
+	// at boot with the cluster slab (hooked as the heap's reclaim callback). nullptr until then.
 	DelugeResource* resourceManager_{nullptr};
 
-	// The resource manager that owns SDRAM eviction (creating the cluster slab + manager on first
-	// use). A Sample / SampleCache defines its Asset against this; the manager allocates slab slots
-	// and drives eviction. Returns nullptr only if the slab/manager couldn't be created (OOM).
-	DelugeResource* resourceManager();
+	/// @brief Creates the cluster slab and the resource manager. Boot calls it once, right after
+	/// AudioFileManager::init() has set Cluster::size; any later call does nothing, whether the first
+	/// succeeded or ran out of memory. Both share the uniform Cluster slot size, which this commits for
+	/// the session. The two accessors become non-null together, only once both exist and the slab is
+	/// attached to the manager; out of memory leaves both nullptr.
+	void initClusterSystem();
 
-	/// @brief The cluster slab, creating it and the resource manager on first use.
-	/// @return The cluster slab, or `nullptr` only on OOM.
-	DelugeSlab* clusterSlab() {
-		ensureClusterSystem();
-		return clusterSlab_;
-	}
+	/// @brief The resource manager that owns SDRAM eviction. A Sample / SampleCache defines its Asset
+	/// against this; the manager allocates slab slots and drives eviction.
+	/// @return The manager, or `nullptr` before boot's initClusterSystem() or if it ran out of memory.
+	DelugeResource* resourceManager() const { return resourceManager_; }
+
+	/// @brief The cluster slab.
+	/// @return The slab, or `nullptr` before boot's initClusterSystem() or if it ran out of memory.
+	DelugeSlab* clusterSlab() const { return clusterSlab_; }
 
 	// Free an SDRAM block: if it's a cluster slot, release it through the slab
 	// (clearing the table entry too); otherwise free it from the heap directly.
@@ -96,10 +100,7 @@ public:
 	void checkEverythingOk(char const* errorString);
 
 private:
-	// Lazily stand up the cluster slab + resource manager (idempotent). Both share the
-	// uniform Cluster slot size, finalized to the session maximum by boot. Returns true
-	// if the slab exists afterwards.
-	bool ensureClusterSystem();
+	bool clusterSystemInitialised_{false}; // initClusterSystem() has run (successfully or not)
 };
 
 extern "C" {

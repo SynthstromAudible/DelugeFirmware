@@ -614,6 +614,9 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	audioFileManager.init();
 
+	// The cluster slab and the resource manager, sized by the Cluster::size init() just set.
+	GeneralMemoryAllocator::get().initClusterSystem();
+
 	// Storage-phase board bring-up (SPIBSC). Must run only now that everything
 	// else is up, because the graphics and audio routines are injected into the
 	// SPIBSC wait routines, so those have to be running.
