@@ -17,6 +17,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/context_menu/select_scale.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
@@ -52,6 +53,8 @@
 #include "gui/ui/keyboard/layout/norns.h"
 #include "gui/ui/keyboard/layout/piano.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
+#include "model/song/note_spelling.h"
+#include "util/functions.h"
 
 PLACE_SDRAM_BSS deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
@@ -65,6 +68,11 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutChord keyboard_layout_chord{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
 PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
+
+void KeyboardScreen::onScaleChanged() {
+	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
+	requestRendering();
+}
 
 KeyboardScreen::KeyboardScreen() {
 	layout_list[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = &keyboard_layout_isomorphic;
@@ -342,21 +350,12 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 
 			else {
-				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-
-				bool scaleAltered = false;
-
-				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentInstrumentClip()->getOrCreateNoteRowForYNote(
-				    newNote, modelStackWithTimelineCounter, action, &scaleAltered);
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    getCurrentInstrumentClip()->getOrCreateNoteRowForYNote(newNote, modelStackWithTimelineCounter);
 				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (thisNoteRow) {
 					getCurrentInstrumentClip()->recordNoteOn(modelStackWithNoteRow,
 					                                         currentNotesState.notes[idx].velocity);
-
-					// If this caused the scale to change, update scroll
-					if (action && scaleAltered) {
-						action->updateYScrollClipViewAfter();
-					}
 				}
 			}
 		}
@@ -434,10 +433,11 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 
-				// If user holding shift and we're already in scale mode, cycle through available scales
+				// If user holding shift and we're already in scale mode, pick a scale from a list
 				if (Buttons::isShiftButtonPressed() && inScaleMode) {
-					cycleThroughScales();
-					requestRendering();
+					if (gui::context_menu::selectScale.setupAndCheckAvailability()) {
+						openUI(&gui::context_menu::selectScale);
+					}
 				}
 
 				// Or, no shift button - normal behaviour
@@ -563,8 +563,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	         && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 		toggleScaleModeOnButtonRelease = false;
 		cycleThroughScales();
-		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
-		requestRendering();
+		onScaleChanged();
 	}
 
 	// store if the user is holding the x encoder
@@ -733,10 +732,10 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	else if (getCurrentOutputType() != OutputType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
 	         && getCurrentInstrumentClip()->inScaleMode) {
 
-		bool useSharps = FlashStorage::defaultUseSharps;
 		toggleScaleModeOnButtonRelease = false;
 		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
+		bool useSharps = useSharpsForNoteNames(); // Of the new key
 
 		char noteName[3] = {0};
 		noteName[0] = useSharps ? noteCodeToNoteLetter[newRootNote] : noteCodeToNoteLetterFlats[newRootNote];

@@ -20,6 +20,8 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/song/note_spelling.h"
+#include "util/functions.h"
 
 // namespace deluge::gui::views::automation::editor_layout {
 
@@ -128,7 +130,7 @@ std::string AutomationEditorLayoutNote::getNoteRowName(NoteRow* noteRow, bool is
 			}
 		}
 		else {
-			return deluge::string::fromNoteCode(noteRow->getNoteCode());
+			return deluge::string::fromNoteCode(noteRow->getNoteCode(), nullptr, true, useSharpsForNoteNames());
 		}
 	}
 	else {

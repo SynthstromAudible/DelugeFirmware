@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright © 2025 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,13 +17,7 @@
 
 #pragma once
 
-#include "model/consequence/consequence.h"
-#include <cstdint>
-
-class ConsequenceScaleAddNote final : public Consequence {
-public:
-	ConsequenceScaleAddNote(int32_t newNoteWithinOctave);
-	Error revert(TimeType time, ModelStack* modelStack) override;
-
-	uint8_t noteWithinOctave;
-};
+/// Whether note names are spelled with sharps or flats: follows the current song's key (MusicalKey::prefersFlats()),
+/// so names match the row an accidental is drawn on. Sharps when there's no song. Pass the result as the useSharps
+/// argument of noteCodeToString() / deluge::string::fromNoteCode().
+bool useSharpsForNoteNames();

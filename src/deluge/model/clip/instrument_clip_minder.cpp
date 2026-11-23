@@ -45,6 +45,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/scale/preset_scales.h"
+#include "model/song/note_spelling.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -545,15 +546,9 @@ bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 }
 
 void InstrumentClipMinder::calculateDefaultRootNote() {
-	// If there are any other Clips in scale-mode, we use their root note
-	if (currentSong->anyScaleModeClips()) {
-		defaultRootNote = currentSong->key.rootNote;
-
-		// Otherwise, intelligently guess the root note
-	}
-	else {
-		defaultRootNote = getCurrentInstrumentClip()->guessRootNote(currentSong, currentSong->key.rootNote);
-	}
+	// Entering scale mode keeps the song's key: the root only changes when the user picks one (audition pad + scale).
+	// Guessing it from the clip's notes would let notes outside the scale (accidentals) change the key.
+	defaultRootNote = currentSong->key.rootNote;
 }
 
 void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
@@ -567,7 +562,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 
 	char noteName[kNoteCodeStringBufferSize];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(noteCode, noteName, &isNatural);
+	noteCodeToString(noteCode, noteName, &isNatural, true, useSharpsForNoteNames());
 
 	if (display->haveOLED()) {
 		display->popupTextTemporary(noteName);

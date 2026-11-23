@@ -37,8 +37,12 @@ Macro definitions
 #define USB_BCDNUM (0x0200u) /* bcdUSB */
 // Release Number. Bumped when USB audio was added, so hosts don't reuse anything they cached about the MIDI-only
 // configuration, then each time the audio streams' descriptors changed: when the out stream went from adaptive to
-// asynchronous with implicit feedback, and when it got its adaptive alternate setting back as well
-#define USB_RELEASE (0x0302u)
+// asynchronous with implicit feedback, when it got its adaptive alternate setting back as well, and when the out stream
+// got a feature unit (volume and mute)
+#define USB_RELEASE (0x0303u)
+// The multitrack configuration has its own, so a host doesn't take anything it cached about the stereo one for it, or
+// the other way round, when the user switches between them. Bumped for the feature unit too
+#define USB_RELEASE_MULTITRACK (0x0311u)
 // With USB audio turned off we describe ourselves exactly as before USB audio existed
 #define USB_RELEASE_MIDI_ONLY (0x0200u)
 #define USB_CONFIGNUM (1u) /* Configuration number */
@@ -62,10 +66,13 @@ Macro definitions
 
 /* USB audio (UAC1), described in audio10.pdf and frmts10.pdf from usb.org
  * Audio control: interface descriptor, then the class-specific header (8 + 1 per streaming interface), then an input
- * and an output terminal for each direction
+ * and an output terminal for each direction, plus a feature unit (master volume and mute) between the host's stream and
+ * the outputs. The feature unit lists every channel of the host's stream, so the multitrack configuration's is longer
+ * than the stereo one's - and so is everything that contains it
  */
-#define USB_AUDIO_AC_CS_LENGTH (8 + 3 + (12 + 9) * 2)
-#define USB_AUDIO_AC_LENGTH (9 + USB_AUDIO_AC_CS_LENGTH)
+#define USB_AUDIO_FU_LENGTH(channels) (7 + ((channels) + 1))
+#define USB_AUDIO_AC_CS_LENGTH(fromHostChannels) (8 + 3 + (12 + 9) * 2 + USB_AUDIO_FU_LENGTH(fromHostChannels))
+#define USB_AUDIO_AC_LENGTH(fromHostChannels) (9 + USB_AUDIO_AC_CS_LENGTH(fromHostChannels))
 /* Each streaming interface: alternate setting 0 (no endpoint, so no bandwidth when not streaming), then for each
  * streaming alternate setting: interface descriptor, general descriptor, format type descriptor (with one sample
  * rate), standard and class-specific endpoint. The out stream has two of those, the in stream one
@@ -73,12 +80,17 @@ Macro definitions
 #define USB_AUDIO_AS_ALT_LENGTH (9 + 7 + 11 + 9 + 7)
 #define USB_AUDIO_AS_OUT_LENGTH (9 + USB_AUDIO_AS_ALT_LENGTH * 2)
 #define USB_AUDIO_AS_IN_LENGTH (9 + USB_AUDIO_AS_ALT_LENGTH)
+// The whole audio function: the audio control interface and both streaming interfaces
+#define USB_AUDIO_FUNCTION_LENGTH(fromHostChannels)                                                                    \
+	(USB_AUDIO_AC_LENGTH(fromHostChannels) + USB_AUDIO_AS_OUT_LENGTH + USB_AUDIO_AS_IN_LENGTH)
 
 // Where the MIDI streaming interface starts in g_midi_configuration - everything from there on is the same in the
-// MIDI-only configuration
-#define MIDI_SECTION_OFFSET (9 + USB_AUDIO_AC_LENGTH + USB_AUDIO_AS_OUT_LENGTH + USB_AUDIO_AS_IN_LENGTH)
+// MIDI-only and multitrack configurations
+#define MIDI_SECTION_OFFSET (9 + USB_AUDIO_FUNCTION_LENGTH(USB_PAUDIO_NUM_CHANNELS))
 // 9 for config descriptor. Add any additional config lengths here
 #define TOTAL_CONFIG_LENGTH (MIDI_SECTION_OFFSET + USB_MIDI_CD_WTOTALLENGTH)
+#define MULTITRACK_CONFIG_LENGTH                                                                                       \
+	(9 + USB_AUDIO_FUNCTION_LENGTH(USB_PAUDIO_MT_CHANNELS_FROM_HOST) + USB_MIDI_CD_WTOTALLENGTH)
 #define MIDI_ONLY_CONFIG_LENGTH (9 + USB_MIDI_CD_WTOTALLENGTH)
 // Good summary ref on overall USB structure https://www.beyondlogic.org/usbnutshell/usb5.shtml
 
@@ -94,6 +106,17 @@ Macro definitions
 #define AUDIO_AC_HEADER 0x01
 #define AUDIO_AC_INPUT_TERMINAL 0x02
 #define AUDIO_AC_OUTPUT_TERMINAL 0x03
+#define AUDIO_AC_FEATURE_UNIT 0x06
+// bmaControls bits for a feature unit - audio10.pdf 4.3.2.5
+#define AUDIO_FU_CONTROL_MUTE 0x01
+#define AUDIO_FU_CONTROL_VOLUME 0x02
+// A feature unit has a bmaControls entry for each channel of its stream, after the master's. Ours are all empty - only
+// the master has controls. One of these per channel count, so the descriptor can't end up a different length from
+// USB_AUDIO_FU_LENGTH()
+#define AUDIO_FU_NO_CHANNEL_CONTROLS_2 0, 0
+#define AUDIO_FU_NO_CHANNEL_CONTROLS_4 0, 0, 0, 0
+#define AUDIO_FU_NO_CHANNEL_CONTROLS_FOR(channels) AUDIO_FU_NO_CHANNEL_CONTROLS_##channels
+#define AUDIO_FU_NO_CHANNEL_CONTROLS(channels) AUDIO_FU_NO_CHANNEL_CONTROLS_FOR(channels)
 #define AUDIO_AS_GENERAL 0x01
 #define AUDIO_AS_FORMAT_TYPE 0x02
 #define AUDIO_EP_GENERAL 0x01
@@ -111,6 +134,15 @@ Macro definitions
 // and 2 can do isochronous transfers, and the two streams already have them
 #define AUDIO_ISO_USAGE_IMPLICIT_FEEDBACK 0x20
 
+// The streams' channels, as spatial locations (audio10.pdf 3.7.2.3). Stereo is left and right front. Multitrack's 8
+// channels to the host are really four stereo pairs, but described as 7.1 - left, right, centre, LFE, left and right
+// surround, left and right side - they're an ordinary 8-channel device to every host. Its 4 from the host, two stereo
+// pairs, are quad - left and right front, then left and right surround. Windows, in particular, only shows the channels
+// of a device whose channels all have locations. Channels arrive in the order of these bits
+#define AUDIO_CHANNEL_CONFIG_STEREO 0x0003
+#define AUDIO_CHANNEL_CONFIG_QUAD 0x0033
+#define AUDIO_CHANNEL_CONFIG_7_1 0x063F
+
 // Terminal IDs
 #define AUDIO_TERMINAL_FROM_HOST 1
 #define AUDIO_TERMINAL_OUTPUTS 2
@@ -119,6 +151,94 @@ Macro definitions
 
 #define LO(x) ((uint8_t)((x) & 0xFF))
 #define HI(x) ((uint8_t)(((x) >> 8) & 0xFF))
+
+/* The USB audio function: the audio control interface, then the two audio streaming interfaces. The same layout for
+ * both the stereo and multitrack configurations - only the formats and packet sizes differ (and with the channel
+ * count, the feature unit's length), so they share endpoints, pipes and all of the driver's code. audio10.pdf and
+ * frmts10.pdf from usb.org describe it all.
+ *
+ * fromHostChannels / fromHostChannelConfig / fromHostSubframe / fromHostBits: the out stream's format (host to Deluge)
+ * toHostChannels / toHostChannelConfig / toHostSubframe / toHostBits: the in stream's format (Deluge to host)
+ * asyncMaxPacket / adaptiveMaxPacket: the out stream's max packet sizes for its two streaming alternate settings
+ * toHostMaxPacket: the in stream's max packet size
+ *
+ * The out stream's alternate setting 1 is asynchronous, taking its timing from our in stream through implicit feedback
+ * (macOS, iOS, Linux). Alternate setting 2 is adaptive, for hosts that can't do implicit feedback - Windows' class
+ * drivers only support explicit feedback, which would need a third isochronous pipe we don't have */
+// clang-format off
+#define AUDIO_FUNCTION_DESCRIPTORS(fromHostChannels, fromHostChannelConfig, fromHostSubframe, fromHostBits,             \
+                                   toHostChannels, toHostChannelConfig, toHostSubframe, toHostBits, asyncMaxPacket,    \
+                                   adaptiveMaxPacket, toHostMaxPacket)                                                 \
+	/* Audio control interface - no endpoints, just describes how the streams connect up */                           \
+	USB_ID_BLENGTH, USB_DT_INTERFACE, USB_PAUDIO_INTERFACE_CONTROL, 0 /* bAlternateSetting */,                        \
+	    0 /* bNumEndpoints */, USB_IFCLS_AUD, AUDIO_SUBCLASS_CONTROL, 0, 0,                                            \
+	/* Class-specific header - audio10.pdf 4.3.2. Its collection is the two audio streams and MIDI */                  \
+	11, CS_INTERFACE, AUDIO_AC_HEADER, 0x00, 0x01 /* bcdADC 1.00 */, LO(USB_AUDIO_AC_CS_LENGTH(fromHostChannels)),     \
+	    HI(USB_AUDIO_AC_CS_LENGTH(fromHostChannels)), 3 /* bInCollection */, USB_PAUDIO_INTERFACE_STREAM_OUT,          \
+	    USB_PAUDIO_INTERFACE_STREAM_IN, USB_PMIDI_INTERFACE,                                                           \
+	/* Host to Deluge - a stream in from USB, going to the outputs. audio10.pdf 4.3.2.1 and 4.3.2.2 */                 \
+	12, CS_INTERFACE, AUDIO_AC_INPUT_TERMINAL, AUDIO_TERMINAL_FROM_HOST, LO(AUDIO_TERMINAL_STREAMING),                 \
+	    HI(AUDIO_TERMINAL_STREAMING), 0 /* bAssocTerminal */, (fromHostChannels), LO(fromHostChannelConfig),           \
+	    HI(fromHostChannelConfig), 0 /* iChannelNames */, 0 /* iTerminal */,                                           \
+	/* Volume and mute for the host's stream, so macOS and iOS give the Deluge a working volume control rather than    \
+	 * greying it out. Master channel only, whichever configuration - audio10.pdf 4.3.2.5 */                           \
+	USB_AUDIO_FU_LENGTH(fromHostChannels), CS_INTERFACE, AUDIO_AC_FEATURE_UNIT, USB_PAUDIO_FEATURE_UNIT_FROM_HOST,     \
+	    AUDIO_TERMINAL_FROM_HOST /* bSourceID */, 1 /* bControlSize */,                                                \
+	    AUDIO_FU_CONTROL_MUTE | AUDIO_FU_CONTROL_VOLUME /* bmaControls(0) - master */,                                 \
+	    AUDIO_FU_NO_CHANNEL_CONTROLS(fromHostChannels) /* bmaControls(1) on - each channel */, 0 /* iFeature */,       \
+	9, CS_INTERFACE, AUDIO_AC_OUTPUT_TERMINAL, AUDIO_TERMINAL_OUTPUTS, LO(AUDIO_TERMINAL_LINE),                        \
+	    HI(AUDIO_TERMINAL_LINE), 0 /* bAssocTerminal */, USB_PAUDIO_FEATURE_UNIT_FROM_HOST /* bSourceID */,            \
+	    0 /* iTerminal */,                                                                                             \
+	/* Deluge to host */                                                                                               \
+	12, CS_INTERFACE, AUDIO_AC_INPUT_TERMINAL, AUDIO_TERMINAL_INPUTS, LO(AUDIO_TERMINAL_LINE),                         \
+	    HI(AUDIO_TERMINAL_LINE), 0 /* bAssocTerminal */, (toHostChannels), LO(toHostChannelConfig),                    \
+	    HI(toHostChannelConfig), 0 /* iChannelNames */, 0 /* iTerminal */,                                             \
+	9, CS_INTERFACE, AUDIO_AC_OUTPUT_TERMINAL, AUDIO_TERMINAL_TO_HOST, LO(AUDIO_TERMINAL_STREAMING),                   \
+	    HI(AUDIO_TERMINAL_STREAMING), 0 /* bAssocTerminal */, AUDIO_TERMINAL_INPUTS /* bSourceID */, 0 /* iTerminal */,\
+	                                                                                                                   \
+	/* Audio streaming, host to Deluge. Alternate setting 0 has no endpoint, so takes no bus bandwidth */              \
+	USB_ID_BLENGTH, USB_DT_INTERFACE, USB_PAUDIO_INTERFACE_STREAM_OUT, 0 /* bAlternateSetting */,                      \
+	    0 /* bNumEndpoints */, USB_IFCLS_AUD, AUDIO_SUBCLASS_STREAMING, 0, 0,                                          \
+	/* Alternate setting 1: asynchronous, following our clock through implicit feedback */                             \
+	USB_ID_BLENGTH, USB_DT_INTERFACE, USB_PAUDIO_INTERFACE_STREAM_OUT, 1 /* bAlternateSetting */,                      \
+	    1 /* bNumEndpoints */, USB_IFCLS_AUD, AUDIO_SUBCLASS_STREAMING, 0, 0,                                          \
+	AUDIO_AS_DESCRIPTORS(AUDIO_TERMINAL_FROM_HOST, fromHostChannels, fromHostSubframe, fromHostBits),                  \
+	/* Standard isochronous endpoint - audio10.pdf 4.6.1.1. bSynchAddress: implicit feedback from our in stream */     \
+	9, USB_DT_ENDPOINT, (uint8_t)(USB_EP_OUT | USB_PAUDIO_EP_OUT), AUDIO_ISO_ASYNC, LO(asyncMaxPacket),                \
+	    HI(asyncMaxPacket), 1 /* bInterval */, 0 /* bRefresh */, (uint8_t)(USB_EP_IN | USB_PAUDIO_EP_IN),              \
+	AUDIO_CS_ENDPOINT_DESCRIPTOR,                                                                                      \
+	/* Alternate setting 2: the same stream, adaptive, for hosts that can't follow our clock through implicit          \
+	 * feedback. The Deluge then follows theirs, dropping or repeating the odd frame */                                \
+	USB_ID_BLENGTH, USB_DT_INTERFACE, USB_PAUDIO_INTERFACE_STREAM_OUT, 2 /* bAlternateSetting */,                      \
+	    1 /* bNumEndpoints */, USB_IFCLS_AUD, AUDIO_SUBCLASS_STREAMING, 0, 0,                                          \
+	AUDIO_AS_DESCRIPTORS(AUDIO_TERMINAL_FROM_HOST, fromHostChannels, fromHostSubframe, fromHostBits),                  \
+	9, USB_DT_ENDPOINT, (uint8_t)(USB_EP_OUT | USB_PAUDIO_EP_OUT), AUDIO_ISO_ADAPTIVE, LO(adaptiveMaxPacket),           \
+	    HI(adaptiveMaxPacket), 1 /* bInterval */, 0 /* bRefresh */, 0 /* bSynchAddress - none */,                      \
+	AUDIO_CS_ENDPOINT_DESCRIPTOR,                                                                                      \
+	                                                                                                                   \
+	/* Audio streaming, Deluge to host */                                                                              \
+	USB_ID_BLENGTH, USB_DT_INTERFACE, USB_PAUDIO_INTERFACE_STREAM_IN, 0 /* bAlternateSetting */,                       \
+	    0 /* bNumEndpoints */, USB_IFCLS_AUD, AUDIO_SUBCLASS_STREAMING, 0, 0,                                          \
+	USB_ID_BLENGTH, USB_DT_INTERFACE, USB_PAUDIO_INTERFACE_STREAM_IN, 1 /* bAlternateSetting */,                       \
+	    1 /* bNumEndpoints */, USB_IFCLS_AUD, AUDIO_SUBCLASS_STREAMING, 0, 0,                                          \
+	AUDIO_AS_DESCRIPTORS(AUDIO_TERMINAL_TO_HOST, toHostChannels, toHostSubframe, toHostBits),                          \
+	/* Asynchronous, and the source of implicit feedback for the out stream */                                         \
+	9, USB_DT_ENDPOINT, (uint8_t)(USB_EP_IN | USB_PAUDIO_EP_IN), AUDIO_ISO_ASYNC | AUDIO_ISO_USAGE_IMPLICIT_FEEDBACK,   \
+	    LO(toHostMaxPacket), HI(toHostMaxPacket), 1 /* bInterval */, 0 /* bRefresh */, 0 /* bSynchAddress */,          \
+	AUDIO_CS_ENDPOINT_DESCRIPTOR
+
+/* A streaming alternate setting's general descriptor (audio10.pdf 4.5.2) and Type I format descriptor (frmts10.pdf
+ * 2.2.5), with our one sample rate */
+#define AUDIO_AS_DESCRIPTORS(terminal, channels, subframe, bits)                                                       \
+	7, CS_INTERFACE, AUDIO_AS_GENERAL, (terminal), 1 /* bDelay */, 0x01, 0x00 /* wFormatTag - PCM */,                 \
+	11, CS_INTERFACE, AUDIO_AS_FORMAT_TYPE, 1 /* type I */, (channels), (subframe), (bits),                            \
+	    1 /* bSamFreqType - one discrete rate */, LO(USB_PAUDIO_SAMPLE_RATE), HI(USB_PAUDIO_SAMPLE_RATE),              \
+	    (uint8_t)(USB_PAUDIO_SAMPLE_RATE >> 16)
+
+/* Class-specific isochronous endpoint - audio10.pdf 4.6.1.2. No sample rate control - we only do one */
+#define AUDIO_CS_ENDPOINT_DESCRIPTOR 7, CS_ENDPOINT, AUDIO_EP_GENERAL, 0 /* bmAttributes */, 0, 0, 0
+// clang-format on
+
 /***********************************************************************************************************************
 Exported global variables (to be accessed by other files)
 ***********************************************************************************************************************/
@@ -175,225 +295,10 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
     (uint8_t)(USB_CF_RESERVED),           /*  7:bmAttributes */
     (uint8_t)(500 / 2),                   /*  8:bMaxPower (2mA unit) */
 
-    /* Audio control interface - no endpoints, just describes how the streams connect up */
-    USB_ID_BLENGTH,                  /*  0:bLength */
-    USB_DT_INTERFACE,                /*  1:bDescriptorType */
-    USB_PAUDIO_INTERFACE_CONTROL,    /*  2:bInterfaceNumber */
-    0,                               /*  3:bAlternateSetting */
-    0,                               /*  4:bNumEndpoints */
-    USB_IFCLS_AUD,                   /*  5:bInterfaceClass(AUD) */
-    AUDIO_SUBCLASS_CONTROL,          /*  6:bInterfaceSubClass */
-    0,                               /*  7:bInterfaceProtocol */
-    0,                               /*  8:iInterface */
-                                     // Class-specific header - audio10.pdf 4.3.2
-    11,                              // bLength
-    CS_INTERFACE,                    // bDescriptorType
-    AUDIO_AC_HEADER,                 // bDescriptorSubtype
-    0x00, 0x01,                      // bcdADC (1.00)
-    LO(USB_AUDIO_AC_CS_LENGTH),      // wTotalLength
-    HI(USB_AUDIO_AC_CS_LENGTH),      //
-    3,                               // bInCollection
-    USB_PAUDIO_INTERFACE_STREAM_OUT, // baInterfaceNr
-    USB_PAUDIO_INTERFACE_STREAM_IN,  //
-    USB_PMIDI_INTERFACE,             //
-    // Host to Deluge - a stream in from USB, going to the outputs. audio10.pdf 4.3.2.1 and 4.3.2.2
-    12,                           // bLength
-    CS_INTERFACE,                 // bDescriptorType
-    AUDIO_AC_INPUT_TERMINAL,      // bDescriptorSubtype
-    AUDIO_TERMINAL_FROM_HOST,     // bTerminalID
-    LO(AUDIO_TERMINAL_STREAMING), // wTerminalType
-    HI(AUDIO_TERMINAL_STREAMING), //
-    0,                            // bAssocTerminal
-    USB_PAUDIO_NUM_CHANNELS,      // bNrChannels
-    0x03, 0x00,                   // wChannelConfig - left and right front
-    0,                            // iChannelNames
-    0,                            // iTerminal
-    9,                            // bLength
-    CS_INTERFACE,                 // bDescriptorType
-    AUDIO_AC_OUTPUT_TERMINAL,     // bDescriptorSubtype
-    AUDIO_TERMINAL_OUTPUTS,       // bTerminalID
-    LO(AUDIO_TERMINAL_LINE),      // wTerminalType
-    HI(AUDIO_TERMINAL_LINE),      //
-    0,                            // bAssocTerminal
-    AUDIO_TERMINAL_FROM_HOST,     // bSourceID
-    0,                            // iTerminal
-    // Deluge to host
-    12,                           // bLength
-    CS_INTERFACE,                 // bDescriptorType
-    AUDIO_AC_INPUT_TERMINAL,      // bDescriptorSubtype
-    AUDIO_TERMINAL_INPUTS,        // bTerminalID
-    LO(AUDIO_TERMINAL_LINE),      // wTerminalType
-    HI(AUDIO_TERMINAL_LINE),      //
-    0,                            // bAssocTerminal
-    USB_PAUDIO_NUM_CHANNELS,      // bNrChannels
-    0x03, 0x00,                   // wChannelConfig - left and right front
-    0,                            // iChannelNames
-    0,                            // iTerminal
-    9,                            // bLength
-    CS_INTERFACE,                 // bDescriptorType
-    AUDIO_AC_OUTPUT_TERMINAL,     // bDescriptorSubtype
-    AUDIO_TERMINAL_TO_HOST,       // bTerminalID
-    LO(AUDIO_TERMINAL_STREAMING), // wTerminalType
-    HI(AUDIO_TERMINAL_STREAMING), //
-    0,                            // bAssocTerminal
-    AUDIO_TERMINAL_INPUTS,        // bSourceID
-    0,                            // iTerminal
-
-    /* Audio streaming, host to Deluge. Alternate setting 0 has no endpoint, so takes no bus bandwidth */
-    USB_ID_BLENGTH,                  /*  0:bLength */
-    USB_DT_INTERFACE,                /*  1:bDescriptorType */
-    USB_PAUDIO_INTERFACE_STREAM_OUT, /*  2:bInterfaceNumber */
-    0,                               /*  3:bAlternateSetting */
-    0,                               /*  4:bNumEndpoints */
-    USB_IFCLS_AUD,                   /*  5:bInterfaceClass(AUD) */
-    AUDIO_SUBCLASS_STREAMING,        /*  6:bInterfaceSubClass */
-    0,                               /*  7:bInterfaceProtocol */
-    0,                               /*  8:iInterface */
-    USB_ID_BLENGTH,                  /*  0:bLength */
-    USB_DT_INTERFACE,                /*  1:bDescriptorType */
-    USB_PAUDIO_INTERFACE_STREAM_OUT, /*  2:bInterfaceNumber */
-    1,                               /*  3:bAlternateSetting */
-    1,                               /*  4:bNumEndpoints */
-    USB_IFCLS_AUD,                   /*  5:bInterfaceClass(AUD) */
-    AUDIO_SUBCLASS_STREAMING,        /*  6:bInterfaceSubClass */
-    0,                               /*  7:bInterfaceProtocol */
-    0,                               /*  8:iInterface */
-    // General - audio10.pdf 4.5.2
-    7,                        // bLength
-    CS_INTERFACE,             // bDescriptorType
-    AUDIO_AS_GENERAL,         // bDescriptorSubtype
-    AUDIO_TERMINAL_FROM_HOST, // bTerminalLink
-    1,                        // bDelay (frames)
-    0x01, 0x00,               // wFormatTag - PCM
-    // Type I format - frmts10.pdf 2.2.5
-    11,                                        // bLength
-    CS_INTERFACE,                              // bDescriptorType
-    AUDIO_AS_FORMAT_TYPE,                      // bDescriptorSubtype
-    1,                                         // bFormatType - type I
-    USB_PAUDIO_NUM_CHANNELS,                   // bNrChannels
-    USB_PAUDIO_SUBFRAME_BYTES,                 // bSubframeSize
-    USB_PAUDIO_BIT_RESOLUTION,                 // bBitResolution
-    1,                                         // bSamFreqType - one discrete rate
-    LO(USB_PAUDIO_SAMPLE_RATE),                // tSamFreq
-    HI(USB_PAUDIO_SAMPLE_RATE),                //
-    (uint8_t)(USB_PAUDIO_SAMPLE_RATE >> 16),   //
-                                               // Standard isochronous endpoint - audio10.pdf 4.6.1.1
-    9,                                         // bLength
-    USB_DT_ENDPOINT,                           // bDescriptorType
-    (uint8_t)(USB_EP_OUT | USB_PAUDIO_EP_OUT), // bEndpointAddress
-    AUDIO_ISO_ASYNC,                           // bmAttributes
-    LO(USB_PAUDIO_MAX_PACKET_BYTES),           // wMaxPacketSize
-    HI(USB_PAUDIO_MAX_PACKET_BYTES),           //
-    1,                                         // bInterval (frames)
-    0,                                         // bRefresh
-    (uint8_t)(USB_EP_IN | USB_PAUDIO_EP_IN),   // bSynchAddress - implicit feedback comes from our in stream
-                                               // Class-specific isochronous endpoint - audio10.pdf 4.6.1.2
-    7,                                         // bLength
-    CS_ENDPOINT,                               // bDescriptorType
-    AUDIO_EP_GENERAL,                          // bDescriptorSubtype
-    0,                                         // bmAttributes - no sample rate control, we only do one
-    0,                                         // bLockDelayUnits
-    0, 0,                                      // wLockDelay
-
-    /* Alternate setting 2: the same stream, adaptive, for hosts that can't follow our clock through implicit feedback.
-     * The Deluge then follows theirs, dropping or repeating the odd frame */
-    USB_ID_BLENGTH,                            /*  0:bLength */
-    USB_DT_INTERFACE,                          /*  1:bDescriptorType */
-    USB_PAUDIO_INTERFACE_STREAM_OUT,           /*  2:bInterfaceNumber */
-    2,                                         /*  3:bAlternateSetting */
-    1,                                         /*  4:bNumEndpoints */
-    USB_IFCLS_AUD,                             /*  5:bInterfaceClass(AUD) */
-    AUDIO_SUBCLASS_STREAMING,                  /*  6:bInterfaceSubClass */
-    0,                                         /*  7:bInterfaceProtocol */
-    0,                                         /*  8:iInterface */
-    7,                                         // bLength
-    CS_INTERFACE,                              // bDescriptorType
-    AUDIO_AS_GENERAL,                          // bDescriptorSubtype
-    AUDIO_TERMINAL_FROM_HOST,                  // bTerminalLink
-    1,                                         // bDelay (frames)
-    0x01, 0x00,                                // wFormatTag - PCM
-    11,                                        // bLength
-    CS_INTERFACE,                              // bDescriptorType
-    AUDIO_AS_FORMAT_TYPE,                      // bDescriptorSubtype
-    1,                                         // bFormatType - type I
-    USB_PAUDIO_NUM_CHANNELS,                   // bNrChannels
-    USB_PAUDIO_SUBFRAME_BYTES,                 // bSubframeSize
-    USB_PAUDIO_BIT_RESOLUTION,                 // bBitResolution
-    1,                                         // bSamFreqType - one discrete rate
-    LO(USB_PAUDIO_SAMPLE_RATE),                // tSamFreq
-    HI(USB_PAUDIO_SAMPLE_RATE),                //
-    (uint8_t)(USB_PAUDIO_SAMPLE_RATE >> 16),   //
-    9,                                         // bLength
-    USB_DT_ENDPOINT,                           // bDescriptorType
-    (uint8_t)(USB_EP_OUT | USB_PAUDIO_EP_OUT), // bEndpointAddress
-    AUDIO_ISO_ADAPTIVE,                        // bmAttributes
-    LO(USB_PAUDIO_ADAPTIVE_MAX_PACKET_BYTES),  // wMaxPacketSize
-    HI(USB_PAUDIO_ADAPTIVE_MAX_PACKET_BYTES),  //
-    1,                                         // bInterval (frames)
-    0,                                         // bRefresh
-    0,                                         // bSynchAddress - none
-    7,                                         // bLength
-    CS_ENDPOINT,                               // bDescriptorType
-    AUDIO_EP_GENERAL,                          // bDescriptorSubtype
-    0,                                         // bmAttributes
-    0,                                         // bLockDelayUnits
-    0, 0,                                      // wLockDelay
-
-    /* Audio streaming, Deluge to host */
-    USB_ID_BLENGTH,                 /*  0:bLength */
-    USB_DT_INTERFACE,               /*  1:bDescriptorType */
-    USB_PAUDIO_INTERFACE_STREAM_IN, /*  2:bInterfaceNumber */
-    0,                              /*  3:bAlternateSetting */
-    0,                              /*  4:bNumEndpoints */
-    USB_IFCLS_AUD,                  /*  5:bInterfaceClass(AUD) */
-    AUDIO_SUBCLASS_STREAMING,       /*  6:bInterfaceSubClass */
-    0,                              /*  7:bInterfaceProtocol */
-    0,                              /*  8:iInterface */
-    USB_ID_BLENGTH,                 /*  0:bLength */
-    USB_DT_INTERFACE,               /*  1:bDescriptorType */
-    USB_PAUDIO_INTERFACE_STREAM_IN, /*  2:bInterfaceNumber */
-    1,                              /*  3:bAlternateSetting */
-    1,                              /*  4:bNumEndpoints */
-    USB_IFCLS_AUD,                  /*  5:bInterfaceClass(AUD) */
-    AUDIO_SUBCLASS_STREAMING,       /*  6:bInterfaceSubClass */
-    0,                              /*  7:bInterfaceProtocol */
-    0,                              /*  8:iInterface */
-    // General
-    7,                      // bLength
-    CS_INTERFACE,           // bDescriptorType
-    AUDIO_AS_GENERAL,       // bDescriptorSubtype
-    AUDIO_TERMINAL_TO_HOST, // bTerminalLink
-    1,                      // bDelay (frames)
-    0x01, 0x00,             // wFormatTag - PCM
-    // Type I format
-    11,                                                  // bLength
-    CS_INTERFACE,                                        // bDescriptorType
-    AUDIO_AS_FORMAT_TYPE,                                // bDescriptorSubtype
-    1,                                                   // bFormatType - type I
-    USB_PAUDIO_NUM_CHANNELS,                             // bNrChannels
-    USB_PAUDIO_SUBFRAME_BYTES,                           // bSubframeSize
-    USB_PAUDIO_BIT_RESOLUTION,                           // bBitResolution
-    1,                                                   // bSamFreqType - one discrete rate
-    LO(USB_PAUDIO_SAMPLE_RATE),                          // tSamFreq
-    HI(USB_PAUDIO_SAMPLE_RATE),                          //
-    (uint8_t)(USB_PAUDIO_SAMPLE_RATE >> 16),             //
-                                                         // Standard isochronous endpoint
-    9,                                                   // bLength
-    USB_DT_ENDPOINT,                                     // bDescriptorType
-    (uint8_t)(USB_EP_IN | USB_PAUDIO_EP_IN),             // bEndpointAddress
-    AUDIO_ISO_ASYNC | AUDIO_ISO_USAGE_IMPLICIT_FEEDBACK, // bmAttributes
-    LO(USB_PAUDIO_MAX_PACKET_BYTES),                     // wMaxPacketSize
-    HI(USB_PAUDIO_MAX_PACKET_BYTES),                     //
-    1,                                                   // bInterval (frames)
-    0,                                                   // bRefresh
-    0,                                                   // bSynchAddress
-                                                         // Class-specific isochronous endpoint
-    7,                                                   // bLength
-    CS_ENDPOINT,                                         // bDescriptorType
-    AUDIO_EP_GENERAL,                                    // bDescriptorSubtype
-    0,                                                   // bmAttributes
-    0,                                                   // bLockDelayUnits
-    0, 0,                                                // wLockDelay
+    AUDIO_FUNCTION_DESCRIPTORS(USB_PAUDIO_NUM_CHANNELS, AUDIO_CHANNEL_CONFIG_STEREO, USB_PAUDIO_SUBFRAME_BYTES,
+                               USB_PAUDIO_BIT_RESOLUTION, USB_PAUDIO_NUM_CHANNELS, AUDIO_CHANNEL_CONFIG_STEREO,
+                               USB_PAUDIO_SUBFRAME_BYTES, USB_PAUDIO_BIT_RESOLUTION, USB_PAUDIO_MAX_PACKET_BYTES,
+                               USB_PAUDIO_ADAPTIVE_MAX_PACKET_BYTES, USB_PAUDIO_MAX_PACKET_BYTES),
 
     /* MIDI streaming interface Descriptor
      * 3rd level of USB declarations. This declares a USB midi interface with 2 endpoints (subclass of audio)
@@ -614,12 +519,40 @@ uint8_t* g_midi_string_table[] = {g_midi_string0, g_midi_string1, g_midi_string2
  * from the MIDI section of g_midi_configuration, so there's only one copy of the MIDI descriptors to maintain */
 static uint8_t g_midi_only_configuration[MIDI_ONLY_CONFIG_LENGTH + (MIDI_ONLY_CONFIG_LENGTH % 2)];
 
-uint8_t* usbPeripheralConfigurationDescriptor(bool withAudio) {
-	g_midi_device[12] = LO(withAudio ? USB_RELEASE : USB_RELEASE_MIDI_ONLY); /* bcdDevice */
-	g_midi_device[13] = HI(withAudio ? USB_RELEASE : USB_RELEASE_MIDI_ONLY);
+/* The multitrack configuration's audio function: 8 channels to the host and 4 from it, all 16-bit. See
+ * r_usb_paudio_config.h for why */
+static const uint8_t g_multitrack_audio_function[] = {AUDIO_FUNCTION_DESCRIPTORS(
+    USB_PAUDIO_MT_CHANNELS_FROM_HOST, AUDIO_CHANNEL_CONFIG_QUAD, USB_PAUDIO_MT_SUBFRAME_BYTES,
+    USB_PAUDIO_MT_BIT_RESOLUTION, USB_PAUDIO_MT_CHANNELS_TO_HOST, AUDIO_CHANNEL_CONFIG_7_1,
+    USB_PAUDIO_MT_SUBFRAME_BYTES, USB_PAUDIO_MT_BIT_RESOLUTION, USB_PAUDIO_MT_MAX_PACKET_BYTES_FROM_HOST,
+    USB_PAUDIO_MT_ADAPTIVE_MAX_PACKET_BYTES_FROM_HOST, USB_PAUDIO_MT_MAX_PACKET_BYTES_TO_HOST)};
+_Static_assert(sizeof(g_multitrack_audio_function) == USB_AUDIO_FUNCTION_LENGTH(USB_PAUDIO_MT_CHANNELS_FROM_HOST),
+               "The multitrack audio function's length macros need updating");
 
-	if (withAudio) {
+/* The multitrack configuration: the stereo one with the multitrack audio function in place of its own, and the MIDI
+ * section moved along to follow it - the multitrack function's the longer one. Only built if it's used */
+static uint8_t g_multitrack_configuration[MULTITRACK_CONFIG_LENGTH + (MULTITRACK_CONFIG_LENGTH % 2)];
+
+uint8_t* usbPeripheralConfigurationDescriptor(uint8_t which) {
+	uint16_t release = (which == USB_PAUDIO_CONFIG_MULTITRACK) ? USB_RELEASE_MULTITRACK
+	                   : (which == USB_PAUDIO_CONFIG_STEREO)   ? USB_RELEASE
+	                                                           : USB_RELEASE_MIDI_ONLY;
+	g_midi_device[12] = LO(release); /* bcdDevice */
+	g_midi_device[13] = HI(release);
+
+	if (which == USB_PAUDIO_CONFIG_STEREO) {
 		return g_midi_configuration;
+	}
+
+	if (which == USB_PAUDIO_CONFIG_MULTITRACK) {
+		memcpy(g_multitrack_configuration, g_midi_configuration, USB_CD_BLENGTH);
+		g_multitrack_configuration[2] = LO(MULTITRACK_CONFIG_LENGTH); /* wTotalLength */
+		g_multitrack_configuration[3] = HI(MULTITRACK_CONFIG_LENGTH);
+		memcpy(&g_multitrack_configuration[USB_CD_BLENGTH], g_multitrack_audio_function,
+		       sizeof(g_multitrack_audio_function));
+		memcpy(&g_multitrack_configuration[USB_CD_BLENGTH + sizeof(g_multitrack_audio_function)],
+		       &g_midi_configuration[MIDI_SECTION_OFFSET], USB_MIDI_CD_WTOTALLENGTH);
+		return g_multitrack_configuration;
 	}
 
 	memcpy(g_midi_only_configuration, g_midi_configuration, USB_CD_BLENGTH);

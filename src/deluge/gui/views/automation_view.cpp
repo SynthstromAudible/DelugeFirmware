@@ -110,6 +110,9 @@ using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 
 using namespace deluge::gui;
 
+// Set true to use the MIDI Follow shortcut layout instead of the sequential CC overview.
+constexpr bool kUseMIDIFollowAutomationOverview = false;
+
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
                                              UI_MODE_AUDITIONING,
                                              UI_MODE_HORIZONTAL_SCROLL,
@@ -118,6 +121,13 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
                                              0};
 
 const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
+
+const uint32_t editPadReleaseUIModes[] = {UI_MODE_NOTES_PRESSED,
+                                          UI_MODE_AUDITIONING,
+                                          UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+                                          UI_MODE_QUANTIZE,
+                                          UI_MODE_SCALE_MODE_BUTTON_PRESSED,
+                                          0};
 
 const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
@@ -393,6 +403,25 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
 	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
 	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
+}
+
+// Fill the grid in CC order, reserving the usual X, Y and Z expression shortcuts.
+uint32_t AutomationView::getMIDICCForAutomation(int32_t x, int32_t y) const {
+	if (kUseMIDIFollowAutomationOverview) {
+		return midiCCShortcutsForAutomation[x][y];
+	}
+	if (x == 14 && y == 7) {
+		return CC_NUMBER_PITCH_BEND;
+	}
+	if (x == 15 && y == 7) {
+		return CC_NUMBER_Y_AXIS;
+	}
+	if (x == 15 && y == 0) {
+		return CC_NUMBER_AFTERTOUCH;
+	}
+	// Z occupies the last pad of the bottom row. X and Y are after the final CC.
+	uint32_t cc = y * kDisplayWidth + x - (y > 0 ? 1 : 0);
+	return cc < kNumRealCCNumbers ? cc : kNoParamID;
 }
 
 // called everytime you open up the automation view
@@ -851,9 +880,9 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			}
 
 			else if (outputType == OutputType::MIDI_OUT) {
-				if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-					modelStackWithParam = getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+				if (getMIDICCForAutomation(xDisplay, yDisplay) != kNoParamID) {
+					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+					                                                    getMIDICCForAutomation(xDisplay, yDisplay));
 				}
 			}
 			else if (outputType == OutputType::CV) {
@@ -874,6 +903,15 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 					};
 				}
 
+				else if (!onArrangerView && outputType == OutputType::MIDI_OUT && !kUseMIDIFollowAutomationOverview
+				         && getMIDICCForAutomation(xDisplay, yDisplay) < kNumRealCCNumbers) {
+					// Restore the original overview's green-to-red CC gradient.
+					uint32_t cc = getMIDICCForAutomation(xDisplay, yDisplay);
+					uint8_t colourOffset = (cc * 51) / (kNumRealCCNumbers - 1);
+					pixel = {.r = static_cast<uint8_t>(2 + colourOffset),
+					         .g = static_cast<uint8_t>(53 - colourOffset),
+					         .b = 2};
+				}
 				else {
 					pixel = colours::grey;
 				}
@@ -946,8 +984,8 @@ void AutomationView::clipNeedsReRendering(Clip* clip) {
 
 On Automation Overview:
 
-- on OLED it renders "Automation Overview" (or "Can't Automate CV" if you're on a CV clip)
-- on 7Seg it renders AUTO (or CANT if you're on a CV clip)
+- on OLED it renders "Automation Overview"
+- on 7Seg it renders AUTO
 
 On Automation Editor:
 
@@ -1279,6 +1317,10 @@ passToOthers:
 		// when you press affect entire, the parameter selection needs to reset
 		// do this here because affect entire state may have just changed
 		if (on && b == AFFECT_ENTIRE) {
+			// Overview releases use physical pad rows, not the note rows stored by Velocity Editor.
+			if (inNoteEditor()) {
+				instrumentClipView.endAllEditPadPresses();
+			}
 			initParameterSelection();
 			blinkShortcuts();
 		}
@@ -1297,6 +1339,11 @@ passToOthers:
 void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 	// if shift is pressed, go back to automation overview
 	if (on && Buttons::isShiftButtonPressed()) {
+		// Note edits store the selected note row, not the physical pad row used by overview releases.
+		// End them while leaving the editor, before discarding that context.
+		if (inNoteEditor()) {
+			instrumentClipView.endAllEditPadPresses();
+		}
 		initParameterSelection();
 		blinkShortcuts();
 		uiNeedsRendering(&automationView);
@@ -1304,6 +1351,8 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 	// go back to song / arranger view
 	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
+			// Song / Arranger View cannot release the automation editor's held pads.
+			endAutomationEditPadPresses();
 			initPadSelection();
 		}
 		// automation arranger view transitioning back to arranger view
@@ -1322,6 +1371,8 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 void AutomationView::handleKeyboardButtonAction(bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
+			// Keyboard / Performance View cannot release the automation editor's held pads.
+			endAutomationEditPadPresses();
 			initPadSelection();
 		}
 		if (onArrangerView) {
@@ -1341,13 +1392,19 @@ void AutomationView::handleKeyboardButtonAction(bool on) {
 void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	// if audition pad or shift is pressed, go back to automation overview
 	if (on && (currentUIMode == UI_MODE_AUDITIONING || Buttons::isShiftButtonPressed())) {
+		// Note edits store the selected note row, not the physical pad row used by overview releases.
+		// End them while leaving the editor, before discarding that context.
+		if (inNoteEditor()) {
+			instrumentClipView.endAllEditPadPresses();
+		}
 		initParameterSelection();
 		blinkShortcuts();
 		uiNeedsRendering(&automationView);
 	}
-	// go back to clip view
+	// go back to arranger view or clip view
 	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
+			endAutomationEditPadPresses();
 			initPadSelection();
 		}
 		// automation arranger view transitioning back to arranger view
@@ -1464,6 +1521,14 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 }
 // called by button action if b == X_ENC
 bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
+	// Always let TimelineView clear the held-encoder mode, regardless of shortcut modifiers.
+	if (!on) {
+		if (isUIModeActive(UI_MODE_AUDITIONING)) {
+			instrumentClipView.timeHorizontalKnobLastReleased = AudioEngine::audioSampleTimer;
+		}
+		return true;
+	}
+
 	// copy / paste automation (same shortcut used for notes)
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 		if (inAutomationEditor()) {
@@ -1536,11 +1601,6 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 
 	// Otherwise...
 	else {
-		if (isUIModeActive(UI_MODE_AUDITIONING)) {
-			if (!on) {
-				instrumentClipView.timeHorizontalKnobLastReleased = AudioEngine::audioSampleTimer;
-			}
-		}
 		return true;
 	}
 	return false;
@@ -1702,9 +1762,12 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// if we're in a midi clip, with a midi cc selected and we press the name shortcut
 	// while holding shift, then enter the rename midi cc UI
 	if (outputType == OutputType::MIDI_OUT) {
-		if (Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
+		if (velocity && Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
 			if (!onAutomationOverview()) {
-				openUI(&renameMidiCCUI);
+				// Keep releases in Automation View until all held edits and other UI modes have ended.
+				if (isNoUIModeActive()) {
+					openUI(&renameMidiCCUI);
+				}
 				return ActionResult::DEALT_WITH;
 			}
 		}
@@ -1780,16 +1843,34 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
                                                  int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
                                                  SquareInfo& squareInfo) {
 
+	// A pad can still be held when Shift+Clip / Shift+Song returns to the overview.
+	// Retire its registered press even though there is no longer a parameter to edit.
+	if (!velocity && onAutomationOverview()) {
+		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+			auto& press = instrumentClipView.editPadPresses[i];
+			if (press.isActive && press.xDisplay == x && press.yDisplay == y) {
+				instrumentClipView.endEditPadPress(i);
+				instrumentClipView.checkIfAllEditPadPressesEnded();
+				break;
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
 	if (onArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		return ActionResult::DEALT_WITH;
 	}
 
 	// potentially enter or refresh note velocity editor if you're in an instrument clip, holding audition pad and
 	// pressing PatchSource::Velocity shortcut
-	if (!onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
+	if (velocity && !onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
 	    && isNoteVelocityEditorShortcut(x, y)) {
 		// don't enter if we're in a kit with affect entire enabled
 		if (!(outputType == OutputType::KIT && getAffectEntire())) {
+			// Automation edits store physical pad rows, which note-editor releases cannot match.
+			if (inAutomationEditor()) {
+				endAutomationEditPadPresses();
+			}
 			if (outputType == OutputType::KIT) {
 				potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
 			}
@@ -1821,7 +1902,10 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	}
 
 	// regular automation / note editing action
-	if (isUIModeWithinRange(editPadActionUIModes) && isSquareDefined(x, xScroll, xZoom)) {
+	// Holding the horizontal encoder blocks new presses, but must not swallow releases of existing ones.
+	const uint32_t* allowedModes = velocity ? editPadActionUIModes : editPadReleaseUIModes;
+	// Enabling triplets can make a held pad's column undefined; its release must still end the press.
+	if (isUIModeWithinRange(allowedModes) && (!velocity || isSquareDefined(x, xScroll, xZoom))) {
 		if (inAutomationEditor()) {
 			automationEditorLayoutModControllable.automationEditPadAction(modelStackWithParam, clip, x, y, velocity,
 			                                                              effectiveLength, xScroll, xZoom);
@@ -1969,10 +2053,10 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		getLastSelectedGlobalParamArrayPosition(clip);
 	}
 
-	else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+	else if (outputType == OutputType::MIDI_OUT && getMIDICCForAutomation(xDisplay, yDisplay) != kNoParamID) {
 
 		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
-		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
+		clip->lastSelectedParamID = getMIDICCForAutomation(xDisplay, yDisplay);
 	}
 	// expression params, so sounds or midi/cv, or a single drum
 	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
@@ -2000,6 +2084,9 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 
 	resetParameterShortcutBlinking();
 	if (inNoteEditor()) {
+		// Note edits use the selected note row; parameter edits release by physical pad row.
+		// Finish held note edits before switching to the parameter editor.
+		instrumentClipView.endAllEditPadPresses();
 		automationParamType = AutomationParamType::PER_SOUND;
 		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
@@ -2076,22 +2163,18 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 		// Actual basic audition pad press:
 		else if (!velocity || isUIModeWithinRange(auditionPadActionUIModes)) {
 			bool auditioningSilently = Buttons::isShiftButtonPressed();
-			if (inNoteEditor()) {
-				if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-					// special handling for note editor and holding a note and we changed row selection
-					// don't process audition pad action as it leads to stuck notes
-					if (instrumentClipView.lastAuditionedYDisplay != y) {
-						return ActionResult::DEALT_WITH;
-					}
+			if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+				// Don't change row selection while holding a note, but always release held audition pads.
+				if (velocity && instrumentClipView.lastAuditionedYDisplay != y) {
+					return ActionResult::DEALT_WITH;
 				}
-				// We're quantizing: either adding a new note to the set being quantized, or removing.
-				// In the first case we simply defer to auditionPadAction.
-				else if (isUIModeActive(UI_MODE_QUANTIZE)) {
-					if (velocity == 0) {
-						return instrumentClipView.commandStopQuantize(y);
-					}
-					auditioningSilently = true;
+			}
+			// Finish quantizing on release even with a note edit held or after changing editors.
+			if (isUIModeActive(UI_MODE_QUANTIZE)) {
+				if (velocity == 0) {
+					return instrumentClipView.commandStopQuantize(y);
 				}
+				auditioningSilently = true;
 			}
 			return auditionPadAction(instrumentClip, output, outputType, y, velocity, auditioningSilently);
 		}
@@ -2183,7 +2266,10 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 
 	// Or if auditioning this NoteRow just finished...
 	else {
-		instrumentClipView.finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip);
+		// Keep the held note edit attached to its row even if other audition pads remain held.
+		bool changeRowSelection = !inNoteEditor() || !isUIModeActive(UI_MODE_NOTES_PRESSED);
+		instrumentClipView.finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip,
+		                                        changeRowSelection);
 		if (display->have7SEG()) {
 			renderDisplay();
 		}
@@ -2288,7 +2374,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	// else if showing the Parameter selection grid menu, disable this action
+	// The overview layout is fixed; horizontal scrolling only applies in the editor.
 	else if (onAutomationOverview()) {
 		return ActionResult::DEALT_WITH;
 	}
@@ -2481,7 +2567,8 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	if (is_step_editing) {
 		if ((instrumentClipView.numEditPadPresses > 0
-		     && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0))
+		     && ((int32_t)(instrumentClipView.timeLastEditPadPress + kEditPadHoldTime - AudioEngine::audioSampleTimer)
+		         < 0))
 		    || padSelectionOn) {
 
 			if (automationEditorLayoutModControllable.automationModEncoderActionForSelectedPad(
@@ -2513,6 +2600,12 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		if (onAutomationOverview()) {
 			uiNeedsRendering(&automationView);
 		}
+		return;
+	}
+
+	// Stutter or MIDI CC assignment may have started before a shortcut selected a parameter.
+	if (!on && (isUIModeActive(UI_MODE_STUTTERING) || isUIModeActive(UI_MODE_SELECTING_MIDI_CC))) {
+		view.modEncoderButtonAction(whichModEncoder, false);
 		return;
 	}
 
@@ -2588,6 +2681,10 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 // once parameter is selected
 // used to fine tune the values of non-midi parameters
 void AutomationView::selectEncoderAction(int8_t offset) {
+	if (offset == 0) {
+		return;
+	}
+
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		offset = offset * 5;
@@ -2653,7 +2750,12 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			getLastSelectedParamShortcut(clip);
 		}
 	}
-	// if you're in a CV clip or function is called for some other reason, do nothing
+	// if you're in a CV clip, cycle through the expression params (pitch bend, Y, pressure)
+	else if (outputType == OutputType::CV) {
+		selectExpressionParam(offset, clip);
+		getLastSelectedParamShortcut(clip);
+	}
+	// function is called for some other reason, do nothing
 	else {
 		return;
 	}
@@ -2754,8 +2856,13 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 // used with SelectEncoderAction to get the next synth or kit non-affect entire param
 void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 	bool foundPatchCable = false;
+	// Patch cables follow the regular parameters, so enter their list from the end when
+	// scrolling left from the overview, regardless of the previously selected array position.
+	if (onAutomationOverview() && offset < 0) {
+		foundPatchCable = selectPatchCable(offset, clip);
+	}
 	// if we previously selected a patch cable, we'll see if there are any more to scroll through
-	if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+	else if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
 		foundPatchCable = selectPatchCable(offset, clip);
 		// did we find another patch cable?
 		if (!foundPatchCable) {
@@ -2796,7 +2903,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 		// did we reach beginning or end of list?
 		// if yes, then let's scroll through patch cables
 		// but only if we haven't already scrolled through patch cables already above
-		if ((clip->lastSelectedParamKind != params::Kind::PATCH_CABLE)
+		if (!onAutomationOverview() && (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE)
 		    && (((offset > 0) && (idx < clip->lastSelectedParamArrayPosition))
 		        || ((offset < 0) && (idx > clip->lastSelectedParamArrayPosition)))) {
 			foundPatchCable = selectPatchCable(offset, clip);
@@ -2886,10 +2993,28 @@ bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int
 	return false;
 }
 
+// used with SelectEncoderAction to get the next CV clip expression param
+void AutomationView::selectExpressionParam(int32_t offset, Clip* clip) {
+	// Start just outside the list so either direction enters at its respective end.
+	int32_t id = offset > 0 ? -1 : 0;
+	if (!onAutomationOverview() && clip->lastSelectedParamKind == params::Kind::EXPRESSION
+	    && clip->lastSelectedParamID < kNumExpressionDimensions) {
+		id = static_cast<int32_t>(clip->lastSelectedParamID);
+	}
+	id = (id + offset) % kNumExpressionDimensions;
+	if (id < 0) {
+		id += kNumExpressionDimensions;
+	}
+	clip->lastSelectedParamID = id;
+	clip->lastSelectedParamKind = params::Kind::EXPRESSION;
+	automationParamType = AutomationParamType::PER_SOUND;
+}
+
 // used with SelectEncoderAction to get the next midi CC
 void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (onAutomationOverview()) {
-		clip->lastSelectedParamID = CC_NUMBER_NONE;
+		// NONE is outside the selectable range and would skip CC 0 when scrolling right.
+		clip->lastSelectedParamID = offset > 0 ? kNumCCExpression - 1 : 0;
 	}
 	clip->lastSelectedParamID = ((MIDIInstrument*)clip->output)->getNextSelectableCC(clip->lastSelectedParamID, offset);
 	automationParamType = AutomationParamType::PER_SOUND;
@@ -2898,22 +3023,14 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 // used with SelectEncoderAction to get the next parameter in the list of parameters
 int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
                                                           int32_t numParams) {
-	int32_t idx;
-	// if you haven't selected a parameter yet, start at the beginning of the list
+	// Enter at the first or last parameter from the overview. Keep the offset so callers
+	// can advance past parameters unavailable in the current context.
 	if (onAutomationOverview()) {
-		idx = 0;
+		lastSelectedParamArrayPosition = offset > 0 ? -1 : 0;
 	}
-	// if you are scrolling left and are at the beginning of the list, go to the end of the list
-	else if ((lastSelectedParamArrayPosition + offset) < 0) {
-		idx = numParams + offset;
-	}
-	// if you are scrolling right and are at the end of the list, go to the beginning of the list
-	else if ((lastSelectedParamArrayPosition + offset) > (numParams - 1)) {
-		idx = 0;
-	}
-	// otherwise scrolling left/right within the list
-	else {
-		idx = lastSelectedParamArrayPosition + offset;
+	int32_t idx = (lastSelectedParamArrayPosition + offset) % numParams;
+	if (idx < 0) {
+		idx += numParams;
 	}
 	return idx;
 }
@@ -2932,7 +3049,7 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 				}
 			}
 			else if (clip->output->type == OutputType::MIDI_OUT) {
-				if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
+				if (getMIDICCForAutomation(x, y) == clip->lastSelectedParamID) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;
@@ -3073,6 +3190,16 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 	if (updateDisplay) {
 		renderDisplay();
 	}
+}
+
+void AutomationView::endAutomationEditPadPresses() {
+	// Automation records contain value-pad rows, so do not reassess note audition for these rows.
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (instrumentClipView.editPadPresses[i].isActive) {
+			instrumentClipView.endEditPadPress(i);
+		}
+	}
+	instrumentClipView.checkIfAllEditPadPressesEnded();
 }
 
 // exit pad selection mode, reset pad press statuses

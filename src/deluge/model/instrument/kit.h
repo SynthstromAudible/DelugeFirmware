@@ -172,6 +172,7 @@ protected:
 	bool isKit() override { return true; }
 
 private:
+	NoteRow* getNoteRowForDrumInActiveClip(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t* index);
 	Error readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,
 	                       int32_t readAutomationUpToPos);
 	void writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,

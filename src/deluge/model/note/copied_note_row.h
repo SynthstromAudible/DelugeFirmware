@@ -30,4 +30,5 @@ public:
 	Note* notes;
 	CopiedNoteRow* next;
 	int16_t yNote;
+	int8_t accidentalOffset; // Semitones from the in-scale row this was displayed on (accidentals)
 };

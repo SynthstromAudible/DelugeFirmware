@@ -19,6 +19,7 @@
 
 #include "model/iterance/iterance.h"
 #include "model/positionable.h"
+#include "model/scale/anchor_marker.h"
 #include <cstdint>
 
 class Note : public Positionable {
@@ -59,6 +60,12 @@ public:
 	uint8_t fill;
 	/// Lift is noteOff velocity.
 	uint8_t lift;
+	/// Accidental lineage: the in-key pitch this note hangs off, when that can't be derived from the row's pitch and
+	/// the key (see AnchorMarker for the encodings, and model/scale/accidentals.h). Written by scale changes, which
+	/// move notes by their anchors; a note moved to another row by hand is a new Note, so starts out derived. Must be
+	/// carried along wherever a note's other fields are copied one by one. Sits in what was trailing padding. Notes
+	/// live in raw NoteVector memory, so NoteVector resets it on insert.
+	AnchorMarker anchorMarker;
 
 	// Understanding the probability field: the first bit says whether it's based on a previous one.
 	// So take the rightmost 7 bits. If that's greater than kNumProbabilityValues (20),

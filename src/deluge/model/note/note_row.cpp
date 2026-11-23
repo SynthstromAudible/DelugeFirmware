@@ -24,6 +24,7 @@
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
+#include "model/clip/deferred_note_ons.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_note_existence.h"
 #include "model/drum/drum_name.h"
@@ -67,6 +68,7 @@ NoteRow::NoteRow(int16_t newY) {
 }
 
 NoteRow::~NoteRow() {
+	DeferredNoteOns::forgetNoteRow(this);
 	deleteOldDrumNames(false);
 }
 
@@ -139,6 +141,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 						newNote->setLift(oldNote->getLift());
 						newNote->setIterance(oldNote->getIterance());
 						newNote->setFill(oldNote->getFill());
+						newNote->anchorMarker = oldNote->anchorMarker;
 					}
 				}
 
@@ -156,6 +159,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->anchorMarker = oldNote->anchorMarker;
 				}
 			}
 
@@ -184,6 +188,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->anchorMarker = oldNote->anchorMarker;
 				}
 			}
 		}
@@ -1085,6 +1090,7 @@ modifyNote:
 			Iterance iterance = note->getIterance();
 			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
+			AnchorMarker anchorMarker = note->anchorMarker;
 			notes.deleteAtIndex(0, 1, false);
 			i = notes.getNumElements();
 			notes.insertAtIndex(i); // Shouldn't be able to fail.
@@ -1093,6 +1099,7 @@ modifyNote:
 			note->setVelocity(noteOnVelocity);
 			note->setIterance(iterance);
 			note->setFill(fill);
+			note->anchorMarker = anchorMarker;
 		}
 
 		note->pos = newNoteLeftPos; // This will stay the same if we're pingponging
@@ -1763,6 +1770,8 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 	}
 
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
+	// Start from the first screen, so copies on screens before editPos's get the change too
+	editPos = (uint32_t)editPos % wrapEditLevel;
 
 	int32_t numScreens = (uint32_t)(modelStack->getLoopLength() - 1) / wrapEditLevel + 1;
 
@@ -1870,6 +1879,8 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 	if (!sequenced) {
 		return;
 	}
+	// If its note-on was held back from the tick and hasn't been sent yet, it mustn't be now
+	DeferredNoteOns::forgetNoteRow(this);
 	if (actuallySoundChange) {
 		playNote(false, modelStack, note);
 	}
@@ -2903,6 +2914,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->anchorMarker = oldNote->anchorMarker;
 
 					highestNoteIndex = iNew;
 				}
@@ -2953,6 +2965,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->anchorMarker = oldNote->anchorMarker;
 
 					highestNoteIndex = iNew;
 				}
@@ -3536,6 +3549,34 @@ getOut: {}
 			goto doReadNoteData;
 		}
 
+		// Accidental lineage markers (AnchorMarker::raw()), one byte per note, written after the notes. Ignored unless
+		// they match.
+		else if (!strcmp(tagName, "noteAnchors")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					int32_t numMarkers = 0;
+					while (true) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (!hexChars) {
+							break;
+						}
+						auto marker = AnchorMarker::fromRaw(static_cast<int8_t>(hexToIntFixedLength(hexChars, 2)));
+						if (numMarkers < notes.getNumElements()) {
+							notes.getElement(numMarkers)->anchorMarker = marker;
+						}
+						numMarkers++;
+					}
+					// If this doesn't match the notes we read, drop it all
+					if (numMarkers != notes.getNumElements()) {
+						for (int32_t n = 0; n < notes.getNumElements(); n++) {
+							notes.getElement(n)->anchorMarker = AnchorMarker::derived();
+						}
+					}
+				}
+			}
+		}
+
 		else if (!strcmp(tagName, "expressionData")) {
 			paramManager.ensureExpressionParamSetExists();
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
@@ -3617,6 +3658,25 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.write(buffer);
 		}
 		writer.write("\"");
+
+		// Accidental lineage markers (see model/scale/accidentals.h), only if any note has one
+		bool anyAnchors = false;
+		for (int32_t n = 0; n < notes.getNumElements(); n++) {
+			anyAnchors = anyAnchors || !notes.getElement(n)->anchorMarker.isDerived();
+		}
+		if (anyAnchors) {
+			writer.insertCommaIfNeeded();
+			writer.write("\n");
+			writer.printIndents();
+			writer.writeTagNameAndSeperator("noteAnchors");
+			writer.write("\"0x");
+			for (int32_t n = 0; n < notes.getNumElements(); n++) {
+				char buffer[9];
+				intToHex(static_cast<uint8_t>(notes.getElement(n)->anchorMarker.raw()), buffer, 2);
+				writer.write(buffer);
+			}
+			writer.write("\"");
+		}
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
@@ -4218,6 +4278,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setLift(oldNote->getLift());
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
+				newNote->anchorMarker = oldNote->anchorMarker;
 			}
 		}
 
@@ -4248,6 +4309,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setLift(oldNote->getLift());
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
+				newNote->anchorMarker = oldNote->anchorMarker;
 			}
 		}
 	}
@@ -4265,6 +4327,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 			newNote->probability = oldNote->probability;
 			newNote->iterance = oldNote->iterance;
 			newNote->fill = oldNote->fill;
+			newNote->anchorMarker = oldNote->anchorMarker;
 		}
 	}
 

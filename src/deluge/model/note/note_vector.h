@@ -30,5 +30,9 @@ public:
 	Note* getElement(int32_t index);
 	Note* getLast();
 
+	// These shadow - they don't override. Notes are created in raw memory, so reset Note::anchorMarker here.
+	Error insertAtIndex(int32_t i, int32_t numToInsert = 1, void* thingNotToStealFrom = nullptr);
+	int32_t insertAtKey(int32_t key, bool isDefinitelyLast = false);
+
 private:
 };

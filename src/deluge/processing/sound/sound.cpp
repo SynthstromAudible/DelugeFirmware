@@ -1578,7 +1578,6 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
 	bool atLeastOneNoteOn = false;
-	bool atLeastOneNoteLeftPending = false;
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
@@ -1586,20 +1585,20 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			}
 			atLeastOneNoteOn = true;
 
-			if (AudioEngine::allowedToStartVoice()) {
-
-				invertReversed = instruction.invertReversed;
-				noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp,
-				                      instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-				                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate,
-				                      fromMIDIChannel);
-				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
-			}
-			else {
-				// D_PRINTLN("couldn't start note from sound::noteon");
-				// It stays PENDING, and render() will start it as soon as a voice is available
-				atLeastOneNoteLeftPending = true;
-			}
+			// Starts its voice now, or in a later render if this one can't start any more
+			DeferredNoteOns::startVoice(modelStackWithSoundFlags, *this,
+			                            {
+			                                .noteCodePreArp = noteCodePreArp,
+			                                .noteCodePostArp = instruction.arpNoteOn->noteCodeOnPostArp[n],
+			                                .velocity = instruction.arpNoteOn->velocity,
+			                                .mpeValues = mpeValues,
+			                                .sampleSyncLength = instruction.sampleSyncLengthOn,
+			                                .ticksLate = ticksLate,
+			                                .samplesLate = samplesLate,
+			                                .fromMIDIChannel = fromMIDIChannel,
+			                                .invertReversed = instruction.invertReversed,
+			                            });
+			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
 	}
 	if (!atLeastOneNoteOn) {
@@ -1608,11 +1607,6 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		if (arpSettings != nullptr && arpeggiator->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
 			reassessRenderSkippingStatus(modelStackWithSoundFlags);
 		}
-	}
-	else if (atLeastOneNoteLeftPending) {
-		// We started no voice for that note, so nothing else will have taken us out of render-skipping - and render()
-		// is the only thing that can start the pending note (issue #2262)
-		reassessRenderSkippingStatus(modelStackWithSoundFlags);
 	}
 }
 
@@ -1816,6 +1810,9 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 // noteCode = ALL_NOTES_OFF (default) means stop *any* voice, regardless of noteCode
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
+	// A note-on for it that hasn't got its voice yet mustn't start now
+	DeferredNoteOns::forgetNoteOff(this, noteCode);
+
 	// Send midi note offs out for specific notes,
 	// but only if the type of sound allows note tails (if not, note off was already sent right after its note on)
 	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
@@ -1938,6 +1935,10 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 						// I think we could just return here, too?
 					}
 					else { // PolyphonyMode::MONO
+						// Not through DeferredNoteOns: this retriggers the voice that's being released (it's reused
+						// for the new note), so it's no extra voice, and waiting would leave a gap in a mono line. If
+						// that note was itself still waiting for a voice, it's starting now instead
+						DeferredNoteOns::forgetNoteOff(this, newNoteCode);
 						noteOnPostArpeggiator(
 						    modelStack, newNoteCode, newNoteCode,
 						    arpeggiator->lastVelocity, // Interesting - I've made it keep the velocity of presumably the
@@ -2211,12 +2212,11 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// ModelStack, cos many deeper-nested functions called by this one need it too!
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	// A note that couldn't get a voice yet is only ever started from render(), so we must keep rendering while one is
-	// pending - otherwise it'd stay pending forever (issue #2262)
+	// A note still waiting for a voice doesn't need us rendering: DeferredNoteOns starts it, and the new voice takes us
+	// out of render-skipping
 	bool skippingStatusNow =
 	    (voices_.empty() && (delay.repeatsUntilAbandon == 0u) && !stutterer.isStuttering(this)
-	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF)
-	     && !getArp()->hasPendingNotes(arpSettings));
+	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF));
 
 	if (skippingStatusNow != skippingRendering) {
 
@@ -2376,32 +2376,29 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
-void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
-                                  ArpReturnInstruction instruction) {
-	if (instruction.arpNoteOn) {
-		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
-			// do we have a note to start? if no, exit early
-			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
-				break;
-			}
-			// has the note already started? if yes, skip it
-			if (instruction.arpNoteOn->noteStatus[n] != ArpNoteStatus::PENDING) {
-				continue;
-			}
-			// note is pending, are we allowing to start it? if no, exit early
-			if (!AudioEngine::allowedToStartVoice()) {
-				break; // Leave the remaining notes pending for the next render.
-			}
-			invertReversed = instruction.invertReversed;
-
-			noteOnPostArpeggiator(
-			    modelStackWithSoundFlags,
-			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-			    instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-			    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0,
-			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
-			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
+void Sound::startArpNoteOns(ModelStackWithSoundFlags* modelStack, ArpReturnInstruction const& instruction) {
+	ArpNote* arpNote = instruction.arpNoteOn;
+	if (arpNote == nullptr) {
+		return;
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (arpNote->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+			break;
 		}
+		DeferredNoteOns::startVoice(
+		    modelStack, *this,
+		    {
+		        .noteCodePreArp = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+		        .noteCodePostArp = arpNote->noteCodeOnPostArp[n],
+		        .velocity = arpNote->velocity,
+		        .mpeValues = arpNote->mpeValues,
+		        .sampleSyncLength = instruction.sampleSyncLengthOn,
+		        .ticksLate = 0,
+		        .samplesLate = 0,
+		        .fromMIDIChannel = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
+		        .invertReversed = instruction.invertReversed,
+		    });
+		arpNote->noteStatus[n] = ArpNoteStatus::PLAYING;
 	}
 }
 
@@ -2495,9 +2492,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 	}
-	else {
-		getArp()->handlePendingNotes(arpSettings, &instruction);
-	}
 	bool atLeastOneOff = false;
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
@@ -2516,7 +2510,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (atLeastOneOff) {
 		invertReversed = false;
 	}
-	process_postarp_notes(modelStackWithSoundFlags, arpSettings, instruction);
+	startArpNoteOns(modelStackWithSoundFlags, instruction);
 
 	// Setup delay
 	Delay::State delayWorkingState{};
@@ -5005,6 +4999,8 @@ void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* 
 }
 
 void Sound::killAllVoices() {
+	DeferredNoteOns::forgetSound(this); // Nor start any that are still waiting
+
 	// Reset invertReversed flag so all voices get its reverse settings back to normal
 	invertReversed = false;
 
