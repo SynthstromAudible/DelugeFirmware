@@ -165,6 +165,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 	active_note.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	active_note.baseVelocity = originalVelocity;
 	active_note.velocity = originalVelocity; // Means note is on.
+	active_note.locks = deluge::note_locks::pending.ref;
 
 	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
 	// in the survey that will happen of existing output member channels.
@@ -282,6 +283,8 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// If note exists already, do nothing if we are an arpeggiator, and if not, go to noteinserted to update
 		// midiChannel
 		if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
+			// Except take the latest note-on's parameter locks, as the arp-off path below does
+			arp_note->locks = deluge::note_locks::pending.ref;
 			return; // If we're an arpeggiator, return
 		}
 	}
@@ -334,6 +337,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	// editing. Kind of a hacky solution, but it works for now.
 	arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	arp_note->sampleSyncLength = instruction->sampleSyncLengthOn;
+	arp_note->locks = deluge::note_locks::pending.ref;
 
 	// If we're an arpeggiator...
 	if (!arpIsOff(settings)) {

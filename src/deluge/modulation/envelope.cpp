@@ -217,9 +217,9 @@ int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
 	return noteOn(directlyToDecay, sustain, sound->envelopeConfig[envelopeIndex].mode);
 }
 
-void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager) {
+void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager, const Voice* voice) {
 
-	if (!sound->envelopeHasSustainCurrently(envelopeIndex, paramManager)) {
+	if (!sound->envelopeHasSustainCurrently(envelopeIndex, paramManager, &voice->noteLocks)) {
 		ignoredNoteOff = true;
 	}
 	else if (state < EnvelopeStage::RELEASE) { // Could we ever have already been in release state? Probably not, but

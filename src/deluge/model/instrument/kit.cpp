@@ -33,6 +33,7 @@
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/drum/non_audio_drum.h"
+#include "model/note/note_lock_playback.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
@@ -772,6 +773,9 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 					    modelStackWithTimelineCounter
 					        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
 					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					// The kit arp's note remembers the parameter locks of the sequenced note that's holding it
+					deluge::note_locks::PendingScope locks(modelStackWithThreeMainThings->song->noteLocks,
+					                                       kitInstruction.arpNoteOn->locks);
 					thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
 					                          0, 0);
@@ -1338,7 +1342,8 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 			// Set the invertReverse flag for the drum arpeggiator
 			thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
-			// Do row note on
+			// Do row note on, with the locks of whichever note the arp chose
+			deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, kitInstruction.arpNoteOn->locks);
 			thisNoteRow->drum->noteOn(modelStack, kitInstruction.arpNoteOn->velocity,
 			                          kitInstruction.arpNoteOn->mpeValues, 0, sampleSyncLength, ticksLate, samplesLate);
 			kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;

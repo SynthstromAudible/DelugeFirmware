@@ -38,6 +38,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/iterance/iterance.h"
 #include "model/note/note.h"
+#include "model/note/note_lock_playback.h"
 #include "model/output.h"
 #include "model/scale/accidentals.h"
 #include "model/scale/note_set.h"
@@ -59,6 +60,7 @@
 #include <array>
 #include <cmath>
 #include <new>
+#include <optional>
 #include <ranges>
 
 #include "playback/mode/playback_mode.h"
@@ -108,6 +110,8 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 // You must call prepareForDestruction() before this, preferably by calling Song::deleteClipObject()
 // Will call audio routine!!! Necessary to avoid voice cuts, especially when switching song
 InstrumentClip::~InstrumentClip() {
+	// A held pad's uncommitted lock edits can't outlive their Clip
+	deluge::note_locks::liveEdits.disarmAllOf(static_cast<TimelineCounter*>(this));
 
 	// Note: it's possible that we might be currentlyRecordingLinearly if we're being destructed because of a song-swap.
 	// That's ok. Whereas, for AudioClips, it's made sure that all linear recording is stopped first
@@ -919,6 +923,17 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 	int16_t mpeValues[kNumExpressionDimensions];
 	pendingNoteOn->noteRow->getMPEValues(modelStackWithNoteRow, mpeValues);
 
+	// Voice::noteOn picks the note's parameter locks up from here - for a note that waited, as they were when it was
+	// due
+	std::optional<deluge::note_locks::PendingScope> locks;
+	if (pendingNoteOn->locksWhenDue != nullptr) {
+		locks.emplace(*pendingNoteOn->locksWhenDue, pendingNoteOn->locks);
+	}
+	else {
+		locks.emplace(modelStack->song->noteLocks, pendingNoteOn->locks.lockSet,
+		              deluge::note_locks::liveEdits.findByTag(pendingNoteOn->locks.liveTag));
+	}
+
 	if (output->type == OutputType::KIT) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
 		    pendingNoteOn->noteRow->drum->toModControllable(), &pendingNoteOn->noteRow->paramManager);
@@ -1507,8 +1522,8 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		}
 
 		thisNoteRow->renderRow(editorScreen, mainColour, tailColour, blurColour, image, occupancyMask, false,
-		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd,
-		                       drawRepeats);
+		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd, drawRepeats,
+		                       thisNoteRow->locksTakeEffect(this));
 	}
 	if (addUndefinedArea) {
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen,
@@ -2377,7 +2392,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			}
 			// no matching drum found
 			if (drumIndex != -1) {
-				thisNoteRow->writeToFile(writer, drumIndex, this);
+				thisNoteRow->writeToFile(writer, drumIndex, this, song);
 			}
 		}
 
@@ -4133,7 +4148,8 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 						// I'm guessing I deliberately didn't send the Action in here, cos didn't want to
 						// make this Note on the new InstrumentClip undoable?
 						newNoteRow->attemptNoteAdd(0, lastNote->length, lastNote->velocity, lastNote->probability,
-						                           lastNote->iterance, lastNote->fill, modelStackWithNoteRow, nullptr);
+						                           lastNote->iterance, lastNote->fill, modelStackWithNoteRow, nullptr,
+						                           lastNote->lockSet);
 						// Make sure we don't double-play the note
 						newNoteRow->ignoreNoteOnsBefore_ = 1;
 					}

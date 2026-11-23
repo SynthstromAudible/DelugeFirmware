@@ -99,6 +99,15 @@ public:
 
 	uint32_t sourcesChanged{}; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
+	/// Set when a voice starts with parameter locks; render() clears it once no voice has any. Lets render() skip
+	/// looking at voices' locks entirely in the usual case.
+	bool voicesMayHaveNoteLocks{false};
+
+	/// Sets one parameter lock on the voices started from a held pad's live (uncommitted) lock edits (those with
+	/// that VoiceNoteLocks::liveEditTag) and re-patches them, so the edit is heard while the note sounds. UI context
+	/// only.
+	void updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, ModelStackWithSoundFlags* modelStack);
+
 	LFO globalLFO1;
 	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];
@@ -246,8 +255,11 @@ public:
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	void set_cents(int8_t new_cents);
 	Error loadAllAudioFiles(bool mayActuallyReadFiles);
-	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
-	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
+	/// `locks`: a voice's note locks, which take the place of the knob values of the params they lock
+	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager,
+	                                 const deluge::note_locks::LockSet* locks = nullptr);
+	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager,
+	                            const deluge::note_locks::LockSet* locks = nullptr);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
 	void setupAsBlankSynth(ParamManager* paramManager, bool is_dx = false);

@@ -24,6 +24,7 @@
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "model/instrument/instrument.h"
+#include "model/note/note_locks.h"
 #include "model/output.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
@@ -108,6 +109,10 @@ class Song final : public TimelineCounter {
 public:
 	Song();
 	~Song() override;
+
+	/// Parameter-lock sets for every Note in this Song's clips (Note::lockSet indexes into this). See note_locks.h.
+	deluge::note_locks::Pool noteLocks;
+
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
 	void transposeAllScaleModeClips(int32_t interval);

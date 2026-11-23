@@ -39,6 +39,7 @@ public:
 	uint8_t lift;
 	Iterance iterance;
 	int8_t fill;
+	uint16_t lockSet; // Index into the Song's note_locks::Pool, which outlives the action log
 	AnchorMarker anchorMarker;
 
 	ExistenceChangeType type;

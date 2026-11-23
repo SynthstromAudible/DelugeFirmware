@@ -52,10 +52,18 @@ public:
 
 	inline bool isDrone(int32_t effectiveLength) { return (pos == 0 && length == effectiveLength); }
 
+	inline void setLockSet(uint16_t newLockSet) { lockSet = newLockSet; }
+
+	inline uint16_t getLockSet() { return lockSet; }
+
 	//	void writeToFile();
 	int32_t length;
 	uint8_t velocity;
 	uint8_t probability;
+	/// Parameter locks: index into the owning Song's deluge::note_locks::Pool, 0 for none. See note_locks.h.
+	/// Sits in what was padding before the 4-aligned iterance, so it costs no memory. Notes are created in raw
+	/// NoteVector memory without running a constructor - NoteVector's insert functions zero this.
+	uint16_t lockSet;
 	Iterance iterance;
 	uint8_t fill;
 	/// Lift is noteOff velocity.

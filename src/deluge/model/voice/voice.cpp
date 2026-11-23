@@ -32,6 +32,7 @@
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
+#include "model/voice/voice_note_locks_inline.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -83,7 +84,7 @@ int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDim
 	return lshiftAndSaturate<1>(combinedValue);
 }
 
-Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues), sound{sound} {
+Voice::Voice(Sound& sound) : patcher(kPatcherConfigForVoice, sourceValues, paramFinalValues, &noteLocks), sound{sound} {
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -134,13 +135,20 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
+	// The sequencer leaves the note's parameter locks pending around the note-on
+	if (noteLocks.takePending()) [[unlikely]] {
+		sound.voicesMayHaveNoteLocks = true;
+	}
+
 	// Setup "half-baked" envelope output values. These need to exist before we do the initial patching below - and it's
 	// only after that that we can render the "actual" envelope output values, taking their own input patching into
 	// account.
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
 
 		// If no attack-stage...
-		if (paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e) == -2147483648u) {
+		if (noteLocks.get(params::LOCAL_ENV_0_ATTACK + e)
+		        .value_or(paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e))
+		    == -2147483648) {
 			envelopes[e].lastValue = 1.f;
 		}
 
@@ -219,7 +227,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 		// other cases.
 		guides[s].audioFileHolder = nullptr;
 
-		bool sourceEverActive = modelStack->checkSourceEverActive(s);
+		bool sourceEverActive = noteLocks.sourceEverActive(modelStack, s);
 		if (sourceEverActive) [[likely]] {
 			guides[s].noteOffReceived = false;
 			guides[s].sequenceSyncLengthTicks = 0; // That's the default - may get overwritten below
@@ -274,7 +282,7 @@ activenessDetermined:
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 
-		bool sourceEverActive = modelStack->checkSourceEverActive(s);
+		bool sourceEverActive = noteLocks.sourceEverActive(modelStack, s);
 
 		if (!sourceEverActive) [[unlikely]] {
 			continue;
@@ -426,7 +434,7 @@ void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 
-		if (!modelStack->checkSourceEverActive(s)) { // Sets all unison parts inactive by default
+		if (!noteLocks.sourceEverActive(modelStack, s)) { // Sets all unison parts inactive by default
 
 makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			for (int32_t u = 0; u < sound.numUnison; u++) {
@@ -532,8 +540,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	if (sound.getSynthMode() == SynthMode::FM) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 
-			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, *paramManager)
-			    == -2147483648) {
+			if (!noteLocks.modulatorActive(sound, m, paramManager)) {
 				continue; // Only if modulator active
 			}
 
@@ -584,8 +591,9 @@ void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
-	// Only do it if note-offs are meant to be processed for this sound. Otherwise ignore it.
-	if (sound.allowNoteTails(modelStack, true)) {
+	// Only do it if note-offs are meant to be processed for this sound (or this note's locks give envelope 1 a sustain
+	// the sound's own values don't). Otherwise ignore it.
+	if (sound.allowNoteTails(modelStack, true) || noteLocks.giveSustain(sound, paramManager)) {
 
 		// If no release-stage, we'll stop as soon as we can
 		if (!allowReleaseStage || !hasReleaseStage()) {
@@ -594,14 +602,14 @@ void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage
 
 		// Or, do the release-stage
 		else {
-			envelopes[0].noteOff(0, &sound, paramManager);
+			envelopes[0].noteOff(0, &sound, paramManager, this);
 
 			// Only start releasing envelope 2 if release wasn't at max value.
 			// (This must read the Voice's local-param array: LOCAL_ENV_1_RELEASE is a local
 			// param, and Sound::paramFinalValues holds only the 10 global params — indexing
 			// it with 42 read out of bounds into unrelated Sound members.)
 			if (paramFinalValues[params::LOCAL_ENV_1_RELEASE] >= 9) {
-				envelopes[1].noteOff(1, &sound, paramManager);
+				envelopes[1].noteOff(1, &sound, paramManager, this);
 			}
 		}
 	}
@@ -686,12 +694,11 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 	}
 
 	// If none of this source still active, and no noise, see if the other source still has any...
-	if (!anyStillActive
-	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
+	if (!anyStillActive && !noteLocks.noiseEverActive(paramManager)) {
 
 		s = 1 - s;
 
-		if (!modelStack->checkSourceEverActive(s)) {
+		if (!noteLocks.sourceEverActive(modelStack, s)) {
 			return false;
 		}
 		else {
@@ -875,7 +882,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	// If not already releasing and some release is set, and no noise-source...
 	//@todo - cache this, it never changes
 	if (sound.getSynthMode() != SynthMode::FM && envelopes[0].state < EnvelopeStage::RELEASE && hasReleaseStage()
-	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
+	    && !noteLocks.noiseEverActive(paramManager)) {
 
 		uint32_t whichSourcesNeedAttention = 0;
 
@@ -885,7 +892,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 			Source* source = &sound.sources[s];
 
 			// If this source isn't enabled, skip it
-			if (!modelStack->checkSourceEverActive(s)) {
+			if (!noteLocks.sourceEverActive(modelStack, s)) {
 				continue;
 			}
 
@@ -1115,7 +1122,7 @@ skipAutoRelease: {}
 	doneFirstRender = true;
 
 	uint32_t oscSyncPos[kMaxNumVoicesUnison];
-	bool doingOscSync = sound.renderingOscillatorSyncCurrently(paramManager);
+	bool doingOscSync = noteLocks.oscSyncCurrently(sound, paramManager);
 
 	// Oscillator sync
 	if (doingOscSync) {
@@ -1203,7 +1210,7 @@ skipAutoRelease: {}
 			}
 
 			// This this source isn't active...
-			if (!sound.isSourceActiveCurrently(s, paramManager)) {
+			if (!noteLocks.sourceActiveCurrently(sound, s, paramManager)) {
 
 				// If we're doing osc sync...
 				if (getPhaseIncrements) {
@@ -1252,7 +1259,7 @@ skipAutoRelease: {}
 
 					uint32_t* getPhaseIncrements = ((s == 0) && doingOscSync) ? oscSyncPhaseIncrement : nullptr;
 					bool getOutAfterGettingPhaseIncrements =
-					    getPhaseIncrements && !sound.isSourceActiveCurrently(s, paramManager);
+					    getPhaseIncrements && !noteLocks.sourceActiveCurrently(sound, s, paramManager);
 
 					renderBasicSource(sound, paramManager, s, oscBuffer, numSamples, true, sourceAmplitudesNow[s],
 					                  &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync,
@@ -1699,12 +1706,11 @@ renderingDone:
 
 bool Voice::areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) const {
 	// If no noise-source, then it might be time to unassign the voice...
-	if (!modelStack.paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	        -2147483648)) {
+	if (!noteLocks.noiseEverActive(modelStack.paramManager)) {
 
 		// See if all unison parts are now inactive
 		for (int32_t s = 0; s < kNumSources; s++) {
-			if (!modelStack.checkSourceEverActive(s)) {
+			if (!noteLocks.sourceEverActive(&modelStack, s)) {
 				continue;
 			}
 			for (int32_t u = 0; u < ((Sound*)modelStack.modControllable)->numUnison; u++) {

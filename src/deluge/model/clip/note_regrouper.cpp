@@ -87,11 +87,11 @@ private:
 	int32_t pendingTranspose_;
 };
 
-/// Adds a copy of a note to a row, keeping lift and accidental lineage. Returns false, adding nothing, if it overlaps a
-/// note that is already there.
+/// Adds a copy of a note to a row, keeping lift, parameter locks and accidental lineage. Returns false, adding nothing,
+/// if it overlaps a note that is already there.
 bool addMovedNote(NoteRow* row, const Note& note, ModelStackWithNoteRow* modelStackWithRow) {
 	if (!row->attemptNoteAdd(note.pos, note.length, note.velocity, note.probability, note.iterance, note.fill,
-	                         modelStackWithRow, nullptr)) {
+	                         modelStackWithRow, nullptr, note.lockSet)) {
 		return false;
 	}
 	Note* added = row->notes.getElement(row->notes.search(note.pos, GREATER_OR_EQUAL));

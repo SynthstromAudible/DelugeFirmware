@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/accidental_rows.h"
 #include "gui/views/clip_view.h"
+#include "gui/views/note_lock_editor.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/iterance/iterance.h"
@@ -69,8 +70,9 @@ struct EditPadPress {
 	bool isBlurredSquare;
 	bool mpeCachedYet;
 	StolenParamNodes stolenMPE[kNumExpressionDimensions];
-	uint32_t intendedPos;    // For "blurred squares", means start of square
-	uint32_t intendedLength; // For "blurred squares", means length of square
+	uint32_t intendedPos;     // For "blurred squares", means start of square
+	uint32_t intendedLength;  // For "blurred squares", means length of square
+	uint16_t intendedLockSet; // The note's parameter locks while it's lifted out of its row by a vertical drag
 };
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
@@ -300,6 +302,9 @@ public:
 
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
 
+	/// Per-note parameter locks: knob turns on held note pads, and the note editor's "Param locks" menu
+	NoteLockEditor noteLocks{*this};
+
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange, bool display_value = true);
 	void updateVelocityValue(int32_t& velocityValue, int32_t newVelocity);
@@ -397,6 +402,7 @@ private:
 	// note editor selected / remembered note targets
 	Note* get_remembered_note(int32_t selection_index = -1);
 	ModelStackWithNoteRow* get_note_edit_row(ModelStackWithTimelineCounter* model_stack, const EditPadPress& target);
+	friend class NoteLockEditor; // Edits the notes the note editor targets
 	EditPadPress remembered_notes[kEditPadPressBufferSize]{};
 	int32_t remembered_note_row_ids[kEditPadPressBufferSize]{};
 	int32_t remembered_note_count = 0;

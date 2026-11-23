@@ -31,6 +31,7 @@
 #include "processing/sound/sound_instrument.h"
 #include <algorithm>
 #include <array>
+#include <optional>
 
 namespace DeferredNoteOns {
 namespace {
@@ -64,6 +65,10 @@ struct DeferredNoteOn {
 	uint32_t timeQueued; // AudioEngine::audioSampleTimer when queued, for samplesLate
 
 	// Both
+	// The note's parameter locks, and their values when the note was due: it plays with those, whatever is edited
+	// while it waits
+	deluge::note_locks::NoteRef locks;
+	deluge::note_locks::LockSet locksWhenDue;
 	uint32_t sampleSyncLength;
 	int32_t ticksLate;
 	int64_t swungTickQueued; // playbackHandler.lastSwungTickActioned when queued, which ticksLate is relative to
@@ -171,6 +176,8 @@ void sendSequenced(DeferredNoteOn const& d) {
 	noteOn.sampleSyncLength = d.sampleSyncLength;
 	noteOn.velocity = d.velocity;
 	noteOn.ticksLate = ticksLateNow(d);
+	noteOn.locks = d.locks;
+	noteOn.locksWhenDue = &d.locksWhenDue;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
@@ -250,6 +257,14 @@ ModelStackWithSoundFlags* setupModelStackForSound(void* memory, Sound* sound) {
 void startVoiceNow(ModelStackWithSoundFlags* modelStack, Sound& sound, VoiceStart const& start) {
 	uint32_t startTicks = getSystemTicks();
 	sound.invertReversed = start.invertReversed;
+	// The voice picks the note's parameter locks up from here (VoiceNoteLocks::takePending)
+	std::optional<deluge::note_locks::PendingScope> locks;
+	if (start.locksWhenDue != nullptr) {
+		locks.emplace(*start.locksWhenDue, start.locks);
+	}
+	else {
+		locks.emplace(modelStack->song->noteLocks, start.locks);
+	}
 	sound.noteOnPostArpeggiator(modelStack, start.noteCodePreArp, start.noteCodePostArp, start.velocity,
 	                            start.mpeValues, start.sampleSyncLength, start.ticksLate, start.samplesLate,
 	                            start.fromMIDIChannel);
@@ -280,6 +295,8 @@ void sendVoice(DeferredNoteOn const& d) {
 	                  .samplesLate = samplesLate,
 	                  .fromMIDIChannel = d.fromMIDIChannel,
 	                  .invertReversed = d.invertReversed,
+	                  .locks = d.locks,
+	                  .locksWhenDue = &d.locksWhenDue,
 	              });
 }
 
@@ -301,6 +318,10 @@ void startVoice(ModelStackWithSoundFlags* modelStack, Sound& sound, VoiceStart c
 	d.noteCodePostArp = static_cast<int16_t>(start.noteCodePostArp);
 	std::copy(start.mpeValues, start.mpeValues + kNumExpressionDimensions, d.mpeValues);
 	d.fromMIDIChannel = start.fromMIDIChannel;
+	d.locks = start.locks;
+	d.locksWhenDue = start.locksWhenDue != nullptr
+	                     ? *start.locksWhenDue
+	                     : deluge::note_locks::currentLocks(modelStack->song->noteLocks, start.locks);
 	d.samplesLate = start.samplesLate;
 	d.timeQueued = AudioEngine::audioSampleTimer;
 	d.sampleSyncLength = start.sampleSyncLength;
@@ -327,6 +348,8 @@ bool tryDefer(InstrumentClip* clip, PendingNoteOn const& note) {
 	d.noteRow = note.noteRow;
 	d.drum = note.noteRow->drum;
 	d.noteRowId = note.noteRowId;
+	d.locks = note.locks;
+	d.locksWhenDue = deluge::note_locks::currentLocks(currentSong->noteLocks, note.locks);
 	d.sampleSyncLength = note.sampleSyncLength;
 	d.ticksLate = note.ticksLate;
 	d.swungTickQueued = playbackHandler.lastSwungTickActioned;

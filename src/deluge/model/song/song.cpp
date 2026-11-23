@@ -45,6 +45,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/note/note_lock_playback.h"
 #include "model/sample/sample_recorder.h"
 #include "model/scale/accidentals.h"
 #include "model/scale/preset_scales.h"
@@ -212,6 +213,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 }
 
 Song::~Song() {
+	deluge::note_locks::liveEdits.disarmAllOf(this); // A held pad's uncommitted lock edits can't outlive their Song
 
 	// Delete existing Clips, if any
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
