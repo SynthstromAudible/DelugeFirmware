@@ -49,7 +49,7 @@ tools/bench_image.py --out .superpowers/stream-bench-after.elf --sdk ~/path/to/s
 ```
 
 Each builds RelWithDebInfo with `DELUGE_STREAM_BENCH=ON`. `--sdk` builds against another deluge-sdk
-checkout for that build only. Afterwards the tree is as it was: `local-sdk.toml`, `Cargo.lock` and
+checkout for that build only. Afterwards the tree is as it was: `local-sdk.toml`, the root `Cargo.lock` and
 the bench option are restored. The songs the bench plays are CMake cache values
 (`--define DELUGE_STREAM_BENCH_SONG_A=SONGS/...`), paths as on the card.
 

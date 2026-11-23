@@ -38,7 +38,7 @@ golden_vt_render uses too.
 
 While the deluge-sdk revision this repository pins lacks the simulator, the build needs a sibling `../deluge-sdk`
 checkout on that branch and `src/platform/device/local-sdk.toml` pointing at it; `dbt sim` uses the override when the file
-exists and leaves `Cargo.lock` as it found it.
+exists and leaves the root `Cargo.lock` as it found it.
 
 ## The card
 

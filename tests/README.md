@@ -242,18 +242,16 @@ Placement follows coupling to the BSP source tree, not language or purpose.
   library. `golden_vt_render` runs the BSP under its own executor and virtual clock; its build script links the
   host app through `src/platform/host/link`. `src/platform/device/HOST_HARNESS.md` documents both.
 
-Three constraints keep these as separate Cargo packages rather than one
-workspace, and they are worth knowing before adding a tenth:
+All of these are members of the one Cargo workspace at the repository root, with one `Cargo.lock`, one
+`rust-toolchain.toml` and one `[patch.crates-io]` (the embassy fork). Build them with `-p <package>`, never
+`--workspace`:
 
-1. `[patch.crates-io]` is workspace-global. Only `src/platform/device/Cargo.toml`
-   carries the embassy fork patch; a workspace spanning it and the host clock
-   harnesses would force the fork onto them silently.
-2. `embassy-time`'s `std` and `mock-driver` features both emit
-   `#[no_mangle] _embassy_time_now`. Cargo unifies features across all targets
-   of one package, so two time drivers cannot share a package — and
-   `cargo build --workspace` cannot span them either.
-3. Feature unification makes a shared workspace build a hazard even where the
-   symbols do not collide.
+1. `embassy-time`'s `std` and `mock-driver` features both emit `#[no_mangle] _embassy_time_now`. Cargo unifies
+   features across all the packages of one build, so two time drivers cannot share a build.
+2. The device crate's platform features are mutually exclusive with the host ones, so a build that spans it and a host
+   harness would unify them wrongly.
+
+`src/base/alloc/fuzz` and `tools/deluge-upgrade` are the exceptions: each is its own workspace root, with its own lock.
 
 ## Build products and trees
 
@@ -269,12 +267,12 @@ itself, so none can run against a stale one.
 A ctest entry's own tree (`build/test-host`, `build/test-arm`, `build/test-ubsan`) is configured and built by its
 runner.
 
-Every cargo-built test and product shares `build/cargo-harness`. Cargo namespaces artifacts by fingerprint, so
-packages with different `[patch]` sections coexist there safely, but cargo takes an exclusive lock per target
-directory, so two runs at once serialize rather than run in parallel.
+Every cargo-built test and product shares `build/cargo-harness`, and cargo takes an exclusive lock per target
+directory, so two runs at once serialize rather than run in parallel. `golden_vt_render` builds under the `harness`
+profile (`build/cargo-harness/harness/golden_vt_render`); the C++ unit-test tree's staticlib builds under `host-test`.
 
-Running `cargo` by hand inside a harness directory bypasses this and creates a local `target/`, and one per
-harness directory adds up to tens of gigabytes of duplicate build trees. Prefer `./dbt test <name>`;
+Running `cargo` by hand without the runner's target directory creates a local `target/`, and duplicate build trees add
+up to tens of gigabytes. Prefer `./dbt test <name>`;
 `./dbt test --clean` drops every tree the runner builds.
 
 ## Adding a test
