@@ -1,4 +1,4 @@
 # Stretched, play-once, held at the C4 root at half speed (timeStretchAmount -12). The zone's end moves to 3,072
-# mid-note (render_preset.py's ZONE_END), still ahead of the stretch position: the voice plays on to the new end.
+# mid-note (render_preset.py's ZONE_MOVE), still ahead of the stretch position: the voice plays on to the new end.
 4608 90 3C 64
 80000 80 3C 40

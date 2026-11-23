@@ -18,6 +18,7 @@ stretcher_coverage.py report <export.json>
 
 import concurrent.futures
 import importlib.util
+import inspect
 import json
 import re
 import subprocess
@@ -28,9 +29,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/tasks"))
 
 # The files reported, by repo-relative path, and the functions of each that are: None for every function (the
-# stretcher's own files), else the prefixes of the demangled names of its functions that call into TimeStretcher or
-# branch on whether a voice has one. readSamplesNative and readSamplesResampled take a TimeStretcher* only to pass along,
-# and never read it.
+# stretcher's own files), else the prefixes of the demangled names of its functions that call into TimeStretcher, branch
+# on whether a voice has one, or keep the hop budget and the culling bypass a hop sets (renderAudio and
+# renderAudioForStemExport reset numHopsEndedThisRoutineCall; setDireness passes bypassCulling to cullVoices).
+# readSamplesNative and readSamplesResampled take a TimeStretcher* only to pass along, and never read it.
 SCOPE: dict[str, tuple[str, ...] | None] = {
     "src/deluge/dsp_legacy/timestretch/time_stretcher.cpp": None,
     "src/deluge/dsp_legacy/timestretch/time_stretcher.h": None,
@@ -62,12 +64,57 @@ SCOPE: dict[str, tuple[str, ...] | None] = {
     "src/deluge/processing/engines/audio_engine.cpp": (
         "AudioEngine::solicitTimeStretcher(",
         "AudioEngine::timeStretcherUnassigned(",
+        "AudioEngine::renderAudio(",
+        "AudioEngine::renderAudioForStemExport(",
+        "AudioEngine::setDireness(",
+        "AudioEngine::cullVoices(",
     ),
 }
 # The record the render-song gates compare their output with: a gate that names it in its baseline pins what it plays.
 SONG_RECORDS = "tests/golden/render/songs.json"
 # The basenames of the outputs render_song.py writes for renders it does not compare with a record.
 UNRECORDED = ("dry.pcm", "unswitched.pcm")
+# The harness functions run() patches or calls that are no API of theirs, with the parameters it relies on.
+GATE_RUN_PARAMETERS = ["self", "scenario", "env", "timeout"]
+ENVIRONMENT_PARAMETERS = ["root", "h", "products"]
+
+
+def load_task_test():
+    """scripts/tasks/task-test.py as a module (its name is no identifier)."""
+    spec = importlib.util.spec_from_file_location(
+        "task_test", ROOT / "scripts/tasks/task-test.py"
+    )
+    task_test = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(task_test)
+    return task_test
+
+
+def check_seams(scenario_gate, task_test) -> None:
+    """Raise RuntimeError unless scenario_gate.Gate.run and task-test.py's _environment are there with the parameters
+    run() relies on: it replaces the first to profile each run, and calls the second for each gate's environment."""
+    seams = (
+        (
+            "scenario_gate.Gate.run",
+            getattr(getattr(scenario_gate, "Gate", None), "run", None),
+            GATE_RUN_PARAMETERS,
+        ),
+        (
+            "task-test.py's _environment",
+            getattr(task_test, "_environment", None),
+            ENVIRONMENT_PARAMETERS,
+        ),
+    )
+    for name, function, wanted in seams:
+        if function is None:
+            raise RuntimeError(
+                f"stretcher_coverage.py: {name} is gone; run() patches or calls it"
+            )
+        got = list(inspect.signature(function).parameters)
+        if got != wanted:
+            raise RuntimeError(
+                f"stretcher_coverage.py: {name} takes ({', '.join(got)}), not ({', '.join(wanted)}); "
+                "update run() to match"
+            )
 
 
 def run(binary: Path, out: Path) -> int:
@@ -75,11 +122,8 @@ def run(binary: Path, out: Path) -> int:
     import scenario_gate
     import test_builds as tb
 
-    spec = importlib.util.spec_from_file_location(
-        "task_test", ROOT / "scripts/tasks/task-test.py"
-    )
-    task_test = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(task_test)
+    task_test = load_task_test()
+    check_seams(scenario_gate, task_test)
 
     for pool in ("profraw", "profraw-unrecorded"):
         for old in (out / pool).rglob("*.profraw"):
@@ -157,7 +201,12 @@ def _shown(show: Path):
 
     def counts(path: str) -> dict[int, str]:
         if path not in cache:
-            text = next(show.rglob(f"{path}.txt")).read_text()
+            shown_file = next(show.rglob(f"{path}.txt"), None)
+            if shown_file is None:
+                raise FileNotFoundError(
+                    f"llvm-cov show wrote no {path}.txt under {show}: is {path} in the binary's coverage mapping?"
+                )
+            text = shown_file.read_text()
             cache[path] = {}
             for line in text.split("\n"):
                 m = re.match(r"^ *(\d+)\| *([0-9.]+[kMGE]?)\|", line)

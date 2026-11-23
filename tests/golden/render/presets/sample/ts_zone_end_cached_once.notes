@@ -1,4 +1,4 @@
 # Stretched, play-once, held C5 (+12): the voice writes a sample cache as it plays. The zone's end moves to 1,024
-# (render_preset.py's ZONE_END), behind its cache position: the voice stops.
+# (render_preset.py's ZONE_MOVE), behind its cache position: the voice stops.
 4608 90 48 64
 80000 80 48 40

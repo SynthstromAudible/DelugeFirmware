@@ -26,10 +26,10 @@ ONSET_LEVEL = 4096
 QUIET_FRAMES = 256
 
 
-# The legacy stretcher's hop lengths, in output frames (src/deluge/dsp_legacy/timestretch/time_stretcher.cpp):
-# the first hop ends TimeStretch::kDefaultFirstHopLength (src/definitions_cxx.hpp) into the note, moved by
-# (int8_t)getRandom255() >> 2, so by -32 to 31; an octave up with the length kept the stretch ratio is 0.5, where
-# getHopParams reads the first entry of minHopSizeFine, so no later hop is shorter than 3,000.
+# The stretcher's hop lengths, in output frames (docs/dev/time_stretcher_contracts.md): the first hop ends 200
+# frames into the note, moved by -32 to 31 at random (contract S1); an octave up with the length kept the stretch
+# ratio is 0.5, where hop tuning reads the fine table's first minimum width (contracts T1 and T3), so no later hop is
+# shorter than 3,000.
 FIRST_HOP = 200
 FIRST_HOP_JITTER = 32
 OCTAVE_UP_MIN_HOP = 3000

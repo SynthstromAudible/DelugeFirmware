@@ -33,7 +33,7 @@
 ///   - `RENDER_PCM_OUT`: where the harness writes the captured output (see `audio/host.rs`).
 ///   - `RENDER_ZONE_MOVE`: `<block> <marker> <frame>` moves one marker of osc 1's first zone -- `start`, `loop_start`,
 ///     `loop_end` or `end` -- to `<frame>` once `<block>` captured blocks have rendered, as the sample marker editor
-///     does mid-note. `RENDER_ZONE_END`: `<block> <frame>` is the same for `end`. Unmoved otherwise.
+///     does mid-note. Unmoved otherwise.
 ///   - `RENDER_SETTING`: `<block> <path> <value>` changes the synth's setting at `<path>` (a settings-schema path, e.g.
 ///     `osc1/type`) to `<value>` once `<block>` captured blocks have rendered, as its sound editor menu does.
 ///
@@ -49,8 +49,8 @@
 ///   - `RP-TIER-SYNC-AUDIO total=<n>`: synchronous card calls the render made; the audio tier must make none.
 ///   - `RP-CAPTURE frames=<n> input=<0|1> stereo=<0|1>`: frames captured, whether the test input signal was fed, and
 ///     whether headphones were plugged in. A failure if the app rendered any captured block in the other width.
-///   - `RP-ZONE block=<n> marker=<m> frame=<frame>`: the zone's marker moved (`RENDER_ZONE_MOVE` or `RENDER_ZONE_END`
-///     only); a failure if the marker is not one of the four.
+///   - `RP-ZONE block=<n> marker=<m> frame=<frame>`: the zone's marker moved (`RENDER_ZONE_MOVE` only); a failure if
+///     the marker is not one of the four.
 ///   - `RP-SETTING block=<n> path=<p> value=<v>`: the setting changed (`RENDER_SETTING` only); a failure if refused.
 ///   - `RP-RESULT failures=<n>`.
 
@@ -405,11 +405,6 @@ void deluge_scenario_render_preset_begin(void) {
 			g_zoneMoveMarker = markerNamed(marker);
 			g_zoneMoveFrame = frame;
 		}
-	}
-	else if (const char* end = std::getenv("RENDER_ZONE_END"); end != nullptr) {
-		char* rest = nullptr;
-		g_zoneMoveBlock = std::strtoull(end, &rest, 10);
-		g_zoneMoveFrame = static_cast<uint32_t>(std::strtoul(rest, nullptr, 10));
 	}
 	g_settingApplied = false;
 	g_settingBlock = 0;

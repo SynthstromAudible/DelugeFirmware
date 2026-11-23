@@ -1899,8 +1899,8 @@ run = ["python3", "-m", "unittest", "test_check_layers"]
 name = "registry-selftest"
 template = "unittest"
 path = "scripts/tasks"
-gates = "this registry's loader, selection and probes, the SDRAM packer, four source checkers, the Cargo members, the crate-header lists, and temp-dir removal"
-run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names", "test_cargo_workspace", "test_run_scratch", "test_check_abi_surface"]
+gates = "this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams"
+run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names", "test_cargo_workspace", "test_run_scratch", "test_check_abi_surface", "test_stretcher_coverage"]
 
 [[harness]]
 name = "render-preset-selftest"
