@@ -42,8 +42,10 @@ with waveform past the end they play to, fade out before their instances end. It
 RS_AUDIO_STRETCH_EDGES plays clips at the edges of the stretcher's paths and its caller's: a pre-margin too short for
 a loop's crossfade, tied clips with a fine tune, a transpose and neither, a reversed tied clip, a 48 kHz file, a mono
 file, an end marker past the file's end, two native-tempo loops with pre-margins too short to fudge a crossfade into
-whole, a clip whose pitch adjust is raised, and a source over 2^21 frames long, whose percussiveness cache is kept in
-clusters (STRETCH_EDGE_TRACKS). Its twin ties pitch and speed on every clip.
+whole, a clip whose pitch adjust is raised, and a source over 2^22 frames long, whose percussiveness cache is kept in
+clusters: played forwards from 0 into a loop's cache zone further on, and looped across a cache cluster's end forwards
+and reversed (STRETCH_EDGE_TRACKS).
+Its twin ties pitch and speed on every clip.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_BITCRUSH covers the bitcrush paths the FX songs leave out: a kit's bit depth alone at preset 6, an audio track's
@@ -1289,8 +1291,14 @@ ARRANGED_TRACKS = (
 #   RSSHALLOW 1       the percussive source from 50 at its native tempo: a pre-margin shorter than the crossfade, so a
 #                     loop end is fudged only within its 50 frames
 #   RSADJUST  ~1.115  the tone with the clip's pitch adjust raised: a manual pitch change the stretch ratio makes up
-#   RSLONG    ~1.115  the mono tone repeated to 2,129,920 frames: a source this long keeps its percussiveness cache in
-#                     clusters (from 2^21 frames with the card's 32 KB clusters) rather than in one block
+#   RSLONG    ~1.115  the first 2,129,920 frames of the mono tone repeated to 4,259,840 (LONG.WAV): a source this long
+#                     keeps its percussiveness cache in clusters (from 2^21 frames with the card's 32 KB clusters)
+#                     rather than in one block
+#   RSLONGMID ~1.116  a 10,000-frame loop of LONG.WAV from 20,000: RSLONG, filling its percussiveness cache from 0,
+#                     runs into this loop's zone, eats into the part of it due to be replaced, and merges with it
+#   RSLONGRIM ~1.115  a 90,000-frame loop of LONG.WAV across frame 2^22, where one percussiveness cache cluster ends
+#                     and the next begins
+#   RSLONGREV ~1.115  the same loop reversed, so its percussiveness cache is filled backwards, across the same clusters
 STRETCH_EDGE_TRACKS = (
     ("RSTIGHT", "SAMPLES/RS/TONE.WAV", 8, 3592, 14, ""),
     (
@@ -1325,8 +1333,18 @@ STRETCH_EDGE_TRACKS = (
     ("RSSHALLOW", "SAMPLES/RS/PERC.WAV", 50, 14750, 64, ""),
     ("RSADJUST", "SAMPLES/RS/TONE.WAV", 512, 4096, 14, ""),
     ("RSLONG", "SAMPLES/RS/LONG.WAV", 0, 520 * 4096, 8316, ""),
+    ("RSLONGMID", "SAMPLES/RS/LONG.WAV", 20000, 30000, 39, ""),
+    ("RSLONGRIM", "SAMPLES/RS/LONG.WAV", 4150000, 4240000, 351, ""),
+    ("RSLONGREV", "SAMPLES/RS/LONG.WAV", 4150000, 4240000, 351, ' reversed="1"'),
 )
-STRETCH_EDGE_PARAMS = {"RSADJUST": 'pitchAdjust="0x10000000"'}
+# Each clip's extra params: the pitch adjust, and the LONG.WAV clips quieter, so the song's sum stays below full scale.
+STRETCH_EDGE_PARAMS = {
+    "RSADJUST": 'pitchAdjust="0x10000000"',
+    **{
+        name: 'volume="0x90000000"'
+        for name in ("RSLONG", "RSLONGMID", "RSLONGREV", "RSLONGRIM")
+    },
+}
 # Each track's volume, low enough that the clips' sum stays below full scale, so no clipping hides the stretch.
 STRETCH_VOLUME = 'volume="0xA0000000"'
 TEMPO_120 = 'timePerTimerTick="229" timerTickFraction="-1342177280"'
@@ -1362,7 +1380,7 @@ def rerated_source(path: str) -> bytes:
 
 
 # A source's frames repeated end to end into one long file: (source card path, copies).
-REPEATED_SOURCES = {"SAMPLES/RS/LONG.WAV": ("SAMPLES/RS/TONE_MONO.WAV", 520)}
+REPEATED_SOURCES = {"SAMPLES/RS/LONG.WAV": ("SAMPLES/RS/TONE_MONO.WAV", 1040)}
 
 
 def repeated_source(path: str) -> bytes:
@@ -1832,6 +1850,9 @@ def samples_for(name: str) -> list[str]:
     paths = ["SAMPLES/RS/A.WAV", "SAMPLES/RS/B.WAV"]
     if name.startswith("RS_AUDIO_COMP_BLEND"):
         paths.append(LOUD_SAMPLE)
+    # Every stretch song's card holds all the small stretch sources (TONE48.WAV and TONE_MONO.WAV among them, which only
+    # RS_AUDIO_STRETCH_EDGES plays): a file a song does not name is never read. LONG.WAV, 8 MB, goes only on the card
+    # that plays it.
     if name.startswith("RS_AUDIO_STRETCH"):
         paths += [*STRETCH_SOURCES, *TRIMMED_SOURCES, *RERATED_SOURCES]
     if name.startswith("RS_AUDIO_STRETCH_EDGES"):

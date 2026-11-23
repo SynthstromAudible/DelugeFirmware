@@ -1,0 +1,5 @@
+# Stretched, looping, held C5 (+12): the voice writes a sample cache and reads it from the first loop end. The stretch
+# amount changes to 3 while it reads (render_preset.py's SETTING), which changes the stretch ratio but not the pitch:
+# the voice stops reading the cache written at the old ratio and crossfades out of it into a fresh stretcher.
+4608 90 48 64
+80000 80 48 40

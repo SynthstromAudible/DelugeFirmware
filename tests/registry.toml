@@ -1323,6 +1323,17 @@ tier = "nightly"
 job = "unit"
 
 [[harness]]
+name = "render-audio-stretch-edges-arm"
+template = "render-song"
+override = ["builds", "tier", "job", "baseline"]
+gates = "audio clips at the edges of the stretcher's paths render on 32-bit ARM as recorded on x86"
+env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_EDGES" }
+builds = ["golden-vt-render-arm"]
+baseline = []
+tier = "nightly"
+job = "unit"
+
+[[harness]]
 name = "streaming-margin"
 template = "scenario"
 kind = "property"

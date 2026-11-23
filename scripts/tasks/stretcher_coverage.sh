@@ -3,13 +3,13 @@
 #
 # usage: scripts/tasks/stretcher_coverage.sh [out-dir]    (default build/stretcher-coverage)
 #
-# Builds golden_vt_render with clang source coverage on the C++ app, in its own trees under out-dir, so the shipped and
-# test trees keep their flags. Then it runs every golden that can reach the stretcher -- all of golden-synth (the
-# sample/timestretch and sample/ts_* cases among them; RENDER_PRESET_FILTER narrows it), and every x86 render-song gate
-# (the RS_AUDIO_STRETCH* songs, and the audio songs that stretch sample A at 0.75) -- through the gates' own checks, so
-# a render that no longer matches its record fails here as in ./dbt test.
-# Only the renders compared with a record count; a song gate's dry-twin and unswitched renders profile into
-# out-dir/profraw-unrecorded (scripts/tasks/stretcher_coverage.py). Last it merges the profiles and writes:
+# Builds golden_vt_render with clang source coverage on the C++ app, in its own trees under out-dir, with the test
+# trees' defines, so the shipped and test trees keep their flags. Then it runs every golden that can reach the
+# stretcher -- all of golden-synth (RENDER_PRESET_FILTER narrows it) and every render-song gate whose output is compared
+# with songs.json -- through the gates' own checks, so a render that no longer matches its record fails here as in
+# ./dbt test. Only the renders compared with a record count; each gate profiles into its own pool under out-dir/profraw,
+# and a song gate's dry-twin and unswitched renders into out-dir/profraw-unrecorded. The files and functions reported
+# are stretcher_coverage.py's SCOPE. Last it merges the recorded profiles and writes:
 #   out-dir/report.txt     llvm-cov report per function, for the stretcher and its users' files
 #   out-dir/show/          llvm-cov show --show-branches=count for the same files
 #   out-dir/summary.md     line and branch coverage of the stretcher's functions and of its users' functions that
@@ -31,15 +31,10 @@ tree="$out/host-app"
 target="$out/target"
 binary="$target/harness/golden_vt_render"
 
-files=(
-	src/deluge/dsp_legacy/timestretch/time_stretcher.cpp
-	src/deluge/dsp_legacy/timestretch/time_stretcher.h
-	src/deluge/model/clip/audio_clip.cpp
-	src/deluge/model/sample/sample.cpp
-	src/deluge/model/sample/sample_low_level_reader.cpp
-	src/deluge/model/voice/voice_sample.cpp
-	src/deluge/processing/engines/audio_engine.cpp
-)
+# The files reported, the test trees' defines and golden_vt_render's cargo command, from stretcher_coverage.py.
+mapfile -t files < <(python3 scripts/tasks/stretcher_coverage.py files)
+mapfile -t tree_defines < <(python3 scripts/tasks/stretcher_coverage.py tree-defines)
+mapfile -t cargo_build < <(python3 scripts/tasks/stretcher_coverage.py cargo-build)
 
 mkdir -p "$out"
 
@@ -47,7 +42,7 @@ if [[ " $steps " == *" build "* ]]; then
 	cmake -S src/platform/host -B "$tree" -G Ninja \
 		-DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
 		-DCMAKE_C_FLAGS="$cov_flags" -DCMAKE_CXX_FLAGS="$cov_flags" \
-		-DDELUGE_VERSION_FROM_GIT=OFF
+		"${tree_defines[@]}"
 	targets=$(python3 -c 'import sys; sys.path.insert(0, "scripts/tasks"); import test_builds; print(" ".join(test_builds.HOST_APP_TARGETS))')
 	# shellcheck disable=SC2086
 	ninja -C "$tree" -j "${STRETCHER_COVERAGE_JOBS:-8}" $targets
@@ -58,7 +53,7 @@ if [[ " $steps " == *" build "* ]]; then
 	# The build scripts link through it too, and their runs would leave profiles in the source tree.
 	LLVM_PROFILE_FILE="$out/build-scripts/%p.profraw" DELUGE_HOSTAPP_BUILD_DIR="$tree" CARGO_TARGET_DIR="$target" \
 		CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$linker" \
-		cargo build -p golden_vt_render --profile harness
+		"${cargo_build[@]}"
 fi
 
 if [[ " $steps " == *" run "* ]]; then
@@ -67,7 +62,7 @@ if [[ " $steps " == *" run "* ]]; then
 fi
 
 if [[ " $steps " == *" report "* ]]; then
-	llvm-profdata merge -sparse "$out"/profraw/*.profraw -o "$out/merged.profdata"
+	find "$out/profraw" -name '*.profraw' -print0 | xargs -0 llvm-profdata merge -sparse -o "$out/merged.profdata"
 	cov=(-instr-profile="$out/merged.profdata" -Xdemangler=llvm-cxxfilt)
 	llvm-cov report "$binary" "${cov[@]}" -show-functions "${files[@]}" >"$out/report.txt"
 	rm -rf "$out/show"

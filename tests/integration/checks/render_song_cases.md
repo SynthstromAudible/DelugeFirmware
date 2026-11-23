@@ -95,14 +95,21 @@ out: a pre-margin of 8 frames, too short for a loop's crossfade, whose hops also
 start; clips with pitch and speed tied and a fine tune, a transpose or neither (resampled, its loop crossfade fudged at
 the resampled rate), and reversed; a 48 kHz file and a mono file, stretched; an end marker past the file's end, so the
 clip does not loop at the stretcher's level; the percussive source at its native tempo with a 2-frame and a 50-frame
-pre-margin, too short to fudge a whole crossfade into; a clip whose pitch adjust is raised; and a source over 2^21
-frames long, whose percussiveness cache is kept in clusters. Compared with its
+pre-margin, too short to fudge a whole crossfade into; a clip whose pitch adjust is raised; and a source over 2^22
+frames long, whose percussiveness cache is kept in clusters, played forwards from 0 into a loop's cache zone further
+on, and looped across the end of a cache cluster forwards and reversed. Compared with its
 record in songs.json; its dry twin ties pitch and speed on every clip and must render differently (RS-FX)
 
 ## render-audio-stretch-arm
 
 audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86: render-audio-stretch's song and
 record, run by the ARM build under qemu, where the stretcher's synced path does its double and 64-bit divides
+
+## render-audio-stretch-edges-arm
+
+audio clips at the edges of the stretcher's paths render on 32-bit ARM as recorded on x86: render-audio-stretch-edges'
+song and record, run by the ARM build under qemu, so the tied, odd-rate, mono and long-source paths it adds are held
+to the x86 record too
 
 ## render-audio-track-fx
 

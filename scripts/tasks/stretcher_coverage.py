@@ -1,14 +1,19 @@
-"""The gate runs and the summary behind scripts/tasks/stretcher_coverage.sh, the time stretcher's coverage.
+"""The gate runs, the scope and the summary behind scripts/tasks/stretcher_coverage.sh, the time stretcher's coverage.
 
+stretcher_coverage.py files
+    Prints the repo-relative source files the report covers (SCOPE), one a line.
+stretcher_coverage.py tree-defines | cargo-build
+    Prints, one argument a line, the CMake defines and the cargo command build/host-app and golden_vt_render are built
+    with (scripts/tasks/test_builds.py), so the coverage trees build as the test trees do.
 stretcher_coverage.py run <golden_vt_render> <out-dir>
-    Runs golden-synth (narrowed by the caller's RENDER_PRESET_FILTER, if set) and every x86 render-song gate against the
-    instrumented binary, through the gates' own checks. Each render that is compared with its record profiles
-    into <out-dir>/profraw; a song gate's dry-twin and unswitched renders, which are only checked to differ, into
-    <out-dir>/profraw-unrecorded. Exits 1 if a gate failed.
-
+    Runs golden-synth (narrowed by the caller's RENDER_PRESET_FILTER, if set) and every render-song gate whose output is
+    compared with tests/golden/render/songs.json against the instrumented binary, through the gates' own checks. Each
+    gate profiles into its own pool, <out-dir>/profraw/<gate>/; a song gate's dry-twin and unswitched renders, which are
+    only checked to differ, into <out-dir>/profraw-unrecorded/<gate>/. Gates the registry marks `alone` run on their
+    own after the rest. Exits 1 if a gate failed.
 stretcher_coverage.py report <export.json>
-    Prints, as Markdown, the line and branch coverage of every function in the stretcher's files and of each user
-    function that calls into it (USERS), and every branch side no recorded render took.
+    Prints, as Markdown, the line and branch coverage of every function SCOPE selects, and every branch side no recorded
+    render took.
 """
 
 import concurrent.futures
@@ -22,30 +27,29 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/tasks"))
 
-# The stretcher's own files: every function in them is reported.
-STRETCHER = (
-    "dsp_legacy/timestretch/time_stretcher.cpp",
-    "dsp_legacy/timestretch/time_stretcher.h",
-)
-# Each user's functions that call into TimeStretcher or branch on whether a voice has one. readSamplesNative and
-# readSamplesResampled take a TimeStretcher* only to pass along, and never read it.
-USERS = {
-    "model/clip/audio_clip.cpp": (
+# The files reported, by repo-relative path, and the functions of each that are: None for every function (the
+# stretcher's own files), else the prefixes of the demangled names of its functions that call into TimeStretcher or
+# branch on whether a voice has one. readSamplesNative and readSamplesResampled take a TimeStretcher* only to pass along,
+# and never read it.
+SCOPE: dict[str, tuple[str, ...] | None] = {
+    "src/deluge/dsp_legacy/timestretch/time_stretcher.cpp": None,
+    "src/deluge/dsp_legacy/timestretch/time_stretcher.h": None,
+    "src/deluge/model/clip/audio_clip.cpp": (
         "AudioClip::processCurrentPos(",
         "AudioClip::resumePlayback(",
         "AudioClip::render(",
         "AudioClip::getLoopingType(",
         "AudioClip::getCullImmunity(",
     ),
-    "model/sample/sample.cpp": (
+    "src/deluge/model/sample/sample.cpp": (
         "Sample::fillPercCache(",
         "Sample::getAveragesForCrossfade(",
         "Sample::prepareToReadPercCache(",
     ),
-    "model/sample/sample_low_level_reader.cpp": (
+    "src/deluge/model/sample/sample_low_level_reader.cpp": (
         "SampleLowLevelReader::readSamplesForTimeStretching(",
     ),
-    "model/voice/voice_sample.cpp": (
+    "src/deluge/model/voice/voice_sample.cpp": (
         "VoiceSample::beenUnassigned(",
         "VoiceSample::noteOn(",
         "VoiceSample::endTimeStretching(",
@@ -55,11 +59,13 @@ USERS = {
         "VoiceSample::sampleZoneChanged(",
         "VoiceSample::getPlaySample(",
     ),
-    "processing/engines/audio_engine.cpp": (
+    "src/deluge/processing/engines/audio_engine.cpp": (
         "AudioEngine::solicitTimeStretcher(",
         "AudioEngine::timeStretcherUnassigned(",
     ),
 }
+# The record the render-song gates compare their output with: a gate that names it in its baseline pins what it plays.
+SONG_RECORDS = "tests/golden/render/songs.json"
 # The basenames of the outputs render_song.py writes for renders it does not compare with a record.
 UNRECORDED = ("dry.pcm", "unswitched.pcm")
 
@@ -76,22 +82,25 @@ def run(binary: Path, out: Path) -> int:
     spec.loader.exec_module(task_test)
 
     for pool in ("profraw", "profraw-unrecorded"):
-        for old in (out / pool).glob("*.profraw"):
+        for old in (out / pool).rglob("*.profraw"):
             old.unlink()
-        (out / pool).mkdir(parents=True, exist_ok=True)
     products = tb.products(ROOT)
     entries = [
         h
         for h in hr.load_registry(ROOT)
         if h.builds == ["golden-vt-render"]
-        and (h.name == "golden-synth" or h.scenario == "render_song")
+        and h.status == "gate"
+        and (
+            h.name == "golden-synth"
+            or (h.scenario == "render_song" and SONG_RECORDS in h.baseline)
+        )
     ]
     gate_run = scenario_gate.Gate.run
 
     def profiled_run(self, scenario=None, env=None, timeout=None):
         env = dict(env or {})
         unrecorded = Path(env.get("RENDER_PCM_OUT", "")).name in UNRECORDED
-        pool = out / ("profraw-unrecorded" if unrecorded else "profraw")
+        pool = out / ("profraw-unrecorded" if unrecorded else "profraw") / self.name
         # %c writes as the counters count, since the harness ends with a bare exit_group and no at-exit write runs;
         # %8m merges every process into a pool of files, where %p would let a process whose pid was reused overwrite
         # an earlier one's profile.
@@ -105,9 +114,13 @@ def run(binary: Path, out: Path) -> int:
             env = task_test._environment(ROOT, h, products)
             return h.name, scenario_gate.run_gate(ROOT, h, env, binary, log)
 
-    # golden-synth runs its cases in parallel itself; the songs run one gate at a time each, a few at once.
+    # golden-synth runs its cases in parallel itself; the songs run one gate at a time each, a few at once. A gate the
+    # registry marks `alone` measures real time or loads the machine, so it runs by itself afterwards, as ./dbt test
+    # runs it.
     with concurrent.futures.ThreadPoolExecutor(6) as pool:
-        results = sorted(pool.map(one, entries))
+        results = list(pool.map(one, [h for h in entries if not h.alone]))
+    results += [one(h) for h in entries if h.alone]
+    results.sort()
     failed = [name for name, ok in results if not ok]
     with (out / "gates.log").open("w") as log:
         for name, ok in results:
@@ -127,9 +140,15 @@ def _short(name: str) -> str:
 
 
 def _selected(path: str, name: str) -> bool:
-    if path in STRETCHER:
-        return True
-    return any(name.startswith(prefix) for prefix in USERS.get(path, ()))
+    if path not in SCOPE:
+        return False
+    prefixes = SCOPE[path]
+    return prefixes is None or any(name.startswith(prefix) for prefix in prefixes)
+
+
+def _repo_path(path: str) -> str:
+    """@p path, an absolute source path from the coverage mapping, relative to the repository."""
+    return str(Path(path).resolve().relative_to(ROOT))
 
 
 def _shown(show: Path):
@@ -138,7 +157,7 @@ def _shown(show: Path):
 
     def counts(path: str) -> dict[int, str]:
         if path not in cache:
-            text = next(show.rglob(f"src/deluge/{path}.txt")).read_text()
+            text = next(show.rglob(f"{path}.txt")).read_text()
             cache[path] = {}
             for line in text.split("\n"):
                 m = re.match(r"^ *(\d+)\| *([0-9.]+[kMGE]?)\|", line)
@@ -161,11 +180,13 @@ def report(export: Path) -> int:
         check=True,
     ).stdout.split("\n")
     sources: dict[str, list[str]] = {}
-    rows = []
-    zeros = []
+    picked = []
     seen = set()
     for function, name in zip(functions, demangled):
-        path = function["filenames"][0].split("src/deluge/", 1)[-1]
+        try:
+            path = _repo_path(function["filenames"][0])
+        except ValueError:
+            continue
         # A static function's name carries its translation unit ("unity_0_cxx.cxx:"); the unity build is not a source.
         name = re.sub(r"^[^ (]*\.cxx:", "", name)
         if not _selected(path, name) or (path, name) in seen:
@@ -173,20 +194,39 @@ def report(export: Path) -> int:
         seen.add((path, name))
         # Code regions in the function's own file: [line, col, end line, end col, count, file, expanded file, kind].
         regions = [r for r in function["regions"] if r[5] == 0 and r[7] == 0]
-        first, last = min(r[0] for r in regions), max(r[2] for r in regions)
-        # Lines: the executable lines in its span, with the counts llvm-cov show gives them.
-        counts = [c for line, c in shown(path).items() if first <= line <= last]
+        span = (min(r[0] for r in regions), max(r[2] for r in regions))
+        picked.append((path, name, function, span))
+    rows = []
+    zeros = []
+    total_sides = 0
+    for path, name, function, (first, last) in picked:
+        # A lambda's lines are its own, not also its enclosing function's.
+        nested = [
+            s
+            for p, n, _, s in picked
+            if p == path
+            and n != name
+            and first <= s[0]
+            and s[1] <= last
+            and s != (first, last)
+        ]
+        counts = [
+            c
+            for line, c in shown(path).items()
+            if first <= line <= last and not any(a <= line <= b for a, b in nested)
+        ]
         lines_run = sum(1 for c in counts if c != "0")
         # Branches: [line, col, end line, end col, true count, false count, file, expanded file, kind].
         branches = [b for b in function["branches"] if b[6] == 0]
         sides = 2 * len(branches)
+        total_sides += sides
         sides_run = sum((b[4] > 0) + (b[5] > 0) for b in branches)
         short = _short(name)
         rows.append(
             (path, short, function["count"], lines_run, len(counts), sides_run, sides)
         )
         if path not in sources:
-            sources[path] = (ROOT / "src/deluge" / path).read_text().split("\n")
+            sources[path] = (ROOT / path).read_text().split("\n")
         for b in branches:
             if b[4] == 0 or b[5] == 0:
                 untaken = (
@@ -196,6 +236,7 @@ def report(export: Path) -> int:
                 )
                 text = sources[path][b[0] - 1].strip()
                 zeros.append((path, b[0], b[1], short, untaken, b[4], b[5], text))
+    untaken_sides = sum(2 if z[4] == "both" else 1 for z in zeros)
     print("## Functions\n")
     print("| file | function | calls | lines run | branch sides taken |")
     print("|---|---|---|---|---|")
@@ -203,6 +244,9 @@ def report(export: Path) -> int:
         print(
             f"| {path} | {short} | {calls} | {lines_run}/{lines} | {sides_run}/{sides} |"
         )
+    print(
+        f"\nBranch sides taken: {total_sides - untaken_sides} of {total_sides}; untaken: {untaken_sides}."
+    )
     print("\n## Branch sides no recorded render takes\n")
     print("| where | function | side not taken | true / false counts | source |")
     print("|---|---|---|---|---|")
@@ -215,6 +259,20 @@ def report(export: Path) -> int:
 
 
 def main() -> int:
+    if sys.argv[1:] == ["files"]:
+        print("\n".join(SCOPE))
+        return 0
+    if sys.argv[1:] in (["tree-defines"], ["cargo-build"]):
+        import test_builds as tb
+
+        print(
+            "\n".join(
+                tb.TEST_TREE_DEFINES
+                if sys.argv[1] == "tree-defines"
+                else tb.GOLDEN_CARGO_BUILD
+            )
+        )
+        return 0
     if len(sys.argv) == 4 and sys.argv[1] == "run":
         return run(Path(sys.argv[2]), Path(sys.argv[3]))
     if len(sys.argv) == 3 and sys.argv[1] == "report":

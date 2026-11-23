@@ -1,0 +1,6 @@
+# Stretched, looping, held C5 (+12): the voice writes a sample cache as it stretches. A pitch bend before the first
+# loop end changes the phase increment while it is still writing: it abandons the cache, which needs no crossfade, and
+# stretches on live.
+4608 90 48 64
+6000 E0 00 50
+80000 80 48 40

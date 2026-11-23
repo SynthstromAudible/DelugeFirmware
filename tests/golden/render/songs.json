@@ -97,9 +97,9 @@
  },
  "RS_AUDIO_STRETCH_EDGES": {
   "frames": 384000,
-  "peak": 1537169920,
-  "rms_db": -15.26,
-  "sha256": "f7acf79afc65eae82ae4918af9e68d9ac1c11cdb2ed83e05a778e328445b143c"
+  "peak": 1456987392,
+  "rms_db": -15.38,
+  "sha256": "8e9b7b91d1204004b08d25dc9307eb75bfe18f18cce959fbbbcd4899964234f9"
  },
  "RS_AUDIO_STRETCH_NATIVE": {
   "frames": 384000,

@@ -147,6 +147,7 @@ builds only `golden-vt-render`.
 | param-dump | integration | scenario | regression | gate | the audible window's parameter dump | nightly | render | ~5s |
 | golden-synth-arm | integration | scenario | differential | gate | the synth golden masters on 32-bit ARM | nightly | unit | ~1m |
 | render-audio-stretch-arm | integration | scenario | property | gate | audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86 | nightly | unit | ~20s |
+| render-audio-stretch-edges-arm | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths render on 32-bit ARM as recorded on x86 | nightly | unit | ~20s |
 | streaming-margin | integration | scenario | property | gate | sample playback must keep up when storage is as slow as the device's | nightly | render | ~30s |
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
@@ -283,10 +284,12 @@ up to tens of gigabytes. Prefer `./dbt test <name>`;
 
 `scripts/tasks/stretcher_coverage.sh [out-dir]` is the one build outside the runner: it compiles the host app with
 clang source coverage into its own trees under `out-dir` (default `build/stretcher-coverage`), links its own
-`golden_vt_render`, runs golden-synth and every x86 render-song gate on it through their own checks, and reports the
-line and branch coverage of the time stretcher and of its users' functions that call into it. Only renders compared
-with a record count. Run it again after a change to the stretcher or its callers, to see which branches the goldens
-still pin; `llvm-profdata` and `llvm-cov` must be the version of the `clang` on the path.
+`golden_vt_render`, runs golden-synth and every render-song gate compared with songs.json on it through their own
+checks, and reports the line and branch coverage of the time stretcher and of its users' functions that call into it
+(`scripts/tasks/stretcher_coverage.py`'s `SCOPE`). Only renders compared with a record count. Run it again after a
+change to the stretcher or its callers, to see which branches the goldens still pin; `llvm-profdata` and `llvm-cov`
+must be the version of the `clang` on the path. Its trees are its own: `./dbt test --clean` does not remove
+`build/stretcher-coverage` (or another `out-dir`); delete it by hand.
 
 ## Adding a test
 

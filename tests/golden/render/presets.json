@@ -2147,6 +2147,12 @@
   "rms_db": -24.15,
   "sha256": "1d72cbe7a0a67f945fb0e4b2f45530875931ea17faee4a8f825c9e8397015a53"
  },
+ "sample/ts_cache_bend_early": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -24.63,
+  "sha256": "1efdb3574b19549228be6d61f67a2e23aa63e3e5587aa86953d8a838ef47f4f3"
+ },
  "sample/ts_cache_bend_root": {
   "frames": 88200,
   "peak": 245172224,
@@ -2177,6 +2183,12 @@
   "rms_db": -32.62,
   "sha256": "7a9024de1c81cf14476928069230d7c6f8529445b4e029102bcecc632a58f1cd"
  },
+ "sample/ts_cache_stretch_amount": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -24.71,
+  "sha256": "697220620b7c8887b9ac30ca5bb451b1530e2e1e92bebabfe31bd3fe97355bba"
+ },
  "sample/ts_cached_loop": {
   "frames": 88200,
   "peak": 245172224,
@@ -2194,6 +2206,60 @@
   "peak": 245172224,
   "rms_db": -23.35,
   "sha256": "bcb001240a2680c7d26712daa22cabd915c298dd9b17534e11d23ae0632ccab9"
+ },
+ "sample/ts_marker_loop_end": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -25.27,
+  "sha256": "dfcca3275baa29bc2f503b47c4c64e2d2a3c4939a252cb3bf2a9db4c8c93e48e"
+ },
+ "sample/ts_marker_loop_end_ahead": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -24.71,
+  "sha256": "50a79a5af52da7b1be5e54691f84ddb5c43f79b2a861a518e41bf93e77a1b77a"
+ },
+ "sample/ts_marker_loop_end_cached": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.08,
+  "sha256": "3f562cb4fd29373847b35ea96f4a3afd10d6b7e3d2d62710e569f7a543e89d52"
+ },
+ "sample/ts_marker_loop_end_cached_ahead": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.23,
+  "sha256": "8ca8210450bf0f2b18bd89327207dd59ef02859f77a45491a7801e5027302086"
+ },
+ "sample/ts_marker_loop_end_plain": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -21.49,
+  "sha256": "a563bfdcdccad2480cfed4f1be1ab946c20669acaec81fa6830cea421f9aceaa"
+ },
+ "sample/ts_marker_loop_end_released": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -33.71,
+  "sha256": "43e784a62b3bc64efe5004b188f16bde1b724be4fcf24543885a3f2725da6d58"
+ },
+ "sample/ts_marker_loop_start": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.0,
+  "sha256": "4f805cc16e62f7e30374480a8ba237dc80c9d39efb351b2c2188418e0aff6757"
+ },
+ "sample/ts_marker_start": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -24.82,
+  "sha256": "eba9dcc365f1a80e0137efdc0e1758e1f38648afcae8fd5a8b5191d35a52cf57"
+ },
+ "sample/ts_marker_start_cached": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -24.94,
+  "sha256": "836cfc81a32591d5590f878487653fc9028917dcf1925d40d5b4731777c5b3b3"
  },
  "sample/ts_markers": {
   "frames": 88200,

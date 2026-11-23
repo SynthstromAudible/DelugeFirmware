@@ -1,0 +1,4 @@
+# Looping, not stretched, held at the C4 root, so the voice has neither a stretcher nor a sample cache. The zone's loop
+# end marker moves to 1,024 mid-note (render_preset.py's ZONE_MOVE), behind the play position: the voice loops back.
+4608 90 3C 64
+80000 80 3C 40

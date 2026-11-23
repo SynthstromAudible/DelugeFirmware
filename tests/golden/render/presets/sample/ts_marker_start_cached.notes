@@ -1,0 +1,5 @@
+# Stretched, looping, held C5 (+12): the voice writes a sample cache and reads it from the first loop end. The zone's
+# start marker moves to 512 while it reads (render_preset.py's ZONE_MOVE): the cache no longer starts where the zone
+# does, so the voice stops using it.
+4608 90 48 64
+80000 80 48 40
