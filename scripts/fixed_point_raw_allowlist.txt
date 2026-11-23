@@ -124,6 +124,7 @@ src/dsp/fixed/timestretch/crossfade.h raw=0 boundary=4
 src/dsp/fixed/timestretch/hop_planner.h raw=0 boundary=15
 src/dsp/fixed/timestretch/hop_tuning.h raw=0 boundary=4
 src/dsp/fixed/timestretch/perc_analysis.h raw=0 boundary=1
+src/dsp/fixed/timestretch/waveform_aligner.h raw=0 boundary=7
 src/dsp/fixed/vca/amplitude.h raw=0 boundary=6
 src/dsp/fixed/vca/crude_amplitude.h raw=0 boundary=2
 src/dsp/fixed/vca/pan.h raw=0 boundary=7
