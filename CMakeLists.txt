@@ -288,6 +288,10 @@ add_subdirectory(lib)
 # (deluge_ui_gfx_*, deluge_ui_*, deluge_base_notify) get the same warning set in all three projects.
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/deluge_common_options.cmake)
 
+# DELUGE_CRATE_INCLUDE_DIRS: the Rust crates' C header directories, for the app libraries under src/.
+set(DELUGE_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR})
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/deluge_crate_includes.cmake)
+
 # Freestanding UndefinedBehaviorSanitizer layer (see src/deluge/io/debug/ubsan_handlers.cpp). Off by default; enable
 # with -DDELUGE_UBSAN=ON. We compile with -fsanitize=undefined but do NOT add it to link options - there is no libubsan
 # on bare metal, the __ubsan_handle_* hooks are provided in-tree. `alignment` is excluded because the custom allocator

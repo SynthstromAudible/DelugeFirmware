@@ -17,4 +17,5 @@ deluge_specs_driver(audio_stream_specs TREES host NEON ONLY_ARM convert_simd_neo
     ${DELUGE_REPO_ROOT}/include  # libdeluge/types.h
     ${DELUGE_REPO_ROOT}/src      # definitions_cxx.hpp
     ${_app}                      # storage/audio/stream/read_source.h, io/stream.hpp
+    ${DELUGE_CRATE_INCLUDE_DIRS} # the crates' C headers read_source.h includes
 )

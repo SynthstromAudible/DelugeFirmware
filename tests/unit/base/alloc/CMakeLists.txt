@@ -14,4 +14,5 @@ deluge_specs_driver(alloc_specs TREES host
   INCLUDES
     ${DELUGE_REPO_ROOT}/tests/support/fixtures/memory  # conformance.h, allocator_under_test.h
     ${DELUGE_REPO_ROOT}/include                        # libdeluge/alloc.h
+    ${DELUGE_CRATE_INCLUDE_DIRS}                       # the crates' C headers
 )

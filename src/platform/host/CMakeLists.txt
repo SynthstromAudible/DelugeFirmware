@@ -107,6 +107,10 @@ add_compile_options(-fsigned-char)
 # projects include. list(APPEND) inside, so -fsigned-char above survives.
 include(${REPO_ROOT}/cmake/deluge_common_options.cmake)
 
+# DELUGE_CRATE_INCLUDE_DIRS: the Rust crates' C header directories, for the app libraries and the include path below.
+get_filename_component(DELUGE_REPO_ROOT ${REPO_ROOT} ABSOLUTE)
+include(${REPO_ROOT}/cmake/deluge_crate_includes.cmake)
+
 # Debug info — this is a host debug / CI harness; -g makes the inevitable runtime
 # triage (gdb backtraces, member inspection) tractable.
 add_compile_options(-g)
@@ -210,12 +214,12 @@ add_compile_definitions(ENABLE_TEXT_OUTPUT=1)
 if(DELUGE_SIM_NEON_NATIVE)
     # Real NEON (arm-linux cross or an arm64 host): the toolchain provides <arm_neon.h>; argon's
     # <arm/neon.h> and the SIMDe compat shim are unused.
-    include_directories(BEFORE ${REPO_ROOT}/include ${REPO_ROOT}/src/storage/resource/include)
+    include_directories(BEFORE ${REPO_ROOT}/include ${DELUGE_CRATE_INCLUDE_DIRS})
 else()
     include_directories(BEFORE
         ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
         ${REPO_ROOT}/include             # <libdeluge/...> boundary
-        ${REPO_ROOT}/src/storage/resource/include # deluge_resource.h
+        ${DELUGE_CRATE_INCLUDE_DIRS}     # the crates' C headers
         ${SIMDE_INCLUDE_DIR}               # compat shim's <simde/arm/neon.h> -> SIMDe
         ${SIMDE_INCLUDE_DIR}/simde         # argon's bare <arm/neon.h> -> SIMDe
     )

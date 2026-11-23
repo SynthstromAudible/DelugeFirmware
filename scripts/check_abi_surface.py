@@ -5,7 +5,7 @@
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """The libdeluge C ABI's surface: every declared function, where it is defined, and who calls it.
 
-Declarations are read from ``include/libdeluge/*.h``. A function is *defined* by a Rust ``fn`` in
+Declarations are read from ``include/libdeluge/`` and each crate's ``include/deluge_*.h``. A function is *defined* by a Rust ``fn`` in
 ``src/platform/device/src`` or a library crate's ``src`` (a root-workspace member under ``src/`` or
 ``tests/trees``), or by a C/C++ body in ``src/``. A header in
 ``EXTERNAL`` is defined by a dependency outside this repository instead, and each of its functions counts as defined
@@ -43,7 +43,15 @@ from pathlib import Path
 import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
-HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h"))
+# deluge_resource.h stays out: its functions carry no signature pins, context tags or DELUGE_NOEXCEPT yet, and pinning
+# them needs bindgen to read the header.
+UNCHECKED_CRATE_HEADERS = {"deluge_resource.h"}
+CRATE_HEADERS = sorted(
+    p
+    for p in (ROOT / "src").glob("**/include/deluge_*.h")
+    if "third_party" not in p.parts and p.name not in UNCHECKED_CRATE_HEADERS
+)
+HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h")) + CRATE_HEADERS
 
 BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 LINE_COMMENT = re.compile(r"//[^\n]*")

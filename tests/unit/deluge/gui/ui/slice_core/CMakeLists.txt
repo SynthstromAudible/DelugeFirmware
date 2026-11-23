@@ -33,6 +33,7 @@ deluge_specs_driver(deluge_gui_ui_slice_core_specs TREES host NEON
     ${DELUGE_REPO_ROOT}/src
     ${DELUGE_REPO_ROOT}/src/deluge
     ${DELUGE_REPO_ROOT}/include
+    ${DELUGE_CRATE_INCLUDE_DIRS}  # the crates' C headers the sample headers include
     ${DELUGE_REPO_ROOT}/tests/support/mocks
   DEFINITIONS
     _GLIBCXX_USE_TBB_PAR_BACKEND=0

@@ -5,6 +5,18 @@ use std::path::Path;
 
 use super::{allowlist, crate_types};
 
+/// The include directories, relative to the repo root, of the Rust library crates whose C header
+/// the wrapper reads: each holds `<crate name>.h` beside the crate's `Cargo.toml`. Only those that
+/// exist are passed. `src/storage/resource/include` is not among them: the resource crate pins its
+/// header's functions by hand, so bindgen does not read it.
+const CRATE_INCLUDE_DIRS: &[&str] = &[
+    "src/base/alloc/include",
+    "src/storage/sample/source/include",
+    "src/storage/sample/reader/include",
+    "src/storage/sample/fill/include",
+    "src/storage/stream/include",
+];
+
 /// Binds the libdeluge headers for `clang_target`, writing `libdeluge_sys.rs` into `out_dir`: the
 /// POD types, the `DELUGE_*` constants, and a declaration of every header function.
 ///
@@ -27,11 +39,21 @@ pub fn run(
     deluge_host: bool,
 ) {
     let include_dir = repo_root.join("include");
+    let crate_include_dirs: Vec<_> = CRATE_INCLUDE_DIRS
+        .iter()
+        .map(|dir| repo_root.join(dir))
+        .filter(|dir| dir.is_dir())
+        .collect();
     let wrapper = manifest_dir.join("wrapper.h");
     let base = || {
         let builder = bindgen::Builder::default()
             .header(wrapper.to_str().unwrap())
             .clang_arg(format!("-I{}", include_dir.display()))
+            .clang_args(
+                crate_include_dirs
+                    .iter()
+                    .map(|dir| format!("-I{}", dir.display())),
+            )
             .use_core()
             .clang_arg(format!("--target={clang_target}"))
             // `abi_layout!` checks the layouts that matter, on the target itself.
@@ -65,6 +87,9 @@ pub fn run(
         .expect("write libdeluge_layout.rs");
     println!("cargo:rerun-if-changed={}", wrapper.display());
     println!("cargo:rerun-if-changed={}", include_dir.display());
+    for dir in &crate_include_dirs {
+        println!("cargo:rerun-if-changed={}", dir.display());
+    }
     println!("cargo:rerun-if-changed=build/allowlist.rs");
     println!("cargo:rerun-if-changed=build/crate_types.rs");
 }

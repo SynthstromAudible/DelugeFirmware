@@ -108,7 +108,7 @@ target_include_directories(deluge_app PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
     ${SHARED_INCLUDE}
     ${CMAKE_SOURCE_DIR}/include # <libdeluge/...> boundary headers
-    ${CMAKE_SOURCE_DIR}/src/storage/resource/include # deluge_resource.h (Rust resource manager C ABI)
+    ${DELUGE_CRATE_INCLUDE_DIRS} # the Rust crates' C headers (cmake/deluge_crate_includes.cmake)
 )
 
 target_link_libraries(deluge_app PUBLIC
