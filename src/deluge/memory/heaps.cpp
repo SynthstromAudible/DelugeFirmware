@@ -16,7 +16,7 @@
  */
 
 #include "memory/heaps.h"
-#include "libdeluge/alloc.h"
+#include "deluge_base_alloc.h"
 #include "libdeluge/memory.h"
 #include "libdeluge/system.h"
 #include "libdeluge/tier.h"

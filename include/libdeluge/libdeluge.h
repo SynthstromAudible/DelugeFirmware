@@ -24,7 +24,6 @@
 #define LIBDELUGE_H
 
 #include "abi.h"
-#include "alloc.h"
 #include "app.h"
 #include "audio_format.h"
 #include "audio_io.h"

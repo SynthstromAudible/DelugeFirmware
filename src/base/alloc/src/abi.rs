@@ -1,4 +1,4 @@
-//! The `libdeluge/alloc.h` exports whose C types differ from this crate's Rust API.
+//! The `deluge_base_alloc.h` exports whose C types differ from this crate's Rust API.
 //!
 //! A block is a `void*` in C and a `*mut u8` here, and C's reclaim hook may be NULL. Each export
 //! forwards to the function of the same name at the crate root or in [`crate::slab`], and has that

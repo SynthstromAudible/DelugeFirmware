@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "memory/heaps.h" // deluge::memory heaps (+ opaque DelugeHeap)
 
-struct DelugeSlab;     // libdeluge/alloc.h — opaque here; full C ABI included in the .cpp
+struct DelugeSlab;     // deluge_base_alloc.h — opaque here; full C ABI included in the .cpp
 struct DelugeResource; // deluge_storage_resource.h — the resource manager handle (opaque here)
 
 /*
@@ -91,7 +91,7 @@ public:
 	}
 
 	// MEM_GUARD periodic heap-integrity walk (called from AudioEngine::routine()). Validates every heap's
-	// physical block chain via deluge_heap_check() across the libdeluge/alloc.h boundary (the Rust
+	// physical block chain via deluge_heap_check() across the deluge_base_alloc.h boundary (the Rust
 	// deluge_base_alloc replacement for the legacy MemoryRegion boundary-tag walk); freezes on corruption.
 	void checkEverythingOk(char const* errorString);
 

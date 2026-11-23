@@ -73,13 +73,14 @@ path = "ui"
 
 # Libraries: each may include only the C++ standard library, its system headers, itself and its may_include.
 
-# The bottom of the stack: the standard library, the C headers the C files use and the board's clock constant only.
+# The bottom of the stack: the standard library, the C headers the C files use, the board's clock constant and the
+# platform ABI macros only.
 [[library]]
 name = "base"
 root = "src/base"
 prefix = "base/"
-may_include = ["board_config.h"]
-system = ["stdbool.h", "stdint.h", "string.h"]
+may_include = ["board_config.h", "libdeluge/abi.h"]
+system = ["stdbool.h", "stddef.h", "stdint.h", "string.h"]
 
 [[library]]
 name = "plugin-types"

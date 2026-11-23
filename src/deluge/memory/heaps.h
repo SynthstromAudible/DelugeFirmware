@@ -27,7 +27,7 @@
 // allocate from here, rather than each owning/locating heaps via
 // GeneralMemoryAllocator::get(). The GMA is the stealable/reclaim coordinator;
 // heap ownership lives here. DelugeHeap is opaque here (full C ABI in
-// libdeluge/alloc.h) so consumers don't need include/.
+// deluge_base_alloc.h) so consumers don't need include/.
 
 struct DelugeHeap;
 
@@ -58,7 +58,7 @@ std::size_t sram_size();
 std::size_t sdram_size();
 
 // Allocation helpers — the clean surface app code allocates from, so it needs
-// neither GeneralMemoryAllocator::get() nor libdeluge/alloc.h. They allocate from
+// neither GeneralMemoryAllocator::get() nor deluge_base_alloc.h. They allocate from
 // the allocator's heaps above; `align` is honored (default 16, the SIMD floor).
 // Return nullptr on OOM. Under DELUGE_DETERMINISTIC_ALLOC (sim/golden only) the
 // block is zeroed before return, matching the old GMA alloc path.

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/alloc.h — the C ABI for different allocator cores
+/// deluge_base_alloc.h — the C header of the `deluge_base_alloc` crate: the C ABI for different allocator cores
 ///
 /// A `DelugeHeap` is built over a caller-provided memory region (in firmware,
 /// a BSP region from libdeluge/memory.h; in tests, a malloc'd arena). Placement
@@ -25,7 +25,7 @@
 #ifndef LIBDELUGE_ALLOC_H
 #define LIBDELUGE_ALLOC_H
 
-#include "abi.h"
+#include "libdeluge/abi.h"
 #include <stddef.h>
 #include <stdint.h>
 #ifndef __cplusplus

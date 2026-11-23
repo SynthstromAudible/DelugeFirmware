@@ -16,7 +16,7 @@
  */
 
 #include "memory/general_memory_allocator.h"
-#include "libdeluge/alloc.h"
+#include "deluge_base_alloc.h"
 #include "libdeluge/memory.h"
 
 #include "definitions_cxx.hpp"

@@ -18,7 +18,7 @@
 /// deluge_storage_resource.h — the C ABI for the cached-asset / resource manager.
 ///
 /// A value-scored, lease-based cache of *reconstructable* assets, layered on a
-/// `DelugeHeap` (libdeluge/alloc.h). Replaces the C++ Stealable / CacheManager /
+/// `DelugeHeap` (deluge_base_alloc.h). Replaces the C++ Stealable / CacheManager /
 /// numReasonsToBeLoaded machinery. See docs/dev/resource_manager.md.
 ///
 /// Model: an **Asset** is an opaque owner token + a reconstruction `Source`
@@ -33,7 +33,7 @@
 #ifndef DELUGE_STORAGE_RESOURCE_H
 #define DELUGE_STORAGE_RESOURCE_H
 
-#include "libdeluge/alloc.h" // DelugeHeap
+#include "deluge_base_alloc.h" // DelugeHeap
 #include <stddef.h>
 #include <stdint.h>
 #ifndef __cplusplus
@@ -78,7 +78,7 @@ typedef bool (*DelugeResourceMaterializeFn)(void* ctx, void* owner, uint32_t ind
 
 /// Notify the owner that a currently-unleased chunk it may reference is being
 /// evicted — it must drop any cached pointer (the Stealable::steal() analogue).
-/// May be NULL. (Distinct from the slab's `DelugeEvictFn` in alloc.h — this carries
+/// May be NULL. (Distinct from the slab's `DelugeEvictFn` in deluge_base_alloc.h — this carries
 /// the owner + chunk index.)
 typedef void (*DelugeResourceEvictFn)(void* ctx, void* owner, uint32_t index);
 
@@ -112,7 +112,7 @@ bool deluge_resource_try_evict(DelugeResource* mgr);
 
 /// Configure the slab that backs `BACKING_SLAB` assets (uniform clusters). Until
 /// set, every asset uses the heap. Create it with `deluge_slab_create_unmanaged`
-/// (alloc.h) over the same heap, so eviction stays with this manager (the slab
+/// (deluge_base_alloc.h) over the same heap, so eviction stays with this manager (the slab
 /// self-evicts nothing — the manager's reclaim hook releases its slots).
 void deluge_resource_set_slab(DelugeResource* mgr, DelugeSlab* slab);
 

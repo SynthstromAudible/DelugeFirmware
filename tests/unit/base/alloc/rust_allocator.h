@@ -1,7 +1,7 @@
 #pragma once
 
 #include "allocator_under_test.h"
-#include "libdeluge/alloc.h"
+#include "deluge_base_alloc.h"
 #include <cstdlib>
 
 // AllocatorUnderTest adapter over the Rust TLSF core (src/base/alloc) via

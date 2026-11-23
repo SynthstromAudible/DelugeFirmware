@@ -5,8 +5,8 @@
 // byte pattern per (owner, chunk index) so a reload is verifiable. Mirrors the Rust
 // unit tests, but drives everything through the FFI boundary (deluge_storage_resource.h).
 
+#include "deluge_base_alloc.h"
 #include "deluge_storage_resource.h"
-#include "libdeluge/alloc.h"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
