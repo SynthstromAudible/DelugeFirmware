@@ -59,7 +59,7 @@ when sped up. On the percussive source `sample/ts_perc` 27 of 32 hops move off t
 **Where a cache takes over.** A pitched voice may also write what it renders to a sample cache and later replay it
 instead of stretching (`sample/ts_cached_loop`). When it leaves a stretched cache, because the pitch or ratio changed
 (`sample/ts_cache_bend`) or because it reached what has been written (`sample/ts_cache_crossfade`), a fresh stretcher
-crossfades out of the cache's last frames, held in a small buffer, into its own new head.
+crossfades out of the cache's next frames (up to 255 already written, copied to a small buffer) into its own new head.
 
 **The fudge.** An unstretched audio clip that loops with a region before its start marker gets a stretcher for its last
 few output frames before each loop end, only to crossfade into that region (`RS_AUDIO_STRETCH_NATIVE`: 100 such
@@ -74,7 +74,9 @@ plain value `State`, kernels where the arithmetic is per sample, `static_assert`
 every parameter. The live pitch shifter (`src/dsp/fixed/pitch_shift/hop_scheduler.h`) is the nearest precedent in
 shape, but its arithmetic differs (rounded slope steps, a ring history instead of a file), so these are their own types.
 
-The new files are named in plain text below; none exists yet.
+The new files are named in plain text below; none exists yet. The interfaces are sketches: the small value types they
+name without defining (`BlockArgs`, `Markers`, `PercFill`, `Reservation` and the like) are settled when the rewrite is
+planned; the responsibilities, the ownership and the contracts are what this note fixes.
 
 ### 2.1 Hop tuning (DSP)
 
@@ -239,7 +241,7 @@ public:
 	void restart_at(SampleStretchPort&, int64_t position, const BlockArgs&);
 	/// Fill the perc analysis ahead of the position for this block. P4.
 	void prepare_block(SampleStretchPort&, const BlockArgs&);
-	/// Crossfade out of a cache's last frames into this stretcher's head. C1-C3.
+	/// Crossfade out of a cache's next written frames into this stretcher's head. C1-C3.
 	void crossfade_from_cache(SampleStretchPort&, const CacheWindow&, int32_t channels);
 	/// Render `frames` into `out`: hops, segments, both heads, the position. False: the note ended (or a card error).
 	bool render(SampleStretchPort&, Q<31>* out, const BlockArgs&, HopBudget&, Cong& noise);
@@ -428,8 +430,8 @@ code.
 | E1 | heads | Stretching may stop when the newer and older heads are at the same byte and the voice is synced with no lag (or not synced). | `VoiceSample::render`, leaving the stretcher |
 | W1 | stretched mix | Writing a cache: the heads render at X4's cache level into a zeroed scratch block; per frame the cache takes the top three bytes of `word << 1`, left then right; the output mixes the word (mono: `(l >> 1) + (r >> 1)` after the left is cached) with `mixed_in`, the amplitude stepped first. | `VoiceSample::render`, the cache copy |
 
-**Counts.** 41 contracts: hop tuning 3, scheduler 6, planner 8, aligner 6, crossfader 4, cache tail 4, perc analysis
-5, position, loop, exit and cache write 5. Seven are about when, not what (S3, S4, S5, B6, B8, E1, P4); the rest are
+**Counts.** 42 contracts: hop tuning 3, scheduler 6, planner 8, aligner 6, crossfader 4, cache tail 4, perc analysis
+5, position, loop, exit and cache write 6. Seven are about when, not what (S3, S4, S5, B6, B8, E1, P4); the rest are
 arithmetic.
 
 **Noise draws.** The synth's noise stream is shared by every voice, so the draw count is a contract too: one at a
@@ -485,12 +487,13 @@ Where they come from, traced by a debugger watchpoint on the counter in four cas
 `ts_cache_crossfade`, `ts_poly`):
 - **2, the perc cache's first fill** in `Sample::fillPercCache`: its byte block (`alloc_sdram`) and its zone list's
   growth. The sample's, not the stretcher's; it moves with the fill unchanged.
-- **2 per cache, the sample cache** (`Sample::getOrCreateCache`: its memory and its element list's growth; the list
-  grows three times for four caches in `ts_poly`). Not the stretcher's.
+- **The sample cache** (`Sample::getOrCreateCache`): one for each cache's memory, plus each growth of the sample's
+  cache list (once for the first cache; three times for `ts_poly`'s four, so 7 there). Not the stretcher's.
 - **1, the cache tail's buffer**, the stretcher's only render allocation (`allocMaxSpeed` of 256 words per channel,
   1 KB mono or 2 KB stereo). Open question 2 removes it.
 - In the four traced cases the pool (48 stretchers) never fell back to the heap. The other cases' counts follow the
-  same pattern (2 for the perc cache, 2 per sample cache, 1 per crossfade out of a cache); they were counted, not traced.
+  same pattern (2 for the perc cache, 2 for one sample cache, 1 per crossfade out of a cache); they were counted, not
+  traced.
 
 These counts are the ceiling: no case may rise. The render-song gates print no allocation count, so the songs have no
 ceiling yet (section 6, step 1).
