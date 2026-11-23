@@ -10,7 +10,7 @@ use crate::{DelugeChunkConvertState, FillContext, StreamingFillDescriptor, fill_
 
 unsafe extern "C" {
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
-    // The resource imports are `pub` only so pins.rs can pin them; other crates call `deluge_storage_resource`'s typed functions.
+    // The resource imports are `pub` only so pins.rs can pin them; other crates call `deluge_storage_resource`.
     // Recovers a chunk's `(asset, index)` through the out-params; false on a miss.
     pub fn deluge_resource_chunk_ident(
         mgr: *mut c_void,
