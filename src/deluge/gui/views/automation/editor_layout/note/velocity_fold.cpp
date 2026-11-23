@@ -93,12 +93,29 @@ void VelocityFold::affectEntireChanged() {
 
 /// every note row is drawn in its own colour (the same colour it has in the clip view). Each row draws a bar up to its
 /// velocity on that step; where bars overlap, the shorter bar wins, so each row shows as a band between its velocity
-/// and the next lower row's. Rows with notes starting on a step hide rows that only have a tail there.
+/// and the next lower row's. Where several rows have the same velocity on a step their bars overlap completely, so
+/// the shared pads are drawn in the average of those rows' colours. Rows with notes starting on a step hide rows that
+/// only have a tail there.
 void VelocityFold::render(InstrumentClip* clip, RGB image[][kDisplayWidth + kSideBarWidth],
                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	constexpr int16_t kNoVelocity = 1000;
 	int16_t bestVelocity[kDisplayWidth][kDisplayHeight];
-	RGB bestColour[kDisplayWidth][kDisplayHeight];
+	// sum of the colours of the rows whose bar ends at bestVelocity, to average where bars overlap completely
+	struct ColourSum {
+		uint16_t r, g, b, count;
+		void set(RGB colour) { *this = {colour.r, colour.g, colour.b, 1}; }
+		void add(RGB colour) {
+			r += colour.r;
+			g += colour.g;
+			b += colour.b;
+			count++;
+		}
+		[[nodiscard]] RGB average() const {
+			return RGB(static_cast<uint8_t>(r / count), static_cast<uint8_t>(g / count),
+			           static_cast<uint8_t>(b / count));
+		}
+	};
+	ColourSum bestColour[kDisplayWidth][kDisplayHeight];
 	bool anyHead[kDisplayWidth] = {};
 	for (auto& column : bestVelocity) {
 		std::fill(std::begin(column), std::end(column), kNoVelocity);
@@ -134,7 +151,11 @@ void VelocityFold::render(InstrumentClip* clip, RGB image[][kDisplayWidth + kSid
 			for (int32_t y = 0; y < kDisplayHeight && velocityReachesY(square.maxVelocity, y); y++) {
 				if (square.maxVelocity < bestVelocity[x][y]) {
 					bestVelocity[x][y] = static_cast<int16_t>(square.maxVelocity);
-					bestColour[x][y] = colour;
+					bestColour[x][y].set(colour);
+				}
+				// another row already reaches exactly this velocity here, so the bars overlap completely
+				else if (square.maxVelocity == bestVelocity[x][y]) {
+					bestColour[x][y].add(colour);
 				}
 			}
 		}
@@ -146,7 +167,7 @@ void VelocityFold::render(InstrumentClip* clip, RGB image[][kDisplayWidth + kSid
 				image[y][x] = colours::black;
 			}
 			else {
-				image[y][x] = bestColour[x][y];
+				image[y][x] = bestColour[x][y].average();
 				occupancyMask[y][x] = 64;
 			}
 		}

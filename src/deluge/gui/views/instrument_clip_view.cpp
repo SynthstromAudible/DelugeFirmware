@@ -2213,16 +2213,13 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 
 ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32_t y) {
 	Clip* clip = getCurrentClip();
-	// don't enter if you're in a kit with affect entire on
-	if (!(clip->output->type == OutputType::KIT && automationView.getAffectEntire())) {
-		if (automationView.inAutomationEditor()) {
-			automationView.initParameterSelection(false);
-		}
-		automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
-		clip->lastSelectedParamShortcutX = x;
-		clip->lastSelectedParamShortcutY = y;
-		changeRootUI(&automationView);
+	if (automationView.inAutomationEditor()) {
+		automationView.initParameterSelection(false);
 	}
+	automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
+	clip->lastSelectedParamShortcutX = x;
+	clip->lastSelectedParamShortcutY = y;
+	changeRootUI(&automationView);
 	return ActionResult::DEALT_WITH;
 }
 
