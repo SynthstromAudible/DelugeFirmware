@@ -2258,42 +2258,6 @@ pub unsafe fn resource_create(
     asset_cap: usize,
     chunk_cap: usize,
 ) -> *mut DelugeResource {
-    create_inner(heap, asset_cap, chunk_cap, true)
-}
-
-/// Like [`resource_create`] but without registering the reclaim hook, for a caller whose
-/// own reclaim hook drives eviction through [`resource_try_evict`].
-///
-/// # Safety
-///
-/// As for [`resource_create`].
-pub unsafe fn resource_create_unhooked(
-    heap: *mut DelugeHeap,
-    asset_cap: usize,
-    chunk_cap: usize,
-) -> *mut DelugeResource {
-    create_inner(heap, asset_cap, chunk_cap, false)
-}
-
-/// Evicts the single lowest-ranked evictable chunk (the reclaim-hook body). Returns whether
-/// something was freed.
-///
-/// # Safety
-///
-/// `handle` must be null or a live handle from `resource_create`.
-pub unsafe fn resource_try_evict(handle: *mut DelugeResource) -> bool {
-    if handle.is_null() {
-        return false;
-    }
-    mgr(handle).evict_lowest()
-}
-
-unsafe fn create_inner(
-    heap: *mut DelugeHeap,
-    asset_cap: usize,
-    chunk_cap: usize,
-    register_hook: bool,
-) -> *mut DelugeResource {
     if heap.is_null() || asset_cap == 0 || chunk_cap == 0 {
         return ptr::null_mut();
     }
@@ -2394,10 +2358,21 @@ unsafe fn create_inner(
             alloc_gen: Cell::new(0),
         },
     );
-    if register_hook {
-        deluge_heap_register_reclaim(heap, resource_reclaim, m as *mut c_void);
-    }
+    deluge_heap_register_reclaim(heap, resource_reclaim, m as *mut c_void);
     m as *mut DelugeResource
+}
+
+/// Evicts the single lowest-ranked evictable chunk (the reclaim-hook body). Returns whether
+/// something was freed.
+///
+/// # Safety
+///
+/// `handle` must be null or a live handle from `resource_create`.
+pub unsafe fn resource_try_evict(handle: *mut DelugeResource) -> bool {
+    if handle.is_null() {
+        return false;
+    }
+    mgr(handle).evict_lowest()
 }
 
 /// Sets the slab that backs [`BACKING_SLAB`] assets; until set, every asset uses the heap.
@@ -2555,6 +2530,7 @@ pub unsafe fn resource_try_acquire(handle: *mut DelugeResource, asset: u32, inde
 /// # Safety
 ///
 /// `handle` must be null or a live handle from `resource_create`.
+#[cfg(test)]
 pub unsafe fn resource_peek(handle: *mut DelugeResource, asset: u32, index: u32) -> *mut u8 {
     if handle.is_null() {
         return ptr::null_mut();
@@ -2684,6 +2660,7 @@ pub unsafe fn resource_loader_release_owned(handle: *mut DelugeResource, slot: u
 /// # Safety
 ///
 /// `handle` must be null or a live handle from `resource_create`.
+#[cfg(test)]
 pub unsafe fn resource_loader_remove(handle: *mut DelugeResource, slot: u32) {
     if !handle.is_null() {
         mgr(handle).loader_remove(slot);
