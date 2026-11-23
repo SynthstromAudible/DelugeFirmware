@@ -7,14 +7,56 @@ bit-identical. This note defines the components; the arithmetic they must keep, 
 (`src/deluge/dsp_legacy/timestretch/time_stretcher.cpp` and the stretcher paths of its five users) appears here only as
 the computation each contract must equal; nothing is moved, split or copied from it.
 
-The goldens that pin the stretcher are the `sample/ts_*` and `sample/timestretch` render-preset cases and the
-`RS_AUDIO_STRETCH*` render-song gates (`tests/integration/checks/render_song_cases.md`). A host coverage build of
-them (`scripts/tasks/stretcher_coverage.py`) reaches 794 of the 992 branch sides of the stretcher and its users'
-stretcher functions; every side not reached has a written reason (residency, memory pressure, a defensive check, a
-recording, a late start, an edit no gate scripts), and two are reachable but unbuilt (a third perc-cache chunk, which
-needs a source over 2^23 frames, and a crossfade from a cache that starts in a cache chunk's last frame).
+## Decisions
 
-Words used throughout:
+The open questions (section 7), one line each, with the recommendation:
+1. Where the stretcher reaches the sample: its own `SampleStretchPort` (14 operations); `SamplePlaybackPort` unchanged.
+2. The cache tail's buffer: eight tail buffers the engine makes at start, lent through the `StretchContext`.
+3. The ratio far below the root: read it unsigned everywhere, saturate it at `2^32 − 1`, floor B5's hop at 2.
+4. Recording the contracts' values: a temporary probe of the legacy code, only its records header committed; the
+   sides no golden reaches by fault injection, a sweep, or accepted as unpinned (step 1's table).
+5. The plain begin's shadow reader: keep it, as the `Shadowed` phase.
+6. The percussiveness byte and slope follower: share `percussiveness` with the pitch shifter; a floor follower of its own.
+7. The aligner's abandoned search: start the head at phase 0.
+8. The read heads: keep the legacy `SampleLowLevelReader` behind the port for this rewrite.
+9. The aligner's search: one core shared with the pitch shifter's `WaveformAligner`, parameterised by its flip count.
+10. The reachable sides no gate scripts: build render-song cases for them (marker moves, clip-length edits, late starts,
+    the stopped-clock tail) before step 7.
+
+The differences Kate accepts by name if the recommendations are taken; everything else stays bit-identical, and the
+contracts file's quirks are kept:
+- **Far below the root** (3): from about 7 octaves down the ratio reads unsigned and saturates at 256 instead of reading
+  negative or wrapping, and a one-frame hop gets a one-frame crossfade instead of dividing by zero.
+- **An abandoned alignment** (7) starts the head at phase 0, not at a phase found for an offset it did not take.
+- **A ninth crossfade out of a cache** (2) while all eight tail buffers are lent gets no crossfade, where the legacy
+  allocates one.
+- **Left unpinned:** the perc store's third-chunk rotation (4), which decides residency only; and the recording and
+  stem-export sides (10).
+
+## Coverage
+
+The goldens that pin the stretcher are the `sample/ts_*` and `sample/timestretch` render-preset cases and the
+`RS_AUDIO_STRETCH*` render-song gates (`tests/integration/checks/render_song_cases.md`). A host coverage build of them
+(`scripts/tasks/stretcher_coverage.py`) reaches 815 of the 1,040 branch sides of the stretcher and its users' stretcher
+functions. [time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 225 it does not reach, keyed by function
+and condition, each with a category and a reason:
+- 64 the code itself rules out (defensive checks, conditions fixed by construction);
+- 91 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull;
+- 6 are not stretcher paths;
+- 64 are reachable on the device, and no gate scripts them. EDIT (18: an audio clip's marker moved while it plays, a
+  clip-length edit with its voice alive), LATE (12: playback started part-way through a clip) and STOP (5: a release
+  tail rendering after the clocks stop) sit in the functions step 7 changes (`AudioClip::processCurrentPos`,
+  `AudioClip::resumePlayback`, `AudioClip::render`, and their paths to the stretcher's queries and `end`): they are
+  unpinned because nothing scripts them, not because they cannot happen (open question 10). REC (13) is an audio clip
+  recording, EXPORT (14) the stem export's render, and OPEN (2) two sides a preset or song could reach but none is
+  built for: a third perc-cache chunk, which needs a source over 2^23 frames, and a crossfade out of a cache whose read
+  position is in a cache chunk's last frame.
+
+How the residency, memory and unbuilt sides' legacy values are recorded is step 1's table (open question 4).
+
+## Words
+
+Used throughout:
 - **frame**: one sample of every channel; positions count frames from the audio data's start.
 - **ratio**: the stretch ratio, UQ8.24 (2^24 is 1.0): how fast the source is consumed against the output, pitch
   excluded. Above 1.0 the sound is sped up.
@@ -151,7 +193,9 @@ struct HopPlan {
 
 Home: src/dsp/fixed/timestretch/waveform_aligner.h. Moves a planned start by whole frames and a sub-sample phase so the
 new head's waveform lines up with the old head's at the crossfade's middle. It reads frames through a source concept,
-so it never sees a cluster; the playback side supplies runs of resident frames.
+so it never sees a cluster; the playback side supplies runs of resident frames. The pitch shifter's
+`deluge::dsp::fixed::pitch_shift::WaveformAligner` runs the same search over a ring history; whether the two share one
+core is open question 9.
 
 ```cpp
 /// A run of readable frames from `frame` on in `direction`: each channel's sample is the 32-bit word whose top bytes
@@ -404,8 +448,8 @@ The 44 contracts are in [time_stretcher_contracts.md](time_stretcher_contracts.m
 its inputs, its exact arithmetic in order, and the legacy computation it must equal: hop tuning 3 (T1 to T3), scheduler
 6 (S1 to S6), planner 8 (B1 to B8), aligner 7 (A0 to A6), crossfader 4 (X1 to X4), cache tail 4 (C1 to C4), perc
 analysis 5 (P1 to P5), heads 1 (H1), position, loop, exit and cache write 6 (Q1 to Q4, E1, W1). The noise stream's
-draw count is a contract too: one at a plain begin, one per hop attempt. Eight quirks the goldens pin are named there and
-kept.
+draw count is a contract too: one at a plain begin, one per hop attempt. Eight quirks are named there and kept; the
+goldens pin six, and A2's and X1's are kept but not golden-pinned.
 
 ## 5. Lifetimes, threading and real-time limits
 
@@ -501,7 +545,33 @@ One step per component, each with its contracts' unit specs written and failing 
 bit-identical on the goldens before it lands (golden-synth on x86, and golden-synth-arm filtered to the stretcher cases).
 1. **Records.** For every contract, workloads and the legacy's results, recorded by a temporary probe of the legacy code
   and committed as a records header under `tests/unit/dsp/` (open question 4). The render-song scenario reports its
-  render-allocation count, so the songs get a ceiling.
+  render-allocation count, so the songs get a ceiling. The probe's workloads:
+  - **the goldens:** every `sample/ts_*` and `sample/timestretch` case and the four `RS_AUDIO_STRETCH*` songs, each
+    contract's inputs and results logged at every call (the 815 sides they take);
+  - **generated inputs** for the pure arithmetic: hop tuning over the whole ratio range, the planner, crossfader and
+    cache-tail arithmetic over values the goldens leave out;
+  - **fault injection:** the same golden renders with the probe answering "not ready" or "not resident", or failing an
+    allocation, at a chosen call, and logging what the legacy does next;
+  - **a sweep** for the one unbuilt side with sample output (C1's chunk-end limit, below).
+
+  The sides only a card that has not answered, a failed allocation or an unbuilt source reaches, and how each one's
+  legacy values are produced:
+
+  | Contract or reservation | Side | Produced by |
+  |---|---|---|
+  | S4, and section 5's hop-retry reservation | a hop's new head cannot start; the retry | fault injection at the seat (`setupNewPlayHead`) at chosen hops: the state S4 leaves, the reservation, and the retry's outcome 500 frames on |
+  | H1 | its three failure exits: the chunk setup not ready, the chunk move failing, a ready setup holding no region | fault injection at each, for a hop and for a fudge's begin (whose failure unassigns the voice) |
+  | B8 | a start before the start marker whose frame is not resident moves to the marker (`hopEnd`'s start clamp) | fault injection at the clamp's residency check, before and after alignment |
+  | A4 (and A5's partial phase, open question 7) | a frame not resident abandons the search | fault injection at the aligner's frame read, at a chosen step of a chosen pass |
+  | X3, Q4's reads | a card error cuts the voice mid-read (`readSamplesForTimeStretching`) | fault injection: the reader loses its region mid-read |
+  | C1 | the chunk-end limit: the read position in a cache chunk's last frame at the switch | a sweep: `sample/ts_cache_crossfade` rendered with its note length stepped a frame at a time until the switch lands there (about 1 in 5,400) |
+  | P1, P5, and section 5's perc-chunk leases | a third distinct perc-cache chunk, the older of the two held dropped (`rememberPercCacheCluster`) | accepted as unpinned: it decides which chunks stay leased, never a sample; specced from reading against a fake port |
+  | Section 5's hop-back and lookahead reservations | where each is kept and let go | logged from the goldens, which run them; they decide residency only |
+  | The allocations (the stretcher pool, the tail buffer, the perc store, a cache) and memory pressure | an allocation fails, or a cache or perc-cache chunk is stolen | fault injection in the probe's allocator, or an eviction between calls; the tail buffer's case changes with open question 2 |
+
+  A slow-card render (render-song's `RENDER_FILL_BURST` over the stretch songs) reaches some of these without injection,
+  as streaming-margin reached the cache-resume sides; its gate fails any underrun, so it cross-checks the injected
+  records rather than producing them.
 2. **Hop tuning** (2.1; T1 to T3).
 3. **Crossfader and cache tail** (2.4, 2.5; X1, X2, C1 to C4).
 4. **Perc analysis** (2.6; P1 to P3, P5), and `Sample::fillPercCache` computes through it and returns a `PercFill`
@@ -511,11 +581,15 @@ bit-identical on the goldens before it lands (golden-synth on x86, and golden-sy
 7. **The playback side.** `SampleStretchPort` and its app adapter (A0, H1), the `StretchContext` with `HopBudget` and
   the tail buffers, and `SampleStretcher` with its head phase (S1 to S6, X3, X4, P4, Q1 to Q4, E1, W1); `VoiceSample`
   gains its spare reader, and it, `AudioClip` and the engine switch over; `SampleLowLevelReader` stops taking the
-  stretcher. The legacy class is deleted in this step, with `src/deluge/dsp_legacy/`, its target and its
-  `scripts/layers.toml` rows.
+  stretcher; `SampleSource::stretch_to_undo_pitch` (`src/synth/sources/sample/sample_source.cpp`) saturates the ratio
+  instead of wrapping it (open question 3). The legacy class is deleted in this step, with `src/deluge/dsp_legacy/`,
+  its target and its `scripts/layers.toml` rows.
 8. **The gate.** Every golden bit for bit on x86 and ARM; no case's `RP-ALLOC` rises; x86 parity 0 differences; the
   nightly with both corpora; an emulator sweep against `main` with no unexplained difference; the device placement and
-  sizes above; and the coverage script re-run over the new files, with every untaken side given a reason.
+  sizes above; and the coverage script re-run over the new files, its untaken sides written into
+  [time_stretcher_coverage.md](time_stretcher_coverage.md) in place of the legacy's, keyed by function and condition,
+  each with a category and a reason, and no RES, MEM or reachable side without the record or the acceptance step 1
+  gave its contract.
 
 ## 7. Open questions for Kate
 
@@ -535,8 +609,8 @@ Each is a decision with a recommendation first.
      crossfade cases.
    - (b) Embed the 2 KB buffer in every stretcher: the pool grows by about 96 KB of fast memory.
    - (c) Keep allocating on the render; the ceiling still holds.
-3. **The stretch ratio far below the root** (an accepted difference already decided: the rewrite fixes it; no golden
-   pins any of this range). Three things change there, from about 7 octaves below the root down:
+3. **The stretch ratio far below the root.** The rewrite changes this range; the question is how. No golden pins any of
+   it. Three things go wrong there, from about 7 octaves below the root down:
    - **7 to 8 octaves down.** The ratio (`2^48 / increment` with no other pitch) passes 2^31 − 2^24, and the legacy,
      which passes it to B3, B4, B7 and the hop-back reach as `int32_t`, reads it as negative or wraps `ratio + 2^24`.
      It divides by nothing there, but the arithmetic is wrong: B3's beam edges and B4's back edge move the wrong way,
@@ -555,7 +629,8 @@ Each is a decision with a recommendation first.
      stays 1; and `xf = min(1, 1)` = 1, `over_hop(1)` = 2^24: a one-frame hop with a one-frame crossfade. The floor
      changes nothing at planned hops of 2 or more, but the unsigned reading changes the 7-to-8-octave range above.
    - (b) Keep the legacy's signed reading from 7 to 8 octaves (bit-exact there), and saturate and floor only past 8.
-     This keeps arithmetic that is wrong by construction, and the rewrite would have to reproduce the wrapping int32
+     Past 8 octaves the saturated ratio is read unsigned, as 256 (read signed, `2^32 − 1` would be −1, a ratio
+     below 0). This keeps arithmetic that is wrong by construction, and the rewrite would have to reproduce the wrapping int32
      sums on purpose (signed overflow is undefined in C++), to keep a range no golden pins.
    - (c) Stretching stops (the voice plays unstretched) once the ratio passes 2^31 − 2^24, about 7 octaves down.
    - (d) The voice is cut there.
@@ -564,6 +639,17 @@ Each is a decision with a recommendation first.
      header is committed. No legacy code enters the tree's tests.
    - (b) A verbatim test-only reference of the legacy computations under `tests/unit/dsp/`, as the live pitch shifter's
      rewrite kept, checked against the new components on generated workloads.
+
+   And for the sides no golden reaches (step 1's table: a card that has not answered, a failed allocation or memory
+   pressure, the two unbuilt sides):
+   - (a) **Recommended:** as the table says: fault injection in the probe for the seat, read, residency-check and
+     allocation failures; a sweep for C1's chunk-end limit; and the perc store's third-chunk rotation accepted as
+     unpinned by name, since it decides residency and no sample. Each injected record becomes a unit spec, so the
+     rewrite's failure paths equal the legacy's without a golden.
+   - (b) As (a), and also a slow-card render-song gate (the stretch songs under `RENDER_FILL_BURST`) whose check allows
+     the stretcher's retries, so the hop-retry path is pinned end to end. Its timing depends on the storage model, so
+     its record moves whenever that model does.
+   - (c) Accept every side no golden reaches as unpinned, specced from reading the legacy code.
 5. **The plain begin's shadow reader** (X3, E1). The legacy seats the spare as a level copy of the newer, reads it once
    at level 0 in the first segment (adding exactly 0: `mixed_in` rounds a zero product to 0), and then it stops where it
    is. E1 is never checked in the block a stretcher begins (the begin skips the check), so the copy matters from the
@@ -593,6 +679,37 @@ Each is a decision with a recommendation first.
      (A0, H1) are already the port's. A read-head rewrite follows as its own step over the same goldens.
    - (b) Write a new read-head component now (the interpolation window and the cursor over a `FrameSource` in the DSP
      library, the leases app-side) and switch unstretched playback to it as well.
+9. **The aligner's search, shared with the pitch shifter?** `deluge::dsp::fixed::pitch_shift::WaveformAligner`
+   (`src/dsp/fixed/pitch_shift/waveform_aligner.h`) runs the same search over the same `crossfade.h` metrics: three
+   moving averages slid a frame at a time, the best difference kept, a turn at a worse first step of the first pass
+   searching forward, the backward pass starting one frame back, and a sub-sample phase placed at a sign flip of the
+   summed change by the same division and the same one-frame correction. Read in play order (backwards when reversed),
+   the stretcher's search is the shifter's searching forward first. They differ in the flip count (the shifter stops
+   after 2 flips, the stretcher after 4), in what they read (the shifter a ring history, with its own reach quirk Q4 of
+   `docs/dev/live_pitch_shifter_quirks.md`; the stretcher resident runs, abandoning the search at a frame not
+   resident), and in the shifter's backward-first search when pitching down, which searches one way and never turns
+   (its quirk Q10), a case the stretcher never has.
+   - (a) **Recommended:** one search core, src/dsp/fixed/timestretch/waveform_search.h, templated on the frame reader
+     (how far it reaches, and whether a frame is readable) and parameterised by the flip count; the shifter's
+     `WaveformAligner` and the stretcher's aligner become its two users, each keeping its own set-up and, for the
+     stretcher, A5's final phase sum. The loop's sign, offset and phase rules then exist once. The shifter already
+     includes `crossfade.h` from `timestretch/`, so the dependency runs the way it does today, and the shifter's goldens
+     and unit specs check its side bit for bit in the same step (step 6).
+   - (b) Keep two: the stretcher's own aligner, the shifter's untouched. No shifter change during this rewrite, at the
+     cost of two copies of a loop whose order of operations is the contract.
+   - (c) Write the stretcher's own in step 6, and merge the two as a step of their own after step 8.
+10. **The reachable sides no gate scripts** (EDIT, LATE and STOP in the coverage list, 35 sides). They are reachable
+    on the device: an audio clip's marker moved while it plays (`VoiceSample::sampleZoneChanged` for an audio clip),
+    `AudioClip::resumePlayback` after a clip-length edit with the voice alive, a late start part-way through a clip,
+    and a release tail rendering after the clocks stop. They sit in `AudioClip::processCurrentPos`,
+    `AudioClip::resumePlayback`, `AudioClip::render` and the paths to `end`, all of which step 7 changes.
+    - (a) **Recommended:** build render-song knobs and cases for them before step 7, recorded on the legacy: a marker
+      move on a playing audio clip (as render-preset's `RENDER_ZONE_MOVE` moves a synth's zone), a clip-length edit
+      while the clip's voice plays (`Song::setClipLength`), playback started part-way through a stretched clip, and
+      the clocks stopped while a stretched clip's tail renders (render-song fails a render whose playback stops, so this
+      case needs its own check). The recording (REC) and stem-export (EXPORT) sides stay unpinned, accepted by name.
+    - (b) Accept the 35 sides by name as unpinned: specced from reading, checked only by step 8's emulator sweep.
+    - (c) Build the late start and the stopped-clock tail only, and accept the edits by name.
 
 **Findings that need no decision.** These disappear with the legacy code and change no output:
 - In `TimeStretcher::hopEnd`, the comment on the one-frame floor says it happens "if pitch up very high and also
@@ -606,3 +723,6 @@ Each is a decision with a recommendation first.
 - The legacy's `hasLoopedBackIntoPreMargin` is written and never read, the fudge start computes a pre-margin frame
   count it never uses, and its buffered-head mode (`TIME_STRETCH_ENABLE_BUFFER`) is compiled out.
 - The reversed single-row waveform's column −1 (`TODO.md`) is in the waveform view, which the rewrite does not touch.
+- A hop's culling bypass (S3) never reaches a cull: `hopEnd` sets `AudioEngine::bypassCulling` during the render, the
+  render clears it at its end, and `cullVoices` reads it only from `setDireness`, at the next block's start. The
+  rewrite's `HopBudget` keeps setting it at the same point, so nothing changes.
