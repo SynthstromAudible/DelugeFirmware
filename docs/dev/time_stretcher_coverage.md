@@ -9,7 +9,10 @@ through the gates' own checks, golden-synth (479 cases) and the 63 render-song g
 `tests/golden/render/songs.json`. Only recorded renders count: a song gate's dry-twin and unswitched renders, and gates
 that keep no audio record (streaming-margin, arrangement-take), are left out. The functions measured are the script's
 `SCOPE` (`scripts/tasks/stretcher_coverage.py`): all of the stretcher's own files, and in its users the functions that
-call into it, branch on whether a voice has one, or keep the hop budget and the culling bypass a hop sets.
+call into it, branch on whether a voice has one, or keep the hop budget and the culling bypass a hop sets. The sample
+reader's own functions are outside it (`readSamplesNative` and `readSamplesResampled` only pass the stretcher along);
+the rewrite replaces the reader with a read head too (the design note's decision 8), so its step 1 adds them to this
+list before the read head lands, and its step 8 measures the read head in their place.
 
 **Result.** 815 of the 1,040 branch sides are taken; the 225 untaken are listed below by file and function. A side is
 named by its condition, the branch's source text; where one function tests the same text more than once, the call whose
@@ -37,9 +40,11 @@ result it tests is named (`after`), and repeats are counted in source order.
 | NS | 6 | a voice with no stretcher, or an unstretched cache; other goldens own it |
 
 EDIT, LATE and STOP sit in the functions the rewrite changes (`AudioClip::processCurrentPos`,
-`AudioClip::resumePlayback` and `AudioClip::render`, which reach the stretcher's queries and `end`); whether gates are
-built for them is the design note's open question 10. How the RES, MEM, CULL and OPEN sides' legacy values are recorded
-is its open question 11. A side's reason is left as "—" where its category's meaning gives it.
+`AudioClip::resumePlayback` and `AudioClip::render`, which reach the stretcher's queries and `end`); render-song cases
+are built for them before the rewrite changes those functions, all but the reversed-while-cached and auditioned EDIT
+sides, which with REC and EXPORT are accepted by name as unpinned (the design note's decision 10). How the RES, MEM,
+CULL and OPEN sides' legacy values are recorded is its decision 11. A side's reason is left as "—" where its category's
+meaning gives it.
 
 ## Functions
 
@@ -124,7 +129,7 @@ lines there count as run in the table above; they never ran (the render always f
 | `!deluge::cluster::lease_count(percCacheClustersNearby[l]->resource_slot)` | true | 0 / 643 | DEF | i036: a remembered perc-cache cluster with no lease |
 | `playbackHandler.isEitherClockActive()` | false | 7897 / 0 | STOP | — |
 | `sourceSamplesTilLoop >= 0` | false | 1660 / 0 | STOP | stretch position past the loop end, which the comment ties to stopping playback |
-| `samplesTilHopEnd < 1` | true | 0 / 8487 | DEF | the beam width is multiplied by the phase increment and divided by it again; below 1 needs a phase increment under about 5,600 (11.5 octaves down), where the ratio 2^48 / increment has long overflowed and Sample::getOrCreateCache divides by zero first (SIGFPE: TODO.md, and the design note's open question 3) |
+| `samplesTilHopEnd < 1` | true | 0 / 8487 | DEF | the beam width is multiplied by the phase increment and divided by it again; below 1 needs a phase increment under about 5,600 (11.5 octaves down), where the ratio 2^48 / increment has long overflowed and Sample::getOrCreateCache divides by zero first (SIGFPE: TODO.md, and the design note's decision 3) |
 | `newHeadBytePos < (int32_t)sample->audioDataStartPosBytes` | true | 0 / 7771 | DEF | E285: the new head is clamped to the waveform's start above |
 | `false` | true | 0 / 7584 | CON | `if (false)`, a label holder |
 | `window.frames == nullptr` | true | 0 / 81767 | RES | — |
