@@ -83,16 +83,26 @@ public:
 	CacheTail(std::span<Q<31>> storage, int32_t frames, int32_t channels, int32_t position)
 	    : storage_(storage), frames_(frames), channels_(channels), position_(position) {}
 
-	/// @brief Mixes the tail into @p out at @p level, stepping it by @p level_step before each frame (C4). Each
+	/// @brief The output words a mix of @p frames writes from a tail of @p tail_channels: the legacy's loop ends after
+	/// frames times the tail's channels of output words, whatever the output's width (C4's quirk), so a stereo tail
+	/// mixed into a mono output mixes twice @p frames frames.
+	[[nodiscard]] static constexpr int32_t words_written(int32_t frames, int32_t tail_channels) {
+		return frames * tail_channels;
+	}
+
+	/// @brief Mixes the tail into @p out at @p level, stepping it by @p level_step before each frame (C4), over
+	/// words_written() words of @p out, which must hold them; it stops at @p out's end rather than pass it. Each
 	/// product's high word is floored, where the heads' reads round (C4's quirk). A stereo tail mixed into a mono
-	/// output is halved per channel and summed; the legacy's loop ends after @p frames times the tail's channels of
-	/// output words, so a stereo tail mixed into mono mixes twice @p frames frames. A tail of no frames mixes nothing.
-	void mix_into(Q<31>* out, int32_t frames, int32_t out_channels, Q<31> level, Q<31> level_step) {
+	/// output is halved per channel and summed. A tail of no frames mixes nothing.
+	/// @return The words written.
+	int32_t mix_into(std::span<Q<31>> out, int32_t frames, int32_t out_channels, Q<31> level, Q<31> level_step) {
 		if (frames_ == 0) {
-			return;
+			return 0;
 		}
-		Q<31>* const end = out + static_cast<std::ptrdiff_t>(frames) * channels_;
-		while (out != end) {
+		const auto words = std::min(static_cast<std::size_t>(words_written(frames, channels_)), out.size());
+		auto it = out.begin();
+		const auto end = out.begin() + static_cast<std::ptrdiff_t>(words);
+		while (it != end) {
 			Q<31> left = storage_[static_cast<std::size_t>(position_) * channels_];
 			const Q<31> right = channels_ == 2 ? storage_[static_cast<std::size_t>(position_) * 2 + 1] : left;
 			position_ = (position_ + 1) & (kCacheTailCapacity - 1);
@@ -100,13 +110,14 @@ public:
 				left = add_wrap(halve_floor(left), halve_floor(right));
 			}
 			level = add_wrap(level, level_step);
-			*out = mixed_in_floor(*out, left, level);
-			++out;
-			if (out_channels == 2) {
-				*out = mixed_in_floor(*out, right, level);
-				++out;
+			*it = mixed_in_floor(*it, left, level);
+			++it;
+			if (out_channels == 2 && it != end) {
+				*it = mixed_in_floor(*it, right, level);
+				++it;
 			}
 		}
+		return static_cast<int32_t>(words);
 	}
 
 	[[nodiscard]] int32_t frames() const { return frames_; }

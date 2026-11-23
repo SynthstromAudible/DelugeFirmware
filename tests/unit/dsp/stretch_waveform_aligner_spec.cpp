@@ -90,6 +90,27 @@ struct Edge {
 	[[nodiscard]] int32_t length_frames() const { return 64; }
 };
 static_assert(deluge::dsp::fixed::sample_read::frame_source<Edge>);
+
+// An 8-bit mono source of 64 frames, a byte each, with the three bytes before frame 0 that an unmasked read reaches.
+struct EightBit {
+	std::vector<uint8_t> bytes;
+	EightBit() : bytes(3 + 64) {
+		for (int32_t f = 0; f < 64; f++) {
+			bytes[3 + f] = static_cast<uint8_t>(f * 3);
+		}
+	}
+	[[nodiscard]] std::optional<FrameRun> run(int32_t frame, Direction d) const {
+		if (frame < 0 || frame >= 64) {
+			return std::nullopt;
+		}
+		const bool fwd = d == Direction::FORWARD;
+		// The read origin is the frame's byte less three: the word ends at the frame's byte
+		return FrameRun{reinterpret_cast<const std::byte*>(&bytes[frame]), fwd ? 64 - frame : frame + 1, fwd ? 1 : -1,
+		                1, 1};
+	}
+	[[nodiscard]] int32_t channels() const { return 1; }
+	[[nodiscard]] int32_t length_frames() const { return 64; }
+};
 } // namespace
 
 // clang-format off
@@ -132,6 +153,15 @@ describe stretch_waveform_aligner_spec_body("deluge::dsp::fixed::timestretch::al
 		// Mirrored, reversed from frame 63: the read starts at 63 - 20 + 1 = 44, within half the crossfade of the end,
 		// which forwards would refuse; reversed checks no margin, so it totals.
 		expect(ts::moving_averages(edge, 63, 40, Direction::REVERSE, 1).has_value() ? 1 : 0).to_equal(1);
+	});
+
+	it("allows A2's byte of slack before the data on a one-byte frame: reversed averages may end at frame -1", _ {
+		const EightBit source;
+		// Reversed from frame 1, no crossfade, averages of one frame: the read starts at 2 and ends at -1, reading 2, 1, 0
+		const auto t = ts::moving_averages(source, 1, 0, Direction::REVERSE, 1);
+		expect(t.has_value() ? 1 : 0).to_equal(1);
+		// A wider frame has no such slack: the same averages end a frame's bytes before the data, and are refused
+		expect(ts::moving_averages(Edge{}, 1, 0, Direction::REVERSE, 1).has_value() ? 1 : 0).to_equal(0);
 	});
 
 	it("limits the search as the legacy did (A3)", _ {

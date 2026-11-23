@@ -80,7 +80,8 @@ template <sample_read::frame_source S>
 
 /// @brief The three moving averages of a head starting at @p start_frame (A2): each @p each frames of high words in
 /// @p direction from averages_read(). Forwards only, refused within half the crossfade of either end (A2's quirk:
-/// reversed has no such margin); refused where the averages would run off the waveform or a frame is not resident.
+/// reversed has no such margin); refused where the averages would run off the waveform (in bytes, with one byte of
+/// slack before the data) or a frame is not resident.
 template <sample_read::frame_source S>
 [[nodiscard]] std::optional<Averages> moving_averages(const S& source, int32_t start_frame,
                                                       int32_t crossfade_source_frames, Direction direction,
@@ -92,14 +93,21 @@ template <sample_read::frame_source S>
 	if (direction == Direction::FORWARD && (read < half || read >= length - half)) {
 		return std::nullopt;
 	}
+	// The legacy checks in bytes, with one byte of slack before the data: a frame index i is out where i × frame
+	// bytes < -1, so a one-byte frame may end at -1
+	const std::optional<sample_read::FrameRun> first = source.run(std::clamp(read, 0, length - 1), direction);
+	if (!first) {
+		return std::nullopt;
+	}
+	const int32_t frame_bytes = first->channels * first->byte_depth;
 	const int32_t end = read + each * static_cast<int32_t>(std::tuple_size_v<Averages>) * d;
-	if (end < 0 || end > length) {
+	if (end * frame_bytes < -1 || end > length) {
 		return std::nullopt;
 	}
 	Averages totals{};
 	int32_t frame = read;
 	for (int32_t& total : totals) {
-		if (frame < 0 || frame >= length) {
+		if (frame * frame_bytes < -1 || frame >= length) {
 			return std::nullopt;
 		}
 		for (int32_t k = 0; k < each; k++, frame += d) {

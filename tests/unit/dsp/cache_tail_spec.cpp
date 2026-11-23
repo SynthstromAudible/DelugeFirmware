@@ -26,6 +26,7 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "support/spec_main.h"
@@ -98,7 +99,7 @@ describe cache_tail_spec_body("deluge::dsp::fixed::timestretch::CacheTail", ${
 			std::vector<Q<31>> storage = words_of(row.tail_words);
 			std::vector<Q<31>> out = words_of(row.out_before);
 			CacheTail tail(storage, 255, row.tail_channels, row.position);
-			tail.mix_into(out.data(), row.frames, row.out_channels, Q<31>::from_raw(row.level),
+			tail.mix_into(out, row.frames, row.out_channels, Q<31>::from_raw(row.level),
 			              Q<31>::from_raw(row.level_step));
 			for (uint32_t i = 0; i < row.out_after.count; i++) {
 				bad += out[i].raw() == r::kWords[row.out_after.offset + i] ? 0 : 1;
@@ -113,7 +114,7 @@ describe cache_tail_spec_body("deluge::dsp::fixed::timestretch::CacheTail", ${
 		storage[0] = Q<31>::from_raw(3);
 		CacheTail tail(storage, 1, 1, 0);
 		std::array<Q<31>, 1> out{Q<31>::from_raw(0)};
-		tail.mix_into(out.data(), 1, 1, Q<31>::from_raw(1 << 30), Q<31>::from_raw(0));
+		tail.mix_into(out, 1, 1, Q<31>::from_raw(1 << 30), Q<31>::from_raw(0));
 		expect(out[0].raw()).to_equal(0);
 	});
 
@@ -123,12 +124,24 @@ describe cache_tail_spec_body("deluge::dsp::fixed::timestretch::CacheTail", ${
 		CacheTail tail(storage, origin, 0, 1);
 		std::array<Q<31>, 16> out{};
 		out.fill(Q<31>::from_raw(7));
-		tail.mix_into(out.data(), 16, 1, Q<31>::max(), Q<31>::from_raw(0));
+		tail.mix_into(out, 16, 1, Q<31>::max(), Q<31>::from_raw(0));
 		int32_t changed = 0;
 		for (const auto& v : out) {
 			changed += v.raw() == 7 ? 0 : 1;
 		}
 		expect(changed).to_equal(0);
+	});
+
+	it("names the words a mix writes: frames times the tail's channels, and none past them", _ {
+		std::vector<Q<31>> stereo(512, Q<31>::from_raw(1 << 20));
+		CacheTail tail(stereo, 255, 2, 0);
+		expect(CacheTail::words_written(3, 2)).to_equal(6);
+		std::array<Q<31>, 8> out{};
+		out.fill(Q<31>::from_raw(7));
+		const int32_t written = tail.mix_into(std::span<Q<31>>(out).first(6), 3, 1, Q<31>::max(), Q<31>::from_raw(0));
+		expect(written).to_equal(6);
+		expect(out[6].raw()).to_equal(7);
+		expect(out[7].raw()).to_equal(7);
 	});
 
 	it("halves each channel into a mono output, running the legacy's frames times the tail's channels", _ {
@@ -143,8 +156,8 @@ describe cache_tail_spec_body("deluge::dsp::fixed::timestretch::CacheTail", ${
 		CacheTail from_stereo(stereo, 2, 2, 0);
 		CacheTail from_mono(mono, 2, 1, 0);
 		std::array<Q<31>, 2> a{}, b{};
-		from_stereo.mix_into(a.data(), 1, 1, Q<31>::max(), Q<31>::from_raw(0));
-		from_mono.mix_into(b.data(), 2, 1, Q<31>::max(), Q<31>::from_raw(0));
+		from_stereo.mix_into(a, 1, 1, Q<31>::max(), Q<31>::from_raw(0));
+		from_mono.mix_into(b, 2, 1, Q<31>::max(), Q<31>::from_raw(0));
 		expect(a[0].raw()).to_equal(b[0].raw());
 		expect(a[1].raw()).to_equal(b[1].raw());
 	});
