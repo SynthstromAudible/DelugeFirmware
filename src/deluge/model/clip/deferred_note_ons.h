@@ -65,6 +65,8 @@ struct VoiceStart {
 	deluge::note_locks::NoteRef locks; ///< The note's parameter locks, which its voice plays with
 	/// Set for a note that waited: its locks as they were when it was due, used rather than looking `locks` up now
 	deluge::note_locks::LockSet const* locksWhenDue = nullptr;
+	/// A sequenced note that may carry on from the same note ending at this instant (see Voice::noteOn())
+	bool noteMightBeConstant = false;
 };
 
 /// Start a voice on the Sound now, or queue it if this render can't start another (or the Sound already has notes

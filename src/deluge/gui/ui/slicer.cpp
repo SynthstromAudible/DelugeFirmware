@@ -598,6 +598,13 @@ getOut:
 		soundEditor.currentSource->setOscType(OscType::SAMPLE);
 	}
 
+	// This drum is about to become the first slice. Any round-robin variants it had would otherwise stay, and
+	// it would alternate between its slice and them.
+	if (soundEditor.currentSource->hasMultisampleRanges() && soundEditor.currentMultiRange != nullptr) {
+		soundEditor.currentSound->killAllVoices();
+		static_cast<MultisampleRange*>(soundEditor.currentMultiRange)->clearAllAlternates();
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);

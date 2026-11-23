@@ -60,6 +60,7 @@ public:
 	void loopLock();
 
 	MarkerType markerType;
+	uint8_t targetRoundRobinSlot{0};
 
 	int8_t blinkPhase;
 
