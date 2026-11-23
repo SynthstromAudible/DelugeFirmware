@@ -27,6 +27,7 @@ The decisions (section 7), one line each:
 11. The sides no golden reaches: fault injection in the probe, a sweep for C1's chunk-end limit, and the third
     perc-cache chunk accepted as unpinned (step 1's table).
 12. When the read head lands: after the playback side, as step 7a.
+13. The unison clone's stop at its next chunk: fixed; the clone opens its own cursor, a difference accepted by name.
 
 The differences accepted by name; everything else stays bit-identical, and the contracts file's quirks are kept:
 - **The shared slope follower** (6): each pole's step rounds where the legacy's floors, so the perc bytes, and with them
@@ -37,6 +38,8 @@ The differences accepted by name; everything else stays bit-identical, and the c
 - **An abandoned alignment** (7) starts the head at phase 0, not at a phase found for an offset it did not take.
 - **A ninth crossfade out of a cache** (2) while all eight tail buffers are lent gets no crossfade, where the legacy
   allocates one.
+- **A unison part added to a sounding sample voice** (13) plays on past its next chunk boundary, where the legacy's
+  clone, which has no region-port cursor, stops there. Step 7a re-records any golden this changes.
 - **Left unpinned:** the perc store's third-chunk rotation (11), which decides residency only; the reversed-while-cached
   and auditioned edit sides, and the recording and stem-export sides (10).
 
@@ -451,7 +454,8 @@ struct ReadHead {
 The read loop (R11) is the owner's: the voice's unstretched render and the port's `read` each run check-then-read until
 their frames are rendered. The legacy reader's other users switch with it: `VoiceSample`, which derives from
 `SampleLowLevelReader` today and instead holds two heads; `SamplePlaybackAdapter`'s unison clone, which is a level copy
-and keeps R10's stop at the next chunk; and the DSP bench's reader cases (`src/deluge/bench/pitch_shift_cases.cpp`,
+that opens its own cursor and so walks on past its next chunk (decision 13), unlike the shadow copy; and the DSP bench's
+reader cases (`src/deluge/bench/pitch_shift_cases.cpp`,
 `src/deluge/bench/cases.h`).
 
 ## 3. The seam to the sample
@@ -709,7 +713,8 @@ cases; step 7a's set is wider), except step 4, which re-records the goldens the 
   change. Unstretched sample playback reads through the head, so this step's gate is wider than the stretcher's:
   unstretched playback stays bit-identical on golden-synth's sample cases (x86, and golden-synth-arm) and on the
   render-song audio gates (every gate whose output `tests/golden/render/songs.json` records), as well as on the
-  stretcher cases. Its records and its coverage were taken in step 1.
+  stretcher cases, but for the unison clone's walk past its next chunk (decision 13), whose changed goldens, if any,
+  this step re-records. Its records and its coverage were taken in step 1.
 8. **The gate.** Every golden bit for bit on x86 and ARM against the baseline step 4 left, unstretched sample playback
   included: golden-synth's sample cases and the render-song audio gates (step 7a's); no case's `RP-ALLOC` rises; x86
   parity 0 differences; the nightly with both corpora; an emulator sweep against `main` with no unexplained difference;
@@ -875,6 +880,13 @@ Each is a decision, its options kept as the rationale; the chosen one is marked.
       and `readSamplesForTimeStretching`'s callers are edited, in code step 7 deletes.
     - (c) With the playback side, in step 7: one switch, at the cost of a step whose difference, if any, could be
       either's.
+13. **The unison clone's stop at its next chunk.** `SamplePlaybackAdapter::cloneVoiceSampleFrom` gives a unison part
+    added to a sounding sample voice a level copy of its neighbour's reader, with no region-port cursor of its own, so
+    when it plays unstretched it stops at its next chunk boundary (R10's quirk). Nothing intends this, and no
+    render-song gate reaches it, since the failed walk counts an underrun.
+    - (a) **Decided:** fix it in step 7a, as a difference accepted by name: the clone opens its own cursor, as a seat
+      does, and walks on. The shadow copy keeps the stop, since E1's timing depends on it (decision 5).
+    - (b) Keep the stop bit-identical in step 7a and fix it as a change of its own after step 8.
 
 **Findings that need no decision.** These disappear with the legacy code and change no output:
 - In `TimeStretcher::hopEnd`, the comment on the one-frame floor says it happens "if pitch up very high and also
