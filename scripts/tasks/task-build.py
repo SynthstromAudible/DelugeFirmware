@@ -446,6 +446,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     cargo_args += cargo_extra
     cargo_args += sdk_config_args(root)
     if args.clippy:
+        # No --no-deps: clippy lints every workspace member in the device graph (the allocator, resource and sample
+        # crates) for the device target too, not only the BSP.
         cargo_args += ["--", "-D", "warnings"]
 
     env = {**os.environ, **device_cxx_env(root, config)}

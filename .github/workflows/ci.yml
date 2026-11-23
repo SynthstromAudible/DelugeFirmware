@@ -119,8 +119,8 @@ jobs:
         with:
           workspaces: .
 
-      # One workspace at the root (Cargo.toml). Packages are named with -p rather than --workspace: Cargo unifies features
-      # across the packages of one build, and the device crate's platform features are exclusive with the host ones.
+      # One workspace at the root (Cargo.toml). The device crate is built on its own: Cargo unifies features across
+      # the packages of one build, and its platform features are exclusive with the host ones.
       - name: rustfmt
         run: cargo fmt --all --check
 
@@ -129,13 +129,8 @@ jobs:
       # clippy would otherwise lint here too.
       - name: clippy
         run: |
-          cargo clippy --no-deps --all-targets \
-            -p deluge_base_alloc -p deluge_storage_resource -p deluge_storage_stream -p deluge_storage_sample_convert \
-            -p deluge_storage_sample_fill -p deluge_storage_sample_reader -p deluge_storage_sample_source -p deluge_test_rust \
-            -p deluge_platform_host_link \
-            -p audio_format_corpus -p fs-differential -p region-fill-differential -p region-read-differential \
-            -p region-source-differential \
-            -- -D warnings
+          cargo clippy --no-deps --all-targets --workspace \
+            --exclude deluge_platform_device --exclude golden_vt_render -- -D warnings
 
       # Private items too: most of this code is crate-internal, and its links break as easily. golden_vt_render and
       # the BSP's `host_app` build need the CMake host tree, so they are checked locally
@@ -144,12 +139,9 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
         run: |
-          cargo doc --no-deps --document-private-items \
-            -p deluge_base_alloc -p deluge_storage_resource -p deluge_storage_stream -p deluge_storage_sample_convert \
-            -p deluge_storage_sample_fill -p deluge_storage_sample_reader -p deluge_storage_sample_source -p deluge_test_rust \
-            -p deluge_platform_device \
-            -p audio_format_corpus -p fs-differential -p region-fill-differential -p region-read-differential \
-            -p region-source-differential
+          cargo doc --no-deps --document-private-items --workspace \
+            --exclude deluge_platform_device --exclude golden_vt_render
+          cargo doc --no-deps --document-private-items -p deluge_platform_device
 
       - name: The test registry's table is current
         run: |
