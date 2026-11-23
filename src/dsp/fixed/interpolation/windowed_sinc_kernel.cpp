@@ -27,7 +27,7 @@ namespace {
 inline constexpr int32_t kSincKernelAlignment = 32;
 
 // The one windowed-sinc table (was duplicated as the legacy dsp/interpolate `windowedSincKernel`
-// and a private the DSP library copy; now the single source for both the wavetable renderer and sample
+// and a private copy in the DSP library; now the single source for both the wavetable renderer and sample
 // playback). Values verbatim from the original.
 // clang-format off
 alignas(kSincKernelAlignment) constexpr int16_t
