@@ -81,7 +81,26 @@ public:
 	char const* getReverbPresetDisplayName(int32_t preset);
 	int32_t getCurrentReverbPreset();
 	void setModRegion(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int32_t noteRowId = 0);
-	void notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels = true);
+	// Called for every automated parameter value change during playback, from the audio routine. It only
+	// records a change to a parameter which may be on display; the UI routine then starts the display and
+	// MIDI feedback timers (see handleParamAutomationNotice()), so no GUI code runs on the audio path.
+	void notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels = true) {
+		uint8_t mod_levels = updateModLevels ? kParamNoticeModLevels : 0;
+		if (paramManager == activeModControllableModelStack.paramManager) {
+			paramAutomationNotice_ |= kParamNoticeActive | mod_levels;
+		}
+		else if (paramManager == soundEditorParamManager_) {
+			paramAutomationNotice_ |= kParamNoticeSoundEditor | mod_levels;
+		}
+	}
+	// From the UI routine.
+	void handleParamAutomationNotice() {
+		if (paramAutomationNotice_ != 0) {
+			startParamAutomationTimers();
+		}
+	}
+	// The sound editor's parameter manager, which notifyParamAutomationOccurred() compares against.
+	void setSoundEditorParamManager(ParamManager* paramManager) { soundEditorParamManager_ = paramManager; }
 	void displayAutomation();
 	void displayOutputName(Output* output, bool doBlink = true, Clip* clip = nullptr);
 	void instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument);
@@ -122,6 +141,16 @@ public:
 
 	bool pendingParamAutomationUpdatesModLevels;
 
+private:
+	static constexpr uint8_t kParamNoticeActive = 1;
+	static constexpr uint8_t kParamNoticeSoundEditor = 2;
+	static constexpr uint8_t kParamNoticeModLevels = 4;
+	// Set by notifyParamAutomationOccurred() and taken by the UI routine.
+	uint8_t paramAutomationNotice_ = 0;
+	ParamManager* soundEditorParamManager_ = nullptr;
+	void startParamAutomationTimers();
+
+public:
 	bool clipArmFlashOn;
 	bool blinkOn;
 

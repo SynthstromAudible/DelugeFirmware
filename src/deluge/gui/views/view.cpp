@@ -1785,25 +1785,29 @@ int32_t View::getModKnobMode() {
 	return modKnobMode;
 }
 
-void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
-	if (paramManager == activeModControllableModelStack.paramManager
-	    || (getCurrentUI() == &soundEditor && paramManager == soundEditor.currentParamManager)) {
+void View::startParamAutomationTimers() {
+	uint8_t notice = paramAutomationNotice_;
+	paramAutomationNotice_ = 0;
+	// A change for the sound editor's parameters only counts while the sound editor is showing.
+	if ((notice & kParamNoticeActive) == 0 && getCurrentUI() != &soundEditor) {
+		return;
+	}
+	bool update_mod_levels = (notice & kParamNoticeModLevels) != 0;
 
-		// If timer wasn't set yet, set it now
-		if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
-			pendingParamAutomationUpdatesModLevels = updateModLevels;
-			uiTimerManager.setTimer(TimerName::DISPLAY_AUTOMATION, 25);
-		}
+	// If timer wasn't set yet, set it now
+	if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
+		pendingParamAutomationUpdatesModLevels = update_mod_levels;
+		uiTimerManager.setTimer(TimerName::DISPLAY_AUTOMATION, 25);
+	}
 
-		else {
-			if (updateModLevels) {
-				pendingParamAutomationUpdatesModLevels = true;
-			}
+	else {
+		if (update_mod_levels) {
+			pendingParamAutomationUpdatesModLevels = true;
 		}
+	}
 
-		if (!uiTimerManager.isTimerSet(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
-			uiTimerManager.setTimer(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
-		}
+	if (!uiTimerManager.isTimerSet(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
+		uiTimerManager.setTimer(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
 	}
 }
 
