@@ -242,6 +242,7 @@ void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
 	squareInfo.squareType = SQUARE_NO_NOTE;
 	squareInfo.numNotes = 0;
 	squareInfo.averageVelocity = 0;
+	squareInfo.maxVelocity = 0;
 	squareInfo.probability = 0;
 	squareInfo.iterance = kDefaultIteranceValue;
 	squareInfo.fill = 0;
@@ -343,6 +344,7 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 			// we'll convert this to an average once we're done counting the number of notes
 			// and summing all note velocities in this square
 			squareInfo.averageVelocity += (*note)->getVelocity();
+			squareInfo.maxVelocity = std::max<int32_t>(squareInfo.maxVelocity, (*note)->getVelocity());
 			if (!gotFirstNoteParams) {
 				squareInfo.firstNote = (*note);
 				squareInfo.probability = (*note)->getProbability();
@@ -374,6 +376,7 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 			squareInfo.numNotes += 1;
 			squareInfo.squareType = SQUARE_NOTE_TAIL;
 			squareInfo.averageVelocity += (*note)->getVelocity();
+			squareInfo.maxVelocity = std::max<int32_t>(squareInfo.maxVelocity, (*note)->getVelocity());
 			squareInfo.probability = (*note)->getProbability();
 			squareInfo.iterance = (*note)->getIterance();
 			squareInfo.fill = (*note)->getFill();

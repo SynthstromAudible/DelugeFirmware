@@ -16,6 +16,7 @@
  */
 
 #include "gui/views/automation/editor_layout/note.h"
+#include "gui/l10n/l10n.h"
 #include "gui/views/automation/editor_layout/note/velocity.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
@@ -37,7 +38,8 @@ void AutomationEditorLayoutNote::renderNoteEditor(ModelStackWithNoteRow* modelSt
                                                   int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
                                                   int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea,
                                                   SquareInfo& squareInfo) {
-	if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+	// the folded editor has already drawn its pads and passes no note row, so only the undefined area is drawn here
+	if (modelStackWithNoteRow && modelStackWithNoteRow->getNoteRowAllowNull()) {
 		if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
 			automationEditorLayoutNoteVelocity.renderNoteColumn(modelStackWithNoteRow, clip, image, occupancyMask,
 			                                                    xDisplay, xScroll, xZoom, squareInfo);
@@ -68,20 +70,7 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 	// display note / drum name
 	yPos = yPos + 12;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	bool isKit = outputType == OutputType::KIT;
-
-	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-	                                                                        modelStack); // don't create
-	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-		if (!isKit) {
-			modelStackWithNoteRow =
-			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
-		}
-	}
-
-	std::string noteRowName = getNoteRowName(modelStackWithNoteRow->getNoteRowAllowNull(), isKit);
+	std::string noteRowName = getSelectedNoteRowName(clip, outputType == OutputType::KIT);
 	canvas.drawStringCentred(noteRowName.c_str(), yPos, kTextSpacingX, kTextSpacingY);
 
 	// display parameter value
@@ -94,9 +83,26 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 
 void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType,
                                                              int32_t knobPosLeft) {
+	if (knobPosLeft != kNoSelection) {
+		char buffer[5];
+		intToString(knobPosLeft, buffer);
+		display->setText(buffer, true, 255, false);
+	}
+	else {
+		std::string noteRowName = getSelectedNoteRowName(clip, outputType == OutputType::KIT);
+		display->setScrollingText(noteRowName.c_str());
+	}
+}
+
+// name of the note row being edited, or "All notes" / "All drums" when the editor is folded
+std::string AutomationEditorLayoutNote::getSelectedNoteRowName(InstrumentClip* clip, bool isKit) {
+	if (automationView.inFoldedNoteEditor()) {
+		return deluge::l10n::get(isKit ? deluge::l10n::String::STRING_FOR_ALL_DRUMS
+		                               : deluge::l10n::String::STRING_FOR_ALL_NOTES);
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	bool isKit = outputType == OutputType::KIT;
 
 	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 	                                                                        modelStack); // don't create
@@ -106,16 +112,7 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* cli
 			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
 		}
 	}
-
-	if (knobPosLeft != kNoSelection) {
-		char buffer[5];
-		intToString(knobPosLeft, buffer);
-		display->setText(buffer, true, 255, false);
-	}
-	else {
-		std::string noteRowName = getNoteRowName(modelStackWithNoteRow->getNoteRowAllowNull(), isKit);
-		display->setScrollingText(noteRowName.c_str());
-	}
+	return getNoteRowName(modelStackWithNoteRow->getNoteRowAllowNull(), isKit);
 }
 
 std::string AutomationEditorLayoutNote::getNoteRowName(NoteRow* noteRow, bool isKit) {

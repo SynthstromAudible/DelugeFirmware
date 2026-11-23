@@ -1668,6 +1668,10 @@ void View::setModLedStates() {
 		// otherwise you're in an audio clip or automation view for an audio clip, in which case affect entire is always
 		// enabled
 		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
+		// in automation view's velocity editor, affect entire shows whether the editor is folded to all note rows
+		if (rootUI == &automationView && automationView.inNoteEditor()) {
+			affectEntire = automationView.inFoldedNoteEditor();
+		}
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 

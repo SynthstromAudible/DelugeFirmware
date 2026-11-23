@@ -44,6 +44,7 @@ public:
 	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);
 
 private:
+	std::string getSelectedNoteRowName(InstrumentClip* clip, bool isKit);
 	std::string getNoteRowName(NoteRow* noteRow, bool isKit);
 };
 

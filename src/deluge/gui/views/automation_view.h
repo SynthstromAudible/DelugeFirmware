@@ -73,6 +73,13 @@ public:
 	bool onAutomationOverview();
 	bool inAutomationEditor();
 	bool inNoteEditor();
+	// folded note editor shows and edits every note row in the clip at once (toggled with affect entire).
+	// In a kit it's folded when affect entire is on; other clips keep their own flag because their affect entire
+	// state is always on.
+	bool inFoldedNoteEditor();
+	void noteEditorAffectEntireChanged();
+	void endNoteEditorPadPresses();
+	bool noteEditorFolded = false;
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
