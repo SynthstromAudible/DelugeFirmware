@@ -12,3 +12,5 @@ ownership, playback and live-input access changes do not alter parameter
 behavior. Control callers which set live values do so through the restricted
 live-input role. Compile-time checks also reject direct live setters on AutoParam and
 on the other roles.
+The existing lazy-vector tests also run in ParameterTests using the same source
+as the 32-bit target.
