@@ -18,7 +18,6 @@
 
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/sample_read/mixed_in.h"
-#include "dsp/fixed/timestretch/crossfade.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -27,8 +26,8 @@
 namespace deluge::synth {
 
 /// @file
-/// @brief How the time stretcher's heads are mixed: the voice amplitude's set-up (X4), when the older head stops (X3)
-/// and the copy of a stretched block into a cache and the output (W1) of docs/dev/time_stretcher_contracts.md.
+/// @brief How the time stretcher's heads are mixed: the voice amplitude's set-up (X4) and the copy of a stretched block
+/// into a cache and the output (W1) of docs/dev/time_stretcher_contracts.md.
 ///
 /// The voice's amplitude ramps as a word, stepped by whole multiples of its step, and the cache stores each sample's
 /// bytes, so the arithmetic here is word arithmetic on the typed values' raw words: every crossing below is one of
@@ -71,11 +70,6 @@ constexpr void step_amplitude(StretchAmplitude& a, int32_t frames, bool writing_
 		a.amplitude = dsp::Q<31>::from_raw(static_cast<int32_t>(static_cast<uint32_t>(a.amplitude.raw())
 		                                                        + static_cast<uint32_t>(a.step.raw() * frames)));
 	}
-}
-
-/// @brief Whether the older head still sounds (X3): its crossfade has not reached 1.0.
-[[nodiscard]] constexpr bool older_reads_on(const dsp::fixed::timestretch::CrossfadeRamp& ramp) {
-	return ramp.progress < (1u << 24);
 }
 
 /// @brief W1: a stretched block @p mix (@p channels words a frame) copied into the cache and mixed into @p out

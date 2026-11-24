@@ -18,6 +18,7 @@
 // The time stretcher's mix arithmetic (synth/sources/sample/stretch_mix.h) against the legacy's records: the
 // amplitude's set-up (X4), the older head's stop (X3) and the copy of a stretched block into a cache (W1).
 
+#include "dsp/fixed/timestretch/crossfade.h"
 #include "synth/sources/sample/stretch_mix.h"
 
 #include <array>
@@ -86,8 +87,9 @@ describe stretch_mix_spec_body("deluge::synth::StretchAmplitude", ${
 		std::size_t bad = 0;
 		for (const auto& row : r::kOlderHeadGoldens) {
 			const CrossfadeRamp ramp{.progress = row.progress, .increment = 0};
-			// The shadow copy reads in its one segment at level 0, its ramp done, and stops after it
-			bad += deluge::synth::older_reads_on(ramp) == !row.shadow ? 0 : 1;
+			// The older head reads on until its ramp is done; the shadow copy reads in its one segment at level 0, its
+			// ramp done, and stops after it
+			bad += !ramp.done() == !row.shadow ? 0 : 1;
 			bad += (row.shadow && row.older_reading_after) ? 1 : 0;
 		}
 		expect(bad).to_equal(std::size_t{0});

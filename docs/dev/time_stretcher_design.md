@@ -48,9 +48,9 @@ The differences accepted by name; everything else stays bit-identical, and the c
 
 The goldens that pin the stretcher are the `sample/ts_*` and `sample/timestretch` render-preset cases and the
 `RS_AUDIO_STRETCH*` render-song gates (`tests/integration/checks/render_song_cases.md`). A host coverage build of them
-(`scripts/tasks/stretcher_coverage.py`) reaches 1,294 of the 1,648 branch sides of the stretcher, the time-stretch and
+(`scripts/tasks/stretcher_coverage.py`) reaches 1,295 of the 1,650 branch sides of the stretcher, the time-stretch and
 sample-read components, the stretch port, the read lease and their users' stretcher functions.
-[time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 354 it does not reach, keyed by function and
+[time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 355 it does not reach, keyed by function and
 condition, each with a category, a reason where the category's meaning does not already give it, and what pins it:
 - 102 the code itself rules out (defensive checks, conditions fixed by construction);
 - 112 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull
@@ -392,7 +392,7 @@ make every seat and copy cross the seam twice. So:
 - the stretcher owns which role each plays, through its head phase, and how loud each is;
 - the port seats, reads and marks the heads by role. A hop seats the spare at the new start (H1) and only once it
   has started swaps the roles, so a start that fails leaves the newer untouched and S4 needs no undo;
-- when stretching ends, the voice-sample unseats its spare itself.
+- when stretching ends, the voice-sample closes its spare's lease itself, with its cursor and the chunks it pinned.
 
 This is the one statement of who owns what; section 5's table follows it.
 
@@ -414,41 +414,52 @@ has fed, so the legacy reader's null pointer reused as a counter becomes its own
 
 ```cpp
 namespace deluge::dsp::fixed::sample_read {
-enum class Residency : uint8_t { kReady, kLoading, kUnavailable };
+enum class Residency : uint8_t { READY, LOADING, UNAVAILABLE };
 /// The chunk the lease holds, in frames: where the walk next acts, and how far back the window may read (R6).
 struct ChunkSpan { int32_t boundary; int32_t floor; bool final; };
 template <class S>
-concept ReadSource = FrameSource<S> && requires(S& s, const S& cs, int32_t frame, Direction d) {
-	{ s.move_to(frame, d) } -> std::same_as<Residency>; // the lease moves to `frame`'s chunk (R6, R10)
+concept read_source = frame_source<S> && requires(S& s, const S& cs, int32_t frame, Direction d) {
+	{ s.move_to(frame, d) } -> std::same_as<Residency>;       // the lease moves to `frame`'s chunk (R6, R10)
+	{ s.let_go() } -> std::same_as<void>;                     // the chunk goes
 	{ cs.span(d) } -> std::same_as<std::optional<ChunkSpan>>; // nullopt: no chunk held
+	{ cs.byte_depth() } -> std::same_as<int32_t>;
 };
-
-/// Where the head stops or loops, from the playback guide each call (markers obeyed or not, as the owner says).
-struct ReadBounds { int32_t end_byte; std::optional<int32_t> loop_start_byte; };
 
 struct ReadHead {
 	struct Reading { int32_t frame; };       ///< The next frame the window takes.
-	struct Ended { int32_t zero_taps; };     ///< Past the end: zero taps fed so far (R1, R3, R4).
+	struct Ended { int32_t zero_taps; };     ///< Past the end, or holding no chunk: zero taps fed since (R1, R3, R4).
 	struct State {
 		std::variant<Reading, Ended> cursor;
 		UQ<24> phase;                          ///< The sub-sample phase.
 		int8_t width_last;                     ///< The window's width at the last resampled check; 0 after a native one.
 		Interpolator window;
 	};
+	/// Where the head loops, from the playback guide each call (markers obeyed or not, as the owner says).
+	struct ReadBounds { std::optional<int32_t> loop_start_frame; bool endless_silence; };
 	/// What a window check allows: frames to render, or that the head stopped (its end, or a chunk not ready: R11).
-	struct Window { enum class Kind : uint8_t { kRead, kStopped } kind; int32_t frames; };
+	struct Window { enum class Kind : uint8_t { READ, STOPPED } kind; int32_t frames; };
+	/// Where a read mixes: the output, its channels, and the amplitude stepped per frame.
+	struct Output { std::span<Q<31>> out; int8_t out_channels; Q<31> amplitude; Q<31> step; };
 
-	static void seat(State&, int32_t frame, UQ<24> phase);                // R10; the lease is the caller's
+	template <read_source S>
+	static Residency seat(State&, S&, int32_t frame, UQ<24> phase, Direction);              // R10
+	template <read_source S>
+	static Residency place(State&, S&, int32_t frame, Direction);                           // a late start's seat
 	[[nodiscard]] static State level_copy(const State&);                                    // R10
-	template <ReadSource S>
+	template <read_source S>
+	static bool walk(State&, S&, const ReadBounds&, Direction);                             // R6
+	template <read_source S>
 	static Window check(State&, S&, const ReadBounds&, int32_t frames, Increment, int32_t width,
-	                    bool endless_silence);                                              // R1 to R6
-	template <ReadSource S>
-	static void read_native(State&, const S&, Q<31>* out, int32_t frames, Channels, Gain&); // R7
-	template <ReadSource S>
-	static void read_resampled(State&, const S&, Q<31>* out, int32_t frames, Increment, int32_t width, Kernel, Gain&,
-	                           CacheWrite*);                                                // R8, R9
-	[[nodiscard]] static int32_t play_byte(const State&, const SourceFacts&, Direction, bool compensate); // A0
+	                    Direction);                                                         // R1 to R6
+	template <read_source S>
+	static void read_native(State&, const S&, Output&, int32_t frames, Direction);          // R7
+	template <read_source S>
+	static void read_resampled(State&, const S&, Output&, int32_t frames, Increment, int32_t width, int32_t kernel,
+	                           std::byte*& cache_write, Direction);                         // R8, R9
+	template <read_source S>
+	static bool read(State&, S&, const ReadBounds&, Output&, int32_t frames, Increment, int32_t width,
+	                 int32_t kernel, std::byte* cache_write, Direction);                    // R11: check, then read
+	[[nodiscard]] static int32_t play_byte(const State&, const ReadFacts&, Direction, bool compensate); // A0
 };
 }
 ```
@@ -516,7 +527,7 @@ port is smaller than `SamplePlaybackPort`, which has 23.
   `wrap_to`) and the cache-write copy (W1); the stretched segment loop (hops, gains, both heads, the position) is
   `SampleStretcher::render`. `fudgeTimeStretchingToAvoidClick` and `weShouldBeTimeStretchingNow` become `begin` (with a
   `Fudge` or `Plain` opening, and a `FromCacheTail` one where the render leaves a stretched cache); `endTimeStretching`
-  becomes `end` and unseats the spare; `sampleZoneChanged` and `getPlaySample` read `frame()`.
+  becomes `end` and closes the spare's lease; `sampleZoneChanged` and `getPlaySample` read `frame()`.
 - `src/deluge/model/sample/sample.cpp`: `Sample::fillPercCache` takes no stretcher. It returns a `PercFill`: where the
   filled zone now ends, the perc chunks the fill touched (for the stretcher to hold), and whether the lookahead
   reservation may be let go, with the frame it should move to. Its per-frame arithmetic calls the perc analysis
@@ -529,8 +540,10 @@ port is smaller than `SamplePlaybackPort`, which has 23.
   card-error exit is never taken: R11). In step 7a its arithmetic becomes the read head's (R1 to R11), its residency the
   app's `SampleReadLease`, its loop for the stretcher the port's `read`, and it is deleted with its other users
   switched (2.8).
-- `src/deluge/model/clip/audio_clip.cpp`: reads `newer_reading()` and `is_fudge()` where it reads the legacy flags
-  today (the restart at the loop, the fudge, the cull immunity), and begins the fudge through the voice-sample.
+- `src/deluge/model/clip/audio_clip.cpp`: reads `newer_reading()` and the voice-sample's own `fudging` where it read
+  the legacy flags (the restart at the loop, the fudge, the cull immunity), and begins the fudge through the
+  voice-sample. `fudging` is the voice's, as the legacy's was: a fudge with no frames to the loop begins its stretcher
+  plain (`is_fudge()` false) while the voice still counts as fudging.
 - `src/deluge/processing/engines/audio_engine.cpp`: the pool's type, and the `StretchContext` (a `HopBudget` in place
   of the two globals, the noise stream, the tail buffers); the render's culling bypass reads the budget.
 
@@ -556,13 +569,13 @@ lease handle it takes, the engine owns the tail buffers.
 | Resource | Owner | Taken | Given back |
 |---|---|---|---|
 | The head the voice plays from (the newer head): its `ReadHead` state and its `SampleReadLease` | the voice-sample | a plain begin takes nothing (the head plays on); a hop or fudge seats the spare (H1), which becomes the newer | becomes the older at the next successful hop |
-| The spare head (the older head) | the voice-sample | a plain begin seats it as a level copy with its own lease on the shared chunk (`shadow`, R10); a successful hop or fudge makes the previous newer the spare | reseated at the next hop (its lease goes first, H1); unseated by the voice-sample when stretching ends |
-| A head's chunk lease, and the region port's prefetch of the next chunk | the head's `SampleReadLease` | a seat (R10), a chunk walk's move (R6), a level copy (R10) | the next seat or move, a walk that ends, or the voice-sample's unseat |
+| The spare head (the older head) | the voice-sample | a plain begin seats it as a level copy with its own lease on the shared chunk (`shadow`, R10); a successful hop or fudge makes the previous newer the spare | reseated at the next hop (its lease goes first, H1); closed by the voice-sample when stretching ends, with its cursor |
+| A head's chunk lease, and the region port's prefetch of the next chunk | the head's `SampleReadLease` | a seat (R10), a chunk walk's move (R6), a level copy (R10) | the next seat or move, a walk that ends, or the voice-sample's unassign |
 | Hop-back reservation | the stretcher (a handle; the port keeps it) | at a begin and after every hop, from the earliest frame the next hop could start (below) | `end` |
 | Hop-retry reservation | the stretcher | a hop whose start chunk is not resident | that hop's retry succeeding, or `end` |
 | Perc lookahead reservation | the stretcher | each perc fill, moved to where it stopped reading | when the filled zone already covers the lookahead, or `end` |
 | Perc-cache chunk leases | the stretcher, the two most recently used | a fill or a read touching a chunk not held (the older of the two is dropped) | `end` |
-| A cache-tail buffer | the engine's tail buffers, lent to the stretcher through the `StretchContext` | a `FromCacheTail` begin | the crossfade's end, or `end` |
+| A cache-tail buffer | the engine's tail buffers, lent to the stretcher through the `StretchContext` | a `FromCacheTail` begin | the older head stopping (the crossfade's end), the next hop, or `end` |
 | The stretcher | the voice-sample, from the engine's pool | the first stretched block, or a fudge | `end`, then back to the pool |
 
 The hop-back reach: `widest = max(max_width, min_width << 1)`, repitched as B2; `back = ((rate / 45) >> 1) + 1`, plus
@@ -578,7 +591,7 @@ are passed to.
 - **Audio tier (the render).** Every call that reads or writes samples: `begin`, `render` (hops included) and
   `wrap_to`, and every read head's check and read, stretched or not. Taking a stretcher from the pool happens here.
 - **The render's sequencer tick, or a playhead move on the interaction tier.** `AudioClip::processCurrentPos` and
-  `AudioClip::resumePlayback` read `newer_reading()` and `is_fudge()` and may end stretching (`end`). On the
+  `AudioClip::resumePlayback` read `newer_reading()` and the voice-sample's `fudging` and may end stretching (`end`). On the
   interaction tier they run inside a move's section (`docs/dev/playback_moves.md`): the render is held off and nothing
   may allocate. `end` allocates nothing; returning a tail buffer or the stretcher pushes onto a reserved free list.
 - **Voice unassignment** calls `end` from wherever the voice-sample is unassigned today, under the same exclusion.

@@ -14,7 +14,7 @@ sample-read components (`src/dsp/fixed/timestretch/`, `src/dsp/fixed/sample_read
 read lease; and in their users the functions that call into the stretcher or the read head, branch on whether a voice
 has a stretcher, or keep the hop budget and the culling bypass a hop sets.
 
-**Result.** 1,294 of the 1,648 branch sides are taken; the 354 untaken are listed below by file and function. A side is
+**Result.** 1,295 of the 1,650 branch sides are taken; the 355 untaken are listed below by file and function. A side is
 named by its condition, the branch's source text; where one function tests the same text more than once, its repeats
 are counted in source order. A template's functions are listed per instantiation.
 
@@ -29,13 +29,13 @@ are counted in source order. A template's functions are listed per instantiation
 | RES | 53 | residency: the sample data asked for is not resident (a card read still pending, a chunk evicted, or a card error). The goldens' card answers at once and their gates fail any underrun |
 | MEM | 34 | memory: an allocation fails, or memory pressure steals a cache or perc-cache chunk; no golden runs out of memory |
 | CULL | 25 | voice culling under CPU load, and the sinc window a reader shrinks to linear under it; the gates fail a render whose direness rises, so neither happens |
-| **Reachable on the device, no gate scripts it** | 126 | |
+| **Reachable on the device, no gate scripts it** | 127 | |
 | EDIT | 19 | an edit while a voice plays that the edit songs leave out: a clip-length edit of an unstretched, cached or releasing voice (`resumePlayback`), a clip reversed while it reads a cache, a long unreferenced sample auditioned, a head re-acquired past its end |
 | LATE | 13 | a late start's paths render-audio-stretch-late leaves out: a late start while the previous sound fades, or one that restarts while releasing |
 | STOP | 4 | a clip rendering after both clocks stop. A stop fast-releases the audio output's envelope at 65,536 per frame over a stage of 2^23, so it ends within the first 128-frame block and the voice is unassigned before it renders: a song stopped under a stretched clip renders no voice block after the stop. Only a render shorter than a block leaves a partial tail |
 | REC | 13 | an audio clip recording, or an aborted recorder |
 | EXPORT | 14 | the offline stem export's render |
-| OPEN | 63 | reachable from a preset or song, not built: a third perc-cache chunk (a source over 2^23 frames), a crossfade from a cache whose read position is in a cache chunk's last frame, and the read head's content corners (a stereo sample read linearly while rendering in stereo, a cache written from a mono sample, tail zeros past a non-looping end, an end point on a chunk boundary, a pitch over four octaves up) |
+| OPEN | 64 | reachable from a preset or song, not built: a third perc-cache chunk (a source over 2^23 frames), a crossfade from a cache whose read position is in a cache chunk's last frame, and the read head's content corners (a stereo sample read linearly while rendering in stereo, a cache written from a mono sample, tail zeros past a non-looping end, an end point on a chunk boundary, a pitch over four octaves up) |
 | **Not a stretcher path** | 14 | |
 | NS | 14 | a voice with no stretcher, or an unstretched cache; other goldens own it |
 
@@ -126,7 +126,6 @@ meaning gives it.
 | `synth/sources/sample/stretch_mix.h` | deluge::synth::stretch_amplitude | 543983 | 4/4 | 4/4 |
 | `synth/sources/sample/stretch_mix.h` | deluge::synth::segment_level | 203762 | 6/6 | 2/2 |
 | `synth/sources/sample/stretch_mix.h` | deluge::synth::step_amplitude | 203668 | 6/6 | 2/2 |
-| `synth/sources/sample/stretch_mix.h` | deluge::synth::older_reads_on | 0 | 0/3 | 0/0 |
 | `synth/sources/sample/stretch_mix.h` | deluge::synth::write_cache_frames | 5570 | 23/23 | 8/8 |
 | `synth/sources/sample/stretch_position.h` | deluge::synth::SourcePosition::SourcePosition | 11248 | 1/1 | 0/0 |
 | `synth/sources/sample/stretch_position.h` | deluge::synth::SourcePosition::from_play_byte | 1352 | 6/6 | 1/2 |
@@ -265,7 +264,7 @@ meaning gives it.
 | `synth/sources/sample/sample_stretcher.cpp` | deluge::synth::SampleStretcher::set_heads | 212747 | 18/18 | 12/12 |
 | `synth/sources/sample/sample_stretcher.cpp` | deluge::synth::SampleStretcher::give_back_tail | 10337 | 8/8 | 4/4 |
 | `synth/sources/sample/sample_stretcher.cpp` | deluge::synth::SampleStretcher::keep_hop_back | 10134 | 7/9 | 1/2 |
-| `synth/sources/sample/sample_stretcher.cpp` | deluge::synth::SampleStretcher::begin | 1352 | 40/49 | 11/16 |
+| `synth/sources/sample/sample_stretcher.cpp` | deluge::synth::SampleStretcher::begin | 1352 | 40/49 | 12/18 |
 | `synth/sources/sample/sample_stretcher.cpp` | deluge::synth::SampleStretcher::remember | 1283 | 9/11 | 5/6 |
 | `synth/sources/sample/sample_stretcher.cpp` | deluge::synth::SampleStretcher::prepare | 196963 | 21/21 | 8/8 |
 | `synth/sources/sample/sample_stretcher.cpp` | deluge::synth::SampleStretcher::hop | 8985 | 82/96 | 27/30 |
@@ -1063,6 +1062,7 @@ lines there count as run in the table above; they never ran (the render always f
 
 | Condition | Side not taken | True / false | Category | Why | Pinned by |
 |---|---|---|---|---|---|
+| `fudge->output_frames_to_loop != 0` | false | 112 / 0 | OPEN | a fudge offered with no frames to the loop (AudioClip::render at a swung loop tick whose render starts on it): it begins plain, as the legacy's init did | sample_stretcher_spec: begins a fudge with no frames to the loop as a plain begin |
 | `(start - first) * d < 0` | true | 0 / 112 | DEF | AudioClip::render offers a fudge only when the frames to the loop are within the pre-margin it measured |  |
 | `seat == SeatResult::NOT_READY` | true | 0 / 112 | RES | a fudge's seat not ready, or its walk failing: the begin fails and the voice is unassigned (H1) | kSeatFaults |
 | `seat == SeatResult::STARTED` | false | 112 / 0 | DEF | seat_and_swap returns STARTED_EMPTY only after ReadHead::walk returned true, and walk returns true only from SampleReadLease::span, which is nullopt without a held chunk |  |

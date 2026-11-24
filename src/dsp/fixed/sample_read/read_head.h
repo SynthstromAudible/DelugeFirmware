@@ -414,7 +414,6 @@ private:
 		return static_cast<int32_t>(static_cast<uint64_t>(room) / increment.raw()) + 1;
 	}
 
-	/// The amplitude stepped, then one frame mixed into the output at @p at, which moves on.
 	/// @brief Calls @p f's template for the source's channels and the output's: each read's per-frame loop is
 	/// compiled for its layout, as the legacy's linear read was, with no branch on it per frame. An output has no more
 	/// channels than its source (a stereo source may be condensed to one; a mono one is never spread to two), as the
@@ -726,9 +725,6 @@ private:
 		*to++ = static_cast<std::byte>(w >> 24);
 	}
 
-	/// R8's step for a later output: holding a chunk, the window advances by the frames the phase passes (at most 16,
-	/// the cursor jumping the rest unread); holding none, zero taps.
-
 	/// The phase stepped with zero taps, each counted (jumpForwardZeroes).
 	template <read_source S>
 	static void zero_step(State& state, const S& source, Increment increment) {
@@ -752,8 +748,7 @@ private:
 		state.phase = UQ<24>::from_raw(phase);
 	}
 
-	/// R9 over a held chunk: the two taps in hand, the second the cursor's frame.
-
+	/// The bytes from the cursor's frame to its chunk's boundary in @p direction, or 0 at or past it.
 	template <read_source S>
 	static int32_t bytes_to_boundary(const State& state, const S& source, Direction direction, int32_t frame_bytes) {
 		const int32_t frames = (source.span(direction)->boundary - std::get<Reading>(state.cursor).frame)
@@ -882,7 +877,8 @@ private:
 
 public:
 	/// @brief A level copy (R10): the cursor, phase, width and window. Its source takes its own lease on the same
-	/// chunk, and no region-port cursor, so it can never move to the next chunk (R10's quirk).
+	/// chunk; with no region-port cursor of its own it can never move to the next chunk (R10's quirk), and the unison
+	/// clone pairs it with a lease that opens one.
 	[[nodiscard]] static State level_copy(const State& state) { return state; }
 
 	/// @brief The head's reference byte (A0): its cursor's byte, less half its last window against the play direction

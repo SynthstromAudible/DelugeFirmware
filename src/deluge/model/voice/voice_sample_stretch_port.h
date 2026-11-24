@@ -21,8 +21,6 @@
 
 #include <cstdint>
 
-#include <cstdint>
-
 class Sample;
 class SamplePlaybackGuide;
 class VoiceSample;
