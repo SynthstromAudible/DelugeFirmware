@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the deterministic source samples for the sample-playback golden cases.
 
-Writes, under sample/, each a 44.1 kHz 16-bit WAV with an embedded `smpl` chunk pinning the root note to C4 (MIDI 60):
+Writes, under sample/, each a 44.1 kHz WAV (16-bit unless named otherwise) with an embedded `smpl` chunk pinning the root note to C4 (MIDI 60):
 
 - _tone.wav (stereo) and _tone_mono.wav (mono): a seamlessly loopable, harmonically rich tone. Rich harmonics make the
   windowed-sinc anti-aliasing audible (so a kernel regression shows up in the hash); the perfect loop (every partial is
@@ -10,6 +10,9 @@ Writes, under sample/, each a 44.1 kHz 16-bit WAV with an embedded `smpl` chunk 
   distinctly.
 - _tone_short.wav (stereo): the same mixes over 1,024 frames. Played an octave up and stretched, it outlasts the time
   stretcher's first hop but runs out before the next: shorter than one hop.
+- _tone24.wav (stereo), _tone24_mono.wav, _tone32.wav (stereo) and _tone8_mono.wav: the tone's mixes at 24, 32 and 8
+  bits (8-bit WAV is unsigned), its period repeated DEPTH_PERIODS times so each source spans several of the loader's
+  32 KB chunks and a 24-bit frame straddles their boundaries.
 - _perc.wav (stereo): decaying noise bursts at irregular onsets, so the time stretcher's transient search (its perc
   cache) finds hits to place its hops on, where the tone gives it none.
 
@@ -36,6 +39,9 @@ ROOT_NOTE = 60  # C4: played C4 -> native rate (phaseIncrement 2^24, sinc kernel
 HARMONICS_L = [(1, 0.50), (2, 0.25), (3, 0.16), (4, 0.10), (6, 0.07), (8, 0.05)]
 HARMONICS_R = [(1, 0.48), (2, 0.20), (3, 0.18), (5, 0.11), (7, 0.06), (9, 0.04)]
 
+# The depth sources repeat the tone's period this often: 40,960 frames, past seven 24-bit stereo chunks.
+DEPTH_PERIODS = 10
+
 PERC_LENGTH = 32768
 # The frame each burst starts on: no two gaps alike, and each gap long enough for the burst before to decay away.
 PERC_ONSETS = (512, 3301, 7559, 9874, 14612, 18217, 21390, 26903, 30011)
@@ -45,7 +51,7 @@ PERC_DECAY_FRAMES = 400  # the bursts' exponential time constant
 PERC_SEED = 0x2545F491
 
 
-def render_channel(harmonics, length=LENGTH):
+def render_channel(harmonics, length=LENGTH, bits=16):
     out = []
     for n in range(length):
         acc = 0.0
@@ -53,7 +59,7 @@ def render_channel(harmonics, length=LENGTH):
             acc += amp * math.sin(2.0 * math.pi * k * n / length)
         out.append(acc)
     peak = max(abs(s) for s in out)
-    scale = 0.8 * 32767 / peak
+    scale = 0.8 * ((1 << (bits - 1)) - 1) / peak
     return [round(s * scale) for s in out]
 
 
@@ -87,12 +93,19 @@ def smpl_chunk():
     return b"smpl" + struct.pack("<I", len(body)) + body
 
 
-def wav_bytes(channels):
+def pcm_sample(value, bits):
+    """One sample's bytes: little-endian two's complement, but unsigned at 8 bits as WAV stores it."""
+    if bits == 8:
+        return bytes([value + 128])
+    return value.to_bytes(bits // 8, "little", signed=True)
+
+
+def wav_bytes(channels, bits=16):
     num_channels = len(channels)
     frames = list(zip(*channels)) if num_channels > 1 else [(s,) for s in channels[0]]
-    data = b"".join(struct.pack("<" + "h" * num_channels, *frame) for frame in frames)
+    data = b"".join(pcm_sample(s, bits) for frame in frames for s in frame)
 
-    block_align = num_channels * 2
+    block_align = num_channels * bits // 8
     fmt = struct.pack(
         "<HHIIHH",
         1,
@@ -100,7 +113,7 @@ def wav_bytes(channels):
         SAMPLE_RATE,
         SAMPLE_RATE * block_align,
         block_align,
-        16,
+        bits,
     )
     fmt_chunk = b"fmt " + struct.pack("<I", len(fmt)) + fmt
     smpl = smpl_chunk()
@@ -126,6 +139,26 @@ def short_tone_wav():
     )
 
 
+def depth_tone(harmonics, bits):
+    return render_channel(harmonics, LENGTH, bits) * DEPTH_PERIODS
+
+
+def tone24_wav():
+    return wav_bytes([depth_tone(HARMONICS_L, 24), depth_tone(HARMONICS_R, 24)], 24)
+
+
+def tone24_mono_wav():
+    return wav_bytes([depth_tone(HARMONICS_L, 24)], 24)
+
+
+def tone32_wav():
+    return wav_bytes([depth_tone(HARMONICS_L, 32), depth_tone(HARMONICS_R, 32)], 32)
+
+
+def tone8_mono_wav():
+    return wav_bytes([depth_tone(HARMONICS_L, 8)], 8)
+
+
 def perc_wav():
     return wav_bytes([perc_channel(PERC_SEED), perc_channel(PERC_SEED ^ 0x5A5A5A5A)])
 
@@ -137,6 +170,10 @@ def main():
         ("_tone_mono.wav", tone_mono_wav()),
         ("_tone_short.wav", short_tone_wav()),
         ("_perc.wav", perc_wav()),
+        ("_tone24.wav", tone24_wav()),
+        ("_tone24_mono.wav", tone24_mono_wav()),
+        ("_tone32.wav", tone32_wav()),
+        ("_tone8_mono.wav", tone8_mono_wav()),
     ):
         (OUT / name).write_bytes(data)
         print(f"wrote {OUT / name} ({len(data)} bytes)")

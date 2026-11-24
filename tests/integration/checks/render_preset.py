@@ -12,6 +12,7 @@ captured from the audio tier. This module stages each case, runs them in paralle
     RP-ZONE     a case in ZONE_MOVE moved a marker of its sample zone mid-note (RENDER_ZONE_MOVE, as the sample marker
                 editor moves it).
     RP-SETTING  a case in SETTING changed a setting mid-render (RENDER_SETTING, as its menu changes it).
+Said, not checked, for each case: `RP-ALLOC <case> render_allocations=<n>`, the audio-tier allocations its render made.
 And once per run:
     RP-LEARN    a preset's own MIDI learn reaches it: the blank boot song must keep the input a preset was saved with
                 when it replaces its default synth. It is the one path the corpus cases do not play through.
@@ -243,6 +244,16 @@ def records_to_write(
     return kept
 
 
+def allocation_echoes(runs) -> list[str]:
+    """Each case's RP-ALLOC line, named: (case, its run's RP-ALLOC line or None) in, gate log lines out."""
+    echoes = []
+    for name, line in runs:
+        count = None if line is None else int_field(line, "render_allocations")
+        if count is not None:
+            echoes.append(f"RP-ALLOC {name} render_allocations={count}")
+    return echoes
+
+
 def _wanted_frames(name: str) -> int:
     return round(SECONDS.get(name, DEFAULT_SECONDS) * FRAMES_PER_SECOND)
 
@@ -358,6 +369,11 @@ def run(gate):
             )
         if len(gate.failures) != before:
             failed += 1
+
+    for line in allocation_echoes(
+        (name, result.last("RP-ALLOC ")) for name, _, result in runs
+    ):
+        gate.say(line)
 
     _check_learn(gate, corpus, pcm_record)
 
