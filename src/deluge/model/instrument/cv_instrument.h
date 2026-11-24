@@ -97,10 +97,12 @@ private:
 		case CVInstrumentMode::one: {
 			gateMode[0] = GateMode::gate;
 			cvmode[0] = CVMode::PITCH;
+			break;
 		}
 		case CVInstrumentMode::two: {
 			gateMode[1] = GateMode::gate;
 			cvmode[1] = CVMode::PITCH;
+			break;
 		}
 		case CVInstrumentMode::both: {
 			gateMode[0] = GateMode::gate;
@@ -109,6 +111,7 @@ private:
 			if (cvmode[1] == CVMode::OFF) {
 				cvmode[1] = CVMode::AFTERTOUCH;
 			}
+			break;
 		}
 		}
 	}
