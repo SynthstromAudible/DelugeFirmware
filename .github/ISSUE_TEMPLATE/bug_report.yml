@@ -1,5 +1,5 @@
 name: Report a problem
-description: Please tell us if something did not work as expected, for feature suggestions please visit the Discussions tab
+description: Please tell us if something did not work as expected. For feature requests, use the "Request a feature" form
 type: Bug
 body:
   - type: markdown
