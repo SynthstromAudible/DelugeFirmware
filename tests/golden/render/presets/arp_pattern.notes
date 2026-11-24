@@ -1,0 +1,12 @@
+# The arp's pattern note mode under a changing chord: each note-on and note-off reorders the pattern's notes.
+# Format: <frame> <hex MIDI bytes>; frames are offline-render sample offsets.
+4608 90 3C 64
+9000 90 40 64
+13000 90 43 64
+30000 80 40 40
+34000 90 47 64
+50000 80 3C 40
+56000 90 48 64
+70000 80 43 40
+70000 80 47 40
+70000 80 48 40

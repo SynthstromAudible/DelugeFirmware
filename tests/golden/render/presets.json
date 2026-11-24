@@ -5,6 +5,12 @@
   "rms_db": -29.37,
   "sha256": "9c977603b0e60c06443b65428a651145a021bb42474be7ff6251746cc740f609"
  },
+ "arp_pattern": {
+  "frames": 88200,
+  "peak": 134956288,
+  "rms_db": -31.56,
+  "sha256": "d3ccc58b8550784349a8360d63f0030f5dd64294ea32c911ab79ea6309e87ecf"
+ },
  "community/12 Metalliche": {
   "frames": 88200,
   "peak": 286668032,
