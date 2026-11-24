@@ -512,9 +512,13 @@ private:
 	static constexpr int32_t kStageRoom = kStageTaps - kHistoryTaps;
 
 	/// @brief The outputs a sub-read from @p phase may gather, at most @p left: those whose newest tap is within
-	/// staging's room. A read's first output takes no step; a later sub-read's first does. Not the last sub-read, a
-	/// multiple of four, so the mix stays whole.
+	/// staging's room. A read's first output takes no step; a later sub-read's first does. Rounded down to a multiple
+	/// of four when four or more fit and some are left over, so the mix's groups stay whole; at the largest steps one
+	/// to three fit, and the mix takes a partial group mid-read. A zero increment never moves: every output fits.
 	[[nodiscard]] static int32_t sub_read_outputs(uint32_t phase, uint32_t inc, int32_t left, bool step_first) {
+		if (inc == 0) {
+			return left;
+		}
 		// The newest tap after n outputs is (phase + (n or n − 1) · inc) >> 24 frames past the history's
 		const uint64_t room = ((static_cast<uint64_t>(kStageRoom) + 1) << 24) - 1 - phase;
 		const uint64_t steps = room / inc;

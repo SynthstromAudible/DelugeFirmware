@@ -157,7 +157,7 @@ std::string run_both(const Case& c, HandChunks& a_source, HandChunks& b_source) 
 	return "";
 }
 
-constexpr std::array<uint32_t, 8> kIncrements{1u << 24,     0x0010'0000U, 0x00F0'0000U, 3u << 23,
+constexpr std::array<uint32_t, 9> kIncrements{1u << 24,     0x0004'0000U, 0x0010'0000U, 0x00F0'0000U, 3u << 23,
                                               0x01F0'0000U, 4u << 24,     17u << 24,    40u << 24};
 
 /// Every case of the matrix whose rates and frames pass @p keep, compared; "" or the first difference, and the count.
@@ -216,7 +216,7 @@ describe read_head_oracle_spec_body("deluge::dsp::fixed::sample_read::ReadHead r
 		std::size_t count = 0;
 		const std::string bad = matrix(count, [](const Case&) { return true; });
 		expect(bad).to_equal(std::string{});
-		expect(count).to_equal(std::size_t{4 * 3 * 4 * 2 * 2 * 8 * 3 * 4});
+		expect(count).to_equal(std::size_t{4 * 3 * 4 * 2 * 2 * 9 * 3 * 4});
 	});
 
 	it("leaves window taps 2 to 15 as they were after a linear read", _ {
@@ -254,14 +254,24 @@ describe read_head_oracle_spec_body("deluge::dsp::fixed::sample_read::ReadHead r
 		expect(count).to_equal(std::size_t{2 * 2 * 2 * 3 * 2});
 	});
 
+	it("matches the oracle at a zero increment, the window held still", _ {
+		constexpr std::array<uint32_t, 1> kStill{0};
+		std::size_t count = 0;
+		const std::string bad =
+		    matrix(count, [](const Case& c) { return c.width == 16 && c.depth == 2; }, kStill);
+		expect(bad).to_equal(std::string{});
+		expect(count).to_equal(std::size_t{3 * 4 * 2 * 2 * 4});
+	});
+
 	it("matches the oracle on sub-reads past the staging, steps over 16", _ {
 		// 128 outputs at 40 and 63 frames a step pass far more frames than staging holds
-		constexpr std::array<uint32_t, 2> kFast{40u << 24, 63u << 24};
+		// And the largest steps a word holds: at 2^32 − 1 a sub-read after a step fits only three outputs
+		constexpr std::array<uint32_t, 4> kFast{40u << 24, 63u << 24, 0x7FFF'FFFFU, 0xFFFF'FFFFU};
 		std::size_t count = 0;
 		const std::string bad =
 		    matrix(count, [](const Case& c) { return c.frames == 128 && c.width == 16; }, kFast);
 		expect(bad).to_equal(std::string{});
-		expect(count).to_equal(std::size_t{4 * 3 * 4 * 2 * 2 * 2});
+		expect(count).to_equal(std::size_t{4 * 3 * 4 * 2 * 2 * 4});
 	});
 });
 // clang-format on
