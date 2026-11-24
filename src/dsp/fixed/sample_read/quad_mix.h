@@ -57,27 +57,30 @@ public:
 		// scalar add_wrap's is, so its crossings here are those words
 		const auto s = static_cast<uint32_t>(step.raw());
 		const std::array<uint32_t, 4> steps{s, 2 * s, 3 * s, 4 * s};
-		steps_ = vreinterpretq_s32_u32(vld1q_u32(steps.data()));
+		amps_ = vaddq_s32(vdupq_n_s32(amplitude.raw()), vreinterpretq_s32_u32(vld1q_u32(steps.data())));
+		step4_ = vdupq_n_s32(static_cast<int32_t>(4 * s));
 	}
 
 	/// @brief Mixes frames 0 to @p count − 1 of @p l and @p r (each lane a frame's sample); @p count is 4 but on a
 	/// read's last call.
-	void put(QVec<31> l, QVec<31> r, int32_t count) {
-		// The words: the amplitude ramp and the samples are words, the voice's buffer a Q30 mix read as Q31
-		const int32x4_t amps = vaddq_s32(vdupq_n_s32(amplitude_.raw()), steps_);
+	/// @details Inlined into the gather, so the ramp stays in its register: the next four amplitudes are a vector, and
+	/// the scalar amplitude is core arithmetic, never a lane moved out.
+	[[gnu::always_inline]] void put(QVec<31> l, QVec<31> r, int32_t count) {
+		// The words: the samples are words, the voice's buffer a Q30 mix read as Q31
 		int32x4_t lw = l.raw();
 		const int32x4_t rw = r.raw();
-		if (cache_ != nullptr) {
+		if (cache_ != nullptr) [[unlikely]] {
 			write_cache(lw, rw, count);
 		}
 		if constexpr (Channels == 2 && OutChannels == 1) {
 			lw = condensed(lw, rw);
 		}
-		if (count == 4) {
-			mix4(lw, rw, amps);
+		if (count == 4) [[likely]] {
+			mix4(lw, rw, amps_);
+			amps_ = vaddq_s32(amps_, step4_);
 		}
 		else {
-			mix_some(lw, rw, amps, count);
+			mix_some(lw, rw, amps_, count);
 		}
 		amplitude_ = Q<31>::from_raw(
 		    static_cast<int32_t>(static_cast<uint32_t>(amplitude_.raw())
@@ -144,7 +147,7 @@ private:
 
 	/// The cache's top three bytes of each frame's words, left then right. A cache is written only while a pitched
 	/// sample is first played, so its bytes go one at a time from the lanes.
-	void write_cache(int32x4_t l, int32x4_t r, int32_t count) {
+	[[gnu::noinline]] void write_cache(int32x4_t l, int32x4_t r, int32_t count) {
 		std::array<uint32_t, 4> ls{};
 		std::array<uint32_t, 4> rs{};
 		vst1q_u32(ls.data(), vreinterpretq_u32_s32(l));
@@ -167,7 +170,8 @@ private:
 	Q<31> amplitude_;
 	Q<31> step_;
 	std::byte* cache_;
-	int32x4_t steps_;
+	int32x4_t amps_;  ///< The next four frames' amplitudes, wrapping words.
+	int32x4_t step4_; ///< Four steps, a word.
 };
 
 } // namespace deluge::dsp::fixed::sample_read

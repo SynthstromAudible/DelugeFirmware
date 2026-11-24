@@ -41,9 +41,18 @@ namespace {
 	return {{vreinterpretq_s16_u8(z.val[0]), vreinterpretq_s16_u8(z.val[1])}};
 }
 
+/// @p v as it is, but opaque to the optimiser: shuffles either side of it stay apart. Fused, an unzip and a lane
+/// reversal become one shuffle the ARM backend lowers to single-lane moves through the core registers.
+[[gnu::always_inline]] inline int16x8_t apart(int16x8_t v) {
+#ifdef __arm__
+	asm("" : "+w"(v));
+#endif
+	return v;
+}
+
 /// Lanes 7 to 0 of @p v.
 [[gnu::always_inline]] inline int16x8_t reversed(int16x8_t v) {
-	const int16x8_t r = vrev64q_s16(v);
+	const int16x8_t r = vrev64q_s16(apart(v));
 	return vcombine_s16(vget_high_s16(r), vget_low_s16(r));
 }
 

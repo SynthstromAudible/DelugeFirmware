@@ -114,38 +114,49 @@ GatherPos sinc_gather(const Staging& s, GatherPos pos, uint32_t inc, int32_t ker
 	if (step_first) {
 		step();
 	}
-	// Each output, then the step to the next; the step after the last is not taken
+	// Whole groups are straight-line code, so one output's loads and multiplies interleave with the next's; each
+	// output, then the step to the next, the step after the last not taken
 	int32_t done = 0;
-	while (true) {
-		const int32_t count = outputs - done < 4 ? outputs - done : 4;
-		int32x2_t l0{};
-		int32x2_t l1{};
-		int32x2_t l2{};
-		int32x2_t l3{};
-		int32x2_t r0{};
-		int32x2_t r1{};
-		int32x2_t r2{};
-		int32x2_t r3{};
+	for (; outputs - done >= 4; done += 4) {
+		int32x2_t l0;
+		int32x2_t l1;
+		int32x2_t l2;
+		int32x2_t l3;
+		int32x2_t r0;
+		int32x2_t r1;
+		int32x2_t r2;
+		int32x2_t r3;
 		one(l0, r0);
-		if (count > 1) {
-			step();
-			one(l1, r1);
-		}
-		if (count > 2) {
-			step();
-			one(l2, r2);
-		}
-		if (count > 3) {
-			step();
-			one(l3, r3);
-		}
-		sink.put(detail::reduce4(l0, l1, l2, l3), detail::reduce4(r0, r1, r2, r3), count);
-		done += count;
-		if (done == outputs) {
-			break;
+		step();
+		one(l1, r1);
+		step();
+		one(l2, r2);
+		step();
+		one(l3, r3);
+		sink.put(detail::reduce4(l0, l1, l2, l3), detail::reduce4(r0, r1, r2, r3), 4);
+		if (done + 4 == outputs) {
+			return {.newest = newest, .phase = phase};
 		}
 		step();
 	}
+	// The last one to three outputs
+	const int32_t count = outputs - done;
+	int32x2_t l0;
+	int32x2_t r0;
+	int32x2_t l1 = vdup_n_s32(0);
+	int32x2_t r1 = vdup_n_s32(0);
+	int32x2_t l2 = vdup_n_s32(0);
+	int32x2_t r2 = vdup_n_s32(0);
+	one(l0, r0);
+	if (count > 1) {
+		step();
+		one(l1, r1);
+	}
+	if (count > 2) {
+		step();
+		one(l2, r2);
+	}
+	sink.put(detail::reduce4(l0, l1, l2, vdup_n_s32(0)), detail::reduce4(r0, r1, r2, vdup_n_s32(0)), count);
 	return {.newest = newest, .phase = phase};
 }
 
