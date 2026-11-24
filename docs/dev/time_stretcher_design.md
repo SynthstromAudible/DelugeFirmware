@@ -613,7 +613,7 @@ ceiling yet (section 6, step 1).
 ### On the device
 
 Measured on the device images of the rewrite's last code commit and of its branch point (`tools/bench_image.py
---no-bench`, both carrying the same bench library), with `arm-none-eabi-nm -S -C` and the section headers.
+--no-bench`, the DSP bench off), with `arm-none-eabi-nm -S -C` and the section headers.
 - **Placement.** Every function of the stretcher set and the read-head set below is in `.text`, and their tables and the
   port's vtable in `.rodata`: on-chip SRAM, none in the GUI archive's SDRAM code or a size-optimised source. As before,
   what keeps them there is their homes, the DSP library and `deluge_synth`, not `[[gnu::hot]]`
@@ -626,14 +626,14 @@ Measured on the device images of the rewrite's last code commit and of its branc
   after, +1,838. Most of it is the read kernels instantiated per channel layout: linear 282 to 394 bytes each, sinc 890
   (mono) and 1,124 (stereo), native 184 to 252. They read faster than the legacy's on the device: `bench pitch_shift`
   against the legacy, sinc −1% to −11% and linear −5% to −16% at 32 to 128 frames.
-- **Both sets are over the budget of a few hundred bytes** (+5,792 together). The image's `.text` grew 6,304 bytes and
-  its `.rodata` shrank 880.
+- **Both sets are over the budget of a few hundred bytes** (+5,792 together). The image's `.text` grew 5,968 bytes and
+  its `.rodata` shrank 864.
 - **Objects.** `SampleStretcher` is 120 bytes (the legacy object 208), `ReadHead::State` 80, `SampleReadLease` 48 (the
   legacy reader 128), the voice-sample 304 (160). At the default pools of 48 of each, the voice-samples take +6,912
   bytes and the stretchers −4,224, a net +2,688 from the heap. The engine's eight tail buffers are 16 KB of `.bss`
-  (decision 2); `.bss` grew 14,944 bytes.
-- **Headroom.** The SRAM heap, `__sram_heap_end − __sram_heap_start`, is 518,192 bytes, 21,536 less than the branch
-  point's 539,728: the tail buffers and the code growth.
+  (decision 2): `.bss` grew by exactly that, 16,384 bytes.
+- **Headroom.** The SRAM heap, `__sram_heap_end − __sram_heap_start`, is 594,288 bytes, 21,472 less than the branch
+  point's 615,760: the tail buffers and the code growth.
 
 ## 6. The rewrite's steps
 
