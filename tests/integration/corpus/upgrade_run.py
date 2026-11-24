@@ -377,7 +377,8 @@ def main(argv=None) -> int:
                 wav = preset.with_suffix(".wav")
                 if not wav.exists() or not converted:
                     continue
-                card = work / "card" / preset.stem
+                # A card per case by its path: two folders may hold cases of the same name
+                card = work / "card" / preset.relative_to(GOLDEN).with_suffix("")
                 (card / "SAMPLES").mkdir(parents=True)
                 shutil.copy(wav, card / "SAMPLES" / "WT.WAV")
                 target = upgraded / preset.parent.relative_to(GOLDEN)
