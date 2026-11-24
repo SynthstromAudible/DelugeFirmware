@@ -592,8 +592,7 @@ gated) for every stretcher case, measured by running each golden-synth case's re
 | Allocations | Cases |
 |---|---|
 | 2 | 17 cases at the root, which have no sample cache: `ts_long_hold`, `ts_loop_fast`, `ts_marker_loop_end`, `_ahead`, `_released`, `ts_marker_loop_start`, `ts_marker_start`, `ts_repeat_cut`, `_loop`, `_once`, `ts_reverse_loop`, `ts_speed_fast`, `_slow`, `ts_zone_end_ahead`, `_loop`, `_once`, `_released` |
-| 4 | 22 cases with a sample cache: `timestretch`, `ts_cache_bend_early`, `ts_cache_replay`, `ts_cached_loop` (and `stereo/ts_cached_loop`), `ts_marker_loop_end_cached`, `_ahead`, `ts_marker_start_cached`, `ts_markers`, `ts_mono`, `ts_perc`, `ts_pitch_cents`, `_down12`, `_down36`, `_fifth`, `_up36`, `ts_reversed`, `ts_short`, `ts_tonal`, `ts_zone_end_cached`, `_ahead`, `_once` |
-| 5 | 6 cases that crossfade out of a cache: `ts_cache_bend`, `ts_cache_bend_root`, `ts_cache_crossfade`, `_mono`, `ts_cache_linear`, `ts_cache_stretch_amount` |
+| 4 | 28 cases with a sample cache: `timestretch`, `ts_cache_bend_early`, `ts_cache_replay`, `ts_cached_loop` (and `stereo/ts_cached_loop`), `ts_marker_loop_end_cached`, `_ahead`, `ts_marker_start_cached`, `ts_markers`, `ts_mono`, `ts_perc`, `ts_pitch_cents`, `_down12`, `_down36`, `_fifth`, `_up36`, `ts_reversed`, `ts_short`, `ts_tonal`, `ts_zone_end_cached`, `_ahead`, `_once`; and the 6 that crossfade out of a cache, 5 before decision 2: `ts_cache_bend`, `ts_cache_bend_root`, `ts_cache_crossfade`, `_mono`, `ts_cache_linear`, `ts_cache_stretch_amount` |
 | 9 | `ts_poly` (four voices, four caches) |
 
 Where they come from, traced by a debugger watchpoint on the counter in four cases (`ts_long_hold`, `ts_pitch_fifth`,
@@ -602,41 +601,39 @@ Where they come from, traced by a debugger watchpoint on the counter in four cas
   growth. The sample's, not the stretcher's; it moves with the fill unchanged.
 - **The sample cache** (`Sample::getOrCreateCache`): one for each cache's memory, plus each growth of the sample's
   cache list (once for the first cache; three times for `ts_poly`'s four, so 7 there). Not the stretcher's.
-- **1, the cache tail's buffer**, the stretcher's only render allocation (`allocMaxSpeed` of 256 words per channel,
-  1 KB mono or 2 KB stereo). Decision 2 removes it: the engine's eight tail buffers are made at start.
+- **1, the cache tail's buffer**, the legacy stretcher's only render allocation (`allocMaxSpeed` of 256 words per
+  channel, 1 KB mono or 2 KB stereo), in each crossfade out of a cache. Decision 2 removed it: the engine's eight tail
+  buffers are made at start, and the six cases that crossfade out of a cache count 4, the others unchanged.
 - In the four traced cases the pool (48 stretchers) never fell back to the heap. The other cases' counts follow the
-  same pattern (2 for the perc cache, 2 for one sample cache, 1 per crossfade out of a cache); they were counted, not
-  traced.
+  same pattern (2 for the perc cache, 2 for one sample cache); they were counted, not traced.
 
 These counts are the ceiling: no case may rise. The render-song gates print no allocation count, so the songs have no
 ceiling yet (section 6, step 1).
 
 ### On the device
 
-Measured on the device image of this tree (`dbt build RelWithDebInfo`), with `arm-none-eabi-nm -S` and the section
-headers:
-- **Placement.** All of `.text` is on-chip SRAM. The legacy class's 18 functions occupy 7,384 bytes there,
-  contiguously, and its tables 220 bytes of `.rodata` (also SRAM). Its users' stretcher functions add 4,084 bytes
-  (`Sample::fillPercCache` 2,278, `Sample::getAveragesForCrossfade` 624, `VoiceSample::weShouldBeTimeStretchingNow`
-  302, `VoiceSample::fudgeTimeStretchingToAvoidClick` 296, `Sample::prepareToReadPercCache` 288,
-  `SampleLowLevelReader::readSamplesForTimeStretching` 208, the pool hand-out 54, `VoiceSample::endTimeStretching` 34);
-  `VoiceSample::render` is 4,352. The class's `[[gnu::hot]]` does not decide where it lands: it sits at the front of the
-  application's code because its archive links first, and `TrackChannel::render`, also `[[gnu::hot]]`, sits far from it.
-  What keeps code fast is staying out of the size-optimised sources and out of the GUI archive the device runs from
-  SDRAM (`src/deluge/CMakeLists.txt`); the new homes, the DSP library and `deluge_synth`, are in neither.
-- **Objects.** The legacy object is 208 bytes, 128 of them its older head's reader; the pool holds 48 (9,984 bytes of
-  fast memory). The voice-sample is 160 bytes; a perc zone 28.
-- **Headroom.** The SRAM heap, `__sram_heap_end − __sram_heap_start`, is 616,240 bytes.
-
-The rewrite's budget: the stretcher's code and tables stay in `.text`/`.rodata` outside the size-optimised set, within
-a few hundred bytes of today's total (the DSP components are header-first and inline into their callers, so the
-comparison is the users' and the stretcher's functions together, about 11.7 KB). The read head's code replaces the
-reader's, compared the same way with the reader's functions and `VoiceSample::render`'s unstretched read. In memory,
-the spare head moves from the stretcher into every voice-sample, and the stretcher loses it. Today's reader is 128 bytes
-(the voice-sample with it 160); a head of that size is, at the default pool sizes of 48 voice-samples and 48
-stretchers, +6,144 bytes in the voice-samples and about −6,144 bytes in the stretchers, a net change of about 0. The
-read head's and its lease's sizes, and the new stretcher's, are settled when they are written. The pooled stretcher
-holds no tail buffer (decision 2); the engine's eight are 16 KB.
+Measured on the device images of the rewrite's last code commit and of its branch point (`tools/bench_image.py
+--no-bench`, both carrying the same bench library), with `arm-none-eabi-nm -S -C` and the section headers.
+- **Placement.** Every function of the stretcher set and the read-head set below is in `.text`, and their tables and the
+  port's vtable in `.rodata`: on-chip SRAM, none in the GUI archive's SDRAM code or a size-optimised source. As before,
+  what keeps them there is their homes, the DSP library and `deluge_synth`, not `[[gnu::hot]]`
+  (`src/deluge/CMakeLists.txt`).
+- **The stretcher set** (the stretcher's and its port's functions, the hop planner's and aligner's out-of-line code, the
+  hop tables, the users' stretcher functions, and `VoiceSample::render`): 15,808 bytes at the branch point, 19,762
+  after, +3,954. The largest are `SampleStretcher::hop` 3,800 (the legacy `hopEnd` 4,444), `read_heads` 1,220,
+  `plan_hop` 1,184, `begin` 1,072, `moving_averages` 640, and `VoiceSample::render` 4,286 (4,352).
+- **The read-head set** (the reader's functions, against the lease's and the read head's): 6,546 bytes before, 8,384
+  after, +1,838. Most of it is the read kernels instantiated per channel layout: linear 282 to 394 bytes each, sinc 890
+  (mono) and 1,124 (stereo), native 184 to 252. They read faster than the legacy's on the device: `bench pitch_shift`
+  against the legacy, sinc −1% to −11% and linear −5% to −16% at 32 to 128 frames.
+- **Both sets are over the budget of a few hundred bytes** (+5,792 together). The image's `.text` grew 6,304 bytes and
+  its `.rodata` shrank 880.
+- **Objects.** `SampleStretcher` is 120 bytes (the legacy object 208), `ReadHead::State` 80, `SampleReadLease` 48 (the
+  legacy reader 128), the voice-sample 304 (160). At the default pools of 48 of each, the voice-samples take +6,912
+  bytes and the stretchers −4,224, a net +2,688 from the heap. The engine's eight tail buffers are 16 KB of `.bss`
+  (decision 2); `.bss` grew 14,944 bytes.
+- **Headroom.** The SRAM heap, `__sram_heap_end − __sram_heap_start`, is 518,192 bytes, 21,536 less than the branch
+  point's 539,728: the tail buffers and the code growth.
 
 ## 6. The rewrite's steps
 
