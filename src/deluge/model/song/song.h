@@ -414,7 +414,8 @@ public:
 	bool shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = nullptr);
 	/// @brief Navigate a MIDI or CV output through its channels. A Synth or Kit is acquired by InstrumentLoad and
 	///        applied by applyNavigateThroughPresets(); this returns @p output unchanged for one.
-	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset);
+	///        @p displayClip, when given, is the clip whose section the redrawn name shows.
+	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip = nullptr);
 	/// @brief Swap in the Synth or Kit a navigate acquired for @p oldInstrument.
 	/// @return The new Instrument, or @p oldInstrument when the acquisition found nothing (its error shown) or landed
 	///         on an Instrument already in the song.

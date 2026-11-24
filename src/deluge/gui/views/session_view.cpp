@@ -708,7 +708,8 @@ void SessionView::completeChangeOutputType(OutputType newOutputType, Instrument*
 	Instrument* newInstrument = (acquired != nullptr) ? currentSong->applyChangeOutputType(oldInstrument, *acquired)
 	                                                  : currentSong->changeOutputType(oldInstrument, newOutputType);
 	if (newInstrument) {
-		view.displayOutputName(newInstrument);
+		// The held clip has the new instrument now, so its section name is drawn with it
+		view.displayOutputName(newInstrument, true, newInstrument->getActiveClip());
 		view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 	}
 	// Read live rather than snapshotted, for the same reason completeChangeOutputTypeRows() does:
@@ -1350,7 +1351,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 void SessionView::completeNavigate(int32_t offset, Output* oldOutput, const deluge::storage::AcquireResult* acquired) {
 	Output* newOutput = (acquired != nullptr)
 	                        ? currentSong->applyNavigateThroughPresets(static_cast<Instrument*>(oldOutput), *acquired)
-	                        : currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
+	                        : currentSong->navigateThroughPresetsForInstrument(oldOutput, offset, getClipForLayout());
 	if (oldOutput != newOutput) {
 		view.setActiveModControllableTimelineCounter(newOutput->getActiveClip());
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);

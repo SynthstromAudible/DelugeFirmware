@@ -4895,7 +4895,7 @@ bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequi
 	}
 }
 
-Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset) {
+Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip) {
 	if (output->type == OutputType::AUDIO) {
 		return output;
 	}
@@ -4998,7 +4998,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 			                               deluge::serialization::Value::makeNumber(newChannelSuffix));
 		}
 
-		view.displayOutputName(oldNonAudioInstrument);
+		view.displayOutputName(oldNonAudioInstrument, true, displayClip);
 	}
 
 	// A Kit or Synth: acquired by InstrumentLoad, and applied by applyNavigateThroughPresets().
