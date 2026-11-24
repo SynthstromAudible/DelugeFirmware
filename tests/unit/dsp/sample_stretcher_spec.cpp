@@ -159,6 +159,19 @@ describe sample_stretcher_spec_body("deluge::synth::SampleStretcher", ${
 		expect(s.is_fudge() ? 1 : 0).to_equal(1);
 	});
 
+	it("begins a fudge with no frames to the loop as a plain begin, as the legacy's init did", _ {
+		Rig rig;
+		rig.port.start_byte = FakeStretchPort::kDataStart + (3000 * 4);
+		SampleStretcher s;
+		const bool begun = s.begin(rig.port, rig.ctx, SourcePosition(int64_t{9000} << 24),
+		                           motion(1u << 24, 1u << 25), LoopType::NONE, SampleStretcher::Fudge{0});
+		expect(begun ? 1 : 0).to_equal(1);
+		expect(s.is_fudge() ? 1 : 0).to_equal(0);
+		expect(static_cast<int32_t>(rig.port.seat_calls.size())).to_equal(0);
+		expect(s.clock().to_hop() < INT32_MAX ? 1 : 0).to_equal(1);
+		expect(rig.noise.state() != kSeed ? 1 : 0).to_equal(1);
+	});
+
 	it("fails a fudge whose seat fails", _ {
 		Rig rig;
 		rig.port.start_byte = FakeStretchPort::kDataStart + (3000 * 4);

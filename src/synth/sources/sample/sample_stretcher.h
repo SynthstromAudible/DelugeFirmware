@@ -57,7 +57,7 @@ public:
 		int32_t channels;
 	};
 	/// @brief A begin only to crossfade into the loop's pre-margin before a loop end @p output_frames_to_loop frames
-	/// away (S2).
+	/// away (S2); with no frames to the loop, a plain begin.
 	struct Fudge {
 		int32_t output_frames_to_loop;
 	};

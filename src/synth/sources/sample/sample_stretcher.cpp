@@ -137,7 +137,8 @@ bool SampleStretcher::begin(SampleStretchPort& port, StretchContext& context, So
 	begun_this_block_ = true;
 	const SourceFacts facts = port.facts();
 
-	if (const auto* fudge = std::get_if<Fudge>(&opening)) {
+	// A fudge with no frames to the loop begins plain, as the legacy's init did
+	if (const auto* fudge = std::get_if<Fudge>(&opening); fudge != nullptr && fudge->output_frames_to_loop != 0) {
 		fudge_ = true;
 		const int32_t into = fudge_into(fudge->output_frames_to_loop, motion.increment);
 		const auto d = static_cast<int32_t>(motion.direction);
