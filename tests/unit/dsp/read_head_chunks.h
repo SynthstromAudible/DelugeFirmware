@@ -108,15 +108,19 @@ public:
 		if (!held_) {
 			return std::nullopt;
 		}
-		const int32_t index = *held_;
-		const int32_t cs = record_->chunk_size;
-		const int32_t ds = record_->data_start;
-		const int32_t fb = frame_bytes();
+		return chunk_span(*record_, *held_, direction);
+	}
+
+	/// R6's boundary and floor of chunk @p index of a source laid out as @p geometry, in frames.
+	[[nodiscard]] static ChunkSpan chunk_span(const r::ReadSourceRecord& geometry, int32_t index, Direction direction) {
+		const int32_t cs = geometry.chunk_size;
+		const int32_t ds = geometry.data_start;
+		const int32_t fb = geometry.channels * geometry.byte_depth;
 		const bool forward = direction == Direction::FORWARD;
-		const int32_t final_index = forward ? (record_->end_byte - 1) / cs : (record_->end_byte + fb) / cs;
+		const int32_t final_index = forward ? (geometry.end_byte - 1) / cs : (geometry.end_byte + fb) / cs;
 		ChunkSpan span{};
 		if (index == final_index) {
-			span.boundary = (record_->end_byte - ds) / fb;
+			span.boundary = (geometry.end_byte - ds) / fb;
 			span.final = true;
 		}
 		else if (forward) {
@@ -133,8 +137,8 @@ public:
 			span.floor = index == ds / cs ? 0 : (((index * cs) - ds) + fb - 1) / fb;
 		}
 		else {
-			const int32_t stop = ds + record_->data_length;
-			span.floor = index == stop / cs ? (record_->data_length - 1) / fb : ((index * cs) + cs - 1 - ds) / fb;
+			const int32_t stop = ds + geometry.data_length;
+			span.floor = index == stop / cs ? (geometry.data_length - 1) / fb : ((index * cs) + cs - 1 - ds) / fb;
 		}
 		return span;
 	}
