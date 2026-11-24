@@ -29,6 +29,8 @@ constexpr uint8_t kCinTwoByteSystemCommon = 0x2;
 constexpr uint8_t kCinThreeByteSystemCommon = 0x3;
 constexpr uint8_t kSystemStatusType = 0x0F;
 constexpr uint8_t kFirstVoiceCin = 0x8;
+constexpr uint8_t kCinSingleByteSystemCommon = 0x5;
+constexpr uint8_t kFirstSystemRealTime = 0xF8;
 } // namespace
 
 UsbEventPacket pack_event(MIDIMessage message, uint8_t cable) {
@@ -49,6 +51,21 @@ std::optional<DecodedEvent> decode_event(UsbEventPacket packet) {
 	if (cin < kFirstVoiceCin) {
 		if (cin == kCinTwoByteSystemCommon || cin == kCinThreeByteSystemCommon) {
 			statusType = kSystemStatusType;
+		}
+		else if (cin == kCinSingleByteSystemCommon && packet.status >= kFirstSystemRealTime) {
+			// System Real-Time should come with CIN 0xF, but some hosts send it with CIN 0x5 (single-byte system
+			// common, or SysEx end): the Windows 11 USB MIDI 2 class driver among them. Taken as real-time, so clock,
+			// start and stop are not lost and the byte does not end a SysEx in progress; its data bytes carry nothing
+			return DecodedEvent{
+			    .cable = packet.cable(),
+			    .message =
+			        MIDIMessage{
+			            .statusType = kSystemStatusType,
+			            .channel = static_cast<uint8_t>(packet.status & 0x0F),
+			            .data1 = 0,
+			            .data2 = 0,
+			        },
+			};
 		}
 		else {
 			// SysEx fragment, reserved, or single-byte/misc — not a standalone

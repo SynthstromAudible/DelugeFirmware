@@ -77,6 +77,22 @@ describe midi_usb_event("deluge::midi USB-MIDI event packets", $ {
 			expect(decoded->message.statusType).to_equal(0x0F);
 		});
 
+		it("takes System Real-Time sent with code index number 0x5 as real-time, its data bytes dropped", _ {
+			// Some hosts (the Windows 11 USB MIDI 2 class driver among them) send clock, start and stop with CIN 0x5
+			std::optional decoded = decode_event(UsbEventPacket{.header = 0x15, .status = 0xF8, .data1 = 0x33, .data2 = 0x44});
+			expect(decoded).to_have_value();
+			expect(decoded->cable).to_equal(1);
+			expect(decoded->message.statusType).to_equal(0x0F);
+			expect(decoded->message.channel).to_equal(0x08);
+			expect(decoded->message.data1).to_equal(0);
+			expect(decoded->message.data2).to_equal(0);
+		});
+
+		it("leaves a single-byte SysEx end with code index number 0x5 to the SysEx parser", _ {
+			expect(decode_event(UsbEventPacket{.header = 0x05, .status = 0xF7, .data1 = 0x00, .data2 = 0x00}).has_value())
+			    .to_equal(false);
+		});
+
 		it("rejects SysEx fragments (low code index numbers)", _ {
 			expect(decode_event(UsbEventPacket{.header = 0x04, .status = 0xF0, .data1 = 0x7E, .data2 = 0x00}).has_value())
 			    .to_equal(false);
