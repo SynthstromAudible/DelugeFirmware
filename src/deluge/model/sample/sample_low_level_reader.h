@@ -23,6 +23,7 @@
 #include "deluge_storage_sample_source.h"
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/interpolation/interpolator.h"
+#include "dsp/fixed/sample_read/mixed_in.h"
 #include <array>
 #include <cstdint>
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0
@@ -62,14 +63,7 @@ constexpr RegionOutcome regionOutcomeFrom(DelugeRegionState state) {
 }
 
 namespace deluge::audio {
-/// @brief @p mix plus @p sample times @p amplitude, the rounded high word, summed wrapping. A sample voice's buffer
-/// holds its mix at half scale: the Q30 products are the words of the voice's Q31 samples.
-[[gnu::always_inline]] inline deluge::dsp::Q<31> mixed_in(deluge::dsp::Q<31> mix, deluge::dsp::Q<31> sample,
-                                                          deluge::dsp::Q<31> amplitude) {
-	using deluge::dsp::Q;
-	using deluge::dsp::reinterpret_bits;
-	return reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(mix), sample, amplitude));
-}
+using deluge::dsp::fixed::sample_read::mixed_in;
 } // namespace deluge::audio
 
 class SampleLowLevelReader {
