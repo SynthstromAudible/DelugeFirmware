@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "time_stretcher_records.h"
 
@@ -38,7 +39,8 @@ using deluge::dsp::fixed::sample_read::Residency;
 class RecordChunks {
 public:
 	/// @param held The chunk the head holds when the record begins, or none.
-	RecordChunks(const r::ReadSourceRecord& record, std::optional<int32_t> held) : record_(&record), held_(held) {}
+	RecordChunks(const r::ReadSourceRecord& record, std::optional<int32_t> held)
+	    : record_(&record), held_(held), next_(held ? 1 : 0) {}
 
 	[[nodiscard]] int32_t channels() const { return record_->channels; }
 	[[nodiscard]] int32_t byte_depth() const { return record_->byte_depth; }
@@ -83,9 +85,11 @@ public:
 			held_.reset();
 			return Residency::UNAVAILABLE;
 		}
-		for (uint32_t i = 0; i < record_->chunks.count; i++) {
+		// The images are in the order the call met its chunks: a move takes the next one for its chunk
+		for (uint32_t i = next_; i < record_->chunks.count; i++) {
 			const r::ChunkImage& image = r::kChunkImages[record_->chunks.offset + i];
 			if (image.index == index) {
+				next_ = i + 1;
 				const auto residency = static_cast<Residency>(image.residency);
 				if (residency == Residency::READY) {
 					held_ = index;
@@ -146,8 +150,89 @@ public:
 private:
 	const r::ReadSourceRecord* record_;
 	std::optional<int32_t> held_;
+	uint32_t next_; ///< The next image a move may take.
 	mutable int32_t misses_ = 0;
 };
+
+/// A synthetic source: a file of frames whose chunks' memory, slack included, is the file's own bytes (the loader
+/// copies a neighbour's bytes into a chunk's slack), every chunk ready.
+class HandChunks {
+public:
+	HandChunks(r::ReadSourceRecord geometry, int32_t frames, bool has_cursor)
+	    : geometry_(geometry), has_cursor_(has_cursor),
+	      bytes_(static_cast<size_t>(geometry.data_start + (frames * frame_bytes()) + 64), std::byte{0}) {
+		geometry_.data_length = frames * frame_bytes();
+		for (size_t i = 0; i < bytes_.size(); i++) {
+			bytes_[i] = static_cast<std::byte>((i * 37 + 11) & 0xFF);
+		}
+	}
+	[[nodiscard]] int32_t channels() const { return geometry_.channels; }
+	[[nodiscard]] int32_t byte_depth() const { return geometry_.byte_depth; }
+	[[nodiscard]] int32_t frame_bytes() const { return geometry_.channels * geometry_.byte_depth; }
+	[[nodiscard]] int32_t length_frames() const { return geometry_.data_length / frame_bytes(); }
+	[[nodiscard]] std::optional<int32_t> held() const { return held_; }
+	void hold(int32_t index) { held_ = index; }
+	/// The file's byte at @p at, to set a sample by hand.
+	std::byte& byte(int32_t at) { return bytes_[static_cast<size_t>(at)]; }
+
+	[[nodiscard]] std::optional<FrameRun> run(int32_t frame, Direction direction) const {
+		if (!held_) {
+			return std::nullopt;
+		}
+		const int32_t fb = frame_bytes();
+		const int32_t byte = geometry_.data_start + (frame * fb);
+		const int32_t offset = byte - (*held_ * geometry_.chunk_size);
+		const int32_t origin = offset + geometry_.byte_depth - 4;
+		if (origin < -4 || offset + fb > geometry_.chunk_size + 7) {
+			return std::nullopt; // outside the chunk's memory
+		}
+		const int32_t frames = direction == Direction::FORWARD ? ((geometry_.chunk_size + 7 - (offset + fb)) / fb) + 1
+		                                                       : ((origin + 4) / fb) + 1;
+		return FrameRun{.first = bytes_.data() + (byte + geometry_.byte_depth - 4),
+		                .frames = frames,
+		                .stride = fb * static_cast<int32_t>(direction),
+		                .channels = geometry_.channels,
+		                .byte_depth = geometry_.byte_depth};
+	}
+	Residency move_to(int32_t frame, Direction /*direction*/) {
+		const int32_t index = (geometry_.data_start + (frame * frame_bytes())) / geometry_.chunk_size;
+		if (held_ && *held_ != index && !has_cursor_) {
+			held_.reset();
+			return Residency::UNAVAILABLE;
+		}
+		held_ = index;
+		return Residency::READY;
+	}
+	void let_go() { held_.reset(); }
+	[[nodiscard]] std::optional<ChunkSpan> span(Direction direction) const {
+		if (!held_) {
+			return std::nullopt;
+		}
+		return RecordChunks::chunk_span(geometry_, *held_, direction);
+	}
+
+private:
+	r::ReadSourceRecord geometry_;
+	bool has_cursor_;
+	std::vector<std::byte> bytes_;
+	std::optional<int32_t> held_;
+};
+static_assert(deluge::dsp::fixed::sample_read::read_source<HandChunks>);
+
+inline r::ReadSourceRecord geometry(int32_t data_start, int8_t channels, int8_t byte_depth, int32_t frames,
+                                    Direction d) {
+	const int32_t fb = channels * byte_depth;
+	return {.chunks = {0, 0},
+	        .data_start = data_start,
+	        .data_length = frames * fb,
+	        .chunk_size = 32768,
+	        .end_byte = d == Direction::FORWARD ? data_start + (frames * fb) : data_start - fb,
+	        .loop_start_byte = data_start,
+	        .channels = channels,
+	        .byte_depth = byte_depth,
+	        .obey_markers = false,
+	        .has_cursor = true};
+}
 
 /// A recorded head as the read head's state: its cursor a frame from the data's start, its window loaded.
 inline ReadHead::State state_of(const r::HeadRecord& head, const r::ReadSourceRecord& source) {

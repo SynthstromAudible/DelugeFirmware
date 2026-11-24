@@ -19,10 +19,12 @@
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/interpolation/interpolator.h"
 #include "dsp/fixed/sample_read/frame_source.h"
+#include "dsp/fixed/sample_read/mixed_in.h"
 
 #include <concepts>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <variant>
 
 namespace deluge::dsp::fixed::sample_read {
@@ -167,6 +169,123 @@ struct ReadHead {
 		}
 		return {.kind = Window::Kind::READ,
 		        .frames = window_length(state, source, bounds, frames, increment, width, direction)};
+	}
+
+	/// @brief Where a read mixes its frames: the output, its channels (1 condenses a stereo source), and the amplitude
+	/// and its step, stepped before each frame.
+	struct Output {
+		std::span<Q<31>> out;
+		int8_t out_channels;
+		Q<31> amplitude;
+		Q<31> step;
+	};
+
+	/// The reads are the legacy's word arithmetic: a sample's bytes are a word masked and condensed, the taps the top
+	/// halfwords of words, the phase a Q24 word, the linear read's products integer words read as Q31 samples. So the
+	/// crossings below are those words.
+	/// @brief A native read of @p frames frames (R7): each sample its bytes masked from the 32-bit read ending at its
+	/// top byte, mixed in at the stepped amplitude, the cursor on a frame each.
+	template <read_source S>
+	static void read_native(State& state, const S& source, Output& output, int32_t frames, Direction direction) {
+		const int32_t depth = source.byte_depth();
+		const uint32_t mask = 0xFFFFFFFFu << (32 - (8 * depth));
+		const bool stereo = source.channels() == 2;
+		auto& reading = std::get<Reading>(state.cursor);
+		std::size_t at = 0;
+		while (frames > 0) {
+			const std::optional<FrameRun> run = source.run(reading.frame, direction);
+			if (!run) {
+				return; // a window check has said these frames are readable
+			}
+			const int32_t take = std::min(frames, run->frames);
+			for (int32_t k = 0; k < take; k++) {
+				auto l = static_cast<int32_t>(static_cast<uint32_t>(frame_word(*run, k, 0)) & mask);
+				int32_t r = 0;
+				if (stereo) {
+					r = static_cast<int32_t>(static_cast<uint32_t>(frame_word(*run, k, 1)) & mask);
+					if (output.out_channels == 1) {
+						l = (l >> 1) + (r >> 1);
+					}
+				}
+				mix(output, at, Q<31>::from_raw(l), Q<31>::from_raw(r));
+			}
+			reading.frame += take * static_cast<int32_t>(direction);
+			frames -= take;
+		}
+	}
+
+	/// @brief A resampled read of @p frames frames (R8, R9), its first output skipping its step (R3 took it): the
+	/// windowed sinc for a width over 2, writing the cache's top three bytes of each channel where @p cache_write is
+	/// set; else the 2-tap linear read.
+	template <read_source S>
+	static void read_resampled(State& state, const S& source, Output& output, int32_t frames, Increment increment,
+	                           int32_t width, int32_t kernel, std::byte*& cache_write, Direction direction) {
+		const auto channels = static_cast<std::size_t>(source.channels());
+		const bool condense = channels == 2 && output.out_channels == 1;
+		std::size_t at = 0;
+		if (width > 2) {
+			for (int32_t i = 0; i < frames; i++) {
+				if (i != 0) {
+					sinc_step(state, source, increment, direction);
+				}
+				StereoSample sample = state.window.interpolate(channels, kernel, state.phase.raw());
+				if (cache_write != nullptr) {
+					cache_word(cache_write, sample.l);
+					if (channels == 2) {
+						cache_word(cache_write, sample.r);
+					}
+				}
+				if (condense) {
+					sample.l = add_wrap(halve_toward_zero(sample.l), halve_toward_zero(sample.r));
+				}
+				mix(output, at, sample.l, sample.r);
+			}
+			return;
+		}
+		if (source.span(direction).has_value()) {
+			read_linear(state, source, output, frames, increment, direction);
+			return;
+		}
+		for (int32_t i = 0; i < frames; i++) {
+			if (i != 0) {
+				zero_step(state, source, increment);
+			}
+			StereoSample sample = state.window.interpolate_linear(channels, state.phase.raw());
+			if (condense) {
+				sample.l = add_wrap(halve_floor(sample.l), halve_floor(sample.r));
+			}
+			mix(output, at, sample.l, sample.r);
+		}
+	}
+
+	/// @brief A head's read of @p frames frames (R11): window checks and the reads they allow until all are rendered,
+	/// each window's first output skipping its step afresh. False once the head has stopped (every failed check leaves
+	/// it holding no chunk). @p cache_write null writes no cache.
+	template <read_source S>
+	[[nodiscard]] static bool read(State& state, S& source, const ReadBounds& bounds, Output& output, int32_t frames,
+	                               Increment increment, int32_t width, int32_t kernel, std::byte* cache_write,
+	                               Direction direction) {
+		std::size_t done = 0;
+		while (frames != 0) {
+			const Window window = check(state, source, bounds, frames, increment, width, direction);
+			if (window.kind == Window::Kind::STOPPED) {
+				return false;
+			}
+			Output part{.out = output.out.subspan(done * static_cast<std::size_t>(output.out_channels)),
+			            .out_channels = output.out_channels,
+			            .amplitude = output.amplitude,
+			            .step = output.step};
+			if (increment.raw() == (1u << 24)) {
+				read_native(state, source, part, window.frames, direction);
+			}
+			else {
+				read_resampled(state, source, part, window.frames, increment, width, kernel, cache_write, direction);
+			}
+			output.amplitude = part.amplitude;
+			done += static_cast<std::size_t>(window.frames);
+			frames -= window.frames;
+		}
+		return true;
 	}
 
 	/// @brief The 16-bit tap of @p frame's @p channel: the top word of the 32-bit read ending at its top byte.
@@ -322,6 +441,145 @@ private:
 		}
 		const int64_t room = static_cast<int64_t>((static_cast<uint64_t>(left) + 1) << 24) - phase - 1;
 		return static_cast<int32_t>(static_cast<uint64_t>(room) / increment.raw()) + 1;
+	}
+
+	/// The amplitude stepped, then one frame mixed into the output at @p at, which moves on.
+	static void mix(Output& output, std::size_t& at, Q<31> l, Q<31> r) {
+		output.amplitude = add_wrap(output.amplitude, output.step);
+		output.out[at] = mixed_in(output.out[at], l, output.amplitude);
+		at++;
+		if (output.out_channels == 2) {
+			output.out[at] = mixed_in(output.out[at], r, output.amplitude);
+			at++;
+		}
+	}
+
+	/// The top three bytes of @p word, as the cache stores a sample.
+	static void cache_word(std::byte*& to, Q<31> word) {
+		const auto w = static_cast<uint32_t>(word.raw());
+		*to++ = static_cast<std::byte>(w >> 8);
+		*to++ = static_cast<std::byte>(w >> 16);
+		*to++ = static_cast<std::byte>(w >> 24);
+	}
+
+	/// R8's step for a later output: holding a chunk, the window advances by the frames the phase passes (at most 16,
+	/// the cursor jumping the rest unread); holding none, zero taps.
+	template <read_source S>
+	static void sinc_step(State& state, const S& source, Increment increment, Direction direction) {
+		auto* reading = std::get_if<Reading>(&state.cursor);
+		if (reading == nullptr || !source.span(direction).has_value()) {
+			zero_step(state, source, increment);
+			return;
+		}
+		uint32_t phase = state.phase.raw() + increment.raw();
+		auto steps = static_cast<int32_t>(phase >> 24);
+		if (steps != 0) {
+			phase &= (1u << 24) - 1;
+			const auto d = static_cast<int32_t>(direction);
+			if (steps > kInterpolationMaxNumSamples) {
+				reading->frame += (steps - kInterpolationMaxNumSamples) * d;
+				steps = kInterpolationMaxNumSamples;
+			}
+			auto feed = state.window.advance(static_cast<std::size_t>(steps));
+			while (feed.remaining() != 0) {
+				if (source.channels() == 2) {
+					feed.put(tap(source, reading->frame, 0, direction), tap(source, reading->frame, 1, direction));
+				}
+				else {
+					feed.put(tap(source, reading->frame, 0, direction));
+				}
+				reading->frame += d;
+			}
+		}
+		state.phase = UQ<24>::from_raw(phase);
+	}
+
+	/// The phase stepped with zero taps, each counted (jumpForwardZeroes).
+	template <read_source S>
+	static void zero_step(State& state, const S& source, Increment increment) {
+		uint32_t phase = state.phase.raw() + increment.raw();
+		auto steps = static_cast<int32_t>(phase >> 24);
+		if (steps != 0) {
+			phase &= (1u << 24) - 1;
+			while (steps-- != 0) {
+				state.window.push_l(0);
+				if (source.channels() == 2) {
+					state.window.push_r(0);
+				}
+				int32_t zero_taps = 1;
+				if (const auto* ended = std::get_if<Ended>(&state.cursor)) {
+					zero_taps = counted(ended->zero_taps);
+				}
+				// A head reading but holding no chunk counts as the legacy's cursor-as-count did
+				state.cursor = Ended{zero_taps};
+			}
+		}
+		state.phase = UQ<24>::from_raw(phase);
+	}
+
+	/// R9 over a held chunk: the two taps in hand, the second the cursor's frame.
+	template <read_source S>
+	static void read_linear(State& state, const S& source, Output& output, int32_t frames, Increment increment,
+	                        Direction direction) {
+		const bool stereo = source.channels() == 2;
+		const bool condense = stereo && output.out_channels == 1;
+		const auto d = static_cast<int32_t>(direction);
+		auto& reading = std::get<Reading>(state.cursor);
+		int16_t newest_l = state.window.window_l()[0];
+		int16_t previous_l = state.window.window_l()[1];
+		int16_t newest_r = stereo ? state.window.window_r()[0] : int16_t{0};
+		int16_t previous_r = stereo ? state.window.window_r()[1] : int16_t{0};
+		uint32_t phase = state.phase.raw();
+		std::size_t at = 0;
+		// A later output's step (jumpForwardLinear): a step of one moves the newest tap to the previous; a longer one
+		// reads both afresh, jumping the frames before them unread
+		auto step = [&] {
+			phase += increment.raw();
+			const auto steps = static_cast<int32_t>(phase >> 24);
+			if (steps == 0) {
+				return;
+			}
+			phase &= (1u << 24) - 1;
+			if (steps > 2) {
+				reading.frame += (steps - 2) * d;
+			}
+			if (steps >= 2) {
+				previous_l = tap(source, reading.frame, 0, direction);
+				previous_r = stereo ? tap(source, reading.frame, 1, direction) : int16_t{0};
+				reading.frame += d;
+			}
+			else {
+				previous_l = newest_l;
+				previous_r = newest_r;
+			}
+			newest_l = tap(source, reading.frame, 0, direction);
+			newest_r = stereo ? tap(source, reading.frame, 1, direction) : int16_t{0};
+			reading.frame += d;
+		};
+		for (int32_t i = 0; i < frames; i++) {
+			if (i != 0) {
+				step();
+			}
+			// The 16-bit taps times their Q15 strengths, integer products read as the Q31 sample
+			const auto strength2 = static_cast<int16_t>(phase >> 9);
+			const auto strength1 = static_cast<int16_t>(32767 - strength2);
+			auto l = Q<31>::from_raw((previous_l * strength1) + (newest_l * strength2));
+			const auto r = Q<31>::from_raw((previous_r * strength1) + (newest_r * strength2));
+			if (condense) {
+				l = add_wrap(halve_floor(l), halve_floor(r));
+			}
+			mix(output, at, l, r);
+		}
+		auto taps = state.window.fill_head(2);
+		if (stereo) {
+			taps.put(previous_l, previous_r);
+			taps.put(newest_l, newest_r);
+		}
+		else {
+			taps.put(previous_l);
+			taps.put(newest_l);
+		}
+		state.phase = UQ<24>::from_raw(phase);
 	}
 
 	template <read_source S>
