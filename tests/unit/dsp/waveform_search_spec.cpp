@@ -82,6 +82,16 @@ describe waveform_search_spec_body("deluge::dsp::fixed::timestretch::search", ${
 		expect(r.abandoned ? 1 : 0).to_equal(1);
 	});
 
+	it("searches nothing with a limit of 0 (decision 3's range)", _ {
+		FlippingReader reader;
+		const ts::SearchShape shape{.flips_to_stop = 4, .first_direction = 1, .turns = true, .sub_sample = true};
+		const ts::SearchResult r = ts::search(reader, shape, ts::Averages{}, ts::Averages{}, 1, 0);
+		expect(reader.reads).to_equal(0);
+		expect(r.offset).to_equal(0);
+		expect(r.phase).to_equal(0);
+		expect(r.abandoned ? 1 : 0).to_equal(0);
+	});
+
 	it("searches no further than the reader's reach", _ {
 		FlippingReader reader;
 		const ts::SearchShape shape{.flips_to_stop = 1000, .first_direction = 1, .turns = false, .sub_sample = false};

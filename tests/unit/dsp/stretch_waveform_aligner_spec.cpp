@@ -71,6 +71,7 @@ int32_t align_mismatches(int32_t split) {
 struct Edge {
 	std::vector<int32_t> words;
 	mutable int32_t lowest = INT32_MAX;
+	mutable int32_t runs = 0;
 	int32_t missing_from = INT32_MAX;
 	Edge() : words(64) {
 		for (int32_t f = 0; f < 64; f++) {
@@ -79,6 +80,7 @@ struct Edge {
 	}
 	[[nodiscard]] std::optional<FrameRun> run(int32_t frame, Direction d) const {
 		lowest = std::min(lowest, frame);
+		runs++;
 		if (frame < 0 || frame >= 64 || frame >= missing_from) {
 			return std::nullopt;
 		}
@@ -209,6 +211,16 @@ describe stretch_waveform_aligner_spec_body("deluge::dsp::fixed::timestretch::al
 		expect(align_mismatches(1)).to_equal(0);
 		expect(align_mismatches(7)).to_equal(0);
 		expect(align_mismatches(128)).to_equal(0);
+	});
+
+	it("asks its source for a run per chunk, not per frame read", _ {
+		// The whole source is one chunk: the averages and both passes of the search read on within the runs they have,
+		// asking again only to turn round
+		const Edge edge;
+		const ts::AlignRequest req{.start_frame = 30, .direction = Direction::FORWARD, .increment = Increment::from_raw(1u << 24),
+		                           .setup = {2, 4}, .limit = 12, .old_totals = {0, 0, 0}, .older_phase = UQ<24>::from_raw(0)};
+		(void)ts::align(edge, req);
+		expect(edge.runs <= 8 ? 1 : 0).to_equal(1);
 	});
 
 	it("stops a reversed pass at frame 0", _ {

@@ -34,7 +34,8 @@ The differences accepted by name; everything else stays bit-identical, and the c
   where hops land, can change. Step 4 re-records the `sample/ts_*`, `sample/timestretch` and `RS_AUDIO_STRETCH*` goldens
   whose output changes; every other step is bit-identical to that baseline.
 - **Far below the root** (3): from about 7 octaves down the ratio reads unsigned and saturates at 256 instead of reading
-  negative or wrapping, and a one-frame hop gets a one-frame crossfade instead of dividing by zero.
+  negative or wrapping, a one-frame hop gets a one-frame crossfade instead of dividing by zero, and a search limit
+  of 0 (a hop of a few frames, or the increment that far down) searches nothing instead of reading on without bound.
 - **An abandoned alignment** (7) starts the head at phase 0, not at a phase found for an offset it did not take.
 - **A ninth crossfade out of a cache** (2) while all eight tail buffers are lent gets no crossfade, where the legacy
   allocates one.

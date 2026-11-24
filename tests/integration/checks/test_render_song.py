@@ -26,6 +26,7 @@ from render_song import (
     _check_underrun,
     dry_twin,
     generated_song,
+    parse_clip_resizes,
     song_reverb_model,
 )
 from scenario_gate import Run
@@ -289,6 +290,29 @@ class ResizeTest(unittest.TestCase):
         self.assertEqual(_resize_failures({}, ""), [])
 
 
+class ParseResizesTest(unittest.TestCase):
+    def test_a_list_parses_to_its_resizes(self):
+        self.assertEqual(
+            parse_clip_resizes("600:end:96,700:stretch:160"),
+            [(600, "end", 96), (700, "stretch", 160)],
+        )
+
+    def test_a_block_that_is_not_a_number_is_an_error(self):
+        self.assertIsInstance(parse_clip_resizes("6x0:end:96"), str)
+
+    def test_an_unknown_gesture_is_an_error(self):
+        self.assertIsInstance(parse_clip_resizes("600:start:96"), str)
+
+    def test_a_list_out_of_order_is_an_error(self):
+        self.assertIsInstance(parse_clip_resizes("700:end:96,600:end:80"), str)
+
+    def test_a_malformed_list_fails_the_gate_though_the_scenario_applied_it(self):
+        env = {"RENDER_CLIP_RESIZE": "700:end:96,600:end:80"}
+        failures = _resize_failures(env, "RS-RESIZE applied=2 asked=2 live=2")
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].startswith("RS-RESIZE —"))
+
+
 PLAY_FROM = {"RENDER_PLAY_FROM": "200"}
 
 
@@ -300,19 +324,28 @@ def _play_from_failures(env: dict[str, str], *lines: str) -> list[str]:
 
 class PlayFromTest(unittest.TestCase):
     def test_a_late_start_where_asked_passes(self):
-        self.assertEqual(
-            _play_from_failures(PLAY_FROM, "RS-PLAYFROM tick=200 late=1"), []
-        )
+        line = "RS-PLAYFROM asked=200 started=200 late=1"
+        self.assertEqual(_play_from_failures(PLAY_FROM, line), [])
 
     def test_no_late_start_fails(self):
-        failures = _play_from_failures(PLAY_FROM, "RS-PLAYFROM tick=200 late=0")
+        failures = _play_from_failures(
+            PLAY_FROM, "RS-PLAYFROM asked=200 started=200 late=0"
+        )
         self.assertEqual(len(failures), 1)
         self.assertTrue(failures[0].startswith("RS-PLAYFROM —"))
 
-    def test_another_tick_fails(self):
-        failures = _play_from_failures(PLAY_FROM, "RS-PLAYFROM tick=0 late=1")
+    def test_playback_starting_elsewhere_than_asked_fails(self):
+        failures = _play_from_failures(
+            PLAY_FROM, "RS-PLAYFROM asked=200 started=0 late=1"
+        )
         self.assertEqual(len(failures), 1)
         self.assertTrue(failures[0].startswith("RS-PLAYFROM —"))
+
+    def test_a_line_asking_for_another_tick_fails(self):
+        failures = _play_from_failures(
+            PLAY_FROM, "RS-PLAYFROM asked=0 started=0 late=1"
+        )
+        self.assertEqual(len(failures), 1)
 
     def test_a_gate_without_a_start_checks_nothing(self):
         self.assertEqual(_play_from_failures({}, ""), [])

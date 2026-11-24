@@ -72,8 +72,10 @@
 ///     block @c b (RENDER_CLIP_RESIZE), and whether it had a voice, and that voice a time stretcher, when the edit
 ///     applied. After the run, `RS-RESIZE applied=<n> asked=<m> live=<k>`: the resizes made, those asked for, and
 ///     those made while the voice stretched.
-///   - `RS-PLAYFROM tick=<t> late=<0|1>`: the tick playback was asked to start from (RENDER_PLAY_FROM), and whether
-///     an audio clip started late into its sample, which it does only when playback starts part-way through it.
+///   - `RS-PLAYFROM asked=<t> started=<s> late=<0|1>`: the tick playback was asked to start from (RENDER_PLAY_FROM),
+///   the
+///     tick the arrangement's playback started at, and whether an audio clip started late into its sample, which it
+///     does only when playback starts part-way through it.
 ///   - `RS-TEMPO block=<b> bpm=<t>`: the song's tempo set at block @c b (RENDER_TEMPO).
 ///   - `RS-DELAY-SWITCH block=<b> analog=<0|1>`: one audio track's delay switched at block @c b, and its mode after.
 ///     Then, after the run, `RS-DELAY-SWITCH switches=<n> asked=<m> tracks=<k>`: a failure unless every switch asked
@@ -618,9 +620,20 @@ void readResizes() {
 			g_resizeAt.clear();
 			return;
 		}
-		g_resizeAt.push_back({std::strtoull(item.substr(0, first).c_str(), nullptr, 10),
-		                      kind == "end" ? Kind::END : Kind::STRETCH,
-		                      static_cast<int32_t>(std::strtol(item.substr(second + 1).c_str(), nullptr, 10))});
+		const std::string blockText = item.substr(0, first);
+		const std::string ticksText = item.substr(second + 1);
+		char* blockEnd = nullptr;
+		char* ticksEnd = nullptr;
+		const uint64_t block = std::strtoull(blockText.c_str(), &blockEnd, 10);
+		const long ticks = std::strtol(ticksText.c_str(), &ticksEnd, 10);
+		if (blockText.empty() || *blockEnd != '\0' || ticksText.empty() || *ticksEnd != '\0'
+		    || (!g_resizeAt.empty() && block < g_resizeAt.back().block)) {
+			g_report.fail(
+			    "RESIZE a RENDER_CLIP_RESIZE block or length is not a number, or the blocks are not ascending");
+			g_resizeAt.clear();
+			return;
+		}
+		g_resizeAt.push_back({block, kind == "end" ? Kind::END : Kind::STRETCH, static_cast<int32_t>(ticks)});
 		from = comma + 1;
 	}
 }
@@ -1336,7 +1349,8 @@ void report() {
 		}
 	}
 	if (g_playFrom) {
-		printf("RS-PLAYFROM tick=%d late=%d\n", *g_playFrom, g_lateSeen ? 1 : 0);
+		printf("RS-PLAYFROM asked=%d started=%d late=%d\n", *g_playFrom,
+		       static_cast<int>(arrangement.playbackStartedAtPos), g_lateSeen ? 1 : 0);
 	}
 	if (g_metronomeAt) {
 		printf("RS-METRONOME applied=%d on=%d\n", g_metronomeDone ? 1 : 0, playbackHandler.metronomeOn ? 1 : 0);

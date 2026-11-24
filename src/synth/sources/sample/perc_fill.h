@@ -47,15 +47,18 @@ struct PercFill {
 	int32_t lookahead_byte = 0;
 
 	/// Notes @p chunk as touched, once.
-	constexpr void touch(PercChunk chunk) {
+	/// @return False where it is a third chunk, which cannot be kept (a fill should never touch one).
+	[[nodiscard]] constexpr bool touch(PercChunk chunk) {
 		for (uint8_t i = 0; i < touched_count; i++) {
 			if (touched[i] == chunk) {
-				return;
+				return true;
 			}
 		}
-		if (touched_count < touched.size()) {
-			touched[touched_count++] = chunk;
+		if (touched_count == touched.size()) {
+			return false;
 		}
+		touched[touched_count++] = chunk;
+		return true;
 	}
 };
 

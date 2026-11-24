@@ -41,8 +41,9 @@ adds what depends on the song, and why each check is here:
     RS-RESIZE         a gate that resizes an audio clip mid-render (RENDER_CLIP_RESIZE) only: every resize asked for
                       applied, each while the clip's voice played and stretched. A resize that found no voice would
                       reseat nothing, and the gate would pin a clip that is simply shorter.
-    RS-PLAYFROM       a gate that starts playback part-way through (RENDER_PLAY_FROM) only: it started at the tick asked
-                      for, and an audio clip started late into its sample, as <> + play does.
+    RS-PLAYFROM       a gate that starts playback part-way through (RENDER_PLAY_FROM) only: the arrangement's playback
+                      started at the tick asked for (its own start position, not the knob read back), and an audio
+                      clip started late into its sample, as <> + play does.
     RS-STUTTER        a gate that stutters an owner (RENDER_STUTTER) only: the scenario's summary must show every begin
                       and end asked for made, and scenario ticks in which an owner stuttered. A begin the owner refused
                       would leave the song rendering unstuttered for some of its span and still compare with a record
@@ -342,9 +343,31 @@ def _check_underrun(gate, result) -> None:
         )
 
 
+def parse_clip_resizes(spec: str) -> list[tuple[int, str, int]] | str:
+    """RENDER_CLIP_RESIZE's `<block>:<end|stretch>:<ticks>,...` as (block, gesture, ticks), or what is wrong with it:
+    a block or length that is not a number, an unknown gesture, or blocks out of ascending order."""
+    resizes = []
+    for item in spec.split(","):
+        parts = item.split(":")
+        if len(parts) != 3 or not parts[0].isdigit() or not parts[2].isdigit():
+            return f"{item!r} is not <block>:<end|stretch>:<ticks>"
+        if parts[1] not in ("end", "stretch"):
+            return f"{item!r}: the gesture is neither end nor stretch"
+        resizes.append((int(parts[0]), parts[1], int(parts[2])))
+    if [r[0] for r in resizes] != sorted(r[0] for r in resizes):
+        return f"{spec!r}: the blocks are not ascending"
+    return resizes
+
+
 def _check_resize(gate, result) -> None:
-    """Every clip resize asked for applied, each with the clip's voice playing and stretching (see RS-RESIZE)."""
-    if not gate.env.get("RENDER_CLIP_RESIZE"):
+    """Every clip resize asked for applied, each with the clip's voice playing and stretching (see RS-RESIZE). A
+    malformed list fails rather than passing unread."""
+    spec = gate.env.get("RENDER_CLIP_RESIZE")
+    if not spec:
+        return
+    parsed = parse_clip_resizes(spec)
+    if isinstance(parsed, str):
+        gate.fail(f"RS-RESIZE — RENDER_CLIP_RESIZE {parsed}")
         return
     line = result.last("RS-RESIZE applied=")
     applied = int_field(line, "applied")
@@ -364,7 +387,9 @@ def _check_play_from(gate, result) -> None:
     if not tick:
         return
     line = result.last("RS-PLAYFROM ")
-    if int_field(line, "tick") != int(tick) or int_field(line, "late") != 1:
+    asked = int_field(line, "asked")
+    started = int_field(line, "started")
+    if asked != int(tick) or started != asked or int_field(line, "late") != 1:
         gate.fail(f"RS-PLAYFROM — playback did not start late at tick {tick} ({line})")
 
 

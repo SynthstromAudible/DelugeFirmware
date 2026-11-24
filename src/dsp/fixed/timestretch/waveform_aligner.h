@@ -64,19 +64,45 @@ struct AlignSetup {
 	return middle - ((each * static_cast<int32_t>(std::tuple_size_v<Averages>)) >> 1) * d;
 }
 
-/// @brief A frame's channels' high words, summed, from @p source; nullopt where it is not resident.
+/// @brief A frame's channels' high words, summed, read from @p source through the run it last gave: a frame outside
+/// that run asks for another, forwards from the frame or, below the run, reversed, so a search asks once per chunk.
 template <sample_read::frame_source S>
-[[nodiscard]] std::optional<int32_t> folded_high_word(const S& source, int32_t frame) {
-	const std::optional<sample_read::FrameRun> run = source.run(frame, Direction::FORWARD);
-	if (!run) {
-		return std::nullopt;
+class FoldedFrames {
+public:
+	explicit FoldedFrames(const S& source) : source_(&source) {}
+
+	/// nullopt where the frame is not resident.
+	[[nodiscard]] std::optional<int32_t> operator()(int32_t frame) const {
+		if (frame < lo_ || frame > hi_) {
+			const bool below = run_.has_value() && frame < lo_;
+			const Direction d = below ? Direction::REVERSE : Direction::FORWARD;
+			run_ = source_->run(frame, d);
+			if (!run_) {
+				lo_ = 1;
+				hi_ = 0;
+				return std::nullopt;
+			}
+			base_ = frame;
+			reversed_ = below;
+			lo_ = below ? frame - run_->frames + 1 : frame;
+			hi_ = below ? frame : frame + run_->frames - 1;
+		}
+		const int32_t k = reversed_ ? base_ - frame : frame - base_;
+		int32_t value = sample_read::frame_word(*run_, k, 0) >> 16;
+		if (run_->channels == 2) {
+			value += sample_read::frame_word(*run_, k, 1) >> 16;
+		}
+		return value;
 	}
-	int32_t value = sample_read::frame_word(*run, 0, 0) >> 16;
-	if (run->channels == 2) {
-		value += sample_read::frame_word(*run, 0, 1) >> 16;
-	}
-	return value;
-}
+
+private:
+	const S* source_;
+	mutable std::optional<sample_read::FrameRun> run_;
+	mutable int32_t base_ = 0;
+	mutable int32_t lo_ = 1;
+	mutable int32_t hi_ = 0;
+	mutable bool reversed_ = false;
+};
 
 /// @brief The three moving averages of a head starting at @p start_frame (A2): each @p each frames of high words in
 /// @p direction from averages_read(). Forwards only, refused within half the crossfade of either end (A2's quirk:
@@ -104,6 +130,7 @@ template <sample_read::frame_source S>
 	if (end * frame_bytes < -1 || end > length) {
 		return std::nullopt;
 	}
+	const FoldedFrames<S> folded(source);
 	Averages totals{};
 	int32_t frame = read;
 	for (int32_t& total : totals) {
@@ -111,7 +138,7 @@ template <sample_read::frame_source S>
 			return std::nullopt;
 		}
 		for (int32_t k = 0; k < each; k++, frame += d) {
-			const std::optional<int32_t> value = folded_high_word(source, frame);
+			const std::optional<int32_t> value = folded(frame);
 			if (!value) {
 				return std::nullopt;
 			}
@@ -151,10 +178,8 @@ template <sample_read::frame_source S>
 class PlayOrderReader {
 public:
 	PlayOrderReader(const S& source, int32_t first_frame, Direction direction)
-	    : source_(&source), first_(first_frame), d_(static_cast<int32_t>(direction)) {}
-	[[nodiscard]] std::optional<int32_t> folded(int32_t frame) const {
-		return folded_high_word(*source_, first_ + frame * d_);
-	}
+	    : source_(&source), frames_(source), first_(first_frame), d_(static_cast<int32_t>(direction)) {}
+	[[nodiscard]] std::optional<int32_t> folded(int32_t frame) const { return frames_(first_ + frame * d_); }
 	/// Frames from the leading read's frame to the waveform's edge in the slide's direction, the read included.
 	[[nodiscard]] int32_t reach(int32_t direction, int32_t first_read) const {
 		const int32_t at = first_ + first_read * d_;
@@ -164,6 +189,7 @@ public:
 
 private:
 	const S* source_;
+	FoldedFrames<S> frames_;
 	int32_t first_;
 	int32_t d_;
 };

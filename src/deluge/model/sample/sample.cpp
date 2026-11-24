@@ -362,6 +362,12 @@ void Sample::deleteCache(SampleCache* cache) {
 deluge::synth::PercFill Sample::fillPercCache(int32_t startPosSamples, int32_t endPosSamples, int32_t playDirection,
                                               int32_t maxNumSamplesToProcess) {
 	deluge::synth::PercFill fill;
+	// A fill touches at most two perc chunks; a third would go unleased
+	auto touch = [&fill](deluge::synth::PercChunk chunk) {
+		if (!fill.touch(chunk) && ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("PCF3");
+		}
+	};
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
@@ -508,7 +514,7 @@ doReturnNoError:
 				}
 #endif
 				if (clusterHere) { // If at start of new cluster, there might not be one allocated here yet
-					fill.touch({.reversed = reversed != 0, .index = percClusterIndexStart});
+					touch({.reversed = reversed != 0, .index = percClusterIndexStart});
 				}
 			}
 
@@ -536,7 +542,7 @@ doReturnNoError:
 #endif
 						}
 						else {
-							fill.touch({.reversed = reversed != 0, .index = percClusterIndexEnd});
+							touch({.reversed = reversed != 0, .index = percClusterIndexEnd});
 						}
 					}
 				}
@@ -666,7 +672,7 @@ doLoading:
 				deluge_resource_release(mgr, p);
 			}
 
-			fill.touch({.reversed = reversed != 0, .index = percClusterIndex});
+			touch({.reversed = reversed != 0, .index = percClusterIndex});
 
 			percCacheNow = reinterpret_cast<uint8_t*>(percCacheClusters[reversed][percClusterIndex]->payload().data());
 			percPixelOrigin = percClusterIndex * Cluster::size;
