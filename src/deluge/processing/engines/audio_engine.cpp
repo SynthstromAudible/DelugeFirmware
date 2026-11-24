@@ -527,7 +527,6 @@ bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
 InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
-uint8_t numHopsEndedThisRoutineCall;
 
 // For debugging
 double lastRoutineTime;
@@ -1293,7 +1292,6 @@ void renderAudio(size_t numSamples) {
 		sizeLastSideChainHit = sideChainHitPending;
 	}
 
-	numHopsEndedThisRoutineCall = 0;
 	g_hopBudget.new_routine();
 	usbInputMonitoredByTrack = false;
 
@@ -1338,7 +1336,6 @@ void renderAudioForStemExport(size_t numSamples) {
 		sizeLastSideChainHit = sideChainHitPending;
 	}
 
-	numHopsEndedThisRoutineCall = 0;
 	g_hopBudget.new_routine();
 	usbInputMonitoredByTrack = false;
 

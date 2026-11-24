@@ -344,7 +344,7 @@ unless marked measured.
    - `MultiRangeArray` without `std::variant`: 3–4 KB.
    - One id-map core for the `Doc*` maps: about 4 KB.
    - `always_inline` on the project allocators: about 2 KB.
-   - The audio-tier vectors (`unique_ptr<Voice>`, `VoiceSample*`, `TimeStretcher*`) get fewer calls under the
+   - The audio-tier vectors (`unique_ptr<Voice>`, `VoiceSample*`, `SampleStretcher*`) get fewer calls under the
      facade, but bench them.
 8. **Async efatfs, ~25 KB.** Storage and channel code is 110 KB, and generic duplication is not the cause. Each
    await costs about 100–115 B of state-machine boilerplate.

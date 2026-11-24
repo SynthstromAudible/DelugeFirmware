@@ -41,7 +41,9 @@ def fetched_vendor(repo: Path) -> Callable[[Path], bool]:
     return skip
 
 
-NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp_legacy}/**"
+NON_UI = (
+    "src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util}/**"
+)
 
 # The `scenes-no-root-ui` row's alternatives, named rather than inlined so `--audit-symbols` can
 # check that each one is a symbol the source actually has. Every entry below was taken from an

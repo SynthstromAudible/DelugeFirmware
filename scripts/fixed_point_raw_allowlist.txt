@@ -18,7 +18,6 @@ src/deluge/bench/pitch_shift_cases.cpp raw=0 boundary=1
 src/deluge/bench/reference_chains.h raw=4 boundary=44
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=8
 src/deluge/bench/va_shape_cases.cpp raw=0 boundary=1
-src/deluge/dsp_legacy/timestretch/time_stretcher.cpp raw=0 boundary=11
 src/deluge/model/clip/audio_clip.cpp raw=0 boundary=1
 src/deluge/model/drum/drum.cpp raw=0 boundary=2
 src/deluge/model/drum/expression_combine.h raw=0 boundary=2

@@ -1483,7 +1483,7 @@ loopBackToStartTimeStretched:
 
 		endTimeStretching(); // It'll get started again at next render
 
-		// Must call this before ending time stretching, cos the presence of the TimeStretcher causes the
+		// Must call this before ending time stretching, cos the presence of the stretcher causes the
 		// SampleLowLevelReader to ignore markers, which is how we want it (no, wait, that's wrong I think? I've undone
 		// that for now anyway)
 		setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating);

@@ -5,7 +5,6 @@
 "area: audio":
   - changed-files:
       - any-glob-to-any-file:
-          - src/deluge/dsp_legacy/**
           - src/dsp/**
           - src/synth/**
           - src/effects/**

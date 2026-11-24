@@ -313,7 +313,7 @@ reason = "the legacy tree reaches the scenes and the shell only through the host
 
 [[rule]]
 name = "model-includes-ui"
-files = ["src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp_legacy}/**"]
+files = ["src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util}/**"]
 pattern = '^(gui/(?!l10n/)|hid/)'
 reason = "the model and the engine raise notifications; they do not include the UI"
 
@@ -400,7 +400,7 @@ reason = "the application reaches the hardware only through libdeluge"
 [[rule]]
 name = "synth-boundary"
 files = ["src/synth/**"]
-pattern = '^(storage|model|processing|gui|playback|hid|io|dsp_legacy|bench|RZA1|bsp|drivers|memory|util|modulation|project)/'
+pattern = '^(storage|model|processing|gui|playback|hid|io|bench|RZA1|bsp|drivers|memory|util|modulation|project)/'
 allow = [
     "memory/memory_allocator_interface.h",
     "util/lookuptables/lookuptables.h",

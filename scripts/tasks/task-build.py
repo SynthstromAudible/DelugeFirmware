@@ -36,7 +36,6 @@ import zero_sections
 CPP_TARGETS = [
     "deluge_app",
     "eyalroz_printf",
-    "deluge_dsp_legacy",
     "deluge_dsp_fixed",
     "deluge_dsp_float",
     "deluge_synth",

@@ -22,7 +22,6 @@
 #include "dsp/fixed/fft/magnitude.h"
 #include "dsp/fixed/fft/real_fft.h"
 #include "dsp/fixed/shaping/tanh.h"
-#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/pitch_scan.h"
@@ -154,7 +153,7 @@ Error Sample::initialize(int32_t newNumClusters) {
 
 // === Resource-manager Source for the perc cache (per play-direction) =========
 // Perc clusters are written incrementally by the time-stretcher (no materialize), and
-// leased-while-nearby (TimeStretcher deluge::cluster::add_lease/remove_reason via resource_lease_asset_id).
+// leased-while-nearby (the stretcher's port: deluge::cluster::add_lease/remove_reason via resource_lease_asset_id).
 // ctx carries the play-direction (0=forwards, 1=reversed). Per-cluster independent (no
 // tail-first); self_protect so the fill can't evict its own just-written cluster.
 static void percCacheConstruct(void* ctx, void* owner, uint32_t index, void* dest) {
@@ -661,7 +660,7 @@ doLoading:
 				//  discovered Jan 2021. (Manager path: the asset's self_protect provides the same guarantee.)
 				// Manager-owned: request constructs the Cluster (percCacheConstruct sets
 				// type/sample/index + percCacheClusters[reversed][index]) + leases; release so it's
-				// resident-but-unleased (the TimeStretcher re-leases the nearby ones via
+				// resident-but-unleased (the stretcher re-leases the nearby ones via
 				// deluge::cluster::add_lease).
 				DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 				void* p =
@@ -792,133 +791,12 @@ getOut:
 	return fill;
 }
 
-bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
-                                     int32_t playDirection, int32_t lengthToAverageEach) {
-
-	int32_t byteDepthNow = byteDepth;
-	int32_t numChannelsNow = numChannels;
-	int32_t bytesPerSample = byteDepthNow * numChannelsNow;
-
-	const uint32_t sourceId = deluge::sample::source_id_for(*this);
-
-	// This can happen. Not 100% sure if it should, but we'll return false just below in this case anyway, so I think
-	// it's ok
-	if (ALPHA_OR_BETA_VERSION && startBytePos < (int32_t)audioDataStartPosBytes) {
-		FREEZE_WITH_ERROR("E283");
-	}
-
-	int32_t startSamplePos = (uint32_t)(startBytePos - audioDataStartPosBytes) / (uint8_t)bytesPerSample;
-
-	int32_t halfCrossfadeLengthSamples = crossfadeLengthSamples >> 1;
-
-	int32_t samplePosMidCrossfade = startSamplePos + halfCrossfadeLengthSamples * playDirection;
-
-	int32_t readSample = samplePosMidCrossfade
-	                     - ((lengthToAverageEach * TimeStretch::Crossfade::kNumMovingAverages) >> 1) * playDirection;
-
-	int32_t halfCrossfadeLengthBytes = halfCrossfadeLengthSamples * bytesPerSample;
-
-	int32_t readByte = readSample * bytesPerSample + audioDataStartPosBytes;
-
-	if (playDirection == 1) {
-		if (readByte < (int32_t)audioDataStartPosBytes + halfCrossfadeLengthBytes) {
-			return false;
-		}
-		else if (readByte >= (int32_t)(audioDataStartPosBytes + audioDataLengthBytes - halfCrossfadeLengthBytes)) {
-			return false;
-		}
-	}
-
-	int32_t endReadByte =
-	    readByte + lengthToAverageEach * TimeStretch::Crossfade::kNumMovingAverages * bytesPerSample * playDirection;
-
-	if (endReadByte < (int32_t)(audioDataStartPosBytes - 1)
-	    || endReadByte > (int32_t)(audioDataStartPosBytes + audioDataLengthBytes)) {
-		return false;
-	}
-
-	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
-
-		int32_t numSamplesLeftThisAverage = lengthToAverageEach;
-		totals[i] = 0;
-
-		// Signed 64-bit comparison, so a negative readByte or an audioDataStartPosBytes of 0 can't wrap
-		auto readByteOutOfRange = [&]() {
-			return (int64_t)readByte < (int64_t)audioDataStartPosBytes - 1
-			       || (int64_t)readByte >= (int64_t)audioDataStartPosBytes + (int64_t)audioDataLengthBytes;
-		};
-
-		if (readByteOutOfRange()) {
-#if ALPHA_OR_BETA_VERSION
-			FREEZE_WITH_ERROR("FFFF");
-#endif
-			return false;
-		}
-
-		do {
-
-			if (readByteOutOfRange()) {
-#if ALPHA_OR_BETA_VERSION
-				FREEZE_WITH_ERROR("E432"); // Was "GGGG". Sven may have gotten.
-#endif
-				return false;
-			}
-
-			int32_t whichCluster = readByte >> Cluster::size_magnitude;
-			if (whichCluster < getFirstClusterIndexWithAudioData()
-			    || whichCluster >= getFirstClusterIndexWithNoAudioData()) {
-#if ALPHA_OR_BETA_VERSION
-				FREEZE_WITH_ERROR("EEEE");
-#endif
-				return false; // Would index clusters out of bounds
-			}
-
-			const uint64_t frame = (uint32_t)(readByte - audioDataStartPosBytes) / (uint8_t)bytesPerSample;
-			const DelugeFrameWindow window = deluge_sample_peek(sourceId, frame, static_cast<int8_t>(playDirection));
-			if (window.frames == nullptr) {
-				return false; // Not resident / not ready.
-			}
-
-			int32_t bytePosWithinCluster = readByte & (Cluster::size - 1);
-			int32_t numSamplesThisRead = numSamplesLeftThisAverage;
-
-			int32_t bytesLeftThisCluster = (playDirection == -1)
-			                                   ? (bytePosWithinCluster + bytesPerSample)
-			                                   : (Cluster::size - bytePosWithinCluster + bytesPerSample - 1);
-			int32_t bytesWeWantToRead = numSamplesThisRead * bytesPerSample;
-			if (bytesWeWantToRead > bytesLeftThisCluster) {
-				numSamplesThisRead = (uint32_t)bytesLeftThisCluster / (uint8_t)bytesPerSample;
-			}
-
-			// Alright, read those samples. `window.frames` points AT this frame's own bytes; the
-			// `+ byteDepthNow - 4` aligns for the `int32`-over-`byteDepth` read below (its high 16
-			// bits are the sample), and the `bytesLeftThisCluster` clamp keeps a boundary-straddling
-			// frame reading this cluster's own physical slack.
-			char* currentPos = reinterpret_cast<char*>(const_cast<void*>(window.frames)) + byteDepthNow - 4;
-			char* endPos = currentPos + numSamplesThisRead * bytesPerSample * playDirection;
-
-			do {
-				totals[i] += *(int32_t*)currentPos >> 16;
-				if (numChannelsNow == 2) {
-					totals[i] += *(int32_t*)(currentPos + byteDepthNow) >> 16;
-				}
-
-				currentPos += bytesPerSample * playDirection;
-			} while (currentPos != endPos);
-
-			readByte += numSamplesThisRead * bytesPerSample * playDirection;
-			numSamplesLeftThisAverage -= numSamplesThisRead;
-			if (ALPHA_OR_BETA_VERSION && numSamplesLeftThisAverage < 0) {
-				FREEZE_WITH_ERROR("DDDD");
-			}
-		} while (numSamplesLeftThisAverage);
-	}
-
-	return true;
-}
-
-uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,
-                                        int32_t* latestPixellatedPos) {
+std::optional<deluge::dsp::fixed::timestretch::PercWindow>
+Sample::perc_at(int32_t pixellatedPos, deluge::dsp::fixed::sample_read::Direction direction) {
+	const auto playDirection = static_cast<int32_t>(direction);
+	int32_t earliest = 0;
+	int32_t latest = 0;
+	const uint8_t* base = nullptr;
 
 	int32_t reversed = (playDirection == 1) ? 0 : 1;
 
@@ -926,22 +804,20 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 	int32_t i =
 	    searchPercCacheZones(percCacheZones[reversed], realPos + 1 - reversed, reversed ? GREATER_OR_EQUAL : LESS);
 	if (i < 0 || i >= static_cast<int32_t>(percCacheZones[reversed].size())) {
-		return nullptr;
+		return std::nullopt;
 	}
 
 	SamplePercCacheZone* zone = &percCacheZones[reversed][i];
 	if ((zone->endPos - realPos) * playDirection <= 0) {
-		return nullptr;
+		return std::nullopt;
 	}
 
-	*earliestPixellatedPos =
-	    (zone->startPos + (kPercBufferReductionSize >> 1) * playDirection) >> kPercBufferReductionMagnitude;
-	*latestPixellatedPos =
-	    (zone->endPos - (kPercBufferReductionSize >> 1) * playDirection) >> kPercBufferReductionMagnitude;
+	earliest = (zone->startPos + (kPercBufferReductionSize >> 1) * playDirection) >> kPercBufferReductionMagnitude;
+	latest = (zone->endPos - (kPercBufferReductionSize >> 1) * playDirection) >> kPercBufferReductionMagnitude;
 
 	// If permanently allocated perc cache...
 	if (percCacheMemory[reversed]) {
-		return percCacheMemory[reversed];
+		base = percCacheMemory[reversed];
 	}
 
 	// Or if Cluster-based perc cache...
@@ -951,46 +827,36 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 #if ALPHA_OR_BETA_VERSION
 			FREEZE_WITH_ERROR("E142");
 #endif
-			return nullptr; // Caller treats this as "no perc cache here"
+			return std::nullopt; // Caller treats this as "no perc cache here"
 		}
 
-		int32_t earliestCluster = *earliestPixellatedPos >> Cluster::size_magnitude;
-		;
-		int32_t latestCluster = *latestPixellatedPos >> Cluster::size_magnitude;
+		int32_t earliestCluster = earliest >> Cluster::size_magnitude;
+		int32_t latestCluster = latest >> Cluster::size_magnitude;
 
 		// Constrain to Cluster boundaries. This will theoretically hurt the sound a tiny bit... once every 90 seconds.
 		// No one will ever know
 		if (earliestCluster < ourCluster) {
-			*earliestPixellatedPos = ourCluster << Cluster::size_magnitude;
+			earliest = ourCluster << Cluster::size_magnitude;
 		}
 		else if (earliestCluster > ourCluster) {
-			*earliestPixellatedPos = ((ourCluster + 1) << Cluster::size_magnitude) - 1;
+			earliest = ((ourCluster + 1) << Cluster::size_magnitude) - 1;
 		}
 
 		if (latestCluster < ourCluster) {
-			*latestPixellatedPos = ourCluster << Cluster::size_magnitude;
+			latest = ourCluster << Cluster::size_magnitude;
 		}
 		else if (latestCluster > ourCluster) {
-			*latestPixellatedPos = ((ourCluster + 1) << Cluster::size_magnitude) - 1;
+			latest = ((ourCluster + 1) << Cluster::size_magnitude) - 1;
 		}
 
 		// Fudge an address to send back
-		return reinterpret_cast<uint8_t*>(percCacheClusters[reversed][ourCluster]->payload().data())
+		base = reinterpret_cast<uint8_t*>(percCacheClusters[reversed][ourCluster]->payload().data())
 		       - (ourCluster * Cluster::size);
 	}
-}
 
-std::optional<deluge::dsp::fixed::timestretch::PercWindow>
-Sample::perc_at(int32_t pixel, deluge::dsp::fixed::sample_read::Direction direction) {
-	int32_t earliest = 0;
-	int32_t latest = 0;
-	const uint8_t* base = prepareToReadPercCache(pixel, static_cast<int32_t>(direction), &earliest, &latest);
-	if (base == nullptr) {
-		return std::nullopt;
-	}
-	// The search reads within [earliest, latest] in the play direction, and starts at the pixel
-	const int32_t lowest = std::min({earliest, latest, pixel});
-	const int32_t highest = std::max({earliest, latest, pixel});
+	// The search reads within [earliest, latest] in the play direction, and starts at the pixel; bytes[0] is the lowest
+	const int32_t lowest = std::min({earliest, latest, pixellatedPos});
+	const int32_t highest = std::max({earliest, latest, pixellatedPos});
 	return deluge::dsp::fixed::timestretch::PercWindow{
 	    .bytes = std::span<const uint8_t>(base + lowest, static_cast<size_t>(highest - lowest + 1)),
 	    .origin = lowest,

@@ -18,7 +18,6 @@
 #include "model/clip/audio_clip.h"
 #include "clip.h"
 #include "definitions_cxx.hpp"
-#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "model/fx/chain_codec.h"
 #include "model/fx/chain_params.h"
 #include "model/sample/clip_increment.h"

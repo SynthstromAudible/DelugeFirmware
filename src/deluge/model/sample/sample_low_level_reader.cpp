@@ -1419,7 +1419,7 @@ void SampleLowLevelReader::adoptResidencyFrom(SampleLowLevelReader& other, bool 
 		other.region_ = {};
 	}
 	else {
-		// Non-stealing copy (TimeStretcher::olderPartReader): `this` gets its OWN independent hard lease on
+		// Non-stealing copy (the stretched voice-sample's spare head): `this` gets its OWN independent hard lease on
 		// the chunk `region_` describes (copied from `other`). `other` keeps its own lease, so both readers
 		// now pin the shared chunk -- the refcount rises by one. This reader's `source_` is left null; it
 		// re-opens its own cursor lazily on the next assignClusters().

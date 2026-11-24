@@ -171,7 +171,7 @@ The legacy tree's destinations:
 | `playback/`, `sequence/`, `sync/`, `runtime/` | `host/sequencer/` |
 | `hid/` | `ui/shell/` (input lowering), `ui/gfx/` |
 | `dsp-next/` | `dsp/`, a plain move: it is new code. **Done** (`src/dsp`) |
-| `dsp/` (now `src/deluge/dsp_legacy/`) | `dsp/` and `synth/sources/`: the time stretcher is rewritten, and the rewrite deletes `dsp_legacy/` |
+| `dsp/` | `dsp/` and `synth/sources/`: done; the time stretcher is rewritten into `src/dsp/fixed/timestretch/` and `src/synth/sources/sample/`, and the legacy directory is deleted |
 | `bench/`, `harness/` | `tests/device/bench/`, `tests/harness/` |
 
 ## Rules
@@ -214,8 +214,8 @@ header beside it.
 `synth/`'s `Fixed` instantiations move to `instruments/classic` as part of the classic instrument's state work, not
 in this pass: that is a design change, gated on the goldens like any other.
 
-**Step 3: `dsp-next` → `dsp/` moved first.** No file collided once the legacy stretcher stepped aside to
-`src/deluge/dsp_legacy/`, which the stretcher rewrite deletes.
+**Step 3: `dsp-next` → `dsp/` moved first.** No file collided once the legacy stretcher stepped aside; its rewrite
+has since deleted it.
 
 **Step 4 onward: extraction lands in place.** Branches in flight are re-cut to the final paths before they merge;
 work started after step 2 uses only final paths.

@@ -171,6 +171,29 @@ class LibraryCheck(unittest.TestCase):
         )
 
 
+class RuleDirectories(unittest.TestCase):
+    def test_no_rule_names_a_deleted_directory(self):
+        # Every directory a rule's files glob draws from exists: a glob over a deleted one checks nothing
+        import re
+
+        import tomllib
+
+        root = Path(__file__).resolve().parents[1]
+        rules = tomllib.loads((root / "scripts" / "layers.toml").read_text()).get(
+            "rule", []
+        )
+        missing = []
+        for rule in rules:
+            for glob in rule.get("files", []):
+                m = re.match(r"^(src/deluge)/\{([^}]*)\}/", glob)
+                if m is None:
+                    continue
+                for name in m.group(2).split(","):
+                    if not (root / m.group(1) / name).is_dir():
+                        missing.append(f"{rule.get('name', '?')}: {m.group(1)}/{name}")
+        self.assertEqual(missing, [])
+
+
 class TableLoading(unittest.TestCase):
     def test_a_name_used_twice_is_refused(self):
         repo = Repo(
@@ -600,7 +623,7 @@ class RealTable(unittest.TestCase):
         for outside in (
             '#include "model/song/song.h"\n',
             '#include "synth/sources/va/va_shapes.h"\n',
-            '#include "dsp_legacy/timestretch/time_stretcher.h"\n',
+            '#include "model/voice/voice_sample.h"\n',
             '#include "util/functions.h"\n',
             '#include "bench/probe.h"\n',
             '#include "plugin/plugin.h"\n',
@@ -618,9 +641,7 @@ class RealTable(unittest.TestCase):
         )
         self.assertEqual(
             len(
-                self.library_found(
-                    "effects", '#include "dsp_legacy/timestretch/time_stretcher.h"\n'
-                )
+                self.library_found("effects", '#include "model/voice/voice_sample.h"\n')
             ),
             1,
         )

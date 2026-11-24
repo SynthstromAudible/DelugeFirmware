@@ -35,7 +35,6 @@ const int32_t* AudioInputAdapter::ring_end() const {
 }
 
 void AudioInputAdapter::report_hops(int32_t hopsEnded) {
-	AudioEngine::numHopsEndedThisRoutineCall += hopsEnded;
 	// The pitch shifter's hops count against the routine's budget, as the stretchers' do
 	AudioEngine::hopBudget().hops = static_cast<uint8_t>(AudioEngine::hopBudget().hops + hopsEnded);
 }

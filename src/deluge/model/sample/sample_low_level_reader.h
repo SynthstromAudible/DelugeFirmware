@@ -165,7 +165,7 @@ public:
 	/// If @p stealReasons, `this` takes over @p other's residency wholesale: the region-port cursor
 	/// (and the leases it holds on the current/prefetch chunks) transfers from @p other to `this`, and
 	/// `other.region_` is cleared so @p other won't release the independent lease `this` now owns.
-	/// Otherwise (the non-stealing copy used by `TimeStretcher::olderPartReader`), `this` takes its own
+	/// Otherwise (the non-stealing copy used for a stretched voice-sample's spare head), `this` takes its own
 	/// independent hard lease on the chunk `region_` describes, so both readers pin the shared chunk and
 	/// the refcount rises by one; this reader's `source_` is left null and re-opens lazily on the next
 	/// assignClusters().
@@ -218,7 +218,7 @@ protected:
 	///       (taken at each acquire, released in unassignAllReasons). The port cursor `source_` holds
 	///       its own separate current/prefetch leases; this independent lease is what keeps the chunk
 	///       pinned for the reader's residency lifetime, including the non-stealing copy
-	///       (TimeStretcher::olderPartReader) which has no `source_` of its own.
+	///       (the stretched voice-sample's spare head) which has no `source_` of its own.
 	DelugeSampleRegion region_{};
 
 	/// @}

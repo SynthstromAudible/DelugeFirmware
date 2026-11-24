@@ -60,7 +60,6 @@ struct SampleCacheElement {
 	}
 };
 class MultisampleRange;
-class TimeStretcher;
 class SampleHolder;
 
 class Sample final : public AudioFile {
@@ -108,10 +107,6 @@ public:
 	/// window's lowest pixel. Nullopt where no filled zone holds the pixel.
 	std::optional<deluge::dsp::fixed::timestretch::PercWindow>
 	perc_at(int32_t pixel, deluge::dsp::fixed::sample_read::Direction direction);
-	uint8_t* prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,
-	                                int32_t* latestPixellatedPos);
-	bool getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
-	                             int32_t playDirection, int32_t lengthToAverageEach);
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
 	int32_t getValueSpan();
@@ -229,7 +224,7 @@ public:
 	ComputedChunk** percCacheClusters[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	int32_t numPercCacheClusters{};
 	// Resource-manager Asset id per play-direction for the perc-cache clusters (construct-only,
-	// leased-while-nearby by the TimeStretcher). DELUGE_RESOURCE_NO_ASSET (0xFFFFFFFF) = legacy.
+	// leased-while-nearby by the stretcher). DELUGE_RESOURCE_NO_ASSET (0xFFFFFFFF) = legacy.
 	uint32_t percCacheAssetId[2]{0xFFFFFFFFu, 0xFFFFFFFFu};
 
 	int32_t beginningOffsetForPitchDetection;
