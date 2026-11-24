@@ -20,7 +20,6 @@
 #include "deluge_storage_sample_source.h"
 #include "dsp/core/stereo_sample.h"
 #include "dsp/fixed/interpolation/interpolator.h"
-#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
@@ -1129,7 +1128,6 @@ void SampleLowLevelReader::readSamplesResampled(deluge::dsp::Q<31>** __restrict_
                                                 int32_t* amplitude, int32_t amplitudeIncrement,
                                                 int32_t interpolationBufferSize, bool writingCache,
                                                 char** __restrict__ cacheWritePos, bool* __restrict__ doneAnySamplesYet,
-                                                TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
                                                 int32_t whichKernel) {
 
 	uint32_t const bitMask = sample->bitMask;
@@ -1318,8 +1316,7 @@ skipFirstLinear:
 void SampleLowLevelReader::readSamplesNative(deluge::dsp::Q<31>** __restrict__ bufferPos, int32_t numSamplesTotal,
                                              Sample* sample, int32_t jumpAmount, int32_t numChannels,
                                              int32_t numChannelsAfterCondensing, int32_t* __restrict__ amplitude,
-                                             int32_t amplitudeIncrement, TimeStretcher* timeStretcher,
-                                             bool bufferingToTimeStretcher) {
+                                             int32_t amplitudeIncrement) {
 
 	char* __restrict__ currentPlayPosNow = currentPlayPos;
 	deluge::dsp::Q<31>* __restrict__ bufferPosNow = *bufferPos;
@@ -1365,38 +1362,25 @@ void SampleLowLevelReader::readSamplesNative(deluge::dsp::Q<31>** __restrict__ b
 	currentPlayPos = currentPlayPosNow;
 }
 
-// Returns false if actual error. Not if it just reached the end. In that case it just sets
-// timeStretcher->playHeadStillActive[whichPlayHead] to false
 bool SampleLowLevelReader::readSamplesForTimeStretching(deluge::dsp::Q<31>* outputBuffer, SamplePlaybackGuide* guide,
                                                         Sample* sample, int32_t numSamples, int32_t numChannels,
                                                         int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
                                                         int32_t amplitude, int32_t amplitudeIncrement,
                                                         bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize,
-                                                        TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
-                                                        int32_t whichPlayHead, int32_t whichKernel,
-                                                        int32_t priorityRating) {
+                                                        int32_t whichKernel, int32_t priorityRating) {
 
 	do {
 		int32_t samplesNow = numSamples;
 
-		timeStretcher->playHeadStillActive[whichPlayHead] = considerUpcomingWindow(
-		    guide, sample, &samplesNow, phaseIncrement, loopingAtLowLevel, bufferSize, 0, priorityRating);
-		if (!timeStretcher->playHeadStillActive[whichPlayHead]) {
-
-			// If we got false, that can just mean end of waveform. But if the current region is still held,
-			// that means (SD card) error
-			if (hasCurrentRegion()) {
-				return false;
-			}
-
-			// D_PRINTLN("one head no longer active for timeStretcher");
-			break;
+		if (!considerUpcomingWindow(guide, sample, &samplesNow, phaseIncrement, loopingAtLowLevel, bufferSize, false,
+		                            priorityRating)) {
+			return false; // The head has stopped: at its end, or at a chunk not ready
 		}
 
 		// No resampling
 		if (phaseIncrement == kMaxSampleValue) {
 			readSamplesNative(&outputBuffer, samplesNow, sample, jumpAmount, numChannels, numChannelsAfterCondensing,
-			                  &amplitude, amplitudeIncrement, timeStretcher, bufferingToTimeStretcher);
+			                  &amplitude, amplitudeIncrement);
 		}
 
 		// Resampling
@@ -1404,7 +1388,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(deluge::dsp::Q<31>* outp
 			bool doneAnySamplesYet = false;
 			readSamplesResampled(&outputBuffer, samplesNow, sample, jumpAmount, numChannels, numChannelsAfterCondensing,
 			                     phaseIncrement, &amplitude, amplitudeIncrement, bufferSize, false, nullptr,
-			                     &doneAnySamplesYet, timeStretcher, bufferingToTimeStretcher, whichKernel);
+			                     &doneAnySamplesYet, whichKernel);
 		}
 
 		numSamples -= samplesNow;

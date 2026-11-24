@@ -31,7 +31,6 @@
 class VoiceSamplePlaybackGuide;
 class Sample;
 struct DelugeSampleSource; // per-reader residency cursor over the region port (deluge_storage_sample_source.h)
-class TimeStretcher;
 class SamplePlaybackGuide;
 
 /// @brief The region port's residency tri-state, as a SCOPED enum.
@@ -144,22 +143,24 @@ public:
 
 	void readSamplesNative(deluge::dsp::Q<31>** __restrict__ oscBufferPos, int32_t numSamplesTotal, Sample* sample,
 	                       int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
-	                       int32_t* amplitude, int32_t amplitudeIncrement, TimeStretcher* timeStretcher = nullptr,
-	                       bool bufferingToTimeStretcher = false);
+	                       int32_t* amplitude, int32_t amplitudeIncrement);
 
 	void readSamplesResampled(deluge::dsp::Q<31>** __restrict__ oscBufferPos, int32_t numSamples, Sample* sample,
 	                          int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
 	                          int32_t phaseIncrement, int32_t* amplitude, int32_t amplitudeIncrement,
 	                          int32_t bufferSize, bool writingCache, char** __restrict__ cacheWritePos,
-	                          bool* doneAnySamplesYet, TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
-	                          int32_t whichKernel);
+	                          bool* doneAnySamplesYet, int32_t whichKernel);
 
-	bool readSamplesForTimeStretching(deluge::dsp::Q<31>* oscBufferPos, SamplePlaybackGuide* guide, Sample* sample,
-	                                  int32_t numSamples, int32_t numChannels, int32_t numChannelsAfterCondensing,
-	                                  int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
-	                                  bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize,
-	                                  TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
-	                                  int32_t whichPlayHead, int32_t whichKernel, int32_t priorityRating);
+	/// @brief One time-stretch head's read of @p numSamples frames: a window check, then the reads it allows, until
+	///        they are rendered or the check fails.
+	/// @return True while the head reads; false once it has stopped, at its end or at a chunk not ready. Every
+	///         failed check leaves the head holding no chunk, so the two are told apart by nothing.
+	[[nodiscard]] bool readSamplesForTimeStretching(deluge::dsp::Q<31>* oscBufferPos, SamplePlaybackGuide* guide,
+	                                                Sample* sample, int32_t numSamples, int32_t numChannels,
+	                                                int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
+	                                                int32_t amplitude, int32_t amplitudeIncrement,
+	                                                bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize,
+	                                                int32_t whichKernel, int32_t priorityRating);
 	/// @brief Reconcile lease ownership after copying `region_` from @p other into this reader.
 	///
 	/// The caller has already copied `region_` (this reader's residency, including its independent

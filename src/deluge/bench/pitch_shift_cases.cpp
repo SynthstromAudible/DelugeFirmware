@@ -207,9 +207,9 @@ void SampleReadCase::block(std::size_t n) {
 	dsp::Q<31>* out = rig.out.data();
 	int32_t amplitude = kShifterAmplitude;
 	bool started = true;
-	rig.reader.readSamplesResampled(
-	    &out, static_cast<int32_t>(n), &rig.sample, channels * kReaderByteDepth, channels, channels, kReaderRate,
-	    &amplitude, 0, config_.linear ? 2 : kInterpolationMaxNumSamples, false, nullptr, &started, nullptr, false, 0);
+	rig.reader.readSamplesResampled(&out, static_cast<int32_t>(n), &rig.sample, channels * kReaderByteDepth, channels,
+	                                channels, kReaderRate, &amplitude, 0,
+	                                config_.linear ? 2 : kInterpolationMaxNumSamples, false, nullptr, &started, 0);
 }
 
 void PitchShiftCase::setup(std::size_t /*n*/) {

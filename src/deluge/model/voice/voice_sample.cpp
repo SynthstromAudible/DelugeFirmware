@@ -1236,7 +1236,7 @@ readNonTimestretched:
 				readSamplesResampled((deluge::dsp::Q<31>**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead,
 				                     sample, jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer,
 				                     phaseIncrement, &amplitude, amplitudeIncrement, interpolationBufferSize,
-				                     (cache != nullptr), &cacheWritePos, &doneAnySamplesYet, NULL, false, whichKernel);
+				                     (cache != nullptr), &cacheWritePos, &doneAnySamplesYet, whichKernel);
 			}
 
 			if (cache) {
@@ -1464,21 +1464,11 @@ readNewerHead:
 				else
 #endif
 				{
-					bool success = readSamplesForTimeStretching(
+					timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER] = readSamplesForTimeStretching(
 					    timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead,
 					    sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
 					    newerSourceAmplitudeNow, newerAmplitudeIncrementNow, (loopingType == LoopType::LOW_LEVEL),
-					    jumpAmount, interpolationBufferSize, timeStretcher,
-#if TIME_STRETCH_ENABLE_BUFFER
-					    (timeStretcher->bufferFillingMode == BUFFER_FILLING_NEWER),
-#else
-					    false,
-#endif
-					    PLAY_HEAD_NEWER, whichKernel, priorityRating);
-
-					if (!success) {
-						return false;
-					}
+					    jumpAmount, interpolationBufferSize, whichKernel, priorityRating);
 				}
 			}
 			if (swappingOrder) {
@@ -1500,21 +1490,12 @@ considerOlderHead:
 				// Or if reading normal Cluster data...
 				else {
 readOlderHeadUnbuffered:
-					bool success = timeStretcher->olderPartReader.readSamplesForTimeStretching(
-					    timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead,
-					    sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
-					    olderSourceAmplitudeNow, olderAmplitudeIncrementNow, (loopingType == LoopType::LOW_LEVEL),
-					    jumpAmount, interpolationBufferSize, timeStretcher,
-#if TIME_STRETCH_ENABLE_BUFFER
-					    (timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER),
-#else
-					    false,
-#endif
-					    PLAY_HEAD_OLDER, whichKernel, priorityRating);
-
-					if (!success) {
-						return false;
-					}
+					timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] =
+					    timeStretcher->olderPartReader.readSamplesForTimeStretching(
+					        timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead,
+					        sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
+					        olderSourceAmplitudeNow, olderAmplitudeIncrementNow, (loopingType == LoopType::LOW_LEVEL),
+					        jumpAmount, interpolationBufferSize, whichKernel, priorityRating);
 				}
 
 				// If just stopped being active...
