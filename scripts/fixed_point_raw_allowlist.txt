@@ -111,6 +111,7 @@ src/dsp/fixed/pitch_shift/play_head.h raw=0 boundary=2
 src/dsp/fixed/pitch_shift/slope_follower.h raw=0 boundary=5
 src/dsp/fixed/reverb/freeverb.h raw=0 boundary=7
 src/dsp/fixed/sample_read/mixed_in.h raw=0 boundary=2
+src/dsp/fixed/sample_read/quad_mix.h raw=9 boundary=13
 src/dsp/fixed/sample_read/read_head.h raw=0 boundary=26
 src/dsp/fixed/shaping/antialiased_tanh.h raw=0 boundary=6
 src/dsp/fixed/shaping/bit_depth.h raw=0 boundary=6
