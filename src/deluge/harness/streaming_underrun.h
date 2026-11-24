@@ -27,7 +27,7 @@
 ///
 /// Compiled where `DELUGE_UNDERRUN_COUNTERS` is 1: every x86 build off this tree (`DELUGE_HOST`, see
 /// `src/platform/host/CMakeLists.txt`) and the device's stream-bench image (`DELUGE_STREAM_BENCH`), never the shipping
-/// firmware. Every call site (`model/voice/voice_sample.cpp`, `model/sample/sample_low_level_reader.cpp`) is
+/// firmware. Every call site (`model/voice/voice_sample.cpp`, `model/sample/sample_read_lease.cpp`) is
 /// itself wrapped in `#if DELUGE_UNDERRUN_COUNTERS` (not just relying on these being no-ops), so a shipping
 /// build doesn't even see the calls -- behaviour there is unaffected.
 #if defined(DELUGE_HOST) || DELUGE_STREAM_BENCH
@@ -58,7 +58,7 @@ void noteUnderrunWait();
 /// call sites converge here, both the same severity:
 ///   - `VoiceSample::stopReadingFromCache`: the repitch-cache-stop path (only reached by
 ///     voices actively using the timestretch/repitch `SampleCache`).
-///   - `SampleLowLevelReader::moveOnToNextCluster`: ordinary (non-cache, non-time-stretch)
+///   - `SampleReadLease::move_to` (a head's chunk walk): ordinary (non-cache, non-time-stretch)
 ///     forward playback crossing a Cluster boundary mid-stream and finding the next Cluster
 ///     not loaded — the common-case sustained-streaming underrun, and the one most voices
 ///     actually hit (most playback never uses the repitch cache at all). Without this site the

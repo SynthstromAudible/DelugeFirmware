@@ -5,7 +5,7 @@
 // truthy). The full note-on path that consumes this mapping needs a Voice/Sound/ModelStack and is
 // not host-constructible, so this spec covers the piece that IS unit-testable and that the
 // preview-E199 bug turned on.
-#include "model/sample/sample_low_level_reader.h"
+#include "model/sample/sample_read_lease.h"
 
 #include "cppspec.hpp"
 

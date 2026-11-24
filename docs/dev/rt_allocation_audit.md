@@ -27,20 +27,17 @@ Plus a **second flavor** the plan's prose underweights — *cache-write* cluster
 during render. Same `allocStealable` path; same uniform ~32 KB slot. The slab pool must serve both the
 read-streaming and cache-write cluster traffic.
 
-## Family 2 — TimeStretcher scratch buffer (non-cluster RT alloc)
+## Family 2 — the time stretcher's cache-tail buffer (resolved)
 
-`TimeStretcher::allocateBuffer()` (`time_stretcher.cpp:1046`) → `allocMaxSpeed(kBufferSize * 4 *
-numChannels)`, with matching `delugeDealloc(buffer)` on teardown. Called from the render path at
-`time_stretcher.cpp:1017` and `:1166` (and freed at `:175, :956, :1038, :1174`). This is exactly the
-"any other RT allocator call must be hoisted off-thread or pre-reserved" case from the plan's open
-questions — a variable-size SRAM allocation **and free** on the render thread, independent of the cluster
-slab. Options: pre-reserve the buffer when the time-stretching voice is solicited (off-RT), or carry it as
-a pooled fixed-size scratch tied to the voice's lifetime.
+The legacy stretcher allocated its cache-tail buffer (`allocMaxSpeed`) on the render thread and freed it there. Its
+rewrite lends one of eight stereo buffers the engine makes at start (`TailBuffers`,
+`src/synth/sources/sample/stretch_context.h`; decision 2 of `docs/dev/time_stretcher_design.md`), so the render no
+longer allocates for it; with all eight lent there is no crossfade.
 
-## Family 3 — ObjectPool miss (Voice / VoiceSample / TimeStretcher)
+## Family 3 — ObjectPool miss (Voice / VoiceSample / SampleStretcher)
 
 `ObjectPool::acquire()` (`object_pool.h:99`) allocates via its `fast_allocator` when the pool is empty
-(`object_pool.h:101-103`). The pooled types are `Voice`, `VoiceSample`, `TimeStretcher`
+(`object_pool.h:101-103`). The pooled types are `Voice`, `VoiceSample`, `SampleStretcher`
 (`audio_engine.h:139-141`), solicited during note-on (`AudioEngine::solicitVoiceSample()` etc.), which can
 fire from the sequencer *inside* the audio routine. So an empty-pool note-on is an RT SRAM allocation. The
 watermark/prefetch idea applies here too: keep the pools topped up off-RT (`repopulate()` already exists,

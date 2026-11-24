@@ -785,8 +785,9 @@ step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run
 
 ## Live pitch shifter
 
-The `pitch_shift` list (`DELUGE_DSP_BENCH_CASES=pitch_shift`) times the sample reader's resampled read
-(`SampleLowLevelReader::readSamplesResampled`, at a rate of 1.5 over 32-bit frames) and one voice's live pitch shifter
+The `pitch_shift` list (`DELUGE_DSP_BENCH_CASES=pitch_shift`) times the read head's resampled read
+(`ReadHead::read_resampled`, at a rate of 1.5 over 32-bit frames; `SampleLowLevelReader::readSamplesResampled` until
+2026-11-23) and one voice's live pitch shifter
 (up 7, down 12, stereo up 7, and up 7 on the harness's percussive signal), each block ingesting the input as the first
 voice on its channel does. Medians of three interleaved rounds against the legacy shifter and reader, cycles per
 sample (2026-11-05):
@@ -813,6 +814,27 @@ throughout.
   follower stepped through `kernel_ops::step_at`, and the shifter is level with the legacy.
 - Copying the play head's state per segment instead of stepping it in place (`kStateInPlace = false`) is slower (+7%
   to +24%): the head's interpolator window is 64 bytes.
+
+The read head (`ReadHead`, src/dsp/fixed/sample_read/read_head.h) replaced the reader on 2026-11-23. One run each on
+the rig, against the reader, cycles per sample:
+
+| case | n=32 | n=64 | n=128 |
+|---|---:|---:|---:|
+| sample_read_sinc_mono | −10.4% | −7.6% | −11.1% |
+| sample_read_sinc_stereo | −1.6% | −1.2% | −0.9% |
+| sample_read_linear_mono | −14.2% | −15.2% | −15.8% |
+| sample_read_linear_stereo | −5.1% | −5.5% | −5.7% |
+
+- Its first form was up to 2.2 times slower (linear mono +116%, sinc stereo +14%). Four things closed it, each bit-exact:
+  the cursor, phase, amplitude and output pointer held in locals for the read (in the head's state and the output
+  struct the compiler reloaded them after every output store, which it could not prove did not alias them); the
+  per-frame loop compiled per channel layout; the frames stepped taken from the phase rather than counted or divided
+  for (the A9 has no divide instruction); and each 16-bit tap loaded as one halfword. Under `-mno-unaligned-access` a
+  two-byte `memcpy` from a `std::byte*` compiles to two byte loads and an `orr`; `__builtin_assume_aligned(p, 2)`
+  gives one `ldrsh`, the legacy cast's load.
+- One run per source per call, not one per tap, gained nothing alone: the cost was the reloads.
+- The sinc read is templated on the source's channels only; its 16-tap filter dwarfs a per-frame test of the output's
+  (stereo −4% when templated on both, −1% this way, for about 1.9 KB less code).
 
 ## Float kernels across lanes
 

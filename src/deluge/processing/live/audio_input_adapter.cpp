@@ -16,6 +16,7 @@
  */
 #include "processing/live/audio_input_adapter.h"
 #include "processing/engines/audio_engine.h"
+#include "synth/sources/sample/stretch_context.h"
 
 uint32_t AudioInputAdapter::sample_time() const {
 	return AudioEngine::audioSampleTimer;
@@ -34,5 +35,6 @@ const int32_t* AudioInputAdapter::ring_end() const {
 }
 
 void AudioInputAdapter::report_hops(int32_t hopsEnded) {
-	AudioEngine::numHopsEndedThisRoutineCall += hopsEnded;
+	// The pitch shifter's hops count against the routine's budget, as the stretchers' do
+	AudioEngine::hopBudget().hops = static_cast<uint8_t>(AudioEngine::hopBudget().hops + hopsEnded);
 }

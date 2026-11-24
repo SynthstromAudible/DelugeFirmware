@@ -191,9 +191,8 @@ fn emit_staleness_hash(app_objs_dir: &Path, hash: &str, prev: Option<&str>, stam
 /// call each other. The host tree's layout differs from the device tree's: the legacy DSP library
 /// sits under `app/`, and the DSP library's archives under `dsp/`.
 fn link_closure(build_dir: &Path, archive: &Path) {
-    const DEPS: [(&str, &str); 26] = [
+    const DEPS: [(&str, &str); 25] = [
         ("printf", "libeyalroz_printf.a"),
-        ("app/dsp_legacy", "libdeluge_dsp_legacy.a"),
         ("dsp", "libdeluge-dsp-fixed.a"),
         ("dsp", "libdeluge-dsp-float.a"),
         ("synth", "libdeluge_synth.a"),

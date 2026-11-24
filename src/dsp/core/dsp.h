@@ -18,7 +18,7 @@
 
 // libdeluge-dsp — the clean L0 DSP library (synth untangling, Phase 1).
 //
-// This is the strangler-fig replacement for src/deluge/dsp_legacy/: primitives migrate
+// This is the strangler-fig replacement for the app's DSP: primitives migrate
 // here one at a time as idiomatic C++23 (std::span buffers, injected
 // scratch/quality/allocator, strong numeric aliases, no globals), their callers
 // switch over under golden-master cover, and the old implementation is deleted.

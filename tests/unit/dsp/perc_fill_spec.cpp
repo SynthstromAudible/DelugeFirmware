@@ -16,18 +16,40 @@
  */
 
 // What one perc fill tells the time stretcher (synth/sources/sample/perc_fill.h): the chunks it touched, once each,
-// and a chunk past the two a fill can touch reported rather than lost silently.
+// and a chunk past the two a fill can touch reported rather than lost silently; and the memo of the last fill that
+// decides whether a block fills (P4), against the legacy's records.
 
 #include "synth/sources/sample/perc_fill.h"
 
 #include <cppspec.hpp>
 #include <cstdint>
+#include <optional>
+
+#include "time_stretcher_records.h"
 
 #include "support/spec_main.h"
 
 namespace {
+namespace r = time_stretcher_records;
+using deluge::synth::FillRange;
 using deluge::synth::PercChunk;
 using deluge::synth::PercFill;
+using deluge::synth::PercFillMemo;
+
+// The P4 rows the memo disagrees with: whether it fills, and where and how far.
+std::size_t perc_fill_mismatches() {
+	std::size_t bad = 0;
+	for (const auto& row : r::kPercFillGoldens) {
+		const PercFillMemo memo{.start = row.memo_start, .end = row.memo_end, .direction = row.memo_direction};
+		const std::optional<FillRange> range =
+		    memo.wanted(row.position_frame, row.increment, row.ratio, row.direction, row.block, row.writing_cache);
+		bad += range.has_value() == row.fills ? 0 : 1;
+		if (range.has_value()) {
+			bad += (range->from == row.from && range->to == row.to && range->max_frames == row.max_frames) ? 0 : 1;
+		}
+	}
+	return bad;
+}
 } // namespace
 
 // clang-format off
@@ -48,6 +70,32 @@ describe perc_fill_spec_body("deluge::synth::PercFill", ${
 		(void)fill.touch({.reversed = false, .index = 2});
 		expect(fill.touch({.reversed = false, .index = 5}) ? 1 : 0).to_equal(0);
 		expect(static_cast<int32_t>(fill.touched_count)).to_equal(2);
+	});
+
+	it("fills ahead where the legacy did (P4)", _ {
+		expect(perc_fill_mismatches()).to_equal(std::size_t{0});
+	});
+
+	it("skips a fill the last one already reaches, this direction", _ {
+		PercFill reached;
+		reached.filled_end = 10'000;
+		PercFillMemo memo;
+		memo.filled(1'000, reached, 1);
+		constexpr uint32_t kRatio = 1u << 23;
+		constexpr uint32_t kIncrement = 1u << 24; // reads 16,384 frames ahead
+		// From 1,000 the read ends at 17,384, past the fill's end: a fill
+		expect(memo.wanted(1'000, kIncrement, kRatio, 1, 128, false).has_value() ? 1 : 0).to_equal(1);
+		PercFill further;
+		further.filled_end = 20'000;
+		memo.filled(1'000, further, 1);
+		expect(memo.wanted(2'000, kIncrement, kRatio, 1, 128, false).has_value() ? 1 : 0).to_equal(0);
+		// Reversed, the same memo does not count
+		expect(memo.wanted(2'000, kIncrement, kRatio, -1, 128, false).has_value() ? 1 : 0).to_equal(1);
+		// At a ratio of 1.0 nothing fills
+		expect(memo.wanted(1'000, kIncrement, 1u << 24, 1, 128, false).has_value() ? 1 : 0).to_equal(0);
+		const std::optional<FillRange> range = memo.wanted(30'000, kIncrement, kRatio, 1, 128, true);
+		expect(range->to).to_equal(30'000 + 16'384 + 512);
+		expect(range->max_frames).to_equal(128 * 32);
 	});
 });
 // clang-format on

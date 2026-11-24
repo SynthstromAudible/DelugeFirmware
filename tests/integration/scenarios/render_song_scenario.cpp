@@ -654,7 +654,7 @@ void resizeClip(uint64_t block, const ClipResize& resize) {
 		return;
 	}
 	const bool voice = clip->voiceSample != nullptr;
-	const bool stretching = voice && clip->voiceSample->timeStretcher != nullptr;
+	const bool stretching = voice && clip->voiceSample->stretching();
 	deluge::edits::Context context{*currentSong, currentSong->project};
 	deluge::edits::ResizeAudioClip edit{*deluge::edits::clipAddressFor(*clip), resize.kind, resize.ticks,
 	                                    clip->loopLength()};

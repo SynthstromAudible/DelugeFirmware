@@ -132,7 +132,7 @@ const _: () = assert!(
 //   2. Once claimed, `source`'s contents are touched only through `SampleSource`'s own masked
 //      cells.
 // `open` and `close` run on the audio tier (a pooled reader reopened via
-// `SampleLowLevelReader::ensureSource`) and in thread mode (voice teardown). `Masked` masks in
+// `SampleReadLease::ensure_source`) and in thread mode (voice teardown). `Masked` masks in
 // every context but audio, and audio preempts the others, so each claim and release is
 // indivisible with respect to the other contexts. This guards pool-slot integrity only: closing a
 // source while another context still acquires through the same handle is the caller's bug.
@@ -353,6 +353,17 @@ pub extern "C" fn deluge_sample_region_release(lease: u64) {
     // SAFETY: see deluge_sample_region_retain.
     let res = unsafe { Resource::from_handle(handle) };
     res.release_token(lease);
+}
+
+/// The number of cursors open: the pool's slots in use.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_sample_source_open_count() -> u32 {
+    POOL.iter()
+        .filter(|slot| {
+            let _m = Masked::enter();
+            slot.in_use.get()
+        })
+        .count() as u32
 }
 
 /// Closes the cursor, releasing every lease it holds, and returns its pool slot. A no-op on null.

@@ -1,0 +1,6 @@
+# Held at the C4 root with time stretching on and no stretch amount, so it plays unstretched. A pitch bend up moves the
+# pitch off the speed, so the voice stretches and hops; bent back to centre the ratio is 1 again and the stretching
+# ends, the note still held to the end of the render: the voice keeps its own cursor and closes its spare head's.
+4608 90 3C 64
+20000 E0 00 50
+60000 E0 00 40

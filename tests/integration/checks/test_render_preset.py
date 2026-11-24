@@ -9,7 +9,8 @@ Gate render-preset-selftest:
     the member stands; each render-song gate plays its own generated song, whatever the shell exports; a render-song
     gate that switches mod FX types, clears mod FX memory or switches the reverb's model or knobs fails unless the
     scenario's summary shows each applied as asked and reaching its path; a filtered update keeps every record it did not
-    render, and a whole-corpus update drops the record of a case no longer in the corpus
+    render, and a whole-corpus update drops the record of a case no longer in the corpus; each case's render
+    allocations are echoed in the gate's log under its name
 """
 
 from __future__ import annotations
@@ -21,7 +22,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "tasks"))
 
-from render_preset import records_to_write, without_learned_input_json
+from render_preset import (
+    allocation_echoes,
+    records_to_write,
+    without_learned_input_json,
+)
 
 
 class LearnedInputJsonTest(unittest.TestCase):
@@ -77,6 +82,21 @@ class RecordsToWriteTest(unittest.TestCase):
 
     def test_a_comparing_run_writes_nothing(self):
         self.assertIsNone(records_to_write(False, [], OLD_RECORDS, {}, ["sample/a"]))
+
+
+class AllocationEchoTest(unittest.TestCase):
+    def test_each_case_s_allocations_are_echoed(self):
+        runs = [
+            ("a", "RP-ALLOC render_allocations=2"),
+            ("b", "RP-ALLOC render_allocations=4"),
+        ]
+        self.assertEqual(
+            allocation_echoes(runs),
+            ["RP-ALLOC a render_allocations=2", "RP-ALLOC b render_allocations=4"],
+        )
+
+    def test_a_case_that_printed_no_count_is_left_out(self):
+        self.assertEqual(allocation_echoes([("a", None)]), [])
 
 
 if __name__ == "__main__":

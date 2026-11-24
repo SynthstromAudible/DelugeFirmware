@@ -44,8 +44,8 @@ Downward arrows (gui → model) are healthy. The defining problems are the
 - **model ↔ storage**: serialization is member functions on model classes
   (39 model files touch `Serializer`), flowing through the global
   `storageManager`.
-- **dsp → model/processing (19)**: almost entirely `TimeStretcher` reading
-  `Sample`/`SampleCache`/`Cluster` directly, plus `Oscillator` → `wave_table`.
+- **dsp → model/processing (19)**: almost entirely the legacy time stretcher reading
+  `Sample`/`SampleCache`/`Cluster` directly (since rewritten behind its own port), plus `Oscillator` → `wave_table`.
 - **Global singletons**: `currentSong` referenced in 102 files, `AudioEngine::`
   in 100, `playbackHandler` in 71, `PadLEDs::` in 35. Counterweight:
   `ModelStack` already exists as an instance-threading pattern — the precedent
@@ -235,8 +235,8 @@ files (round-trip byte-stability tests).
 
 **deluge-dsp** — filters, reverb, delay, oscillators, FFT, granular,
 timestretch, compressor, dx. Operates on buffers and fixed-point types. The
-two couplings to break: `TimeStretcher`'s direct reads of
-`Sample`/`SampleCache`/`Cluster` (becomes the `SampleSource` interface), and
+two couplings to break: the time stretcher's direct reads of
+`Sample`/`SampleCache`/`Cluster` (broken: it reaches the sample through `SampleStretchPort`), and
 `Oscillator` → `wave_table` (wavetable frames passed as descriptors). The
 existing x86-SIMDe vs ARM-NEON differential harness becomes this library's
 test suite.

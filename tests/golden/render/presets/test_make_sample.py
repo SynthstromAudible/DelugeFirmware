@@ -8,7 +8,8 @@ Gate make-sample-selftest:
     the sample cases' synthetic sources are what their cases assume: the percussive source is 32,768 frames of
     44.1 kHz 16-bit stereo whose bursts start exactly at its listed onsets, the short tone played an octave up
     outlasts the time stretcher's first hop and not the next, each source comes out byte-identical from two runs, and
-    the committed WAVs are the generator's output
+    the committed WAVs are the generator's output; the 8-, 24- and 32-bit tones have their depths and channels and span
+    several 32 KB chunks
 """
 
 from __future__ import annotations
@@ -48,6 +49,9 @@ def parse_wav(data: bytes) -> tuple[dict, list[tuple[int, ...]]]:
         chunks[tag] = data[pos + 8 : pos + 8 + size]
         pos += 8 + size + (size & 1)
     _, channels, rate, _, _, bits = struct.unpack("<HHIIHH", chunks[b"fmt "])
+    if bits != 16:
+        root = struct.unpack("<9I", chunks[b"smpl"])[3]
+        return {"channels": channels, "rate": rate, "bits": bits, "root": root}, []
     samples = struct.unpack(f"<{len(chunks[b'data']) // 2}h", chunks[b"data"])
     frames = [
         tuple(samples[i : i + channels]) for i in range(0, len(samples), channels)
@@ -131,6 +135,43 @@ class ToneTest(unittest.TestCase):
         self.assertEqual(
             (SAMPLE_DIR / "_tone_mono.wav").read_bytes(), make_sample.tone_mono_wav()
         )
+
+
+# Each depth source: its file, the generator function, its bits per sample and its channels.
+DEPTH_SOURCES = (
+    ("_tone16.wav", "tone16_wav", 16, 2),
+    ("_tone24.wav", "tone24_wav", 24, 2),
+    ("_tone24_mono.wav", "tone24_mono_wav", 24, 1),
+    ("_tone32.wav", "tone32_wav", 32, 2),
+    ("_tone8_mono.wav", "tone8_mono_wav", 8, 1),
+)
+# 24-bit stereo frames per 32,768-byte chunk: every depth source spans several chunks.
+DEPTH_MIN_FRAMES = 40000
+
+
+class DepthSourceTest(unittest.TestCase):
+    def test_the_depth_sources_have_their_depths(self):
+        for name, _, bits, channels in DEPTH_SOURCES:
+            with self.subTest(name=name):
+                fmt, _ = parse_wav((SAMPLE_DIR / name).read_bytes())
+                self.assertEqual(fmt["bits"], bits)
+                self.assertEqual(fmt["channels"], channels)
+                self.assertEqual(fmt["rate"], 44100)
+                self.assertEqual(fmt["root"], 60)
+
+    def test_the_depth_sources_span_several_chunks(self):
+        for name, function, bits, channels in DEPTH_SOURCES:
+            with self.subTest(name=name):
+                data = getattr(make_sample, function)()
+                frames = (len(data) - data.index(b"data") - 8) // (bits // 8 * channels)
+                self.assertGreaterEqual(frames, DEPTH_MIN_FRAMES)
+
+    def test_the_depth_sources_are_the_generator_s_output(self):
+        for name, function, _, _ in DEPTH_SOURCES:
+            with self.subTest(name=name):
+                data = getattr(make_sample, function)()
+                self.assertEqual(data, getattr(make_sample, function)())
+                self.assertEqual((SAMPLE_DIR / name).read_bytes(), data)
 
 
 if __name__ == "__main__":

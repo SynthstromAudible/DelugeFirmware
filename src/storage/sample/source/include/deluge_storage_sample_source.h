@@ -180,6 +180,9 @@ void deluge_sample_region_release(uint64_t lease) DELUGE_NOEXCEPT;
 /// @param src The cursor to close.
 void deluge_sample_source_close(DelugeSampleSource* src) DELUGE_NOEXCEPT;
 
+/// @brief The number of cursors open: those opened and not yet closed. [task] [audio]
+uint32_t deluge_sample_source_open_count(void) DELUGE_NOEXCEPT;
+
 #ifdef __cplusplus
 }
 #endif

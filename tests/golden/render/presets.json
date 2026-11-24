@@ -2099,6 +2099,42 @@
   "rms_db": -26.67,
   "sha256": "3cd93b96e5a98d22f9e5b1c5b62e55cdeacf76950916134b0815ab18c73b9700"
  },
+ "sample/depth24": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.05,
+  "sha256": "4493788a40c2c8eba468bb9c8f4e1e243d5ebd80dd300fb0cdcb6df7838c1802"
+ },
+ "sample/depth24_linear_mono": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.28,
+  "sha256": "3231b859503222ae07672f7ef4b951d6a0d6b8fdcf356181b0be3dadad58f12c"
+ },
+ "sample/depth24_pitched": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.04,
+  "sha256": "9dc20b7772ee21df7e75eff4dc91a2968f2f7413cb1ded267997d7386f70eccc"
+ },
+ "sample/depth24_reversed": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.09,
+  "sha256": "bb09ce0c83c21be34163aba6dee8ba3c68263b16658b85c5ac19cac5baf2cdf3"
+ },
+ "sample/depth32": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.1,
+  "sha256": "75a8ae13d80cb8c467ccc97c991a3ba735f0a8ab1ea7eb8d42c49e027cbffc27"
+ },
+ "sample/depth8_mono": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.3,
+  "sha256": "beefb872dcc0b19f7b6bea49a99a046f15a5ade70f84a40584282feb02c4511d"
+ },
  "sample/linear": {
   "frames": 88200,
   "peak": 245172224,
@@ -2140,6 +2176,12 @@
   "peak": 245172224,
   "rms_db": -35.63,
   "sha256": "1bc8b58c620a93751ce45955ed70f1070ae9bd6986d1b3ceb145d4ee93775145"
+ },
+ "sample/ts_bend_back": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -22.59,
+  "sha256": "187b051d9b0177963001241597a5a0bcaf910459056cfbac66c9bbbea81286f2"
  },
  "sample/ts_cache_bend": {
   "frames": 88200,
@@ -2194,6 +2236,12 @@
   "peak": 245172224,
   "rms_db": -23.23,
   "sha256": "b86b25bbb5c17a6541fb5efc7089c8ddf52bb88d90dc80df17dc6abd19ceb8e6"
+ },
+ "sample/ts_depth24": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -26.88,
+  "sha256": "d784f23fa8afce5bf507402d7944d08682f60045aef213c355510ef95f7a7b2f"
  },
  "sample/ts_long_hold": {
   "frames": 176400,
@@ -2410,6 +2458,12 @@
   "peak": 245151488,
   "rms_db": -37.51,
   "sha256": "e63d91eb9be784efdc23d2b2a9edfe203bf8bfac0e57bbe89a50f6b41fdef31e"
+ },
+ "sample/unison_added": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -24.39,
+  "sha256": "2936bc36dd2b8952d0c66db9084f8864398a7ec3965d57cb9fe2cc927b5f423e"
  },
  "saw_basic": {
   "frames": 88200,

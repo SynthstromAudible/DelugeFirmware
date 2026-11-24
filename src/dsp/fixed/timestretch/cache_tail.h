@@ -91,20 +91,30 @@ public:
 	}
 
 	/// @brief Mixes the tail into @p out at @p level, stepping it by @p level_step before each frame (C4), over
-	/// words_written() words of @p out, which must hold them; it stops at @p out's end rather than pass it. Each
-	/// product's high word is floored, where the heads' reads round (C4's quirk). A stereo tail mixed into a mono
-	/// output is halved per channel and summed. A tail of no frames mixes nothing.
+	/// words_written() words of @p out; it stops writing at @p out's end rather than pass it, but its read position
+	/// moves on as the legacy's loop did, a frame per output frame of all words_written() words. Each
+	/// product's high word is floored, where the heads' reads round (C4's quirk). Past the tail's frames it reads
+	/// silence. A stereo tail mixed into a mono output is halved per channel and summed. A tail of no frames mixes
+	/// nothing.
 	/// @return The words written.
 	int32_t mix_into(std::span<Q<31>> out, int32_t frames, int32_t out_channels, Q<31> level, Q<31> level_step) {
 		if (frames_ == 0) {
 			return 0;
 		}
-		const auto words = std::min(static_cast<std::size_t>(words_written(frames, channels_)), out.size());
+		const auto all = static_cast<std::size_t>(words_written(frames, channels_));
+		const auto words = std::min(all, out.size());
+		const int32_t start = position_;
 		auto it = out.begin();
 		const auto end = out.begin() + static_cast<std::ptrdiff_t>(words);
 		while (it != end) {
-			Q<31> left = storage_[static_cast<std::size_t>(position_) * channels_];
-			const Q<31> right = channels_ == 2 ? storage_[static_cast<std::size_t>(position_) * 2 + 1] : left;
+			// Past the tail's frames the legacy's freshly made buffer held silence; a lent one holds an earlier tail
+			const bool held = position_ < frames_;
+			Q<31> left{};
+			Q<31> right{};
+			if (held) {
+				left = storage_[static_cast<std::size_t>(position_) * channels_];
+				right = channels_ == 2 ? storage_[(static_cast<std::size_t>(position_) * 2) + 1] : left;
+			}
 			position_ = (position_ + 1) & (kCacheTailCapacity - 1);
 			if (channels_ == 2 && out_channels == 1) {
 				left = add_wrap(halve_floor(left), halve_floor(right));
@@ -117,6 +127,8 @@ public:
 				++it;
 			}
 		}
+		const auto frames_read = static_cast<int32_t>(all / static_cast<std::size_t>(out_channels));
+		position_ = (start + frames_read) & (kCacheTailCapacity - 1);
 		return static_cast<int32_t>(words);
 	}
 

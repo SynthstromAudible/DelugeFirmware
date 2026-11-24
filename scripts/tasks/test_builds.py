@@ -99,7 +99,6 @@ HOST_APP_TARGETS = [
     "deluge_app",
     "deluge_scenarios",
     "eyalroz_printf",
-    "deluge_dsp_legacy",
     "deluge_dsp_fixed",
     "deluge_dsp_float",
     "deluge_synth",

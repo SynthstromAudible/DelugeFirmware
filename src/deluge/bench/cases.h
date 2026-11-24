@@ -1667,7 +1667,7 @@ struct SampleReadConfig {
 	bool linear = false; ///< Two-tap linear interpolation; otherwise the windowed sinc.
 };
 
-/// @brief A sample voice's resampled read, `SampleLowLevelReader::readSamplesResampled`, at a rate of 1.5 over a
+/// @brief A sample voice's resampled read, `ReadHead::read_resampled`, at a rate of 1.5 over a
 /// resident region of 32-bit frames: the interpolator's window fed by one- and two-sample jumps.
 class SampleReadCase {
 public:

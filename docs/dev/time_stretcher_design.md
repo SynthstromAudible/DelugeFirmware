@@ -48,28 +48,28 @@ The differences accepted by name; everything else stays bit-identical, and the c
 
 The goldens that pin the stretcher are the `sample/ts_*` and `sample/timestretch` render-preset cases and the
 `RS_AUDIO_STRETCH*` render-song gates (`tests/integration/checks/render_song_cases.md`). A host coverage build of them
-(`scripts/tasks/stretcher_coverage.py`) reaches 1,031 of the 1,374 branch sides of the stretcher, its users' stretcher
-functions and the whole sample reader. [time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 343 it does
-not reach, keyed by function and condition, each with a category, and a reason where the category's meaning does not
-already give it:
-- 110 the code itself rules out (defensive checks, conditions fixed by construction);
-- 120 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull
-  or to shrink a reader's sinc window;
-- 6 are not stretcher paths;
-- 107 are reachable on the device, and no gate scripts them. EDIT (16) and LATE (7) are the edit and late-start paths
+(`scripts/tasks/stretcher_coverage.py`) reaches 1,295 of the 1,650 branch sides of the stretcher, the time-stretch and
+sample-read components, the stretch port, the read lease and their users' stretcher functions.
+[time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 355 it does not reach, keyed by function and
+condition, each with a category, a reason where the category's meaning does not already give it, and what pins it:
+- 102 the code itself rules out (defensive checks, conditions fixed by construction);
+- 112 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull
+  or to shrink a head's sinc window;
+- 14 are not stretcher paths;
+- 126 are reachable on the device, and no gate scripts them. EDIT (19) and LATE (13) are the edit and late-start paths
   the decision-10 songs leave out: render-audio-stretch-marker and render-audio-stretch-length resize a clip while its
-  stretched voice plays, and render-audio-stretch-late starts playback part-way through stretched clips. STOP (5)
+  stretched voice plays, and render-audio-stretch-late starts playback part-way through stretched clips. STOP (4)
   needs a render shorter than a block: a stop fast-releases an audio clip's envelope within its first 128-frame block,
   so its voice never renders after the clocks stop. REC (13) is an audio clip recording, EXPORT (14) the stem export's
-  render, and OPEN (52) sides a preset or song could reach but none is built for: a third perc-cache chunk, a crossfade
-  out of a cache whose read position is in a cache chunk's last frame, and the reader's content corners (a stereo
-  sample read linearly while rendering in stereo, a cache written from a mono sample, tail zeros past a non-looping
-  end, among others).
+  render, and OPEN (63) sides a preset or song could reach but none is built for: a third perc-cache chunk, a crossfade
+  out of a cache whose read position is in a cache chunk's last frame, and the read head's content corners (a stereo
+  sample read linearly while rendering in stereo, a sinc step over 16 frames, tail zeros past a non-looping end,
+  among others).
 
-How the residency, memory and unbuilt sides' legacy values are recorded is step 1's table (decision 11).
-
-The script's `SCOPE` holds the whole sample reader, which the read head replaces (decision 8); step 8 measures the read
-head in its place.
+Each residency, memory, cull, edit, late-start, stop and unbuilt side is pinned: by a records array whose legacy rows
+take it (step 1's table, decision 11), by a unit spec case for the read head's and the search's own paths, or by an
+acceptance named in the list (decision 10, decision 11 for an app-side fault whose value no record holds, the STOP
+ruling, decision 3).
 
 ## Words
 
@@ -392,7 +392,7 @@ make every seat and copy cross the seam twice. So:
 - the stretcher owns which role each plays, through its head phase, and how loud each is;
 - the port seats, reads and marks the heads by role. A hop seats the spare at the new start (H1) and only once it
   has started swaps the roles, so a start that fails leaves the newer untouched and S4 needs no undo;
-- when stretching ends, the voice-sample unseats its spare itself.
+- when stretching ends, the voice-sample closes its spare's lease itself, with its cursor and the chunks it pinned.
 
 This is the one statement of who owns what; section 5's table follows it.
 
@@ -414,41 +414,52 @@ has fed, so the legacy reader's null pointer reused as a counter becomes its own
 
 ```cpp
 namespace deluge::dsp::fixed::sample_read {
-enum class Residency : uint8_t { kReady, kLoading, kUnavailable };
+enum class Residency : uint8_t { READY, LOADING, UNAVAILABLE };
 /// The chunk the lease holds, in frames: where the walk next acts, and how far back the window may read (R6).
 struct ChunkSpan { int32_t boundary; int32_t floor; bool final; };
 template <class S>
-concept ReadSource = FrameSource<S> && requires(S& s, const S& cs, int32_t frame, Direction d) {
-	{ s.move_to(frame, d) } -> std::same_as<Residency>; // the lease moves to `frame`'s chunk (R6, R10)
+concept read_source = frame_source<S> && requires(S& s, const S& cs, int32_t frame, Direction d) {
+	{ s.move_to(frame, d) } -> std::same_as<Residency>;       // the lease moves to `frame`'s chunk (R6, R10)
+	{ s.let_go() } -> std::same_as<void>;                     // the chunk goes
 	{ cs.span(d) } -> std::same_as<std::optional<ChunkSpan>>; // nullopt: no chunk held
+	{ cs.byte_depth() } -> std::same_as<int32_t>;
 };
-
-/// Where the head stops or loops, from the playback guide each call (markers obeyed or not, as the owner says).
-struct ReadBounds { int32_t end_byte; std::optional<int32_t> loop_start_byte; };
 
 struct ReadHead {
 	struct Reading { int32_t frame; };       ///< The next frame the window takes.
-	struct Ended { int32_t zero_taps; };     ///< Past the end: zero taps fed so far (R1, R3, R4).
+	struct Ended { int32_t zero_taps; };     ///< Past the end, or holding no chunk: zero taps fed since (R1, R3, R4).
 	struct State {
 		std::variant<Reading, Ended> cursor;
 		UQ<24> phase;                          ///< The sub-sample phase.
 		int8_t width_last;                     ///< The window's width at the last resampled check; 0 after a native one.
 		Interpolator window;
 	};
+	/// Where the head loops, from the playback guide each call (markers obeyed or not, as the owner says).
+	struct ReadBounds { std::optional<int32_t> loop_start_frame; bool endless_silence; };
 	/// What a window check allows: frames to render, or that the head stopped (its end, or a chunk not ready: R11).
-	struct Window { enum class Kind : uint8_t { kRead, kStopped } kind; int32_t frames; };
+	struct Window { enum class Kind : uint8_t { READ, STOPPED } kind; int32_t frames; };
+	/// Where a read mixes: the output, its channels, and the amplitude stepped per frame.
+	struct Output { std::span<Q<31>> out; int8_t out_channels; Q<31> amplitude; Q<31> step; };
 
-	static void seat(State&, int32_t frame, UQ<24> phase);                // R10; the lease is the caller's
+	template <read_source S>
+	static Residency seat(State&, S&, int32_t frame, UQ<24> phase, Direction);              // R10
+	template <read_source S>
+	static Residency place(State&, S&, int32_t frame, Direction);                           // a late start's seat
 	[[nodiscard]] static State level_copy(const State&);                                    // R10
-	template <ReadSource S>
+	template <read_source S>
+	static bool walk(State&, S&, const ReadBounds&, Direction);                             // R6
+	template <read_source S>
 	static Window check(State&, S&, const ReadBounds&, int32_t frames, Increment, int32_t width,
-	                    bool endless_silence);                                              // R1 to R6
-	template <ReadSource S>
-	static void read_native(State&, const S&, Q<31>* out, int32_t frames, Channels, Gain&); // R7
-	template <ReadSource S>
-	static void read_resampled(State&, const S&, Q<31>* out, int32_t frames, Increment, int32_t width, Kernel, Gain&,
-	                           CacheWrite*);                                                // R8, R9
-	[[nodiscard]] static int32_t play_byte(const State&, const SourceFacts&, Direction, bool compensate); // A0
+	                    Direction);                                                         // R1 to R6
+	template <read_source S>
+	static void read_native(State&, const S&, Output&, int32_t frames, Direction);          // R7
+	template <read_source S>
+	static void read_resampled(State&, const S&, Output&, int32_t frames, Increment, int32_t width, int32_t kernel,
+	                           std::byte*& cache_write, Direction);                         // R8, R9
+	template <read_source S>
+	static bool read(State&, S&, const ReadBounds&, Output&, int32_t frames, Increment, int32_t width,
+	                 int32_t kernel, std::byte* cache_write, Direction);                    // R11: check, then read
+	[[nodiscard]] static int32_t play_byte(const State&, const ReadFacts&, Direction, bool compensate); // A0
 };
 }
 ```
@@ -516,7 +527,7 @@ port is smaller than `SamplePlaybackPort`, which has 23.
   `wrap_to`) and the cache-write copy (W1); the stretched segment loop (hops, gains, both heads, the position) is
   `SampleStretcher::render`. `fudgeTimeStretchingToAvoidClick` and `weShouldBeTimeStretchingNow` become `begin` (with a
   `Fudge` or `Plain` opening, and a `FromCacheTail` one where the render leaves a stretched cache); `endTimeStretching`
-  becomes `end` and unseats the spare; `sampleZoneChanged` and `getPlaySample` read `frame()`.
+  becomes `end` and closes the spare's lease; `sampleZoneChanged` and `getPlaySample` read `frame()`.
 - `src/deluge/model/sample/sample.cpp`: `Sample::fillPercCache` takes no stretcher. It returns a `PercFill`: where the
   filled zone now ends, the perc chunks the fill touched (for the stretcher to hold), and whether the lookahead
   reservation may be let go, with the frame it should move to. Its per-frame arithmetic calls the perc analysis
@@ -529,8 +540,10 @@ port is smaller than `SamplePlaybackPort`, which has 23.
   card-error exit is never taken: R11). In step 7a its arithmetic becomes the read head's (R1 to R11), its residency the
   app's `SampleReadLease`, its loop for the stretcher the port's `read`, and it is deleted with its other users
   switched (2.8).
-- `src/deluge/model/clip/audio_clip.cpp`: reads `newer_reading()` and `is_fudge()` where it reads the legacy flags
-  today (the restart at the loop, the fudge, the cull immunity), and begins the fudge through the voice-sample.
+- `src/deluge/model/clip/audio_clip.cpp`: reads `newer_reading()` and the voice-sample's own `fudging` where it read
+  the legacy flags (the restart at the loop, the fudge, the cull immunity), and begins the fudge through the
+  voice-sample. `fudging` is the voice's, as the legacy's was: a fudge with no frames to the loop begins its stretcher
+  plain (`is_fudge()` false) while the voice still counts as fudging.
 - `src/deluge/processing/engines/audio_engine.cpp`: the pool's type, and the `StretchContext` (a `HopBudget` in place
   of the two globals, the noise stream, the tail buffers); the render's culling bypass reads the budget.
 
@@ -556,13 +569,13 @@ lease handle it takes, the engine owns the tail buffers.
 | Resource | Owner | Taken | Given back |
 |---|---|---|---|
 | The head the voice plays from (the newer head): its `ReadHead` state and its `SampleReadLease` | the voice-sample | a plain begin takes nothing (the head plays on); a hop or fudge seats the spare (H1), which becomes the newer | becomes the older at the next successful hop |
-| The spare head (the older head) | the voice-sample | a plain begin seats it as a level copy with its own lease on the shared chunk (`shadow`, R10); a successful hop or fudge makes the previous newer the spare | reseated at the next hop (its lease goes first, H1); unseated by the voice-sample when stretching ends |
-| A head's chunk lease, and the region port's prefetch of the next chunk | the head's `SampleReadLease` | a seat (R10), a chunk walk's move (R6), a level copy (R10) | the next seat or move, a walk that ends, or the voice-sample's unseat |
+| The spare head (the older head) | the voice-sample | a plain begin seats it as a level copy with its own lease on the shared chunk (`shadow`, R10); a successful hop or fudge makes the previous newer the spare | reseated at the next hop (its lease goes first, H1); closed by the voice-sample when stretching ends, with its cursor |
+| A head's chunk lease, and the region port's prefetch of the next chunk | the head's `SampleReadLease` | a seat (R10), a chunk walk's move (R6), a level copy (R10) | the next seat or move, a walk that ends, or the voice-sample's unassign |
 | Hop-back reservation | the stretcher (a handle; the port keeps it) | at a begin and after every hop, from the earliest frame the next hop could start (below) | `end` |
 | Hop-retry reservation | the stretcher | a hop whose start chunk is not resident | that hop's retry succeeding, or `end` |
 | Perc lookahead reservation | the stretcher | each perc fill, moved to where it stopped reading | when the filled zone already covers the lookahead, or `end` |
 | Perc-cache chunk leases | the stretcher, the two most recently used | a fill or a read touching a chunk not held (the older of the two is dropped) | `end` |
-| A cache-tail buffer | the engine's tail buffers, lent to the stretcher through the `StretchContext` | a `FromCacheTail` begin | the crossfade's end, or `end` |
+| A cache-tail buffer | the engine's tail buffers, lent to the stretcher through the `StretchContext` | a `FromCacheTail` begin | the older head stopping (the crossfade's end), the next hop, or `end` |
 | The stretcher | the voice-sample, from the engine's pool | the first stretched block, or a fudge | `end`, then back to the pool |
 
 The hop-back reach: `widest = max(max_width, min_width << 1)`, repitched as B2; `back = ((rate / 45) >> 1) + 1`, plus
@@ -578,7 +591,7 @@ are passed to.
 - **Audio tier (the render).** Every call that reads or writes samples: `begin`, `render` (hops included) and
   `wrap_to`, and every read head's check and read, stretched or not. Taking a stretcher from the pool happens here.
 - **The render's sequencer tick, or a playhead move on the interaction tier.** `AudioClip::processCurrentPos` and
-  `AudioClip::resumePlayback` read `newer_reading()` and `is_fudge()` and may end stretching (`end`). On the
+  `AudioClip::resumePlayback` read `newer_reading()` and the voice-sample's `fudging` and may end stretching (`end`). On the
   interaction tier they run inside a move's section (`docs/dev/playback_moves.md`): the render is held off and nothing
   may allocate. `end` allocates nothing; returning a tail buffer or the stretcher pushes onto a reserved free list.
 - **Voice unassignment** calls `end` from wherever the voice-sample is unassigned today, under the same exclusion.
@@ -592,8 +605,7 @@ gated) for every stretcher case, measured by running each golden-synth case's re
 | Allocations | Cases |
 |---|---|
 | 2 | 17 cases at the root, which have no sample cache: `ts_long_hold`, `ts_loop_fast`, `ts_marker_loop_end`, `_ahead`, `_released`, `ts_marker_loop_start`, `ts_marker_start`, `ts_repeat_cut`, `_loop`, `_once`, `ts_reverse_loop`, `ts_speed_fast`, `_slow`, `ts_zone_end_ahead`, `_loop`, `_once`, `_released` |
-| 4 | 22 cases with a sample cache: `timestretch`, `ts_cache_bend_early`, `ts_cache_replay`, `ts_cached_loop` (and `stereo/ts_cached_loop`), `ts_marker_loop_end_cached`, `_ahead`, `ts_marker_start_cached`, `ts_markers`, `ts_mono`, `ts_perc`, `ts_pitch_cents`, `_down12`, `_down36`, `_fifth`, `_up36`, `ts_reversed`, `ts_short`, `ts_tonal`, `ts_zone_end_cached`, `_ahead`, `_once` |
-| 5 | 6 cases that crossfade out of a cache: `ts_cache_bend`, `ts_cache_bend_root`, `ts_cache_crossfade`, `_mono`, `ts_cache_linear`, `ts_cache_stretch_amount` |
+| 4 | 28 cases with a sample cache: `timestretch`, `ts_cache_bend_early`, `ts_cache_replay`, `ts_cached_loop` (and `stereo/ts_cached_loop`), `ts_marker_loop_end_cached`, `_ahead`, `ts_marker_start_cached`, `ts_markers`, `ts_mono`, `ts_perc`, `ts_pitch_cents`, `_down12`, `_down36`, `_fifth`, `_up36`, `ts_reversed`, `ts_short`, `ts_tonal`, `ts_zone_end_cached`, `_ahead`, `_once`; and the 6 that crossfade out of a cache, 5 before decision 2: `ts_cache_bend`, `ts_cache_bend_root`, `ts_cache_crossfade`, `_mono`, `ts_cache_linear`, `ts_cache_stretch_amount` |
 | 9 | `ts_poly` (four voices, four caches) |
 
 Where they come from, traced by a debugger watchpoint on the counter in four cases (`ts_long_hold`, `ts_pitch_fifth`,
@@ -602,41 +614,39 @@ Where they come from, traced by a debugger watchpoint on the counter in four cas
   growth. The sample's, not the stretcher's; it moves with the fill unchanged.
 - **The sample cache** (`Sample::getOrCreateCache`): one for each cache's memory, plus each growth of the sample's
   cache list (once for the first cache; three times for `ts_poly`'s four, so 7 there). Not the stretcher's.
-- **1, the cache tail's buffer**, the stretcher's only render allocation (`allocMaxSpeed` of 256 words per channel,
-  1 KB mono or 2 KB stereo). Decision 2 removes it: the engine's eight tail buffers are made at start.
+- **1, the cache tail's buffer**, the legacy stretcher's only render allocation (`allocMaxSpeed` of 256 words per
+  channel, 1 KB mono or 2 KB stereo), in each crossfade out of a cache. Decision 2 removed it: the engine's eight tail
+  buffers are made at start, and the six cases that crossfade out of a cache count 4, the others unchanged.
 - In the four traced cases the pool (48 stretchers) never fell back to the heap. The other cases' counts follow the
-  same pattern (2 for the perc cache, 2 for one sample cache, 1 per crossfade out of a cache); they were counted, not
-  traced.
+  same pattern (2 for the perc cache, 2 for one sample cache); they were counted, not traced.
 
 These counts are the ceiling: no case may rise. The render-song gates print no allocation count, so the songs have no
 ceiling yet (section 6, step 1).
 
 ### On the device
 
-Measured on the device image of this tree (`dbt build RelWithDebInfo`), with `arm-none-eabi-nm -S` and the section
-headers:
-- **Placement.** All of `.text` is on-chip SRAM. The legacy class's 18 functions occupy 7,384 bytes there,
-  contiguously, and its tables 220 bytes of `.rodata` (also SRAM). Its users' stretcher functions add 4,084 bytes
-  (`Sample::fillPercCache` 2,278, `Sample::getAveragesForCrossfade` 624, `VoiceSample::weShouldBeTimeStretchingNow`
-  302, `VoiceSample::fudgeTimeStretchingToAvoidClick` 296, `Sample::prepareToReadPercCache` 288,
-  `SampleLowLevelReader::readSamplesForTimeStretching` 208, the pool hand-out 54, `VoiceSample::endTimeStretching` 34);
-  `VoiceSample::render` is 4,352. The class's `[[gnu::hot]]` does not decide where it lands: it sits at the front of the
-  application's code because its archive links first, and `TrackChannel::render`, also `[[gnu::hot]]`, sits far from it.
-  What keeps code fast is staying out of the size-optimised sources and out of the GUI archive the device runs from
-  SDRAM (`src/deluge/CMakeLists.txt`); the new homes, the DSP library and `deluge_synth`, are in neither.
-- **Objects.** The legacy object is 208 bytes, 128 of them its older head's reader; the pool holds 48 (9,984 bytes of
-  fast memory). The voice-sample is 160 bytes; a perc zone 28.
-- **Headroom.** The SRAM heap, `__sram_heap_end − __sram_heap_start`, is 616,240 bytes.
-
-The rewrite's budget: the stretcher's code and tables stay in `.text`/`.rodata` outside the size-optimised set, within
-a few hundred bytes of today's total (the DSP components are header-first and inline into their callers, so the
-comparison is the users' and the stretcher's functions together, about 11.7 KB). The read head's code replaces the
-reader's, compared the same way with the reader's functions and `VoiceSample::render`'s unstretched read. In memory,
-the spare head moves from the stretcher into every voice-sample, and the stretcher loses it. Today's reader is 128 bytes
-(the voice-sample with it 160); a head of that size is, at the default pool sizes of 48 voice-samples and 48
-stretchers, +6,144 bytes in the voice-samples and about −6,144 bytes in the stretchers, a net change of about 0. The
-read head's and its lease's sizes, and the new stretcher's, are settled when they are written. The pooled stretcher
-holds no tail buffer (decision 2); the engine's eight are 16 KB.
+Measured on the device images of the rewrite's last code commit and of its branch point (`tools/bench_image.py
+--no-bench`, the DSP bench off), with `arm-none-eabi-nm -S -C` and the section headers.
+- **Placement.** Every function of the stretcher set and the read-head set below is in `.text`, and their tables and the
+  port's vtable in `.rodata`: on-chip SRAM, none in the GUI archive's SDRAM code or a size-optimised source. As before,
+  what keeps them there is their homes, the DSP library and `deluge_synth`, not `[[gnu::hot]]`
+  (`src/deluge/CMakeLists.txt`).
+- **The stretcher set** (the stretcher's and its port's functions, the hop planner's and aligner's out-of-line code, the
+  hop tables, the users' stretcher functions, and `VoiceSample::render`): 15,808 bytes at the branch point, 19,762
+  after, +3,954. The largest are `SampleStretcher::hop` 3,800 (the legacy `hopEnd` 4,444), `read_heads` 1,220,
+  `plan_hop` 1,184, `begin` 1,072, `moving_averages` 640, and `VoiceSample::render` 4,286 (4,352).
+- **The read-head set** (the reader's functions, against the lease's and the read head's): 6,546 bytes before, 8,384
+  after, +1,838. Most of it is the read kernels instantiated per channel layout: linear 282 to 394 bytes each, sinc 890
+  (mono) and 1,124 (stereo), native 184 to 252. They read faster than the legacy's on the device: `bench pitch_shift`
+  against the legacy, sinc −1% to −11% and linear −5% to −16% at 32 to 128 frames.
+- **Both sets are over the budget of a few hundred bytes** (+5,792 together). The image's `.text` grew 5,968 bytes and
+  its `.rodata` shrank 864.
+- **Objects.** `SampleStretcher` is 120 bytes (the legacy object 208), `ReadHead::State` 80, `SampleReadLease` 48 (the
+  legacy reader 128), the voice-sample 304 (160). At the default pools of 48 of each, the voice-samples take +6,912
+  bytes and the stretchers −4,224, a net +2,688 from the heap. The engine's eight tail buffers are 16 KB of `.bss`
+  (decision 2): `.bss` grew by exactly that, 16,384 bytes.
+- **Headroom.** The SRAM heap, `__sram_heap_end − __sram_heap_start`, is 594,288 bytes, 21,472 less than the branch
+  point's 615,760: the tail buffers and the code growth.
 
 ## 6. The rewrite's steps
 

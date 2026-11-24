@@ -1,6 +1,6 @@
 # The DSP library: the clean L0 DSP library (synth untangling, Phase 1).
 #
-# Strangler-fig replacement for src/deluge/dsp_legacy/: primitives migrate here one at a
+# Strangler-fig replacement for the app's DSP: primitives migrate here one at a
 # time, callers switch under golden-master cover, the old impl is deleted. Built
 # as two q31/f32 backends behind a header-only numeric-agnostic core.
 # See docs/dev/synth_phase1_l0_plan.md.
