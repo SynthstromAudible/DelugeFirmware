@@ -265,7 +265,7 @@ void SampleStretcher::hop(SampleStretchPort& port, StretchContext& context, cons
 	give_back_tail(context);
 
 	if (plan.kind == ts::HopPlan::Kind::PAST_END) {
-		set_heads({.newer = false, .older = older_reads, .ramp = plan.ramp, .older_head = SpareHead{}, .tail = {}},
+		set_heads({.newer = false, .older = older_reads, .ramp = plan.ramp, .older_head = NewerSlot{}, .tail = {}},
 		          context);
 		return;
 	}
@@ -328,7 +328,8 @@ void SampleStretcher::hop(SampleStretchPort& port, StretchContext& context, cons
 }
 
 void SampleStretcher::read_heads(SampleStretchPort& port, StretchContext& context, const Part& part,
-                                 std::span<dsp::Q<31>> segment, int32_t frames, HeadLevel level) {
+                                 std::span<dsp::Q<31>> segment, std::span<dsp::Q<31>> to_part_end, int32_t frames,
+                                 HeadLevel level) {
 	Heads h = heads();
 	const bool older_audible = h.older && !h.ramp.done();
 	HeadGain newer_gain{.level = level.level, .step = level.step};
@@ -343,11 +344,15 @@ void SampleStretcher::read_heads(SampleStretchPort& port, StretchContext& contex
 	}
 	if (h.older) {
 		if (auto* tail = std::get_if<ts::CacheTail>(&h.older_head); tail != nullptr && older_audible) {
-			tail->mix_into(segment, frames, part.out_channels, older_gain.level, older_gain.step);
+			// A stereo tail into a mono output runs on past the segment, as the legacy's did (C4's quirk)
+			tail->mix_into(to_part_end, frames, part.out_channels, older_gain.level, older_gain.step);
 		}
 		else {
 			// The older head's read; a plain begin's shadow copy reads here once at level 0 (X3)
-			h.older = port.read(SampleStretchPort::Head::OLDER, segment, frames, older_gain);
+			const SampleStretchPort::Head where = std::holds_alternative<NewerSlot>(h.older_head)
+			                                          ? SampleStretchPort::Head::NEWER
+			                                          : SampleStretchPort::Head::OLDER;
+			h.older = port.read(where, segment, frames, older_gain);
 		}
 		if (h.ramp.done()) {
 			h.older = false;
@@ -380,7 +385,8 @@ SampleStretcher::PartOutcome SampleStretcher::render(SampleStretchPort& port, St
 
 		const std::span<dsp::Q<31>> segment =
 		    out.subspan(done * part.out_channels, static_cast<size_t>(frames) * part.out_channels);
-		read_heads(port, context, part, segment, frames, segment_level(amplitude, part.writing_cache));
+		read_heads(port, context, part, segment, out.subspan(done * part.out_channels), frames,
+		           segment_level(amplitude, part.writing_cache));
 
 		position_.advance(combined, frames, part.motion.direction);
 		if (!part.writing_cache && part.loop == LoopType::NONE && !sounding()) {

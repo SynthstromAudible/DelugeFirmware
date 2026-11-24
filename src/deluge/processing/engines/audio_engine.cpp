@@ -32,7 +32,6 @@
 #include "dsp/core/wrapping.h"
 #include "dsp/fixed/dynamics/hit_strength.h" // combine_hit_strengths
 #include "dsp/fixed/mix/output_fold.h"
-#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "effects/reverb.h"
 #include "effects/sidechain.h"
 #include "extern.h"
@@ -84,10 +83,13 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "synth/modulation/envelope.h"
+#include "synth/sources/sample/sample_stretcher.h"
+#include "synth/sources/sample/stretch_context.h"
 #include "util/boot.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include "util/sample_preview_open.h"
+#include "util/synth_noise.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -474,6 +476,13 @@ int32_t numSamplesLastTime = 0;
 uint32_t nextVoiceState = 1;
 bool renderInStereo = true;
 bool bypassCulling = false;
+namespace {
+/// The routine's hops, across stretchers and the pitch shifter (S3).
+deluge::synth::HopBudget g_hopBudget;
+/// Decision 2: the cache-tail buffers a stretcher leaving a cache is lent, made with the engine so the render
+/// allocates none.
+deluge::synth::TailBuffers g_tailBuffers;
+} // namespace
 uint32_t audioSampleTimer = 0;
 
 // See audio_engine.h: the app-owned mirror of the received input, and the read
@@ -568,7 +577,7 @@ void init() {
 
 	VoicePool::get().repopulate();
 	VoiceSamplePool::get().repopulate();
-	TimeStretcherPool::get().repopulate();
+	SampleStretcherPool::get().repopulate();
 }
 
 void killAllVoices(bool deletingSong) {
@@ -1285,6 +1294,7 @@ void renderAudio(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
+	g_hopBudget.new_routine();
 	usbInputMonitoredByTrack = false;
 
 	// Render audio for song: its outputs, then its master around the reverb and the sample preview.
@@ -1311,6 +1321,8 @@ void renderAudio(size_t numSamples) {
 	setMonitoringMode();
 
 	renderingBufferOutputPos = renderingMemory.begin();
+	// A hop sets the culling bypass where the legacy set it (the render clears it before setDireness reads it)
+	bypassCulling = bypassCulling || g_hopBudget.culling_bypassed;
 	renderingBufferOutputEnd = renderingMemory.begin() + numSamples;
 }
 
@@ -1327,6 +1339,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
+	g_hopBudget.new_routine();
 	usbInputMonitoredByTrack = false;
 
 	// Render audio for song: its outputs, then its master, around the reverb when the export takes the song's effects;
@@ -2187,17 +2200,26 @@ void voiceSampleUnassigned(VoiceSample* voiceSample) {
 	VoiceSamplePool::recycle(voiceSample);
 }
 
-TimeStretcher* solicitTimeStretcher() {
+deluge::synth::SampleStretcher* solicitStretcher() {
 	try {
-		return TimeStretcherPool::get().acquire().release();
+		return SampleStretcherPool::get().acquire().release();
 	} catch (deluge::exception e) {
 		return nullptr;
 	}
 }
 
-// There are no destructors. You gotta clean it up before you call this
-void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
-	TimeStretcherPool::recycle(timeStretcher);
+// There are no destructors: the stretcher's end has given everything back
+void stretcherUnassigned(deluge::synth::SampleStretcher* stretcher) {
+	SampleStretcherPool::recycle(stretcher);
+}
+
+deluge::synth::HopBudget& hopBudget() {
+	return g_hopBudget;
+}
+
+deluge::synth::StretchContext stretchContext() {
+	return deluge::synth::StretchContext{
+	    .budget = &g_hopBudget, .noise = &deluge::synth_noise, .tails = &g_tailBuffers};
 }
 
 bool createdNewRecorder;

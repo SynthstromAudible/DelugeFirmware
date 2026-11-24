@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include "dsp/fixed/timestretch/hop_planner.h"
+#include <optional>
+
 #include "definitions_cxx.hpp"
 #include "dsp/core/fixed_point.h"
 #include "model/sample/overview_cache_entry.h"
@@ -101,6 +104,10 @@ public:
 	                                      int32_t maxNumSamplesToProcess);
 	void percCacheClusterStolen(ComputedChunk* cluster);
 	void deletePercCache(bool beingDestructed = false);
+	/// @brief The perc bytes a hop's search may read around @p pixel, played @p direction (B3): bytes[0] is the
+	/// window's lowest pixel. Nullopt where no filled zone holds the pixel.
+	std::optional<deluge::dsp::fixed::timestretch::PercWindow>
+	perc_at(int32_t pixel, deluge::dsp::fixed::sample_read::Direction direction);
 	uint8_t* prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,
 	                                int32_t* latestPixellatedPos);
 	bool getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,

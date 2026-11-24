@@ -46,7 +46,11 @@ class ParamManagerForTimeline;
 class SampleRecorder;
 struct SoundVoice;
 class VoiceSample;
-class TimeStretcher;
+namespace deluge::synth {
+class SampleStretcher;
+struct StretchContext;
+struct HopBudget;
+} // namespace deluge::synth
 #include <string>
 class VoiceVector;
 class Metronome;
@@ -149,7 +153,7 @@ namespace AudioEngine {
 
 using VoicePool = deluge::memory::ObjectPool<SoundVoice, deluge::memory::fast_allocator>;
 using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
-using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
+using SampleStretcherPool = deluge::memory::ObjectPool<deluge::synth::SampleStretcher, deluge::memory::fast_allocator>;
 uint32_t routine();
 bool routine_task();
 void runRoutine();
@@ -224,8 +228,14 @@ void getReverbParamsFromSong(Song* song);
 VoiceSample* solicitVoiceSample();
 void voiceSampleUnassigned(VoiceSample* voiceSample);
 
-TimeStretcher* solicitTimeStretcher();
-void timeStretcherUnassigned(TimeStretcher* timeStretcher);
+/// @brief A stretcher from the pool, or null when none is free.
+deluge::synth::SampleStretcher* solicitStretcher();
+/// @brief A stretcher back to the pool; its end has given back everything it held.
+void stretcherUnassigned(deluge::synth::SampleStretcher* stretcher);
+/// @brief What every stretcher shares this routine: the hop budget, the synth's noise and the lent cache tails.
+deluge::synth::StretchContext stretchContext();
+/// @brief The audio routine's hops, across stretchers and the pitch shifter (S3).
+deluge::synth::HopBudget& hopBudget();
 
 void slowRoutine();
 void doRecorderCardRoutines();

@@ -52,6 +52,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
+#include "synth/sources/sample/sample_stretcher.h"
 #include "util/notify.h"
 #include <new>
 
@@ -421,12 +422,12 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 				    // Or, if no time-stretcher, which also means we're not "fudging" - probably because there was no
 				    // pre-margin - then yup we'll wanna force restart now too - because AudioClip VoiceSamples don't
 				    // obey their loop points, so it won't have happened otherwise.
-				    || !voiceSample->timeStretcher
+				    || !voiceSample->stretching()
 
 				    // Or, if time stretching is on but the "newer" play-head is no longer active - because it's shot
 				    // past the end of the waveform, and this waveform didn't have an extra "margin" at the end, then we
 				    // want to just cut everything and start from scratch again.
-				    || !voiceSample->timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
+				    || !voiceSample->stretcher->newer_reading()) {
 
 					// Yup, do that unassignment
 doUnassignment:
@@ -565,7 +566,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	// If already time stretching, no need to do anything - that'll take care of the new play-position.
 	// Also can only do this if envelope not releasing, which (possibly not anymore since I fixed other bug) it can
 	// still be if this is our second quick successive <>+play starting playback partway through Clip
-	if (voiceSample && voiceSample->timeStretcher
+	if (voiceSample && voiceSample->stretching()
 	    && ((AudioOutput*)output)->envelope.stage() < Envelope::Stage::RELEASE) {
 		return;
 	}
@@ -759,7 +760,7 @@ justDontTimeStretch:
 
 		// If no time-stretcher, and not reading cache, we might want to "fudge" to eliminate the click at the loop
 		// point (if it's gonna loop)
-		if (timeStretchRatio == kMaxSampleValue && !voiceSample->timeStretcher
+		if (timeStretchRatio == kMaxSampleValue && !voiceSample->stretching()
 		    && (!voiceSample->cache || voiceSample->writingToCache)) {
 
 			// First, see if there is actually any pre-margin at all for us to crossfade to
@@ -888,7 +889,7 @@ LoopType AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelSta
 
 	// Note that the actual "loop points" don't get obeyed for AudioClips - if any looping happens at the low level,
 	// it'll only be at the very end of the waveform if we happen to reach it.
-	// But, looping may still happen as normally expected at the TimeStretcher level...
+	// But, looping may still happen as normally expected at the stretcher's level...
 }
 
 void AudioClip::unassignVoiceSample(bool wontBeUsedAgain) {
@@ -1661,7 +1662,7 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 uint64_t AudioClip::getCullImmunity() {
 	uint32_t distanceFromEnd = loopLength() - getLivePos();
 	// We're gonna cull time-stretching ones first
-	bool doingTimeStretching = (voiceSample && voiceSample->timeStretcher);
+	bool doingTimeStretching = (voiceSample && voiceSample->stretching());
 	return ((uint64_t)voicePriority() << 33) + ((uint64_t)!doingTimeStretching << 32) + distanceFromEnd;
 }
 

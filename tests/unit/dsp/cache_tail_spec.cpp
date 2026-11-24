@@ -144,6 +144,37 @@ describe cache_tail_spec_body("deluge::dsp::fixed::timestretch::CacheTail", ${
 		expect(out[7].raw()).to_equal(7);
 	});
 
+	it("reads silence past its frames, as the legacy's freshly made buffer held there", _ {
+		// A buffer lent before holds an earlier tail past this one's frames: none of it reaches the mix
+		std::vector<Q<31>> stereo(512, Q<31>::from_raw(1 << 28));
+		CacheTail tail(stereo, 2, 2, 0);
+		std::array<Q<31>, 6> out{};
+		tail.mix_into(out, 3, 2, Q<31>::max(), Q<31>::from_raw(0));
+		expect(out[4].raw()).to_equal(0);
+		expect(out[5].raw()).to_equal(0);
+		expect(out[0].raw() != 0 ? 1 : 0).to_equal(1);
+	});
+
+	it("reads on past a span's end as the legacy's loop does, so the next mix starts where the legacy's did", _ {
+		// A stereo tail into a mono output runs 2 x frames frames; a span of 3 words takes the first 3 of the 6
+		std::vector<Q<31>> stereo(512, Q<31>::from_raw(0));
+		for (int32_t f = 0; f < 8; f++) {
+			stereo[static_cast<size_t>(2 * f)] = Q<31>::from_raw((f + 1) << 24);
+			stereo[static_cast<size_t>((2 * f) + 1)] = Q<31>::from_raw((f + 1) << 24);
+		}
+		CacheTail tail(stereo, 8, 2, 0);
+		std::array<Q<31>, 3> first{};
+		tail.mix_into(first, 3, 1, Q<31>::max(), Q<31>::from_raw(0));
+		std::array<Q<31>, 1> next{};
+		tail.mix_into(next, 1, 1, Q<31>::max(), Q<31>::from_raw(0));
+		// The legacy's first mix read frames 0 to 5, so the next starts at frame 6 (value 7 << 24, mixed at full scale)
+		std::array<Q<31>, 1> want{};
+		CacheTail at_six(stereo, 8, 2, 6);
+		at_six.mix_into(want, 1, 1, Q<31>::max(), Q<31>::from_raw(0));
+		expect(next[0].raw()).to_equal(want[0].raw());
+		expect(next[0].raw() != 0 ? 1 : 0).to_equal(1);
+	});
+
 	it("halves each channel into a mono output, running the legacy's frames times the tail's channels", _ {
 		std::vector<Q<31>> stereo(512, Q<31>::from_raw(0));
 		stereo[0] = Q<31>::from_raw(1000);

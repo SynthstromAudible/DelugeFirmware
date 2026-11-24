@@ -980,6 +980,24 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 	}
 }
 
+std::optional<deluge::dsp::fixed::timestretch::PercWindow>
+Sample::perc_at(int32_t pixel, deluge::dsp::fixed::sample_read::Direction direction) {
+	int32_t earliest = 0;
+	int32_t latest = 0;
+	const uint8_t* base = prepareToReadPercCache(pixel, static_cast<int32_t>(direction), &earliest, &latest);
+	if (base == nullptr) {
+		return std::nullopt;
+	}
+	// The search reads within [earliest, latest] in the play direction, and starts at the pixel
+	const int32_t lowest = std::min({earliest, latest, pixel});
+	const int32_t highest = std::max({earliest, latest, pixel});
+	return deluge::dsp::fixed::timestretch::PercWindow{
+	    .bytes = std::span<const uint8_t>(base + lowest, static_cast<size_t>(highest - lowest + 1)),
+	    .origin = lowest,
+	    .earliest = earliest,
+	    .latest = latest};
+}
+
 void Sample::percCacheClusterStolen(ComputedChunk* cluster) {
 	LOCK_ENTRY
 

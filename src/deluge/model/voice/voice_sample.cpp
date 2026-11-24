@@ -20,7 +20,6 @@
 #include "dsp/core/divide.h"
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/interpolation/windowed_sinc_kernel.h"
-#include "dsp_legacy/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
 #include "io/debug/log.h"
 #include "libdeluge/memory.h"
@@ -30,11 +29,13 @@
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_controls.h"
 #include "model/voice/voice_sample_playback_guide.h"
+#include "model/voice/voice_sample_stretch_port.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
+#include "synth/sources/sample/sample_stretcher.h"
 #include <algorithm>
 
 extern "C" {}
@@ -56,7 +57,7 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 	                                  // know the pitch-adjustment, and that's not calculated yet
 	oscPos = 0;
 	interpolationBufferSizeLastTime = 0;
-	timeStretcher = nullptr; // Just in case
+	stretcher = nullptr; // Just in case
 	fudging = false;
 	forAudioClip = false;
 }
@@ -69,7 +70,7 @@ bool VoiceSample::noteOffWhenLoopEndPointExists(VoiceSamplePlaybackGuide* guide,
 		return true;
 	}
 	else {
-		if (timeStretcher) {
+		if (stretcher != nullptr) {
 			return true;
 		}
 		else {
@@ -83,10 +84,15 @@ bool VoiceSample::noteOffWhenLoopEndPointExists(VoiceSamplePlaybackGuide* guide,
 void VoiceSample::endTimeStretching() {
 	fudging = false;
 
-	if (timeStretcher) {
-		timeStretcher->beenUnassigned();
-		AudioEngine::timeStretcherUnassigned(timeStretcher);
-		timeStretcher = nullptr;
+	if (stretcher != nullptr) {
+		// Its end only lets go, so the port needs no guide
+		VoiceSampleStretchPort port(*this, *stretchedSample_, nullptr, StretchReadParams{});
+		deluge::synth::StretchContext context = AudioEngine::stretchContext();
+		stretcher->end(port, context);
+		spare_.unassignAllReasons(false);
+		AudioEngine::stretcherUnassigned(stretcher);
+		stretcher = nullptr;
+		stretchedSample_ = nullptr;
 	}
 }
 
@@ -316,28 +322,30 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 
 	D_PRINTLN("fudging  %d", numSamplesTilLoop);
 
-	timeStretcher = AudioEngine::solicitTimeStretcher();
-	if (!timeStretcher) {
+	stretcher = AudioEngine::solicitStretcher();
+	if (stretcher == nullptr) {
 		D_PRINTLN("fudging FAIL!!!!");
 		return true; // That failed, but no need to unassign
 	}
+	stretchedSample_ = sample;
 
-	int32_t playByte = getPlayByteLowLevel(sample, guide)
-	                   - sample->audioDataStartPosBytes; // Allow for this to be negative. I'm not sure if it could in
-	                                                     // this exact case of "fudging", but see the similar code below
-	                                                     // in weShouldBeTimeStretchingNow() - better safe than sorry.
-	int32_t playSample = divide_round_negative(playByte, sample->numChannels * sample->byteDepth);
-
-	bool success =
-	    timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels, phaseIncrement,
-	                        kMaxSampleValue, playDirection, priorityRating, numSamplesTilLoop,
-	                        LoopType::NONE); // Tell it no looping
-	if (!success) {
+	// The play byte may lie before the data's start (as in weShouldBeTimeStretchingNow, after leaving a cache)
+	const deluge::synth::SourcePosition position = deluge::synth::SourcePosition::from_play_byte(
+	    getPlayByteLowLevel(sample, guide), sample->audioDataStartPosBytes, sample->numChannels * sample->byteDepth);
+	VoiceSampleStretchPort port(
+	    *this, *sample, guide, StretchReadParams{.phase_increment = phaseIncrement, .priority_rating = priorityRating});
+	deluge::synth::StretchContext context = AudioEngine::stretchContext();
+	const deluge::synth::SampleStretcher::Motion motion{
+	    .ratio = deluge::synth::Ratio::from_raw(kMaxSampleValue),
+	    .increment = deluge::synth::Increment::from_raw(static_cast<uint32_t>(phaseIncrement)),
+	    .direction = playDirection == 1 ? deluge::synth::Direction::FORWARD : deluge::synth::Direction::REVERSE};
+	if (!stretcher->begin(port, context, position, motion, LoopType::NONE,
+	                      deluge::synth::SampleStretcher::Fudge{numSamplesTilLoop})) {
 		D_PRINTLN("fudging FAIL!!!!");
 		return false; // It's too late to salvage anything - our play pos has probably been mucked around
 	}
 
-	success = reassessReassessmentLocation(
+	bool success = reassessReassessmentLocation(
 	    guide, sample,
 	    priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
 	// That's only going to make reassessmentLocation later, so no need to check we haven't shot past it I think...
@@ -354,23 +362,35 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 // Returns false if becoming unassigned now
 bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int32_t numSamples,
                                               int32_t phaseIncrement, int32_t timeStretchRatio, int32_t playDirection,
-                                              int32_t priorityRating, LoopType loopingType) {
+                                              int32_t priorityRating, LoopType loopingType,
+                                              const deluge::dsp::fixed::timestretch::CacheWindow* leavingCache) {
+	VoiceSampleStretchPort port(
+	    *this, *sample, guide,
+	    StretchReadParams{.phase_increment = phaseIncrement, .priority_rating = priorityRating, .loop = loopingType});
+	deluge::synth::StretchContext context = AudioEngine::stretchContext();
+	const deluge::synth::SampleStretcher::Motion motion{
+	    .ratio = deluge::synth::Ratio::from_raw(static_cast<uint32_t>(timeStretchRatio)),
+	    .increment = deluge::synth::Increment::from_raw(static_cast<uint32_t>(phaseIncrement)),
+	    .direction = playDirection == 1 ? deluge::synth::Direction::FORWARD : deluge::synth::Direction::REVERSE};
 
 	// If not set up yet, do it
-	if (!timeStretcher) {
-		timeStretcher = AudioEngine::solicitTimeStretcher();
-		if (!timeStretcher) {
+	if (stretcher == nullptr) {
+		stretcher = AudioEngine::solicitStretcher();
+		if (stretcher == nullptr) {
 			return false;
 		}
+		stretchedSample_ = sample;
 
-		int32_t playByte =
-		    getPlayByteLowLevel(sample, guide)
-		    - sample->audioDataStartPosBytes; // May return negative number - I think particularly if we're going in
-		                                      // reversed and just cancelled reading from cache
-		int32_t playSample = divide_round_negative(playByte, sample->numChannels * sample->byteDepth);
-
-		timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels, phaseIncrement,
-		                    timeStretchRatio, playDirection, priorityRating, 0, loopingType);
+		// May be before the data's start, particularly reversed and just after leaving a cache
+		const deluge::synth::SourcePosition position = deluge::synth::SourcePosition::from_play_byte(
+		    getPlayByteLowLevel(sample, guide), sample->audioDataStartPosBytes,
+		    sample->numChannels * sample->byteDepth);
+		deluge::synth::SampleStretcher::Opening opening = deluge::synth::SampleStretcher::Plain{};
+		if (leavingCache != nullptr) {
+			opening =
+			    deluge::synth::SampleStretcher::FromCacheTail{.window = *leavingCache, .channels = sample->numChannels};
+		}
+		(void)stretcher->begin(port, context, position, motion, loopingType, opening);
 		bool success = reassessReassessmentLocation(
 		    guide, sample,
 		    priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
@@ -380,45 +400,29 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 		}
 	}
 
-	// Read some perc cache
-	int32_t playSample = timeStretcher->getSamplePos(playDirection);
-
-	// Enforce a limit on how many samples can be rendered in one call to fillPercCache()
-	// 32 is about minimum to avoid "hitting front edge" of perc cache when sped up double.
-	// We'll do 32 if we're writing to main cache, cos that makes it extra important that we get the best sound.
-	// Otherwise, go real easy on CPU
-	int32_t maxNumSamplesToProcess = numSamples * ((cache && writingToCache) ? 32 : 6);
-
-	if (timeStretchRatio != kMaxSampleValue) {
-		int32_t endPos = playSample + (phaseIncrement >> 10) * playDirection;
-
-		// Each call costs a chain of cache misses on the Sample and its perc cache zones, even when there's only a
-		// buffer's worth to add. So fill a few buffers further than needed, and skip calling while the zone last
-		// seen still reaches endPos
-		bool alreadyFilled = timeStretcher->percCacheFillDirection == playDirection
-		                     && (playSample - timeStretcher->percCacheFillStartPos) * playDirection >= 0
-		                     && (timeStretcher->percCacheFillEndPos - endPos) * playDirection >= 0;
-		if (!alreadyFilled) {
-			const deluge::synth::PercFill fill = sample->fillPercCache(
-			    playSample, endPos + numSamples * 4 * playDirection, playDirection, maxNumSamplesToProcess);
-			// The fill reports what the stretcher keeps: the chunks it touched, in order, and its lookahead
-			timeStretcher->percCacheFillEndPos = fill.filled_end;
-			for (uint8_t i = 0; i < fill.touched_count; i++) {
-				const deluge::synth::PercChunk chunk = fill.touched[i];
-				timeStretcher->rememberPercCacheCluster(sample->percCacheClusters[chunk.reversed ? 1 : 0][chunk.index]);
-			}
-			if (fill.lookahead == deluge::synth::PercFill::Lookahead::LET_GO) {
-				timeStretcher->unassignAllReasonsForPercLookahead();
-			}
-			else if (fill.lookahead == deluge::synth::PercFill::Lookahead::MOVE_TO) {
-				timeStretcher->updateClustersForPercLookahead(sample, fill.lookahead_byte, playDirection);
-			}
-			timeStretcher->percCacheFillStartPos = playSample;
-			timeStretcher->percCacheFillDirection = playDirection;
-		}
-	}
-
+	// Read some perc cache: a few blocks ahead, more while writing a cache, as P4 says
+	stretcher->prepare(port, context, motion, numSamples, cache != nullptr && writingToCache);
 	return true;
+}
+
+std::optional<deluge::dsp::fixed::timestretch::CacheWindow> VoiceSample::cacheWindow(SampleCache* leaving) const {
+	const int32_t clusterIndex = cacheBytePos >> Cluster::size_magnitude;
+	const int32_t bytePosWithinCluster = cacheBytePos & (Cluster::size - 1);
+	const int32_t bytesAhead = leaving->writeBytePos - cacheBytePos;
+	ComputedChunk* cluster = bytesAhead > 0 ? leaving->getCluster(clusterIndex) : nullptr;
+	if (cluster == nullptr) {
+		// Nothing written ahead, or its chunk gone: C1 copies nothing
+		return deluge::dsp::fixed::timestretch::CacheWindow{.frame_origin = nullptr,
+		                                                    .chunk_offset = bytePosWithinCluster,
+		                                                    .chunk_size = static_cast<int32_t>(Cluster::size),
+		                                                    .bytes_written_ahead = bytesAhead > 0 ? 0 : bytesAhead};
+	}
+	return deluge::dsp::fixed::timestretch::CacheWindow{
+	    .frame_origin =
+	        reinterpret_cast<const std::byte*>(cluster->frame_read_origin(bytePosWithinCluster, kCacheByteDepth)),
+	    .chunk_offset = bytePosWithinCluster,
+	    .chunk_size = static_cast<int32_t>(Cluster::size),
+	    .bytes_written_ahead = bytesAhead};
 }
 
 bool VoiceSample::stopReadingFromCache() {
@@ -494,7 +498,7 @@ bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int
 }
 
 static_assert(TimeStretch::kDefaultFirstHopLength >= SSI_TX_BUFFER_NUM_SAMPLES,
-              "problems with crossfading out of cache into new timeStretcher");
+              "problems with crossfading out of cache into a new stretcher");
 
 // Returning false means instant unassign
 bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restrict__ outputBuffer, int32_t numSamples,
@@ -516,9 +520,8 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restr
 	int32_t prefetchBytes = std::min<int32_t>(
 	    (((uint64_t)(numSamples * sampleSourceNumChannels * 2) * (uint32_t)phaseIncrement) >> 24) + 32, 512);
 	prefetchPlayData(prefetchBytes, playDirection);
-	if (timeStretcher && timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-	    && !timeStretcher->olderHeadReadingFromBuffer) {
-		timeStretcher->olderPartReader.prefetchPlayData(prefetchBytes, playDirection);
+	if (stretcher != nullptr) {
+		spare_.prefetchPlayData(prefetchBytes, playDirection);
 	}
 
 	// If there's a cache, check some stuff. Do this first, cos this can cause us to return
@@ -542,12 +545,14 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restr
 			// Avoid click if cancelling reading time-stretched cache
 			if (needToAvoidClick) {
 
+				// The new stretcher's older head is the cache's tail (C1 to C3)
+				const std::optional<deluge::dsp::fixed::timestretch::CacheWindow> leaving = cacheWindow(oldCache);
 				success = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio,
-				                                      playDirection, priorityRating, loopingType);
+				                                      playDirection, priorityRating, loopingType,
+				                                      leaving ? &*leaving : nullptr);
 				if (!success) {
 					return false;
 				}
-				timeStretcher->setupCrossfadeFromCache(oldCache, cacheBytePos, sampleSourceNumChannels);
 				goto timeStretchingConsidered;
 			}
 		}
@@ -592,12 +597,13 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restr
 					// potentially delivering even a negative sample / byte number. This needs to be maintained
 					// cohesively until it's ultimately dealt with.
 
+					const std::optional<deluge::dsp::fixed::timestretch::CacheWindow> leaving = cacheWindow(cache);
 					success = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio,
-					                                      playDirection, priorityRating, loopingType);
+					                                      playDirection, priorityRating, loopingType,
+					                                      leaving ? &*leaving : nullptr);
 					if (!success) {
 						return false;
 					}
-					timeStretcher->setupCrossfadeFromCache(cache, cacheBytePos, sampleSourceNumChannels);
 
 					// Check that all that setting up didn't steal any of our cache to the left of where we are now - in
 					// which case we can't continue to write to it, and there's nothing else we want it for, so forget
@@ -647,22 +653,13 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restr
 		// If we shouldn't be time stretching now, but if it remains set up from before, stop it. We'd know there's no
 		// cache in this case
 		else {
-			if (timeStretcher && !fudging) [[unlikely]] {
+			if (stretcher != nullptr && !fudging) [[unlikely]] {
 
-				// We're only allowed to stop once all the play-pos's line up, otherwise there's a big ol' click
-				bool canExit;
-#if TIME_STRETCH_ENABLE_BUFFER
-				if (timeStretcher->buffer) {
-					canExit = (timeStretcher->bufferFillingMode == BUFFER_FILLING_NEWER
-					           && timeStretcher->olderHeadReadingFromBuffer
-					           && timeStretcher->bufferWritePos == timeStretcher->olderBufferReadPos);
-				}
-				else
-#endif
-				{
-					canExit = (currentPlayPos == timeStretcher->olderPartReader.currentPlayPos
-					           && (!guide->sequenceSyncLengthTicks || !guide->getNumSamplesLaggingBehindSync(this)));
-				}
+				// We're only allowed to stop once all the play-pos's line up, otherwise there's a big ol' click (E1)
+				VoiceSampleStretchPort port(*this, *sample, guide, StretchReadParams{});
+				const bool synced = guide->sequenceSyncLengthTicks != 0;
+				const bool canExit = stretcher->may_end(port, deluge::synth::Ratio::from_raw(kMaxSampleValue), synced,
+				                                        synced ? guide->getNumSamplesLaggingBehindSync(this) : 0);
 				if (canExit) {
 					D_PRINTLN("time stretcher no longer needed");
 					endTimeStretching();
@@ -697,24 +694,50 @@ timeStretchingConsidered:
 	int32_t whichKernel;
 	uint64_t combinedIncrement;
 
-	amplitude <<= 3;
-	amplitudeIncrement <<= 3;
+	// X4's set-up: the voice's amplitude moved up for its mix, more when pitched and when stretching. The render's
+	// amplitude and step are words (stepped by whole multiples of the step), so they cross to the typed set-up and back
+	{
+		const deluge::synth::StretchAmplitude up = deluge::synth::stretch_amplitude(
+		    deluge::dsp::Q<31>::from_raw(amplitude), deluge::dsp::Q<31>::from_raw(amplitudeIncrement),
+		    phaseIncrement != kMaxSampleValue, stretcher != nullptr);
+		amplitude = up.amplitude.raw();
+		amplitudeIncrement = up.step.raw();
+	}
 
 	// If pitch adjusting
 	if (phaseIncrement != kMaxSampleValue) {
-		amplitude <<= 1;
-		amplitudeIncrement <<= 1;
-
 		whichKernel = deluge::dsp::fixed::WindowedSincKernel::variant_for(phaseIncrement);
 	}
 
-	// If time-stretching or reading a time-stretched cache
-	if (timeStretcher) {
-		amplitude <<= 1;
-		amplitudeIncrement <<= 1;
-
-		combinedIncrement = ((uint64_t)(uint32_t)timeStretchRatio * (uint32_t)phaseIncrement) >> 24;
+	if (stretcher != nullptr) {
+		combinedIncrement = deluge::synth::combined_increment(
+		    deluge::synth::Ratio::from_raw(static_cast<uint32_t>(timeStretchRatio)),
+		    deluge::synth::Increment::from_raw(static_cast<uint32_t>(phaseIncrement)));
 	}
+
+	// The stretcher's port and motion for this block's parts
+	const deluge::synth::SampleStretcher::Motion stretchMotion{
+	    .ratio = deluge::synth::Ratio::from_raw(static_cast<uint32_t>(timeStretchRatio)),
+	    .increment = deluge::synth::Increment::from_raw(static_cast<uint32_t>(phaseIncrement)),
+	    .direction = playDirection == 1 ? deluge::synth::Direction::FORWARD : deluge::synth::Direction::REVERSE};
+	auto stretchParams = [&](int32_t channelsAfterCondensing) {
+		return StretchReadParams{.phase_increment = phaseIncrement,
+		                         .interpolation_width = interpolationBufferSize,
+		                         .kernel = phaseIncrement != kMaxSampleValue ? whichKernel : 0,
+		                         .channels_after_condensing = channelsAfterCondensing,
+		                         .priority_rating = priorityRating,
+		                         .loop = loopingType};
+	};
+	auto stretchPart = [&](int32_t frames, int32_t outChannels) {
+		return deluge::synth::SampleStretcher::Part{.frames = frames,
+		                                            .motion = stretchMotion,
+		                                            .loop = loopingType,
+		                                            .writing_cache = cache != nullptr,
+		                                            .cache_in_use = cache != nullptr,
+		                                            .out_channels = outChannels};
+	};
+	VoiceSampleStretchPort stretchPort(*this, *sample, guide, stretchParams(numChannelsInOutputBuffer));
+	deluge::synth::StretchContext stretchContext = AudioEngine::stretchContext();
 
 	// Loop over and over until we've read all the samples we want, until numSamples is 0
 
@@ -1103,90 +1126,34 @@ uncachedPlayback:
 uncachedPlaybackNotWriting:
 
 			// If time stretching but not synced, now is the time to check loop / end point
-			if (timeStretcher && !guide->sequenceSyncLengthTicks) {
-				int32_t reassessmentPos = guide->getBytePosToEndOrLoopPlayback();
-
-				int32_t count = 0;
-
-				// Do quick check before we commit to a divide operation
-				int64_t combinedIncrementingThisUncachedRead = combinedIncrement * numSamplesThisUncachedRead;
-
-assessLoopPointAgainTimestretched:
-				int64_t samplePosBigAfterThisUncachedRead =
-				    timeStretcher->samplePosBig + combinedIncrementingThisUncachedRead * playDirection;
-				if (playDirection == -1) {
-					samplePosBigAfterThisUncachedRead += 16777215;
-				}
-				int32_t bytePosAfterThisUncachedRead =
-				    (int32_t)(samplePosBigAfterThisUncachedRead >> 24) * bytesPerSample
-				    + sample->audioDataStartPosBytes;
-
-				int32_t overshootBytes = (bytePosAfterThisUncachedRead - reassessmentPos) * playDirection;
-
-				// If we will have reached the reassessment-point, by the end of this "uncached read"...
-				// unlikely to match rohan's check from before - otherwise we'll speculatively execute anyway
-				if (overshootBytes > 0) [[unlikely]] {
-
-					// Ok, we passed the quick check, so now do the divide operation
-					int32_t reassessmentPosBytesRelativeToAudioDataStart =
-					    reassessmentPos - sample->audioDataStartPosBytes;
-					int32_t loopEndAtSample =
-					    (reassessmentPosBytesRelativeToAudioDataStart >= 0)
-					        ? (uint32_t)reassessmentPosBytesRelativeToAudioDataStart / (uint8_t)bytesPerSample
-					        : -1; // This is plausible, cos going in reverse, the "end pos" is -1 sample
-
-					int64_t combinedIncrementingLeftToDo =
-					    ((int64_t)loopEndAtSample << 24) - timeStretcher->samplePosBig;
-					int64_t combinedIncrementingLeftToDoAbsolute = combinedIncrementingLeftToDo * playDirection;
-
-					// Maybe we're at the reassessment-point right now, so need to reassess...
-					if (combinedIncrementingLeftToDoAbsolute < (int64_t)
-					        combinedIncrement) { // It seems that without the (int64_t) enforced, it was behaving wrong
-
-						// If want to actually loop... (Remember though, this whole bit doesn't apply to synced samples
-						// / AudioClips.)
-						if (loopingType != LoopType::NONE) { // For either type of looping
-
-							D_PRINTLN("loop point reached, timestretching");
-
-							int32_t newSamplePos =
-							    (uint32_t)(guide->getBytePosToStartPlayback(true) - sample->audioDataStartPosBytes)
-							    / (uint8_t)bytesPerSample; // Not including the overshoot yet
-							int64_t newSamplePosBigOvershot =
-							    ((int64_t)newSamplePos << 24) - combinedIncrementingLeftToDo;
-
-							timeStretcher->reInit(newSamplePosBigOvershot, guide, this, sample, sampleSourceNumChannels,
-							                      timeStretchRatio, phaseIncrement, combinedIncrement, playDirection,
-							                      loopingType, priorityRating);
-
-							// Without this bound, a tiny loop at an extreme stretch could hang the audio routine
-							// forever
-							if (count >= 1024) {
-								FREEZE_WITH_ERROR("E169");
-								return false;
-							}
-							count++;
-							goto assessLoopPointAgainTimestretched;
-						}
-
-						// Or, if want to stop at this reassessment point we just reached, that's easy
-						else {
-							return false;
-						}
+			if (stretcher != nullptr && !guide->sequenceSyncLengthTicks) {
+				const deluge::synth::LoopBytes loopBytes{.data_start =
+				                                             static_cast<int32_t>(sample->audioDataStartPosBytes),
+				                                         .bytes_per_frame = bytesPerSample,
+				                                         .loop_end_byte = guide->getBytePosToEndOrLoopPlayback(),
+				                                         .restart_byte = guide->getBytePosToStartPlayback(true),
+				                                         .looping = loopingType != LoopType::NONE};
+				for (int32_t turns = 0;;) {
+					const deluge::synth::LoopStep step =
+					    deluge::synth::loop_step(stretcher->position(), combinedIncrement, numSamplesThisUncachedRead,
+					                             stretchMotion.direction, loopBytes);
+					if (step.kind == deluge::synth::LoopStep::Kind::END) {
+						return false;
 					}
-
-					// Or otherwise, just shorten this uncached-read to stop right at the reassessment-point, so we can
-					// reassess immediately after
-					else {
-						int32_t combinedIncrementsLeft =
-						    (uint64_t)combinedIncrementingLeftToDoAbsolute / combinedIncrement;
-						if (ALPHA_OR_BETA_VERSION && combinedIncrementsLeft > numSamplesThisUncachedRead) {
-							D_PRINTLN("combinedIncrementsLeft: %d", combinedIncrementsLeft);
-							FREEZE_WITH_ERROR("E151");
-						}
+					if (step.kind != deluge::synth::LoopStep::Kind::RESTART) {
 						// Only ever shorten - lengthening would overrun the output buffer
-						numSamplesThisUncachedRead = std::min(numSamplesThisUncachedRead, combinedIncrementsLeft);
+						numSamplesThisUncachedRead = step.frames;
+						break;
 					}
+					D_PRINTLN("loop point reached, timestretching");
+					stretcher->wrap_to(stretchPort, stretchContext, step.restart,
+					                   stretchPart(numSamplesThisUncachedRead, numChannelsInOutputBuffer));
+					// Without this bound, a tiny loop at an extreme stretch could hang the audio routine forever
+					if (turns >= deluge::synth::kMaxLoopTurns) {
+						FREEZE_WITH_ERROR("E169");
+						return false;
+					}
+					turns++;
 				}
 			}
 		}
@@ -1196,7 +1163,7 @@ assessLoopPointAgainTimestretched:
 
 		// If no time stretching
 		// unlikely as it's the fast happy path and we don't struggle with it
-		if (!timeStretcher) [[unlikely]] {
+		if (stretcher == nullptr) [[unlikely]] {
 
 readNonTimestretched:
 
@@ -1251,22 +1218,16 @@ readNonTimestretched:
 		}
 
 		// Or, if yes time stretching
-		else [[likely]] { // TODO: move this all into the TimeStretcher class?
-
-			// AudioEngine::logAction("yes timestretching");
-
-			deluge::dsp::Q<31>* timeStretchResultWritePos;
-			int32_t numChannelsInTimeStretchResult;
-
+		else [[likely]] {
 			deluge::dsp::Q<31>* const tempBuffer = spareRenderingBuffer[1];
+			deluge::dsp::Q<31>* stretchedWritePos = outputBufferWritePos;
+			int32_t stretchedChannels = numChannelsInOutputBuffer;
 
 			if (cache) { // If writing cache...
 
 				// Because we're writing cache, and if both play-heads have finished up, clearing that cache is all
 				// that's actually required!
-				if (!timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-				    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
-
+				if (!stretcher->sounding()) {
 					memset(cacheWritePos, 0, numSamplesThisUncachedRead * kCacheByteDepth * sampleSourceNumChannels);
 
 					cacheBytePos += numSamplesThisUncachedRead * kCacheByteDepth * sampleSourceNumChannels;
@@ -1275,328 +1236,30 @@ readNonTimestretched:
 					goto finishedTimestretchedRead;
 				}
 
-				timeStretchResultWritePos = tempBuffer;
-
-				// Have to clear the cache
-				std::fill_n(timeStretchResultWritePos, numSamplesThisUncachedRead * sampleSourceNumChannels,
+				// The heads mix into a cleared block, which is then copied into the cache and the output
+				stretchedWritePos = tempBuffer;
+				std::fill_n(stretchedWritePos, numSamplesThisUncachedRead * sampleSourceNumChannels,
 				            deluge::dsp::Q<31>{});
-
-				numChannelsInTimeStretchResult = sampleSourceNumChannels;
-			}
-			else {
-				timeStretchResultWritePos = outputBufferWritePos;
-				numChannelsInTimeStretchResult = numChannelsInOutputBuffer;
+				stretchedChannels = sampleSourceNumChannels;
 			}
 
-			int32_t numSamplesThisUncachedReadUntouched =
-			    numSamplesThisUncachedRead; // This one won't get decremented between multiple timestretch iterations
-
-readTimestretched:
-			int32_t numSamplesThisTimestretchedRead = numSamplesThisUncachedRead;
-
-			// Now, perform the actual time stretching on the contents of the bands
 			checkStack("timestretch");
-
-			if (timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
-
-				bool wantToDoHopNow = (timeStretcher->samplesTilHopEnd <= 0);
-
-				// Basically, if other hops have already happened in this routine, we want to defer doing one, to spread
-				// the CPU load. But, the more times we've been skipped in this way, the more we start insisting that
-				// yes, it's our turn.
-				bool allowedToDoHop = (AudioEngine::numHopsEndedThisRoutineCall < 3
-				                       && (uint32_t)timeStretcher->numTimesMissedHop
-				                              >= ((uint32_t)AudioEngine::numHopsEndedThisRoutineCall << 1));
-
-				if (wantToDoHopNow) {
-					if (allowedToDoHop) {
-						bool success = timeStretcher->hopEnd(guide, this, sample, sampleSourceNumChannels,
-						                                     timeStretchRatio, phaseIncrement, combinedIncrement,
-						                                     playDirection, loopingType, priorityRating);
-						if (!success) {
-							return false; // Can fail if tried to jump to a bit in an unloaded Cluster. Shouldn't
-							              // actually happen
-						}
-
-						// Check this again, cos newer play-head can become inactive in hopEnd(). This probably isn't
-						// really crucial. Added June 2019
-						// hopEnd() can also end time-stretching outright (endTimeStretching() nulls timeStretcher);
-						// that's equally a reason to stop here. The deref of a null timeStretcher read mapped-but-stale
-						// memory on the MCU but faults on the host.
-						if (!cache && loopingType == LoopType::NONE
-						    && (timeStretcher == nullptr
-						        || (!timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-						            && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]))) {
-							return false;
-						}
-					}
-					else {
-						timeStretcher->numTimesMissedHop++;
-					}
-				}
-
-				if (allowedToDoHop) {
-					numSamplesThisTimestretchedRead =
-					    std::min((int32_t)numSamplesThisTimestretchedRead, timeStretcher->samplesTilHopEnd);
-				}
-			}
-
-			// TODO: would I save CPU if I also made it stop right at the end of the crossfade?
-
-			int32_t newerSourceAmplitudeNow;
-			int32_t newerAmplitudeIncrementNow;
-			int32_t olderSourceAmplitudeNow;
-			int32_t olderAmplitudeIncrementNow;
-			bool olderPlayHeadAudibleHere = (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-			                                 && timeStretcher->crossfadeProgress < kMaxSampleValue);
-
-			bool didShortening1 = false;
-#if TIME_STRETCH_ENABLE_BUFFER
-			if (timeStretcher->newerHeadReadingFromBuffer
-			    && !(timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-			         && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER)) {
-
-				int32_t samplesTilChangeover = (timeStretcher->bufferWritePos - timeStretcher->newerBufferReadPos)
-				                               & (TimeStretch::BUFFER_SIZE - 1);
-				if (numSamplesThisTimestretchedRead > samplesTilChangeover) {
-					D_PRINTLN("shortening 1");
-					numSamplesThisTimestretchedRead = samplesTilChangeover;
-					didShortening1 = true;
-				}
-			}
-
-			if (olderPlayHeadAudibleHere) {
-
-				if (timeStretcher->olderHeadReadingFromBuffer
-				    && timeStretcher->bufferFillingMode != BUFFER_FILLING_NEWER) {
-					int32_t samplesTilChangeover = (timeStretcher->bufferWritePos - timeStretcher->olderBufferReadPos)
-					                               & (TimeStretch::BUFFER_SIZE - 1);
-					if (numSamplesThisTimestretchedRead > samplesTilChangeover) {
-						D_PRINTLN("shortening 2");
-						numSamplesThisTimestretchedRead = samplesTilChangeover;
-					}
-				}
-			}
-#endif
-
-			int32_t preCacheAmplitude, preCacheAmplitudeIncrement;
-
-			// If there's a cache, we don't want the per-play-head functions to apply the overall voice amplitude
-			// envelope - we'll do that at the end when we copy from the cache into the output buffer
-			if (cache) {
-				preCacheAmplitude = 2147483647;
-				preCacheAmplitudeIncrement = 0;
-			}
-			else {
-				// We >>1 to match the fact that in the yes-cache case, above, the max we can set this to is 2147483647,
-				// and we compensate for both these things by having <<1'd amplitude for time-stretching, at the start
-				// of this func. This isn't quite ideal
-				preCacheAmplitude = amplitude >> 1;
-				preCacheAmplitudeIncrement = amplitudeIncrement >> 1;
-			}
-
-			// If the older play-head is still fading out, which means we need to work out the crossfade envelope too...
-			if (olderPlayHeadAudibleHere) {
-
-				// Use linear crossfades. These sound less jarring when doing short hops. Square root ones sound better
-				// for longer hops, with more difference in material between hops (i.e. time more stretched)
-				using deluge::dsp::Q;
-				// The crossfade's progress, an unsigned word read as signed Q24 (it runs 0 to 2^24, so the bits agree),
-				// as the newer hop's Q31 amplitude, the older's the rest of full scale
-				int32_t newerHopAmplitudeNow = as_wrap<Q<31>>(Q<24>::from_raw(timeStretcher->crossfadeProgress)).raw();
-				int32_t olderHopAmplitudeNow = 2147483647 - newerHopAmplitudeNow;
-
-				timeStretcher->crossfadeProgress += timeStretcher->crossfadeIncrement * numSamplesThisTimestretchedRead;
-
-				// Where the progress will be, held under 1.0 before its move to Q31: the step can carry it past 2^24
-				int32_t newerHopAmplitudeAfter =
-				    as_clamp_then_shift<Q<31>>(Q<24>::from_raw(timeStretcher->crossfadeProgress)).raw();
-
-				int32_t newerHopAmplitudeIncrement = deluge::dsp::divide_by_small(
-				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow), (int32_t)numSamplesThisTimestretchedRead);
-				int32_t olderHopAmplitudeIncrement = -newerHopAmplitudeIncrement;
-
-				// The pre-cache amplitude times each Q31 hop amplitude (and its step), moved back to Q31
-				const auto source = Q<31>::from_raw(preCacheAmplitude);
-				int32_t hopAmplitudeChange =
-				    mul_as_wrap<Q<31>>(source, Q<31>::from_raw(newerHopAmplitudeIncrement)).raw();
-
-				newerAmplitudeIncrementNow = preCacheAmplitudeIncrement + hopAmplitudeChange;
-				newerSourceAmplitudeNow = mul_as_wrap<Q<31>>(source, Q<31>::from_raw(newerHopAmplitudeNow)).raw();
-
-				olderAmplitudeIncrementNow = preCacheAmplitudeIncrement - hopAmplitudeChange;
-				olderSourceAmplitudeNow = mul_as_wrap<Q<31>>(source, Q<31>::from_raw(olderHopAmplitudeNow)).raw();
-			}
-
-			// Or, if we're just hearing the newer play-head
-			else {
-				newerSourceAmplitudeNow = preCacheAmplitude;
-				newerAmplitudeIncrementNow = preCacheAmplitudeIncrement;
-				// No need to set the "older" ones, cos that's not going to be rendered
-			}
-
-#if TIME_STRETCH_ENABLE_BUFFER
-			bool swappingOrder =
-			    (timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]
-			     && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER
-			     && (timeStretcher
-			             ->playHeadStillActive[PLAY_HEAD_OLDER])); // || !timeStretcher->newerHeadReadingFromBuffer));
-#else
-			bool swappingOrder = false;
-#endif
-			if (swappingOrder) {
-				goto considerOlderHead;
-			}
-
-			// Read newer play-head
-readNewerHead:
-			if (timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
-#if TIME_STRETCH_ENABLE_BUFFER
-				// If reading buffer...
-				if (timeStretcher->newerHeadReadingFromBuffer) {
-					timeStretcher->readFromBuffer(
-					    timeStretchResultWritePos, writePosNowR, numSamplesThisTimestretchedRead,
-					    sampleSourceNumChannels, numChannelsInOutputBuffer, newerSourceAmplitudeNow,
-					    newerAmplitudeIncrementNow, &timeStretcher->newerBufferReadPos, writeIncrement);
-				}
-
-				// Or if reading normal unbuffered Cluster data...
-				else
-#endif
-				{
-					timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER] = readSamplesForTimeStretching(
-					    timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead,
-					    sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
-					    newerSourceAmplitudeNow, newerAmplitudeIncrementNow, (loopingType == LoopType::LOW_LEVEL),
-					    jumpAmount, interpolationBufferSize, whichKernel, priorityRating);
-				}
-			}
-			if (swappingOrder) {
-				goto headsFinishedReading;
-			}
-
-considerOlderHead:
-			// Read older play-head if still active
-			if (olderPlayHeadAudibleHere) {
-
-				// If reading buffer...
-				if (timeStretcher->olderHeadReadingFromBuffer) {
-					timeStretcher->readFromBuffer(timeStretchResultWritePos, numSamplesThisTimestretchedRead,
-					                              sampleSourceNumChannels, numChannelsInTimeStretchResult,
-					                              olderSourceAmplitudeNow, olderAmplitudeIncrementNow,
-					                              &timeStretcher->olderBufferReadPos);
-				}
-
-				// Or if reading normal Cluster data...
-				else {
-readOlderHeadUnbuffered:
-					timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] =
-					    timeStretcher->olderPartReader.readSamplesForTimeStretching(
-					        timeStretchResultWritePos, guide, sample, numSamplesThisTimestretchedRead,
-					        sampleSourceNumChannels, numChannelsInTimeStretchResult, phaseIncrement,
-					        olderSourceAmplitudeNow, olderAmplitudeIncrementNow, (loopingType == LoopType::LOW_LEVEL),
-					        jumpAmount, interpolationBufferSize, whichKernel, priorityRating);
-				}
-
-				// If just stopped being active...
-				if (timeStretcher->crossfadeProgress >= kMaxSampleValue
-#if TIME_STRETCH_ENABLE_BUFFER
-				    && !(timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER
-				         && !timeStretcher->newerHeadReadingFromBuffer)
-#endif
-				) {
-					// timeStretcher->olderPartReader.unassignAllReasons();
-					// if (olderPlayHeadActive) D_PRINTLN("older head faded out");
-					timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] = false;
-				}
-
-				if (swappingOrder) {
-					goto readNewerHead;
-				}
-			}
-			else {
-				if (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]) {
-					olderSourceAmplitudeNow = 0;
-					olderAmplitudeIncrementNow = 0;
-					// D_PRINTLN("doing special thing!!!");
-					goto readOlderHeadUnbuffered;
-				}
-			}
-
-headsFinishedReading:
-
-			timeStretcher->samplePosBig += (int64_t)combinedIncrement * numSamplesThisTimestretchedRead * playDirection;
-
-#if TIME_STRETCH_ENABLE_BUFFER
-			if (timeStretcher->bufferFillingMode != BUFFER_FILLING_OFF) {
-
-				if (timeStretcher->newerHeadReadingFromBuffer
-				    && timeStretcher->newerBufferReadPos == timeStretcher->bufferWritePos
-				    && !(timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-				         && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER)) {
-
-					D_PRINTLN("switch to filling newerrrrrrrrrrrrrrrr");
-					// if (timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER) D_PRINTLN(" - was filling older");
-					timeStretcher->newerHeadReadingFromBuffer = false;
-					timeStretcher->bufferFillingMode = BUFFER_FILLING_NEWER;
-					// STALE: SampleLowLevelReader::cloneFrom no longer exists (replaced by the copy ctor /
-					// adoptResidencyFrom). This whole TIME_STRETCH_ENABLE_BUFFER block is never compiled and is
-					// pending removal; do not treat this call as live.
-					cloneFrom(&timeStretcher->olderPartReader, false);
-					if (!hasCurrentRegion())
-						D_PRINTLN("no current region");
-				}
-
-				else if (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-				         && timeStretcher->olderHeadReadingFromBuffer
-				         && timeStretcher->olderBufferReadPos == timeStretcher->bufferWritePos
-				         && timeStretcher->bufferFillingMode != BUFFER_FILLING_NEWER) {
-					timeStretcher->olderHeadReadingFromBuffer = false;
-					timeStretcher->bufferFillingMode = BUFFER_FILLING_OLDER;
-					// timeStretcher->olderPartReader.cloneFrom(this, false);
-					D_PRINTLN("switch to filling older");
-				}
-			}
-#endif
-
-			if (!cache && loopingType == LoopType::NONE && !timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-			    && !timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
+			stretchPort.set_params(stretchParams(stretchedChannels));
+			const deluge::synth::SampleStretcher::PartOutcome outcome = stretcher->render(
+			    stretchPort, stretchContext, stretchPart(numSamplesThisUncachedRead, stretchedChannels),
+			    std::span<deluge::dsp::Q<31>>(stretchedWritePos,
+			                                  static_cast<size_t>(numSamplesThisUncachedRead * stretchedChannels)),
+			    deluge::synth::StretchAmplitude{.amplitude = deluge::dsp::Q<31>::from_raw(amplitude),
+			                                    .step = deluge::dsp::Q<31>::from_raw(amplitudeIncrement)});
+			if (outcome.note_ended) {
 				return false;
 			}
-
-			timeStretcher->samplesTilHopEnd -= numSamplesThisTimestretchedRead;
-
-			if (!cache) {
-				amplitude += amplitudeIncrement * numSamplesThisTimestretchedRead;
-			}
-
-			numSamplesThisUncachedRead -= numSamplesThisTimestretchedRead;
-
-			if (numSamplesThisUncachedRead) {
-				timeStretchResultWritePos += numSamplesThisTimestretchedRead * numChannelsInTimeStretchResult;
-				goto readTimestretched;
-			}
+			amplitude = outcome.amplitude.amplitude.raw();
 
 			// If we were writing to a temp buffer instead of the output buffer because we need to cache,
-			// now we copy from the temp buffer to both the cache and the output buffer
+			// now we copy from the temp buffer to both the cache and the output buffer (W1)
 			if (cache) {
-				deluge::dsp::Q<31> const* __restrict__ tempBufferReadPos = tempBuffer;
-
-				// Pre-fetch some memory. Raw: the cache stores each sample's bytes
-				int32_t sampleRead[2];
-				sampleRead[0] = tempBufferReadPos->raw();
-				deluge::dsp::Q<31> existingValueL = *outputBufferWritePos;
-
-				deluge::dsp::Q<31> const* const outputBufferEndNow =
-				    outputBufferWritePos + numSamplesThisUncachedReadUntouched * numChannelsInOutputBuffer;
-
-				// We'll do an ugly hack here - fudging is where a TimeStretcher is added just at the end of a
-				// play-through, to do a crossfade. This leads to a rare case where if we're recording a cache, our
-				// whether-there's-a-TimeStretcher changes, but we still keep the same cache. So, we have to compensate
-				// for a difference in cached volume.
-				bool fudgingNow = fudging;
-
-				char* __restrict__ cacheWritePosNow = cacheWritePos;
+				char* cacheWritePosNow = cacheWritePos;
 
 				// Check that all of our sample-reading above hasn't stolen any of our cache Clusters.
 				if (cache->writeBytePos != cacheBytePos) {
@@ -1607,78 +1270,29 @@ headsFinishedReading:
 					cacheWritePosNow = (char*)deluge_memory_scratch();
 				}
 
-				while (true) {
-					tempBufferReadPos++;
-
-					amplitude += amplitudeIncrement;
-
-					int32_t forCache = sampleRead[0] << 1;
-
-					*cacheWritePosNow = ((char*)&forCache)[1];
-					cacheWritePosNow++;
-					*cacheWritePosNow = ((char*)&forCache)[2];
-					cacheWritePosNow++;
-					*cacheWritePosNow = ((char*)&forCache)[3];
-					cacheWritePosNow++;
-
-					if (sampleSourceNumChannels == 2) {
-						sampleRead[1] = tempBufferReadPos->raw();
-						tempBufferReadPos++;
-
-						// If condensing to mono, do that now
-						if (numChannelsInOutputBuffer == 1) {
-							sampleRead[0] = ((sampleRead[0] >> 1) + (sampleRead[1] >> 1));
-						}
-
-						int32_t forCache = sampleRead[1] << 1;
-
-						*cacheWritePosNow = ((char*)&forCache)[1];
-						cacheWritePosNow++;
-						*cacheWritePosNow = ((char*)&forCache)[2];
-						cacheWritePosNow++;
-						*cacheWritePosNow = ((char*)&forCache)[3];
-						cacheWritePosNow++;
-					}
-
-					// Mono / left channel (or stereo condensed to mono). The amplitude is render's word, stepped by
-					// integer multiples of its increment.
-					const auto level = deluge::dsp::Q<31>::from_raw(amplitude);
-					*outputBufferWritePos =
-					    deluge::audio::mixed_in(existingValueL, deluge::dsp::Q<31>::from_raw(sampleRead[0]), level);
-					outputBufferWritePos++;
-
-					// Right channel
-					if (numChannelsInOutputBuffer == 2) {
-						const deluge::dsp::Q<31> existingValueR = *outputBufferWritePos;
-						*outputBufferWritePos =
-						    deluge::audio::mixed_in(existingValueR, deluge::dsp::Q<31>::from_raw(sampleRead[1]), level);
-						outputBufferWritePos++;
-					}
-
-					if (outputBufferWritePos == outputBufferEndNow) {
-						break;
-					}
-
-					sampleRead[0] = tempBufferReadPos->raw();
-					existingValueL = *outputBufferWritePos;
-				}
+				const auto frames = static_cast<size_t>(numSamplesThisUncachedRead);
+				deluge::dsp::Q<31> level = deluge::dsp::Q<31>::from_raw(amplitude);
+				deluge::synth::write_cache_frames(
+				    std::span<const deluge::dsp::Q<31>>(tempBuffer, frames * sampleSourceNumChannels),
+				    sampleSourceNumChannels,
+				    std::span<std::byte>(reinterpret_cast<std::byte*>(cacheWritePosNow),
+				                         frames * kCacheByteDepth * sampleSourceNumChannels),
+				    std::span<deluge::dsp::Q<31>>(outputBufferWritePos, frames * numChannelsInOutputBuffer),
+				    numChannelsInOutputBuffer, level, deluge::dsp::Q<31>::from_raw(amplitudeIncrement));
+				amplitude = level.raw();
+				outputBufferWritePos += frames * numChannelsInOutputBuffer;
 
 				if (cache) { // Might not be true anymore if we had to abandon the cache just above cos it got Clusters
 					         // stolen.
-					cacheWritePos =
-					    cacheWritePosNow; // Not necessary I don't think - cacheWritePos doesn't get used again does it?
-
-					cacheBytePos += numSamplesThisUncachedReadUntouched * kCacheByteDepth * sampleSourceNumChannels;
+					cacheBytePos += numSamplesThisUncachedRead * kCacheByteDepth * sampleSourceNumChannels;
 					cache->writeBytePos = cacheBytePos; // These two were and are now still the same
 				}
 			}
 
 			// Otherwise, just have to update some stuff
 			else {
-				outputBufferWritePos += numSamplesThisUncachedReadUntouched * numChannelsInOutputBuffer;
+				outputBufferWritePos += numSamplesThisUncachedRead * numChannelsInOutputBuffer;
 			}
-
-			// AudioEngine::logAction("/");
 		}
 
 finishedTimestretchedRead:
@@ -1749,13 +1363,15 @@ loopBackToStartCached:
 		// Or if no cache...
 		else {
 
-			if (timeStretcher) {
-				D_PRINTLN("timeStretcher");
+			if (stretcher != nullptr) {
+				D_PRINTLN("stretching");
 
 				if (((VoiceSamplePlaybackGuide*)voiceSource)->shouldObeyLoopEndPointNow()) {
-					int32_t bytePos = timeStretcher->getSamplePos(voiceSource->playDirection)
-					                      * (sample->byteDepth * sample->numChannels)
-					                  + sample->audioDataStartPosBytes;
+					int32_t bytePos =
+					    stretcher->frame(voiceSource->playDirection == 1 ? deluge::synth::Direction::FORWARD
+					                                                     : deluge::synth::Direction::REVERSE)
+					        * (sample->byteDepth * sample->numChannels)
+					    + sample->audioDataStartPosBytes;
 					int32_t overshootBytes = (bytePos - ((VoiceSamplePlaybackGuide*)voiceSource)->loopEndPlaybackAtByte)
 					                         * voiceSource->playDirection;
 
@@ -1765,7 +1381,7 @@ loopBackToStartCached:
 				}
 			}
 			else {
-				D_PRINTLN("no timeStretcher");
+				D_PRINTLN("not stretching");
 
 				// If we've shot past the loop end point...
 				if (((VoiceSamplePlaybackGuide*)voiceSource)->shouldObeyLoopEndPointNow()
@@ -1803,16 +1419,18 @@ loopBackToStartCached:
 		// Or if no cache...
 		else {
 
-			if (timeStretcher) {
+			if (stretcher != nullptr) {
 
 				if (voiceSource->endPlaybackAtByte
 				    && (forAudioClip
 				        || !((VoiceSamplePlaybackGuide*)voiceSource)
 				                ->noteOffReceived)) { // Wait, wouldn't there always be a
 					                                  // voiceSource->endPlaybackAtByte()?
-					int32_t bytePos = timeStretcher->getSamplePos(voiceSource->playDirection)
-					                      * (sample->byteDepth * sample->numChannels)
-					                  + sample->audioDataStartPosBytes;
+					int32_t bytePos =
+					    stretcher->frame(voiceSource->playDirection == 1 ? deluge::synth::Direction::FORWARD
+					                                                     : deluge::synth::Direction::REVERSE)
+					        * (sample->byteDepth * sample->numChannels)
+					    + sample->audioDataStartPosBytes;
 					int32_t overshootBytes = (bytePos - voiceSource->endPlaybackAtByte) * voiceSource->playDirection;
 
 					if (overshootBytes >= 0) {
@@ -1875,8 +1493,9 @@ loopBackToStartTimeStretched:
 }
 
 int32_t VoiceSample::getPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
-	if (timeStretcher) {
-		return timeStretcher->getSamplePos(guide->playDirection);
+	if (stretcher != nullptr) {
+		return stretcher->frame(guide->playDirection == 1 ? deluge::synth::Direction::FORWARD
+		                                                  : deluge::synth::Direction::REVERSE);
 	}
 
 	else {

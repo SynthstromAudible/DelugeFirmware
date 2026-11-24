@@ -89,8 +89,8 @@ bool SamplePlaybackAdapter::cloneVoiceSampleFrom(const SamplePlaybackAdapter& fr
 	VoiceSample& oldVoiceSample = *from.voiceSample_;
 
 	// Just clones the SampleLowLevelReader stuff - assign through the base subobject so this can't slice via the
-	// implicit VoiceSample(SampleLowLevelReader&&) conversion and clobber the derived members (timeStretcher/cache).
-	// See the matching guard in TimeStretcher::hopEnd.
+	// implicit VoiceSample(SampleLowLevelReader&&) conversion and clobber the derived members (the stretcher and
+	// cache).
 	static_cast<SampleLowLevelReader&>(newVoiceSample) = SampleLowLevelReader(oldVoiceSample);
 	newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
 	newVoiceSample.doneFirstRenderYet = true;

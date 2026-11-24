@@ -103,8 +103,10 @@ public:
 	[[nodiscard]] const HopClock& clock() const { return clock_; }
 
 private:
-	struct SpareHead {};
-	using Older = std::variant<SpareHead, dsp::fixed::timestretch::CacheTail>;
+	struct SpareHead {}; ///< The older head is the voice-sample's spare.
+	/// The older head is still in the newer's place: a hop past the end leaves the newer fading there, unseated (B6).
+	struct NewerSlot {};
+	using Older = std::variant<SpareHead, NewerSlot, dsp::fixed::timestretch::CacheTail>;
 	struct Shadowed {};  ///< A plain begin before its first segment ends (X3).
 	struct Solo {};      ///< The newer head reads alone.
 	struct Crossfading { ///< Both read; the older fades out.
@@ -133,7 +135,7 @@ private:
 	void hop(SampleStretchPort& port, StretchContext& context, const Part& part);
 	/// @brief One segment's reads: the newer head, then the older, at the crossfade's gains (X2, X3, C4).
 	void read_heads(SampleStretchPort& port, StretchContext& context, const Part& part, std::span<dsp::Q<31>> segment,
-	                int32_t frames, HeadLevel level);
+	                std::span<dsp::Q<31>> to_part_end, int32_t frames, HeadLevel level);
 	void give_back_tail(StretchContext& context);
 	void remember(SampleStretchPort& port, PercChunk chunk);
 	void keep_hop_back(SampleStretchPort& port, const SourceFacts& facts, int64_t position_frames,
