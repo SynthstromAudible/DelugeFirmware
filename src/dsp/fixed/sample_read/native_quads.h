@@ -52,13 +52,13 @@ namespace detail {
 	return vcombine_u32(vget_high_u32(r), vget_low_u32(r));
 }
 
-/// One pass's words in memory order: four frames' (l0, r0), or for 8- and 24-bit mono eight frames' (l0 then l1).
+/// One pass's words in memory order: four frames' (l0, r0), or for 8-, 16- and 24-bit mono eight frames' (l0 then l1).
 struct NativeWords {
 	uint32x4_t l0, r0, l1;
 };
 
 template <int Depth, int Channels>
-inline constexpr int32_t kNativePassFrames = (Channels == 1 && (Depth == 1 || Depth == 3)) ? 8 : 4;
+inline constexpr int32_t kNativePassFrames = (Channels == 1 && Depth != 4) ? 8 : 4;
 
 /// Eight 24-bit samples' words from their low, middle and high byte planes: each `lo << 8 | mid << 16 | hi << 24`.
 [[gnu::always_inline]] inline void words24(uint8x8x3_t planes, uint32x4_t& first, uint32x4_t& second) {
@@ -110,7 +110,9 @@ template <int Depth, int Channels>
 		words24(vld3_u8(at), w.l0, w.l1);
 	}
 	else if constexpr (Depth == 2) {
-		w.l0 = vshll_n_u16(vreinterpret_u16_u8(vld1_u8(at)), 16);
+		const uint16x8_t h = vreinterpretq_u16_u8(vld1q_u8(at));
+		w.l0 = vshll_n_u16(vget_low_u16(h), 16);
+		w.l1 = vshll_n_u16(vget_high_u16(h), 16);
 	}
 	else {
 		const uint16x8_t h = vmovl_u8(vld1_u8(at));
@@ -123,6 +125,24 @@ template <int Depth, int Channels>
 [[gnu::always_inline]] inline QVec<31> as_samples(uint32x4_t words) {
 	// A masked word is the sample's word, read as Q31 as the native read reads it
 	return QVec<31>::from_raw(vreinterpretq_s32_u32(words));
+}
+
+/// One pass's words into @p sink in play order: as they lie going forward, lanes and halves reversed going back.
+template <int kPass, int Channels, class Sink>
+[[gnu::always_inline]] inline void put_pass(const NativeWords& w, bool forward, Sink& sink) {
+	if (forward) {
+		sink.put(as_samples(w.l0), as_samples(Channels == 2 ? w.r0 : w.l0), 4);
+		if constexpr (kPass == 8) {
+			sink.put(as_samples(w.l1), as_samples(w.l1), 4);
+		}
+	}
+	else if constexpr (kPass == 8) {
+		sink.put(as_samples(reversed4(w.l1)), as_samples(reversed4(w.l1)), 4);
+		sink.put(as_samples(reversed4(w.l0)), as_samples(reversed4(w.l0)), 4);
+	}
+	else {
+		sink.put(as_samples(reversed4(w.l0)), as_samples(reversed4(Channels == 2 ? w.r0 : w.l0)), 4);
+	}
 }
 
 /// Frames @p k to @p frames − 1 of @p run, a word each through the scalar read's masked 32-bit read.
@@ -158,22 +178,15 @@ void native_as(const FrameRun& run, int32_t frames, Sink& sink) {
 		return origin + (static_cast<std::ptrdiff_t>(k) * run.stride) + 4 - Depth;
 	};
 	int32_t k = 0;
+	// Two passes' loads ahead of their mixes, so one's latencies fill with the other's work
+	for (; k + (2 * kPass) <= frames; k += 2 * kPass) {
+		const NativeWords a = native_pass<Depth, Channels>(sample(forward ? k : k + kPass - 1));
+		const NativeWords b = native_pass<Depth, Channels>(sample(forward ? k + kPass : k + (2 * kPass) - 1));
+		put_pass<kPass, Channels>(a, forward, sink);
+		put_pass<kPass, Channels>(b, forward, sink);
+	}
 	for (; k + kPass <= frames; k += kPass) {
-		// The pass's lowest frame in memory: its first going forward, its last reversed
-		const NativeWords w = native_pass<Depth, Channels>(sample(forward ? k : k + kPass - 1));
-		if (forward) {
-			sink.put(as_samples(w.l0), as_samples(Channels == 2 ? w.r0 : w.l0), 4);
-			if constexpr (kPass == 8) {
-				sink.put(as_samples(w.l1), as_samples(w.l1), 4);
-			}
-		}
-		else if constexpr (kPass == 8) {
-			sink.put(as_samples(reversed4(w.l1)), as_samples(reversed4(w.l1)), 4);
-			sink.put(as_samples(reversed4(w.l0)), as_samples(reversed4(w.l0)), 4);
-		}
-		else {
-			sink.put(as_samples(reversed4(w.l0)), as_samples(reversed4(Channels == 2 ? w.r0 : w.l0)), 4);
-		}
+		put_pass<kPass, Channels>(native_pass<Depth, Channels>(sample(forward ? k : k + kPass - 1)), forward, sink);
 	}
 	native_tail<Depth, Channels>(run, k, frames, sink);
 }

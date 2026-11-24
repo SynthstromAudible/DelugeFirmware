@@ -42,7 +42,6 @@ using deluge::dsp::fixed::Interpolator;
 using deluge::dsp::fixed::sample_read::GatherPos;
 using deluge::dsp::fixed::sample_read::kHistoryTaps;
 using deluge::dsp::fixed::sample_read::kStageTaps;
-using deluge::dsp::fixed::sample_read::linear_gather;
 using deluge::dsp::fixed::sample_read::sinc_gather;
 using deluge::dsp::fixed::sample_read::Staging;
 
@@ -94,7 +93,7 @@ struct Fixture {
 
 /// The sliding reference: the window stepped before each output (but the first when @p step_first is false), a step
 /// longer than the window jumping the frames before its last 16, then interpolated.
-template <int Channels, bool Linear = false>
+template <int Channels>
 Collect slide(Fixture& f, uint32_t phase, uint32_t inc, int32_t kernel, int32_t outputs, bool step_first,
               int32_t& newest_frame, uint32_t& end_phase) {
 	Collect out;
@@ -114,8 +113,7 @@ Collect slide(Fixture& f, uint32_t phase, uint32_t inc, int32_t kernel, int32_t 
 				next++;
 			}
 		}
-		const deluge::dsp::StereoSample s =
-		    Linear ? f.window.interpolate_linear(Channels, phase) : f.window.interpolate(Channels, kernel, phase);
+		const deluge::dsp::StereoSample s = f.window.interpolate(Channels, kernel, phase);
 		out.l.push_back(s.l.raw());
 		out.r.push_back(Channels == 2 ? s.r.raw() : s.l.raw());
 	}
@@ -130,7 +128,7 @@ int32_t frames_for(uint32_t phase, uint32_t inc, int32_t outputs, bool step_firs
 	return static_cast<int32_t>((phase + (static_cast<uint64_t>(inc) * steps)) >> 24);
 }
 
-template <int Channels, bool Linear = false>
+template <int Channels>
 std::string compare(uint32_t inc, int32_t kernel, int32_t outputs, bool step_first, bool narrow) {
 	const uint32_t phase = (inc * 7u) & kFrac;
 	const int32_t frames = frames_for(phase, inc, outputs, step_first);
@@ -180,19 +178,6 @@ describe sample_read_gather_spec_body("deluge::dsp::fixed::sample_read gathers",
 		}
 		expect(bad).to_equal(std::string{});
 		expect(checked).to_equal(8 * 7 * 10 * 2);
-	});
-
-	it("gathers each output's two taps as the linear read's steps leave them, every rate", _ {
-		std::string bad;
-		for (const uint32_t inc : kIncrements) {
-			for (const int32_t outputs : {1, 2, 3, 4, 5, 7, 8, 9, 64, 128}) {
-				for (const bool step_first : {false, true}) {
-					bad += compare<1, true>(inc, 0, outputs, step_first, false);
-					bad += compare<2, true>(inc, 0, outputs, step_first, false);
-				}
-			}
-		}
-		expect(bad).to_equal(std::string{});
 	});
 
 	it("reads zeros a narrowed window holds until they slide out", _ {

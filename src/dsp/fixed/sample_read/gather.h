@@ -22,7 +22,6 @@
 #include "dsp/fixed/sample_read/stage.h"
 
 #include <arm_neon.h>
-#include <array>
 #include <cstdint>
 
 namespace deluge::dsp::fixed::sample_read {
@@ -158,69 +157,6 @@ GatherPos sinc_gather(const Staging& s, GatherPos pos, uint32_t inc, int32_t ker
 		one(l2, r2);
 	}
 	sink.put(detail::reduce4(l0, l1, l2, vdup_n_s32(0)), detail::reduce4(r0, r1, r2, vdup_n_s32(0)), count);
-	return {.newest = newest, .phase = phase};
-}
-
-/// @brief Gathers @p outputs linear outputs from @p s, from @p pos, into @p sink four at a time: each output its
-/// previous tap (the slot above its newest) and its newest weighted by the phase, `previous · (32767 − s) + newest · s`
-/// with `s = phase >> 9`, integer products read as the Q31 sample (R9). Steps, @p step_first and the result are as
-/// sinc_gather's.
-template <int Channels, class Sink>
-GatherPos linear_gather(const Staging& s, GatherPos pos, uint32_t inc, int32_t outputs, bool step_first, Sink& sink) {
-	if (outputs <= 0) {
-		return pos;
-	}
-	int32_t newest = pos.newest;
-	uint32_t phase = pos.phase;
-	// The phase is the Q24 word the read head steps (R3, R9); the strengths are its bit field, as the scalar read's
-	auto step = [&] [[gnu::always_inline]] {
-		phase += inc;
-		newest -= static_cast<int32_t>(phase >> 24);
-		phase &= detail::kPhaseFraction;
-	};
-	const std::array<uint32_t, 4> offsets{0, inc, 2 * inc, 3 * inc};
-	const uint32x4_t phase_offsets = vld1q_u32(offsets.data());
-	const uint32x4_t fraction = vdupq_n_u32(detail::kPhaseFraction);
-	const int16x4_t full = vdup_n_s16(32767);
-	// Four outputs from their newest slots, the phases from the first's (the fraction of a sum is the sum's fraction)
-	auto four = [&] [[gnu::always_inline]] (const std::array<int32_t, 4>& at, uint32_t first_phase, int32_t count) {
-		const uint32x4_t phases = vandq_u32(vaddq_u32(vdupq_n_u32(first_phase), phase_offsets), fraction);
-		const int16x4_t s2 = vreinterpret_s16_u16(vmovn_u32(vshrq_n_u32(phases, 9)));
-		const int16x4_t s1 = vsub_s16(full, s2);
-		// Each output's pair, newest then previous, is one element-aligned halfword load from its newest slot
-		auto weigh = [&] [[gnu::always_inline]] (const int16_t* taps) {
-			const int32x2_t a =
-			    vtrn_s32(vreinterpret_s32_s16(vld1_s16(taps + at[0])), vreinterpret_s32_s16(vld1_s16(taps + at[1])))
-			        .val[0];
-			const int32x2_t b =
-			    vtrn_s32(vreinterpret_s32_s16(vld1_s16(taps + at[2])), vreinterpret_s32_s16(vld1_s16(taps + at[3])))
-			        .val[0];
-			const int16x4x2_t pairs = vuzp_s16(vreinterpret_s16_s32(a), vreinterpret_s16_s32(b));
-			// The integer products, read as the Q31 sample as the scalar read reads them
-			return QVec<31>::from_raw(vmlal_s16(vmull_s16(pairs.val[1], s1), pairs.val[0], s2));
-		};
-		const QVec<31> l = weigh(s.l.data());
-		sink.put(l, Channels == 2 ? weigh(s.r.data()) : l, count);
-	};
-	if (step_first) {
-		step();
-	}
-	int32_t done = 0;
-	while (true) {
-		const int32_t count = outputs - done < 4 ? outputs - done : 4;
-		const uint32_t first_phase = phase;
-		std::array<int32_t, 4> at{newest, newest, newest, newest};
-		for (int32_t j = 1; j < count; j++) {
-			step();
-			at[j] = newest;
-		}
-		four(at, first_phase, count);
-		done += count;
-		if (done == outputs) {
-			break;
-		}
-		step();
-	}
 	return {.newest = newest, .phase = phase};
 }
 

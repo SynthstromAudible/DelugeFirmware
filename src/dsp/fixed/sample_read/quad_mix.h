@@ -56,8 +56,10 @@ public:
 		// The four frames' steps as words, wrapping: lanes one to four steps on. The ramp is word arithmetic, as the
 		// scalar add_wrap's is, so its crossings here are those words
 		const auto s = static_cast<uint32_t>(step.raw());
-		const std::array<uint32_t, 4> steps{s, 2 * s, 3 * s, 4 * s};
-		amps_ = vaddq_s32(vdupq_n_s32(amplitude.raw()), vreinterpretq_s32_u32(vld1q_u32(steps.data())));
+		// One to four steps: the step times the lane numbers, made in registers
+		const uint32x2_t ones = vcreate_u32((uint64_t{2} << 32) | 1u);
+		const uint32x4_t lanes = vcombine_u32(ones, vadd_u32(ones, vdup_n_u32(2)));
+		amps_ = vaddq_s32(vdupq_n_s32(amplitude.raw()), vreinterpretq_s32_u32(vmulq_n_u32(lanes, s)));
 		step4_ = vdupq_n_s32(static_cast<int32_t>(4 * s));
 	}
 

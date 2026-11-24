@@ -226,7 +226,7 @@ struct ReadHead {
 		}
 		if (run) {
 			by_layout(source.channels(), output.out_channels, [&]<int Channels, int OutChannels> {
-				read_linear_as<Channels, OutChannels>(state, *run, output, frames, increment, staging, direction);
+				read_linear_as<Channels, OutChannels>(state, *run, output, frames, increment, direction);
 			});
 			return;
 		}
@@ -438,6 +438,17 @@ private:
 			f.template operator()<1, 1>();
 		}
 	}
+	/// @brief The 16-bit tap at @p at: the top word of the 32-bit read ending at a sample's top byte, @p at being two
+	/// bytes into that read.
+	[[nodiscard, gnu::always_inline]] static int16_t top_word(const std::byte* at) {
+		// One halfword load at the same address as the legacy's int16_t cast. The build forbids unaligned access
+		// (-mno-unaligned-access: unaligned doubleword and multiple loads fault), so a plain copy loads byte by byte. A
+		// 24-bit sample's top word can sit at an odd byte, where the legacy's halfword loads ran on every 24-bit sample
+		// read, so an unaligned halfword load is one the device already makes
+		int16_t word = 0;
+		std::memcpy(&word, __builtin_assume_aligned(at, 2), sizeof word);
+		return word;
+	}
 	/// @brief The source frames a resampled read of @p frames outputs steps past its first: its phase's whole part
 	/// after the later outputs' steps, a long step's jump included.
 	[[nodiscard, gnu::always_inline]] static int32_t frames_stepped(uint32_t phase, uint32_t increment,
@@ -445,6 +456,16 @@ private:
 		return static_cast<int32_t>(
 		    (static_cast<uint64_t>(phase) + (static_cast<uint64_t>(increment) * static_cast<uint32_t>(frames - 1)))
 		    >> 24);
+	}
+	/// @brief Mixes one output frame at @p out, stepping the amplitude first, and moves @p out on.
+	template <int OutChannels>
+	[[gnu::always_inline]] static void put(Q<31>* __restrict& out, Q<31>& amplitude, Q<31> step, Q<31> l, Q<31> r) {
+		amplitude = add_wrap(amplitude, step);
+		out[0] = mixed_in(out[0], l, amplitude);
+		if constexpr (OutChannels == 2) {
+			out[1] = mixed_in(out[1], r, amplitude);
+		}
+		out += OutChannels;
 	}
 	/// @brief The native read's frames, run by run, mixed four at a time: each sample its bytes masked from the 32-bit
 	/// read ending at its top byte; a stereo source to one channel `(l >> 1) + (r >> 1)`.
@@ -474,16 +495,16 @@ private:
 	                         int32_t kernel, std::byte*& cache_write, Staging& staging, Direction direction) {
 		if constexpr (Channels == 2) {
 			if (output.out_channels == 1) {
-				read_gathered<QuadMix<2, 1, Condense::TOWARD_ZERO>, 2, false>(state, run, output, frames, increment,
-				                                                              kernel, cache_write, staging, direction);
+				read_gathered<QuadMix<2, 1, Condense::TOWARD_ZERO>, 2>(state, run, output, frames, increment, kernel,
+				                                                       cache_write, staging, direction);
 				return;
 			}
-			read_gathered<QuadMix<2, 2, Condense::NONE>, 2, false>(state, run, output, frames, increment, kernel,
-			                                                       cache_write, staging, direction);
+			read_gathered<QuadMix<2, 2, Condense::NONE>, 2>(state, run, output, frames, increment, kernel, cache_write,
+			                                                staging, direction);
 		}
 		else {
-			read_gathered<QuadMix<1, 1, Condense::NONE>, 1, false>(state, run, output, frames, increment, kernel,
-			                                                       cache_write, staging, direction);
+			read_gathered<QuadMix<1, 1, Condense::NONE>, 1>(state, run, output, frames, increment, kernel, cache_write,
+			                                                staging, direction);
 		}
 	}
 
@@ -506,11 +527,9 @@ private:
 		return whole > 0 ? whole : static_cast<int32_t>(fit);
 	}
 
-	/// @brief A resampled read through staging: the run's frames decoded after the window's taps, sub-read by sub-read,
-	/// the outputs gathered (the windowed sinc, or with @p Linear the two newest taps) and mixed by @p Mix, then the
-	/// window's taps from staging at the last output (all sixteen after a sinc read, the two a linear read uses after
-	/// one, which leaves the rest as they were).
-	template <class Mix, int Channels, bool Linear>
+	/// @brief A sinc read through staging: the run's frames decoded after the window's taps, sub-read by sub-read, the
+	/// outputs gathered and mixed by @p Mix, then the window's taps from staging at the last output.
+	template <class Mix, int Channels>
 	static void read_gathered(State& state, const FrameRun& run, Output& output, int32_t frames, Increment increment,
 	                          int32_t kernel, std::byte*& cache_write, Staging& staging, Direction direction) {
 		if (frames <= 0) {
@@ -531,12 +550,7 @@ private:
 			const auto needed = static_cast<int32_t>((pos.phase + (static_cast<uint64_t>(inc) * steps)) >> 24);
 			decode_taps(run, decoded, needed, staging.l.data() + (kStageRoom - needed),
 			            Channels == 2 ? staging.r.data() + (kStageRoom - needed) : nullptr);
-			if constexpr (Linear) {
-				pos = linear_gather<Channels>(staging, pos, inc, outputs, step_first, mix);
-			}
-			else {
-				pos = sinc_gather<Channels>(staging, pos, inc, kernel, outputs, step_first, mix);
-			}
+			pos = sinc_gather<Channels>(staging, pos, inc, kernel, outputs, step_first, mix);
 			decoded += needed;
 			left -= outputs;
 			if (left > 0) {
@@ -551,29 +565,107 @@ private:
 				step_first = true;
 			}
 		}
-		store_history(staging, pos.newest, state.window, Channels, Linear ? 2 : kHistoryTaps);
+		store_history(staging, pos.newest, state.window, Channels, kHistoryTaps);
 		reading.frame += stepped * static_cast<int32_t>(direction);
 		state.phase = UQ<24>::from_raw(pos.phase);
 		output.amplitude = mix.amplitude();
 		cache_write = mix.cache();
 	}
 
+	/// @brief A linear read's two taps per channel, the previous and the newest.
+	struct LinearTaps {
+		int16_t newest_l;
+		int16_t previous_l;
+		int16_t newest_r;
+		int16_t previous_r;
+
+		/// @brief A later output's step (jumpForwardLinear): the phase on by @p inc; a step of one moves the newest tap
+		/// to the previous, a longer one reads both afresh from @p at, jumping the frames before them unread.
+		template <int Channels>
+		[[gnu::always_inline]] void step(const std::byte*& at, uint32_t& phase, uint32_t inc, int32_t stride,
+		                                 int32_t depth) {
+			phase += inc;
+			const auto steps = static_cast<int32_t>(phase >> 24);
+			if (steps == 0) {
+				return;
+			}
+			phase &= (1u << 24) - 1;
+			if (steps > 2) {
+				at += static_cast<std::ptrdiff_t>(steps - 2) * stride;
+			}
+			if (steps >= 2) {
+				previous_l = top_word(at);
+				if constexpr (Channels == 2) {
+					previous_r = top_word(at + depth);
+				}
+				at += stride;
+			}
+			else {
+				previous_l = newest_l;
+				previous_r = newest_r;
+			}
+			newest_l = top_word(at);
+			if constexpr (Channels == 2) {
+				newest_r = top_word(at + depth);
+			}
+			at += stride;
+		}
+	};
 	/// @brief A linear read over @p run, which starts at the cursor (R9): its first output skips its step (R3 took
-	/// it). Through staging as the sinc read is, with no cache.
+	/// it).
 	template <int Channels, int OutChannels>
 	static void read_linear_as(State& state, const FrameRun& run, Output& output, int32_t frames, Increment increment,
-	                           Staging& staging, Direction direction) {
-		std::byte* no_cache = nullptr;
-		if constexpr (Channels == 2 && OutChannels == 1) {
-			read_gathered<QuadMix<2, 1, Condense::FLOOR>, 2, true>(state, run, output, frames, increment, 0, no_cache,
-			                                                       staging, direction);
+	                           Direction direction) {
+		if (frames <= 0) {
+			return;
+		}
+		Reading& reading = *std::get_if<Reading>(&state.cursor);
+		const std::byte* at = run.first + 2;
+		const int32_t stride = run.stride;
+		const auto depth = static_cast<int32_t>(static_cast<uint8_t>(run.byte_depth));
+		LinearTaps taps{.newest_l = state.window.window_l()[0],
+		                .previous_l = state.window.window_l()[1],
+		                .newest_r = Channels == 2 ? state.window.window_r()[0] : int16_t{0},
+		                .previous_r = Channels == 2 ? state.window.window_r()[1] : int16_t{0}};
+		uint32_t phase = state.phase.raw();
+		const uint32_t inc = increment.raw();
+		const int32_t stepped = frames_stepped(phase, inc, frames);
+		Q<31>* __restrict out = output.out.data();
+		const Q<31>* const end = out + (static_cast<std::ptrdiff_t>(frames) * OutChannels);
+		Q<31> amplitude = output.amplitude;
+		const Q<31> step = output.step;
+		auto emit = [&] [[gnu::always_inline]] {
+			// The 16-bit taps times their Q15 strengths, integer products read as the Q31 sample
+			const auto strength2 = static_cast<int16_t>(phase >> 9);
+			const auto strength1 = static_cast<int16_t>(32767 - strength2);
+			auto l = Q<31>::from_raw((taps.previous_l * strength1) + (taps.newest_l * strength2));
+			Q<31> r{};
+			if constexpr (Channels == 2) {
+				r = Q<31>::from_raw((taps.previous_r * strength1) + (taps.newest_r * strength2));
+			}
+			if constexpr (Channels == 2 && OutChannels == 1) {
+				l = add_wrap(halve_floor(l), halve_floor(r));
+			}
+			put<OutChannels>(out, amplitude, step, l, r);
+		};
+		emit(); // the first output's step was the window check's
+		while (out != end) {
+			taps.step<Channels>(at, phase, inc, stride, depth);
+			emit();
+		}
+		auto tail = state.window.fill_head(2);
+		if constexpr (Channels == 2) {
+			tail.put(taps.previous_l, taps.previous_r);
+			tail.put(taps.newest_l, taps.newest_r);
 		}
 		else {
-			read_gathered<QuadMix<Channels, OutChannels, Condense::NONE>, Channels, true>(
-			    state, run, output, frames, increment, 0, no_cache, staging, direction);
+			tail.put(taps.previous_l);
+			tail.put(taps.newest_l);
 		}
+		reading.frame += stepped * static_cast<int32_t>(direction);
+		state.phase = UQ<24>::from_raw(phase);
+		output.amplitude = amplitude;
 	}
-
 	/// @brief A sinc read of a head feeding zeros. The legacy's sinc read stepped a copy of its cursor and wrote the
 	/// copy back, so the read ends with the count it began with.
 	template <read_source S>
