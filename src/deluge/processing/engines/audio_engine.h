@@ -51,6 +51,9 @@ class SampleStretcher;
 struct StretchContext;
 struct HopBudget;
 } // namespace deluge::synth
+namespace deluge::dsp::fixed::sample_read {
+struct Staging;
+} // namespace deluge::dsp::fixed::sample_read
 #include <string>
 class VoiceVector;
 class Metronome;
@@ -236,6 +239,9 @@ void stretcherUnassigned(deluge::synth::SampleStretcher* stretcher);
 deluge::synth::StretchContext stretchContext();
 /// @brief The audio routine's hops, across stretchers and the pitch shifter (S3).
 deluge::synth::HopBudget& hopBudget();
+/// @brief The staging every resampled sample read decodes its taps into: one, since the audio routine reads one voice
+/// at a time.
+deluge::dsp::fixed::sample_read::Staging& readStaging();
 
 void slowRoutine();
 void doRecorderCardRoutines();

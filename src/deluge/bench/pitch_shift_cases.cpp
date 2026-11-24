@@ -29,6 +29,7 @@
 #include "dsp/fixed/noise/cong.h"
 #include "dsp/fixed/sample_read/read_head.h"
 #include "model/sample/sample.h"
+#include "processing/engines/audio_engine.h"
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input.h"
 #include "synth/sources/input/live/live_inputs.h"
@@ -240,9 +241,9 @@ void SampleReadCase::block(std::size_t n) {
 		return;
 	}
 	std::byte* no_cache = nullptr;
-	sr::ReadHead::read_resampled(rig.head, rig.source, output, static_cast<int32_t>(n),
-	                             sr::Increment::from_raw(config_.rate),
-	                             config_.linear ? 2 : kInterpolationMaxNumSamples, 0, no_cache, direction);
+	sr::ReadHead::read_resampled(
+	    rig.head, rig.source, output, static_cast<int32_t>(n), sr::Increment::from_raw(config_.rate),
+	    config_.linear ? 2 : kInterpolationMaxNumSamples, 0, no_cache, AudioEngine::readStaging(), direction);
 }
 
 void PitchShiftCase::setup(std::size_t /*n*/) {

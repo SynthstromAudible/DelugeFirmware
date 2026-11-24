@@ -9,6 +9,7 @@
 #include "dsp/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp/fixed/noise/cong.h"
 #include "dsp/fixed/sample_read/read_head.h"
+#include "processing/engines/audio_engine.h"
 #include "synth/sources/sample/sample_stretch_port.h"
 #include "synth/sources/sample/sample_stretcher.h"
 #include "synth/sources/sample/stretch_context.h"
@@ -155,7 +156,7 @@ public:
 		return ReadHead::read(heads_[which], sources_[which], {}, output, frames, sr::Increment::from_raw(increment_),
 		                      kInterpolationMaxNumSamples,
 		                      dsp::fixed::WindowedSincKernel::variant_for(static_cast<int32_t>(increment_)), nullptr,
-		                      Direction::FORWARD);
+		                      AudioEngine::readStaging(), Direction::FORWARD);
 	}
 	[[nodiscard]] synth::HeadMark mark(Head head) const override {
 		const ReadHead::State& state = heads_[slot(head)];

@@ -20,6 +20,7 @@
 #include "dsp/fixed/interpolation/interpolator.h"
 #include "dsp/fixed/sample_read/frame_source.h"
 #include "dsp/fixed/sample_read/mixed_in.h"
+#include "dsp/fixed/sample_read/stage.h"
 
 #include <algorithm>
 #include <concepts>
@@ -199,7 +200,8 @@ struct ReadHead {
 	/// set; else the 2-tap linear read.
 	template <read_source S>
 	static void read_resampled(State& state, const S& source, Output& output, int32_t frames, Increment increment,
-	                           int32_t width, int32_t kernel, std::byte*& cache_write, Direction direction) {
+	                           int32_t width, int32_t kernel, std::byte*& cache_write,
+	                           [[maybe_unused]] Staging& staging, Direction direction) {
 		// The window check bounded the read's frames to the chunk held: one run serves the whole read
 		const auto* reading = std::get_if<Reading>(&state.cursor);
 		const std::optional<FrameRun> run = reading != nullptr && source.span(direction).has_value()
@@ -230,11 +232,11 @@ struct ReadHead {
 
 	/// @brief A head's read of @p frames frames (R11): window checks and the reads they allow until all are rendered,
 	/// each window's first output skipping its step afresh. False once the head has stopped (every failed check leaves
-	/// it holding no chunk). @p cache_write null writes no cache.
+	/// it holding no chunk). @p cache_write null writes no cache. @p staging holds the taps the reads interpolate.
 	template <read_source S>
 	[[nodiscard]] static bool read(State& state, S& source, const ReadBounds& bounds, Output& output, int32_t frames,
 	                               Increment increment, int32_t width, int32_t kernel, std::byte* cache_write,
-	                               Direction direction) {
+	                               Staging& staging, Direction direction) {
 		std::size_t done = 0;
 		while (frames != 0) {
 			const Window window = check(state, source, bounds, frames, increment, width, direction);
@@ -249,7 +251,8 @@ struct ReadHead {
 				read_native(state, source, part, window.frames, direction);
 			}
 			else {
-				read_resampled(state, source, part, window.frames, increment, width, kernel, cache_write, direction);
+				read_resampled(state, source, part, window.frames, increment, width, kernel, cache_write, staging,
+				               direction);
 			}
 			output.amplitude = part.amplitude;
 			done += static_cast<std::size_t>(window.frames);

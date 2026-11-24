@@ -31,6 +31,8 @@
 #include "support/spec_main.h"
 
 namespace {
+/// The reads' staging, as the engine owns one.
+deluge::dsp::fixed::sample_read::Staging staging{};
 namespace r = time_stretcher_records;
 using deluge::dsp::Q;
 using deluge::dsp::fixed::sample_read::Direction;
@@ -93,7 +95,7 @@ Tally read_mismatches() {
 		}
 		else {
 			ReadHead::read_resampled(state, chunks, output, row.frames, Increment::from_raw(row.increment), row.width,
-			                         row.kernel, cache_write, direction(row.direction));
+			                         row.kernel, cache_write, staging, direction(row.direction));
 		}
 		std::size_t bad = same_words(out, row.out_after) ? 0 : 1;
 		for (uint32_t i = 0; i < row.cache_bytes.count; i++) {
@@ -130,7 +132,7 @@ bool loop_matches(const Row& row, bool low_level_loop, int32_t& misses) {
 	std::vector<std::byte> cache(static_cast<std::size_t>(row.frames) * 6 + 64);
 	const bool reading =
 	    ReadHead::read(state, chunks, bounds, output, row.frames, Increment::from_raw(row.increment), row.width,
-	                   row.kernel, row.cache ? cache.data() : nullptr, direction(row.direction));
+	                   row.kernel, row.cache ? cache.data() : nullptr, staging, direction(row.direction));
 	misses += chunks.misses();
 	return reading == row.reading_after && same_words(out, row.out_after) && same(state, row.after, src);
 }
@@ -203,7 +205,7 @@ describe read_head_read_spec_body("deluge::dsp::fixed::sample_read::ReadHead::re
 		ReadHead::Output output{.out = out, .out_channels = 2, .amplitude = Q<31>::from_raw(0), .step = Q<31>::from_raw(0)};
 		std::vector<std::byte> cache(12);
 		std::byte* write = cache.data();
-		ReadHead::read_resampled(state, chunks, output, 2, Increment::from_raw(3u << 23), 16, 0, write,
+		ReadHead::read_resampled(state, chunks, output, 2, Increment::from_raw(3u << 23), 16, 0, write, staging,
 		                         Direction::FORWARD);
 		expect(static_cast<int32_t>(write - cache.data())).to_equal(12); // two frames, two channels, three bytes
 	});
@@ -217,12 +219,12 @@ describe read_head_read_spec_body("deluge::dsp::fixed::sample_read::ReadHead::re
 		std::byte* no_cache = nullptr;
 		ReadHead::State sinc;
 		sinc.cursor = ReadHead::Ended{3};
-		ReadHead::read_resampled(sinc, chunks, output, 4, Increment::from_raw(2u << 24), 16, 0, no_cache,
+		ReadHead::read_resampled(sinc, chunks, output, 4, Increment::from_raw(2u << 24), 16, 0, no_cache, staging,
 		                         Direction::FORWARD);
 		expect(std::get<ReadHead::Ended>(sinc.cursor).zero_taps).to_equal(3);
 		ReadHead::State linear;
 		linear.cursor = ReadHead::Ended{3};
-		ReadHead::read_resampled(linear, chunks, output, 4, Increment::from_raw(2u << 24), 2, 0, no_cache,
+		ReadHead::read_resampled(linear, chunks, output, 4, Increment::from_raw(2u << 24), 2, 0, no_cache, staging,
 		                         Direction::FORWARD);
 		expect(std::get<ReadHead::Ended>(linear.cursor).zero_taps).to_equal(9); // three steps of two zeros
 	});
@@ -239,7 +241,7 @@ describe read_head_read_spec_body("deluge::dsp::fixed::sample_read::ReadHead::re
 		std::vector<Q<31>> out(12);
 		ReadHead::Output output{.out = out, .out_channels = 2, .amplitude = amplitude, .step = step};
 		std::byte* no_cache = nullptr;
-		ReadHead::read_resampled(state, chunks, output, 6, Increment::from_raw(inc), 2, 0, no_cache,
+		ReadHead::read_resampled(state, chunks, output, 6, Increment::from_raw(inc), 2, 0, no_cache, staging,
 		                         Direction::FORWARD);
 		// The legacy's loop, its taps read one by one through ReadHead::tap
 		std::vector<Q<31>> want(12);
@@ -282,7 +284,7 @@ describe read_head_read_spec_body("deluge::dsp::fixed::sample_read::ReadHead::re
 		// No frames: nothing mixed, nothing stepped
 		std::vector<Q<31>> none(2);
 		ReadHead::Output empty{.out = none, .out_channels = 2, .amplitude = amplitude, .step = step};
-		ReadHead::read_resampled(state, chunks, empty, 0, Increment::from_raw(inc), 2, 0, no_cache,
+		ReadHead::read_resampled(state, chunks, empty, 0, Increment::from_raw(inc), 2, 0, no_cache, staging,
 		                         Direction::FORWARD);
 		expect(std::get<ReadHead::Reading>(state.cursor).frame).to_equal(frame);
 		expect(none[0].raw()).to_equal(0);
@@ -296,7 +298,7 @@ describe read_head_read_spec_body("deluge::dsp::fixed::sample_read::ReadHead::re
 		std::vector<Q<31>> out(4);
 		ReadHead::Output output{.out = out, .out_channels = 1, .amplitude = Q<31>{}, .step = Q<31>{}};
 		std::byte* no_cache = nullptr;
-		ReadHead::read_resampled(state, chunks, output, 4, Increment::from_raw(1u << 22), 16, 0, no_cache,
+		ReadHead::read_resampled(state, chunks, output, 4, Increment::from_raw(1u << 22), 16, 0, no_cache, staging,
 		                         Direction::FORWARD);
 		expect(std::get<ReadHead::Reading>(state.cursor).frame).to_equal(8); // three quarter steps cross no frame
 		expect(static_cast<int64_t>(state.phase.raw())).to_equal(int64_t{3} << 22);
@@ -311,7 +313,7 @@ describe read_head_read_spec_body("deluge::dsp::fixed::sample_read::ReadHead::re
 			std::vector<Q<31>> out(4);
 			ReadHead::Output output{.out = out, .out_channels = channels, .amplitude = Q<31>{}, .step = Q<31>{}};
 			std::byte* no_cache = nullptr;
-			ReadHead::read_resampled(state, chunks, output, 2, Increment::from_raw(20u << 24), 16, 0, no_cache,
+			ReadHead::read_resampled(state, chunks, output, 2, Increment::from_raw(20u << 24), 16, 0, no_cache, staging,
 			                         Direction::FORWARD);
 			expect(std::get<ReadHead::Reading>(state.cursor).frame).to_equal(28);
 			// The newest tap is the step's last frame; the oldest of the 16 fed is four past the cursor
@@ -329,7 +331,7 @@ describe read_head_read_spec_body("deluge::dsp::fixed::sample_read::ReadHead::re
 		std::vector<Q<31>> out(8, Q<31>::from_raw(5));
 		ReadHead::Output output{.out = out, .out_channels = 2, .amplitude = Q<31>::from_raw(0x4000'0000), .step = Q<31>{}};
 		std::byte* no_cache = nullptr;
-		ReadHead::read_resampled(state, chunks, output, 4, Increment::from_raw(2u << 24), 2, 0, no_cache,
+		ReadHead::read_resampled(state, chunks, output, 4, Increment::from_raw(2u << 24), 2, 0, no_cache, staging,
 		                         Direction::FORWARD);
 		expect(std::get<ReadHead::Ended>(state.cursor).zero_taps).to_equal(9); // three steps of two zeros
 		for (const Q<31> word : out) {

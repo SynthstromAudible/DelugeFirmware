@@ -1245,7 +1245,7 @@ readNonTimestretched:
 				auto* cache_write = cache != nullptr ? reinterpret_cast<std::byte*>(cacheWritePos) : nullptr;
 				ReadHead::read_resampled(head(), lease(*sample, *guide, priorityRating), output,
 				                         numSamplesThisNonTimestretchedRead, increment, interpolationBufferSize,
-				                         whichKernel, cache_write, direction);
+				                         whichKernel, cache_write, AudioEngine::readStaging(), direction);
 				if (cache_write != nullptr) {
 					cacheWritePos = reinterpret_cast<char*>(cache_write);
 				}

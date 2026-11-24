@@ -48,6 +48,8 @@ using read_head_chunks::geometry;
 using read_head_chunks::HandChunks;
 using read_kernels_oracle::Oracle;
 
+/// The new reads' staging, as the engine owns one.
+deluge::dsp::fixed::sample_read::Staging staging{};
 constexpr int32_t kFrames = 60'000;
 constexpr int32_t kMaxRead = 128;
 
@@ -125,7 +127,7 @@ std::string run_both(const Case& c, HandChunks& a_source, HandChunks& b_source) 
 		                    .amplitude = amp_b,
 		                    .step = Q<31>::from_raw(c.step)};
 		const bool go_a = ReadHead::read(a, a_source, bounds, oa, c.frames, Increment::from_raw(c.increment), c.width,
-		                                 kernel, c.cache ? cache_a.data() : nullptr, c.direction);
+		                                 kernel, c.cache ? cache_a.data() : nullptr, staging, c.direction);
 		const bool go_b = Oracle::read(b, b_source, bounds, ob, c.frames, Increment::from_raw(c.increment), c.width,
 		                               kernel, c.cache ? cache_b.data() : nullptr, c.direction);
 		if (go_a != go_b) {
