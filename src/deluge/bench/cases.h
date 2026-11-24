@@ -1663,12 +1663,18 @@ private:
 
 /// @brief One sample reader case's configuration.
 struct SampleReadConfig {
-	bool stereo = false; ///< Two channels; otherwise one.
-	bool linear = false; ///< Two-tap linear interpolation; otherwise the windowed sinc.
+	bool stereo = false;        ///< Two channels; otherwise one.
+	bool linear = false;        ///< Two-tap linear interpolation; otherwise the windowed sinc.
+	int8_t byte_depth = 4;      ///< Bytes per channel-sample of the region read.
+	bool reverse = false;       ///< Played backwards, from the region's last frame.
+	uint32_t rate = (3u << 23); ///< Source frames per output frame, 8.24.
+	int8_t out_channels = 0;    ///< The output's channels; 0 is the source's (1 condenses a stereo source).
+	bool native = false;        ///< The unpitched read, `ReadHead::read_native`; rate and linear unused.
 };
 
-/// @brief A sample voice's resampled read, `ReadHead::read_resampled`, at a rate of 1.5 over a
-/// resident region of 32-bit frames: the interpolator's window fed by one- and two-sample jumps.
+/// @brief A sample voice's read of one block over a resident region of its byte depth: by default
+/// `ReadHead::read_resampled` at a rate of 1.5 over 32-bit frames, the interpolator's window fed by one- and two-sample
+/// jumps.
 class SampleReadCase {
 public:
 	/// @brief A case of @p config.
@@ -2470,36 +2476,52 @@ struct CaseSet {
 	FilterStereoCase filterset_lh_stereo{filter_set_case(dsp::fixed::FilterRoute::LOW_TO_HIGH)};
 	/// `filterset_par_stereo`
 	FilterStereoCase filterset_par_stereo{filter_set_case(dsp::fixed::FilterRoute::PARALLEL)};
-	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading};             ///< `filter_lp24_fading_stereo`
-	CompressorCase compressor_wet_render{kCompressorWetRender};                 ///< `compressor_wet_render`
-	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};               ///< `compressor_wet_neutral`
-	CompressorCase compressor_blend_render{kCompressorBlendRender};             ///< `compressor_blend_render`
-	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral};           ///< `compressor_blend_neutral`
-	ModFxCase mod_fx_chorus_stereo{kModFxChorusStereo};                         ///< `mod_fx_chorus_stereo`
-	ModFxCase mod_fx_chorus_mono{kModFxChorusMono};                             ///< `mod_fx_chorus_mono`
-	ModFxCase mod_fx_chorus_stereo_stereo{kModFxChorusStereoStereo};            ///< `mod_fx_chorus_stereo_stereo`
-	ModFxCase mod_fx_chorus_stereo_mono{kModFxChorusStereoMono};                ///< `mod_fx_chorus_stereo_mono`
-	ModFxCase mod_fx_dimension_stereo{kModFxDimensionStereo};                   ///< `mod_fx_dimension_stereo`
-	ModFxCase mod_fx_dimension_mono{kModFxDimensionMono};                       ///< `mod_fx_dimension_mono`
-	ModFxCase mod_fx_flanger_stereo{kModFxFlangerStereo};                       ///< `mod_fx_flanger_stereo`
-	ModFxCase mod_fx_flanger_mono{kModFxFlangerMono};                           ///< `mod_fx_flanger_mono`
-	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};                         ///< `mod_fx_warble_stereo`
-	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                             ///< `mod_fx_warble_mono`
-	ModFxCase mod_fx_phaser{kModFxPhaser};                                      ///< `mod_fx_phaser`
-	GranularCase granular_sparse_unison{kGranularSparseUnison};                 ///< `granular_sparse_unison`
-	GranularCase granular_sparse_random{kGranularSparseRandom};                 ///< `granular_sparse_random`
-	GranularCase granular_dense_unison{kGranularDenseUnison};                   ///< `granular_dense_unison`
-	GranularCase granular_dense_random{kGranularDenseRandom};                   ///< `granular_dense_random`
-	StutterCase stutter_record_native{{.play = false, .resampled = false}};     ///< `stutter_record_native`
-	StutterCase stutter_record_resampled{{.play = false, .resampled = true}};   ///< `stutter_record_resampled`
-	StutterCase stutter_play_native{{.play = true, .resampled = false}};        ///< `stutter_play_native`
-	StutterCase stutter_play_resampled{{.play = true, .resampled = true}};      ///< `stutter_play_resampled`
-	SampleReadCase sample_read_sinc_mono{{.stereo = false, .linear = false}};   ///< `sample_read_sinc_mono`
-	SampleReadCase sample_read_sinc_stereo{{.stereo = true, .linear = false}};  ///< `sample_read_sinc_stereo`
-	SampleReadCase sample_read_linear_mono{{.stereo = false, .linear = true}};  ///< `sample_read_linear_mono`
-	SampleReadCase sample_read_linear_stereo{{.stereo = true, .linear = true}}; ///< `sample_read_linear_stereo`
-	PitchShiftCase pitch_shift_up7{{.phase_increment = kPitchShiftUp7}};        ///< `pitch_shift_up7`
-	PitchShiftCase pitch_shift_down12{{.phase_increment = kPitchShiftDown12}};  ///< `pitch_shift_down12`
+	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading};              ///< `filter_lp24_fading_stereo`
+	CompressorCase compressor_wet_render{kCompressorWetRender};                  ///< `compressor_wet_render`
+	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};                ///< `compressor_wet_neutral`
+	CompressorCase compressor_blend_render{kCompressorBlendRender};              ///< `compressor_blend_render`
+	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral};            ///< `compressor_blend_neutral`
+	ModFxCase mod_fx_chorus_stereo{kModFxChorusStereo};                          ///< `mod_fx_chorus_stereo`
+	ModFxCase mod_fx_chorus_mono{kModFxChorusMono};                              ///< `mod_fx_chorus_mono`
+	ModFxCase mod_fx_chorus_stereo_stereo{kModFxChorusStereoStereo};             ///< `mod_fx_chorus_stereo_stereo`
+	ModFxCase mod_fx_chorus_stereo_mono{kModFxChorusStereoMono};                 ///< `mod_fx_chorus_stereo_mono`
+	ModFxCase mod_fx_dimension_stereo{kModFxDimensionStereo};                    ///< `mod_fx_dimension_stereo`
+	ModFxCase mod_fx_dimension_mono{kModFxDimensionMono};                        ///< `mod_fx_dimension_mono`
+	ModFxCase mod_fx_flanger_stereo{kModFxFlangerStereo};                        ///< `mod_fx_flanger_stereo`
+	ModFxCase mod_fx_flanger_mono{kModFxFlangerMono};                            ///< `mod_fx_flanger_mono`
+	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};                          ///< `mod_fx_warble_stereo`
+	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                              ///< `mod_fx_warble_mono`
+	ModFxCase mod_fx_phaser{kModFxPhaser};                                       ///< `mod_fx_phaser`
+	GranularCase granular_sparse_unison{kGranularSparseUnison};                  ///< `granular_sparse_unison`
+	GranularCase granular_sparse_random{kGranularSparseRandom};                  ///< `granular_sparse_random`
+	GranularCase granular_dense_unison{kGranularDenseUnison};                    ///< `granular_dense_unison`
+	GranularCase granular_dense_random{kGranularDenseRandom};                    ///< `granular_dense_random`
+	StutterCase stutter_record_native{{.play = false, .resampled = false}};      ///< `stutter_record_native`
+	StutterCase stutter_record_resampled{{.play = false, .resampled = true}};    ///< `stutter_record_resampled`
+	StutterCase stutter_play_native{{.play = true, .resampled = false}};         ///< `stutter_play_native`
+	StutterCase stutter_play_resampled{{.play = true, .resampled = true}};       ///< `stutter_play_resampled`
+	SampleReadCase sample_read_sinc_mono{{.stereo = false, .linear = false}};    ///< `sample_read_sinc_mono`
+	SampleReadCase sample_read_sinc_stereo{{.stereo = true, .linear = false}};   ///< `sample_read_sinc_stereo`
+	SampleReadCase sample_read_linear_mono{{.stereo = false, .linear = true}};   ///< `sample_read_linear_mono`
+	SampleReadCase sample_read_linear_stereo{{.stereo = true, .linear = true}};  ///< `sample_read_linear_stereo`
+	SampleReadCase sample_read_sinc_stereo16{{.stereo = true, .byte_depth = 2}}; ///< `sample_read_sinc_stereo16`
+	SampleReadCase sample_read_sinc_stereo24{{.stereo = true, .byte_depth = 3}}; ///< `sample_read_sinc_stereo24`
+	SampleReadCase sample_read_sinc_mono16{{.byte_depth = 2}};                   ///< `sample_read_sinc_mono16`
+	SampleReadCase sample_read_sinc_reverse16{
+	    {.stereo = true, .byte_depth = 2, .reverse = true}}; ///< `sample_read_sinc_reverse16`
+	SampleReadCase sample_read_sinc_up4{
+	    {.stereo = true, .byte_depth = 2, .rate = 4u << 24}}; ///< `sample_read_sinc_up4`
+	SampleReadCase sample_read_sinc_condense16{
+	    {.stereo = true, .byte_depth = 2, .out_channels = 1}};                   ///< `sample_read_sinc_condense16`
+	SampleReadCase sample_read_native_mono16{{.byte_depth = 2, .native = true}}; ///< `sample_read_native_mono16`
+	SampleReadCase sample_read_native_stereo16{
+	    {.stereo = true, .byte_depth = 2, .native = true}}; ///< `sample_read_native_stereo16`
+	SampleReadCase sample_read_native_stereo24{
+	    {.stereo = true, .byte_depth = 3, .native = true}}; ///< `sample_read_native_stereo24`
+	SampleReadCase sample_read_native_condense16{
+	    {.stereo = true, .byte_depth = 2, .out_channels = 1, .native = true}}; ///< `sample_read_native_condense16`
+	PitchShiftCase pitch_shift_up7{{.phase_increment = kPitchShiftUp7}};       ///< `pitch_shift_up7`
+	PitchShiftCase pitch_shift_down12{{.phase_increment = kPitchShiftDown12}}; ///< `pitch_shift_down12`
 	PitchShiftCase pitch_shift_stereo_up7{
 	    {.phase_increment = kPitchShiftUp7, .stereo = true}}; ///< `pitch_shift_stereo_up7`
 	PitchShiftCase pitch_shift_perc_up7{
