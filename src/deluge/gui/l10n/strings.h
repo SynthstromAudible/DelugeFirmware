@@ -1205,6 +1205,8 @@ enum class String : size_t {
 	STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_A,
 	STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_B,
 	STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_C,
+	// USB direct monitoring's item name (main #5324). Appended, so no string's number moves.
+	STRING_FOR_USB_SMART_MONITORING,
 
 	STRING_LAST
 };

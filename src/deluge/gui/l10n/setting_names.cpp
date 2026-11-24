@@ -593,7 +593,7 @@ constexpr std::array<String, 3> kMonitorModeChoices{{STRING_FOR_CONDITIONAL, STR
 constexpr SettingNames kMonitorModeNames{
     STRING_FOR_MONITORING, STRING_FOR_SAMPLING_MONITORING, kMonitorModeChoices, {}};
 constexpr SettingNames kUsbAudioEnabledNames{STRING_FOR_USB_AUDIO, STRING_FOR_ENABLED, {}, {}};
-constexpr SettingNames kUsbDirectMonitoringNames{STRING_FOR_USB_INPUT, STRING_FOR_INPUT, {}, {}};
+constexpr SettingNames kUsbDirectMonitoringNames{STRING_FOR_USB_INPUT, STRING_FOR_USB_SMART_MONITORING, {}, {}};
 constexpr std::array<String, 2> kUsbOutputSourceChoices{{STRING_FOR_MAIN_MIX, STRING_FOR_LINE_IN}};
 constexpr SettingNames kUsbOutputSourceNames{STRING_FOR_USB_OUTPUT, STRING_FOR_OUTPUT, kUsbOutputSourceChoices, {}};
 constexpr SettingNames kTriggerInPpqnNames{STRING_FOR_INPUT_PPQN, STRING_FOR_PPQN, {}, {}};

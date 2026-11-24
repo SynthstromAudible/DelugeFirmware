@@ -500,9 +500,10 @@ inline constexpr Node midi_settings = submenu(sid(String::STRING_FOR_MIDI), kMid
 inline constexpr Node usb_audio_enabled = with_title(
     setting_item(sid(String::STRING_FOR_ENABLED), Kind::Toggle, device_row(project::device_path::kUsbAudioEnabled)),
     sid(String::STRING_FOR_USB_AUDIO));
-inline constexpr Node usb_audio_input = with_title(
-    setting_item(sid(String::STRING_FOR_INPUT), Kind::Toggle, device_row(project::device_path::kUsbDirectMonitoring)),
-    sid(String::STRING_FOR_USB_INPUT));
+inline constexpr Node usb_audio_input =
+    with_title(setting_item(sid(String::STRING_FOR_USB_SMART_MONITORING), Kind::Toggle,
+                            device_row(project::device_path::kUsbDirectMonitoring)),
+               sid(String::STRING_FOR_USB_INPUT));
 /// `usb::OutputSource` (`origin/main:src/deluge/gui/menu_item/usb/audio.h`): the main mix, then the line input.
 inline constexpr Node usb_audio_output = with_title(
     setting_item(sid(String::STRING_FOR_OUTPUT), Kind::Enum, device_row(project::device_path::kUsbOutputSource)),
