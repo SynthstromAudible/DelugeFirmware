@@ -31,6 +31,9 @@
 #include <string>
 #include <vector>
 
+#include <sys/mman.h>
+#include <unistd.h>
+
 #include "read_head_chunks.h"
 
 #include "support/spec_main.h"
@@ -89,6 +92,57 @@ std::string check(HandChunks& source, int32_t at, Direction d, int32_t from, int
 		}
 		if (run->channels == 2 && r[slot] != top_word(*run, from + f, 1)) {
 			return "right tap of frame " + std::to_string(f) + ": " + where;
+		}
+	}
+	return "";
+}
+
+/// A page of bytes between two inaccessible pages: a read outside the page faults.
+class GuardedPage {
+public:
+	GuardedPage() : size_(static_cast<std::size_t>(sysconf(_SC_PAGESIZE))) {
+		void* map = mmap(nullptr, size_ * 3, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		base_ = static_cast<std::byte*>(map);
+		mprotect(base_ + size_, size_, PROT_READ | PROT_WRITE);
+	}
+	GuardedPage(const GuardedPage&) = delete;
+	GuardedPage& operator=(const GuardedPage&) = delete;
+	~GuardedPage() { munmap(base_, size_ * 3); }
+	[[nodiscard]] std::byte* begin() const { return base_ + size_; }
+	[[nodiscard]] std::byte* end() const { return base_ + (2 * size_); }
+	[[nodiscard]] std::size_t size() const { return size_; }
+
+private:
+	std::size_t size_;
+	std::byte* base_;
+};
+
+/// Decodes @p frames frames of a run laid out flush against the guarded page's end (@p at_end) or its start (the byte
+/// before an 8-bit run's first sample, which top_word reads, kept inside), both directions: "" when every tap matches,
+/// a fault when a load strays outside the run.
+std::string guarded(int8_t depth, int8_t channels, int32_t frames, bool at_end, Direction d) {
+	GuardedPage page;
+	const int32_t fb = depth * channels;
+	const int32_t lead = depth == 1 ? 1 : 0;
+	const auto bytes = static_cast<std::size_t>((frames * fb) + lead);
+	std::byte* first_sample = (at_end ? page.end() - bytes : page.begin()) + lead;
+	for (std::size_t i = 0; i < bytes; i++) {
+		first_sample[static_cast<std::ptrdiff_t>(i) - lead] = static_cast<std::byte>((i * 37 + 11) & 0xFF);
+	}
+	// A forward run starts at the lowest frame, a reversed one at the highest
+	const int32_t start = d == Direction::FORWARD ? 0 : frames - 1;
+	const FrameRun run{.first = first_sample + (start * fb) + depth - 4,
+	                   .frames = frames,
+	                   .stride = fb * static_cast<int32_t>(d),
+	                   .channels = channels,
+	                   .byte_depth = depth};
+	std::vector<int16_t> l(static_cast<std::size_t>(frames));
+	std::vector<int16_t> r(static_cast<std::size_t>(frames));
+	decode_taps(run, 0, frames, l.data(), channels == 2 ? r.data() : nullptr);
+	for (int32_t f = 0; f < frames; f++) {
+		const auto slot = static_cast<std::size_t>(frames - 1 - f);
+		if (l[slot] != top_word(run, f, 0) || (channels == 2 && r[slot] != top_word(run, f, 1))) {
+			return "tap differs: depth " + std::to_string(depth) + " channels " + std::to_string(channels);
 		}
 	}
 	return "";
@@ -157,6 +211,22 @@ describe sample_read_decode_spec_body("deluge::dsp::fixed::sample_read staging",
 			for (const int32_t at : {edge - 40, edge - 1, edge, edge + 1}) {
 				bad += check(forward, at, Direction::FORWARD, 0, kWholeRun);
 				bad += check(reversed, at, Direction::REVERSE, 0, kWholeRun);
+			}
+		}
+		expect(bad).to_equal(std::string{});
+	});
+
+	it("reads no byte past its run's frames, nor before them but the 8-bit low byte", _ {
+		std::string bad;
+		for (int8_t depth = 1; depth <= 4; depth++) {
+			for (int8_t channels = 1; channels <= 2; channels++) {
+				for (const int32_t frames : {1, 7, 8, 9, 15, 16, 17, 63}) {
+					for (const bool at_end : {true, false}) {
+						for (const Direction d : {Direction::FORWARD, Direction::REVERSE}) {
+							bad += guarded(depth, channels, frames, at_end, d);
+						}
+					}
+				}
 			}
 		}
 		expect(bad).to_equal(std::string{});
