@@ -278,10 +278,6 @@ DelugeRegionState SampleReadLease::chunk_state(int32_t index) const {
 	return deluge_sample_region_state(source_, static_cast<uint32_t>(index));
 }
 
-void SampleReadLease::unseat(bool /*wont_be_used_again*/) {
-	let_go();
-}
-
 void SampleReadLease::prefetch(int32_t frame, int32_t bytes, Direction direction) const {
 	if (!holds_chunk()) {
 		return;

@@ -12,6 +12,8 @@ captured from the audio tier. This module stages each case, runs them in paralle
     RP-ZONE     a case in ZONE_MOVE moved a marker of its sample zone mid-note (RENDER_ZONE_MOVE, as the sample marker
                 editor moves it).
     RP-SETTING  a case in SETTING changed a setting mid-render (RENDER_SETTING, as its menu changes it).
+    RP-SOURCES  a case in SOURCES ends its render with that many region-port cursors open: a sample voice that stopped
+                stretching holds its own cursor alone, its spare head's closed.
 Said, not checked, for each case: `RP-ALLOC <case> render_allocations=<n>`, the audio-tier allocations its render made.
 And once per run:
     RP-LEARN    a preset's own MIDI learn reaches it: the blank boot song must keep the input a preset was saved with
@@ -125,6 +127,10 @@ SETTING = {
     "sample/ts_cache_linear": "150 osc1/linearInterpolation 1",
     "sample/ts_cache_stretch_amount": "150 osc1/timeStretchAmount 3",
     "sample/unison_added": "150 unison/num 2",
+}
+# Cases whose render ends with a note held, and the region-port cursors open then.
+SOURCES = {
+    "sample/ts_bend_back": 1,
 }
 # The loudest sample of silence: 16 in 16-bit terms, the C-host harness's threshold. The render's dither floor sits
 # far below it.
@@ -368,6 +374,12 @@ def run(gate):
             gate.fail(
                 f"RP-PCM {name}: the rendered output changed: recorded {records[name]}, rendered {record}"
             )
+        if name in SOURCES:
+            opened = int_field(result.last("RP-SOURCES "), "open")
+            if opened != SOURCES[name]:
+                gate.fail(
+                    f"RP-SOURCES {name}: {opened} cursors open at the end, not {SOURCES[name]}"
+                )
         if len(gate.failures) != before:
             failed += 1
 

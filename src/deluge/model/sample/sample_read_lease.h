@@ -75,6 +75,7 @@ public:
 	/// @brief R6's move to the next chunk when @p frame lies in it, else R10's seat on the chunk holding @p frame
 	/// (opening the region-port cursor if there is none).
 	[[nodiscard]] Residency move_to(int32_t frame, Direction direction);
+	/// @brief Lets go of the chunk held (the voice-sample's unassign); the cursor stays open.
 	void let_go();
 	[[nodiscard]] std::optional<ChunkSpan> span(Direction direction) const;
 
@@ -96,8 +97,6 @@ public:
 	[[nodiscard]] DelugeRegionState probe_chunk(int32_t index, Direction direction, uint32_t priority);
 	/// @brief Chunk @p index's residency as this lease's cursor sees it.
 	[[nodiscard]] DelugeRegionState chunk_state(int32_t index) const;
-	/// @brief Lets go of the chunk held (the voice-sample's unassign).
-	void unseat(bool wont_be_used_again);
 	/// @brief Starts fetching @p bytes of sample data from @p frame on.
 	void prefetch(int32_t frame, int32_t bytes, Direction direction) const;
 	[[nodiscard]] bool holds_chunk() const { return region_.payload_base != nullptr; }

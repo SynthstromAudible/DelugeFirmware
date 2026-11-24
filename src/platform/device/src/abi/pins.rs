@@ -48,7 +48,7 @@ abi_pin!(in deluge_storage_sample_reader::reservation: deluge_sample_reserve_ope
 
 abi_pin!(in deluge_storage_sample_source::abi: deluge_sample_source_open, deluge_sample_region_acquire_ex,
     deluge_sample_region_acquire, deluge_sample_region_state, deluge_sample_region_retain,
-    deluge_sample_region_release, deluge_sample_source_close);
+    deluge_sample_region_release, deluge_sample_source_close, deluge_sample_source_open_count);
 
 abi_pin!(in deluge_storage_stream::abi: deluge_sample_stream_open,
     deluge_sample_stream_open_at, deluge_sample_stream_close, deluge_sample_stream_set_geometry,

@@ -58,6 +58,7 @@
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 
+#include "deluge_storage_sample_source.h"
 #include "gui/ui/load/instrument_load.h"
 #include "libdeluge/tier.h"
 #include "memory/heaps.h"
@@ -334,6 +335,9 @@ void report() {
 	// Reported, not gated: the live-input pitch shift, the sample timestretch and the voice cache paths allocate on
 	// the render (TODO.md).
 	printf("RP-ALLOC render_allocations=%u\n", allocations);
+	// The region-port cursors open at the end, with any held note still sounding: each sounding sample voice holds
+	// one, and a second only while it stretches. Gated for the cases in render_preset.py's SOURCES.
+	printf("RP-SOURCES open=%u\n", deluge_sample_source_open_count());
 	const uint32_t audioSync = deluge_tier_sync_audio_total() - g_audioSyncBase;
 	printf("RP-TIER-SYNC-AUDIO total=%u\n", audioSync);
 	if (audioSync != 0) {

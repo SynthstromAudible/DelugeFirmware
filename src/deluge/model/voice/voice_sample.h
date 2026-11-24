@@ -90,7 +90,7 @@ public:
 	[[nodiscard]] bool stretching() const { return stretcher != nullptr; }
 
 	/// The heads and their leases: heads_[newer_] is the one the voice plays from; the other is the spare, a level copy
-	/// or the previous newer after a hop while stretching, unseated when stretching ends.
+	/// or the previous newer after a hop while stretching, its lease closed when stretching ends.
 	std::array<ReadHead::State, 2> heads_{};
 	std::array<SampleReadLease, 2> leases_{};
 	uint8_t newer_ = 0;

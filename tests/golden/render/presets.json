@@ -2177,6 +2177,12 @@
   "rms_db": -35.63,
   "sha256": "1bc8b58c620a93751ce45955ed70f1070ae9bd6986d1b3ceb145d4ee93775145"
  },
+ "sample/ts_bend_back": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -22.59,
+  "sha256": "187b051d9b0177963001241597a5a0bcaf910459056cfbac66c9bbbea81286f2"
+ },
  "sample/ts_cache_bend": {
   "frames": 88200,
   "peak": 245172224,

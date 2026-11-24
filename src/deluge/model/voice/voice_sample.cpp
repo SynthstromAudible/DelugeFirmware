@@ -89,7 +89,9 @@ void VoiceSample::endTimeStretching() {
 		VoiceSampleStretchPort port(*this, *stretchedSample_, nullptr, StretchReadParams{});
 		deluge::synth::StretchContext context = AudioEngine::stretchContext();
 		stretcher->end(port, context);
-		leases_[1 - newer_].unseat(false);
+		// The spare head's lease closes with its cursor and the chunks the cursor pinned, as the legacy stretcher's
+		// older head closed when the stretcher was recycled
+		leases_[1 - newer_] = SampleReadLease{};
 		AudioEngine::stretcherUnassigned(stretcher);
 		stretcher = nullptr;
 		stretchedSample_ = nullptr;
@@ -557,8 +559,8 @@ int32_t VoiceSample::getPlayByteLowLevel(Sample* sample, SamplePlaybackGuide* gu
 	                           compensate_for_interpolation_buffer);
 }
 
-void VoiceSample::unassignAllReasons(bool wont_be_used_again) {
-	leases_[newer_].unseat(wont_be_used_again);
+void VoiceSample::unassignAllReasons([[maybe_unused]] bool wont_be_used_again) {
+	leases_[newer_].let_go();
 }
 
 static_assert(TimeStretch::kDefaultFirstHopLength >= SSI_TX_BUFFER_NUM_SAMPLES,

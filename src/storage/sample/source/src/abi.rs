@@ -355,6 +355,17 @@ pub extern "C" fn deluge_sample_region_release(lease: u64) {
     res.release_token(lease);
 }
 
+/// The number of cursors open: the pool's slots in use.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_sample_source_open_count() -> u32 {
+    POOL.iter()
+        .filter(|slot| {
+            let _m = Masked::enter();
+            slot.in_use.get()
+        })
+        .count() as u32
+}
+
 /// Closes the cursor, releasing every lease it holds, and returns its pool slot. A no-op on null.
 ///
 /// # Safety
