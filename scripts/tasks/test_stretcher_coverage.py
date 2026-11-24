@@ -36,13 +36,6 @@ def _environment(root, h, products):
     pass
 
 
-class ScopeTest(unittest.TestCase):
-    def test_the_scope_holds_every_function_of_the_sample_reader(self):
-        self.assertIsNone(
-            sc.SCOPE["src/deluge/model/sample/sample_low_level_reader.cpp"]
-        )
-
-
 class SeamsTest(unittest.TestCase):
     def test_the_harness_as_it_is_passes(self):
         sc.check_seams(scenario_gate, sc.load_task_test())

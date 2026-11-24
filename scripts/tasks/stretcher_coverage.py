@@ -28,8 +28,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/tasks"))
 
-# The files reported, by repo-relative path, and the functions of each that are: None for every function (the
-# sample reader's, which the read head replaces whole), else the prefixes of the demangled names of its functions that
+# The files reported, by repo-relative path, and the functions of each that are: None for every function, else the
+# prefixes of the demangled names of its functions that
 # call into the stretcher, branch on whether a voice has one, or keep the hop budget and the culling bypass a hop sets
 # (renderAudio and renderAudioForStemExport start the budget's routine; setDireness passes bypassCulling to
 # cullVoices).
@@ -45,7 +45,6 @@ SCOPE: dict[str, tuple[str, ...] | None] = {
         "Sample::fillPercCache(",
         "Sample::perc_at(",
     ),
-    "src/deluge/model/sample/sample_low_level_reader.cpp": None,
     "src/deluge/model/voice/voice_sample.cpp": (
         "VoiceSample::beenUnassigned(",
         "VoiceSample::noteOn(",

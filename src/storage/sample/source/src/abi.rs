@@ -132,7 +132,7 @@ const _: () = assert!(
 //   2. Once claimed, `source`'s contents are touched only through `SampleSource`'s own masked
 //      cells.
 // `open` and `close` run on the audio tier (a pooled reader reopened via
-// `SampleLowLevelReader::ensureSource`) and in thread mode (voice teardown). `Masked` masks in
+// `SampleReadLease::ensure_source`) and in thread mode (voice teardown). `Masked` masks in
 // every context but audio, and audio preempts the others, so each claim and release is
 // indivisible with respect to the other contexts. This guards pool-slot integrity only: closing a
 // source while another context still acquires through the same handle is the caller's bug.

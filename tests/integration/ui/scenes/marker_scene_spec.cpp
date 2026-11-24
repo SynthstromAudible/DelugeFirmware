@@ -965,13 +965,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.f.clip->resumePlayback(setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip), true);
 		VoiceSample* const voice = r.f.clip->voiceSample;
 		expect(voice).not_().to_be_null();
-		voice->oscPos = 0x5EED; // a re-seat takes the voice off the sample, which loses this
+		voice->head().phase = deluge::dsp::UQ<24>::from_raw(0x5EED); // a re-seat takes the voice off the sample, which loses this
 
 		deluge::edits::audioClipSettingFor(*r.f.clip, "endSamplePos",
 		                                   deluge::serialization::Value::makeNumber(kSampleLength - 100));
 		expect(r.recorded()).to_equal(r.played());
 		expect(r.f.clip->voiceSample).to_equal(voice);
-		expect(voice->oscPos).to_equal(0x5EEDU);
+		expect(voice->phase().raw()).to_equal(0x5EEDU);
 
 		r.f.clip->unassignVoiceSample(false);
 		r.f.clip->activeIfNoSolo = false;

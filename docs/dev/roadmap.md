@@ -270,7 +270,7 @@ budget.
 | --- | --- | --- | --- |
 | DX7 app glue | `src/deluge/processing/dx7` | small | Kernels in `dsp/fixed/dx7`; the device keeps `neon_fm_kernel.s` for modern no-input and bus-input ops |
 | Wavetable loading | `src/deluge/storage/wave_table` | 1.2k | Render, hard sync, FFT and band building in the DSP library; loading and the holder app-side |
-| Time-stretch, sample playback | `model/voice/voice_sample`, `model/sample/sample_low_level_reader` | 1.4k+ | The stretcher is rewritten (`src/dsp/fixed/timestretch/`, `src/synth/sources/sample/`); the read head is next; belongs with P4 |
+| Time-stretch, sample playback | `model/voice/voice_sample`, `model/sample/sample_read_lease` | 1.4k+ | The stretcher and the read head are rewritten (`src/dsp/fixed/timestretch/`, `src/synth/sources/sample/`, `src/dsp/fixed/sample_read/read_head.h`); the voice-sample's own render is left; belongs with P4 |
 | Pitch detection | `model/sample/pitch_scan`, `synth/source/live/live_pitch_shifter` | ~0.3k + shifter | App-side; no plan entry names it |
 | Voice adapter | `src/deluge/model/voice` (`SoundVoice`, `VoicePart`, `voice_setup`) | n/a | The kernel is `synth::Voice` in `src/synth/voice`; the slot and the pool are the instrument's (`src/instruments/classic/voice_pool.h`); `SoundVoice` is that slot over the app's `VoicePart` (ports, playback guides); note-on setup and the sample adapter are app-side |
 | Oscillator tail | VA shapes, VCA and wave-scale duality | n/a | Frozen in the q31 instrument; the unified forms belong to the float instrument |

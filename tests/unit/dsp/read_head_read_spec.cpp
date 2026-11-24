@@ -208,6 +208,25 @@ describe read_head_read_spec_body("deluge::dsp::fixed::sample_read::ReadHead::re
 		expect(static_cast<int32_t>(write - cache.data())).to_equal(12); // two frames, two channels, three bytes
 	});
 
+	it("leaves an ended head's zero count as a sinc read found it, and counts each of a linear read's zeros", _ {
+		// The legacy's sinc read stepped a copy of its cursor and wrote the copy back, so the zeros its body fed past
+		// the end were not counted; its linear read stepped the cursor itself
+		HandChunks chunks(geometry(44, 1, 2, 64, Direction::FORWARD), 64, true);
+		std::vector<Q<31>> out(8);
+		ReadHead::Output output{.out = out, .out_channels = 1, .amplitude = Q<31>::from_raw(0), .step = Q<31>::from_raw(0)};
+		std::byte* no_cache = nullptr;
+		ReadHead::State sinc;
+		sinc.cursor = ReadHead::Ended{3};
+		ReadHead::read_resampled(sinc, chunks, output, 4, Increment::from_raw(2u << 24), 16, 0, no_cache,
+		                         Direction::FORWARD);
+		expect(std::get<ReadHead::Ended>(sinc.cursor).zero_taps).to_equal(3);
+		ReadHead::State linear;
+		linear.cursor = ReadHead::Ended{3};
+		ReadHead::read_resampled(linear, chunks, output, 4, Increment::from_raw(2u << 24), 2, 0, no_cache,
+		                         Direction::FORWARD);
+		expect(std::get<ReadHead::Ended>(linear.cursor).zero_taps).to_equal(9); // three steps of two zeros
+	});
+
 	it("loops check and read as the legacy did (R11)", _ {
 		const Tally goldens = loop_mismatches(r::kReadLoopGoldens);
 		expect(goldens.first_bad).to_equal(-1);

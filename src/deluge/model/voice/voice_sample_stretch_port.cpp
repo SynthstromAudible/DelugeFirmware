@@ -115,52 +115,92 @@ PercFill VoiceSampleStretchPort::fill_perc(int32_t from, int32_t to, Direction d
 	return sample_->fillPercCache(from, to, static_cast<int32_t>(direction), max_frames);
 }
 
+namespace {
+using deluge::dsp::fixed::sample_read::Increment;
+using deluge::dsp::fixed::sample_read::ReadHead;
+using deluge::dsp::fixed::sample_read::Residency;
+} // namespace
+
+uint8_t VoiceSampleStretchPort::slot(Head head) const {
+	return head == Head::NEWER ? voice_->newer_ : static_cast<uint8_t>(1 - voice_->newer_);
+}
+
+SampleReadLease& VoiceSampleStretchPort::bound(uint8_t which) {
+	voice_->leases_[which].bind(*sample_, *guide_, params_.priority_rating, voice_->shouldObeyMarkers());
+	return voice_->leases_[which];
+}
+
 void VoiceSampleStretchPort::shadow() {
 	// A level copy with its own lease on the shared chunk and no region-port cursor (R10), its width last time 0 (H1)
-	voice_->spare_ = SampleLowLevelReader(*voice_, false);
-	voice_->spare_.interpolationBufferSizeLastTime = 0;
+	const uint8_t spare = slot(Head::OLDER);
+	voice_->heads_[spare] = ReadHead::level_copy(voice_->heads_[voice_->newer_]);
+	voice_->heads_[spare].width_last = 0;
+	voice_->leases_[spare] = voice_->leases_[voice_->newer_].copy_without_cursor();
 }
 
 SeatResult VoiceSampleStretchPort::seat_and_swap(int32_t frame, deluge::dsp::UQ<24> phase, LoopType loop) {
-	// The newer head becomes the older, stealing its leases; the voice's reader is seated at the start (H1)
-	voice_->spare_ = SampleLowLevelReader(*voice_, true);
-	const int32_t byte = static_cast<int32_t>(sample_->audioDataStartPosBytes) + (frame * frameBytes(*sample_));
-	voice_->unassignAllReasons(false);
-	bool started =
-	    voice_->setupClustersForPlayFromByte(guide_, sample_, byte, params_.priority_rating) == RegionOutcome::Ready;
-	if (started) {
-		started =
-		    voice_->changeClusterIfNecessary(guide_, sample_, loop == LoopType::LOW_LEVEL, params_.priority_rating);
-	}
-	if (!started) {
-		// The roles swap only on success: the newer steals its leases back. Through the base, so the voice-sample's
-		// own members stay
-		static_cast<SampleLowLevelReader&>(*voice_) = SampleLowLevelReader(voice_->spare_, true);
+	// The spare is seated at the start (H1); the roles swap only once it has started, so a failed seat leaves the
+	// newer untouched (S4). The spare's lease starts afresh, its old chunk let go and its cursor closed, and opens a
+	// cursor of its own on the seat, as the legacy's hop handed the newer's cursor to the older and opened another
+	const uint8_t spare = slot(Head::OLDER);
+	voice_->leases_[spare] = SampleReadLease{};
+	SampleReadLease& lease = bound(spare);
+	const Direction direction = guide_->playDirection == 1 ? Direction::FORWARD : Direction::REVERSE;
+	ReadHead::State& head = voice_->heads_[spare];
+	if (ReadHead::seat(head, lease, frame, phase, direction) != Residency::READY) {
+		voice_->leases_[spare] = SampleReadLease{};
 		return SeatResult::NOT_READY;
 	}
-	voice_->interpolationBufferSizeLastTime = 0;
-	voice_->oscPos = phase.raw();
-	return voice_->hasCurrentRegion() ? SeatResult::STARTED : SeatResult::STARTED_EMPTY;
+	const ReadHead::ReadBounds bounds{.loop_start_frame =
+	                                      loop == LoopType::LOW_LEVEL
+	                                          ? std::optional<int32_t>(VoiceSample::loopStartFrame(guide_, sample_))
+	                                          : std::nullopt,
+	                                  .endless_silence = false};
+	if (!ReadHead::walk(head, lease, bounds, direction)) {
+		voice_->leases_[spare] = SampleReadLease{};
+		return SeatResult::NOT_READY;
+	}
+	voice_->newer_ = spare;
+	return lease.holds_chunk() ? SeatResult::STARTED : SeatResult::STARTED_EMPTY;
 }
 
 bool VoiceSampleStretchPort::read(Head head, std::span<deluge::dsp::Q<31>> out, int32_t frames, HeadGain gain) {
-	// The legacy reader takes the gain and the phase as words
-	SampleLowLevelReader& reader = head == Head::NEWER ? static_cast<SampleLowLevelReader&>(*voice_) : voice_->spare_;
-	const Sample& s = *sample_;
-	return reader.readSamplesForTimeStretching(
-	    out.data(), guide_, sample_, frames, s.numChannels, params_.channels_after_condensing, params_.phase_increment,
-	    gain.level.raw(), gain.step.raw(), params_.loop == LoopType::LOW_LEVEL, frameBytes(s) * guide_->playDirection,
-	    params_.interpolation_width, params_.kernel, params_.priority_rating);
+	const uint8_t which = slot(head);
+	const Direction direction = guide_->playDirection == 1 ? Direction::FORWARD : Direction::REVERSE;
+	const ReadHead::ReadBounds bounds{.loop_start_frame =
+	                                      params_.loop == LoopType::LOW_LEVEL
+	                                          ? std::optional<int32_t>(VoiceSample::loopStartFrame(guide_, sample_))
+	                                          : std::nullopt,
+	                                  .endless_silence = false};
+	ReadHead::Output output{.out = out,
+	                        .out_channels = static_cast<int8_t>(params_.channels_after_condensing),
+	                        .amplitude = gain.level,
+	                        .step = gain.step};
+	// The legacy reader took the increment as a word
+	return ReadHead::read(voice_->heads_[which], bound(which), bounds, output, frames,
+	                      Increment::from_raw(static_cast<uint32_t>(params_.phase_increment)),
+	                      params_.interpolation_width, params_.kernel, nullptr, direction);
 }
 
 HeadMark VoiceSampleStretchPort::mark(Head head) const {
-	SampleLowLevelReader& reader = head == Head::NEWER ? static_cast<SampleLowLevelReader&>(*voice_) : voice_->spare_;
-	return HeadMark{.play_byte = reader.getPlayByteLowLevel(sample_, guide_, true),
-	                .phase = deluge::dsp::UQ<24>::from_raw(reader.oscPos)};
+	const ReadHead::State& state = voice_->heads_[slot(head)];
+	return HeadMark{.play_byte =
+	                    ReadHead::play_byte(state, VoiceSample::readFacts(*sample_, *guide_),
+	                                        guide_->playDirection == 1 ? Direction::FORWARD : Direction::REVERSE, true),
+	                .phase = state.phase};
 }
 
 bool VoiceSampleStretchPort::cursors_meet() const {
-	return voice_->currentPlayPos == voice_->spare_.currentPlayPos;
+	// As the legacy compared its readers' cursors: the same frame, or both ended at the same count
+	const auto& newer = voice_->heads_[voice_->newer_].cursor;
+	const auto& older = voice_->heads_[1 - voice_->newer_].cursor;
+	if (newer.index() != older.index()) {
+		return false;
+	}
+	if (const auto* reading = std::get_if<ReadHead::Reading>(&newer)) {
+		return reading->frame == std::get<ReadHead::Reading>(older).frame;
+	}
+	return std::get<ReadHead::Ended>(newer).zero_taps == std::get<ReadHead::Ended>(older).zero_taps;
 }
 
 void VoiceSampleStretchPort::keep(Reservation& reservation, int32_t frame, Direction direction) {

@@ -5714,7 +5714,7 @@ void Song::cullAudioClipVoice() {
 		if (output->type == OutputType::AUDIO) {
 			if (output->getActiveClip()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
-				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
+				if (clip->voiceSample && clip->voiceSample->phase() > deluge::dsp::UQ<24>{}) {
 					uint64_t immunity = clip->getCullImmunity();
 					// is this the audio clip with the lowest cull immunity so far?
 					if (immunity < lowestImmunity) {

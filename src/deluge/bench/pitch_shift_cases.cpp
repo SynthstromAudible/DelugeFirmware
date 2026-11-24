@@ -17,7 +17,7 @@
 
 /// @file
 /// @brief The pitch-shift list's cases: the sample reader's resampled loops, and the live pitch shifter.
-/// @details The reader cases call `SampleLowLevelReader::readSamplesResampled` as a sample voice does, over a resident
+/// @details The reader cases call `ReadHead::read_resampled` as a sample voice does, over a resident
 /// region of 32-bit frames. The shifter cases render one voice's live pitch shifter over an input ring the codec has
 /// filled, the shared live input ingesting each block as the first voice on its channel makes it.
 
@@ -27,8 +27,8 @@
 #include "definitions_cxx.hpp"
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/noise/cong.h"
+#include "dsp/fixed/sample_read/read_head.h"
 #include "model/sample/sample.h"
-#include "model/sample/sample_low_level_reader.h"
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input.h"
 #include "synth/sources/input/live/live_inputs.h"
@@ -60,23 +60,45 @@ constexpr int32_t kReaderRate = (3 << 24) / 2;
 /// The bench region's stereo frames, a full-scale saw, read by every reader case.
 alignas(16) std::array<int32_t, kReaderFrames * 2> reader_region{};
 
-/// A sample reader over the bench region: resident, with its play position at the region's start each block.
-class BenchReader : public SampleLowLevelReader {
+namespace sr = dsp::fixed::sample_read;
+
+/// The bench region as a read source: one resident, final chunk of 32-bit frames.
+class BenchReadSource {
 public:
-	/// Marks the region resident and puts the play position at its start.
-	void rewind() {
-		region_.payload_base = reinterpret_cast<char*>(reader_region.data());
-		currentPlayPos = reinterpret_cast<char*>(reader_region.data());
-		oscPos = 0;
+	int32_t channels_ = 2;
+	[[nodiscard]] std::optional<sr::FrameRun> run(int32_t frame, sr::Direction /*direction*/) const {
+		const int32_t frame_bytes = channels_ * kReaderByteDepth;
+		return sr::FrameRun{.first = reinterpret_cast<const std::byte*>(reader_region.data()) + (frame * frame_bytes),
+		                    .frames = length_frames() - frame,
+		                    .stride = frame_bytes,
+		                    .channels = static_cast<int8_t>(channels_),
+		                    .byte_depth = kReaderByteDepth};
+	}
+	[[nodiscard]] int32_t channels() const { return channels_; }
+	[[nodiscard]] int32_t length_frames() const {
+		return static_cast<int32_t>(reader_region.size() * sizeof(int32_t)) / (channels_ * kReaderByteDepth);
+	}
+	[[nodiscard]] int32_t byte_depth() const { return kReaderByteDepth; }
+	sr::Residency move_to(int32_t /*frame*/, sr::Direction /*direction*/) { return sr::Residency::READY; }
+	void let_go() {}
+	[[nodiscard]] std::optional<sr::ChunkSpan> span(sr::Direction /*direction*/) const {
+		return sr::ChunkSpan{.boundary = length_frames(), .floor = 0, .final = true};
 	}
 };
+static_assert(sr::read_source<BenchReadSource>);
 
-/// The rig shared by the reader cases, made on first use: the reader and the sample it plays.
+/// The rig shared by the reader cases, made on first use: the head and the source it reads.
 struct ReaderRig {
-	BenchReader reader{};
-	::Sample sample{};
+	sr::ReadHead::State head{};
+	BenchReadSource source{};
 	std::array<dsp::Q<31>, kMaxBlock * 2> out{};
 	bool ready = false;
+
+	/// Puts the head at the region's start.
+	void rewind() {
+		head.cursor = sr::ReadHead::Reading{0};
+		head.phase = dsp::UQ<24>{};
+	}
 };
 
 ReaderRig& reader_rig() {
@@ -192,24 +214,25 @@ void SampleReadCase::setup(std::size_t /*n*/) {
 		for (std::size_t i = 0; i < reader_region.size(); ++i) {
 			reader_region[i] = static_cast<int32_t>(static_cast<uint32_t>(i) * 0x0100'0000U);
 		}
-		rig.sample.byteDepth = kReaderByteDepth;
-		rig.sample.numChannels = 2;
-		rig.sample.workOutBitMask();
 		rig.ready = true;
 	}
-	rig.reader.rewind();
+	rig.rewind();
 }
 
 void SampleReadCase::block(std::size_t n) {
 	ReaderRig& rig = reader_rig();
-	rig.reader.rewind();
+	rig.rewind();
 	const int32_t channels = config_.stereo ? 2 : 1;
-	dsp::Q<31>* out = rig.out.data();
-	int32_t amplitude = kShifterAmplitude;
-	bool started = true;
-	rig.reader.readSamplesResampled(&out, static_cast<int32_t>(n), &rig.sample, channels * kReaderByteDepth, channels,
-	                                channels, kReaderRate, &amplitude, 0,
-	                                config_.linear ? 2 : kInterpolationMaxNumSamples, false, nullptr, &started, 0);
+	rig.source.channels_ = channels;
+	// The bench's amplitude and rate are the words the old case passed
+	sr::ReadHead::Output output{.out = rig.out,
+	                            .out_channels = static_cast<int8_t>(channels),
+	                            .amplitude = dsp::Q<31>::from_raw(kShifterAmplitude),
+	                            .step = dsp::Q<31>{}};
+	std::byte* no_cache = nullptr;
+	sr::ReadHead::read_resampled(rig.head, rig.source, output, static_cast<int32_t>(n),
+	                             sr::Increment::from_raw(static_cast<uint32_t>(kReaderRate)),
+	                             config_.linear ? 2 : kInterpolationMaxNumSamples, 0, no_cache, sr::Direction::FORWARD);
 }
 
 void PitchShiftCase::setup(std::size_t /*n*/) {

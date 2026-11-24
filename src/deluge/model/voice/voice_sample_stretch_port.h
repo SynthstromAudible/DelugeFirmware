@@ -21,9 +21,12 @@
 
 #include <cstdint>
 
+#include <cstdint>
+
 class Sample;
 class SamplePlaybackGuide;
 class VoiceSample;
+class SampleReadLease;
 
 /// @brief What a stretched head's read takes from the voice's render, set per part of a block.
 struct StretchReadParams {
@@ -65,6 +68,11 @@ public:
 	void drop(deluge::synth::PercChunk chunk) override;
 
 private:
+	/// @brief The voice-sample's slot of @p head: the newer's, or the spare's.
+	[[nodiscard]] uint8_t slot(Head head) const;
+	/// @brief Slot @p which's lease, bound for this call.
+	SampleReadLease& bound(uint8_t which);
+
 	VoiceSample* voice_;
 	Sample* sample_;
 	SamplePlaybackGuide* guide_;

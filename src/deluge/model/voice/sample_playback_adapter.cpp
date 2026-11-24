@@ -88,10 +88,11 @@ bool SamplePlaybackAdapter::cloneVoiceSampleFrom(const SamplePlaybackAdapter& fr
 	VoiceSample& newVoiceSample = *voiceSample_;
 	VoiceSample& oldVoiceSample = *from.voiceSample_;
 
-	// Just clones the SampleLowLevelReader stuff - assign through the base subobject so this can't slice via the
-	// implicit VoiceSample(SampleLowLevelReader&&) conversion and clobber the derived members (the stretcher and
-	// cache).
-	static_cast<SampleLowLevelReader&>(newVoiceSample) = SampleLowLevelReader(oldVoiceSample);
+	// The new part's head is a level copy of the neighbour's: its own lease on the shared chunk and, as the legacy's
+	// non-stealing copy had, no region-port cursor (R10)
+	newVoiceSample.heads_[newVoiceSample.newer_] =
+	    deluge::dsp::fixed::sample_read::ReadHead::level_copy(oldVoiceSample.heads_[oldVoiceSample.newer_]);
+	newVoiceSample.leases_[newVoiceSample.newer_] = oldVoiceSample.leases_[oldVoiceSample.newer_].copy_without_cursor();
 	newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
 	newVoiceSample.doneFirstRenderYet = true;
 	// The new part plays the same note: the render queries read its settings and guide

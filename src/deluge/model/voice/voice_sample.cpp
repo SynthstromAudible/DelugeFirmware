@@ -55,8 +55,8 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 
 	pendingSamplesLate = samplesLate; // We store this to deal with later, because in order to deal with this we need to
 	                                  // know the pitch-adjustment, and that's not calculated yet
-	oscPos = 0;
-	interpolationBufferSizeLastTime = 0;
+	head().phase = deluge::dsp::UQ<24>{};
+	head().width_last = 0;
 	stretcher = nullptr; // Just in case
 	fudging = false;
 	forAudioClip = false;
@@ -75,7 +75,7 @@ bool VoiceSample::noteOffWhenLoopEndPointExists(VoiceSamplePlaybackGuide* guide,
 		}
 		else {
 			return reassessReassessmentLocation(guide, (Sample*)guide->audioFileHolder->audioFile, priorityRating);
-			// That's only going to make reassessmentLocation later, so no need to check we haven't shot past it I
+			// That's only going to make the chunk boundary later, so no need to check we haven't shot past it I
 			// think...
 		}
 	}
@@ -89,7 +89,7 @@ void VoiceSample::endTimeStretching() {
 		VoiceSampleStretchPort port(*this, *stretchedSample_, nullptr, StretchReadParams{});
 		deluge::synth::StretchContext context = AudioEngine::stretchContext();
 		stretcher->end(port, context);
-		spare_.unassignAllReasons(false);
+		leases_[1 - newer_].unseat(false);
 		AudioEngine::stretcherUnassigned(stretcher);
 		stretcher = nullptr;
 		stretchedSample_ = nullptr;
@@ -207,15 +207,13 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 
 	// Release any residency left by a previous (re)start attempt before probing afresh -- releasing
 	// before acquiring is what lets the outgoing Cluster be the one reused for the new region under
-	// RAM pressure. The port cursor (source_->current/pending/prefetch), not a per-reader cluster
-	// array, carries the leases across a defer.
+	// RAM pressure. The lease's region-port cursor (its current, pending and prefetched chunks) carries the
+	// leases across a defer.
 	unassignAllReasons(false);
 
-	// Open the region-port cursor if this is the first residency op for the sample: late-start can
-	// be the very first residency op (before any assignClusters), so source_ would otherwise be null
-	// -> acquire_ex returns UNAVAILABLE -> a spurious FAILURE. assignClusters opens the cursor the
-	// same way.
-	ensureSource(sample);
+	// The lease opens its region-port cursor if this is the first residency op for the sample: late-start can be the
+	// very first (before any seat), and a null cursor would answer UNAVAILABLE, a spurious FAILURE.
+	SampleReadLease& start_lease = lease(*sample, *voiceSource, static_cast<int32_t>(0xFFFFFFFFU));
 
 	// Residency DECISION through the region port. acquire_ex fetches the start cluster, RETAINS its lease
 	// as `pending` while LOADING (so the fill survives the defer/retry), and on READY pins it as `current`
@@ -225,9 +223,9 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 	// already waiting to start -- the note-on deferred rather than dropped because its first cluster
 	// was still loading -- so its cluster is the most urgent load in the system. It previously passed
 	// 0xFFFFFFFF, the LOWEST urgency, which queued a waiting voice behind every speculative prefetch.
-	DelugeSampleRegion region{};
 	DelugeRegionState state0 =
-	    deluge_sample_region_acquire_ex(source_, startAtClusterIndex, voiceSource->playDirection, 0u, &region);
+	    start_lease.probe_chunk(static_cast<int32_t>(startAtClusterIndex),
+	                            voiceSource->playDirection == 1 ? Direction::FORWARD : Direction::REVERSE, 0u);
 
 	// UNAVAILABLE: neither found nor constructed a chunk (no free RAM, or out of range) -- a FAILURE.
 	if (state0 == DELUGE_REGION_UNAVAILABLE) {
@@ -246,32 +244,25 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 		bool hasNeighbour = (static_cast<int32_t>(startAtClusterIndex) != finalClusterIndex);
 		DelugeRegionState stateN =
 		    hasNeighbour
-		        ? deluge_sample_region_state(source_, static_cast<uint32_t>(static_cast<int32_t>(startAtClusterIndex)
-		                                                                    + voiceSource->playDirection))
+		        ? start_lease.chunk_state(static_cast<int32_t>(startAtClusterIndex) + voiceSource->playDirection)
 		        : DELUGE_REGION_UNAVAILABLE;
 
 		// No neighbour, neighbour READY, or neighbour UNAVAILABLE (out of range / RAM-failed prefetch) is
 		// good-to-go -- a missing neighbour from any cause is fine. Only a LOADING neighbour gives pause.
 		if (stateN != DELUGE_REGION_LOADING) {
 goodToGo:
-			// Commit the note-start by establishing the reader's steady-state residency for the start
-			// cluster through setupClustersForPlayFromByte() -> assignClusters(), which sets region_ (so
-			// setupReassessmentLocation's interpolation-window base sources from a matching
-			// region_.payload_base) and takes the reader's independent region lease the steady-state
-			// consumers expect. The DECISION above already acquired the start region through the port
-			// (source_->current is pinned, neighbour prefetched); this re-acquires the SAME index, which the
-			// port makes idempotent -- acquire_ex drops the duplicate lease get_cluster adds when src->current
-			// already holds the chunk (see the cursor's acquire_ex in deluge_storage_sample_source), so the two
-			// acquires net one lease, and the standing prefetch is already the neighbour so it is not
-			// re-fetched. The priority passed below no longer matches the decision acquire's (which is
-			// now 0, most-urgent); it does not need to, because this re-acquire hits the already-pinned
-			// `current` and so enqueues nothing whose ordering the value could affect. startAtByte >>
-			// Cluster::size_magnitude == startAtClusterIndex and startAtByte & (Cluster::size-1) == the
-			// byte-within-cluster, so setupForPlayPosMovedIntoNewCluster() lands on the correct byte-within-cluster
-			// position.
-			if (setupClustersForPlayFromByte(voiceSource, sample, static_cast<int32_t>(startAtByte),
-			                                 static_cast<int32_t>(0xFFFFFFFFU))
-			    != RegionOutcome::Ready) {
+			// Commit the note-start by seating the head on the start chunk through its lease, which takes the
+			// lease's own pin. The decision above already acquired the start chunk through the same cursor
+			// (pinned as its current, the neighbour prefetched); this re-acquires the same index, which the port
+			// makes idempotent (acquire_ex drops the duplicate lease when the cursor's current already holds the
+			// chunk), and the standing prefetch is already the neighbour. The priority differs from the
+			// decision's (0, most urgent) and need not match: the re-acquire hits the pinned current and enqueues
+			// nothing.
+			if (ReadHead::place(head(), start_lease,
+			                    static_cast<int32_t>((startAtByte - sample->audioDataStartPosBytes)
+			                                         / static_cast<uint32_t>(sample->numChannels * sample->byteDepth)),
+			                    voiceSource->playDirection == 1 ? Direction::FORWARD : Direction::REVERSE)
+			    != deluge::dsp::fixed::sample_read::Residency::READY) {
 				// The start cluster was resident-and-loaded a few statements ago (checked above), so a false
 				// here is a shouldn't-happen (reclaimed in the zero-gap, or out of range). Take the same
 				// defer-and-retry the not-loaded checks below take — never a drop — and converge on the single
@@ -347,8 +338,8 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 
 	bool success = reassessReassessmentLocation(
 	    guide, sample,
-	    priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
-	// That's only going to make reassessmentLocation later, so no need to check we haven't shot past it I think...
+	    priorityRating); // Got to - because time stretching affects the reader's adherence to markers
+	// That's only going to make the chunk boundary later, so no need to check we haven't shot past it I think...
 	if (!success) {
 		D_PRINTLN("fudging FAIL!!!!");
 		return false;
@@ -393,8 +384,8 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 		(void)stretcher->begin(port, context, position, motion, loopingType, opening);
 		bool success = reassessReassessmentLocation(
 		    guide, sample,
-		    priorityRating); // Got to - because time stretching affects the SampleLowLevelReader's adherence to markers
-		// That's only going to make reassessmentLocation later, so no need to check we haven't shot past it I think...
+		    priorityRating); // Got to - because time stretching affects the reader's adherence to markers
+		// That's only going to make the chunk boundary later, so no need to check we haven't shot past it I think...
 		if (!success) {
 			return false;
 		}
@@ -428,12 +419,10 @@ std::optional<deluge::dsp::fixed::timestretch::CacheWindow> VoiceSample::cacheWi
 bool VoiceSample::stopReadingFromCache() {
 	// Have to check Cluster is loaded, because we chose not to check this before, cos we didn't know if we'd actually
 	// be reading from it.
-	// The cache-fallback residency check, expressed against the region port. The reader's
-	// `region_` is only ever populated by a successful (loaded) acquire — assignClusters / moveOnToNextCluster take a
-	// `true`/READY return, the cache-resync stores only on DELUGE_REGION_READY — so a held region is by construction
-	// a loaded chunk. The residency check therefore reduces exactly to `!hasCurrentRegion()`, matching the drop
-	// decision at moveOnToNextCluster's sibling UNASSIGN-class site. This no-arg path has no play-direction/priority
-	// to drive a re-acquire, so it reads the port's residency state directly.
+	// The cache-fallback residency check, expressed against the region port. A lease holds a chunk only after a
+	// successful (loaded) acquire (its seat, its move on and the cache resync all keep only a READY one), so a held
+	// chunk is by construction a loaded one, and the check reduces exactly to `!hasCurrentRegion()`, matching the
+	// drop decision at the lease's move on.
 	if (!hasCurrentRegion()) {
 #if DELUGE_UNDERRUN_COUNTERS
 		// The streaming-underrun harness's UNASSIGN-class signal: the cache-stop path found the
@@ -446,7 +435,7 @@ bool VoiceSample::stopReadingFromCache() {
 	}
 
 	// .. we have to get reading to read normally, un-cached, so set some stuff up
-	interpolationBufferSizeLastTime = 0;
+	head().width_last = 0;
 	return true;
 }
 
@@ -467,18 +456,18 @@ bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int
 
 	cache = nullptr;
 
-	// Now that cache is off, the SampleLowLevelReader probably needs to obey loop points (if no time stretching),
+	// Now that cache is off, the reader probably needs to obey loop points (if no time stretching),
 	// Although, as a side note, if we just abandoned reading cache, we might be just about to set time stretching up.
 	// if (shouldObeyMarkers()) {	// Nope, we need to do this always now (fix Dec 2023), otherwise if a user does
 	// something like change the tempo causing an AudioClip to change pitch
-	// and abandon its cache, well it won't get its reassessmentLocation and clusterStartLocation set up if we don't do
+	// and abandon its cache, well it won't get its chunk boundary set up if we don't do
 	// this. Well, this only previously caused problems when shouldObeyMarkers() returned false - so only for
 	// AudioClips, and only ones which weren't time-stretching (so had their pitch/speed set to LINKED and the audio was
 	// being sped up or down like a record).
 
-	// Now that we'll be reading the raw Sample source, we'll need to set up the reassessmentLocation and the
-	// clusterStartLocation, so make this call. Also (I think) another reason for this call is that while writing cache,
-	// low-level loop points aren't obeyed and we loop at the writing-to-cache level instead?
+	// Now that we'll be reading the raw Sample source, we'll need to re-acquire the head's chunk under
+	// the markers it now obeys, so make this call. Also (I think) another reason for this call is that while writing
+	// cache, low-level loop points aren't obeyed and we loop at the writing-to-cache level instead?
 	bool stillGoing =
 	    reassessReassessmentLocation(guide, sample,
 	                                 priorityRating); // Returns false if fail, which can happen if we've actually ended
@@ -488,13 +477,88 @@ bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int
 	}
 
 	// This step added Sept 2020 after finding another similar bug which made me fairly sure this needs to be here, to
-	// ensure currentPlayPos isn't past the new reassessmentLocation
+	// ensure the head's cursor isn't past the new chunk boundary
 	stillGoing = changeClusterIfNecessary(guide, sample, loopingAtLowLevel, priorityRating);
 	if (!stillGoing) {
 		return false;
 	}
 
 	return true;
+}
+
+SampleReadLease& VoiceSample::lease(Sample& sample, SamplePlaybackGuide& guide, int32_t priority_rating) {
+	leases_[newer_].bind(sample, guide, priority_rating, shouldObeyMarkers());
+	return leases_[newer_];
+}
+
+deluge::dsp::fixed::sample_read::ReadFacts VoiceSample::readFacts(const Sample& sample,
+                                                                  const SamplePlaybackGuide& guide) {
+	return deluge::dsp::fixed::sample_read::ReadFacts{.data_start_byte =
+	                                                      static_cast<int32_t>(sample.audioDataStartPosBytes),
+	                                                  .end_byte = static_cast<int32_t>(guide.endPlaybackAtByte),
+	                                                  .channels = static_cast<int8_t>(sample.numChannels),
+	                                                  .byte_depth = static_cast<int8_t>(sample.byteDepth)};
+}
+
+int32_t VoiceSample::loopStartFrame(SamplePlaybackGuide* guide, Sample* sample) {
+	return (guide->getBytePosToStartPlayback(true) - static_cast<int32_t>(sample->audioDataStartPosBytes))
+	       / (sample->numChannels * sample->byteDepth);
+}
+
+RegionOutcome VoiceSample::setupClusersForInitialPlay(SamplePlaybackGuide* guide, Sample* sample,
+                                                      int32_t byte_overshoot, bool just_looped,
+                                                      int32_t priority_rating) {
+	if (sample->unplayable) {
+		return RegionOutcome::Unavailable;
+	}
+	const int32_t byte = guide->getBytePosToStartPlayback(just_looped) + (byte_overshoot * guide->playDirection);
+	const int32_t offset = byte - static_cast<int32_t>(sample->audioDataStartPosBytes);
+	if (offset < 0 || offset >= static_cast<int32_t>(sample->audioDataLengthBytes)) {
+		return RegionOutcome::Unavailable; // out of range: no amount of waiting fixes this
+	}
+	// The legacy's seat froze on a reader still holding a chunk, so every caller had let go; a lease still holding
+	// one lets go here, rather than taking the walk's move for a neighbouring chunk
+	SampleReadLease& seat_lease = lease(*sample, *guide, priority_rating);
+	seat_lease.let_go();
+	const deluge::dsp::fixed::sample_read::Residency residency =
+	    ReadHead::place(head(), seat_lease, offset / (sample->numChannels * sample->byteDepth),
+	                    guide->playDirection == 1 ? Direction::FORWARD : Direction::REVERSE);
+	switch (residency) {
+	case deluge::dsp::fixed::sample_read::Residency::READY:
+		return RegionOutcome::Ready;
+	case deluge::dsp::fixed::sample_read::Residency::LOADING:
+		return RegionOutcome::Loading;
+	default:
+		return RegionOutcome::Unavailable;
+	}
+}
+
+bool VoiceSample::changeClusterIfNecessary(SamplePlaybackGuide* guide, Sample* sample, bool looping_at_low_level,
+                                           int32_t priority_rating) {
+	if (!hasCurrentRegion()) {
+		return true;
+	}
+	const ReadHead::ReadBounds bounds{
+	    .loop_start_frame = looping_at_low_level ? std::optional<int32_t>(loopStartFrame(guide, sample)) : std::nullopt,
+	    .endless_silence = false};
+	return ReadHead::walk(head(), lease(*sample, *guide, priority_rating), bounds,
+	                      guide->playDirection == 1 ? Direction::FORWARD : Direction::REVERSE);
+}
+
+bool VoiceSample::reassessReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample, int32_t priority_rating) {
+	return lease(*sample, *guide, priority_rating)
+	    .reacquire(guide->playDirection == 1 ? Direction::FORWARD : Direction::REVERSE);
+}
+
+int32_t VoiceSample::getPlayByteLowLevel(Sample* sample, SamplePlaybackGuide* guide,
+                                         bool compensate_for_interpolation_buffer) {
+	return ReadHead::play_byte(head(), readFacts(*sample, *guide),
+	                           guide->playDirection == 1 ? Direction::FORWARD : Direction::REVERSE,
+	                           compensate_for_interpolation_buffer);
+}
+
+void VoiceSample::unassignAllReasons(bool wont_be_used_again) {
+	leases_[newer_].unseat(wont_be_used_again);
 }
 
 static_assert(TimeStretch::kDefaultFirstHopLength >= SSI_TX_BUFFER_NUM_SAMPLES,
@@ -519,9 +583,15 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restr
 	__builtin_prefetch((char*)sample + 64);
 	int32_t prefetchBytes = std::min<int32_t>(
 	    (((uint64_t)(numSamples * sampleSourceNumChannels * 2) * (uint32_t)phaseIncrement) >> 24) + 32, 512);
-	prefetchPlayData(prefetchBytes, playDirection);
-	if (stretcher != nullptr) {
-		spare_.prefetchPlayData(prefetchBytes, playDirection);
+	{
+		const Direction direction = playDirection == 1 ? Direction::FORWARD : Direction::REVERSE;
+		for (int32_t h = 0; h < (stretcher != nullptr ? 2 : 1); h++) {
+			const auto which = static_cast<uint8_t>(h == 0 ? newer_ : 1 - newer_);
+			leases_[which].bind(*sample, *guide, priorityRating, shouldObeyMarkers());
+			if (const auto* reading = std::get_if<ReadHead::Reading>(&heads_[which].cursor)) {
+				leases_[which].prefetch(reading->frame, prefetchBytes, direction);
+			}
+		}
 	}
 
 	// If there's a cache, check some stuff. Do this first, cos this can cause us to return
@@ -593,7 +663,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restr
 						return false;
 					}
 
-					// Beware - having just stopped reading from cache, our currentPlayPos might be way out of bounds,
+					// Beware - having just stopped reading from cache, the head's cursor might be way out of bounds,
 					// potentially delivering even a negative sample / byte number. This needs to be maintained
 					// cohesively until it's ultimately dealt with.
 
@@ -666,12 +736,12 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restr
 					bool stillGoing =
 					    reassessReassessmentLocation(guide, sample,
 					                                 priorityRating); // Got to - because time stretching affects the
-					                                                  // SampleLowLevelReader's adherence to markers
+					                                                  // the reader's adherence to markers
 					if (!stillGoing) {
 						return false;
 					}
 
-					// Bugfix Sept 2020. Could end up beyond reassessmentLocation otherwise, violating assumptions if
+					// Bugfix Sept 2020. Could end up beyond chunk boundary otherwise, violating assumptions if
 					// playing Sample at non-native rate.
 					stillGoing =
 					    changeClusterIfNecessary(guide, sample, loopingType == LoopType::LOW_LEVEL, priorityRating);
@@ -688,7 +758,6 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restr
 timeStretchingConsidered:
 
 	int32_t bytesPerSample = sampleSourceNumChannels * sample->byteDepth;
-	int32_t jumpAmount = sample->byteDepth * sampleSourceNumChannels * playDirection;
 	deluge::dsp::Q<31>* __restrict__ outputBufferWritePos = outputBuffer;
 	int32_t numChannelsInOutputBuffer = (sampleSourceNumChannels == 2 && AudioEngine::renderInStereo) ? 2 : 1;
 	int32_t whichKernel;
@@ -796,8 +865,8 @@ readCachedWindow:
 				writingToCache = true;
 			}
 
-			// Now that we'll be reading the raw Sample source, we'll need to set up the reassessmentLocation and the
-			// clusterStartLocation, so make this call. Also (I think) another reason for this call is that while
+			// Now that we'll be reading the raw Sample source, we'll need to re-acquire the head's chunk under
+			// the markers it now obeys, so make this call. Also (I think) another reason for this call is that while
 			// writing cache, low-level loop points aren't obeyed and we loop at the writing-to-cache level instead?
 			bool stillGoing = reassessReassessmentLocation(
 			    guide, sample,
@@ -810,7 +879,7 @@ readCachedWindow:
 			}
 
 			// This step added Sept 2020 after finding another similar bug which made me fairly sure this needs to be
-			// here, to ensure currentPlayPos isn't past the new reassessmentLocation
+			// here, to ensure the head's cursor isn't past the new chunk boundary
 			stillGoing = changeClusterIfNecessary(guide, sample, loopingType == LoopType::LOW_LEVEL, priorityRating);
 			if (!stillGoing) {
 				return false;
@@ -901,16 +970,16 @@ readCachedWindow:
 			// Mono / left channel (or stereo condensed to mono): the cache's words are Q31 samples. The amplitude is
 			// render's word, stepped by integer multiples of its increment.
 			const auto level = deluge::dsp::Q<31>::from_raw(amplitude);
-			*outputBufferWritePos =
-			    deluge::audio::mixed_in(existingValueL, deluge::dsp::Q<31>::from_raw(sampleRead[0]), level);
+			*outputBufferWritePos = deluge::dsp::fixed::sample_read::mixed_in(
+			    existingValueL, deluge::dsp::Q<31>::from_raw(sampleRead[0]), level);
 			outputBufferWritePos++;
 
 			// Right channel. Surprisingly, putting this as an "else" inside the above "numChannels == 2" was slightly
 			// slower
 			if (numChannelsInOutputBuffer == 2) {
 				const deluge::dsp::Q<31> existingValueR = *outputBufferWritePos;
-				*outputBufferWritePos =
-				    deluge::audio::mixed_in(existingValueR, deluge::dsp::Q<31>::from_raw(sampleRead[1]), level);
+				*outputBufferWritePos = deluge::dsp::fixed::sample_read::mixed_in(
+				    existingValueR, deluge::dsp::Q<31>::from_raw(sampleRead[1]), level);
 				outputBufferWritePos++;
 			}
 
@@ -947,14 +1016,14 @@ readCachedWindow:
 		int32_t uncachedClusterIndex = uncachedBytePos >> Cluster::size_magnitude;
 
 		// Sometimes our cache will extend a little beyond the end of the waveform (to capture the interpolation or
-		// time-stretching ring-out). It's basically ok for our current Cluster index and currentPlayPos to sit outside
-		// the waveform - this will be dealt with if we do stop using the cache.
+		// time-stretching ring-out). It's basically ok for our current Cluster index and the head's cursor to sit
+		// outside the waveform - this will be dealt with if we do stop using the cache.
 
 		// But, if we're more than 1 cluster outside of the waveform, let's just not be silly.
 		if (uncachedClusterIndex < sample->getFirstClusterIndexWithAudioData() - 1
 		    || uncachedClusterIndex > sample->getFirstClusterIndexWithNoAudioData()) {
 			unassignAllReasons(false); // Remember, this doesn't cut the voice - just clears the current region.
-			currentPlayPos = nullptr;
+			head().cursor = ReadHead::Ended{0};
 		}
 
 		// But if that hasn't happened...
@@ -962,68 +1031,29 @@ readCachedWindow:
 
 			// Need to make sure we don't go past finalClusterIndex, or else, if cache is cancelled and loop points
 			// obeyed again, we're in a Cluster we're not allowed in! Instead, stay in the Cluster we are allowed in,
-			// currentPlayPos will end up outside the bounds of that Cluster, that'll soon be picked up on, and a loop
+			// the cursor will end up outside the bounds of that Cluster, that'll soon be picked up on, and a loop
 			// point will get obeyed or something.
 			int32_t finalClusterIndex = guide->getFinalClusterIndex(sample, true);
 			if ((uncachedClusterIndex - finalClusterIndex) * playDirection > 0) {
 				uncachedClusterIndex = finalClusterIndex;
 			}
 
-			// If uncached Cluster has changed, update queue
-			if (!hasCurrentRegion() || static_cast<int32_t>(region_.region_index) != uncachedClusterIndex) {
-				// The cache-resync's residency comes from the region port, on the reader's OWN cursor, so
-				// `region_` tracks the CACHE position rather than the pre-cache one.
-				//
-				// Drop the old reasons FIRST: releasing before acquiring is what lets the outgoing Cluster
-				// be the one stolen to satisfy the new region under RAM pressure. unassignAllReasons() also
-				// clears `region_`, so the two never disagree.
-				unassignAllReasons(false); // We're going to set new "reasons".
-
-				// The cursor is normally already open (playback got here through assignClusters), but a
-				// reader can be reused for a different Sample, so re-establish it the same way
-				// assignClusters does before touching the port.
-				ensureSource(sample);
-
-				// Skip the acquire while the port already holds a reservation IN FLIGHT for this exact
-				// index. DELUGE_REGION_LOADING keeps the lease (so the fill progresses and the chunk
-				// can't be stolen), and once it lands this same test reports READY and the acquire below
-				// promotes it. UNAVAILABLE means nothing is in flight, so a fresh acquire is needed.
-				if (deluge_sample_region_state(source_, static_cast<uint32_t>(uncachedClusterIndex))
-				    != DELUGE_REGION_LOADING) {
-					// Priority 0 == MOST urgent: this resync feeds the render in progress. It previously
-					// passed 0xFFFFFFFF to keep the resync out of the caller's priority ordering, but
-					// that value is the LOWEST urgency in the queue -- the opposite of what data needed
-					// for the current render should get.
-					DelugeSampleRegion region;
-					if (deluge_sample_region_acquire_ex(source_, static_cast<uint32_t>(uncachedClusterIndex),
-					                                    static_cast<int8_t>(playDirection), 0u, &region)
-					    == DELUGE_REGION_READY) {
-						// Retain the acquired region and take the reader's own INDEPENDENT lease on it (via
-						// region_.lease), as assignClusters/moveOnToNextCluster do, so unassignAllReasons's
-						// uniform release stays self-consistent.
-						deluge_sample_region_retain(region.lease);
-						region_ = region;
-					}
-					// Not READY: region_ stays empty and currentPlayPos is cleared below. The port
-					// retains that same single lease as `pending`, and the one consumer that acts on
-					// it -- stopReadingFromCache -- treats "no region" and "held but not loaded" as
-					// the same instant-unassign.
-				}
-				// The uncachedClusterIndex + playDirection neighbour is the port's standing prefetch, taken
-				// by the acquire above with the same priority: same Cluster made resident, same single
-				// lease, held by the cursor -- identical to the trade assignClusters makes. The port
-				// prefetches whenever the neighbour is in range of the stream, so it can reach one Cluster
-				// past `finalClusterIndex` -- the same accepted difference assignClusters already carries.
+			// If uncached Cluster has changed, the resync takes it through the head's own cursor, so the lease
+			// tracks the cache position rather than the pre-cache one; it lets the old chunk go first, which lets
+			// that be the one stolen for the new under RAM pressure
+			SampleReadLease& resync = lease(*sample, *guide, priorityRating);
+			if (!resync.holds_chunk() || resync.chunk_index() != uncachedClusterIndex) {
+				resync.resync_to(uncachedClusterIndex, playDirection == 1 ? Direction::FORWARD : Direction::REVERSE);
 			}
 
-			if (hasCurrentRegion()) {
-				oscPos = uncachedSamplePosBig & 16777215;
-				int32_t uncachedBytePosWithinCluster = uncachedBytePos - uncachedClusterIndex * Cluster::size;
-				currentPlayPos = reinterpret_cast<char*>(region_.payload_base) + uncachedBytePosWithinCluster;
-				currentPlayPos = currentPlayPos - 4 + sample->byteDepth;
+			if (resync.holds_chunk()) {
+				// The cache's position is a 40.24 word; its fraction is the head's phase
+				head().phase = deluge::dsp::UQ<24>::from_raw(static_cast<uint32_t>(uncachedSamplePosBig & 16777215));
+				head().cursor = ReadHead::Reading{
+				    (uncachedBytePos - static_cast<int32_t>(sample->audioDataStartPosBytes)) / bytesPerSample};
 			}
 			else {
-				currentPlayPos = nullptr;
+				head().cursor = ReadHead::Ended{0};
 			}
 		}
 
@@ -1169,26 +1199,40 @@ readNonTimestretched:
 
 			int32_t numSamplesThisNonTimestretchedRead = numSamplesThisUncachedRead;
 
-			bool stillActive = considerUpcomingWindow(
-			    guide, sample, &numSamplesThisNonTimestretchedRead, phaseIncrement, loopingType != LoopType::NONE,
-			    interpolationBufferSize, (cache != nullptr),
-			    priorityRating); // Keep it reading silence forever so we can definitely fill up the cache
-			if (!stillActive) {
+			// The window check: reading silence for ever while a cache is written, so it fills to its end (R11). The
+			// voice renders with its increment and amplitude as words; the head takes them typed
+			const deluge::dsp::fixed::sample_read::Increment increment =
+			    deluge::dsp::fixed::sample_read::Increment::from_raw(static_cast<uint32_t>(phaseIncrement));
+			const Direction direction = playDirection == 1 ? Direction::FORWARD : Direction::REVERSE;
+			const ReadHead::ReadBounds bounds{.loop_start_frame =
+			                                      loopingType != LoopType::NONE
+			                                          ? std::optional<int32_t>(loopStartFrame(guide, sample))
+			                                          : std::nullopt,
+			                                  .endless_silence = cache != nullptr};
+			const ReadHead::Window window =
+			    ReadHead::check(head(), lease(*sample, *guide, priorityRating), bounds,
+			                    numSamplesThisNonTimestretchedRead, increment, interpolationBufferSize, direction);
+			if (window.kind == ReadHead::Window::Kind::STOPPED) {
 				return false;
 			}
+			numSamplesThisNonTimestretchedRead = window.frames;
+			ReadHead::Output output{.out = std::span<deluge::dsp::Q<31>>(
+			                            outputBufferWritePos, static_cast<size_t>(numSamplesThisNonTimestretchedRead
+			                                                                      * numChannelsInOutputBuffer)),
+			                        .out_channels = static_cast<int8_t>(numChannelsInOutputBuffer),
+			                        .amplitude = deluge::dsp::Q<31>::from_raw(amplitude),
+			                        .step = deluge::dsp::Q<31>::from_raw(amplitudeIncrement)};
 
 			// No pitch adjustment - in which case we know we're not writing to cache either
 			if (phaseIncrement == kMaxSampleValue) {
-
-				readSamplesNative((deluge::dsp::Q<31>**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead,
-				                  sample, jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, &amplitude,
-				                  amplitudeIncrement);
+				ReadHead::read_native(head(), lease(*sample, *guide, priorityRating), output,
+				                      numSamplesThisNonTimestretchedRead, direction);
 			}
 
 			// Yes pitch adjustment - meaning we might be wanting to write to a cache, too...
 			else {
 
-				// That call to considerUpcomingWindow() just might have led to our cache having Clusters stolen!
+				// That window check just might have led to our cache having Clusters stolen!
 				if (cache && cache->writeBytePos < cacheBytePos) {
 					bool success = stopUsingCache(guide, sample, priorityRating, loopingType == LoopType::LOW_LEVEL);
 					if (!success) {
@@ -1196,15 +1240,16 @@ readNonTimestretched:
 					}
 				}
 
-				bool doneAnySamplesYet = false;
-
-				// This stuff is in its own function rather than here in VoiceSample because for some reason it's faster
-				// (re-check that?)
-				readSamplesResampled((deluge::dsp::Q<31>**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead,
-				                     sample, jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer,
-				                     phaseIncrement, &amplitude, amplitudeIncrement, interpolationBufferSize,
-				                     (cache != nullptr), &cacheWritePos, &doneAnySamplesYet, whichKernel);
+				auto* cache_write = cache != nullptr ? reinterpret_cast<std::byte*>(cacheWritePos) : nullptr;
+				ReadHead::read_resampled(head(), lease(*sample, *guide, priorityRating), output,
+				                         numSamplesThisNonTimestretchedRead, increment, interpolationBufferSize,
+				                         whichKernel, cache_write, direction);
+				if (cache_write != nullptr) {
+					cacheWritePos = reinterpret_cast<char*>(cache_write);
+				}
 			}
+			amplitude = output.amplitude.raw(); // back to the word the rest of the render steps
+			outputBufferWritePos += numSamplesThisNonTimestretchedRead * numChannelsInOutputBuffer;
 
 			if (cache) {
 				cacheBytePos += numSamplesThisNonTimestretchedRead * kCacheByteDepth * sampleSourceNumChannels;
@@ -1471,7 +1516,7 @@ loopBackToStartUncached:
 justDoReassessment:
 					return reassessReassessmentLocation(voiceSource, sample, priorityRating);
 					// I think this function has already taken care of making sure we're not past the new
-					// reassessmentLocation...
+					// chunk boundary...
 				}
 			}
 		}
@@ -1484,7 +1529,7 @@ loopBackToStartTimeStretched:
 		endTimeStretching(); // It'll get started again at next render
 
 		// Must call this before ending time stretching, cos the presence of the stretcher causes the
-		// SampleLowLevelReader to ignore markers, which is how we want it (no, wait, that's wrong I think? I've undone
+		// reader to ignore markers, which is how we want it (no, wait, that's wrong I think? I've undone
 		// that for now anyway)
 		setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating);
 	}
@@ -1537,7 +1582,7 @@ bool VoiceSample::possiblySetUpCache(InterpolationMode interpolationMode, Sample
 
 		setupCacheLoopPoints(guide, (Sample*)guide->audioFileHolder->audioFile, loopingType);
 		bool result = reassessReassessmentLocation(guide, (Sample*)guide->audioFileHolder->audioFile, priorityRating);
-		// Probably no need to check we haven't shot past the new reassessmentLocation, since surely that's going to be
+		// Probably no need to check we haven't shot past the new chunk boundary, since surely that's going to be
 		// further into the future now we're not obeying loop points at low level?
 		if (!result) {
 			return false;

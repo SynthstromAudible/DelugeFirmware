@@ -18,8 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/fixed/sample_read/read_head.h"
 #include "dsp/fixed/timestretch/cache_tail.h"
-#include "model/sample/sample_low_level_reader.h"
+#include "model/sample/sample_read_lease.h"
+#include <array>
 #include <optional>
 
 enum class LateStartAttemptStatus {
@@ -33,18 +35,19 @@ class SampleStretcher;
 class SampleCache;
 class Sample;
 class VoiceSamplePlaybackGuide;
+class SamplePlaybackGuide;
 class SourceResources;
 
-class VoiceSample final : public SampleLowLevelReader {
+/// @brief A sample voice's playback: two read heads (the one it plays from and a spare, which a stretcher uses as its
+/// older head), each with its lease on the chunk it reads, and the stretcher or cache it reads through.
+class VoiceSample final {
 public:
+	using ReadHead = deluge::dsp::fixed::sample_read::ReadHead;
+	using Direction = deluge::dsp::fixed::sample_read::Direction;
+
 	VoiceSample() = default;
-	explicit VoiceSample(VoiceSample& other) = default;
-	// explicit: an implicit conversion here is a footgun. `*voiceSample = SampleLowLevelReader(...)` would silently
-	// build a temporary VoiceSample (with a null stretcher and cache) and memberwise-move it over the live one, nulling
-	// the stretcher mid-flight and orphaning it (leaking its reservations -> E078).
-	// Assign through the SampleLowLevelReader base subobject instead when you only mean to replace the reader state.
-	explicit VoiceSample(SampleLowLevelReader&& other) : SampleLowLevelReader{std::move(other)} {}
-	~VoiceSample() override { endTimeStretching(); }
+	VoiceSample(const VoiceSample&) = delete;
+	~VoiceSample() { endTimeStretching(); }
 	VoiceSample& operator=(const VoiceSample& other) = delete;
 	// Deleted: the defaulted memberwise move-assign would overwrite the stretcher and cache without
 	// endTimeStretching(), leaking whatever the destination currently owns. VoiceSamples are pool-managed and
@@ -68,9 +71,7 @@ public:
 	// AudioClips don't obey markers because they "fudge" instead.
 	// Or if fudging can't happen cos no pre-margin, then
 	// AudioClip::doTickForward() manually forces restart.
-	[[nodiscard]] bool shouldObeyMarkers() const override {
-		return (cache == nullptr && stretcher == nullptr && !forAudioClip);
-	}
+	[[nodiscard]] bool shouldObeyMarkers() const { return (cache == nullptr && stretcher == nullptr && !forAudioClip); }
 
 	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, bool reversed, MarkerType markerType,
 	                       LoopType loopingType, int32_t priorityRating, bool forAudioClip = false);
@@ -83,12 +84,38 @@ public:
 
 	uint32_t pendingSamplesLate = 0; // This isn't used for AudioClips. And for samples in STRETCH mode, the exact
 	                                 // number isn't relevant - it gets recalculated
-	/// The stretcher while this voice-sample stretches, from the engine's pool; its read heads are this reader (the
-	/// newer) and spare_ (the older).
+	/// The stretcher while this voice-sample stretches, from the engine's pool; its newer head is the one the voice
+	/// plays from, its older the spare.
 	deluge::synth::SampleStretcher* stretcher = nullptr;
-	/// The older head while stretching: a level copy, or the previous newer after a hop. Unseated when stretching ends.
-	SampleLowLevelReader spare_;
 	[[nodiscard]] bool stretching() const { return stretcher != nullptr; }
+
+	/// The heads and their leases: heads_[newer_] is the one the voice plays from; the other is the spare, a level copy
+	/// or the previous newer after a hop while stretching, unseated when stretching ends.
+	std::array<ReadHead::State, 2> heads_{};
+	std::array<SampleReadLease, 2> leases_{};
+	uint8_t newer_ = 0;
+
+	/// @brief The head the voice plays from, and its lease bound for this call.
+	[[nodiscard]] ReadHead::State& head() { return heads_[newer_]; }
+	SampleReadLease& lease(Sample& sample, SamplePlaybackGuide& guide, int32_t priority_rating);
+	/// @brief The facts A0 reads: the data's start, the guide's end byte, the layout.
+	[[nodiscard]] static deluge::dsp::fixed::sample_read::ReadFacts readFacts(const Sample& sample,
+	                                                                          const SamplePlaybackGuide& guide);
+
+	// The head the voice plays from, as its other users reach it
+	RegionOutcome setupClusersForInitialPlay(SamplePlaybackGuide* guide, Sample* sample, int32_t byte_overshoot = 0,
+	                                         bool just_looped = false, int32_t priority_rating = 1);
+	bool changeClusterIfNecessary(SamplePlaybackGuide* guide, Sample* sample, bool looping_at_low_level,
+	                              int32_t priority_rating = 1);
+	bool reassessReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample, int32_t priority_rating);
+	int32_t getPlayByteLowLevel(Sample* sample, SamplePlaybackGuide* guide,
+	                            bool compensate_for_interpolation_buffer = false);
+	void unassignAllReasons(bool wont_be_used_again);
+	/// @brief The frame a low-level loop restarts at: the guide's start byte after a loop.
+	[[nodiscard]] static int32_t loopStartFrame(SamplePlaybackGuide* guide, Sample* sample);
+	[[nodiscard]] bool hasCurrentRegion() const { return leases_[newer_].holds_chunk(); }
+	/// @brief The playing head's phase.
+	[[nodiscard]] deluge::dsp::UQ<24> phase() const { return heads_[newer_].phase; }
 
 	SampleCache* cache = nullptr;
 	bool doneFirstRenderYet = false;

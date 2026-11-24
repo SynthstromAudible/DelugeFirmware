@@ -25,7 +25,7 @@
 /// its Sample genuinely has no efatfs read handle, `SampleStream::efatfs_handle() == 0`, exactly the
 /// "still-recording" condition), then opens a `DelugeSampleSource` cursor against that Sample's
 /// `SampleStream` and calls `deluge_sample_region_acquire_ex(index=0)` — the exact same region-port
-/// entry point `SampleLowLevelReader` uses for real playback (see `sample_low_level_reader.cpp`). The
+/// entry point a sample voice's read lease uses for real playback (see `sample_read_lease.cpp`). The
 /// returned `DelugeRegionState`: `SampleStream::make_read_source()` always returns an
 /// `EfatfsReadSource` over a 0 handle for a still-recording Sample, so the read fails and the async
 /// fill task re-queues it at lowest priority (`streaming_loader.rs`'s `fill_once`) rather than failing
