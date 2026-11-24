@@ -15,49 +15,49 @@
   "frames": 384000,
   "peak": 2147483648,
   "rms_db": -1.28,
-  "sha256": "db0d99913add82ca1d35f811b3ca954b3016659de1f6a5b66f56f2e5cc54ee30"
+  "sha256": "1b1fbc1d7bae0edbbaecc4ecd972b19e69bf0557d326036b9006bf58aabdca30"
  },
  "RS_AUDIO_COMP_ONSET": {
   "frames": 384000,
-  "peak": 1141902080,
-  "rms_db": -17.24,
-  "sha256": "6029a76c12bfe07951f734955d233f7f87e8a54bb81aa0d2af37b107d6471aed"
+  "peak": 1143191808,
+  "rms_db": -17.34,
+  "sha256": "f14b829ca362c29e02d1378054a46e1ba51218ac39ff451fd26241d290ea7bf9"
  },
  "RS_AUDIO_COMP_RESET": {
   "frames": 384000,
   "peak": 1274270976,
-  "rms_db": -18.05,
-  "sha256": "879293806bc0c9faeef1e330253fd9e8f5e37f8068b1ca4b153abea5a6648586"
+  "rms_db": -18.21,
+  "sha256": "4129a82878d0a1337091381640ab342c455461ce7989603c7281567d2d911db1"
  },
  "RS_AUDIO_DELAY": {
   "frames": 384000,
-  "peak": 1192348416,
-  "rms_db": -14.46,
-  "sha256": "f9fd8672f63b450638ad8fcb0d8303a2a28be07e3cbe108afe481470b3dbda92"
+  "peak": 1192853248,
+  "rms_db": -14.57,
+  "sha256": "91c1ddb1e775244fa439be45bc0c6480902e571eef405d266ffa6b53bc3cafb4"
  },
  "RS_AUDIO_DELAY_EXTREMES": {
   "frames": 384000,
-  "peak": 1141836032,
-  "rms_db": -14.81,
-  "sha256": "01e7c967b5a9168dc018014525a2da5f2087ae820d56c7f215fd825b23e4488d"
+  "peak": 1143206912,
+  "rms_db": -14.91,
+  "sha256": "56c7a6285d69ac4126c35b2f5a1a3243cbd7e4f5847534193024d04fbfb91357"
  },
  "RS_AUDIO_DELAY_SWITCH": {
   "frames": 384000,
-  "peak": 1525150208,
-  "rms_db": -11.98,
-  "sha256": "4a9de2d6e740dd28f00816cd1496466b9ee8246b94ecc5a918c461d7f76f0c16"
+  "peak": 1531659008,
+  "rms_db": -11.86,
+  "sha256": "63ce416ec50039de5d491f34164f1ffee94eb4efa46c4968c5eaeaaec388d02d"
  },
  "RS_AUDIO_DELAY_TOGGLE": {
   "frames": 384000,
-  "peak": 1586480128,
-  "rms_db": -11.96,
-  "sha256": "b3cfb843aa4abc6b30fa1b7050e612524c04b135d03947fbb7e8a55576bfaa90"
+  "peak": 1574877440,
+  "rms_db": -11.98,
+  "sha256": "567751ca8e081f07f217974b0c4b424201949de98efb54c1d3f72b6da24cca07"
  },
  "RS_AUDIO_DRIVE": {
   "frames": 384000,
   "peak": 724327424,
-  "rms_db": -18.86,
-  "sha256": "c0b7888aae5d6d82ed398228438d330c862f87746207b6b381da387fe650fc95"
+  "rms_db": -18.91,
+  "sha256": "5b70415ad7d3801144dde29404be8cb3f79d8b258cd2e1503a04805743ba7ef6"
  },
  "RS_AUDIO_DUCKED": {
   "frames": 384000,
@@ -67,15 +67,15 @@
  },
  "RS_AUDIO_FILTERS": {
   "frames": 384000,
-  "peak": 2107020288,
-  "rms_db": -8.99,
-  "sha256": "e2049725e4173d6725dae131bee3d44df2f4bc7d878c33d88c77df8e01010211"
+  "peak": 2109623296,
+  "rms_db": -9.05,
+  "sha256": "2938d13bc9318e964905370039474f6f6f8c217b814d55dfc72b05b9774b114d"
  },
  "RS_AUDIO_FILTER_FADE": {
   "frames": 384000,
-  "peak": 1141902080,
-  "rms_db": -15.43,
-  "sha256": "6a24015c2bd7897200a4e36a9da97924dc8688ca12eea947fdf37d02540097b1"
+  "peak": 1143191808,
+  "rms_db": -15.55,
+  "sha256": "22be9038c06fd37403a185dd7c111d9bc310f84965633d0a4be9b51aba213f43"
  },
  "RS_AUDIO_FX": {
   "frames": 384000,
@@ -98,8 +98,26 @@
  "RS_AUDIO_STRETCH_EDGES": {
   "frames": 384000,
   "peak": 1456987392,
-  "rms_db": -15.38,
-  "sha256": "8e9b7b91d1204004b08d25dc9307eb75bfe18f18cce959fbbbcd4899964234f9"
+  "rms_db": -15.33,
+  "sha256": "11d2d9370a5264eb021f10fcc99a83347f2ec4e9fb668e2117967c47f40f7791"
+ },
+ "RS_AUDIO_STRETCH_LATE": {
+  "frames": 384000,
+  "peak": 213654016,
+  "rms_db": -30.93,
+  "sha256": "66a7c2281b6acb3801801ab46f914442eb79b73dab76105139d9fbc732c27cd3"
+ },
+ "RS_AUDIO_STRETCH_LENGTH": {
+  "frames": 384000,
+  "peak": 87172352,
+  "rms_db": -50.29,
+  "sha256": "9f5b64500003e29bc9ba6845370f9fc9ef660268cf48e272d4750979cf641431"
+ },
+ "RS_AUDIO_STRETCH_MARKER": {
+  "frames": 384000,
+  "peak": 87173376,
+  "rms_db": -50.95,
+  "sha256": "addf9a71671c19588f4c6e2042997e814fd5587eeb5779963995b98afc95f78b"
  },
  "RS_AUDIO_STRETCH_NATIVE": {
   "frames": 384000,
@@ -163,9 +181,9 @@
  },
  "RS_GRAIN_SWITCH": {
   "frames": 384000,
-  "peak": 983380480,
-  "rms_db": -21.24,
-  "sha256": "2e1bd39e6aefd2d60fd82c0f841342b7547ee313db94eac91f82155be431c00e"
+  "peak": 1111040000,
+  "rms_db": -21.19,
+  "sha256": "1a4349a8bf9df9a9567bb9eca116520bf94647d35a8ccb72028f67b3ed3a5483"
  },
  "RS_KIT_COMP": {
   "frames": 384000,
@@ -254,8 +272,8 @@
  "RS_MODFX_CLEAR": {
   "frames": 384000,
   "peak": 1127436288,
-  "rms_db": -21.95,
-  "sha256": "829dbaa280c9bc5172bde33ae0f7cbc973574de6cd4aebf80ad5c2ce4437e9b7"
+  "rms_db": -21.88,
+  "sha256": "9f02c5a8f9302ad610570121cf05d7c7349a33e414b91d498189496a2d146867"
  },
  "RS_MODFX_MONO": {
   "frames": 384000,
@@ -295,9 +313,9 @@
  },
  "RS_REVERB_DIGITAL": {
   "frames": 384000,
-  "peak": 409601792,
-  "rms_db": -25.34,
-  "sha256": "1d5bbe01254eddec29a88c8b90c246a856db566a9e5fbf4aba5a7f8ef92d4d2b"
+  "peak": 418076672,
+  "rms_db": -25.6,
+  "sha256": "28580515bf01aeb8ec1603facbd6ec5a27e1db0582c1f1bb80da259de95cc023"
  },
  "RS_REVERB_DUCK_OVERRIDE": {
   "frames": 384000,
@@ -314,20 +332,20 @@
  "RS_REVERB_FREEVERB": {
   "frames": 384000,
   "peak": 490156032,
-  "rms_db": -26.52,
-  "sha256": "c1e66bdac827963bce96fc68e5454e07bb383c8b5e30c5a98445378c192ae051"
+  "rms_db": -26.73,
+  "sha256": "3052f63d5c381ee46929443dacd9cfdb3ba78fee7af76668b065a19d9a431387"
  },
  "RS_REVERB_MUTABLE": {
   "frames": 384000,
   "peak": 676869888,
-  "rms_db": -21.95,
-  "sha256": "187e572eec85d866275902a805d7fcf839bdb838b3a6db6f4fce4ba117384c66"
+  "rms_db": -22.25,
+  "sha256": "754a1018a37df1b54e6414009068edd44ed00761ef15ce6c9bc232669df67b60"
  },
  "RS_REVERB_SWITCH": {
   "frames": 384000,
   "peak": 676869888,
-  "rms_db": -23.01,
-  "sha256": "9d93f509a839447c509280dd207ccb1b3841dcbd02c6bac4fb58f4d6415cfa1b"
+  "rms_db": -23.19,
+  "sha256": "87ff5e7264c3ebb54b05e8bb47076507acbff19739cfe5656c6dd920f0b46215"
  },
  "RS_STREAM": {
   "frames": 384000,
@@ -337,9 +355,9 @@
  },
  "RS_STUTTER_AUDIO": {
   "frames": 384000,
-  "peak": 1149059840,
-  "rms_db": -14.48,
-  "sha256": "e3b2789f9e3292dff4396d5436df43152425660394f18e6c5413c44d008d8f5a"
+  "peak": 1143191808,
+  "rms_db": -14.58,
+  "sha256": "a80145f7a8ad5e24a64b78cc78043cd0d0314e073e11a09a3f27b028a8db1a6f"
  },
  "RS_STUTTER_HANDOFF": {
   "frames": 384000,
@@ -355,21 +373,21 @@
  },
  "RS_STUTTER_MASTER": {
   "frames": 384000,
-  "peak": 1149059840,
-  "rms_db": -13.94,
-  "sha256": "9cb20d7020e1b16649248a7a8bdd8787202ea402b6e7a936025dd702bb00a012"
+  "peak": 1143191808,
+  "rms_db": -14.03,
+  "sha256": "66039daa150e1f8d7ef3f0dcb0106bb1a1f98e93b963c87ef6bc8c88d65e8769"
  },
  "RS_STUTTER_RATE": {
   "frames": 384000,
-  "peak": 1149059840,
-  "rms_db": -13.93,
-  "sha256": "bd58383594105bb84e1fdb92c940992d13a352cae0710a26e2cdbd2c4ea441db"
+  "peak": 1143191808,
+  "rms_db": -14.02,
+  "sha256": "4eefb035dbd15da909425b1329a24ae83e51aeb341437c71359355888208e6af"
  },
  "RS_STUTTER_SYNTH": {
   "frames": 384000,
-  "peak": 1149059840,
-  "rms_db": -14.73,
-  "sha256": "d1dfa568641b97101832a3bc621a8822d73f525723a878853aab19c694f91f0f"
+  "peak": 1143191808,
+  "rms_db": -14.84,
+  "sha256": "b289e35f85db494b045421681d152a1f80c99cf20acc32ee61047e32bd8f5aa3"
  },
  "RS_TEMPO_DELAYS": {
   "frames": 384000,

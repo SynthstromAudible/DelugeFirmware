@@ -8,6 +8,8 @@ adds what depends on the song, and why each check is here:
                       nothing, and every other check would pass on silence.
     RS-STREAM reads   card reads while playing. None means the samples were already resident, so nothing streamed.
     RS-UNDERRUN       none. The harness's card answers at once, so an underrun here is a loader fault, not a slow card.
+                      A gate may allow waits (RENDER_UNDERRUN_WAIT_MAX): a late start into a sample asks for its
+                      chunk only at the play press, so it waits for it once however fast the card answers.
     RS-CAPTURE        the width the gate asked for: stereo with RENDER_STEREO=1 (headphones plugged in), mono otherwise.
                       A scenario that ignored the variable would render the other width and record it.
     RS-SWELL          the generated song only: its samples swell and fade twice in their six seconds, so the output's
@@ -33,6 +35,15 @@ adds what depends on the song, and why each check is here:
     RS-DELAY-ARENA    no tape the render could not take from the delay arena: a delay that finds it short passes the
                       audio through until the arena's job tops it up, so on these songs every delay starts on the
                       block it asks to.
+    RS-ALLOC          a gate that sets a ceiling (RENDER_ALLOC_MAX) only: the audio-tier allocations made while the
+                      output was captured are no more than it. A stretched song's render allocates where a stretcher
+                      crossfades out of a cache, and a rewrite that allocated more would still render the same output.
+    RS-RESIZE         a gate that resizes an audio clip mid-render (RENDER_CLIP_RESIZE) only: every resize asked for
+                      applied, each while the clip's voice played and stretched. A resize that found no voice would
+                      reseat nothing, and the gate would pin a clip that is simply shorter.
+    RS-PLAYFROM       a gate that starts playback part-way through (RENDER_PLAY_FROM) only: the arrangement's playback
+                      started at the tick asked for (its own start position, not the knob read back), and an audio
+                      clip started late into its sample, as <> + play does.
     RS-STUTTER        a gate that stutters an owner (RENDER_STUTTER) only: the scenario's summary must show every begin
                       and end asked for made, and scenario ticks in which an owner stuttered. A begin the owner refused
                       would leave the song rendering unstuttered for some of its span and still compare with a record
@@ -40,7 +51,8 @@ adds what depends on the song, and why each check is here:
     RS-METRONOME      a gate that switches the metronome on (RENDER_METRONOME) only: the switch applied, leaving it on.
     RS-SWITCH         a gate that switches delays, mod FX types, the reverb or the metronome, clears mod FX memory,
                       changes the tempo or stutters, mid-render (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH,
-                      RENDER_MODFX_CLEAR, RENDER_REVERB_SWITCH, RENDER_TEMPO, RENDER_STUTTER, RENDER_METRONOME) only:
+                      RENDER_MODFX_CLEAR, RENDER_REVERB_SWITCH, RENDER_TEMPO, RENDER_STUTTER, RENDER_METRONOME,
+                      RENDER_CLIP_RESIZE, RENDER_PLAY_FROM) only:
                       the same song rendered
                       unswitched must render differently, or the switches never reached the render.
     RS-PCM            the rendered output, against its record in tests/golden/render/songs.json: the same
@@ -88,6 +100,8 @@ SWITCHES = (
     "RENDER_TEMPO",
     "RENDER_STUTTER",
     "RENDER_METRONOME",
+    "RENDER_CLIP_RESIZE",
+    "RENDER_PLAY_FROM",
 )
 
 
@@ -302,6 +316,83 @@ def _check_delay_arena(gate, result) -> None:
         gate.fail(f"RS-DELAY-ARENA — {shortfalls} tapes found the arena short ({line})")
 
 
+def _check_allocations(gate, result) -> None:
+    """The render allocated no more than the gate's ceiling (see RS-ALLOC)."""
+    ceiling = gate.env.get("RENDER_ALLOC_MAX")
+    if not ceiling:
+        return
+    line = result.last("RS-ALLOC ")
+    allocations = int_field(line, "render_allocations")
+    if allocations is None:
+        gate.fail("RS-ALLOC — no RS-ALLOC render_allocations= line")
+    elif allocations > int(ceiling):
+        gate.fail(
+            f"RS-ALLOC — {allocations} render allocations, over the ceiling of {ceiling} ({line})"
+        )
+
+
+def _check_underrun(gate, result) -> None:
+    """Playback missed no sample data, but for the waits the gate allows (see RS-UNDERRUN)."""
+    line = result.last("RS-UNDERRUN ")
+    wait = int_field(line, "wait")
+    unassign = int_field(line, "unassign")
+    allowed = int(gate.env.get("RENDER_UNDERRUN_WAIT_MAX") or 0)
+    if wait is None or unassign is None or wait > allowed or unassign != 0:
+        gate.fail(
+            f"RS-UNDERRUN — playback missed sample data at a card that answers at once ({line})"
+        )
+
+
+def parse_clip_resizes(spec: str) -> list[tuple[int, str, int]] | str:
+    """RENDER_CLIP_RESIZE's `<block>:<end|stretch>:<ticks>,...` as (block, gesture, ticks), or what is wrong with it:
+    a block or length that is not a number, an unknown gesture, or blocks out of ascending order."""
+    resizes = []
+    for item in spec.split(","):
+        parts = item.split(":")
+        if len(parts) != 3 or not parts[0].isdigit() or not parts[2].isdigit():
+            return f"{item!r} is not <block>:<end|stretch>:<ticks>"
+        if parts[1] not in ("end", "stretch"):
+            return f"{item!r}: the gesture is neither end nor stretch"
+        resizes.append((int(parts[0]), parts[1], int(parts[2])))
+    if [r[0] for r in resizes] != sorted(r[0] for r in resizes):
+        return f"{spec!r}: the blocks are not ascending"
+    return resizes
+
+
+def _check_resize(gate, result) -> None:
+    """Every clip resize asked for applied, each with the clip's voice playing and stretching (see RS-RESIZE). A
+    malformed list fails rather than passing unread."""
+    spec = gate.env.get("RENDER_CLIP_RESIZE")
+    if not spec:
+        return
+    parsed = parse_clip_resizes(spec)
+    if isinstance(parsed, str):
+        gate.fail(f"RS-RESIZE — RENDER_CLIP_RESIZE {parsed}")
+        return
+    line = result.last("RS-RESIZE applied=")
+    applied = int_field(line, "applied")
+    asked = int_field(line, "asked")
+    live = int_field(line, "live")
+    if applied is None or asked is None or live is None:
+        gate.fail("RS-RESIZE — no RS-RESIZE applied= line")
+    elif applied != asked or live != asked:
+        gate.fail(
+            f"RS-RESIZE — a resize did not apply, or found no stretched voice playing ({line})"
+        )
+
+
+def _check_play_from(gate, result) -> None:
+    """Playback started where the gate asked, into a late start (see RS-PLAYFROM)."""
+    tick = gate.env.get("RENDER_PLAY_FROM")
+    if not tick:
+        return
+    line = result.last("RS-PLAYFROM ")
+    asked = int_field(line, "asked")
+    started = int_field(line, "started")
+    if asked != int(tick) or started != asked or int_field(line, "late") != 1:
+        gate.fail(f"RS-PLAYFROM — playback did not start late at tick {tick} ({line})")
+
+
 def _check_stutter(gate, result) -> None:
     """Every stutter asked for began and ended, and an owner stuttered in some tick (see RS-STUTTER)."""
     if not gate.env.get("RENDER_STUTTER"):
@@ -404,6 +495,9 @@ def run(gate):
     _check_delay_off(gate, result)
     _check_song_automation(gate, result)
     _check_delay_arena(gate, result)
+    _check_allocations(gate, result)
+    _check_resize(gate, result)
+    _check_play_from(gate, result)
     _check_stutter(gate, result)
     _check_metronome(gate, result)
 
@@ -415,11 +509,7 @@ def run(gate):
     reads = int_field(result.last("RS-STREAM "), "reads")
     if reads is None or reads <= 0:
         gate.fail("RS-STREAM — no card read while playing: nothing streamed")
-    underrun = result.last("RS-UNDERRUN ")
-    if int_field(underrun, "wait") != 0 or int_field(underrun, "unassign") != 0:
-        gate.fail(
-            f"RS-UNDERRUN — playback missed sample data at a card that answers at once ({underrun})"
-        )
+    _check_underrun(gate, result)
 
     pcm = pcm_path.read_bytes()
     if any(gate.env.get(switch) for switch in SWITCHES):

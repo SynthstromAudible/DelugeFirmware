@@ -26,6 +26,7 @@
 #include "storage/audio/stream/convert.h"
 #include "storage/audio/stream/sample_stream.h"
 #include "storage/cluster/cluster.h" // Cluster::size_magnitude, for geometricClusterCount()
+#include "synth/sources/sample/perc_fill.h"
 #include "util/containers.h"
 #include "util/functions.h"
 #include "util/segmented_vector.h" // deluge::SegmentedVector, for overviewCache_
@@ -93,8 +94,11 @@ public:
 	void deleteCache(SampleCache* cache);
 	int32_t getFirstClusterIndexWithAudioData();
 	int32_t getFirstClusterIndexWithNoAudioData();
-	Error fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-	                    int32_t playDirection, int32_t maxNumSamplesToProcess);
+	/// @brief Fills the perc store from @p startPosSamples towards @p endPosSamples in @p playDirection, at most
+	/// @p maxNumSamplesToProcess frames, through the shared perc analysis; returns what the time stretcher reading it
+	/// must keep and reserve.
+	deluge::synth::PercFill fillPercCache(int32_t startPosSamples, int32_t endPosSamples, int32_t playDirection,
+	                                      int32_t maxNumSamplesToProcess);
 	void percCacheClusterStolen(ComputedChunk* cluster);
 	void deletePercCache(bool beingDestructed = false);
 	uint8_t* prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,

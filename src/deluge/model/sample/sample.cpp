@@ -359,8 +359,15 @@ void Sample::deleteCache(SampleCache* cache) {
 #define MEASURE_PERC_CACHE_PERFORMANCE 0
 
 // Returns error
-Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-                            int32_t playDirection, int32_t maxNumSamplesToProcess) {
+deluge::synth::PercFill Sample::fillPercCache(int32_t startPosSamples, int32_t endPosSamples, int32_t playDirection,
+                                              int32_t maxNumSamplesToProcess) {
+	deluge::synth::PercFill fill;
+	// A fill touches at most two perc chunks; a third would go unleased
+	auto touch = [&fill](deluge::synth::PercChunk chunk) {
+		if (!fill.touch(chunk) && ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("PCF3");
+		}
+	};
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
@@ -372,31 +379,20 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 	int32_t const filledToEndOfWaveform = playDirection * (std::numeric_limits<int32_t>::max() / 2);
 
 	// If the start pos is already beyond the waveform, we can get out right now!
-	if (!reversed) {
-		if (startPosSamples >= lengthInSamples) {
-			timeStretcher->percCacheFillEndPos = filledToEndOfWaveform;
-			return Error::NONE;
-		}
-	}
-	else {
-		if (startPosSamples < 0) {
-			timeStretcher->percCacheFillEndPos = filledToEndOfWaveform;
-			return Error::NONE;
-		}
+	if (reversed ? (startPosSamples < 0) : (startPosSamples >= lengthInSamples)) {
+		fill.filled_end = filledToEndOfWaveform;
+		return fill;
 	}
 
 	LOCK_ENTRY
 
 	AudioEngine::logAction("fillPercCache");
 
-	timeStretcher->percCacheFillEndPos = startPosSamples; // Until we find a zone
+	fill.filled_end = startPosSamples; // Until we find a zone
 
-	// int32_t lengthInSamplesAfterReduction = ((lengthInSamples + (kPercBufferReductionSize >> 1)) >>
-	// PERC_BUFFER_REDUCTION_MAGNITUDE);
-	int32_t lengthInSamplesAfterReduction = ((lengthInSamples - 1) >> kPercBufferReductionMagnitude) + 1;
-	lengthInSamplesAfterReduction = std::max(lengthInSamplesAfterReduction, 1_i32); // Can't allocate less than 1 byte
-
-	bool percCacheDoneWithClusters = (lengthInSamplesAfterReduction >= (Cluster::size >> 1));
+	const auto layout = deluge::dsp::fixed::timestretch::perc_store_layout(lengthInSamples, Cluster::size);
+	const int32_t lengthInSamplesAfterReduction = layout.bytes;
+	const bool percCacheDoneWithClusters = layout.chunked;
 
 	if (percCacheDoneWithClusters) {
 		if (!percCacheClusters[reversed]) {
@@ -406,7 +402,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			percCacheClusters[reversed] = (ComputedChunk**)deluge::memory::alloc_fast(memorySize);
 			if (!percCacheClusters[reversed]) {
 				LOCK_EXIT
-				return Error::INSUFFICIENT_RAM;
+				return fill;
 			}
 
 			memset(percCacheClusters[reversed], 0, memorySize);
@@ -442,7 +438,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			percCacheMemory[reversed] = (uint8_t*)deluge::memory::alloc_sdram(percCacheSize);
 			if (!percCacheMemory[reversed]) {
 				LOCK_EXIT
-				return Error::INSUFFICIENT_RAM;
+				return fill;
 			}
 
 			// D_PRINTLN("allocated percCacheMemory");
@@ -462,7 +458,6 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 		i = searchPercCacheZones(percCacheZones[reversed], startPosSamples, GREATER_OR_EQUAL);
 	}
 
-	Error error = Error::NONE;
 	SamplePercCacheZone* percCacheZone;
 	if (i >= 0 && i < static_cast<int32_t>(percCacheZones[reversed].size())) {
 		percCacheZone = &percCacheZones[reversed][i];
@@ -488,10 +483,10 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 			// If the (potentially made-later) start pos is already beyond the waveform, get out (otherwise we'd be
 			// prone to an error getting the perc Cluster below. Fixed Aug 2021
 			if (reversed ? (startPosSamples < 0) : (startPosSamples >= lengthInSamples)) {
-				timeStretcher->percCacheFillEndPos = filledToEndOfWaveform;
+				fill.filled_end = filledToEndOfWaveform;
 doReturnNoError:
 				LOCK_EXIT
-				return Error::NONE;
+				return fill;
 			}
 
 			// First, update our "current pos for perc cache filling and reading" sorta thing so
@@ -518,9 +513,8 @@ doReturnNoError:
 					}
 				}
 #endif
-				if (clusterHere) {
-					timeStretcher->rememberPercCacheCluster(
-					    clusterHere); // If at start of new cluster, there might not be one allocated here yet
+				if (clusterHere) { // If at start of new cluster, there might not be one allocated here yet
+					touch({.reversed = reversed != 0, .index = percClusterIndexStart});
 				}
 			}
 
@@ -548,15 +542,15 @@ doReturnNoError:
 #endif
 						}
 						else {
-							timeStretcher->rememberPercCacheCluster(percCacheClusters[reversed][percClusterIndexEnd]);
+							touch({.reversed = reversed != 0, .index = percClusterIndexEnd});
 						}
 					}
 				}
 
 				// We're now guaranteed to have a bunch of perc cache secured in RAM, un-stealable. So we can take a
 				// breather and know we won't need access to the source Clusters for it anytime very soon
-				timeStretcher->unassignAllReasonsForPercLookahead();
-				timeStretcher->percCacheFillEndPos = percCacheZone->endPos;
+				fill.lookahead = deluge::synth::PercFill::Lookahead::LET_GO;
+				fill.filled_end = percCacheZone->endPos;
 
 				goto doReturnNoError;
 			}
@@ -581,7 +575,7 @@ doReturnNoError:
 		percCacheZones[reversed].insert(percCacheZones[reversed].begin() + i, SamplePercCacheZone(startPosSamples));
 	} catch (deluge::exception&) {
 		LOCK_EXIT
-		return Error::INSUFFICIENT_RAM;
+		return fill;
 	}
 
 	percCacheZone = &percCacheZones[reversed][i];
@@ -651,6 +645,8 @@ doLoading:
 		}
 
 		uint8_t* percCacheNow;
+		int32_t percPixelOrigin;
+		int32_t percPixelCount;
 		if (percCacheDoneWithClusters) {
 			int32_t percClusterIndex = startPosSamples >> (Cluster::size_magnitude + kPercBufferReductionMagnitude);
 			if (percClusterIndex >= numPercCacheClusters) {
@@ -671,16 +667,16 @@ doLoading:
 				void* p =
 				    deluge_resource_request(mgr, percCacheAssetId[reversed], percClusterIndex, kSlabBackedSizeIgnored);
 				if (p == nullptr) {
-					error = Error::INSUFFICIENT_RAM;
 					goto getOut;
 				}
 				deluge_resource_release(mgr, p);
 			}
 
-			timeStretcher->rememberPercCacheCluster(percCacheClusters[reversed][percClusterIndex]);
+			touch({.reversed = reversed != 0, .index = percClusterIndex});
 
-			percCacheNow = reinterpret_cast<uint8_t*>(percCacheClusters[reversed][percClusterIndex]->payload().data())
-			               - (percClusterIndex * Cluster::size);
+			percCacheNow = reinterpret_cast<uint8_t*>(percCacheClusters[reversed][percClusterIndex]->payload().data());
+			percPixelOrigin = percClusterIndex * Cluster::size;
+			percPixelCount = Cluster::size;
 
 			int32_t posWithinPercClusterBig = startPosSamples & ((Cluster::size << kPercBufferReductionMagnitude) - 1);
 
@@ -693,6 +689,8 @@ doLoading:
 
 		else {
 			percCacheNow = percCacheMemory[reversed];
+			percPixelOrigin = 0;
+			percPixelCount = lengthInSamplesAfterReduction;
 		}
 
 		// Don't call getCluster() - that would add a reason, and potentially do loading and stuff. This
@@ -713,92 +711,28 @@ doLoading:
 			numSamplesThisClusterReadWrite = bytesLeftThisSourceCluster / bytesPerSample;
 		}
 
-		// Do some stuff here kind of ahead of time, before we go and decrement numSamplesThisClusterReadWrite
+		// Move the zone's end and the source position on first, in case the next cluster fails
 		numSamples -= numSamplesThisClusterReadWrite;
-		percCacheZone->endPos +=
-		    numSamplesThisClusterReadWrite * playDirection; // Do this now, in case the next Cluster fails
+		percCacheZone->endPos += numSamplesThisClusterReadWrite * playDirection;
 		sourceBytePos += numSamplesThisClusterReadWrite * posIncrement;
 
-		// Alright, load those samples. `window.frames` points AT this frame's own bytes; the `+ byteDepth - 4`
-		// aligns for the `int32`-over-`byteDepth` read below, and the `bytesLeftThisSourceCluster` clamp keeps a
-		// boundary-straddling frame reading this cluster's own physical slack.
-		char* currentPos = reinterpret_cast<char*>(const_cast<void*>(window.frames)) + byteDepth - 4;
-
-		do {
-			int32_t numSamplesThisPercPixelSegment = numSamplesThisClusterReadWrite;
-
-			int32_t numSamplesLeftThisPercPixelSegment =
-			    reversed ? (startPosSamples + 1 + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1)
-			             : kPercBufferReductionSize
-			                   - ((startPosSamples + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1));
-
-			if (!numSamplesLeftThisPercPixelSegment) {
-				numSamplesLeftThisPercPixelSegment = kPercBufferReductionSize;
-			}
-
-			numSamplesThisPercPixelSegment =
-			    std::min(numSamplesThisPercPixelSegment, numSamplesLeftThisPercPixelSegment);
-
-			char* endPos = currentPos + numSamplesThisPercPixelSegment * posIncrement;
-
-			int32_t angle;
-
-			while (true) { // I've put reasonable effort into benchmarking / optimizing this loop - I don't think it can
-				           // be improved much more
-				int32_t thisSampleRead =
-				    *(int32_t*)currentPos
-				    >> 2; // Have to make it smaller even if only one, so the "angle" doesn't overflow
-				if (numChannels == 2) {
-					thisSampleRead += *(int32_t*)(currentPos + byteDepth) >> 2;
-				}
-
-				angle = thisSampleRead - percCacheZone->lastSampleRead;
-				percCacheZone->lastSampleRead = thisSampleRead;
-				if (angle < 0) {
-					angle = -angle;
-				}
-
-				for (auto& pole : percCacheZone->angleLPFMem) {
-					int32_t distanceToGo = angle - pole;
-					pole += distanceToGo
-					        >> 9; // multiply_32x32_rshift32_rounded(distanceToGo, 1 << 23); //distanceToGo >> 9;
-					angle = pole;
-				}
-
-				currentPos += posIncrement;
-				if (currentPos == endPos) {
-					break;
-				}
-
-				percCacheZone->lastAngle = angle; // This gets skipped for the last one - and done below
-			}
-
-			startPosSamples += numSamplesThisPercPixelSegment * playDirection;
-
-			int32_t posWithinPercPixel = startPosSamples & (kPercBufferReductionSize - 1);
-
-			if (posWithinPercPixel == (kPercBufferReductionSize >> 1) - reversed) {
-
-				int32_t difference = angle - percCacheZone->lastAngle;
-				if (difference < 0) {
-					difference = -difference;
-				}
-
-				// angle is 0 over a perfectly flat region (silence / DC / a held constant value). On the
-				// ARM target an integer divide-by-zero yields 0 and playback carries on; x86 (the host
-				// renderer) traps with SIGFPE instead, so guard explicitly to keep host/hardware parity.
-				int32_t percussiveness = (angle != 0) ? (((uint64_t)difference * 262144 / angle) >> 1) : 0;
-
-				// The integer slope ratio read as Q31; the curve's word is stored as the perc cache's byte.
-				percussiveness = deluge::dsp::fixed::tanh<23>(deluge::dsp::Q<31>::from_raw(percussiveness)).raw();
-
-				percCacheNow[startPosSamples >> kPercBufferReductionMagnitude] = percussiveness;
-			}
-
-			percCacheZone->lastAngle = angle;
-
-			numSamplesThisClusterReadWrite -= numSamplesThisPercPixelSegment;
-		} while (numSamplesThisClusterReadWrite);
+		// Analyse those frames. `window.frames` points AT this frame's own bytes, so the unmasked read origin is
+		// `byteDepth - 4` on; the `bytesLeftThisSourceCluster` clamp keeps a boundary-straddling frame reading this
+		// cluster's own physical slack.
+		const deluge::dsp::fixed::sample_read::FrameRun run{
+		    .first = reinterpret_cast<const std::byte*>(window.frames) + byteDepth - 4,
+		    .frames = numSamplesThisClusterReadWrite,
+		    .stride = posIncrement,
+		    .channels = static_cast<int8_t>(numChannels),
+		    .byte_depth = static_cast<int8_t>(byteDepth),
+		};
+		deluge::dsp::fixed::timestretch::analyse(run, startPosSamples, numSamplesThisClusterReadWrite,
+		                                         reversed ? deluge::dsp::fixed::sample_read::Direction::REVERSE
+		                                                  : deluge::dsp::fixed::sample_read::Direction::FORWARD,
+		                                         percCacheZone->perc,
+		                                         std::span<uint8_t>(percCacheNow, static_cast<size_t>(percPixelCount)),
+		                                         percPixelOrigin);
+		startPosSamples += numSamplesThisClusterReadWrite * playDirection;
 
 	} while (numSamples);
 
@@ -837,7 +771,7 @@ doLoading:
 #endif
 
 getOut:
-	timeStretcher->percCacheFillEndPos = percCacheZone->endPos;
+	fill.filled_end = percCacheZone->endPos;
 
 	// If we failed to do the loading we wanted to, e.g. because of insufficient RAM, we need to make sure we didn't
 	// leave a 0-length zone, cos that's invalid.
@@ -850,11 +784,12 @@ getOut:
 	// allowed to.
 	LOCK_EXIT
 
-	// If current source Cluster has changed, update TimeStretcher's queue
-	timeStretcher->updateClustersForPercLookahead(this, sourceBytePos, playDirection);
+	// The stretcher moves its lookahead reservation of source audio on to where the fill stopped
+	fill.lookahead = deluge::synth::PercFill::Lookahead::MOVE_TO;
+	fill.lookahead_byte = sourceBytePos;
 
 	AudioEngine::logAction("/fillPercCache");
-	return error; // Usually it'll be Error::NONE.
+	return fill;
 }
 
 bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,

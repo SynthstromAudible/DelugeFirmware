@@ -46,6 +46,10 @@ whole, a clip whose pitch adjust is raised, and a source over 2^22 frames long, 
 clusters: played forwards from 0 into a loop's cache zone further on, and looped across a cache cluster's end forwards
 and reversed (STRETCH_EDGE_TRACKS).
 Its twin ties pitch and speed on every clip.
+RS_AUDIO_STRETCH_MARKER and RS_AUDIO_STRETCH_LENGTH each play the percussive source stretched (STRETCH_EDIT_TRACKS) for a
+gate that resizes the clip while its voice plays: its end marker dragged in, and its length stretched.
+RS_AUDIO_STRETCH_LATE is RS_AUDIO_STRETCH_ARRANGED under its own name, for a gate that starts playback part-way through
+its instances. These gates switch something mid-render, so each is compared with itself unswitched, not with a twin.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_BITCRUSH covers the bitcrush paths the FX songs leave out: a kit's bit depth alone at preset 6, an audio track's
@@ -1271,6 +1275,10 @@ ARRANGED_TRACKS = (
         ((0, 200), (208, 1700)),
     ),
 )
+# RS_AUDIO_STRETCH_MARKER's and RS_AUDIO_STRETCH_LENGTH's one clip: the percussive source stretched at about 1.115, so
+# a resize while it plays finds its voice stretching. The records are keyed by song, so each gate plays it under its
+# own name.
+STRETCH_EDIT_TRACKS = (("RSPERC", "SAMPLES/RS/PERC.WAV", 0, 32768, 128, ""),)
 # RS_AUDIO_STRETCH_EDGES's clips, at 120 BPM, each at an edge of the stretcher's paths or its caller's:
 #   RSTIGHT   ~1.115  the tone from 8 to 3,592: a loop end's crossfade would start further back than its 8-frame
 #                     pre-margin reaches, so that hop is placed as any other, and the phase search can take a hop back
@@ -1560,6 +1568,9 @@ SONGS = {
     ),
     "RS_AUDIO_STRETCH_ARRANGED": lambda v: stretch_arranged_song(independent=True),
     "RS_AUDIO_STRETCH_ARRANGED_DRY": lambda v: stretch_arranged_song(independent=False),
+    "RS_AUDIO_STRETCH_MARKER": lambda v: stretch_song(STRETCH_EDIT_TRACKS),
+    "RS_AUDIO_STRETCH_LENGTH": lambda v: stretch_song(STRETCH_EDIT_TRACKS),
+    "RS_AUDIO_STRETCH_LATE": lambda v: stretch_arranged_song(independent=True),
     "RS_AUDIO_STRETCH_EDGES": lambda v: stretch_song(
         STRETCH_EDGE_TRACKS, params=STRETCH_EDGE_PARAMS
     ),

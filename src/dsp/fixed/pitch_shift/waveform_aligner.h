@@ -17,12 +17,14 @@
 #pragma once
 
 #include "dsp/fixed/pitch_shift/input_history.h"
-#include "dsp/fixed/timestretch/crossfade.h" // totalDifferenceAbs, totalChange
+#include "dsp/fixed/timestretch/waveform_search.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <optional>
+#include <type_traits>
 
 /// @file
 /// @brief Lining a new hop's head up with the old one: the offset at which their waveforms match best.
@@ -72,149 +74,44 @@ public:
 		    < static_cast<uint32_t>(window)) {
 			return {};
 		}
-		Run run(history, search, old_totals, latest_frames);
-		return run.result();
+		const RingReader<Frame> reader{&history, search, latest_frames};
+		const timestretch::SearchShape shape{.flips_to_stop = 2,
+		                                     .first_direction = search.direction,
+		                                     .turns = search.directions_searched == 0,
+		                                     .sub_sample = search.sub_sample};
+		const timestretch::SearchResult found = timestretch::search(
+		    reader, shape, old_totals, history.moving_averages(RingPosition{search.start}, search.length),
+		    search.length, search.size);
+		return {.offset = found.offset, .phase = found.phase};
 	}
 
 private:
-	/// @brief One alignment's search, pass by pass.
+	/// @brief The history read in ring order from the search's window, as the shared search reads frames.
 	template <typename Frame>
-	class Run {
-	public:
-		Run(const InputHistory<Frame>& history, const Search& search, const MovingAverages& old_totals,
-		    uint64_t latest_frames)
-		    : history_(&history), search_(search), old_(old_totals), latest_(latest_frames),
-		      new_totals_(history.moving_averages(RingPosition{search.start}, search.length)),
-		      best_difference_(totalDifferenceAbs(old_, new_totals_)), initial_change_(totalChange(old_, new_totals_)),
-		      direction_(search.direction), directions_searched_(search.directions_searched) {}
+	struct RingReader {
+		const InputHistory<Frame>* history;
+		Search search;
+		uint64_t latest{};
 
-		[[nodiscard]] Alignment result() {
-			while (true) {
-				const Outcome outcome = pass();
-				if (outcome == Outcome::STOP) {
-					break;
-				}
-				if (outcome == Outcome::TURN) {
-					direction_ = -direction_; // Turned at the first step: this direction is not yet searched
-					continue;
-				}
-				++directions_searched_;
-				if (directions_searched_ >= 2) {
-					break;
-				}
-				direction_ = -direction_;
-			}
-			return found_;
+		[[nodiscard]] std::optional<int32_t> folded(int32_t frame) const {
+			return history->folded_high_word(RingPosition{search.start} + frame);
 		}
-
-	private:
-		enum class Outcome : uint8_t { STOP, NEXT_DIRECTION, TURN };
-
-		using Reads = std::array<RingPosition, kMovingAverages + 1>;
-
-		/// @brief One direction's slide from the window's start.
-		Outcome pass() {
-			int32_t last_change = initial_change_;
-			Reads read{};
-			read[0] = RingPosition{search_.start};
-			if (direction_ == -1) {
-				read[0] = read[0] - 1;
+		/// How far the window may slide: forward to the latest frame, or back to the history's start.
+		[[nodiscard]] int32_t reach(int32_t direction, int32_t first_read) const {
+			if (direction == 1) {
+				return static_cast<int32_t>(
+				    static_cast<uint32_t>(latest - (RingPosition{search.start} + first_read).index())
+				    & (kHistoryFrames - 1));
 			}
-			MovingAverages running = new_totals_;
-			for (std::size_t i = 0; i < kMovingAverages; ++i) {
-				read[i + 1] = read[i] + search_.length;
-			}
-			const int32_t here = std::min(search_.size, reach(read));
-			if (here <= 0) {
-				return Outcome::NEXT_DIRECTION;
-			}
-			const int32_t end = here * direction_;
-
-			int32_t offset = 0;
-			do {
-				slide(read, running);
-				const int32_t difference = totalDifferenceAbs(old_, running);
-				if (offset == 0 && direction_ == 1 && directions_searched_ == 0 && difference > best_difference_) {
-					return Outcome::TURN;
-				}
-				const int32_t next = offset + direction_;
-				const bool best_here = difference < best_difference_;
-				if (best_here) {
-					best_difference_ = difference;
-					found_.offset = next;
-				}
-				const int32_t change = totalChange(old_, running);
-				if ((change >= 0) != (last_change >= 0)) {
-					if (search_.sub_sample && (best_here || offset == found_.offset)) {
-						place_between(change, last_change, best_here);
-					}
-					if (++sign_flips_ >= 2) {
-						return Outcome::STOP;
-					}
-				}
-				offset = next;
-				last_change = change;
-			} while (offset != end);
-			return Outcome::NEXT_DIRECTION;
-		}
-
-		/// @brief How far this direction may slide: back to the history's start, or forward to the latest frame.
-		[[nodiscard]] int32_t reach(const Reads& read) const {
-			if (direction_ == 1) {
-				return static_cast<int32_t>(static_cast<uint32_t>(latest_ - read[kMovingAverages].index())
-				                            & (kHistoryFrames - 1));
-			}
-			if (latest_ < kHistoryFrames) {
+			if (latest < kHistoryFrames) {
 				// Back to the history's start, less the frame the window already stepped back (quirk Q4,
 				// docs/dev/live_pitch_shifter_quirks.md); none left reads as 0
-				return std::max(static_cast<int32_t>(search_.start) - search_.start_offset - 1, 0);
+				return std::max(static_cast<int32_t>(search.start) - search.start_offset - 1, 0);
 			}
-			return search_.size;
+			return search.size;
 		}
-
-		/// @brief Slides the window one frame: each frame read moves from one average's total to the next's.
-		void slide(Reads& read, MovingAverages& running) const {
-			for (std::size_t i = 0; i < kMovingAverages + 1; ++i) {
-				const int32_t value = history_->folded_high_word(read[i]);
-				read[i] = read[i] + direction_;
-				if (i < kMovingAverages) {
-					running[i] -= value * direction_;
-				}
-				if (i > 0) {
-					running[i - 1] += value * direction_;
-				}
-			}
-		}
-
-		/// @brief The match placed between this frame and the last, by the sizes of the changes either side of the
-		/// sign's flip.
-		void place_between(int32_t change, int32_t last_change, bool best_here) {
-			const auto here = static_cast<uint32_t>(std::abs(change));
-			const auto last = static_cast<uint32_t>(std::abs(last_change));
-			found_.phase =
-			    static_cast<int32_t>((static_cast<uint64_t>(last) << 24) / static_cast<uint32_t>(last + here));
-			if (direction_ == -1) {
-				found_.phase = kOneFrame - found_.phase;
-			}
-			if (best_here != (direction_ == -1)) {
-				--found_.offset;
-			}
-		}
-
-		static constexpr int32_t kOneFrame = 1 << 24;
-
-		const InputHistory<Frame>* history_;
-		Search search_;
-		MovingAverages old_;
-		uint64_t latest_;
-		MovingAverages new_totals_;
-		int32_t best_difference_;
-		int32_t initial_change_;
-		int32_t direction_;
-		int32_t directions_searched_;
-		int32_t sign_flips_ = 0;
-		Alignment found_{};
 	};
+	static_assert(std::is_same_v<MovingAverages, timestretch::Averages>);
 };
 
 } // namespace deluge::dsp::fixed::pitch_shift

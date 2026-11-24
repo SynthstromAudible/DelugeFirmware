@@ -34,7 +34,8 @@ The differences accepted by name; everything else stays bit-identical, and the c
   where hops land, can change. Step 4 re-records the `sample/ts_*`, `sample/timestretch` and `RS_AUDIO_STRETCH*` goldens
   whose output changes; every other step is bit-identical to that baseline.
 - **Far below the root** (3): from about 7 octaves down the ratio reads unsigned and saturates at 256 instead of reading
-  negative or wrapping, and a one-frame hop gets a one-frame crossfade instead of dividing by zero.
+  negative or wrapping, a one-frame hop gets a one-frame crossfade instead of dividing by zero, and a search limit
+  of 0 (a hop of a few frames, or the increment that far down) searches nothing instead of reading on without bound.
 - **An abandoned alignment** (7) starts the head at phase 0, not at a phase found for an offset it did not take.
 - **A ninth crossfade out of a cache** (2) while all eight tail buffers are lent gets no crossfade, where the legacy
   allocates one.
@@ -47,27 +48,28 @@ The differences accepted by name; everything else stays bit-identical, and the c
 
 The goldens that pin the stretcher are the `sample/ts_*` and `sample/timestretch` render-preset cases and the
 `RS_AUDIO_STRETCH*` render-song gates (`tests/integration/checks/render_song_cases.md`). A host coverage build of them
-(`scripts/tasks/stretcher_coverage.py`) reaches 815 of the 1,040 branch sides of the stretcher and its users' stretcher
-functions. [time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 225 it does not reach, keyed by function
-and condition, each with a category, and a reason where the category's meaning does not already
-give it:
-- 67 the code itself rules out (defensive checks, conditions fixed by construction);
-- 88 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull;
+(`scripts/tasks/stretcher_coverage.py`) reaches 1,031 of the 1,374 branch sides of the stretcher, its users' stretcher
+functions and the whole sample reader. [time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 343 it does
+not reach, keyed by function and condition, each with a category, and a reason where the category's meaning does not
+already give it:
+- 110 the code itself rules out (defensive checks, conditions fixed by construction);
+- 120 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull
+  or to shrink a reader's sinc window;
 - 6 are not stretcher paths;
-- 64 are reachable on the device, and no gate scripts them. EDIT (18: an audio clip's marker moved while it plays, a
-  clip-length edit with its voice alive), LATE (12: playback started part-way through a clip) and STOP (5: a release
-  tail rendering after the clocks stop) sit in the functions step 7 changes (`AudioClip::processCurrentPos`,
-  `AudioClip::resumePlayback`, `AudioClip::render`, and their paths to the stretcher's queries and `end`): they are
-  unpinned only because nothing scripts them yet, and render-song cases are built for them before step 7 (decision 10).
-  REC (13) is an audio clip recording, EXPORT (14) the stem export's render, and OPEN (2) two sides a preset or song
-  could reach but none is built for: a third perc-cache chunk, which needs a source over 2^23 frames, and a crossfade
-  out of a cache whose read position is in a cache chunk's last frame.
+- 107 are reachable on the device, and no gate scripts them. EDIT (16) and LATE (7) are the edit and late-start paths
+  the decision-10 songs leave out: render-audio-stretch-marker and render-audio-stretch-length resize a clip while its
+  stretched voice plays, and render-audio-stretch-late starts playback part-way through stretched clips. STOP (5)
+  needs a render shorter than a block: a stop fast-releases an audio clip's envelope within its first 128-frame block,
+  so its voice never renders after the clocks stop. REC (13) is an audio clip recording, EXPORT (14) the stem export's
+  render, and OPEN (52) sides a preset or song could reach but none is built for: a third perc-cache chunk, a crossfade
+  out of a cache whose read position is in a cache chunk's last frame, and the reader's content corners (a stereo
+  sample read linearly while rendering in stereo, a cache written from a mono sample, tail zeros past a non-looping
+  end, among others).
 
 How the residency, memory and unbuilt sides' legacy values are recorded is step 1's table (decision 11).
 
-The script's `SCOPE` leaves out the reader's own functions (`readSamplesNative` and `readSamplesResampled` only pass the
-stretcher along). The read head replaces the reader (decision 8), so step 1, before the read head lands, measures the
-reader's own functions too, and step 8 measures the read head in their place.
+The script's `SCOPE` holds the whole sample reader, which the read head replaces (decision 8); step 8 measures the read
+head in its place.
 
 ## Words
 
@@ -649,7 +651,7 @@ cases; step 7a's set is wider), except step 4, which re-records the goldens the 
   the legacy's slopes and bytes as recorded inputs, so their specs hold under the shared follower too. The render-song
   scenario reports its render-allocation count, so the songs get a ceiling. The probe's workloads:
   - **the goldens:** every `sample/ts_*` and `sample/timestretch` case and the four `RS_AUDIO_STRETCH*` songs, each
-    contract's inputs and results logged at every call (the 815 sides they take);
+    contract's inputs and results logged at every call (the sides they take);
   - **the read head's** (R1 to R11, A0): the reader's computations logged at every call over all of golden-synth's
     sample cases and the render-song audio gates, unstretched playback included, since it reads through the head too;
   - **generated inputs** for the pure arithmetic: hop tuning over the whole ratio range, the planner, crossfader and

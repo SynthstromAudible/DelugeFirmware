@@ -67,7 +67,8 @@ semitones, which reads a cache; and sample A within a hair of its native tempo, 
 of sync, then stretched until it is back. Compared with its record in tests/golden/render/songs.json; its dry twin
 plays the same clips with pitch and speed tied, so nine resample rather than stretch (the transposed clip still
 stretches, as a tied clip with a transpose does), and must render differently (RS-FX), so the stretch, not just the
-tempo, reaches the render
+tempo, reaches the render. Its render allocates at most 123 times while captured (RS-ALLOC, RENDER_ALLOC_MAX), the
+count recorded before the stretcher's rewrite
 
 ## render-audio-stretch-native
 
@@ -77,7 +78,8 @@ samples a tick), from start markers with frames before them. Neither is stretche
 block starts within reach of (88 of about 110 for the tone) a time stretcher is fudged in to crossfade into those
 frames, the pre-margin, without a click. Compared with its record in
 songs.json; its dry twin plays the same frames from files that hold only them, with no pre-margin and so no fudged
-crossfade, and must render differently (RS-FX)
+crossfade, and must render differently (RS-FX). Its render allocates nothing while captured (RS-ALLOC,
+RENDER_ALLOC_MAX of 0)
 
 ## render-audio-stretch-arranged
 
@@ -85,7 +87,8 @@ stretched audio clips render as recorded from arrangement instances that end wit
 (make_render_song.py --song RS_AUDIO_STRETCH_ARRANGED) in the arranger, its stretched clips played from instances that
 end part-way through a loop or after a single pass, so the clip does not loop at its end; the forward tone and the
 reversed tone have waveform past the end they play to, so each fades out before its instance ends. Compared with its
-record in songs.json; its dry twin plays the clips resampled and must render differently (RS-FX)
+record in songs.json; its dry twin plays the clips resampled and must render differently (RS-FX). Its render
+allocates at most 6 times while captured (RS-ALLOC, RENDER_ALLOC_MAX)
 
 ## render-audio-stretch-edges
 
@@ -98,7 +101,36 @@ clip does not loop at the stretcher's level; the percussive source at its native
 pre-margin, too short to fudge a whole crossfade into; a clip whose pitch adjust is raised; and a source over 2^22
 frames long, whose percussiveness cache is kept in clusters, played forwards from 0 into a loop's cache zone further
 on, and looped across the end of a cache cluster forwards and reversed. Compared with its
-record in songs.json; its dry twin ties pitch and speed on every clip and must render differently (RS-FX)
+record in songs.json; its dry twin ties pitch and speed on every clip and must render differently (RS-FX). Its render
+allocates at most 487 times while captured (RS-ALLOC, RENDER_ALLOC_MAX)
+
+## render-audio-stretch-marker
+
+a stretched audio clip's end marker dragged in while its voice plays renders as recorded: a generated song
+(make_render_song.py --song RS_AUDIO_STRETCH_MARKER) of the percussive source alone, stretched at about 1.115
+(STRETCH_EDIT_TRACKS). At block 600 the clip is shortened from 128 ticks to 96 by the END gesture of the audio clip
+view (ResizeAudioClip, RENDER_CLIP_RESIZE), which moves the sample's end marker with it, so the playing voice is told
+its zone changed and the clip resumes with its stretcher alive. RS-RESIZE requires the edit applied while the voice
+stretched. Compared with its record in songs.json; the same song rendered without the resize must render differently
+(RS-SWITCH)
+
+## render-audio-stretch-length
+
+a stretched audio clip lengthened while its voice plays renders as recorded: a generated song (make_render_song.py
+--song RS_AUDIO_STRETCH_LENGTH) of the clip RS_AUDIO_STRETCH_MARKER plays. At block 600 the clip is lengthened from 128
+ticks to 160 by the STRETCH gesture (RENDER_CLIP_RESIZE), so the sample is stretched further to fill it while its voice
+plays. RS-RESIZE requires the edit applied while the voice stretched. Compared with its record in songs.json; the song
+rendered without the resize must render differently (RS-SWITCH)
+
+## render-audio-stretch-late
+
+playback started part-way through stretched arrangement instances renders as recorded: a generated song
+(make_render_song.py --song RS_AUDIO_STRETCH_LATE), RS_AUDIO_STRETCH_ARRANGED under its own name, played from tick 200
+(RENDER_PLAY_FROM), with the arranger scrolled there in cross-screen mode as <> + play starts it. The percussive
+source's first instance is then 200 ticks in, so its clip starts late into its sample. RS-PLAYFROM requires the start
+where asked and a late start seen; the late start waits once for its chunk, which RS-UNDERRUN allows
+(RENDER_UNDERRUN_WAIT_MAX of 1). Compared with its record in songs.json; the song played from its start must render
+differently (RS-SWITCH)
 
 ## render-audio-stretch-arm
 
