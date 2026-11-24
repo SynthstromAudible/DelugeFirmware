@@ -404,8 +404,16 @@ public:
 
 protected:
 	void rearrangePatterntArpNotes(ArpeggiatorSettings* settings);
+	void rebuildNotesByPatternIfStale();
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
 	bool anyPending{false};
+	// notesByPattern is only read by switchNoteOn() in PATTERN note mode, so rearrangePatterntArpNotes() just marks it
+	// stale and switchNoteOn() rebuilds it when it needs it. A rebuild is one insert per held note, and it used to
+	// happen on every note-on and note-off, arp on or off: 20 inserts per note for a 20-row kit, on every step. The
+	// pattern is copied when the rebuild is requested, so the result is an immediate rebuild's even if the settings'
+	// pattern (or the settings object) changes in between.
+	bool notesByPatternStale{false};
+	std::array<int8_t, PATTERN_MAX_BUFFER_SIZE> notePatternForRebuild{};
 };
 
 class ArpeggiatorForKit : public Arpeggiator {

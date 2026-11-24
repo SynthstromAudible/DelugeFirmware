@@ -167,6 +167,7 @@ public:
 	void noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
 
 private:
+	NoteRow* getNoteRowForDrumInActiveClip(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t* index);
 	/// @brief Renders the kit's drums into its channel's buffer, each through its own effects.
 	/// @param modelStack The kit's model stack; its timeline counter may be null.
 	/// @param buffer The channel's buffer, zeroed; the drums add into it.
