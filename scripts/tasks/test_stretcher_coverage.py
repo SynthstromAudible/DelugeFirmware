@@ -36,6 +36,53 @@ def _environment(root, h, products):
     pass
 
 
+# The rewrite's files the coverage list measures: the stretcher, the time-stretch and sample-read components, the port
+# and the read lease whole; the app's functions that drive them by prefix.
+WHOLE = {
+    "src/synth/sources/sample/sample_stretcher.h",
+    "src/synth/sources/sample/sample_stretcher.cpp",
+    "src/synth/sources/sample/hop_clock.h",
+    "src/synth/sources/sample/stretch_position.h",
+    "src/synth/sources/sample/stretch_mix.h",
+    "src/synth/sources/sample/stretch_context.h",
+    "src/synth/sources/sample/stretch_leases.h",
+    "src/synth/sources/sample/stretch_ratio.h",
+    "src/synth/sources/sample/perc_fill.h",
+    "src/deluge/model/voice/voice_sample_stretch_port.cpp",
+    "src/deluge/model/sample/sample_read_lease.cpp",
+}
+BY_PREFIX = {
+    "src/deluge/model/clip/audio_clip.cpp",
+    "src/deluge/model/sample/sample.cpp",
+    "src/deluge/model/voice/voice_sample.cpp",
+    "src/deluge/processing/engines/audio_engine.cpp",
+    "src/synth/sources/sample/sample_source.cpp",
+}
+
+
+class ScopeTest(unittest.TestCase):
+    def test_the_scope_is_the_rewrite_s_files(self):
+        root = Path(__file__).resolve().parents[2]
+        components = {
+            str(path.relative_to(root))
+            for directory in ("src/dsp/fixed/timestretch", "src/dsp/fixed/sample_read")
+            for path in (root / directory).glob("*.h")
+        }
+        whole = {key for key, prefixes in sc.SCOPE.items() if prefixes is None}
+        self.assertEqual(whole, WHOLE | components)
+        self.assertEqual(
+            {key for key, prefixes in sc.SCOPE.items() if prefixes is not None},
+            BY_PREFIX,
+        )
+        self.assertIn(
+            "SampleSource::stretch_to_undo_pitch(",
+            sc.SCOPE["src/synth/sources/sample/sample_source.cpp"],
+        )
+        for key in sc.SCOPE:
+            with self.subTest(key=key):
+                self.assertTrue((root / key).is_file())
+
+
 class SeamsTest(unittest.TestCase):
     def test_the_harness_as_it_is_passes(self):
         sc.check_seams(scenario_gate, sc.load_task_test())

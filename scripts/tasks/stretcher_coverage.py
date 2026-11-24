@@ -28,12 +28,33 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/tasks"))
 
-# The files reported, by repo-relative path, and the functions of each that are: None for every function, else the
-# prefixes of the demangled names of its functions that
-# call into the stretcher, branch on whether a voice has one, or keep the hop budget and the culling bypass a hop sets
-# (renderAudio and renderAudioForStemExport start the budget's routine; setDireness passes bypassCulling to
-# cullVoices).
+# The files reported, by repo-relative path, and the functions of each that are: None for every function (the rewrite's
+# own files: the stretcher, the time-stretch and sample-read components, the port and the read lease), else the
+# prefixes of the demangled names of the app's functions that drive them: those that call into the stretcher or the read
+# head, branch on whether a voice has a stretcher, or keep the hop budget and the culling bypass a hop sets
+# (renderAudio and renderAudioForStemExport start the budget's routine; setDireness passes bypassCulling to cullVoices).
 SCOPE: dict[str, tuple[str, ...] | None] = {
+    "src/synth/sources/sample/sample_stretcher.h": None,
+    "src/synth/sources/sample/sample_stretcher.cpp": None,
+    "src/synth/sources/sample/hop_clock.h": None,
+    "src/synth/sources/sample/stretch_position.h": None,
+    "src/synth/sources/sample/stretch_mix.h": None,
+    "src/synth/sources/sample/stretch_context.h": None,
+    "src/synth/sources/sample/stretch_leases.h": None,
+    "src/synth/sources/sample/stretch_ratio.h": None,
+    "src/synth/sources/sample/perc_fill.h": None,
+    "src/dsp/fixed/timestretch/cache_tail.h": None,
+    "src/dsp/fixed/timestretch/crossfade.h": None,
+    "src/dsp/fixed/timestretch/hop_planner.h": None,
+    "src/dsp/fixed/timestretch/hop_tuning.h": None,
+    "src/dsp/fixed/timestretch/perc_analysis.h": None,
+    "src/dsp/fixed/timestretch/waveform_aligner.h": None,
+    "src/dsp/fixed/timestretch/waveform_search.h": None,
+    "src/dsp/fixed/sample_read/frame_source.h": None,
+    "src/dsp/fixed/sample_read/mixed_in.h": None,
+    "src/dsp/fixed/sample_read/read_head.h": None,
+    "src/deluge/model/voice/voice_sample_stretch_port.cpp": None,
+    "src/deluge/model/sample/sample_read_lease.cpp": None,
     "src/deluge/model/clip/audio_clip.cpp": (
         "AudioClip::processCurrentPos(",
         "AudioClip::resumePlayback(",
@@ -54,6 +75,15 @@ SCOPE: dict[str, tuple[str, ...] | None] = {
         "VoiceSample::render(",
         "VoiceSample::sampleZoneChanged(",
         "VoiceSample::getPlaySample(",
+        "VoiceSample::attemptLateSampleStart(",
+        "VoiceSample::lease(",
+        "VoiceSample::readFacts(",
+        "VoiceSample::loopStartFrame(",
+        "VoiceSample::setupClusersForInitialPlay(",
+        "VoiceSample::changeClusterIfNecessary(",
+        "VoiceSample::reassessReassessmentLocation(",
+        "VoiceSample::getPlayByteLowLevel(",
+        "VoiceSample::unassignAllReasons(",
     ),
     "src/deluge/processing/engines/audio_engine.cpp": (
         "AudioEngine::solicitStretcher(",
@@ -62,6 +92,9 @@ SCOPE: dict[str, tuple[str, ...] | None] = {
         "AudioEngine::renderAudioForStemExport(",
         "AudioEngine::setDireness(",
         "AudioEngine::cullVoices(",
+    ),
+    "src/synth/sources/sample/sample_source.cpp": (
+        "SampleSource::stretch_to_undo_pitch(",
     ),
 }
 # The record the render-song gates compare their output with: a gate that names it in its baseline pins what it plays.

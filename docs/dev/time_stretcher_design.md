@@ -48,28 +48,28 @@ The differences accepted by name; everything else stays bit-identical, and the c
 
 The goldens that pin the stretcher are the `sample/ts_*` and `sample/timestretch` render-preset cases and the
 `RS_AUDIO_STRETCH*` render-song gates (`tests/integration/checks/render_song_cases.md`). A host coverage build of them
-(`scripts/tasks/stretcher_coverage.py`) reaches 1,031 of the 1,374 branch sides of the stretcher, its users' stretcher
-functions and the whole sample reader. [time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 343 it does
-not reach, keyed by function and condition, each with a category, and a reason where the category's meaning does not
-already give it:
-- 110 the code itself rules out (defensive checks, conditions fixed by construction);
-- 120 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull
-  or to shrink a reader's sinc window;
-- 6 are not stretcher paths;
-- 107 are reachable on the device, and no gate scripts them. EDIT (16) and LATE (7) are the edit and late-start paths
+(`scripts/tasks/stretcher_coverage.py`) reaches 1,294 of the 1,648 branch sides of the stretcher, the time-stretch and
+sample-read components, the stretch port, the read lease and their users' stretcher functions.
+[time_stretcher_coverage.md](time_stretcher_coverage.md) lists the 354 it does not reach, keyed by function and
+condition, each with a category, a reason where the category's meaning does not already give it, and what pins it:
+- 102 the code itself rules out (defensive checks, conditions fixed by construction);
+- 112 need a card that has not answered, an allocation that fails or memory pressure, or CPU load high enough to cull
+  or to shrink a head's sinc window;
+- 14 are not stretcher paths;
+- 126 are reachable on the device, and no gate scripts them. EDIT (19) and LATE (13) are the edit and late-start paths
   the decision-10 songs leave out: render-audio-stretch-marker and render-audio-stretch-length resize a clip while its
-  stretched voice plays, and render-audio-stretch-late starts playback part-way through stretched clips. STOP (5)
+  stretched voice plays, and render-audio-stretch-late starts playback part-way through stretched clips. STOP (4)
   needs a render shorter than a block: a stop fast-releases an audio clip's envelope within its first 128-frame block,
   so its voice never renders after the clocks stop. REC (13) is an audio clip recording, EXPORT (14) the stem export's
-  render, and OPEN (52) sides a preset or song could reach but none is built for: a third perc-cache chunk, a crossfade
-  out of a cache whose read position is in a cache chunk's last frame, and the reader's content corners (a stereo
-  sample read linearly while rendering in stereo, a cache written from a mono sample, tail zeros past a non-looping
-  end, among others).
+  render, and OPEN (63) sides a preset or song could reach but none is built for: a third perc-cache chunk, a crossfade
+  out of a cache whose read position is in a cache chunk's last frame, and the read head's content corners (a stereo
+  sample read linearly while rendering in stereo, a sinc step over 16 frames, tail zeros past a non-looping end,
+  among others).
 
-How the residency, memory and unbuilt sides' legacy values are recorded is step 1's table (decision 11).
-
-The script's `SCOPE` holds the whole sample reader, which the read head replaces (decision 8); step 8 measures the read
-head in its place.
+Each residency, memory, cull, edit, late-start, stop and unbuilt side is pinned: by a records array whose legacy rows
+take it (step 1's table, decision 11), by a unit spec case for the read head's and the search's own paths, or by an
+acceptance named in the list (decision 10, decision 11 for an app-side fault whose value no record holds, the STOP
+ruling, decision 3).
 
 ## Words
 

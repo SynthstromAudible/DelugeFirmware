@@ -155,6 +155,9 @@ describe stretch_waveform_aligner_spec_body("deluge::dsp::fixed::timestretch::al
 		// Mirrored, reversed from frame 63: the read starts at 63 - 20 + 1 = 44, within half the crossfade of the end,
 		// which forwards would refuse; reversed checks no margin, so it totals.
 		expect(ts::moving_averages(edge, 63, 40, Direction::REVERSE, 1).has_value() ? 1 : 0).to_equal(1);
+		// With no margin, a reversed head at the last frame and a crossfade too short to pull the read in starts its
+		// averages past the end (read 63 + 1 = 64), which the frame check refuses
+		expect(ts::moving_averages(edge, 63, 0, Direction::REVERSE, 1).has_value() ? 1 : 0).to_equal(0);
 	});
 
 	it("allows A2's byte of slack before the data on a one-byte frame: reversed averages may end at frame -1", _ {

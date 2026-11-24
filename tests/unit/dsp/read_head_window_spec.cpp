@@ -155,6 +155,101 @@ describe read_head_window_spec_body("deluge::dsp::fixed::sample_read::ReadHead::
 		expect(static_cast<int32_t>(state.width_last)).to_equal(16);
 	});
 
+	it("narrows a window by stepping its cursor back half the difference, never before the chunk's floor (R2)", _ {
+		// As the legacy's jumpBackSamples: one frame at a time, stopping at the chunk's first frame
+		HandChunks chunks(geometry(44, 2, 2, 20'000, Direction::FORWARD), 20'000, true);
+		chunks.hold(0);
+		ReadHead::State state = reading(1000, 16);
+		const Increment half = Increment::from_raw(1u << 23); // a phase step crossing no frame
+		expect(ReadHead::check(state, chunks, kPlain, 8, half, 2, Direction::FORWARD).kind == ReadHead::Window::Kind::READ
+		           ? 1
+		           : 0)
+		    .to_equal(1);
+		expect(std::get<ReadHead::Reading>(state.cursor).frame).to_equal(993);
+		expect(static_cast<int32_t>(state.width_last)).to_equal(2);
+		ReadHead::State near = reading(3, 16);
+		(void)ReadHead::check(near, chunks, kPlain, 8, half, 2, Direction::FORWARD);
+		expect(std::get<ReadHead::Reading>(near.cursor).frame).to_equal(0);
+		HandChunks none(geometry(44, 2, 2, 20'000, Direction::FORWARD), 20'000, true);
+		ReadHead::State unheld = reading(1000, 16);
+		(void)ReadHead::check(unheld, none, kPlain, 8, half, 2, Direction::FORWARD);
+		expect(std::get<ReadHead::Reading>(unheld.cursor).frame).to_equal(1000); // no chunk: no step back
+	});
+
+	it("steps a resampled window back to its centre when the read turns native (R5)", _ {
+		// The legacy: back (width / 2) - (phase >> 23) frames, then width 0 and phase 0
+		HandChunks chunks(geometry(44, 2, 2, 20'000, Direction::FORWARD), 20'000, true);
+		chunks.hold(0);
+		ReadHead::State state = reading(1000, 16);
+		(void)ReadHead::check(state, chunks, kPlain, 8, kNative, 0, Direction::FORWARD);
+		expect(std::get<ReadHead::Reading>(state.cursor).frame).to_equal(992);
+		expect(static_cast<int32_t>(state.width_last)).to_equal(0);
+		ReadHead::State past_half = reading(1000, 16);
+		past_half.phase = UQ<24>::from_raw(3u << 22);
+		(void)ReadHead::check(past_half, chunks, kPlain, 8, kNative, 0, Direction::FORWARD);
+		expect(std::get<ReadHead::Reading>(past_half.cursor).frame).to_equal(993);
+		expect(static_cast<int64_t>(past_half.phase.raw())).to_equal(0);
+		// An ended head keeps no frame to step back from
+		ReadHead::State ended = reading(1000, 16);
+		ended.cursor = ReadHead::Ended{5};
+		(void)ReadHead::check(ended, chunks, kPlain, 8, kNative, 0, Direction::FORWARD);
+		expect(std::holds_alternative<ReadHead::Ended>(ended.cursor) ? 1 : 0).to_equal(1);
+		expect(static_cast<int32_t>(ended.width_last)).to_equal(0);
+	});
+
+	it("stops a native read of a resampled head holding no chunk (R5)", _ {
+		HandChunks none(geometry(44, 2, 2, 20'000, Direction::FORWARD), 20'000, true);
+		ReadHead::State state = reading(1000, 16);
+		expect(ReadHead::check(state, none, kPlain, 8, kNative, 0, Direction::FORWARD).kind
+		               == ReadHead::Window::Kind::STOPPED
+		           ? 1
+		           : 0)
+		    .to_equal(1);
+	});
+
+	it("fills a fresh window past a non-looping end with counted silence (R1)", _ {
+		HandChunks chunks(geometry(44, 2, 2, 100, Direction::FORWARD), 100, true);
+		chunks.hold(0);
+		ReadHead::State state = reading(96);
+		const Increment half = Increment::from_raw(1u << 23);
+		// Frames 96 to 99 fill four of the eight leading taps; the end gives the other four as zeros
+		expect(ReadHead::check(state, chunks, kPlain, 8, half, 16, Direction::FORWARD).kind == ReadHead::Window::Kind::READ
+		           ? 1
+		           : 0)
+		    .to_equal(1);
+		expect(std::get<ReadHead::Ended>(state.cursor).zero_taps).to_equal(4);
+		expect(chunks.held().has_value() ? 1 : 0).to_equal(0);
+		// A head holding no chunk fills its window from silence alone: the back taps cleared, the leading ones counted
+		HandChunks none(geometry(44, 2, 2, 100, Direction::FORWARD), 100, true);
+		ReadHead::State unheld = reading(50);
+		(void)ReadHead::check(unheld, none, kPlain, 8, half, 16, Direction::FORWARD);
+		expect(std::get<ReadHead::Ended>(unheld.cursor).zero_taps).to_equal(8);
+		for (std::size_t i = 0; i < 16; i++) {
+			expect(static_cast<int32_t>(unheld.window.window_l()[i])).to_equal(0);
+		}
+	});
+
+	it("stops a stale head whose silence would fill the window, fresh or widened (R1, R2)", _ {
+		// A restart that was not ready leaves a count past every width: the first zero it feeds reaches the width
+		HandChunks none(geometry(44, 2, 2, 100, Direction::FORWARD), 100, true);
+		const Increment half = Increment::from_raw(1u << 23);
+		ReadHead::State fresh;
+		fresh.cursor = ReadHead::Ended{ReadHead::kStaleZeroTaps};
+		expect(ReadHead::check(fresh, none, kPlain, 8, half, 16, Direction::FORWARD).kind
+		               == ReadHead::Window::Kind::STOPPED
+		           ? 1
+		           : 0)
+		    .to_equal(1);
+		ReadHead::State widened;
+		widened.cursor = ReadHead::Ended{ReadHead::kStaleZeroTaps};
+		widened.width_last = 2;
+		expect(ReadHead::check(widened, none, kPlain, 8, half, 16, Direction::FORWARD).kind
+		               == ReadHead::Window::Kind::STOPPED
+		           ? 1
+		           : 0)
+		    .to_equal(1);
+	});
+
 	it("gives up after 1,024 turns of a tiny low-level loop", _ {
 		HandChunks chunks(geometry(44, 2, 2, 100, Direction::FORWARD), 100, true);
 		chunks.hold(0);

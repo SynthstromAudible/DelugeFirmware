@@ -227,6 +227,116 @@ describe read_head_read_spec_body("deluge::dsp::fixed::sample_read::ReadHead::re
 		expect(std::get<ReadHead::Ended>(linear.cursor).zero_taps).to_equal(9); // three steps of two zeros
 	});
 
+	it("reads a stereo sample linearly into a stereo output as the legacy's readSamplesLinear<2, 2> (R9)", _ {
+		using deluge::dsp::fixed::sample_read::mixed_in;
+		HandChunks chunks(geometry(44, 2, 2, 64, Direction::FORWARD), 64, true);
+		chunks.hold(0);
+		const uint32_t inc = 3u << 23; // 1.5: steps of one and of two
+		const auto amplitude = Q<31>::from_raw(0x4000'0000);
+		const auto step = Q<31>::from_raw(0x0010'0000);
+		ReadHead::State state;
+		state.cursor = ReadHead::Reading{8};
+		std::vector<Q<31>> out(12);
+		ReadHead::Output output{.out = out, .out_channels = 2, .amplitude = amplitude, .step = step};
+		std::byte* no_cache = nullptr;
+		ReadHead::read_resampled(state, chunks, output, 6, Increment::from_raw(inc), 2, 0, no_cache,
+		                         Direction::FORWARD);
+		// The legacy's loop, its taps read one by one through ReadHead::tap
+		std::vector<Q<31>> want(12);
+		int32_t frame = 8;
+		uint32_t phase = 0;
+		int16_t newest[2] = {0, 0};
+		int16_t previous[2] = {0, 0};
+		Q<31> gain = amplitude;
+		for (std::size_t i = 0; i < 6; i++) {
+			if (i != 0) {
+				phase += inc;
+				const auto steps = static_cast<int32_t>(phase >> 24);
+				if (steps != 0) {
+					phase &= (1u << 24) - 1;
+					frame += steps > 2 ? steps - 2 : 0;
+					for (int c = 0; c < 2; c++) {
+						previous[c] = steps >= 2 ? ReadHead::tap(chunks, frame, c, Direction::FORWARD) : newest[c];
+					}
+					frame += steps >= 2 ? 1 : 0;
+					for (int c = 0; c < 2; c++) {
+						newest[c] = ReadHead::tap(chunks, frame, c, Direction::FORWARD);
+					}
+					frame++;
+				}
+			}
+			const auto s2 = static_cast<int16_t>(phase >> 9);
+			const auto s1 = static_cast<int16_t>(32767 - s2);
+			gain = deluge::dsp::add_wrap(gain, step);
+			for (int c = 0; c < 2; c++) {
+				want[(2 * i) + c] = mixed_in(Q<31>{}, Q<31>::from_raw((previous[c] * s1) + (newest[c] * s2)), gain);
+			}
+		}
+		for (std::size_t i = 0; i < 12; i++) {
+			expect(out[i].raw()).to_equal(want[i].raw());
+		}
+		expect(std::get<ReadHead::Reading>(state.cursor).frame).to_equal(frame);
+		expect(static_cast<int64_t>(state.phase.raw())).to_equal(static_cast<int64_t>(phase));
+		expect(output.amplitude.raw()).to_equal(gain.raw());
+		expect(static_cast<int32_t>(state.window.window_r()[0])).to_equal(newest[1]);
+		// No frames: nothing mixed, nothing stepped
+		std::vector<Q<31>> none(2);
+		ReadHead::Output empty{.out = none, .out_channels = 2, .amplitude = amplitude, .step = step};
+		ReadHead::read_resampled(state, chunks, empty, 0, Increment::from_raw(inc), 2, 0, no_cache,
+		                         Direction::FORWARD);
+		expect(std::get<ReadHead::Reading>(state.cursor).frame).to_equal(frame);
+		expect(none[0].raw()).to_equal(0);
+	});
+
+	it("feeds a mono sinc read below its native rate only on the outputs that cross a frame (R8)", _ {
+		HandChunks chunks(geometry(44, 1, 2, 64, Direction::FORWARD), 64, true);
+		chunks.hold(0);
+		ReadHead::State state;
+		state.cursor = ReadHead::Reading{8};
+		std::vector<Q<31>> out(4);
+		ReadHead::Output output{.out = out, .out_channels = 1, .amplitude = Q<31>{}, .step = Q<31>{}};
+		std::byte* no_cache = nullptr;
+		ReadHead::read_resampled(state, chunks, output, 4, Increment::from_raw(1u << 22), 16, 0, no_cache,
+		                         Direction::FORWARD);
+		expect(std::get<ReadHead::Reading>(state.cursor).frame).to_equal(8); // three quarter steps cross no frame
+		expect(static_cast<int64_t>(state.phase.raw())).to_equal(int64_t{3} << 22);
+	});
+
+	it("jumps a sinc step of more than 16 frames over the frames before the window's last 16 (R8)", _ {
+		for (const int8_t channels : {int8_t{1}, int8_t{2}}) {
+			HandChunks chunks(geometry(44, channels, 2, 200, Direction::FORWARD), 200, true);
+			chunks.hold(0);
+			ReadHead::State state;
+			state.cursor = ReadHead::Reading{8};
+			std::vector<Q<31>> out(4);
+			ReadHead::Output output{.out = out, .out_channels = channels, .amplitude = Q<31>{}, .step = Q<31>{}};
+			std::byte* no_cache = nullptr;
+			ReadHead::read_resampled(state, chunks, output, 2, Increment::from_raw(20u << 24), 16, 0, no_cache,
+			                         Direction::FORWARD);
+			expect(std::get<ReadHead::Reading>(state.cursor).frame).to_equal(28);
+			// The newest tap is the step's last frame; the oldest of the 16 fed is four past the cursor
+			expect(static_cast<int32_t>(state.window.window_l()[0]))
+			    .to_equal(static_cast<int32_t>(ReadHead::tap(chunks, 27, 0, Direction::FORWARD)));
+			expect(static_cast<int32_t>(state.window.window_l()[15]))
+			    .to_equal(static_cast<int32_t>(ReadHead::tap(chunks, 12, 0, Direction::FORWARD)));
+		}
+	});
+
+	it("feeds a stereo head's tail zeros into a stereo output, each counted (R9)", _ {
+		HandChunks chunks(geometry(44, 2, 2, 64, Direction::FORWARD), 64, true);
+		ReadHead::State state;
+		state.cursor = ReadHead::Ended{3};
+		std::vector<Q<31>> out(8, Q<31>::from_raw(5));
+		ReadHead::Output output{.out = out, .out_channels = 2, .amplitude = Q<31>::from_raw(0x4000'0000), .step = Q<31>{}};
+		std::byte* no_cache = nullptr;
+		ReadHead::read_resampled(state, chunks, output, 4, Increment::from_raw(2u << 24), 2, 0, no_cache,
+		                         Direction::FORWARD);
+		expect(std::get<ReadHead::Ended>(state.cursor).zero_taps).to_equal(9); // three steps of two zeros
+		for (const Q<31> word : out) {
+			expect(word.raw()).to_equal(5); // silence mixed in leaves the mix as it was
+		}
+	});
+
 	it("loops check and read as the legacy did (R11)", _ {
 		const Tally goldens = loop_mismatches(r::kReadLoopGoldens);
 		expect(goldens.first_bad).to_equal(-1);
