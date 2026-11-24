@@ -27,6 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -159,7 +160,7 @@ constexpr std::array<uint32_t, 8> kIncrements{1u << 24,     0x0010'0000U, 0x00F0
 
 /// Every case of the matrix whose rates and frames pass @p keep, compared; "" or the first difference, and the count.
 template <typename Keep>
-std::string matrix(std::size_t& count, const Keep& keep) {
+std::string matrix(std::size_t& count, const Keep& keep, std::span<const uint32_t> increments = kIncrements) {
 	for (int8_t depth = 1; depth <= 4; depth++) {
 		for (int8_t channels = 1; channels <= 2; channels++) {
 			for (const int32_t start : {44, 45, 46, 47}) {
@@ -170,7 +171,7 @@ std::string matrix(std::size_t& count, const Keep& keep) {
 						HandChunks a_source(g, kFrames, true);
 						HandChunks b_source(g, kFrames, true);
 						for (int8_t out = 1; out <= channels; out++) {
-							for (const uint32_t inc : kIncrements) {
+							for (const uint32_t inc : increments) {
 								for (const int32_t width : {2, 8, 16}) {
 									for (const int32_t frames : {1, 3, 5, 128}) {
 										const Case c{.depth = depth,
@@ -214,6 +215,16 @@ describe read_head_oracle_spec_body("deluge::dsp::fixed::sample_read::ReadHead r
 		const std::string bad = matrix(count, [](const Case&) { return true; });
 		expect(bad).to_equal(std::string{});
 		expect(count).to_equal(std::size_t{4 * 3 * 4 * 2 * 2 * 8 * 3 * 4});
+	});
+
+	it("matches the oracle on sub-reads past the staging, steps over 16", _ {
+		// 128 outputs at 40 and 63 frames a step pass far more frames than staging holds
+		constexpr std::array<uint32_t, 2> kFast{40u << 24, 63u << 24};
+		std::size_t count = 0;
+		const std::string bad =
+		    matrix(count, [](const Case& c) { return c.frames == 128 && c.width == 16; }, kFast);
+		expect(bad).to_equal(std::string{});
+		expect(count).to_equal(std::size_t{4 * 3 * 4 * 2 * 2 * 2});
 	});
 });
 // clang-format on
