@@ -93,6 +93,28 @@ public:
 		out_ += static_cast<std::ptrdiff_t>(count) * OutChannels;
 	}
 
+	/// @brief Mixes one frame of @p l and @p r, its words in core registers: a run's last frames, which a vector group
+	/// would move through memory twice. The ramp moves on by one step.
+	[[gnu::always_inline]] void put_one(Q<31> l, Q<31> r) {
+		amplitude_ = add_wrap(amplitude_, step_);
+		if (cache_ != nullptr) [[unlikely]] {
+			put_bytes(static_cast<uint32_t>(l.raw()));
+			if constexpr (Channels == 2) {
+				put_bytes(static_cast<uint32_t>(r.raw()));
+			}
+		}
+		if constexpr (Channels == 2 && OutChannels == 1) {
+			l = C == Condense::TOWARD_ZERO ? add_wrap(halve_toward_zero(l), halve_toward_zero(r))
+			                               : add_wrap(halve_floor(l), halve_floor(r));
+		}
+		out_[0] = mixed_in(out_[0], l, amplitude_);
+		if constexpr (OutChannels == 2) {
+			out_[1] = mixed_in(out_[1], r, amplitude_);
+		}
+		out_ += OutChannels;
+		amps_ = vaddq_s32(amps_, vdupq_n_s32(step_.raw()));
+	}
+
 	/// @brief The amplitude after the frames put.
 	[[nodiscard]] Q<31> amplitude() const { return amplitude_; }
 	/// @brief The cache's next byte, past the frames put; null when none is written.

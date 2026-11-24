@@ -159,6 +159,32 @@ std::string every_layout(Q<31> amplitude, Q<31> step, bool cache) {
 	return bad;
 }
 
+/// Four, one, one, one, four, one, one, four frames, groups and single frames mixed in turn: whether the output, the
+/// cache bytes and the amplitude are the scalar mix's.
+template <int Channels, int OutChannels, Condense C>
+bool singles() {
+	Words a = random_words(0xD00D'0000U, OutChannels);
+	Words b = a;
+	std::vector<std::byte> want_cache;
+	const Q<31> want =
+	    scalar<Channels, OutChannels, C>(a, 17, Q<31>::from_raw(0x1800'0000), Q<31>::from_raw(-321), want_cache);
+	std::vector<std::byte> got_cache(static_cast<std::size_t>((17 * Channels * 3) + 8), std::byte{0xEE});
+	QuadMix<Channels, OutChannels, C> mix(b.out.data(), Q<31>::from_raw(0x1800'0000), Q<31>::from_raw(-321),
+	                                      got_cache.data());
+	int32_t at = 0;
+	for (const int32_t step : {4, 1, 1, 1, 4, 1, 1, 4}) {
+		if (step == 4) {
+			mix.put(load4(b.l, at), load4(b.r, at), 4);
+		}
+		else {
+			mix.put_one(b.l[at], b.r[at]);
+		}
+		at += step;
+	}
+	return a.out == b.out && mix.amplitude().raw() == want.raw()
+	       && std::equal(want_cache.begin(), want_cache.end(), got_cache.begin());
+}
+
 } // namespace
 
 // clang-format off
@@ -190,6 +216,13 @@ describe sample_read_quad_mix_spec_body("deluge::dsp::fixed::sample_read::QuadMi
 		}
 		expect(a.out == b.out).to_equal(true);
 		expect(mix.amplitude().raw()).to_equal(want.raw());
+	});
+
+	it("mixes single frames between groups as the scalar mix does, every layout", _ {
+		expect(singles<1, 1, Condense::NONE>()).to_equal(true);
+		expect(singles<2, 2, Condense::NONE>()).to_equal(true);
+		expect(singles<2, 1, Condense::TOWARD_ZERO>()).to_equal(true);
+		expect(singles<2, 1, Condense::FLOOR>()).to_equal(true);
 	});
 
 	it("wraps the amplitude as the scalar add_wrap does", _ {

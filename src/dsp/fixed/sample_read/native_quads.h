@@ -145,26 +145,22 @@ template <int kPass, int Channels, class Sink>
 	}
 }
 
-/// Frames @p k to @p frames − 1 of @p run, a word each through the scalar read's masked 32-bit read.
+/// Frames @p k to @p frames − 1 of @p run, a word each through the scalar read's masked 32-bit read, mixed one at a
+/// time in core registers.
 template <int Depth, int Channels, class Sink>
 void native_tail(const FrameRun& run, int32_t k, int32_t frames, Sink& sink) {
 	// The native read is word arithmetic (R7), a sample's bytes masked from a word, so these crossings are those words
 	constexpr uint32_t kMask = 0xFFFF'FFFFU << (32 - (8 * Depth));
-	while (k < frames) {
-		const int32_t count = frames - k < 4 ? frames - k : 4;
-		std::array<uint32_t, 4> l{};
-		std::array<uint32_t, 4> r{};
-		for (int32_t j = 0; j < count; j++) {
-			const std::byte* at = run.first + (static_cast<std::ptrdiff_t>(k + j) * run.stride);
-			std::memcpy(&l[j], at, sizeof(uint32_t));
-			l[j] &= kMask;
-			if constexpr (Channels == 2) {
-				std::memcpy(&r[j], at + Depth, sizeof(uint32_t));
-				r[j] &= kMask;
-			}
+	for (; k < frames; k++) {
+		const std::byte* at = run.first + (static_cast<std::ptrdiff_t>(k) * run.stride);
+		uint32_t l = 0;
+		uint32_t r = 0;
+		std::memcpy(&l, at, sizeof l);
+		if constexpr (Channels == 2) {
+			std::memcpy(&r, at + Depth, sizeof r);
 		}
-		sink.put(as_samples(vld1q_u32(l.data())), as_samples(vld1q_u32(Channels == 2 ? r.data() : l.data())), count);
-		k += count;
+		sink.put_one(Q<31>::from_raw(static_cast<int32_t>(l & kMask)),
+		             Q<31>::from_raw(static_cast<int32_t>(r & kMask)));
 	}
 }
 

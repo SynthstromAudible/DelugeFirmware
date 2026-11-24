@@ -148,6 +148,8 @@ void ascend(const uint8_t* s0, int32_t n, int16_t* l, int16_t* r) {
 			}
 		}
 	}
+	// At most a pass's frames: vectorised, the loop's lanes would move through the core registers
+#pragma clang loop vectorize(disable)
 	for (; i < n; i++) {
 		const uint8_t* top = s0 + (static_cast<std::ptrdiff_t>(i) * kFrameBytes) + Depth - 2;
 		const int32_t slot = Reverse ? n - 1 - i : i;
