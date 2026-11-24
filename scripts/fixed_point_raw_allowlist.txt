@@ -165,6 +165,7 @@ src/synth/modulation/lfo.h raw=0 boundary=13
 src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=3
 src/synth/sources/input/input_source.cpp raw=0 boundary=2
 src/synth/sources/input/live/live_input.cpp raw=0 boundary=1
+src/synth/sources/sample/hop_clock.h raw=0 boundary=2
 src/synth/sources/sample/sample_source.cpp raw=0 boundary=2
 src/synth/sources/source_slot.cpp raw=0 boundary=2
 src/synth/sources/supersaw/supersaw_source.cpp raw=0 boundary=2
