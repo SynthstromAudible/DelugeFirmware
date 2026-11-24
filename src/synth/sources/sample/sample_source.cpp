@@ -17,6 +17,7 @@
 
 #include "synth/sources/sample/sample_source.h"
 #include "definitions_cxx.hpp"
+#include "synth/sources/sample/stretch_ratio.h"
 #include "synth/sources/sample/time_stretch_adjust.h"
 #include <algorithm> // std::fill_n
 #include <cstdint>
@@ -287,8 +288,7 @@ uint32_t SampleSource::stretch_to_undo_pitch(int32_t pitch_adjust_neutral_value,
 	if (phase_increment != stretch_cache_increment_ || pitch_adjust_neutral_value != stretch_cache_neutral_) {
 		stretch_cache_neutral_ = pitch_adjust_neutral_value;
 		stretch_cache_increment_ = phase_increment;
-		stretch_cache_ratio_ =
-		    static_cast<uint32_t>((static_cast<uint64_t>(pitch_adjust_neutral_value) << 24) / phase_increment);
+		stretch_cache_ratio_ = ratio_undoing_pitch(pitch_adjust_neutral_value, phase_increment);
 	}
 	return stretch_cache_ratio_;
 }
