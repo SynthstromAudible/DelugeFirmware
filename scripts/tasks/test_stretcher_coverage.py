@@ -50,6 +50,7 @@ WHOLE = {
     "src/synth/sources/sample/perc_fill.h",
     "src/deluge/model/voice/voice_sample_stretch_port.cpp",
     "src/deluge/model/sample/sample_read_lease.cpp",
+    "src/dsp/fixed/sample_read/stage.cpp",
 }
 BY_PREFIX = {
     "src/deluge/model/clip/audio_clip.cpp",
