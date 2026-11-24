@@ -14,6 +14,11 @@ sample-read components (`src/dsp/fixed/timestretch/`, `src/dsp/fixed/sample_read
 read lease; and in their users the functions that call into the stretcher or the read head, branch on whether a voice
 has a stretcher, or keep the hop budget and the culling bypass a hop sets.
 
+**Measured before the read's NEON data plane** (2026-11-24): the scope now also holds `stage.{h,cpp}`, `gather.h`,
+`quad_mix.h` and `native_quads.h`, and the read head's sinc and native kernels moved into them, so the totals and the
+read head's rows below are the scalar kernels' until `scripts/tasks/stretcher_coverage.sh` is run again. The data plane
+is held to the scalar kernels word for word by `read_head_oracle_spec`.
+
 **Result.** 1,295 of the 1,650 branch sides are taken; the 355 untaken are listed below by file and function. A side is
 named by its condition, the branch's source text; where one function tests the same text more than once, its repeats
 are counted in source order. A template's functions are listed per instantiation.

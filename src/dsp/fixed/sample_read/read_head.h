@@ -19,7 +19,11 @@
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/interpolation/interpolator.h"
 #include "dsp/fixed/sample_read/frame_source.h"
+#include "dsp/fixed/sample_read/gather.h"
 #include "dsp/fixed/sample_read/mixed_in.h"
+#include "dsp/fixed/sample_read/native_quads.h"
+#include "dsp/fixed/sample_read/quad_mix.h"
+#include "dsp/fixed/sample_read/stage.h"
 
 #include <algorithm>
 #include <concepts>
@@ -199,7 +203,8 @@ struct ReadHead {
 	/// set; else the 2-tap linear read.
 	template <read_source S>
 	static void read_resampled(State& state, const S& source, Output& output, int32_t frames, Increment increment,
-	                           int32_t width, int32_t kernel, std::byte*& cache_write, Direction direction) {
+	                           int32_t width, int32_t kernel, std::byte*& cache_write, Staging& staging,
+	                           Direction direction) {
 		// The window check bounded the read's frames to the chunk held: one run serves the whole read
 		const auto* reading = std::get_if<Reading>(&state.cursor);
 		const std::optional<FrameRun> run = reading != nullptr && source.span(direction).has_value()
@@ -212,10 +217,10 @@ struct ReadHead {
 			}
 			// Templated on the source's channels only: the filter's cost dwarfs the per-frame test of the output's
 			if (source.channels() == 2) {
-				read_sinc_as<2>(state, *run, output, frames, increment, kernel, cache_write, direction);
+				read_sinc_as<2>(state, *run, output, frames, increment, kernel, cache_write, staging, direction);
 			}
 			else {
-				read_sinc_as<1>(state, *run, output, frames, increment, kernel, cache_write, direction);
+				read_sinc_as<1>(state, *run, output, frames, increment, kernel, cache_write, staging, direction);
 			}
 			return;
 		}
@@ -230,11 +235,11 @@ struct ReadHead {
 
 	/// @brief A head's read of @p frames frames (R11): window checks and the reads they allow until all are rendered,
 	/// each window's first output skipping its step afresh. False once the head has stopped (every failed check leaves
-	/// it holding no chunk). @p cache_write null writes no cache.
+	/// it holding no chunk). @p cache_write null writes no cache. @p staging holds the taps the reads interpolate.
 	template <read_source S>
 	[[nodiscard]] static bool read(State& state, S& source, const ReadBounds& bounds, Output& output, int32_t frames,
 	                               Increment increment, int32_t width, int32_t kernel, std::byte* cache_write,
-	                               Direction direction) {
+	                               Staging& staging, Direction direction) {
 		std::size_t done = 0;
 		while (frames != 0) {
 			const Window window = check(state, source, bounds, frames, increment, width, direction);
@@ -249,7 +254,8 @@ struct ReadHead {
 				read_native(state, source, part, window.frames, direction);
 			}
 			else {
-				read_resampled(state, source, part, window.frames, increment, width, kernel, cache_write, direction);
+				read_resampled(state, source, part, window.frames, increment, width, kernel, cache_write, staging,
+				               direction);
 			}
 			output.amplitude = part.amplitude;
 			done += static_cast<std::size_t>(window.frames);
@@ -461,114 +467,115 @@ private:
 		}
 		out += OutChannels;
 	}
-	// The kernels keep the cursor, phase, amplitude and output position in locals and write them back once: in State
-	// and Output they would be reloaded after every output store, which the compiler cannot prove does not alias them.
+	/// @brief The native read's frames, run by run, mixed four at a time: each sample its bytes masked from the 32-bit
+	/// read ending at its top byte; a stereo source to one channel `(l >> 1) + (r >> 1)`.
 	template <int Channels, int OutChannels, read_source S>
 	static void read_native_as(State& state, const S& source, Output& output, int32_t frames, Direction direction) {
-		const uint32_t mask = 0xFFFFFFFFu << (32 - (8 * source.byte_depth()));
+		constexpr Condense kCondense = (Channels == 2 && OutChannels == 1) ? Condense::FLOOR : Condense::NONE;
+		QuadMix<Channels, OutChannels, kCondense> mix(output.out.data(), output.amplitude, output.step, nullptr);
 		auto& reading = std::get<Reading>(state.cursor);
-		Q<31>* __restrict out = output.out.data();
-		Q<31> amplitude = output.amplitude;
-		const Q<31> step = output.step;
 		while (frames > 0) {
 			const std::optional<FrameRun> run = source.run(reading.frame, direction);
 			if (!run) {
 				break; // a window check has said these frames are readable
 			}
 			const int32_t take = std::min(frames, run->frames);
-			const std::byte* at = run->first;
-			for (int32_t k = 0; k < take; k++, at += run->stride) {
-				uint32_t word = 0;
-				std::memcpy(&word, at, sizeof word);
-				auto l = static_cast<int32_t>(word & mask);
-				int32_t r = 0;
-				if constexpr (Channels == 2) {
-					std::memcpy(&word, at + run->byte_depth, sizeof word);
-					r = static_cast<int32_t>(word & mask);
-					if constexpr (OutChannels == 1) {
-						l = (l >> 1) + (r >> 1);
-					}
-				}
-				put<OutChannels>(out, amplitude, step, Q<31>::from_raw(l), Q<31>::from_raw(r));
-			}
+			native_quads<Channels>(*run, take, mix);
 			reading.frame += take * static_cast<int32_t>(direction);
 			frames -= take;
 		}
-		output.amplitude = amplitude;
+		output.amplitude = mix.amplitude();
 	}
-	/// @brief A later sinc output's step (R8): the phase on by @p inc, and its whole part's frames fed to the window
-	/// from @p at, a step longer than the window jumping the frames before the last ones unread.
-	template <int Channels>
-	[[gnu::always_inline]] static void sinc_feed(State& state, const std::byte*& at, uint32_t& phase, uint32_t inc,
-	                                             int32_t stride, int32_t depth) {
-		phase += inc;
-		auto steps = static_cast<int32_t>(phase >> 24);
-		if (steps == 0) {
-			return;
-		}
-		phase &= (1u << 24) - 1;
-		if (steps > kInterpolationMaxNumSamples) {
-			at += static_cast<std::ptrdiff_t>(steps - kInterpolationMaxNumSamples) * stride;
-			steps = kInterpolationMaxNumSamples;
-		}
-		auto feed = state.window.advance(static_cast<std::size_t>(steps));
-		while (feed.remaining() != 0) {
-			if constexpr (Channels == 2) {
-				feed.put(top_word(at), top_word(at + depth));
-			}
-			else {
-				feed.put(top_word(at));
-			}
-			at += stride;
-		}
-	}
+
 	/// @brief A sinc read over @p run, which starts at the cursor (R8): its first output skips its step (R3 took it).
+	/// The run's frames are decoded into @p staging after the window's taps, the outputs gathered from it and mixed
+	/// four at a time, and the window takes staging's taps at the last output.
 	template <int Channels>
 	static void read_sinc_as(State& state, const FrameRun& run, Output& output, int32_t frames, Increment increment,
-	                         int32_t kernel, std::byte*& cache_write, Direction direction) {
+	                         int32_t kernel, std::byte*& cache_write, Staging& staging, Direction direction) {
+		if constexpr (Channels == 2) {
+			if (output.out_channels == 1) {
+				read_gathered<QuadMix<2, 1, Condense::TOWARD_ZERO>, 2>(state, run, output, frames, increment, kernel,
+				                                                       cache_write, staging, direction);
+				return;
+			}
+			read_gathered<QuadMix<2, 2, Condense::NONE>, 2>(state, run, output, frames, increment, kernel, cache_write,
+			                                                staging, direction);
+		}
+		else {
+			read_gathered<QuadMix<1, 1, Condense::NONE>, 1>(state, run, output, frames, increment, kernel, cache_write,
+			                                                staging, direction);
+		}
+	}
+
+	/// @brief Staging's frames past the history, which one sub-read of a sinc read decodes at most.
+	static constexpr int32_t kStageRoom = kStageTaps - kHistoryTaps;
+
+	/// @brief The outputs a sub-read from @p phase may gather, at most @p left: those whose newest tap is within
+	/// staging's room. A read's first output takes no step; a later sub-read's first does. Rounded down to a multiple
+	/// of four when four or more fit and some are left over, so the mix's groups stay whole; at the largest steps one
+	/// to three fit, and the mix takes a partial group mid-read. A zero increment never moves: every output fits.
+	[[nodiscard]] static int32_t sub_read_outputs(uint32_t phase, uint32_t inc, int32_t left, bool step_first) {
+		if (inc == 0) {
+			return left;
+		}
+		// The newest tap after n outputs is (phase + (n or n − 1) · inc) >> 24 frames past the history's
+		const uint64_t room = ((static_cast<uint64_t>(kStageRoom) + 1) << 24) - 1 - phase;
+		const uint64_t steps = room / inc;
+		const uint64_t fit = step_first ? steps : steps + 1;
+		if (fit >= static_cast<uint64_t>(left)) {
+			return left;
+		}
+		// At least one: a step can pass at most 255 frames, so three outputs always fit after a step
+		const int32_t whole = static_cast<int32_t>(fit) & ~3;
+		return whole > 0 ? whole : static_cast<int32_t>(fit);
+	}
+
+	/// @brief A sinc read through staging: the run's frames decoded after the window's taps, sub-read by sub-read, the
+	/// outputs gathered and mixed by @p Mix, then the window's taps from staging at the last output.
+	template <class Mix, int Channels>
+	static void read_gathered(State& state, const FrameRun& run, Output& output, int32_t frames, Increment increment,
+	                          int32_t kernel, std::byte*& cache_write, Staging& staging, Direction direction) {
 		if (frames <= 0) {
 			return;
 		}
 		Reading& reading = *std::get_if<Reading>(&state.cursor);
-		const std::byte* at = run.first + 2;
-		const int32_t stride = run.stride;
-		const auto depth = static_cast<int32_t>(static_cast<uint8_t>(run.byte_depth));
-		uint32_t phase = state.phase.raw();
 		const uint32_t inc = increment.raw();
-		const int32_t stepped = frames_stepped(phase, inc, frames);
-		const bool stereo_out = Channels == 2 && output.out_channels == 2;
-		Q<31>* __restrict out = output.out.data();
-		const Q<31>* const end = out + (static_cast<std::ptrdiff_t>(frames) * (stereo_out ? 2 : 1));
-		Q<31> amplitude = output.amplitude;
-		const Q<31> step = output.step;
-		std::byte* cache = cache_write;
-		auto emit = [&] [[gnu::always_inline]] {
-			StereoSample sample = state.window.interpolate(Channels, kernel, phase);
-			if (cache != nullptr) {
-				cache_word(cache, sample.l);
+		const int32_t stepped = frames_stepped(state.phase.raw(), inc, frames);
+		Mix mix(output.out.data(), output.amplitude, output.step, cache_write);
+		load_history(staging, state.window, Channels);
+		GatherPos pos{.newest = kStageRoom, .phase = state.phase.raw()};
+		int32_t decoded = 0;
+		bool step_first = false;
+		for (int32_t left = frames; left > 0;) {
+			const int32_t outputs = sub_read_outputs(pos.phase, inc, left, step_first);
+			// The frames this sub-read's last output reaches, decoded into the slots below the history
+			const auto steps = static_cast<uint64_t>(step_first ? outputs : outputs - 1);
+			const auto needed = static_cast<int32_t>((pos.phase + (static_cast<uint64_t>(inc) * steps)) >> 24);
+			decode_taps(run, decoded, needed, staging.l.data() + (kStageRoom - needed),
+			            Channels == 2 ? staging.r.data() + (kStageRoom - needed) : nullptr);
+			pos = sinc_gather<Channels>(staging, pos, inc, kernel, outputs, step_first, mix);
+			decoded += needed;
+			left -= outputs;
+			if (left > 0) {
+				// The next sub-read's history is the window at this one's last output
+				std::memmove(staging.l.data() + kStageRoom, staging.l.data() + pos.newest,
+				             kHistoryTaps * sizeof(int16_t));
 				if constexpr (Channels == 2) {
-					cache_word(cache, sample.r);
+					std::memmove(staging.r.data() + kStageRoom, staging.r.data() + pos.newest,
+					             kHistoryTaps * sizeof(int16_t));
 				}
+				pos.newest = kStageRoom;
+				step_first = true;
 			}
-			if constexpr (Channels == 2) {
-				if (stereo_out) {
-					put<2>(out, amplitude, step, sample.l, sample.r);
-					return;
-				}
-				sample.l = add_wrap(halve_toward_zero(sample.l), halve_toward_zero(sample.r));
-			}
-			put<1>(out, amplitude, step, sample.l, sample.r);
-		};
-		emit(); // the first output's step was the window check's
-		while (out != end) {
-			sinc_feed<Channels>(state, at, phase, inc, stride, depth);
-			emit();
 		}
+		store_history(staging, pos.newest, state.window, Channels, kHistoryTaps);
 		reading.frame += stepped * static_cast<int32_t>(direction);
-		state.phase = UQ<24>::from_raw(phase);
-		output.amplitude = amplitude;
-		cache_write = cache;
+		state.phase = UQ<24>::from_raw(pos.phase);
+		output.amplitude = mix.amplitude();
+		cache_write = mix.cache();
 	}
+
 	/// @brief A linear read's two taps per channel, the previous and the newest.
 	struct LinearTaps {
 		int16_t newest_l;

@@ -23,6 +23,7 @@
 #include "model/sample/sample_reader_bridge.h"
 #include "model/voice/voice_sample.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
 #include "storage/cluster/cluster.h"
 
 #include <algorithm>
@@ -179,7 +180,7 @@ bool VoiceSampleStretchPort::read(Head head, std::span<deluge::dsp::Q<31>> out, 
 	// The legacy reader took the increment as a word
 	return ReadHead::read(voice_->heads_[which], bound(which), bounds, output, frames,
 	                      Increment::from_raw(static_cast<uint32_t>(params_.phase_increment)),
-	                      params_.interpolation_width, params_.kernel, nullptr, direction);
+	                      params_.interpolation_width, params_.kernel, nullptr, AudioEngine::readStaging(), direction);
 }
 
 HeadMark VoiceSampleStretchPort::mark(Head head) const {

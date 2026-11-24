@@ -648,6 +648,34 @@ Measured on the device images of the rewrite's last code commit and of its branc
 - **Headroom.** The SRAM heap, `__sram_heap_end − __sram_heap_start`, is 594,288 bytes, 21,472 less than the branch
   point's 615,760: the tail buffers and the code growth.
 
+### The read's NEON data plane
+
+The resampled sinc read and the native read run a staged data plane (`src/dsp/fixed/sample_read/stage.h`,
+`gather.h`, `quad_mix.h`, `native_quads.h`).
+The sinc read decodes its run's frames into planar int16 staging, newest first, after the window's sixteen taps, reads
+each output's taps straight from staging four outputs at a time, and mixes four frames at a time; the native read masks
+and mixes four frames at a time straight from the run. The control plane (the walk, the window check, the leases) and
+`ReadHead::State` are unchanged, and the output is bit-identical (`read_head_oracle_spec` holds the scalar kernels as
+the oracle). The linear read stays scalar: staged, it measured slower, its two taps too little work for the decode and
+the in-order NEON pipeline's latencies.
+
+Measured on the device (`bench pitch_shift`, cycles per output frame at a block of 128, before → after):
+- **Sinc:** 16-bit stereo 171.4 → 70.1, 32-bit stereo 171.4 → 72.3, 24-bit stereo 172.9 → 71.9, 16-bit mono 141.1 →
+  47.3, reversed 177.1 → 69.9, a rate of 4 173.4 → 78.8, stereo to one channel 172.4 → 69.2.
+- **Native:** 16-bit stereo 25.8 → 15.3, 24-bit stereo 25.8 → 17.7, 16-bit mono 12.8 → 10.1, stereo to one channel 20.9
+  → 12.4. Linear is unchanged (18.9 mono, 33.0 stereo).
+- **A stretched voice** (`stretch_voice_*`: the stretcher and both heads over a resident region): pitched 269.8 → 120.7;
+  unpitched 32.9 → 32.8 at 128 frames, but 59.7 → 64.3 at 32 and 35.9 → 37.1 at 64, with fewer instructions and more
+  stalled cycles than before.
+- **Size:** the read-head set (the lease's and the read head's functions, the data plane's included) 8,904 → 29,712
+  bytes, most of it the native read's per-depth, per-layout passes and `decode_taps` (3,048); `.text` +20,560, `.bss`
+  +4,096 (the engine's staging, `AudioEngine::readStaging`). Every function is in `.text`, on-chip. The SRAM heap is
+  569,488 bytes, 24,640 less.
+- **Emulator:** delugemu runs under an instruction-counted clock, so fewer instructions per audio block move every later
+  event: against the branch point every leg's audio matches after a constant boot shift but 35 sample-playing legs, whose
+  presses land on other blocks, and their pad and OLED captures differ; the image against itself matches throughout,
+  and x86 parity over the same scripts (no clock) shows no difference.
+
 ## 6. The rewrite's steps
 
 One step per component, each with its contracts' unit specs written and failing before the component. Each step is

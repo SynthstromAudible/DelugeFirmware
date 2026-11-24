@@ -17,6 +17,7 @@ src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=12
 src/deluge/bench/pitch_shift_cases.cpp raw=0 boundary=3
 src/deluge/bench/reference_chains.h raw=4 boundary=44
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=8
+src/deluge/bench/stretch_voice_cases.cpp raw=0 boundary=4
 src/deluge/bench/va_shape_cases.cpp raw=0 boundary=1
 src/deluge/model/clip/audio_clip.cpp raw=0 boundary=1
 src/deluge/model/drum/drum.cpp raw=0 boundary=2
@@ -109,8 +110,11 @@ src/dsp/fixed/pitch_shift/percussive_search.h raw=0 boundary=4
 src/dsp/fixed/pitch_shift/play_head.h raw=0 boundary=2
 src/dsp/fixed/pitch_shift/slope_follower.h raw=0 boundary=5
 src/dsp/fixed/reverb/freeverb.h raw=0 boundary=7
+src/dsp/fixed/sample_read/gather.h raw=13 boundary=1
 src/dsp/fixed/sample_read/mixed_in.h raw=0 boundary=2
-src/dsp/fixed/sample_read/read_head.h raw=0 boundary=26
+src/dsp/fixed/sample_read/native_quads.h raw=15 boundary=3
+src/dsp/fixed/sample_read/quad_mix.h raw=14 boundary=17
+src/dsp/fixed/sample_read/read_head.h raw=0 boundary=25
 src/dsp/fixed/shaping/antialiased_tanh.h raw=0 boundary=6
 src/dsp/fixed/shaping/bit_depth.h raw=0 boundary=6
 src/dsp/fixed/shaping/sample_rate_reducer.h raw=0 boundary=16

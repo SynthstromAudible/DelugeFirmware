@@ -32,6 +32,7 @@
 #include "dsp/core/wrapping.h"
 #include "dsp/fixed/dynamics/hit_strength.h" // combine_hit_strengths
 #include "dsp/fixed/mix/output_fold.h"
+#include "dsp/fixed/sample_read/stage.h"
 #include "effects/reverb.h"
 #include "effects/sidechain.h"
 #include "extern.h"
@@ -482,6 +483,9 @@ deluge::synth::HopBudget g_hopBudget;
 /// Decision 2: the cache-tail buffers a stretcher leaving a cache is lent, made with the engine so the render
 /// allocates none.
 deluge::synth::TailBuffers g_tailBuffers;
+/// The sample reads' staging, in on-chip memory with the engine: 4 KB the audio routine's interrupt stack could not
+/// spare.
+deluge::dsp::fixed::sample_read::Staging g_readStaging;
 } // namespace
 uint32_t audioSampleTimer = 0;
 
@@ -2212,6 +2216,10 @@ void stretcherUnassigned(deluge::synth::SampleStretcher* stretcher) {
 
 deluge::synth::HopBudget& hopBudget() {
 	return g_hopBudget;
+}
+
+deluge::dsp::fixed::sample_read::Staging& readStaging() {
+	return g_readStaging;
 }
 
 deluge::synth::StretchContext stretchContext() {

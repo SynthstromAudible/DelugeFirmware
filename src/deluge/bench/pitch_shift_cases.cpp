@@ -29,6 +29,7 @@
 #include "dsp/fixed/noise/cong.h"
 #include "dsp/fixed/sample_read/read_head.h"
 #include "model/sample/sample.h"
+#include "processing/engines/audio_engine.h"
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input.h"
 #include "synth/sources/input/live/live_inputs.h"
@@ -48,41 +49,41 @@ namespace {
 
 // ── the sample reader ──────────────────────────────────────────────────────────────────────────────────────────
 
-/// Bytes per channel-sample of the bench region: 32-bit frames, as the reader's 24- and 32-bit files play.
-constexpr int32_t kReaderByteDepth = 4;
-/// Frames of the bench region: a 128-sample block at the case's rate of 1.5 reads 192, padded for the jump's
-/// look-ahead.
-constexpr std::size_t kReaderFrames = 512;
-/// The reader cases' rate, 8.24: one and a half source samples per output sample, so blocks mix one- and two-sample
-/// jumps.
-constexpr int32_t kReaderRate = (3 << 24) / 2;
+/// Frames of the bench region: a 128-sample block at the fastest case's rate of 4 reads 512, padded for the window.
+constexpr int32_t kReaderFrames = 4096;
+/// Bytes before the region's first sample: a 32-bit read ending at an 8-bit sample's top byte starts 3 before it.
+constexpr int32_t kReaderLead = 4;
 
-/// The bench region's stereo frames, a full-scale saw, read by every reader case.
-alignas(16) std::array<int32_t, kReaderFrames * 2> reader_region{};
+/// The bench region's bytes: stereo frames of a full-scale saw at the case's byte depth, written at setup.
+alignas(16) std::array<uint8_t, kReaderLead + (kReaderFrames * 2 * 4)> reader_region{};
 
 namespace sr = dsp::fixed::sample_read;
 
-/// The bench region as a read source: one resident, final chunk of 32-bit frames.
+/// The bench region as a read source: one resident, final chunk, of the case's byte depth and channels.
 class BenchReadSource {
 public:
 	int32_t channels_ = 2;
-	[[nodiscard]] std::optional<sr::FrameRun> run(int32_t frame, sr::Direction /*direction*/) const {
-		const int32_t frame_bytes = channels_ * kReaderByteDepth;
-		return sr::FrameRun{.first = reinterpret_cast<const std::byte*>(reader_region.data()) + (frame * frame_bytes),
-		                    .frames = length_frames() - frame,
-		                    .stride = frame_bytes,
+	int32_t byte_depth_ = 4;
+	[[nodiscard]] std::optional<sr::FrameRun> run(int32_t frame, sr::Direction direction) const {
+		const int32_t frame_bytes = channels_ * byte_depth_;
+		const bool forward = direction == sr::Direction::FORWARD;
+		return sr::FrameRun{.first = reinterpret_cast<const std::byte*>(reader_region.data()) + kReaderLead
+		                             + (frame * frame_bytes) + byte_depth_ - 4,
+		                    .frames = forward ? length_frames() - frame : frame + 1,
+		                    .stride = forward ? frame_bytes : -frame_bytes,
 		                    .channels = static_cast<int8_t>(channels_),
-		                    .byte_depth = kReaderByteDepth};
+		                    .byte_depth = static_cast<int8_t>(byte_depth_)};
 	}
 	[[nodiscard]] int32_t channels() const { return channels_; }
-	[[nodiscard]] int32_t length_frames() const {
-		return static_cast<int32_t>(reader_region.size() * sizeof(int32_t)) / (channels_ * kReaderByteDepth);
-	}
-	[[nodiscard]] int32_t byte_depth() const { return kReaderByteDepth; }
+	[[nodiscard]] int32_t length_frames() const { return kReaderFrames; }
+	[[nodiscard]] int32_t byte_depth() const { return byte_depth_; }
 	sr::Residency move_to(int32_t /*frame*/, sr::Direction /*direction*/) { return sr::Residency::READY; }
 	void let_go() {}
-	[[nodiscard]] std::optional<sr::ChunkSpan> span(sr::Direction /*direction*/) const {
-		return sr::ChunkSpan{.boundary = length_frames(), .floor = 0, .final = true};
+	[[nodiscard]] std::optional<sr::ChunkSpan> span(sr::Direction direction) const {
+		if (direction == sr::Direction::FORWARD) {
+			return sr::ChunkSpan{.boundary = length_frames(), .floor = 0, .final = true};
+		}
+		return sr::ChunkSpan{.boundary = -1, .floor = length_frames() - 1, .final = true};
 	}
 };
 static_assert(sr::read_source<BenchReadSource>);
@@ -94,9 +95,9 @@ struct ReaderRig {
 	std::array<dsp::Q<31>, kMaxBlock * 2> out{};
 	bool ready = false;
 
-	/// Puts the head at the region's start.
-	void rewind() {
-		head.cursor = sr::ReadHead::Reading{0};
+	/// Puts the head at the region's first frame in the play direction.
+	void rewind(bool reverse) {
+		head.cursor = sr::ReadHead::Reading{reverse ? kReaderFrames - 1 : 0};
 		head.phase = dsp::UQ<24>{};
 	}
 };
@@ -210,29 +211,39 @@ constexpr int32_t kShifterAmplitude = 0x3000'0000;
 
 void SampleReadCase::setup(std::size_t /*n*/) {
 	ReaderRig& rig = reader_rig();
-	if (!rig.ready) {
-		for (std::size_t i = 0; i < reader_region.size(); ++i) {
-			reader_region[i] = static_cast<int32_t>(static_cast<uint32_t>(i) * 0x0100'0000U);
+	// The region is rewritten at each case's depth: the saw's word for channel-sample i, its top bytes kept
+	const int32_t depth = config_.byte_depth;
+	for (int32_t i = 0; i < kReaderFrames * 2; ++i) {
+		const uint32_t word = static_cast<uint32_t>(i) * 0x0100'0000U;
+		for (int32_t b = 0; b < depth; ++b) {
+			reader_region[kReaderLead + (i * depth) + b] = static_cast<uint8_t>(word >> (8 * (4 - depth + b)));
 		}
-		rig.ready = true;
 	}
-	rig.rewind();
+	rig.ready = true;
+	rig.rewind(config_.reverse);
 }
 
 void SampleReadCase::block(std::size_t n) {
 	ReaderRig& rig = reader_rig();
-	rig.rewind();
+	rig.rewind(config_.reverse);
 	const int32_t channels = config_.stereo ? 2 : 1;
 	rig.source.channels_ = channels;
-	// The bench's amplitude and rate are the words the old case passed
+	rig.source.byte_depth_ = config_.byte_depth;
+	const sr::Direction direction = config_.reverse ? sr::Direction::REVERSE : sr::Direction::FORWARD;
+	// The bench's amplitude is the word the old case passed
 	sr::ReadHead::Output output{.out = rig.out,
-	                            .out_channels = static_cast<int8_t>(channels),
+	                            .out_channels =
+	                                static_cast<int8_t>(config_.out_channels != 0 ? config_.out_channels : channels),
 	                            .amplitude = dsp::Q<31>::from_raw(kShifterAmplitude),
 	                            .step = dsp::Q<31>{}};
+	if (config_.native) {
+		sr::ReadHead::read_native(rig.head, rig.source, output, static_cast<int32_t>(n), direction);
+		return;
+	}
 	std::byte* no_cache = nullptr;
-	sr::ReadHead::read_resampled(rig.head, rig.source, output, static_cast<int32_t>(n),
-	                             sr::Increment::from_raw(static_cast<uint32_t>(kReaderRate)),
-	                             config_.linear ? 2 : kInterpolationMaxNumSamples, 0, no_cache, sr::Direction::FORWARD);
+	sr::ReadHead::read_resampled(
+	    rig.head, rig.source, output, static_cast<int32_t>(n), sr::Increment::from_raw(config_.rate),
+	    config_.linear ? 2 : kInterpolationMaxNumSamples, 0, no_cache, AudioEngine::readStaging(), direction);
 }
 
 void PitchShiftCase::setup(std::size_t /*n*/) {

@@ -51,8 +51,13 @@ SCOPE: dict[str, tuple[str, ...] | None] = {
     "src/dsp/fixed/timestretch/waveform_aligner.h": None,
     "src/dsp/fixed/timestretch/waveform_search.h": None,
     "src/dsp/fixed/sample_read/frame_source.h": None,
+    "src/dsp/fixed/sample_read/gather.h": None,
     "src/dsp/fixed/sample_read/mixed_in.h": None,
+    "src/dsp/fixed/sample_read/native_quads.h": None,
+    "src/dsp/fixed/sample_read/quad_mix.h": None,
     "src/dsp/fixed/sample_read/read_head.h": None,
+    "src/dsp/fixed/sample_read/stage.h": None,
+    "src/dsp/fixed/sample_read/stage.cpp": None,
     "src/deluge/model/voice/voice_sample_stretch_port.cpp": None,
     "src/deluge/model/sample/sample_read_lease.cpp": None,
     "src/deluge/model/clip/audio_clip.cpp": (
