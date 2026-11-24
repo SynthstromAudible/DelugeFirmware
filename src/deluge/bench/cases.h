@@ -1692,6 +1692,33 @@ private:
 	SampleReadConfig config_;
 };
 
+/// @brief One whole stretched voice case's configuration.
+struct StretchVoiceConfig {
+	uint32_t pitch_increment = 1u << 24; ///< The heads' rate, 8.24: 2^24 is unpitched (the native read).
+	uint32_t ratio = 13'421'773;         ///< The stretch ratio, 8.24: 0.8, the source read slower than it plays.
+};
+
+/// @brief A sample voice's stretched render minus the app: `SampleStretcher` driving both read heads through a port
+/// over a resident 16-bit stereo region, chunks of 4,096 frames walked as a sample's are.
+/// @details Setup seats the newer head, begins plainly and renders a second untimed so the hops are in their steady
+/// pattern; each block then prepares and renders one part.
+class StretchVoiceCase {
+public:
+	/// @brief A case of @p config.
+	/// @param config The case's configuration.
+	constexpr explicit StretchVoiceCase(const StretchVoiceConfig& config) : config_{config} {}
+
+	/// @brief The voice afresh, warmed up.
+	/// @param n Block size to set up for, in frames.
+	void setup(std::size_t n);
+	/// @brief Renders one block.
+	/// @param n Block size, in frames; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	StretchVoiceConfig config_;
+};
+
 /// @brief One live pitch shifter case's configuration.
 struct PitchShiftConfig {
 	int32_t phase_increment = 1 << 24; ///< The shift, 8.24: 2^24 is unshifted.
@@ -2520,6 +2547,9 @@ struct CaseSet {
 	    {.stereo = true, .byte_depth = 3, .native = true}}; ///< `sample_read_native_stereo24`
 	SampleReadCase sample_read_native_condense16{
 	    {.stereo = true, .byte_depth = 2, .out_channels = 1, .native = true}}; ///< `sample_read_native_condense16`
+	StretchVoiceCase stretch_voice_pitched{
+	    {.pitch_increment = static_cast<uint32_t>(kPitchShiftUp7)}};           ///< `stretch_voice_pitched`
+	StretchVoiceCase stretch_voice_unpitched{{}};                              ///< `stretch_voice_unpitched`
 	PitchShiftCase pitch_shift_up7{{.phase_increment = kPitchShiftUp7}};       ///< `pitch_shift_up7`
 	PitchShiftCase pitch_shift_down12{{.phase_increment = kPitchShiftDown12}}; ///< `pitch_shift_down12`
 	PitchShiftCase pitch_shift_stereo_up7{

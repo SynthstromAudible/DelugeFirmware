@@ -886,6 +886,8 @@ std::span<const Case> pitch_shift_list(CaseSet& s) {
 	    make_case("sample_read_native_stereo16", s.sample_read_native_stereo16),
 	    make_case("sample_read_native_stereo24", s.sample_read_native_stereo24),
 	    make_case("sample_read_native_condense16", s.sample_read_native_condense16),
+	    make_case("stretch_voice_pitched", s.stretch_voice_pitched),
+	    make_case("stretch_voice_unpitched", s.stretch_voice_unpitched),
 	    make_case("pitch_shift_up7", s.pitch_shift_up7),
 	    make_case("pitch_shift_down12", s.pitch_shift_down12),
 	    make_case("pitch_shift_stereo_up7", s.pitch_shift_stereo_up7),

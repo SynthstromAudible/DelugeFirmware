@@ -34,6 +34,7 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/granular_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/stutter_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pitch_shift_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/stretch_voice_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/float_filter_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/float_voice_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/reverb_cases.cpp
