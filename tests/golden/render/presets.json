@@ -2453,6 +2453,12 @@
   "rms_db": -37.51,
   "sha256": "e63d91eb9be784efdc23d2b2a9edfe203bf8bfac0e57bbe89a50f6b41fdef31e"
  },
+ "sample/unison_added": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -24.39,
+  "sha256": "2936bc36dd2b8952d0c66db9084f8864398a7ec3965d57cb9fe2cc927b5f423e"
+ },
  "saw_basic": {
   "frames": 88200,
   "peak": 173388032,

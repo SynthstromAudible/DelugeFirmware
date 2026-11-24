@@ -139,6 +139,7 @@ class ToneTest(unittest.TestCase):
 
 # Each depth source: its file, the generator function, its bits per sample and its channels.
 DEPTH_SOURCES = (
+    ("_tone16.wav", "tone16_wav", 16, 2),
     ("_tone24.wav", "tone24_wav", 24, 2),
     ("_tone24_mono.wav", "tone24_mono_wav", 24, 1),
     ("_tone32.wav", "tone32_wav", 32, 2),

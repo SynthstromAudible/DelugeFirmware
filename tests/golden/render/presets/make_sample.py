@@ -10,9 +10,9 @@ Writes, under sample/, each a 44.1 kHz WAV (16-bit unless named otherwise) with 
   distinctly.
 - _tone_short.wav (stereo): the same mixes over 1,024 frames. Played an octave up and stretched, it outlasts the time
   stretcher's first hop but runs out before the next: shorter than one hop.
-- _tone24.wav (stereo), _tone24_mono.wav, _tone32.wav (stereo) and _tone8_mono.wav: the tone's mixes at 24, 32 and 8
-  bits (8-bit WAV is unsigned), its period repeated DEPTH_PERIODS times so each source spans several of the loader's
-  32 KB chunks and a 24-bit frame straddles their boundaries.
+- _tone16.wav (stereo), _tone24.wav (stereo), _tone24_mono.wav, _tone32.wav (stereo) and _tone8_mono.wav: the tone's
+  mixes at 16, 24, 32 and 8 bits (8-bit WAV is unsigned), its period repeated DEPTH_PERIODS times so each source spans
+  several of the loader's 32 KB chunks and a 24-bit frame straddles their boundaries.
 - _perc.wav (stereo): decaying noise bursts at irregular onsets, so the time stretcher's transient search (its perc
   cache) finds hits to place its hops on, where the tone gives it none.
 
@@ -143,6 +143,10 @@ def depth_tone(harmonics, bits):
     return render_channel(harmonics, LENGTH, bits) * DEPTH_PERIODS
 
 
+def tone16_wav():
+    return wav_bytes([depth_tone(HARMONICS_L, 16), depth_tone(HARMONICS_R, 16)], 16)
+
+
 def tone24_wav():
     return wav_bytes([depth_tone(HARMONICS_L, 24), depth_tone(HARMONICS_R, 24)], 24)
 
@@ -170,6 +174,7 @@ def main():
         ("_tone_mono.wav", tone_mono_wav()),
         ("_tone_short.wav", short_tone_wav()),
         ("_perc.wav", perc_wav()),
+        ("_tone16.wav", tone16_wav()),
         ("_tone24.wav", tone24_wav()),
         ("_tone24_mono.wav", tone24_mono_wav()),
         ("_tone32.wav", tone32_wav()),

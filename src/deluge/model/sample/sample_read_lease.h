@@ -80,8 +80,11 @@ public:
 
 	// the app's
 	/// @brief A level copy's own lease: an independent lease on the same chunk, and no region-port cursor (R10's
-	/// quirk).
+	/// quirk). A stretcher's shadow head takes this one: it is read only until its crossfade ends.
 	[[nodiscard]] SampleReadLease copy_without_cursor() const;
+	/// @brief A level copy's own lease and its own region-port cursor, opened as a seat opens one, so the copy walks on
+	/// past the chunk it shares (decision 13: a unison part added to a sounding voice).
+	[[nodiscard]] SampleReadLease copy_with_cursor() const;
 	/// @brief The lease again on the chunk it holds, or on the final chunk where a cache's read left it past it: what
 	/// a change of markers needs, the final chunk being the markers'. False if it is not ready.
 	[[nodiscard]] bool reacquire(Direction direction);

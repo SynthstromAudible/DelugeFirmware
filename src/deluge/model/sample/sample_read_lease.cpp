@@ -220,6 +220,14 @@ SampleReadLease SampleReadLease::copy_without_cursor() const {
 	return copy;
 }
 
+SampleReadLease SampleReadLease::copy_with_cursor() const {
+	SampleReadLease copy = copy_without_cursor();
+	if (copy.sample_ != nullptr) {
+		copy.ensure_source();
+	}
+	return copy;
+}
+
 bool SampleReadLease::reacquire(Direction direction) {
 	if (!holds_chunk()) {
 		return true;

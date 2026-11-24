@@ -124,6 +124,7 @@ SETTING = {
     "voice/type_change_mono_saw_supersaw": "150 osc1/type supersaw",
     "sample/ts_cache_linear": "150 osc1/linearInterpolation 1",
     "sample/ts_cache_stretch_amount": "150 osc1/timeStretchAmount 3",
+    "sample/unison_added": "150 unison/num 2",
 }
 # The loudest sample of silence: 16 in 16-bit terms, the C-host harness's threshold. The render's dither floor sits
 # far below it.

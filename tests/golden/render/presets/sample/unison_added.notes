@@ -1,0 +1,4 @@
+# The 16-bit stereo tone, held C4 (the root), its unison number raised from 1 to 2 at captured block 150: the new
+# part's head is a level copy of the sounding part's, read on past the chunk boundaries that follow.
+4608 90 3C 64
+52000 80 3C 40
