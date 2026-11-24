@@ -1801,6 +1801,8 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 	}
 
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
+	// Start from the first screen, so copies on screens before editPos's get the change too
+	editPos = (uint32_t)editPos % wrapEditLevel;
 
 	int32_t numScreens = (uint32_t)(modelStack->getLoopLength() - 1) / wrapEditLevel + 1;
 
