@@ -1329,6 +1329,37 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		currentSong = nullptr;
 	});
 
+	it("ends a MIDI CC choice on its knob's release with LEARN held, or with another mode held over it", _ {
+		// `View::modEncoderButtonAction` refuses a LEARN-held press only (#5290): a release ends what its press began
+		StubDisplay stub;
+		display = &stub;
+		deluge::ui::scenes::spec::UiStackGuard ui_guard;
+		setRootUILowLevel(&instrumentClipView);
+		spec::SongFixture f = spec::make_midi_song();
+		currentSong = f.song;
+		{
+			KnobRig rig;
+			rig.set_song(f.song);
+			(void)rig.stack.push({SceneKind::FirstApp});
+			rig.set_target_with_timeline(f.clip, false);
+			CountingPresentation out;
+			rig.knobs.push(1, true, {}, out);
+			expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
+			rig.knobs.push(1, false, {.learn = true}, out);
+			expect(currentUIMode).to_equal(UI_MODE_NONE);
+		}
+		// A held horizontal encoder over the choice: the release ends the choice and keeps the encoder's mode
+		auto& sink = *deluge::ui::scenes::menu::host_ports().controls_sink;
+		const deluge::ui::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
+		expect(sink.midi_cc_select(focus, 1, true)).to_be_true();
+		enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+		expect(sink.midi_cc_select(focus, 1, false)).to_be_false();
+		expect(currentUIMode).to_equal(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+		currentUIMode = UI_MODE_NONE;
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
 	it("records a stutter-rate turn while recording, as it does any param's", _ {
 		StubDisplay stub;
 		display = &stub;

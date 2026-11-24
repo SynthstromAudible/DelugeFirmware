@@ -492,8 +492,8 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 
 void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, KnobPresentation& out) {
 	// `View::modEncoderButtonAction` (`origin/main:src/deluge/gui/views/view.cpp`). Legacy's tail always reaches
-	// `dealtWith`.
-	if (ctx.learn || bind::has_no_knobs(*focus_) || !bound()) {
+	// `dealtWith`. LEARN refuses a press only: a release still ends what its press began (a MIDI CC choice).
+	if ((ctx.learn && on) || bind::has_no_knobs(*focus_) || !bound()) {
 		return;
 	}
 	ui::controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);

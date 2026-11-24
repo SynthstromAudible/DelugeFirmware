@@ -886,9 +886,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on) {
 	}
 	else {
 		// Button release
-		if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-			currentUIMode = UI_MODE_NONE;
-		}
+		exitUIMode(UI_MODE_SCALE_MODE_BUTTON_PRESSED);
 		if (toggleScaleModeOnButtonRelease && isShortPress(scaleButtonPressTime)) {
 			toggleScaleModeOnButtonRelease = false;
 			if (inScaleMode) {
@@ -1014,15 +1012,13 @@ ramError:
 
 void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
-	// If they want to copy or paste automation...
-	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (on) {
-			if (Buttons::isShiftButtonPressed()) {
-				pasteAutomation(whichModEncoder);
-			}
-			else {
-				copyAutomation(whichModEncoder);
-			}
+	// Copy / paste uses presses; releases must still reach the sound to stop stutter.
+	if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+		if (Buttons::isShiftButtonPressed()) {
+			pasteAutomation(whichModEncoder);
+		}
+		else {
+			copyAutomation(whichModEncoder);
 		}
 	}
 	else {
@@ -5457,7 +5453,7 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 // sub-function of AuditionPadAction
 // pad is released, end previous audition pad press
 void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack,
-                                              NoteRow* noteRowOnActiveClip) {
+                                              NoteRow* noteRowOnActiveClip, bool changeRowSelection) {
 	if (auditionPadIsPressed[yDisplay]) {
 		bool auditionNoteWasSounding = lastAuditionedVelocityOnScreen[yDisplay] != 255;
 		auditionPadIsPressed[yDisplay] = 0;
@@ -5472,8 +5468,8 @@ void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNo
 			sendAuditionNote(false, yDisplay, 64, 0);
 		}
 	}
-	display->cancelPopup();        // In case euclidean stuff was being edited etc
-	someAuditioningHasEnded(true); // lastAuditionedYDisplay == yDisplay);
+	display->cancelPopup(); // In case euclidean stuff was being edited etc
+	someAuditioningHasEnded(changeRowSelection);
 	actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
 	actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 }
@@ -6564,8 +6560,8 @@ void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
 
 ActionResult InstrumentClipView::commandStopQuantize(int32_t y) {
 	ActionResult res;
-	bool inNoteEditor = getRootUI() == &automationView && automationView.inNoteEditor();
-	if (inNoteEditor) {
+	// Automation View owns the audition release even if a shortcut changed its editor.
+	if (getRootUI() == &automationView) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		Output* output = clip->output;
 		OutputType outputType = output->type;

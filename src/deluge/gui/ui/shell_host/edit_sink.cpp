@@ -599,8 +599,9 @@ bool HostEditSink::write_effect(const deluge::ui::scenes::bind::EffectOwner& own
 
 bool HostEditSink::midi_cc_select(const deluge::ui::controls::KnobFocus& focus, int32_t knob, bool on) {
 	if (!on) {
-		if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
-			currentUIMode = UI_MODE_NONE;
+		// Another mode may be held over the choice (a held horizontal encoder): end only this one
+		if (isUIModeActive(UI_MODE_SELECTING_MIDI_CC)) {
+			exitUIMode(UI_MODE_SELECTING_MIDI_CC);
 			hid::display::OLED::removePopup();
 		}
 		return false;
