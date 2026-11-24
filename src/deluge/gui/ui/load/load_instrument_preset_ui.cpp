@@ -751,12 +751,10 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		return;
 	}
 
-	InstrumentClip* clip = getCurrentInstrumentClip();
-
-	// don't allow clip type change if clip is not empty
-	// only impose this restriction if switching to/from kit clip
+	// Switching to/from a kit requires the target clip and output to be empty.
+	// Arranger browsing replaces an output without a target clip; the current clip may belong to another track.
 	if (((outputTypeToLoad == OutputType::KIT) || (newOutputType == OutputType::KIT))
-	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
+	    && ((instrumentClipToLoadFor && !instrumentClipToLoadFor->isEmpty()) || !instrumentToReplace->isEmpty())) {
 		return;
 	}
 

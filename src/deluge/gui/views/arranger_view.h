@@ -158,6 +158,8 @@ public:
 	UIType getUIType() override { return UIType::ARRANGER; }
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
 
+	/// @brief Whether an arrangement row or its audition pad is held: a selection, which may hold no clip.
+	[[nodiscard]] bool holdingRow() const;
 	Clip* getClipForSelection();
 
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);

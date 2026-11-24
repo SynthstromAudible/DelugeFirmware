@@ -3501,6 +3501,10 @@ void ArrangerView::clipNeedsReRendering(Clip* clip) {
 	}
 }
 
+bool ArrangerView::holdingRow() const {
+	return isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) || isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+}
+
 Clip* ArrangerView::getClipForSelection() {
 	Clip* clip = nullptr;
 	// if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip

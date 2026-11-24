@@ -722,7 +722,8 @@ void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc,
 		if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
-			if (getCurrentOutputType() == OutputType::MIDI_OUT) {
+			// In arranger view, the instrument being learned can differ from the current clip's output.
+			if (instrumentPressedForMIDILearn->type == OutputType::MIDI_OUT) {
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
 				if (learnedThing->channelOrZone == MIDI_CHANNEL_NONE) {
@@ -730,7 +731,7 @@ void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc,
 					learned.cable = &cable;
 					learned.channelOrZone = channel;
 					commitLearnedThing(learned);
-					getCurrentInstrument()->beenEdited(false);
+					instrumentPressedForMIDILearn->beenEdited(false);
 				}
 			}
 		}
@@ -877,6 +878,13 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 
 	// On OLED, display the name of the parameter on the first line of the popup
 	{
+		// In session / arranger view the mod encoders can target a different clip from the last one opened, and
+		// that last-opened clip can have been deleted: a MIDI param is named from the knobs' own clip.
+		Output* output = nullptr;
+		if (knobsOnClipContext() && knobs != nullptr && knobs->getTimelineCounterAllowNull() != nullptr) {
+			output = static_cast<Clip*>(knobs->getTimelineCounter())->output;
+		}
+
 		if (kind == params::Kind::PATCH_CABLE) {
 			parameter_name.append(sourceToStringShort(source1));
 			parameter_name.append("->");
@@ -886,8 +894,9 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 			parameter_name.append(modulation::params::getPatchedParamShortName(paramID, knobOwner));
 		}
-		else if (knobsOnClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT) {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
+		else if (output != nullptr && output->type == OutputType::MIDI_OUT
+		         && (kind == params::Kind::MIDI || kind == params::Kind::EXPRESSION)) {
+			auto* midiInstrument = static_cast<MIDIInstrument*>(output);
 			if (kind == params::Kind::EXPRESSION) {
 				if (paramID == X_PITCH_BEND) {
 					parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
