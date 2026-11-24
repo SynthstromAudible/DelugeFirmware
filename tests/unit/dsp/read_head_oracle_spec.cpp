@@ -67,7 +67,8 @@ struct Case {
 	int32_t frames; ///< Per read.
 	int32_t reads;
 	bool cache;
-	int32_t step; ///< The amplitude's step, a word.
+	int32_t step;        ///< The amplitude's step, a word.
+	int32_t width_b = 0; ///< When set, the width of every odd read: the window reshaped between reads.
 };
 
 std::string describe_case(const Case& c, int32_t read, const char* what) {
@@ -127,9 +128,10 @@ std::string run_both(const Case& c, HandChunks& a_source, HandChunks& b_source) 
 		                    .out_channels = c.out_channels,
 		                    .amplitude = amp_b,
 		                    .step = Q<31>::from_raw(c.step)};
-		const bool go_a = ReadHead::read(a, a_source, bounds, oa, c.frames, Increment::from_raw(c.increment), c.width,
+		const int32_t width = (c.width_b != 0 && (r % 2) == 1) ? c.width_b : c.width;
+		const bool go_a = ReadHead::read(a, a_source, bounds, oa, c.frames, Increment::from_raw(c.increment), width,
 		                                 kernel, c.cache ? cache_a.data() : nullptr, staging, c.direction);
-		const bool go_b = Oracle::read(b, b_source, bounds, ob, c.frames, Increment::from_raw(c.increment), c.width,
+		const bool go_b = Oracle::read(b, b_source, bounds, ob, c.frames, Increment::from_raw(c.increment), width,
 		                               kernel, c.cache ? cache_b.data() : nullptr, c.direction);
 		if (go_a != go_b) {
 			return describe_case(c, r, "stopped differently");
@@ -215,6 +217,41 @@ describe read_head_oracle_spec_body("deluge::dsp::fixed::sample_read::ReadHead r
 		const std::string bad = matrix(count, [](const Case&) { return true; });
 		expect(bad).to_equal(std::string{});
 		expect(count).to_equal(std::size_t{4 * 3 * 4 * 2 * 2 * 8 * 3 * 4});
+	});
+
+	it("leaves window taps 2 to 15 as they were after a linear read", _ {
+		// Sinc reads at 16 between linear reads at 2: each widening reads the taps the linear read left alone
+		std::string bad;
+		std::size_t count = 0;
+		for (int8_t depth = 2; depth <= 3; depth++) {
+			for (int8_t channels = 1; channels <= 2; channels++) {
+				for (const Direction d : {Direction::FORWARD, Direction::REVERSE}) {
+					HandChunks a_source(geometry(45, channels, depth, kFrames, d), kFrames, true);
+					HandChunks b_source(geometry(45, channels, depth, kFrames, d), kFrames, true);
+					for (const uint32_t inc : {0x00F0'0000U, 3u << 23, 0x01F0'0000U}) {
+						for (const int32_t frames : {5, 64}) {
+							const Case c{.depth = depth,
+							             .channels = channels,
+							             .out_channels = channels,
+							             .data_start = 45,
+							             .chunk_bytes = 32768,
+							             .direction = d,
+							             .increment = inc,
+							             .width = 16,
+							             .frames = frames,
+							             .reads = 7,
+							             .cache = false,
+							             .step = 12'345,
+							             .width_b = 2};
+							count++;
+							bad += run_both(c, a_source, b_source);
+						}
+					}
+				}
+			}
+		}
+		expect(bad).to_equal(std::string{});
+		expect(count).to_equal(std::size_t{2 * 2 * 2 * 3 * 2});
 	});
 
 	it("matches the oracle on sub-reads past the staging, steps over 16", _ {
