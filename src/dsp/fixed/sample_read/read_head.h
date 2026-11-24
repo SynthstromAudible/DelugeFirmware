@@ -21,6 +21,7 @@
 #include "dsp/fixed/sample_read/frame_source.h"
 #include "dsp/fixed/sample_read/gather.h"
 #include "dsp/fixed/sample_read/mixed_in.h"
+#include "dsp/fixed/sample_read/native_quads.h"
 #include "dsp/fixed/sample_read/quad_mix.h"
 #include "dsp/fixed/sample_read/stage.h"
 
@@ -437,17 +438,6 @@ private:
 			f.template operator()<1, 1>();
 		}
 	}
-	/// @brief The 16-bit tap at @p at: the top word of the 32-bit read ending at a sample's top byte, @p at being two
-	/// bytes into that read.
-	[[nodiscard, gnu::always_inline]] static int16_t top_word(const std::byte* at) {
-		// One halfword load at the same address as the legacy's int16_t cast. The build forbids unaligned access
-		// (-mno-unaligned-access: unaligned doubleword and multiple loads fault), so a plain copy loads byte by byte. A
-		// 24-bit sample's top word can sit at an odd byte, where the legacy's halfword loads ran on every 24-bit sample
-		// read, so an unaligned halfword load is one the device already makes
-		int16_t word = 0;
-		std::memcpy(&word, __builtin_assume_aligned(at, 2), sizeof word);
-		return word;
-	}
 	/// @brief The source frames a resampled read of @p frames outputs steps past its first: its phase's whole part
 	/// after the later outputs' steps, a long step's jump included.
 	[[nodiscard, gnu::always_inline]] static int32_t frames_stepped(uint32_t phase, uint32_t increment,
@@ -456,51 +446,26 @@ private:
 		    (static_cast<uint64_t>(phase) + (static_cast<uint64_t>(increment) * static_cast<uint32_t>(frames - 1)))
 		    >> 24);
 	}
-	/// @brief Mixes one output frame at @p out, stepping the amplitude first, and moves @p out on.
-	template <int OutChannels>
-	[[gnu::always_inline]] static void put(Q<31>* __restrict& out, Q<31>& amplitude, Q<31> step, Q<31> l, Q<31> r) {
-		amplitude = add_wrap(amplitude, step);
-		out[0] = mixed_in(out[0], l, amplitude);
-		if constexpr (OutChannels == 2) {
-			out[1] = mixed_in(out[1], r, amplitude);
-		}
-		out += OutChannels;
-	}
-	// The kernels keep the cursor, phase, amplitude and output position in locals and write them back once: in State
-	// and Output they would be reloaded after every output store, which the compiler cannot prove does not alias them.
+	/// @brief The native read's frames, run by run, mixed four at a time: each sample its bytes masked from the 32-bit
+	/// read ending at its top byte; a stereo source to one channel `(l >> 1) + (r >> 1)`.
 	template <int Channels, int OutChannels, read_source S>
 	static void read_native_as(State& state, const S& source, Output& output, int32_t frames, Direction direction) {
-		const uint32_t mask = 0xFFFFFFFFu << (32 - (8 * source.byte_depth()));
+		constexpr Condense kCondense = (Channels == 2 && OutChannels == 1) ? Condense::FLOOR : Condense::NONE;
+		QuadMix<Channels, OutChannels, kCondense> mix(output.out.data(), output.amplitude, output.step, nullptr);
 		auto& reading = std::get<Reading>(state.cursor);
-		Q<31>* __restrict out = output.out.data();
-		Q<31> amplitude = output.amplitude;
-		const Q<31> step = output.step;
 		while (frames > 0) {
 			const std::optional<FrameRun> run = source.run(reading.frame, direction);
 			if (!run) {
 				break; // a window check has said these frames are readable
 			}
 			const int32_t take = std::min(frames, run->frames);
-			const std::byte* at = run->first;
-			for (int32_t k = 0; k < take; k++, at += run->stride) {
-				uint32_t word = 0;
-				std::memcpy(&word, at, sizeof word);
-				auto l = static_cast<int32_t>(word & mask);
-				int32_t r = 0;
-				if constexpr (Channels == 2) {
-					std::memcpy(&word, at + run->byte_depth, sizeof word);
-					r = static_cast<int32_t>(word & mask);
-					if constexpr (OutChannels == 1) {
-						l = (l >> 1) + (r >> 1);
-					}
-				}
-				put<OutChannels>(out, amplitude, step, Q<31>::from_raw(l), Q<31>::from_raw(r));
-			}
+			native_quads<Channels>(*run, take, mix);
 			reading.frame += take * static_cast<int32_t>(direction);
 			frames -= take;
 		}
-		output.amplitude = amplitude;
+		output.amplitude = mix.amplitude();
 	}
+
 	/// @brief A sinc read over @p run, which starts at the cursor (R8): its first output skips its step (R3 took it).
 	/// The run's frames are decoded into @p staging after the window's taps, the outputs gathered from it and mixed
 	/// four at a time, and the window takes staging's taps at the last output.

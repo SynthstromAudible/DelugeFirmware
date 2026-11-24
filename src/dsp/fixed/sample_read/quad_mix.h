@@ -61,8 +61,8 @@ public:
 		step4_ = vdupq_n_s32(static_cast<int32_t>(4 * s));
 	}
 
-	/// @brief Mixes frames 0 to @p count − 1 of @p l and @p r (each lane a frame's sample); @p count is 4 but on a
-	/// read's last call.
+	/// @brief Mixes frames 0 to @p count − 1 of @p l and @p r (each lane a frame's sample); @p count is 4 but at a
+	/// read's or a run's end.
 	/// @details Inlined into the gather, so the ramp stays in its register: the next four amplitudes are a vector, and
 	/// the scalar amplitude is core arithmetic, never a lane moved out.
 	[[gnu::always_inline]] void put(QVec<31> l, QVec<31> r, int32_t count) {
@@ -81,6 +81,9 @@ public:
 		}
 		else {
 			mix_some(lw, rw, amps_, count);
+			// A partial call may come mid-read (a run's end): the ramp moves on by the frames it mixed
+			amps_ = vaddq_s32(amps_, vdupq_n_s32(static_cast<int32_t>(static_cast<uint32_t>(step_.raw())
+			                                                          * static_cast<uint32_t>(count))));
 		}
 		amplitude_ = Q<31>::from_raw(
 		    static_cast<int32_t>(static_cast<uint32_t>(amplitude_.raw())

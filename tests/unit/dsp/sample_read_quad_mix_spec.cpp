@@ -176,6 +176,22 @@ describe sample_read_quad_mix_spec_body("deluge::dsp::fixed::sample_read::QuadMi
 		expect(every_layout(Q<31>::from_raw(0x7FFF'FFFF), Q<31>::from_raw(0), true)).to_equal(std::string{});
 	});
 
+	it("mixes partial calls mid-read and keeps the ramp", _ {
+		// Calls of 3, 4, 1, 4, 2 frames: each partial one moves the ramp on by its frames
+		Words a = random_words(0xFACE'0000U, 2);
+		Words b = a;
+		std::vector<std::byte> unused;
+		const Q<31> want = scalar<2, 2, Condense::NONE>(a, 14, Q<31>::from_raw(0x2000'0000), Q<31>::from_raw(999), unused);
+		QuadMix<2, 2, Condense::NONE> mix(b.out.data(), Q<31>::from_raw(0x2000'0000), Q<31>::from_raw(999), nullptr);
+		int32_t at = 0;
+		for (const int32_t count : {3, 4, 1, 4, 2}) {
+			mix.put(load4(b.l, at), load4(b.r, at), count);
+			at += count;
+		}
+		expect(a.out == b.out).to_equal(true);
+		expect(mix.amplitude().raw()).to_equal(want.raw());
+	});
+
 	it("wraps the amplitude as the scalar add_wrap does", _ {
 		expect(every_layout(Q<31>::from_raw(0x7FFF'FF00), Q<31>::from_raw(0x40), false)).to_equal(std::string{});
 		expect(every_layout(Q<31>::from_raw(INT32_MIN + 0x80), Q<31>::from_raw(-0x40), true)).to_equal(std::string{});
