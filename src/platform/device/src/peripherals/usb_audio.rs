@@ -56,10 +56,11 @@ const CAPTURE_CHANNELS: usize = 2;
 const SPEAKER_MAX_PACKET: u16 = 392;
 
 /// The interfaces [`AudioClass::new_in_words`] allocates, in its order, when it is the first function the
-/// builder gets: AudioControl, then the capture stream, then the speaker stream.
+/// builder gets: AudioControl, then the speaker stream, then the capture stream. Linux takes the capture stream as the
+/// speaker's implicit feedback only when it is the next interface.
 const AC_INTERFACE: u8 = 0;
-const CAPTURE_INTERFACE: u8 = 1;
-const SPEAKER_INTERFACE: u8 = 2;
+const SPEAKER_INTERFACE: u8 = 1;
+const CAPTURE_INTERFACE: u8 = 2;
 
 /// The clock source's entity ID and its sampling-frequency control (UAC2 §A.17.1), and SET_CUR.
 const CLOCK_SOURCE_ID: u8 = 0x10;
