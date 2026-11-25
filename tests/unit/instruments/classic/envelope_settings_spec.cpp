@@ -98,6 +98,9 @@ describe envelope_settings("an envelope's mode, curve and follow input", ${
 		expect(envelope(s, 0).curve).to_equal(int8_t{50});
 		const SoundPieces p = encode_pieces(s, kContext);
 		expect(text(*p.body.find("envelope1Settings"), "curve")).to_equal(std::string("50"));
+		const SoundState low =
+		    read(R"(<sound mode="subtractive"><envelope1Settings mode="adsr" curve="-99"/></sound>)");
+		expect(envelope(low, 0).curve).to_equal(int8_t{-50});
 	});
 
 	it("holds rows for each envelope's mode, curve and follow", _ {

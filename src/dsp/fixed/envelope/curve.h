@@ -36,7 +36,8 @@ inline constexpr uint32_t kEnvelopeStageEnd = 1U << 23;
 namespace detail {
 
 /// P(f) of `2^-f = 1 - f·P(f)`, f a Q31 fraction of an octave: degree 4, fitted with P(0) = ln 2 to what the curves'
-/// normalising scales, so a curve errs by at most 2^-20.9.
+/// normalising scales, so a curve errs by at most 2^-20.9. It is exact where an octave starts and low where it ends, so
+/// a curve rises there, by less than 2^-21 of full scale.
 [[gnu::always_inline, nodiscard]] inline Q<31> octave_loss(Q<31> f) {
 	const auto times_f = [f](Q<31> p) { return scale_shl_wrap<1>(Q<31>::from_raw(mul_r(p, f).raw())); };
 	Q<31> p = q<31>(0.00101239420);
@@ -95,8 +96,8 @@ inline constexpr std::array<CurveNorm, 101> kCurveNorms = [] {
 } // namespace detail
 
 /// @brief One stage's curve: how many eighths of an octave an unnormalised exponential falls over it, -100 to 100.
-/// Positive is steep at the start, negative bends the other way, 0 is a straight line. The Deluge's decay tables were
-/// 64 and 32.
+/// Positive is steep at the start, negative bends the other way, 0 is a straight line. The classic decay and release
+/// are 64, the classic attack 32.
 /// @details The falling curve is `(2^(-k·x) - 2^-k) / (1 - 2^-k)`, x the position over the stage; a negative k's is the
 /// mirror of its opposite's. An exponent is a whole number of eighths times a 23-bit position, so it is exact in Q26.
 struct EnvelopeCurve {

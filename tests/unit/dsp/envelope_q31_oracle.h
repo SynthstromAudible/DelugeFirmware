@@ -16,8 +16,8 @@
  */
 #pragma once
 
-// next's Q31 envelope as it was before it moved onto the segment engine (src/synth/modulation/envelope.{h,cpp}),
-// kept verbatim apart from its name and its definitions made inline: the classic curve's oracle. Do not edit.
+// The classic ADSR that reads the decay tables and changes stage at a block's edge: the classic curve's oracle for
+// src/synth/modulation/envelope.{h,cpp}. Do not edit.
 
 #include "definitions_cxx.hpp"
 #include "dsp/core/fixed_point.h"

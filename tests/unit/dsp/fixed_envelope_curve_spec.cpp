@@ -73,18 +73,50 @@ describe fixed_envelope_curve_spec_body("fixed::EnvelopeCurve", ${
 		}
 	});
 
-	it("never rises", _ {
-		for (int32_t e : {-100, -32, -1, 0, 1, 32, 100}) {
+	it("never rises but by its exponential's error where that passes a whole octave", _ {
+		// The polynomial is exact at the start of an octave and low at its end, by less than 2^-21 of full scale once a
+		// curve scales it; nowhere else does a curve rise at all
+		for (int32_t e : {-32, 0, 9, 32}) {
 			const EnvelopeCurve curve{static_cast<int8_t>(e)};
+			const uint64_t eighths = std::abs(e);
 			int32_t rises = 0;
-			Q<31> last = Q<31>::max();
-			for (uint32_t p = 0; p <= kEnvelopeStageEnd; p += 3) {
-				const Q<31> now = curve.falling(p);
-				// A last bit of the exponential's rounding, scaled by the gentlest curve's 12
-				rises += level(now) - level(last) > 0x1p-24 ? 1 : 0;
+			int32_t worst_crossing = 0;
+			int32_t last = Q<31>::max().raw();
+			for (uint32_t p = 1; p <= kEnvelopeStageEnd; ++p) {
+				const int32_t now = curve.falling(p).raw();
+				if (now > last) {
+					const uint64_t here = e < 0 ? kEnvelopeStageEnd - p : p;
+					const uint64_t before = e < 0 ? here + 1 : here - 1;
+					if ((eighths * here) >> 26 != (eighths * before) >> 26) {
+						worst_crossing = std::max(worst_crossing, now - last);
+					}
+					else {
+						++rises;
+					}
+				}
 				last = now;
 			}
 			expect(rises).to_equal(0);
+			to_be_at_most(expect(worst_crossing), 1 << 10);
+		}
+	});
+
+	it("rises by no more than that where any curve passes a whole octave", _ {
+		for (int32_t e = -100; e <= 100; ++e) {
+			const EnvelopeCurve curve{static_cast<int8_t>(e)};
+			const uint64_t eighths = std::abs(e);
+			int32_t worst = 0;
+			for (uint64_t octave = 1; octave << 26 <= eighths * kEnvelopeStageEnd; ++octave) {
+				const uint32_t at = static_cast<uint32_t>(((octave << 26) + eighths - 1) / eighths);
+				for (uint32_t p = at > 2 ? at - 2 : 1; p <= std::min(at + 2, kEnvelopeStageEnd); ++p) {
+					const uint32_t here = e < 0 ? kEnvelopeStageEnd - p : p;
+					const uint32_t before = e < 0 ? here + 1 : here - 1;
+					const int32_t step = e < 0 ? curve.falling(before).raw() - curve.falling(here).raw()
+					                           : curve.falling(here).raw() - curve.falling(before).raw();
+					worst = std::max(worst, step);
+				}
+			}
+			to_be_at_most(expect(worst), 1 << 10);
 		}
 	});
 
