@@ -1909,6 +1909,26 @@ job = "tooling"
 runtime_s = 2
 
 [[harness]]
+name = "dx7-presets"
+path = "."
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the render presets that hold a DX7, and whether each one's other oscillator can sound, are as recorded"
+run = ["python3", "scripts/check_dx7_presets.py", "--check"]
+tier = "pr"
+job = "tooling"
+runtime_s = 1
+
+[[harness]]
+name = "dx7-presets-selftest"
+template = "unittest"
+path = "scripts"
+gates = "the DX7 preset scan finds a DX7 on either slot, and an audible other oscillator by its volume or a cable"
+run = ["python3", "-m", "unittest", "test_check_dx7_presets"]
+
+[[harness]]
 name = "layers-selftest"
 template = "unittest"
 path = "scripts"
