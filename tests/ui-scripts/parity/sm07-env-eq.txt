@@ -1,7 +1,7 @@
 # The pages drawn whole. SHIFT + the LPF frequency shortcut, then SHIFT + SCALE twice back along the sound
-# chain to the envelope group (ENV1 1/4); CROSS_SCREEN to ENV2 and an edit; then SHIFT + CROSS_SCREEN forward to EQ and
-# an edit there; SHIFT + SCALE back along the chain to MASTER, and a select detent on TRAN (a semitone; a cent with
-# SHIFT held).
+# chain to the envelope group (ENV1 1/8); CROSS_SCREEN to its mode, curve and follow, and again to ENV2 and an edit; then
+# SHIFT + CROSS_SCREEN forward to EQ and an edit there; SHIFT + SCALE back along the chain to MASTER, and a select detent
+# on TRAN (a semitone; a cent with SHIFT held).
 # card: content/bare.img
 # card: content/card.img
 100   snapshot boot
@@ -22,69 +22,72 @@
 3600  snapshot env1
 3900  button CrossScreen down
 3920  button CrossScreen up
-4600  snapshot env2
-4900  button Kit down
-4920  button Kit up
-5600  snapshot env2-decay
-5900  encoder Select +3
-6600  snapshot env2-decay-edited
-6900  button Shift down
-7000  button CrossScreen down
-7020  button CrossScreen up
-7100  button Shift up
-7800  snapshot lfo-again
-8100  button Shift down
-8200  button CrossScreen down
-8220  button CrossScreen up
-8300  button Shift up
-9000  snapshot filters-again
-9300  button Shift down
-9400  button CrossScreen down
-9420  button CrossScreen up
-9500  button Shift up
-10200 snapshot eq
-10500 button Midi down
-10520 button Midi up
-11200 snapshot eq-treble-freq
-11500 encoder Select -4
-12200 snapshot eq-edited
-12500  button Shift down
-12600  button Scale down
-12620  button Scale up
-12700  button Shift up
-13400  snapshot back-filters
-13700  button Shift down
-13800  button Scale down
-13820  button Scale up
-13900  button Shift up
-14600  snapshot back-lfo
-14900  button Shift down
-15000  button Scale down
-15020  button Scale up
-15100  button Shift up
-15800  snapshot back-env
-16100  button Shift down
-16200  button Scale down
-16220  button Scale up
-16300  button Shift up
-17000  snapshot back-voice
-17300  button Shift down
-17400  button Scale down
-17420  button Scale up
-17500  button Shift up
-18200  snapshot back-source
-18500  button Shift down
-18600  button Scale down
-18620  button Scale up
-18700  button Shift up
-19400  snapshot back-master
-19700  button Cv down
-19720  button Cv up
-20400  snapshot master-tran
-20700  encoder Select +1
-21400  snapshot master-tran-semitone
-21700  button Shift down
-21800  encoder Select +1
-21900  button Shift up
-22600  snapshot master-tran-cent
-22900  quit
+4600  snapshot env1-shape
+4900  button CrossScreen down
+4920  button CrossScreen up
+5600  snapshot env2
+5900  button Kit down
+5920  button Kit up
+6600  snapshot env2-decay
+6900  encoder Select +3
+7600  snapshot env2-decay-edited
+7900  button Shift down
+8000  button CrossScreen down
+8020  button CrossScreen up
+8100  button Shift up
+8800  snapshot lfo-again
+9100  button Shift down
+9200  button CrossScreen down
+9220  button CrossScreen up
+9300  button Shift up
+10000 snapshot filters-again
+10300 button Shift down
+10400 button CrossScreen down
+10420 button CrossScreen up
+10500 button Shift up
+11200 snapshot eq
+11500 button Midi down
+11520 button Midi up
+12200 snapshot eq-treble-freq
+12500 encoder Select -4
+13200 snapshot eq-edited
+13500  button Shift down
+13600  button Scale down
+13620  button Scale up
+13700  button Shift up
+14400  snapshot back-filters
+14700  button Shift down
+14800  button Scale down
+14820  button Scale up
+14900  button Shift up
+15600  snapshot back-lfo
+15900  button Shift down
+16000  button Scale down
+16020  button Scale up
+16100  button Shift up
+16800  snapshot back-env
+17100  button Shift down
+17200  button Scale down
+17220  button Scale up
+17300  button Shift up
+18000  snapshot back-voice
+18300  button Shift down
+18400  button Scale down
+18420  button Scale up
+18500  button Shift up
+19200  snapshot back-source
+19500  button Shift down
+19600  button Scale down
+19620  button Scale up
+19700  button Shift up
+20400  snapshot back-master
+20700  button Cv down
+20720  button Cv up
+21400  snapshot master-tran
+21700  encoder Select +1
+22400  snapshot master-tran-semitone
+22700  button Shift down
+22800  encoder Select +1
+22900  button Shift up
+23600  snapshot master-tran-cent
+23900  quit

@@ -24,10 +24,27 @@
 #include "plugin/types/param.h"
 #include "plugin/types/param_kind.h"
 
+#include "synth/modulation/envelope_state.h"
+
+#include <array>
 #include <cstdint>
+#include <optional>
 #include <string_view>
 
 namespace deluge::l10n {
+
+/// @brief A sound's four envelopes' modes, which name some of their params.
+using EnvelopeModes = std::array<synth::EnvelopeMode, 4>;
+
+/// @brief The name of an envelope param its envelope's mode gives another job: an AHD's decay is its hold and its
+///        release its decay; an AR's or MPE's sustain is its level.
+/// @param kind  The param's collection.
+/// @param index The param's index in its collection.
+/// @param modes The sound's envelopes' modes.
+/// @param brief The short form, as a cable's destination shows.
+/// @return The name; nullopt where the param does its usual job.
+[[nodiscard]] std::optional<std::string_view> envelope_param_name_at(plugin::ParamKind kind, uint32_t index,
+                                                                     const EnvelopeModes& modes, bool brief = false);
 
 /// @brief The display name of a param.
 /// @param kind The param's collection.

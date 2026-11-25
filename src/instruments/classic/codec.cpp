@@ -40,13 +40,36 @@ using serialization::Value;
 namespace {
 
 /// The top-level keys encode writes, in file order: the sound's own, and its effects'.
-constexpr std::array<std::string_view, 26> kStateKeys{
-    "polyphonic",     "voicePriority", "sideChainSend", "mode",       "transpose",
-    "cents",          "modFXType",     "lpfMode",       "hpfMode",    "filterRoute",
-    "clippingAmount", "maxVoices",     "osc1",          "osc2",       "lfo1",
-    "lfo2",           "lfo3",          "lfo4",          "modulator1", "modulator2",
-    "unison",         "midiOutput",    "delay",         "sidechain",  "audioCompressor",
-    "stutter"};
+constexpr std::array<std::string_view, 30> kStateKeys{"polyphonic",
+                                                      "voicePriority",
+                                                      "sideChainSend",
+                                                      "mode",
+                                                      "transpose",
+                                                      "cents",
+                                                      "modFXType",
+                                                      "lpfMode",
+                                                      "hpfMode",
+                                                      "filterRoute",
+                                                      "clippingAmount",
+                                                      "maxVoices",
+                                                      "osc1",
+                                                      "osc2",
+                                                      "lfo1",
+                                                      "lfo2",
+                                                      "lfo3",
+                                                      "lfo4",
+                                                      "envelope1Settings",
+                                                      "envelope2Settings",
+                                                      "envelope3Settings",
+                                                      "envelope4Settings",
+                                                      "modulator1",
+                                                      "modulator2",
+                                                      "unison",
+                                                      "midiOutput",
+                                                      "delay",
+                                                      "sidechain",
+                                                      "audioCompressor",
+                                                      "stutter"};
 
 /// A run of kStateKeys: where it starts and how many keys it holds.
 struct KeyRun {
@@ -56,10 +79,10 @@ struct KeyRun {
 constexpr KeyRun kHeadKeys{.first = 0, .count = 6};            ///< polyphonic … cents
 constexpr KeyRun kEffectAttributeKeys{.first = 6, .count = 5}; ///< modFXType … clippingAmount
 constexpr KeyRun kMaxVoicesKeys{.first = 11, .count = 1};      ///< maxVoices
-constexpr KeyRun kBodyKeys{.first = 12, .count = 9};           ///< osc1 … unison
-constexpr KeyRun kMidiOutputKeys{.first = 21, .count = 1};     ///< midiOutput
-constexpr KeyRun kDelayKeys{.first = 22, .count = 1};          ///< delay
-constexpr KeyRun kEffectTagKeys{.first = 23, .count = 3};      ///< sidechain, audioCompressor, stutter
+constexpr KeyRun kBodyKeys{.first = 12, .count = 13};          ///< osc1 … unison
+constexpr KeyRun kMidiOutputKeys{.first = 25, .count = 1};     ///< midiOutput
+constexpr KeyRun kDelayKeys{.first = 26, .count = 1};          ///< delay
+constexpr KeyRun kEffectTagKeys{.first = 27, .count = 3};      ///< sidechain, audioCompressor, stutter
 static_assert(kEffectTagKeys.first + kEffectTagKeys.count == kStateKeys.size());
 
 /// The keys of kStateKeys whose entries are the host's, the sound's routing (`project::encode_routing` writes them; the
@@ -244,6 +267,30 @@ Value oscillator_entry(const SoundState& state, size_t s) {
 	return slot_entry(dual.slots[s], source_type(state, static_cast<SourceId>(s)), s, oscillator_sync(state));
 }
 
+/// The envelope an `envelope<n>Settings` key names.
+std::optional<size_t> envelope_index(std::string_view key) {
+	if (key.size() != 17 || !key.starts_with("envelope") || !key.ends_with("Settings") || key[8] < '1'
+	    || key[8] > '4') {
+		return std::nullopt;
+	}
+	return static_cast<size_t>(key[8] - '1');
+}
+
+/// An envelope's entry as main writes it: nothing for the classic ADSR; otherwise its mode and curve, and its follow
+/// input when that is not Z.
+std::optional<Value> envelope_entry(const synth::EnvelopeState& e) {
+	if (e.is_default()) {
+		return std::nullopt;
+	}
+	auto map = Value::makeMap();
+	map.set("mode", text(synth::to_string(e.mode)));
+	map.set("curve", number(e.curve));
+	if (e.follow != synth::EnvelopeFollow::Z) {
+		map.set("follow", text(synth::to_string(e.follow)));
+	}
+	return map;
+}
+
 Value lfo_entry(const synth::LfoState& lfo_state, const plugin::CodecContext& context) {
 	auto map = Value::makeMap();
 	map.set("type", text(to_string(lfo_state.shape)));
@@ -327,6 +374,10 @@ std::vector<std::string_view> changed_entries(const SoundState& a, const SoundSt
 	    lfo(a, 1) != lfo(b, 1),
 	    lfo(a, 2) != lfo(b, 2),
 	    lfo(a, 3) != lfo(b, 3),
+	    envelope(a, 0) != envelope(b, 0),
+	    envelope(a, 1) != envelope(b, 1),
+	    envelope(a, 2) != envelope(b, 2),
+	    envelope(a, 3) != envelope(b, 3),
 	    ma[0] != mb[0],
 	    ma[1] != mb[1] || modulator1_to_modulator0(a) != modulator1_to_modulator0(b),
 	    va.unison != vb.unison,
@@ -358,6 +409,9 @@ std::optional<Value> encode_entry(const SoundState& state, std::string_view key,
 	}
 	if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
 		return lfo_entry(lfo(state, static_cast<size_t>(key[3] - '1')), context);
+	}
+	if (const std::optional<size_t> e = envelope_index(key)) {
+		return envelope_entry(envelope(state, *e));
 	}
 	if (key == "modulator1" || key == "modulator2") {
 		const auto* fm = std::get_if<synth::FmState>(&state.plays.engine);
@@ -685,6 +739,27 @@ void read_modulator(const Value& modulator, FlatSoundState& state, size_t m) {
 	}
 }
 
+/// An envelope's settings read from its entry: an unknown mode is ADSR and a curve past its range is clamped, as main
+/// reads them.
+synth::EnvelopeState read_envelope(const Value& entry) {
+	synth::EnvelopeState e;
+	if (!entry.isMap()) {
+		return e;
+	}
+	for (const auto& [key, value] : entry.entries()) {
+		if (key == "mode") {
+			e.mode = synth::envelope_mode_from(textOf(value));
+		}
+		else if (key == "curve") {
+			e.curve = synth::EnvelopeState::clamped_curve(intOf(value));
+		}
+		else if (key == "follow") {
+			e.follow = synth::envelope_follow_from(textOf(value));
+		}
+	}
+	return e;
+}
+
 void read_lfo(const Value& lfo, FlatSoundState& state, size_t l, const plugin::CodecContext& context) {
 	state.lfo_sync_type[l] = plugin::SyncType::EVEN;
 	state.lfo_sync_level[l] = plugin::SyncLevel::NONE;
@@ -772,6 +847,9 @@ std::expected<void, plugin::StateError> decode_impl(const Value& element, FlatSo
 		}
 		else if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
 			read_lfo(value, state, static_cast<size_t>(key[3] - '1'), context);
+		}
+		else if (const std::optional<size_t> e = envelope_index(key)) {
+			state.envelopes[*e] = read_envelope(value);
 		}
 		else if (key == "polyphonic") {
 			state.polyphonic = parse_polyphony_mode(textOf(value));
@@ -862,6 +940,9 @@ void keep_entry(std::string_view key, FlatSoundState& state, const FlatSoundStat
 		state.lfo_wave_type[l] = from.lfo_wave_type[l];
 		state.lfo_sync_type[l] = from.lfo_sync_type[l];
 		state.lfo_sync_level[l] = from.lfo_sync_level[l];
+	}
+	else if (const std::optional<size_t> e = envelope_index(key)) {
+		state.envelopes[*e] = from.envelopes[*e];
 	}
 	else if (key == "modulator1" || key == "modulator2") {
 		const size_t m = key == "modulator1" ? 0 : 1;

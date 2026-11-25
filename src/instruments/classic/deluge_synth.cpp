@@ -70,6 +70,9 @@ synth::SoundConfig DelugeSynth::derive(const State& state) noexcept {
 	for (size_t l = 0; l < config.lfos.size(); l++) {
 		config.lfos[l] = lfo(state, l);
 	}
+	for (size_t e = 0; e < config.envelopes.size(); e++) {
+		config.envelopes[e] = envelope(state, e);
+	}
 	for (size_t s = 0; s < config.sources.size(); s++) {
 		const auto id = static_cast<SourceId>(s);
 		const Tuning tuning = source_tuning(state, id);

@@ -29,6 +29,7 @@
 #include "plugin/types/sync.h"
 #include "plugin/types/voice_priority.h"
 #include "serialization/tree.h"
+#include "synth/modulation/envelope_state.h"
 
 #include <algorithm>
 #include <array>
@@ -64,6 +65,10 @@ constexpr auto kOscTypes = names_of<OscType, static_cast<size_t>(OscType::INPUT_
 constexpr auto kLfoTypes = names_of<LFOType, 7>();
 /// A synced rate's type, as its stored number (even, triplet, dotted).
 constexpr std::array<std::string_view, 3> kSyncTypes{"0", "10", "19"};
+
+/// An envelope's modes and follow inputs, as main's words.
+constexpr std::array<std::string_view, 4> kEnvelopeModes{"adsr", "ahd", "ar", "mpe"};
+constexpr std::array<std::string_view, 2> kEnvelopeFollows{"z", "y"};
 
 constexpr int32_t kTransposeRange = 96; ///< semitones either way: the transpose menus' ±9600 cents
 constexpr int32_t kCentsRange = 50;
@@ -313,6 +318,32 @@ constexpr std::array kLfoSyncExtras{lfo_sync_extras("lfo1/syncType"), lfo_sync_e
 		.path = "lfo" #n "/syncType", .kind = CHOICE, .choices = kSyncTypes                                            \
 	}
 
+/// The follow input shows for an MPE envelope alone.
+constexpr std::array<int32_t, 1> kMpeValue{std::to_underlying(synth::EnvelopeMode::MPE)};
+constexpr std::array<std::array<plugin::SettingCondition, 1>, 4> kEnvelopeIsMpe{
+    {{plugin::setting_is("envelope1Settings/mode", kMpeValue)},
+     {plugin::setting_is("envelope2Settings/mode", kMpeValue)},
+     {plugin::setting_is("envelope3Settings/mode", kMpeValue)},
+     {plugin::setting_is("envelope4Settings/mode", kMpeValue)}}};
+constexpr std::array<plugin::SettingDescriptorExtras, 4> kEnvelopeFollowExtras{{{.applies_when = kEnvelopeIsMpe[0]},
+                                                                                {.applies_when = kEnvelopeIsMpe[1]},
+                                                                                {.applies_when = kEnvelopeIsMpe[2]},
+                                                                                {.applies_when = kEnvelopeIsMpe[3]}}};
+
+// An envelope's settings are main's `envelopeNSettings` attributes: its mode, its one curve control (classic 32) and
+// what MPE mode follows.
+#define ENVELOPE_ROWS(n)                                                                                               \
+	SettingInfo{.path = "envelope" #n "Settings/mode", .kind = CHOICE, .choices = kEnvelopeModes},                     \
+	    SettingInfo{.path = "envelope" #n "Settings/curve",                                                            \
+	                .choices = {},                                                                                     \
+	                .min = synth::kMinCurve,                                                                           \
+	                .max = synth::kMaxCurve,                                                                           \
+	                .default_value = synth::kClassicCurve},                                                            \
+	    SettingInfo {                                                                                                  \
+		.path = "envelope" #n "Settings/follow", .kind = CHOICE, .choices = kEnvelopeFollows,                          \
+		.extras = &kEnvelopeFollowExtras[(n) - 1]                                                                      \
+	}
+
 #define MODULATOR_ROWS(n)                                                                                              \
 	SettingInfo{.path = "modulator" #n "/transpose",                                                                   \
 	            .min = -kTransposeRange,                                                                               \
@@ -365,6 +396,10 @@ constexpr std::array kRows{
     LFO_ROWS(2),
     LFO_ROWS(3),
     LFO_ROWS(4),
+    ENVELOPE_ROWS(1),
+    ENVELOPE_ROWS(2),
+    ENVELOPE_ROWS(3),
+    ENVELOPE_ROWS(4),
     MODULATOR_ROWS(1),
     MODULATOR_ROWS(2),
     SettingInfo{.path = "modulator2/toModulator1", .kind = BOOL, .extras = &kFmExtras},
@@ -540,6 +575,35 @@ Answer lfo_value(const SoundState& state, std::string_view path) {
 	return std::nullopt;
 }
 
+/// The envelope an `envelope<n>Settings/` path names, and the rest of the path; nullopt for any other path.
+std::optional<std::pair<size_t, std::string_view>> envelope_path(std::string_view path) {
+	constexpr std::string_view kHead = "envelope";
+	constexpr std::string_view kTail = "Settings/";
+	if (!path.starts_with(kHead) || path.size() <= kHead.size() + kTail.size() || path[kHead.size()] < '1'
+	    || path[kHead.size()] > '4' || path.substr(kHead.size() + 1, kTail.size()) != kTail) {
+		return std::nullopt;
+	}
+	return std::pair{static_cast<size_t>(path[kHead.size()] - '1'), path.substr(kHead.size() + 1 + kTail.size())};
+}
+
+Answer envelope_value(const SoundState& state, std::string_view path) {
+	const auto at = envelope_path(path);
+	if (!at) {
+		return std::nullopt;
+	}
+	const synth::EnvelopeState e = envelope(state, at->first);
+	if (at->second == "mode") {
+		return word(synth::to_string(e.mode));
+	}
+	if (at->second == "curve") {
+		return number(e.curve);
+	}
+	if (at->second == "follow") {
+		return word(synth::to_string(e.follow));
+	}
+	return std::nullopt;
+}
+
 Answer modulator_value(const SoundState& state, std::string_view path, bool held) {
 	const std::optional<size_t> m = indexAfter(path, 9, '2');
 	if (!m || (!held && synth_mode(state) != SynthMode::FM)) {
@@ -591,6 +655,9 @@ Answer any_value(const SoundState& state, std::string_view path, bool held = fal
 	}
 	if (path.starts_with("lfo")) {
 		return lfo_value(state, path);
+	}
+	if (path.starts_with("envelope")) {
+		return envelope_value(state, path);
 	}
 	if (path.starts_with("modulator")) {
 		return modulator_value(state, path, held);
@@ -706,6 +773,27 @@ bool write_lfo(SoundState& state, std::string_view path, const serialization::Va
 	return true;
 }
 
+bool write_envelope(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const auto at = envelope_path(path);
+	if (!at) {
+		return false;
+	}
+	synth::EnvelopeState& e = envelope_of(state, at->first);
+	if (at->second == "mode") {
+		e.mode = synth::envelope_mode_from(value.str());
+	}
+	else if (at->second == "curve") {
+		e.curve = synth::EnvelopeState::clamped_curve(intOf(value));
+	}
+	else if (at->second == "follow") {
+		e.follow = synth::envelope_follow_from(value.str());
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
 bool write_modulator(SoundState& state, std::string_view path, const serialization::Value& value) {
 	const std::optional<size_t> m = indexAfter(path, 9, '2');
 	if (!m) {
@@ -800,6 +888,9 @@ std::vector<std::string_view> write_setting(SoundState& state, std::string_view 
 	}
 	else if (path.starts_with("lfo")) {
 		(void)write_lfo(state, path, value);
+	}
+	else if (path.starts_with("envelope")) {
+		(void)write_envelope(state, path, value);
 	}
 	else if (path.starts_with("modulator")) {
 		(void)write_modulator(state, path, value);

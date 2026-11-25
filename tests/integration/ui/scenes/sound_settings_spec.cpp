@@ -150,7 +150,10 @@ describe sound_settings_targets("the sound's instrument settings on targets", ${
 		    "modulator2/transpose", "modulator1/retrigPhase", "modulator2/retrigPhase", "modulator2/toModulator1",
 		    "lfo1/type", "lfo2/type", "lfo3/type", "lfo4/type", "lfo1/syncLevel", "lfo2/syncLevel", "lfo3/syncLevel",
 		    "lfo4/syncLevel", "voicePriority", "osc1/timeStretchEnable", "osc2/timeStretchEnable", "osc1/linearInterpolation",
-		    "osc2/linearInterpolation"};
+		    "osc2/linearInterpolation", "envelope1Settings/mode", "envelope1Settings/curve", "envelope1Settings/follow",
+		    "envelope2Settings/mode", "envelope2Settings/curve", "envelope2Settings/follow", "envelope3Settings/mode",
+		    "envelope3Settings/curve", "envelope3Settings/follow", "envelope4Settings/mode", "envelope4Settings/curve",
+		    "envelope4Settings/follow"};
 		expect(paths).to_equal(want);
 	});
 

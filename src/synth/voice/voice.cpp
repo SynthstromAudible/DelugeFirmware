@@ -29,7 +29,6 @@
 #include "synth/matrix/param_format.h"
 #include "util/lookuptables/lookuptables.h"
 
-#include "dsp/fixed/tables/decay_small.h"
 #include "util/misc.h"
 #include <cstring>
 #include <limits>
@@ -148,7 +147,8 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundConfig& co
 		bool directly_to_decay = (attack > 245632); // Skip a (near-)instant attack straight to decay.
 		// The source values are Q31 words
 		params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
-		    envelopes_[e].note_on(directly_to_decay, sustain).raw();
+		    envelopes_[e].note_on(directly_to_decay, sustain, config.envelopes[e]).raw();
+		envelope_sources_unpatched_ |= 1U << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 	}
 	stamp_envelope0_stage_entry(clock);
 
@@ -485,7 +485,10 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const So
 			if (e == 0 && (override_amplitude_envelope_release_rate_ != 0)) {
 				release = override_amplitude_envelope_release_rate_;
 			}
-			// The source values are Q31 words
+			// What MPE mode follows: pressure (aftertouch, MPE Z) or Y (the mod wheel, MPE Y), as main reads them
+			const PatchSource follow =
+			    config.envelopes[e].follow == EnvelopeFollow::Y ? PatchSource::Y : PatchSource::AFTERTOUCH;
+			// The source values are Q31 words, the follow input's among them
 			params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
 			    envelopes_[e]
 			        .render(
@@ -495,13 +498,17 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const So
 			            matrix::param_value_at<params::LOCAL_ENV_0_DECAY, kNumEnvelopes>(params_.param_final_values, e),
 			            matrix::param_value_at<params::LOCAL_ENV_0_SUSTAIN, kNumEnvelopes>(params_.param_final_values,
 			                                                                               e),
-			            release, deluge::dsp::fixed::tables::kDecaySmall8.data())
+			            release, config.envelopes[e],
+			            Q<31>::from_raw(params_.source_values[util::to_underlying(follow)]))
 			        .raw();
 			const auto any_change =
 			    static_cast<uint32_t>(old != params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0) + e]);
 			sources_changed |= any_change << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}
 	}
+	// The note-on's levels came after its initial patching: patch from them now, though they may not have moved
+	sources_changed |= envelope_sources_unpatched_;
+	envelope_sources_unpatched_ = 0;
 	stamp_envelope0_stage_entry(block.clock);
 
 	const bool envelope_ended = (envelopes_[0].stage() == Envelope::Stage::OFF)

@@ -41,6 +41,7 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/dx7_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/fft_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/mod_matrix_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/envelope_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/va_shape_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/chain_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp

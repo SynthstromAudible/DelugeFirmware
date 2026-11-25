@@ -20,6 +20,7 @@
 #include "effects/state.h"
 #include "instruments/classic/words.h"
 #include "synth/engines/engine_state.h"
+#include "synth/modulation/envelope_state.h"
 #include "synth/modulation/lfo_state.h"
 #include "synth/voice/voicing_state.h"
 
@@ -36,8 +37,9 @@ namespace deluge::instruments::classic {
 struct ComposedState {
 	synth::VoicingState voicing;
 	synth::EngineState engine{synth::SubtractiveState{}};
-	std::array<synth::LfoState, 2> instrument_lfos; ///< LFO1, LFO3: one per sound
-	std::array<synth::LfoState, 2> voice_lfos;      ///< LFO2, LFO4: one per voice
+	std::array<synth::LfoState, 2> instrument_lfos;            ///< LFO1, LFO3: one per sound
+	std::array<synth::LfoState, 2> voice_lfos;                 ///< LFO2, LFO4: one per voice
+	std::array<synth::EnvelopeState, kNumEnvelopes> envelopes; ///< each envelope's mode, curve and follow input
 	effects::EffectStates fx;
 	bool operator==(const ComposedState&) const = default;
 };

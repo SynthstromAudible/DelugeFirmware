@@ -96,6 +96,46 @@ case/INSTRUMENT/lfo4/type@SYNTH#0	title	LFO4 shape
 case/INSTRUMENT/lfo4/type@SYNTH#0	name	Shape
 case/INSTRUMENT/lfo4/type@SYNTH#0	options/full	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
 case/INSTRUMENT/lfo4/type@SYNTH#0	options/short	Sine	Triangle	Square	Saw	S&H	Walk	Warble
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	title	Env1 mode
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	name	Mode
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	options/full	ADSR	AHD	AR	MPE
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	options/short	ADSR	AHD	AR	MPE
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	title	Env1 curve
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	name	Curve
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	title	Env1 follow
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	name	Follow
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	options/full	Pressure (Z)	Mod wheel (Y)
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	options/short	Z	Y
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	title	Env2 mode
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	name	Mode
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	options/full	ADSR	AHD	AR	MPE
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	options/short	ADSR	AHD	AR	MPE
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	title	Env2 curve
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	name	Curve
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	title	Env2 follow
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	name	Follow
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	options/full	Pressure (Z)	Mod wheel (Y)
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	options/short	Z	Y
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	title	Env3 mode
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	name	Mode
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	options/full	ADSR	AHD	AR	MPE
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	options/short	ADSR	AHD	AR	MPE
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	title	Env3 curve
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	name	Curve
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	title	Env3 follow
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	name	Follow
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	options/full	Pressure (Z)	Mod wheel (Y)
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	options/short	Z	Y
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	title	Env4 mode
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	name	Mode
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	options/full	ADSR	AHD	AR	MPE
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	options/short	ADSR	AHD	AR	MPE
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	title	Env4 curve
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	name	Curve
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	title	Env4 follow
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	name	Follow
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	options/full	Pressure (Z)	Mod wheel (Y)
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	options/short	Z	Y
 case/INSTRUMENT/lfo1/syncLevel@SYNTH#0	title	LFO1 sync
 case/INSTRUMENT/lfo1/syncLevel@SYNTH#0	name	Sync
 case/INSTRUMENT/lfo2/syncLevel@SYNTH#0	title	LFO2 sync
@@ -762,6 +802,98 @@ case/INSTRUMENT/lfo4/type@SYNTH#0	write/3	3
 case/INSTRUMENT/lfo4/type@SYNTH#0	write/4	4
 case/INSTRUMENT/lfo4/type@SYNTH#0	write/5	5
 case/INSTRUMENT/lfo4/type@SYNTH#0	write/6	6
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	range	0	3
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	read/0	0
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	read/1	1
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	read/2	2
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	read/3	3
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	write/1	1
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	write/2	2
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	write/3	3
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	range	-50	50
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	read/-50	-50
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	read/50	50
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	read/32	32
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	write/-50	-50
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	write/50	50
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	write/-49	-49
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	write/49	49
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	range	0	1
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	read/0	0
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	read/1	1
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	write/1	1
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	range	0	3
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	read/0	0
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	read/1	1
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	read/2	2
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	read/3	3
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	write/1	1
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	write/2	2
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	write/3	3
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	range	-50	50
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	read/-50	-50
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	read/50	50
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	read/32	32
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	write/-50	-50
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	write/50	50
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	write/-49	-49
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	write/49	49
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	range	0	1
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	read/0	0
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	read/1	1
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	write/1	1
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	range	0	3
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	read/0	0
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	read/1	1
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	read/2	2
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	read/3	3
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	write/1	1
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	write/2	2
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	write/3	3
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	range	-50	50
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	read/-50	-50
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	read/50	50
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	read/32	32
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	write/-50	-50
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	write/50	50
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	write/-49	-49
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	write/49	49
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	range	0	1
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	read/0	0
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	read/1	1
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	write/1	1
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	range	0	3
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	read/0	0
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	read/1	1
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	read/2	2
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	read/3	3
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	write/1	1
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	write/2	2
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	write/3	3
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	range	-50	50
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	read/-50	-50
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	read/50	50
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	read/32	32
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	write/-50	-50
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	write/50	50
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	write/-49	-49
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	write/49	49
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	range	0	1
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	read/0	0
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	read/1	1
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	write/0	0
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	write/1	1
 case/INSTRUMENT/lfo1/syncLevel@SYNTH#0	range	0	27
 case/INSTRUMENT/lfo1/syncLevel@SYNTH#0	read/0	0
 case/INSTRUMENT/lfo1/syncLevel@SYNTH#0	read/1000	1
@@ -1815,6 +1947,18 @@ applies/a subtractive synth/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a subtractive synth/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a subtractive synth/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a subtractive synth/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a subtractive synth/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a subtractive synth/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a subtractive synth/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a subtractive synth/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a subtractive synth/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a subtractive synth/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a subtractive synth/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a subtractive synth/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a subtractive synth/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a subtractive synth/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a subtractive synth/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a subtractive synth/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a subtractive synth/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a subtractive synth/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a subtractive synth/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -1905,6 +2049,18 @@ applies/an FM synth/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/an FM synth/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/an FM synth/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/an FM synth/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/an FM synth/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/an FM synth/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/an FM synth/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/an FM synth/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/an FM synth/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/an FM synth/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/an FM synth/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/an FM synth/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/an FM synth/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/an FM synth/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/an FM synth/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/an FM synth/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/an FM synth/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/an FM synth/INSTRUMENT/modulator1/transpose	legacy_shows	1
 applies/an FM synth/INSTRUMENT/modulator1/retrigPhase	legacy_shows	1
@@ -1995,6 +2151,18 @@ applies/a ring-mod synth/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a ring-mod synth/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a ring-mod synth/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a ring-mod synth/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a ring-mod synth/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a ring-mod synth/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a ring-mod synth/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a ring-mod synth/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a ring-mod synth/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a ring-mod synth/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a ring-mod synth/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a ring-mod synth/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a ring-mod synth/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a ring-mod synth/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a ring-mod synth/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a ring-mod synth/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a ring-mod synth/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a ring-mod synth/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a ring-mod synth/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2085,6 +2253,18 @@ applies/a mono synth/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a mono synth/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a mono synth/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a mono synth/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a mono synth/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a mono synth/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a mono synth/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a mono synth/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a mono synth/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a mono synth/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a mono synth/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a mono synth/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a mono synth/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a mono synth/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a mono synth/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a mono synth/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a mono synth/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a mono synth/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a mono synth/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2175,6 +2355,18 @@ applies/a legato synth/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a legato synth/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a legato synth/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a legato synth/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a legato synth/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a legato synth/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a legato synth/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a legato synth/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a legato synth/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a legato synth/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a legato synth/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a legato synth/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a legato synth/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a legato synth/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a legato synth/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a legato synth/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a legato synth/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a legato synth/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a legato synth/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2265,6 +2457,18 @@ applies/a synth playing samples with no file/INSTRUMENT/lfo2/syncLevel	legacy_sh
 applies/a synth playing samples with no file/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth playing samples with no file/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth playing samples with no file/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth playing samples with no file/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth playing samples with no file/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth playing samples with no file/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth playing samples with no file/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth playing samples with no file/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth playing samples with no file/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth playing samples with no file/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth playing samples with no file/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth playing samples with no file/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth playing samples with no file/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth playing samples with no file/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth playing samples with no file/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth playing samples with no file/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth playing samples with no file/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth playing samples with no file/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2355,6 +2559,18 @@ applies/a synth playing a sample and a wavetable/INSTRUMENT/lfo2/syncLevel	legac
 applies/a synth playing a sample and a wavetable/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth playing a sample and a wavetable/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth playing a sample and a wavetable/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth playing a sample and a wavetable/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth playing a sample and a wavetable/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth playing a sample and a wavetable/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth playing a sample and a wavetable/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2445,6 +2661,18 @@ applies/a synth playing wavetables/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a synth playing wavetables/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth playing wavetables/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth playing wavetables/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth playing wavetables/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth playing wavetables/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth playing wavetables/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth playing wavetables/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth playing wavetables/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth playing wavetables/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth playing wavetables/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth playing wavetables/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth playing wavetables/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth playing wavetables/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth playing wavetables/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth playing wavetables/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth playing wavetables/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth playing wavetables/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth playing wavetables/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2535,6 +2763,18 @@ applies/a synth playing the inputs/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a synth playing the inputs/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth playing the inputs/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth playing the inputs/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth playing the inputs/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth playing the inputs/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth playing the inputs/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth playing the inputs/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth playing the inputs/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth playing the inputs/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth playing the inputs/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth playing the inputs/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth playing the inputs/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth playing the inputs/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth playing the inputs/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth playing the inputs/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth playing the inputs/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth playing the inputs/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth playing the inputs/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2625,6 +2865,18 @@ applies/a synth playing the right input/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a synth playing the right input/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth playing the right input/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth playing the right input/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth playing the right input/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth playing the right input/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth playing the right input/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth playing the right input/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth playing the right input/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth playing the right input/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth playing the right input/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth playing the right input/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth playing the right input/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth playing the right input/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth playing the right input/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth playing the right input/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth playing the right input/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth playing the right input/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth playing the right input/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2715,6 +2967,18 @@ applies/a synth with its own stutter/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a synth with its own stutter/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth with its own stutter/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth with its own stutter/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth with its own stutter/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth with its own stutter/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth with its own stutter/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth with its own stutter/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth with its own stutter/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth with its own stutter/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth with its own stutter/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth with its own stutter/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth with its own stutter/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth with its own stutter/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth with its own stutter/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth with its own stutter/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth with its own stutter/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth with its own stutter/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth with its own stutter/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2805,6 +3069,18 @@ applies/a synth with a DX7/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a synth with a DX7/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth with a DX7/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth with a DX7/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth with a DX7/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth with a DX7/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth with a DX7/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth with a DX7/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth with a DX7/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth with a DX7/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth with a DX7/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth with a DX7/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth with a DX7/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth with a DX7/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth with a DX7/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth with a DX7/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth with a DX7/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth with a DX7/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth with a DX7/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2895,6 +3171,18 @@ applies/a synth with its arp on/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a synth with its arp on/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth with its arp on/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth with its arp on/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth with its arp on/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth with its arp on/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth with its arp on/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth with its arp on/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth with its arp on/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth with its arp on/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth with its arp on/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth with its arp on/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth with its arp on/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth with its arp on/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth with its arp on/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth with its arp on/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth with its arp on/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth with its arp on/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth with its arp on/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -2985,6 +3273,18 @@ applies/a synth with other LFO waves/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a synth with other LFO waves/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth with other LFO waves/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth with other LFO waves/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth with other LFO waves/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth with other LFO waves/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth with other LFO waves/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth with other LFO waves/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth with other LFO waves/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth with other LFO waves/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth with other LFO waves/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth with other LFO waves/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth with other LFO waves/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth with other LFO waves/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth with other LFO waves/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth with other LFO waves/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth with other LFO waves/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth with other LFO waves/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth with other LFO waves/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -3075,6 +3375,18 @@ applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/lfo2/syncLe
 applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/modulator1/transpose	legacy_shows	1
 applies/an FM synth whose first oscillator holds a sample/INSTRUMENT/modulator1/retrigPhase	legacy_shows	1
@@ -3165,6 +3477,18 @@ applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/lfo2/syncLevel	
 applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/modulator1/transpose	legacy_shows	1
 applies/an FM synth whose oscillators hold wavetables/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -3255,6 +3579,18 @@ applies/a synth playing loaded samples/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a synth playing loaded samples/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth playing loaded samples/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth playing loaded samples/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth playing loaded samples/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth playing loaded samples/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth playing loaded samples/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth playing loaded samples/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth playing loaded samples/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth playing loaded samples/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth playing loaded samples/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth playing loaded samples/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth playing loaded samples/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth playing loaded samples/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth playing loaded samples/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth playing loaded samples/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth playing loaded samples/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth playing loaded samples/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth playing loaded samples/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -3345,6 +3681,18 @@ applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/
 applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth playing a loaded wavetable and a sample with no file/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -3435,6 +3783,18 @@ applies/a synth with a loaded file on a square oscillator/INSTRUMENT/lfo2/syncLe
 applies/a synth with a loaded file on a square oscillator/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a synth with a loaded file on a square oscillator/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a synth with a loaded file on a square oscillator/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a synth with a loaded file on a square oscillator/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a synth with a loaded file on a square oscillator/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a synth with a loaded file on a square oscillator/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a synth with a loaded file on a square oscillator/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -3525,6 +3885,18 @@ applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/I
 applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/modulator1/transpose	legacy_shows	1
 applies/an FM synth whose oscillators hold a loaded wavetable and an empty one/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -3615,6 +3987,18 @@ applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/lfo2
 applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/modulator1/transpose	legacy_shows	1
 applies/an FM synth whose first oscillator holds a loaded sample/INSTRUMENT/modulator1/retrigPhase	legacy_shows	1
@@ -3705,6 +4089,18 @@ applies/a kit's sound row/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a kit's sound row/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a kit's sound row/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a kit's sound row/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a kit's sound row/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a kit's sound row/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a kit's sound row/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a kit's sound row/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a kit's sound row/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a kit's sound row/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a kit's sound row/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a kit's sound row/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a kit's sound row/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a kit's sound row/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a kit's sound row/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a kit's sound row/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a kit's sound row/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a kit's sound row/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a kit's sound row/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -3791,6 +4187,18 @@ applies/a kit's sound row with its own stutter/INSTRUMENT/lfo2/syncLevel	legacy_
 applies/a kit's sound row with its own stutter/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a kit's sound row with its own stutter/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a kit's sound row with its own stutter/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a kit's sound row with its own stutter/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a kit's sound row with its own stutter/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a kit's sound row with its own stutter/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a kit's sound row with its own stutter/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -3877,6 +4285,18 @@ applies/a kit's sound row playing a loaded sample/INSTRUMENT/lfo2/syncLevel	lega
 applies/a kit's sound row playing a loaded sample/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a kit's sound row playing a loaded sample/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a kit's sound row playing a loaded sample/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a kit's sound row playing a loaded sample/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a kit's sound row playing a loaded sample/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a kit's sound row playing a loaded sample/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a kit's sound row playing a loaded sample/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -3963,6 +4383,18 @@ applies/a kit's sound row in FM/INSTRUMENT/lfo2/syncLevel	legacy_shows	1
 applies/a kit's sound row in FM/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a kit's sound row in FM/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a kit's sound row in FM/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a kit's sound row in FM/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a kit's sound row in FM/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a kit's sound row in FM/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a kit's sound row in FM/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a kit's sound row in FM/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a kit's sound row in FM/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a kit's sound row in FM/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a kit's sound row in FM/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a kit's sound row in FM/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a kit's sound row in FM/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a kit's sound row in FM/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a kit's sound row in FM/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a kit's sound row in FM/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a kit's sound row in FM/INSTRUMENT/modulator1/transpose	legacy_shows	1
 applies/a kit's sound row in FM/INSTRUMENT/modulator1/retrigPhase	legacy_shows	1
@@ -4049,6 +4481,18 @@ applies/a kit's sound row with its arp on/INSTRUMENT/lfo2/syncLevel	legacy_shows
 applies/a kit's sound row with its arp on/INSTRUMENT/lfo3/type	legacy_shows	1
 applies/a kit's sound row with its arp on/INSTRUMENT/lfo3/syncLevel	legacy_shows	1
 applies/a kit's sound row with its arp on/INSTRUMENT/lfo4/type	legacy_shows	1
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope1Settings/mode	legacy_shows	1
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope1Settings/curve	legacy_shows	1
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope1Settings/follow	legacy_shows	0
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope2Settings/mode	legacy_shows	1
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope2Settings/curve	legacy_shows	1
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope2Settings/follow	legacy_shows	0
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope3Settings/mode	legacy_shows	1
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope3Settings/curve	legacy_shows	1
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope3Settings/follow	legacy_shows	0
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope4Settings/mode	legacy_shows	1
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope4Settings/curve	legacy_shows	1
+applies/a kit's sound row with its arp on/INSTRUMENT/envelope4Settings/follow	legacy_shows	0
 applies/a kit's sound row with its arp on/INSTRUMENT/lfo4/syncLevel	legacy_shows	1
 applies/a kit's sound row with its arp on/INSTRUMENT/modulator1/transpose	legacy_shows	0
 applies/a kit's sound row with its arp on/INSTRUMENT/modulator1/retrigPhase	legacy_shows	0
@@ -4858,6 +5302,18 @@ case/INSTRUMENT/lfo1/type@SYNTH#0	paths	sound/17/0	drum/17/0
 case/INSTRUMENT/lfo2/type@SYNTH#0	paths	sound/18/0	drum/18/0
 case/INSTRUMENT/lfo3/type@SYNTH#0	paths	sound/19/0	drum/19/0
 case/INSTRUMENT/lfo4/type@SYNTH#0	paths	sound/20/0	drum/20/0
+case/INSTRUMENT/envelope1Settings/mode@SYNTH#0	paths	sound/13/4	drum/13/4
+case/INSTRUMENT/envelope1Settings/curve@SYNTH#0	paths	sound/13/5	drum/13/5
+case/INSTRUMENT/envelope1Settings/follow@SYNTH#0	paths	sound/13/6	drum/13/6
+case/INSTRUMENT/envelope2Settings/mode@SYNTH#0	paths	sound/14/4	drum/14/4
+case/INSTRUMENT/envelope2Settings/curve@SYNTH#0	paths	sound/14/5	drum/14/5
+case/INSTRUMENT/envelope2Settings/follow@SYNTH#0	paths	sound/14/6	drum/14/6
+case/INSTRUMENT/envelope3Settings/mode@SYNTH#0	paths	sound/15/4	drum/15/4
+case/INSTRUMENT/envelope3Settings/curve@SYNTH#0	paths	sound/15/5	drum/15/5
+case/INSTRUMENT/envelope3Settings/follow@SYNTH#0	paths	sound/15/6	drum/15/6
+case/INSTRUMENT/envelope4Settings/mode@SYNTH#0	paths	sound/16/4	drum/16/4
+case/INSTRUMENT/envelope4Settings/curve@SYNTH#0	paths	sound/16/5	drum/16/5
+case/INSTRUMENT/envelope4Settings/follow@SYNTH#0	paths	sound/16/6	drum/16/6
 case/INSTRUMENT/lfo1/syncLevel@SYNTH#0	paths	sound/17/1	drum/17/1
 case/INSTRUMENT/lfo2/syncLevel@SYNTH#0	paths	sound/18/1	drum/18/1
 case/INSTRUMENT/lfo3/syncLevel@SYNTH#0	paths	sound/19/1	drum/19/1

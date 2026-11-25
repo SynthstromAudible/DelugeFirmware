@@ -5,6 +5,7 @@
 ///        write, the knob views they change, and the popup text they show.
 
 #include "effects/state.h"
+#include "gui/l10n/param_names.h"
 #include "project/controller_mapping.h"
 #include "project/fx_chain.h"
 #include "project/instrument_slot.h"
@@ -71,6 +72,12 @@ struct KnobPush {
 /// @return The owner's effects; nullptr for an owner with none, or one the facts do not resolve.
 [[nodiscard]] const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::TrackFacts& tracks,
                                                          const bind::SoundFacts& sound);
+
+/// @brief The modes of the sound's envelopes the knobs turn, which name some of their params.
+/// @param focus What the knobs turn.
+/// @param sound The sounds' states.
+/// @return The modes; nullopt where the knobs turn no sound.
+std::optional<l10n::EnvelopeModes> owner_envelope_modes(const bind::KnobFocus& focus, const bind::SoundFacts& sound);
 
 /// @brief What pressing (or releasing, @p on false) gold knob @p knob of @p focus does.
 /// @param song   The song's records.

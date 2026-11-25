@@ -518,4 +518,32 @@ std::string_view patched_param_short_name_at(uint32_t index, effects::FilterMode
 	return patched_param_short_name(plugin::ParamId{index}, lpf, hpf);
 }
 
+std::optional<std::string_view> envelope_param_name_at(plugin::ParamKind kind, uint32_t index,
+                                                       const EnvelopeModes& modes, bool brief) {
+	if (kind != plugin::ParamKind::PATCHED) {
+		return std::nullopt;
+	}
+	// The four envelopes' copies of a param are consecutive
+	constexpr uint32_t kDecay = instruments::classic::runtime_index(instruments::classic::param::kEnv1Decay);
+	constexpr uint32_t kSustain = instruments::classic::runtime_index(instruments::classic::param::kEnv1Sustain);
+	constexpr uint32_t kRelease = instruments::classic::runtime_index(instruments::classic::param::kEnv1Release);
+	const auto envelope_of = [index](uint32_t first) -> std::optional<uint32_t> {
+		return index >= first && index - first < 4 ? std::optional{index - first} : std::nullopt;
+	};
+	static constexpr std::array<std::string_view, 4> kHold{"Env1 hold", "Env2 hold", "Env3 hold", "Env4 hold"};
+	static constexpr std::array<std::string_view, 4> kLevel{"Env1 level", "Env2 level", "Env3 level", "Env4 level"};
+	if (const auto e = envelope_of(kDecay); e && modes[*e] == synth::EnvelopeMode::AHD) {
+		return kHold[*e];
+	}
+	if (const auto e = envelope_of(kRelease); e && modes[*e] == synth::EnvelopeMode::AHD) {
+		const uint32_t decay = kDecay + *e;
+		return brief ? patched_param_short_name_at(decay) : param_name_at(kind, decay);
+	}
+	if (const auto e = envelope_of(kSustain);
+	    e && (modes[*e] == synth::EnvelopeMode::AR || modes[*e] == synth::EnvelopeMode::MPE)) {
+		return kLevel[*e];
+	}
+	return std::nullopt;
+}
+
 } // namespace deluge::l10n

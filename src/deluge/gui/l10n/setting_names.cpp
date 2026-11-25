@@ -343,6 +343,14 @@ constexpr SettingNames kDelayPingPongNames{
 constexpr SettingNames kDelaySyncLevelNames{STRING_FOR_DELAY_SYNC, STRING_FOR_SYNC, {}, {}};
 constexpr SettingNames kDelayTypeNames{STRING_FOR_DELAY_TYPE, STRING_FOR_TYPE, kDelayTypeChoices,
                                        kDelayTypeShortChoices};
+constexpr std::array<String, 4> kEnvelopeModeChoices{{STRING_FOR_ADSR, STRING_FOR_AHD, STRING_FOR_AR, STRING_FOR_MPE}};
+constexpr std::array<String, 2> kEnvelopeFollowChoices{{STRING_FOR_ENV_FOLLOW_Z, STRING_FOR_ENV_FOLLOW_Y}};
+constexpr std::array<String, 2> kEnvelopeFollowShortChoices{
+    {STRING_FOR_ENV_FOLLOW_Z_SHORT, STRING_FOR_ENV_FOLLOW_Y_SHORT}};
+constexpr SettingNames kEnvelopeModeNames{STRING_FOR_ENV_MODE_MENU_TITLE, STRING_FOR_MODE, kEnvelopeModeChoices, {}};
+constexpr SettingNames kEnvelopeCurveNames{STRING_FOR_ENV_CURVE_MENU_TITLE, STRING_FOR_CURVE, {}, {}};
+constexpr SettingNames kEnvelopeFollowNames{STRING_FOR_ENV_FOLLOW_MENU_TITLE, STRING_FOR_FOLLOW, kEnvelopeFollowChoices,
+                                            kEnvelopeFollowShortChoices};
 constexpr SettingNames kDeviceDefinitionFileNameNames{
     STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED, STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED, {}, {}};
 constexpr SettingNames kFilterRouteNames{STRING_FOR_FILTER_ROUTE, STRING_FOR_FILTER_ROUTE, kFilterRouteChoices, {}};
@@ -763,7 +771,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 230> kEntries{{
+constexpr std::array<Entry, 242> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -932,6 +940,18 @@ constexpr std::array<Entry, 230> kEntries{{
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/directMonitoring">, &kUsbDirectMonitoringNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/enabled">, &kUsbAudioEnabledNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/outputSource">, &kUsbOutputSourceNames},
+    Entry{plugin::kDelugeInstrument, "envelope1Settings/curve", &kEnvelopeCurveNames},
+    Entry{plugin::kDelugeInstrument, "envelope1Settings/follow", &kEnvelopeFollowNames},
+    Entry{plugin::kDelugeInstrument, "envelope1Settings/mode", &kEnvelopeModeNames},
+    Entry{plugin::kDelugeInstrument, "envelope2Settings/curve", &kEnvelopeCurveNames},
+    Entry{plugin::kDelugeInstrument, "envelope2Settings/follow", &kEnvelopeFollowNames},
+    Entry{plugin::kDelugeInstrument, "envelope2Settings/mode", &kEnvelopeModeNames},
+    Entry{plugin::kDelugeInstrument, "envelope3Settings/curve", &kEnvelopeCurveNames},
+    Entry{plugin::kDelugeInstrument, "envelope3Settings/follow", &kEnvelopeFollowNames},
+    Entry{plugin::kDelugeInstrument, "envelope3Settings/mode", &kEnvelopeModeNames},
+    Entry{plugin::kDelugeInstrument, "envelope4Settings/curve", &kEnvelopeCurveNames},
+    Entry{plugin::kDelugeInstrument, "envelope4Settings/follow", &kEnvelopeFollowNames},
+    Entry{plugin::kDelugeInstrument, "envelope4Settings/mode", &kEnvelopeModeNames},
     Entry{plugin::kDelugeInstrument, "lfo1/syncLevel", &kLfo1SyncLevelNames},
     Entry{plugin::kDelugeInstrument, "lfo1/type", &kLfo1TypeNames},
     Entry{plugin::kDelugeInstrument, "lfo2/syncLevel", &kLfo1SyncLevelNames},

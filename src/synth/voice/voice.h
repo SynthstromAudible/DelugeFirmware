@@ -206,6 +206,9 @@ private:
 	dsp::Q<31> overall_osc_amplitude_last_time_{};
 
 	bool done_first_render_{};
+	/// The envelopes' patch sources a note-on set after its initial patching, which the next render patches from
+	/// whether or not they move in it.
+	uint32_t envelope_sources_unpatched_{};
 	bool previously_ignored_note_off_{};
 
 	int32_t override_amplitude_envelope_release_rate_{};

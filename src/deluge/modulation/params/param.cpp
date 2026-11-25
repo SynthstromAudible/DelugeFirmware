@@ -23,6 +23,7 @@
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 #include "util/container/enum_to_string_map.hpp"
 #include <cstring>
 #include <span>
@@ -61,9 +62,27 @@ char const* getPatchedParamShortName(ParamType type) {
 	return l10n::patched_param_short_name_at(type).data();
 }
 
+namespace {
+/// The name an envelope's mode gives param @p p of @p owner's sound, or nullopt for its usual one.
+std::optional<std::string_view> envelopeParamName(Kind kind, int32_t p, const deluge::model::EffectsOwner& owner,
+                                                  bool brief) {
+	if (owner.sound == nullptr) {
+		return std::nullopt;
+	}
+	l10n::EnvelopeModes modes{};
+	for (size_t e = 0; e < modes.size(); ++e) {
+		modes[e] = owner.sound->config().envelopes[e].mode;
+	}
+	return l10n::envelope_param_name_at(kind, static_cast<uint32_t>(p), modes, brief);
+}
+} // namespace
+
 char const* getPatchedParamShortName(ParamType type, const deluge::model::EffectsOwner* owner) {
 	if (owner == nullptr) {
 		return getPatchedParamShortName(type);
+	}
+	if (const auto name = envelopeParamName(Kind::PATCHED, type, *owner, /*brief=*/true)) {
+		return name->data();
 	}
 	const auto& filter = owner->binding->renderEffects().filter;
 	return getPatchedParamShortName(type, filter.lpf_mode, filter.hpf_mode);
@@ -80,6 +99,9 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 char const* getParamDisplayName(Kind kind, int32_t p, const deluge::model::EffectsOwner* owner) {
 	if (owner == nullptr) {
 		return getParamDisplayName(kind, p);
+	}
+	if (const auto name = envelopeParamName(kind, p, *owner, /*brief=*/false)) {
+		return name->data();
 	}
 	const auto& filter = owner->binding->renderEffects().filter;
 	return getParamDisplayName(kind, p, filter.lpf_mode, filter.hpf_mode);

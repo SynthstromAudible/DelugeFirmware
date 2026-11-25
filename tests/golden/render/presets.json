@@ -3,7 +3,7 @@
   "frames": 88200,
   "peak": 173364480,
   "rms_db": -29.37,
-  "sha256": "9c977603b0e60c06443b65428a651145a021bb42474be7ff6251746cc740f609"
+  "sha256": "e31b61adae798af69dda2e6163c1823f2e71c611c0da559c7b5de9f88d0446c1"
  },
  "arp_pattern": {
   "frames": 88200,
@@ -15,145 +15,145 @@
   "frames": 88200,
   "peak": 286668032,
   "rms_db": -31.89,
-  "sha256": "bbeb30bef21aadaa93ed28f587f0f27350f4274b859d49f134477481889d6815"
+  "sha256": "d11afe943a4bcf04362687194bf71f2e66c718a60596dcf6842e06d033135aed"
  },
  "community/1994 Su": {
   "frames": 88200,
-  "peak": 162266112,
+  "peak": 162265088,
   "rms_db": -29.75,
-  "sha256": "f951e6d3c106aca8c61d12792bc0765411a77251f23b088f81ba00852e69b8ab"
+  "sha256": "21ba15e267b6835ef923361f4a1836e3c729d05c7aa32c1d4b6bfbda0a6968cc"
  },
  "community/8 O'Clock": {
   "frames": 88200,
   "peak": 310156032,
   "rms_db": -26.58,
-  "sha256": "b25a320f7d2424814bc1f32249c50abe06bc4700f99731a0c67742e288bcc0da"
+  "sha256": "acba58d99edff110c00b1dbfa358e9cdd32637cc31bcba1de591f5d7ef76c8e4"
  },
  "community/80's Ffunk": {
   "frames": 88200,
   "peak": 60775168,
   "rms_db": -33.84,
-  "sha256": "b2be124bb850d05706bded1618b7b4696437e7ffa455d09d95c21e8b60b38604"
+  "sha256": "15eb8ae04e6fd88f60d90bb400c5d9e2dc49882aa422b474597837629fc8d123"
  },
  "community/A Busted Sqb": {
   "frames": 88200,
   "peak": 138360832,
   "rms_db": -34.3,
-  "sha256": "ed4f6a02edb3de6a27160126bd79a54a7e60da1e1ad10987c5704c9bd00af202"
+  "sha256": "681ec571b3c4ae1e37f4befe42cd11b9471621f0c91233df728e062649c925a6"
  },
  "community/A Fm Bass Funk": {
   "frames": 88200,
-  "peak": 596549888,
-  "rms_db": -30.05,
-  "sha256": "c19d8bbd9903761a176d786826569ce2a7bdc23115260b1e69e723c7bebbca57"
+  "peak": 588003840,
+  "rms_db": -30.1,
+  "sha256": "478a40198243b4d66fe78ccf4579e3944d284a99d7419c818f84ad5c2296b0cd"
  },
  "community/A Fm Floot": {
   "frames": 88200,
-  "peak": 322306816,
+  "peak": 321744896,
   "rms_db": -24.97,
-  "sha256": "554ed51b8b4d922d7b1a53e3a512605848eba72b294abc7cf456303eda39b163"
+  "sha256": "194b1d6ed8f22fc316fa52572f450ac2a74481ebc87b2476b7a9158735182382"
  },
  "community/A Fm Pad": {
   "frames": 88200,
-  "peak": 578734592,
-  "rms_db": -24.52,
-  "sha256": "178c6ae6dea015af2d5ae006f1bb3ec6ae6ea9caeeb7c154eb5fb9549d787805"
+  "peak": 577571072,
+  "rms_db": -24.53,
+  "sha256": "9e385b9b7dd65e439d884afa6a3714a862ba8ff37538c0a4c442c87cb584e5d1"
  },
  "community/A Ring Bass": {
   "frames": 88200,
-  "peak": 473695744,
-  "rms_db": -31.42,
-  "sha256": "03e7509296f3c1dc93eb8d8b826256f8e7b190d219487d862a6201b5975afa47"
+  "peak": 466081536,
+  "rms_db": -31.54,
+  "sha256": "78ade513bba8c12e8d95e00ab36ea1134f7de4e9ef257f8130ab42c55435b005"
  },
  "community/Aberration": {
   "frames": 88200,
-  "peak": 356695296,
+  "peak": 356692224,
   "rms_db": -26.49,
-  "sha256": "e1648ff4933268cb06e74ed72e0231942ebf11ad3b6d710c717577866d1d5ba2"
+  "sha256": "fe5d4192c59899239ef81df14582282830d87b34c53eadc7a73fcd49dbf256e9"
  },
  "community/Analohania": {
   "frames": 88200,
-  "peak": 141595648,
+  "peak": 141580288,
   "rms_db": -31.93,
-  "sha256": "6370e5b28a7ab2436f4a11463c95ffacc5d15cc1ef01f6eb54bc5f1abf2d80ac"
+  "sha256": "bdc3ea636b8705113c2333364ca63fa26305dc54585bbec20cb142fe6ac65d69"
  },
  "community/Apex Stab": {
   "frames": 88200,
-  "peak": 579756544,
-  "rms_db": -28.65,
-  "sha256": "3d44ceabe883c997890efa9ea8bf701855fb22df81f52e0148c165e117f03cb8"
+  "peak": 579842048,
+  "rms_db": -28.66,
+  "sha256": "41f0c3d855a990a5545a685be454c5f180c5f6e988a2c5333915c8d2c52b71cb"
  },
  "community/BASS Simple Distorted": {
   "frames": 88200,
-  "peak": 264499200,
+  "peak": 264560384,
   "rms_db": -31.2,
-  "sha256": "d9634322065e62b33029cfa9faeef86fbdae233804545952f80bbe4e6b85f467"
+  "sha256": "d12cb8474f1bc49d9fb6f0856bd64c6f0d05569eb82c325d9dced060887b65cb"
  },
  "community/Backdraft Pad": {
   "frames": 88200,
-  "peak": 356785408,
+  "peak": 356802560,
   "rms_db": -28.41,
-  "sha256": "2f09ed8267374bb49dfa6f961373dc9d1b816cd0a8b41e8ddf24f1a1812fbc74"
+  "sha256": "37ae225abfa57cfee27efee6a2b28cd296e732c177120117a51f85cecf754710"
  },
  "community/Bad Zwirlz Su": {
   "frames": 88200,
   "peak": 517649664,
   "rms_db": -25.23,
-  "sha256": "650b1c8696a4519ece4f7255bf04a0f3ac4a17511a7adda624d2e699c446c26c"
+  "sha256": "6f9f91d8185e52ecfedf771ae5980d64732ca2cf52bc0afbde3d78802a451808"
  },
  "community/Basedland": {
   "frames": 88200,
-  "peak": 225365760,
-  "rms_db": -33.48,
-  "sha256": "e054ee54fc938496eb4374c05381bdd1fed4a291ca8860f518bb431fb479bf9c"
+  "peak": 225413120,
+  "rms_db": -33.5,
+  "sha256": "f459c08c9b9bf0c05f4e966d70d12606657e9ca7ffad15c0e0a54c27e7d28bd5"
  },
  "community/Basic Bass": {
   "frames": 88200,
-  "peak": 449075456,
+  "peak": 448538112,
   "rms_db": -24.41,
-  "sha256": "12a82f6816e89fe064ecf1e498d5212bb323c3589fb83e6527fd869863e16089"
+  "sha256": "42e693d4fce2f311e47212267287c6a1e264b8a6c29fe4252042e0351f19f18a"
  },
  "community/BassGuitar": {
   "frames": 88200,
-  "peak": 144781824,
+  "peak": 144342784,
   "rms_db": -27.42,
-  "sha256": "662abf77bf0c4f31baa4133176a521e84c661fa5228efed525f2e120b5ee809a"
+  "sha256": "9263be9ac00e2361b8a4b4f558d8275c6fc068e90e9e18d8535c59252f4b8b4f"
  },
  "community/Bell Fm Synthwave": {
   "frames": 88200,
-  "peak": 238428672,
-  "rms_db": -29.42,
-  "sha256": "0ea8c2adaa4334dc32dcb6cf81e904350fad5674ef35f2f7d894141bdcae1d20"
+  "peak": 238128128,
+  "rms_db": -29.43,
+  "sha256": "a723ff639156d8ed73d13e0fc3422c5f3d0353c1d061df8714702a2da3d0a74a"
  },
  "community/Bird": {
   "frames": 88200,
   "peak": 599292416,
   "rms_db": -19.07,
-  "sha256": "ce6eeed8f04a2efb6d2a65da927f29295cbf5c24f1476c2e2993c4771922a4e9"
+  "sha256": "ec71b50054c0b438bdcb590ea9782ebfe6709e2188f02ca7b11a439a6db6d378"
  },
  "community/Blade Vang": {
   "frames": 88200,
-  "peak": 624817152,
+  "peak": 624761344,
   "rms_db": -23.4,
-  "sha256": "3b8b6e4f6495522c1c209bdb5fcb873ebb3915e137a3b2e19f5fabf66fe5ed87"
+  "sha256": "3a91292dbf0c31b2926b846b30e86a4c05c9e28674717feb49f2b54525ca662f"
  },
  "community/Boomf": {
   "frames": 88200,
-  "peak": 956761344,
-  "rms_db": -28.89,
-  "sha256": "186a3c35db5f386fedb2d374c1953311fe7ba8059eb5b95f01a105b719e84d07"
+  "peak": 950251264,
+  "rms_db": -28.94,
+  "sha256": "b78415c9e4ceecdf18ba7f0b0ee812e71ec04040ba3c9a3de11cd9caa70e6984"
  },
  "community/Brick Speedboat": {
   "frames": 88200,
-  "peak": 390311680,
+  "peak": 390312704,
   "rms_db": -27.99,
-  "sha256": "7ddf412dedfaef23e44f529cc99385a594c5912c69a1fc344d845d960d06f952"
+  "sha256": "baa4e4277ce9319a0701320c935ad8819e3e6a4f51e818628bab236957d4afa9"
  },
  "community/Broadcast": {
   "frames": 88200,
-  "peak": 383675904,
-  "rms_db": -28.01,
-  "sha256": "6eee7de85b308e0659c51727ed56646d8b91c0ab2d4d9a32e216a9b3b7a68505"
+  "peak": 382906624,
+  "rms_db": -28.03,
+  "sha256": "16a03836facfb904599ec64b26c68c483c144bae7d852c6f16cd9cd03efd8501"
  },
  "community/Brzcrtch": {
   "frames": 88200,
@@ -163,291 +163,291 @@
  },
  "community/Celestial Su": {
   "frames": 88200,
-  "peak": 338145024,
+  "peak": 338136832,
   "rms_db": -30.42,
-  "sha256": "e0dee27533350107eab9620987b8258656f74fb19c04de11da7298a04d72d36e"
+  "sha256": "26f45dd33f31ac7626f3cb9339bac7d93ee65e48c440968311f7da81d9c19dcf"
  },
  "community/Classic Pad": {
   "frames": 88200,
-  "peak": 381488128,
+  "peak": 381463552,
   "rms_db": -24.87,
-  "sha256": "145a0d8360e39a55435e3cd6054fc3c598c81d1542f0000ee96d894fd162ac40"
+  "sha256": "f4e8930ce0ba9b8f10ede556fb2c262e63388bcd65b51fcd43ce586636835697"
  },
  "community/Cornwall": {
   "frames": 88200,
-  "peak": 12600320,
-  "rms_db": -52.26,
-  "sha256": "e13a9e785d9424c152183c989a9ad0bb55f91f053dd257ace765f8526a5e6d6e"
+  "peak": 12593152,
+  "rms_db": -52.27,
+  "sha256": "553bcb80bc186c03cc2d7a2a58a97c9d682f15ebb26a4e484f48888ff1e0f64a"
  },
  "community/Crime Time": {
   "frames": 88200,
-  "peak": 336822784,
+  "peak": 336838144,
   "rms_db": -25.99,
-  "sha256": "8cbfe701bfdb17179099c2c3498078126be41b37eb1a737343a5f95d25134c6d"
+  "sha256": "3eb84da6e338d2475d0a2e31d7c4a65a3f4239ef4301bfa6c4dc9bf40b112383"
  },
  "community/Crumbling Pad": {
   "frames": 88200,
   "peak": 262521088,
   "rms_db": -27.99,
-  "sha256": "5f1c57775d49b31f77b8ac848b70a443087b00dc2ac26c6dd2f2ca03d0eeebeb"
+  "sha256": "9b1bafb47acbbef93662869468ce3e4a2a6f5ab86b2c426ce15d1a1002fe58d0"
  },
  "community/D-303": {
   "frames": 88200,
-  "peak": 264420096,
+  "peak": 264301056,
   "rms_db": -29.29,
-  "sha256": "825ec517b5db145d912404114a4d3a7b5f51f8c256308fc8710a2b0ecc7bb04f"
+  "sha256": "51945e67ddc4e266123fdde553bb1ad36a8b6e4505f67ecab24a82d0a1d1c209"
  },
  "community/Desparate Synth": {
   "frames": 88200,
-  "peak": 405797632,
+  "peak": 405805824,
   "rms_db": -27.31,
-  "sha256": "4152910f591ad5846a60506bef1f9b69bdd3148d8ad5152c4717edfe38662123"
+  "sha256": "2ce497e8029158fd43b92e0fc1b7c175f750c0e0687fd28fe6d3ca48e161fe25"
  },
  "community/Distorted Bass": {
   "frames": 88200,
-  "peak": 266163712,
+  "peak": 266153472,
   "rms_db": -22.08,
-  "sha256": "6496b993b88aeed9533222b1da88427d8d4015e50ec98bc16dfe5ac9b264d5c7"
+  "sha256": "79351b3f91840a4fb1c10cf987524d83b146b07a5a2383502cc084951e1fb5d4"
  },
  "community/Drop": {
   "frames": 88200,
-  "peak": 754693632,
-  "rms_db": -20.39,
-  "sha256": "7fa33a92a53525ae8dad731b0ba9f9d56a64ee11217b6622825e320974831d0a"
+  "peak": 741571328,
+  "rms_db": -20.4,
+  "sha256": "eb0226be411a44d91ebd4cf98c45defca1c16fcc11a85cb23c4a70d3d2c800f4"
  },
  "community/Dystopian Sky": {
   "frames": 88200,
-  "peak": 24665088,
+  "peak": 24668160,
   "rms_db": -51.14,
-  "sha256": "a852ed977bd99b408e3b65b36a3bd71081c727b82a6bcf2dbf62aa2e5bc862a8"
+  "sha256": "851ea42ad58f54275f850992d53d95cbb1fa99f6f1ddc8bc754edc7bb9d472cd"
  },
  "community/Echoy Melody": {
   "frames": 88200,
-  "peak": 223264512,
-  "rms_db": -31.34,
-  "sha256": "82c640ba080e8830b8b3a3dcd21c01a3ef3079dbf2b9944fa0696e68a60a24a2"
+  "peak": 223086592,
+  "rms_db": -31.35,
+  "sha256": "4cd43df94228d63c561d67757f7185276afc67ec066fdeebc5eed7ff80022675"
  },
  "community/Farvoice": {
   "frames": 88200,
-  "peak": 61466880,
+  "peak": 61465856,
   "rms_db": -42.68,
-  "sha256": "79527bf4074dc69410038a69b6e87366c144a7ea23f4f29a29dbb653c64697ac"
+  "sha256": "81fb20258ad6372b56237da5da4bf0c69f7117a7413f2cc9f5086e6b9aa15f89"
  },
  "community/Faulty Circuit": {
   "frames": 88200,
   "peak": 162708736,
-  "rms_db": -27.85,
-  "sha256": "04974c70448161c483d1137bb2e3e066693f5250054fe9dc324d9ec0d45fbf03"
+  "rms_db": -27.77,
+  "sha256": "0295e9aa8eaef3c41a0fb7ae6db790559422734aaba1c04a3801906991e496b8"
  },
  "community/Fauxtar": {
   "frames": 88200,
   "peak": 78478592,
-  "rms_db": -34.78,
-  "sha256": "c7b0ac7e64eb3c58a53cc868a2d4c5072719f8138a6bbf85c1fc5424e1fe292c"
+  "rms_db": -34.79,
+  "sha256": "a94c68128ee3e7dbbd72a2ee8502e2a87e289e8e5066a81a4206268d0390b7fd"
  },
  "community/Flea Circuits Su": {
   "frames": 88200,
   "peak": 60775168,
   "rms_db": -33.83,
-  "sha256": "331d2e6037866909c2222ff3dd50cca3595d130cfa677b9cfba9bee157e42ad6"
+  "sha256": "95d0f13f22a6383c027796b5bd7dc5c12bdf96f425d07275f65c276d314b42f4"
  },
  "community/Fm Hammer String": {
   "frames": 88200,
-  "peak": 282890496,
-  "rms_db": -33.85,
-  "sha256": "bdf873d891ecc03994bfff587cd73cb0ea63596e5adfc864e27ecd9690e11caf"
+  "peak": 281288192,
+  "rms_db": -33.91,
+  "sha256": "5278be80b20af799e435b20e7bb768632442b0857b37e1f4c26caad8a6159aa3"
  },
  "community/Fm Leadandbass": {
   "frames": 88200,
-  "peak": 344351488,
+  "peak": 344349440,
   "rms_db": -27.82,
-  "sha256": "93755c76942828cb84641aad35e788beb3d8b6e753bd84fe4d84f3bfded1655a"
+  "sha256": "b5ee5653816316a00d0ea21168a1bd2395c93d9f2522ad6152f4fa0923bb56c4"
  },
  "community/Fm Pads": {
   "frames": 88200,
-  "peak": 239086080,
-  "rms_db": -28.8,
-  "sha256": "73ee45393985661eebc6221b85a9f4e530b5c324860f61f4c8866964229071c0"
+  "peak": 238957312,
+  "rms_db": -28.81,
+  "sha256": "9801c8dbf119477d47d195527d9e50f08dcc1342d51e99a89d796de2974eeb78"
  },
  "community/Fm Strimgs": {
   "frames": 88200,
-  "peak": 408495616,
+  "peak": 408499712,
   "rms_db": -28.66,
-  "sha256": "a30fa6fcb4e8f50536885a54657d0301b5201fb90df246b2b53e10329e2f0927"
+  "sha256": "5bde5e08f3679db19c5c08e99bfbb9c0b4ad51812e3572a0f0ee97d4f7950b99"
  },
  "community/Frances2": {
   "frames": 88200,
   "peak": 179474688,
   "rms_db": -29.19,
-  "sha256": "59d5fb4d36ea2468bab536becbebb98f5b08345667b34915cbfb1b69365a321f"
+  "sha256": "060d3de4441a3b97e1bda2ec526f258797b267625d2e1521b634bca61f84faa4"
  },
  "community/Fuzzring": {
   "frames": 88200,
-  "peak": 771668224,
-  "rms_db": -30.37,
-  "sha256": "0db22a30e9a993a6880501075614a6b29e5400f792ecffb357c815dc6dde3240"
+  "peak": 772478464,
+  "rms_db": -30.38,
+  "sha256": "6b2f2eb513d29cb31b12aa77b3a50fcb205f9970c09ae8a7b92635241b147379"
  },
  "community/Fw Landscape": {
   "frames": 88200,
-  "peak": 622221056,
-  "rms_db": -18.9,
-  "sha256": "0b906265c21efb0ecbbe7ef4abf397683e4dafbcbc19e2fce62fc4a2983b3fb7"
+  "peak": 622852096,
+  "rms_db": -18.92,
+  "sha256": "43199c3312e5129dcf3fe60d40cff323c004cfd0718d180bb27d2d5bcd4d72fe"
  },
  "community/Giant Robot Fm": {
   "frames": 88200,
-  "peak": 112969472,
-  "rms_db": -34.64,
-  "sha256": "6d18729d9426183c8446b4001ff08eb750046eebff47183f02e730196e500924"
+  "peak": 112972544,
+  "rms_db": -34.59,
+  "sha256": "ffa3f139dd3aa3b88ceb285506a42df61fe3a9c7e779a5b1ebb7f29bf6696742"
  },
  "community/Glass Desert": {
   "frames": 88200,
-  "peak": 316049408,
+  "peak": 316032000,
   "rms_db": -29.9,
-  "sha256": "6ab1112162c610c944dcac304acf5cc799ee2a28e811758ae5c4c045e1444bcd"
+  "sha256": "28f01b0bc1d088b152209085066c9f70899b51bbe8e12e28af90a91df8c995c3"
  },
  "community/Glass Pluck": {
   "frames": 88200,
-  "peak": 344592128,
-  "rms_db": -32.71,
-  "sha256": "d3bc3a00f3b69a64f2e65bf79d1095c2aed52ed070ee31f22cc250676dbe5e5b"
+  "peak": 343870464,
+  "rms_db": -32.79,
+  "sha256": "3fe34b74d0818afe6b82df8b45db9dce1ef54dd921d49cdc1d6b94d3bccc7535"
  },
  "community/Glistening": {
   "frames": 88200,
-  "peak": 319686912,
+  "peak": 319662336,
   "rms_db": -28.9,
-  "sha256": "b42b0685f923136954b7722bdb503ffc48429e25c520802af043d09d63df4b16"
+  "sha256": "e0d89076c0b3763363ce83e0e6d668aa1c7a95891ed52e8d45baf0b7db769de8"
  },
  "community/Gong": {
   "frames": 88200,
-  "peak": 388048128,
+  "peak": 388092928,
   "rms_db": -22.3,
-  "sha256": "aaebbc086827b46d67f3b703cd72e2d126986cbd4a3070100397151b1c250b63"
+  "sha256": "4459b3c89e09b4afc5f5874fc504b75c36285daf0db2cf7127077a2c54b83650"
  },
  "community/Growler": {
   "frames": 88200,
-  "peak": 149504256,
+  "peak": 149583104,
   "rms_db": -30.46,
-  "sha256": "ef9999bff72f0922a5ec9c70f5dc8135627e007f4d3d8e2c2e715dff05c0fa9a"
+  "sha256": "4d9b58a9fb8d2dcad0b6ddbd1cf1b4b4f7bb4ae736fa787469f6abbc0cf4774f"
  },
  "community/Growlstrom": {
   "frames": 88200,
   "peak": 131795200,
   "rms_db": -31.08,
-  "sha256": "5baf4e863a6dc3506033ffef73556681eede7770ff998ffd8bc930254b9b5ded"
+  "sha256": "d32cecf6a551162165146e46a5f2585f4087ac1ef6636b12cbcc5c370ac7c53d"
  },
  "community/Heartspark": {
   "frames": 88200,
   "peak": 567854336,
   "rms_db": -24.47,
-  "sha256": "18e5d8ca3921ce1f541dcdce3e9588698a1748a1f12f0bd25dcc1a2e95558d17"
+  "sha256": "02436a36cbc8295343ceb6429b14a52882614f2eb1d07b98f80a1515732a8870"
  },
  "community/Hollow Dark": {
   "frames": 88200,
-  "peak": 600841984,
+  "peak": 600801280,
   "rms_db": -23.72,
-  "sha256": "3d7c2603af576a2eb8bc154d1a909732e4a8bea933e7ebb744f974e0261d76a8"
+  "sha256": "79dd0c0f45f2e672f84025ad86775bc1c6bac25028374b841e9b0c9581a0390d"
  },
  "community/Hollowring": {
   "frames": 88200,
-  "peak": 571128832,
-  "rms_db": -28.5,
-  "sha256": "2198ecf16f4749d7658d79ba1ab49a54d07645f40bcdd56d6889be14f3366c7f"
+  "peak": 569752320,
+  "rms_db": -28.56,
+  "sha256": "7c5ba1037f1162608108195ea7a44684f206cf5c2f6082b40c82b9d19cb050c8"
  },
  "community/Infernal Ring": {
   "frames": 88200,
-  "peak": 336028672,
+  "peak": 336048128,
   "rms_db": -28.56,
-  "sha256": "4386db89c7c895648c74c8f58dbfde8abc1f0c39268d14638c2e60aa23838bb4"
+  "sha256": "b7d056e10c6cc25aea19676c27e236ad0023d2e244ef2dc262b970cd5cff648b"
  },
  "community/J6 Pad": {
   "frames": 88200,
   "peak": 265245184,
   "rms_db": -29.28,
-  "sha256": "b61cd9c5986f0c26c11979d47bfcf98752e7bc558402335263f1df501ed7bdcd"
+  "sha256": "fd053da459629c3c10081f1edd47a5853440afdd30a9ccc87b885efac419c41d"
  },
  "community/Jehorn": {
   "frames": 88200,
-  "peak": 359627520,
+  "peak": 359562240,
   "rms_db": -23.07,
-  "sha256": "6db4ed7b55f620b30e0736b9306017a8eb0fbfbb5ae04767c36ce17d0a35dea8"
+  "sha256": "ab57b824941d4596ea2588af661ac47a7e41a23092624436cb68c7439a4f5df0"
  },
  "community/Juno Style": {
   "frames": 88200,
-  "peak": 862571264,
-  "rms_db": -20.57,
-  "sha256": "8f0a7205fdac84dc91f6c6b14eb719ea60beac7fae388e8db5cea4e68e45b986"
+  "peak": 862534656,
+  "rms_db": -20.58,
+  "sha256": "a8168ad2f907eb4443b855c358bde50560d5bcf5ca61b793a2e936317eb5b17d"
  },
  "community/Kaleidoscope": {
   "frames": 88200,
-  "peak": 410423040,
+  "peak": 410452736,
   "rms_db": -24.61,
-  "sha256": "584b9ec2558b1ed78f51dd3048d038b21a346cdfa2df924416f6c1223bf46d64"
+  "sha256": "b9af7a753f345033942b30f1478e7c7800ed8f31d17e9703bf2effb22bfb00ff"
  },
  "community/Livewire Arp": {
   "frames": 88200,
-  "peak": 504812544,
-  "rms_db": -28.54,
-  "sha256": "8d14d99bc0679c2df24f9b7da4d9fa1f889cb9ea40c3ff8193be4364afcf8bf3"
+  "peak": 504801280,
+  "rms_db": -28.55,
+  "sha256": "fe3741e43efa085a8d3d43e7a563c662287b51b7e6a6c15694906d6abdae57b1"
  },
  "community/MPE 80'S Soundtrack": {
   "frames": 88200,
-  "peak": 287204608,
+  "peak": 285526784,
   "rms_db": -29.11,
-  "sha256": "27a6e917dfad99093b85e1f2bc7fd7eaf5f12dd2d2662e1f5a83c8008a736a62"
+  "sha256": "3c9bc626c5138585d0a6c6bd0a7398961988c1980d23da66f9203281103e212b"
  },
  "community/MPE Curvilinear": {
   "frames": 88200,
-  "peak": 90844928,
+  "peak": 90851072,
   "rms_db": -34.11,
-  "sha256": "e3b4a2832b0cc8cb1ec4184920efd8ef136af4b3f331b6be4ca5ba45a3d16565"
+  "sha256": "7dc69bdb0b99a8558947aed00720f3bf3a6a5fdd81084dabb681f1c3c8c70081"
  },
  "community/MPE Desert Strata": {
   "frames": 88200,
-  "peak": 499014912,
+  "peak": 498972160,
   "rms_db": -21.11,
-  "sha256": "193731ee4c5637be0511cf9754e0f99c78660779adf119b423c9c62dce7d2875"
+  "sha256": "568dc27c7b3afab4082cba274f8b8ac0a16bc348d141413586fb5ffc359ec7fd"
  },
  "community/MPE FM Growler": {
   "frames": 88200,
-  "peak": 252801536,
+  "peak": 252800512,
   "rms_db": -22.86,
-  "sha256": "2a31f7d68d0466067b0ddf4ff61faac2192d5b141f7a496705b8f53a200be7c4"
+  "sha256": "6e327674e16e43f8f41fdeed3c00209bf031c919840ce891fd813b49e396b3e0"
  },
  "community/MPE Flute": {
   "frames": 88200,
-  "peak": 198413056,
-  "rms_db": -28.2,
-  "sha256": "f5d33442fd8730965d7bd25cff2b43016d8b6fc794882a9b5df06c8fb422dae4"
+  "peak": 198392576,
+  "rms_db": -28.22,
+  "sha256": "a79da35fd133ea0cdfa0bb31336e0ba1f3986714408eb011fa2bed4da8305c5d"
  },
  "community/MPE Haunted Music Box": {
   "frames": 88200,
-  "peak": 156999424,
-  "rms_db": -35.33,
-  "sha256": "73b5e3e424186a6caac792ff5fcf10920eee499077bf771dde2c9e39fab41388"
+  "peak": 155954688,
+  "rms_db": -35.38,
+  "sha256": "024e1ea2c377e0a4fdc5dd29246518e5d11bc9a07fcd8dece7bbb93a12aa5ee5"
  },
  "community/MPE Rich Saw Bass": {
   "frames": 88200,
-  "peak": 221788672,
+  "peak": 221787648,
   "rms_db": -32.15,
-  "sha256": "4ac16425e55c408a558b1fae0f53cfdf2bff20505fb179c414a4a7a07f0d71cf"
+  "sha256": "1c29d353eadd1d855227f1ee42e0ad277eea75669bec01c57e5005d70fb44b78"
  },
  "community/MPE Super Saw": {
   "frames": 88200,
   "peak": 235153152,
   "rms_db": -33.21,
-  "sha256": "d485564529953729bb12e0e600f9e2c1fbd519a4a67f6d078beae31c3f1218da"
+  "sha256": "937bae7dc99d2e7c608e22d5ca6b62d78cb6a62ff58d1fae839b99280bad370d"
  },
  "community/MPE Wood Pluck": {
   "frames": 88200,
-  "peak": 259936256,
-  "rms_db": -46.35,
-  "sha256": "1c7048d6a0eba699445298fed51ea5ee0db6f9fd31912382b22f77570c869f7e"
+  "peak": 172739840,
+  "rms_db": -43.24,
+  "sha256": "a401b325604f710a4a0faeab4cc934a60e93c201a21164561a892ba5bdd400ab"
  },
  "community/Mean Pluck": {
   "frames": 88200,
-  "peak": 375438336,
-  "rms_db": -35.5,
-  "sha256": "c726b0e63ec4831d34a925a72f02cc22478f170547a49481d00407a18b15748d"
+  "peak": 369007360,
+  "rms_db": -35.58,
+  "sha256": "7b743162fd39064752b88298dc717326bddf782b007e1adf3ea53717a7ea758d"
  },
  "community/Modello Uno": {
   "frames": 88200,
@@ -457,39 +457,39 @@
  },
  "community/Mouse Tail": {
   "frames": 88200,
-  "peak": 735368448,
+  "peak": 735509760,
   "rms_db": -17.22,
-  "sha256": "cbc0d979e4871242d4b966b506b3f3a213ba968ab363eae772751e7a971c8b90"
+  "sha256": "85fd1b7e8d43aefbf5174166e0cabde308ae90ebfe8b4060d411ce78909ce1fd"
  },
  "community/Nilsish": {
   "frames": 88200,
-  "peak": 807469824,
-  "rms_db": -28.82,
-  "sha256": "16f33d11cb6029da9e9af0c8b63e9ffec5ad44d28a416ef4881cc27283f47f30"
+  "peak": 773161728,
+  "rms_db": -29.2,
+  "sha256": "6d1cde9fd18d67cf1bd1a4e46a08c8896ffd78a1f8aa3343b0e97e8d6c162119"
  },
  "community/Noisewobble": {
   "frames": 88200,
   "peak": 578393088,
   "rms_db": -27.24,
-  "sha256": "7fbc146db7d17d10d64e838b24b1c328e2bd0255868d57d5c042963f685ad88b"
+  "sha256": "cf86180d2f3575713623924b22b13a96dfa0291f025771a5aac80e29d053502c"
  },
  "community/Nowhere Home": {
   "frames": 88200,
-  "peak": 418066944,
+  "peak": 418070016,
   "rms_db": -25.68,
-  "sha256": "724fd13802f431ded9b94a542670be53d897b3ffad6aa3b7aa71388784beaa0a"
+  "sha256": "63864649befe598eb9d9311337dea5447afe68543ea2c58ef688f61aaf9b990f"
  },
  "community/Obassity": {
   "frames": 88200,
-  "peak": 230570240,
-  "rms_db": -28.5,
-  "sha256": "55a81314d62300d7e22a61c46e5140b36d4412529455e845779f735520b9de28"
+  "peak": 230538496,
+  "rms_db": -28.51,
+  "sha256": "75b8924e290253ce2e72a24f29f2a6c4335812160ad9eb97afe429865b8a6a30"
  },
  "community/Oimp": {
   "frames": 88200,
   "peak": 535140352,
   "rms_db": -21.96,
-  "sha256": "df77204bf25009db0c7a0e172afe38bd2c194b4400a0d3cfc5a98e7592984fc1"
+  "sha256": "f41888678c3ba6b4585d35ee5c230875cdaa27cb0c7fb9257726fbf9b43133b4"
  },
  "community/Organic 1": {
   "frames": 88200,
@@ -499,147 +499,147 @@
  },
  "community/Orgavolution": {
   "frames": 88200,
-  "peak": 193458176,
+  "peak": 193421568,
   "rms_db": -30.6,
-  "sha256": "452d7d4e7ffc2ec41e428275e5d76782e488aa922954dc6d94599d2977c73f66"
+  "sha256": "7c1de4c2ffa80a0a8e47e20811ac5103d320cede9df71b7e18e876176c413f47"
  },
  "community/Overloading": {
   "frames": 88200,
-  "peak": 200511488,
-  "rms_db": -32.73,
-  "sha256": "fa1a33968e5cb8b121bc3570bf6e4b6880f91541939ade06ad18311a0bf3c350"
+  "peak": 200512512,
+  "rms_db": -32.74,
+  "sha256": "1aa562e1928a9d037b3a5de20d71f3226b4a9e74643ad6c1e7ad311697d1182c"
  },
  "community/Pakmahn Su": {
   "frames": 88200,
-  "peak": 114497792,
+  "peak": 114453248,
   "rms_db": -30.78,
-  "sha256": "dac2af5d00095e83c3de9d0e93d3cb2cccf326d1e399d7c65aea9db492afc827"
+  "sha256": "94d3bde940144fe11635e81c71fc47dfa0d5d90402bbe3f3a4203d2abbb5d22e"
  },
  "community/Pianism I": {
   "frames": 88200,
   "peak": 257270016,
   "rms_db": -28.36,
-  "sha256": "4d67e59c498ee43450053af15197fd5362df240ab48d2b218097dbb2404c9363"
+  "sha256": "a2eb6138281f5c95a0ec1b2de5e6cc4301d1b7b113f7c6a6fd0087da166697de"
  },
  "community/Pomp": {
   "frames": 88200,
-  "peak": 287691776,
+  "peak": 287673344,
   "rms_db": -24.02,
-  "sha256": "c3f484f7d3e5950e3d4738d8f091680e18d9b1cf0b4f7f5d3d41346f8dc4c959"
+  "sha256": "e9d6a919f2a40dc99e12449da37fd881cd78f89535fad8e6a1c5fc5dd06b448b"
  },
  "community/Pusher": {
   "frames": 88200,
-  "peak": 221094656,
+  "peak": 221091584,
   "rms_db": -31.51,
-  "sha256": "c89a05e6a2859208b0e2c24b311f8cef11aab09666220d36062188838c08a4ee"
+  "sha256": "9d7024b1b2f28aeae7bb09031cc966238eedd9a1180ba11e438d3191247e9538"
  },
  "community/Rainy Wasteland": {
   "frames": 88200,
-  "peak": 20005888,
-  "rms_db": -56.08,
-  "sha256": "5481296f81fe53a69a1d986af423a8a90055523d4ca51a218ac58be8a3248d72"
+  "peak": 19998720,
+  "rms_db": -56.09,
+  "sha256": "1216879895e5423690ff753543de43d299edb2fdbfdaa3f630ec84bb28c268ff"
  },
  "community/Richy Rich": {
   "frames": 88200,
-  "peak": 417802496,
+  "peak": 417805568,
   "rms_db": -29.6,
-  "sha256": "caa0307ec45065b9f492b4b024f99e701caa66ebc89b8b811ebd53502cf5bcd6"
+  "sha256": "760ad66be1352817ff45f47cadb263141901049184b97390a52ce2c7a35253eb"
  },
  "community/Right On": {
   "frames": 88200,
-  "peak": 1126691584,
+  "peak": 1126675712,
   "rms_db": -22.5,
-  "sha256": "472ed748aabbd6c0ce4765393713138afd3400dec678e7ce3e0470ca11c44fc1"
+  "sha256": "6997b56772bb09a6e811b5a29801243b7f319349b5b4c5c89b5417439ce9f42b"
  },
  "community/Ringmod Arp": {
   "frames": 88200,
-  "peak": 504087040,
-  "rms_db": -24.87,
-  "sha256": "3f39c8554f2c8e758977388e4413b810a25dab177f690d46f3053de6bd05f7cf"
+  "peak": 505179904,
+  "rms_db": -24.86,
+  "sha256": "bdca4075418bc93cccb0b5217b497aece46af673d8925478f2a8a0ba064910a4"
  },
  "community/Ringmod Melody": {
   "frames": 88200,
-  "peak": 136861184,
-  "rms_db": -44.26,
-  "sha256": "9a250d20fc9c476a1b3839f606074db1cbcb5a1342ce675cf72d268201969757"
+  "peak": 136216064,
+  "rms_db": -44.33,
+  "sha256": "16b5257ed4e411a862f84560842cee86cdf70123e5d421f585fd898d114d3db2"
  },
  "community/Ringmod Pad": {
   "frames": 88200,
-  "peak": 201525760,
+  "peak": 201553408,
   "rms_db": -32.59,
-  "sha256": "393ec096e6e711cbd4c55649732880bcaeb61dbde0496b307682934e19ed6ce3"
+  "sha256": "a19f310c76f690314c39ceaa753c3b61c5aeb09c8a271cbf280b5d1563920cc7"
  },
  "community/Rubberdemon": {
   "frames": 88200,
-  "peak": 306804224,
+  "peak": 306747904,
   "rms_db": -28.09,
-  "sha256": "23430fbb23d22cac0f156276ae16d90ad7fd1ee04100705bcc9ed24ccdba5b45"
+  "sha256": "05dbbe1372993714965d3d9a525776c3875b01d85b57f46b61b7473f14144641"
  },
  "community/Runner Lead": {
   "frames": 88200,
-  "peak": 314176000,
-  "rms_db": -27.2,
-  "sha256": "e21a505d840fa9cfc9c9cd6e1eb7f681843a7fdb81c3bd2a5ce286cd0652ab49"
+  "peak": 314262784,
+  "rms_db": -27.21,
+  "sha256": "f4f4c8f2cd12f7fb49cd154fb3b89b1c78519b6583aec0437ea4ea91b07807a9"
  },
  "community/Sad And Hollow": {
   "frames": 88200,
-  "peak": 373217280,
-  "rms_db": -26.77,
-  "sha256": "58d34ea02aed859c135aa3a53aed9380d5e856c1929b0daefbbb978d755376dc"
+  "peak": 371552256,
+  "rms_db": -26.81,
+  "sha256": "641c5cdf86328f4887f5c6b5ae783a5ae84d4821f8bcd7d564c1924c85653ceb"
  },
  "community/Saturnine": {
   "frames": 88200,
-  "peak": 236017408,
-  "rms_db": -32.87,
-  "sha256": "ef307587a81bd638c813da68303470346f56d1a081cd3c89570cdd6bec953322"
+  "peak": 234563072,
+  "rms_db": -32.92,
+  "sha256": "1b48ff86eb5ecd73ccb5ca1a807c786a7571c7a67da978ecae071dc6f4627756"
  },
  "community/Sawborg": {
   "frames": 88200,
   "peak": 238824960,
   "rms_db": -26.34,
-  "sha256": "f642de46e19544fe477c4b78cf0f8e3964916eec6f994da2fcaf7a2d7a3b0db1"
+  "sha256": "1aa6561fe45b6b663ac157354259b20a36e6e0768dbf99e19285d579ca7099f5"
  },
  "community/Schizophonyx Rm": {
   "frames": 88200,
-  "peak": 384861440,
-  "rms_db": -29.94,
-  "sha256": "084a94669a09b30b18d3d60708b73fdb9f045c7668cce67e46220e19ad745b30"
+  "peak": 384222976,
+  "rms_db": -29.93,
+  "sha256": "1a9a6157f00bc8db37bae015cffd4c2b7a27fb6dd4c334af18b438f4b382831b"
  },
  "community/Sense Of Doom": {
   "frames": 88200,
-  "peak": 767787008,
-  "rms_db": -20.58,
-  "sha256": "e4c9c0c21f8dd88e8e5a7561c422028e797aab92f43caec1c4b8341f0f77733c"
+  "peak": 766653440,
+  "rms_db": -20.57,
+  "sha256": "4b17f720bbbc07a03f05ee1d56d59639bd360fb0d17b2843f0372dc483c0b18d"
  },
  "community/Sik Rm": {
   "frames": 88200,
   "peak": 98819328,
   "rms_db": -31.81,
-  "sha256": "b8821cc288dc0c573d00ea1ecfedbeddf91cfb52602f8e514c65d93c3a1cdd10"
+  "sha256": "8548d033a31e6dc63e836ce19b39a40bcbd946b107787f77eb9ddf1c66d6a689"
  },
  "community/Slogro": {
   "frames": 88200,
-  "peak": 360804864,
+  "peak": 360811008,
   "rms_db": -25.48,
-  "sha256": "d22b31906f0d22384bb65b070cc7f95c53019b7aa0897db9922c2d2719d2ab94"
+  "sha256": "c7c16911e4dd0c87a393a340e1914684bf37b68417e38e51a90b7f906d903bd1"
  },
  "community/Slow Hula Hoop": {
   "frames": 88200,
-  "peak": 487692032,
+  "peak": 487655424,
   "rms_db": -22.82,
-  "sha256": "058d0db71ed6db9d18d00f33dcd88b41193085494bc3b80805f0bfd02a4b5b1a"
+  "sha256": "8a37f3586a9fbdcaedfa9e43922860e6427128d44d843d265b0775376faa443c"
  },
  "community/Space Bass": {
   "frames": 88200,
-  "peak": 283650048,
+  "peak": 283662336,
   "rms_db": -20.82,
-  "sha256": "3ce70aefc0958d2e940462ef489d0ba8fa996ad93719bbe1d0c06e00897f4849"
+  "sha256": "bc78b368e0aba8ae80c680e68f7b79880aacaec244ad9507ec60bba14b363f9f"
  },
  "community/Speed Lead": {
   "frames": 88200,
-  "peak": 403256064,
+  "peak": 403257088,
   "rms_db": -24.02,
-  "sha256": "2f87591715e10b099e3674c61ee957728725ea86df734e4ef4a0c378d31144e8"
+  "sha256": "25080dec03b604363302b68156f22ae206e18e5a6fa6aa2fdb5c7772eb7a2094"
  },
  "community/Spilled Soup": {
   "frames": 88200,
@@ -651,7 +651,7 @@
   "frames": 88200,
   "peak": 265715200,
   "rms_db": -30.01,
-  "sha256": "2c000bbc15e2e64ba2995fb0c26374b22a8cfa529f9f21cfdcd7a74ce28c9d25"
+  "sha256": "35820b58641aecc767efaa3854b2ea2a0101e7338eebfeca8c92c0c38842d2a9"
  },
  "community/Sync Squared": {
   "frames": 88200,
@@ -661,135 +661,135 @@
  },
  "community/Synthetic 1": {
   "frames": 88200,
-  "peak": 257953536,
-  "rms_db": -34.62,
-  "sha256": "c620f45b51ee738bdd2845fed2ef71d604b77dda8777684d53d37ee00ab80cc0"
+  "peak": 257967872,
+  "rms_db": -34.63,
+  "sha256": "f942dd0e8e74e7ef4a77314ffcfe588f630fce08340355778c51d7eb0c965f57"
  },
  "community/Tension": {
   "frames": 88200,
-  "peak": 124830976,
+  "peak": 124684800,
   "rms_db": -34.56,
-  "sha256": "7d8b2685c4f6e91670aaa7e777b2733d14cffbfa660b220fe0b64ab0bb402214"
+  "sha256": "582552c67f852de5e4759b409ff307cbb414a19ba516d3b096a9eeebb93e9e59"
  },
  "community/Thirsty Machine": {
   "frames": 88200,
-  "peak": 315552768,
+  "peak": 315553792,
   "rms_db": -23.23,
-  "sha256": "b221329b542d9e28b382d51a1ed253d3f90c42f5c4eb78f427936daa522adaee"
+  "sha256": "e6ee663c25e71455820329b621ad9a97d56a041cae8b7074fdc2867ad6ee9160"
  },
  "community/Threat": {
   "frames": 88200,
-  "peak": 100591872,
-  "rms_db": -34.71,
-  "sha256": "9340fd517f59bc9c20e94d0e44306cd7c10df08751dd5d494a85f57c75e0d4f5"
+  "peak": 100486400,
+  "rms_db": -34.72,
+  "sha256": "15eeda455b6758c988376030ec970a99e0acc48989b67713c85b513913addab7"
  },
  "community/Throaty": {
   "frames": 88200,
-  "peak": 363405056,
-  "rms_db": -25.61,
-  "sha256": "0ea2f5a2a70c4d9b17bb6a43c7a42b31a29be04e5549fb1e99142285a82efe32"
+  "peak": 363378432,
+  "rms_db": -25.66,
+  "sha256": "ecbeb0afbe6ee4293a098325b6947c40b7d734ac1bd9a22fa275436e6039b6af"
  },
  "community/Thunder": {
   "frames": 88200,
   "peak": 340276736,
   "rms_db": -22.75,
-  "sha256": "89d04d0b57a19b72bfd98043c94233ae96a27323dd3bcde878ddd96a6f61c884"
+  "sha256": "2d4b51a7bfe52810200e7580c2bcdc14c524aa72dc539598f6ae218587f8473a"
  },
  "community/Trust Me It's Useful Noise": {
   "frames": 88200,
   "peak": 439719168,
   "rms_db": -29.46,
-  "sha256": "3e1e7c1225de79dfb95226299711529e7cb30bbbb839fc3f1dd475bc8da3ffd7"
+  "sha256": "281d89e4daa1e5d2c8caa9a5db1982bdb729315d94f904bd667aa80d18259108"
  },
  "community/Ttty": {
   "frames": 88200,
-  "peak": 517704704,
+  "peak": 517693440,
   "rms_db": -23.5,
-  "sha256": "bc7bd97be232935f82992b000bd25dff50e436eeec82a58b9e6c021ba38eadc0"
+  "sha256": "d702a49d8799e1320d89b69137aed2ddc1ad4089a2eb482b276e0cf4a78f903c"
  },
  "community/UK Dub Siren": {
   "frames": 88200,
-  "peak": 553467904,
-  "rms_db": -21.58,
-  "sha256": "848109541f7924c4cddad14a182715a1a9a42c0563b2bbe2c640b50dc0e3db3b"
+  "peak": 560972032,
+  "rms_db": -21.63,
+  "sha256": "20801b13f9d330b8821e3596761bdc3c5c236538571ce44afae127f7909ef006"
  },
  "community/Undulating Drone": {
   "frames": 88200,
   "peak": 378778112,
   "rms_db": -28.86,
-  "sha256": "3afafc29fec9512cd5c0808e1aff73ef862849837a2c1c24fd2b43e3ab9e30d8"
+  "sha256": "8c8806d17ac46411eede8390085407709d55864071b6a204bfcd01c9ec5a2bb5"
  },
  "community/Wall Of Static": {
   "frames": 88200,
-  "peak": 193571328,
+  "peak": 193563136,
   "rms_db": -30.5,
-  "sha256": "6f8e154346e0035d59406f82cf84a695ea6e28292e3e7b51896eb4eec14c52ec"
+  "sha256": "8d2e168cddc2a67374b0c907d750495778af443b9f9e3a9cac49b5cbb185ca90"
  },
  "community/Warble Harp Lead": {
   "frames": 88200,
-  "peak": 311270144,
+  "peak": 311255040,
   "rms_db": -23.68,
-  "sha256": "707bedca8e15b2ed88a6c7c38633d27183d6f7f305844a9152e94e1e3cc47712"
+  "sha256": "c2f5d1915074782471cbc7224742394de9cb330c09e44edb27d901034f24e0f6"
  },
  "community/Warm DX7 Pad": {
   "frames": 88200,
   "peak": 238718464,
   "rms_db": -34.23,
-  "sha256": "7c1cc6ec2ec65c31291fc15b1681c777ba59820ec2e8ff34e7b7e5dfff07de8a"
+  "sha256": "f2d5d460ce1f0ca59063250dbb953bf150757b494406689ead380522b9149fde"
  },
  "community/Wavedash": {
   "frames": 88200,
-  "peak": 214798592,
-  "rms_db": -30.5,
-  "sha256": "e439170c3db851391b174fc72627bcfbb148f9cc3bbccfd48422ae37f9c4a4f9"
+  "peak": 214821120,
+  "rms_db": -30.51,
+  "sha256": "1adcc55bf0e07079fb02f4a57ea05bd6eb7c128a81dcd04b6c94687eec0e7ac0"
  },
  "community/Weather": {
   "frames": 88200,
-  "peak": 17731072,
+  "peak": 17730048,
   "rms_db": -55.47,
-  "sha256": "a78f8f6b0d6afca9ea64abc11376eeb0d7cf5fa8b3b427241d7d56efd0d42b37"
+  "sha256": "0e8c6ee4ad3ed65d61444fef6dd30dc003f930c71ff20f117c70427b95ce47ef"
  },
  "community/Wind Whistle": {
   "frames": 88200,
   "peak": 298631936,
   "rms_db": -30.12,
-  "sha256": "6b05d27c0bc3bacab428de7f6f5b06a34853e584fbdf5890a36c6e5ed91ea9f7"
+  "sha256": "e8706cd1c669536acd99d4848a01840b4360316bca2f23179e002bf9056739dd"
  },
  "community/Woodeep": {
   "frames": 88200,
-  "peak": 226977536,
-  "rms_db": -32.94,
-  "sha256": "9fdb0c18ee0528bde10ec665aecad16aec21bb9db1c831e4b8c68cf1c31504e7"
+  "peak": 197084160,
+  "rms_db": -32.96,
+  "sha256": "3b98302e89210a2c53812caab8daeb25bbf33eedbc622bcb7ada9b74d981be2c"
  },
  "community/Working Engine": {
   "frames": 88200,
   "peak": 186902016,
   "rms_db": -32.78,
-  "sha256": "36dae866c83fe479f69e51000cf1410271bac3be860e4d3415bc16925141712a"
+  "sha256": "be6317ad668894c41de9444c039fffbde8476f7040e83c44a8ba5cd709faaae9"
  },
  "community/Worrisome": {
   "frames": 88200,
   "peak": 126177792,
   "rms_db": -35.34,
-  "sha256": "b2803340e9024673e8dd0cb1e24ff9ba9340ba4b9e05cf61ac3e6832aba03763"
+  "sha256": "6b01b234df426157f98aa887642f7850bad269f771f2712a4cc0213e1429474a"
  },
  "community/Wub Sync Bass": {
   "frames": 88200,
   "peak": 289029376,
   "rms_db": -27.34,
-  "sha256": "3c7487724f56bc7378f42e5aba58dd8dbac6366200237fc02386ebede2d5f201"
+  "sha256": "cfe4276ddac25fd4c7a97dc6cf2de1c6e0ab3100c08b6d04df4969e27b38235e"
  },
  "compressor_blend_hpf": {
   "frames": 88200,
   "peak": 581788160,
   "rms_db": -23.27,
-  "sha256": "4028d21f5c2c481438e689b55652bfc498954ea89dc545cb13fe50cb78580e1a"
+  "sha256": "7b94b3ee074d0df73308fba6f86fc76dc9631349f3a02de321f4955b9cf0a744"
  },
  "delay_rate_sweep": {
   "frames": 88200,
   "peak": 1232993280,
   "rms_db": -15.08,
-  "sha256": "ae27a966510b4079b63240ae2418f890970d5ff77c04d12f1a14c27386366ecb"
+  "sha256": "53518992a4aceeb0a7016fe80fe7011284e29d8dbefdd3f0c5251d0b2a2070ff"
  },
  "dx7/ams_depths": {
   "frames": 88200,
@@ -893,185 +893,221 @@
   "rms_db": -36.78,
   "sha256": "bae67f3371671e4811c8ba9c42f70966127dee10e3a5e23ec4bbae222ad995ee"
  },
+ "env_ahd": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -25.32,
+  "sha256": "82fe5fca1b63e3975118a72052041e305c116beb37cfc9445cb54e304f6d122d"
+ },
+ "env_ar": {
+  "frames": 88200,
+  "peak": 108381952,
+  "rms_db": -30.04,
+  "sha256": "66abb4d380f1fefe921c695290a91ee8147005ed0d542e190b3652f519ead7d8"
+ },
+ "env_curve_0": {
+  "frames": 88200,
+  "peak": 173344000,
+  "rms_db": -25.26,
+  "sha256": "2968309a66b9052997431b2991cdde6c4143e2b90933d1b9004c4559f60132ca"
+ },
+ "env_curve_50": {
+  "frames": 88200,
+  "peak": 173285376,
+  "rms_db": -27.44,
+  "sha256": "5443093808d68878c38b103f2849f867161c2c383a86d1f11a3551428ff26b92"
+ },
+ "env_curve_neg50": {
+  "frames": 88200,
+  "peak": 173387008,
+  "rms_db": -24.6,
+  "sha256": "47e05f039a8d1b3bc73770e4321d32074ac5c2c5a6a9308308ef65cff5ac2210"
+ },
+ "env_mpe_y": {
+  "frames": 88200,
+  "peak": 171936256,
+  "rms_db": -27.24,
+  "sha256": "2c9eea05629ea7aa773d57fd97865790001a8502a98468a353ca410b0d1f5924"
+ },
  "env_shape": {
   "frames": 132300,
-  "peak": 173365504,
+  "peak": 173291776,
   "rms_db": -28.62,
-  "sha256": "39a7f6b4c21c973121439e9c20eb26d5f88a6f4fd08f5e220b86b267df9e27ce"
+  "sha256": "1d8b673e547357e5473c1c7cbc7bb8096af9f6f51312ca05322d9e4c167337d2"
  },
  "factory/000 Rich Saw Bass": {
   "frames": 88200,
-  "peak": 628539392,
+  "peak": 628543232,
   "rms_db": -23.15,
-  "sha256": "4b47768f5f4bced1b4eab33868a9d082b0d540927fc9e2392a633a725998e7ad"
+  "sha256": "b3e00eb7e65b23c8b71939d38e061ec5e20c71156e7f0a4af7ca65ab47e7a9f6"
  },
  "factory/001 Sync Bass": {
   "frames": 88200,
   "peak": 487392768,
   "rms_db": -23.57,
-  "sha256": "921ed20c2557cbcdbd26108913b39c393246ca36491c5d185e73a3052a973c2c"
+  "sha256": "3b963fd628158e3e9f6fb6e3098ffcedbfff069a17e18439d2faf998886fb014"
  },
  "factory/002 Basic Square Bass": {
   "frames": 88200,
-  "peak": 418910464,
+  "peak": 418901248,
   "rms_db": -20.96,
-  "sha256": "fd57e10ec23f27959728938be62d47adc0cfef3eaa110c034d9b92d2cc2be7b9"
+  "sha256": "736f6701da1fd6d64c57cca9e2eff451675f6368c8a59aace7c73ea9eb459738"
  },
  "factory/003 Synthwave Bass": {
   "frames": 88200,
-  "peak": 464201984,
+  "peak": 465412352,
   "rms_db": -23.44,
-  "sha256": "06474932a7bb57e04aaffc40e46c20c4c8086b8854c9716e1452a35fd81f6d72"
+  "sha256": "e98f29eb360ab092a96378457472d7a2f34539bcd87fa288f47308510c7e31b6"
  },
  "factory/004 Dubby Bass": {
   "frames": 88200,
-  "peak": 556260352,
-  "rms_db": -22.87,
-  "sha256": "fe64b2fe7a57e19f3114cf4fe03065514bd0a2b49b3813b01fe70f6a73cae7d6"
+  "peak": 559113216,
+  "rms_db": -22.88,
+  "sha256": "3c134096b94e81f37e7d5860f6950d09c934469be90249c72058440031c80f77"
  },
  "factory/005 Sweet Mono Bass": {
   "frames": 88200,
-  "peak": 762016512,
-  "rms_db": -22.51,
-  "sha256": "e9c25b0bf044790189bbe427f0bf5e9915bfdb54533ba521c9fc600d0d6ddca7"
+  "peak": 762431232,
+  "rms_db": -22.5,
+  "sha256": "1c61183344fc2713519e9c0e906a282fa997cdc4065d711a4dc485ffeb7bdbf1"
  },
  "factory/006 Vaporwave Bass": {
   "frames": 88200,
-  "peak": 506933504,
+  "peak": 506810880,
   "rms_db": -25.66,
-  "sha256": "4b0f922781ec013b6645c7dcd4b30e55ab77f873bd39d5462b601d4b4bce72fb"
+  "sha256": "ce609f74fd4892e27a39b476e329b930e893f215baf63d4aaaa7a5bdcccc48e1"
  },
  "factory/007 Detuned Saw Bass": {
   "frames": 88200,
-  "peak": 562929152,
-  "rms_db": -21.42,
-  "sha256": "afaee81239f460496ba8bb0e24a87121be8f18667dab934046db9e2ab64cc3f0"
+  "peak": 560473600,
+  "rms_db": -21.43,
+  "sha256": "213ba06bbc3f463b947c2fba19e6edf89e93bf308ec6503075f7c94cb68a5851"
  },
  "factory/008 FM Rich Distorted Bass": {
   "frames": 88200,
-  "peak": 632386560,
-  "rms_db": -22.79,
-  "sha256": "40d5d5cc761223a5958e3248b5ab92c84a299a54027cea6ce64a92239ab6ad4e"
+  "peak": 633564160,
+  "rms_db": -22.8,
+  "sha256": "dceae349aa9f01f6d3f689a847b9d94edd5e8862c8869cc2297e84335191503f"
  },
  "factory/009 Hoover Bass": {
   "frames": 88200,
   "peak": 574102528,
   "rms_db": -20.97,
-  "sha256": "6e8db8fb46c086df4aea1ca73d5249ffd002ce101bd3cf578a099bf334a88858"
+  "sha256": "ff853daa9c048fe6169a4126d1dff4f0890a505b1338faa12e78ea517b1433aa"
  },
  "factory/010 Gravel Basscamp": {
   "frames": 88200,
   "peak": 610425088,
   "rms_db": -16.85,
-  "sha256": "96e69d6f6bdc1880fb3fffd611a587ba508fdfbb2b4dad6320f87cb1b37bda9d"
+  "sha256": "235c69fd372c54eb5ed4830d14a4b2a56c62600cab30afdb9de2f878f45e1109"
  },
  "factory/011 Dubstep Bass": {
   "frames": 88200,
-  "peak": 584497920,
+  "peak": 583151872,
   "rms_db": -15.78,
-  "sha256": "dc154c09ff697d47d6c532d49d025667805eae11d2975686c34bda775a631a85"
+  "sha256": "2ae47289f39c8e0f18fd657dab69f183f4425f2c4a7d1a06a3aa813741197319"
  },
  "factory/012 Blunt Sync Bass": {
   "frames": 88200,
-  "peak": 526107904,
-  "rms_db": -24.02,
-  "sha256": "260c83a1a6c4fd6f6a5af1caa66bf7e1510ade294665810b922a700034db6b33"
+  "peak": 521795584,
+  "rms_db": -24.03,
+  "sha256": "47dbcd74ef7880e8300c6f9a44818cdb2422a7ce5fb37c44ebbf599e8ac93671"
  },
  "factory/013 Trap Bass 1": {
   "frames": 88200,
-  "peak": 292565248,
+  "peak": 292526592,
   "rms_db": -28.83,
-  "sha256": "6b850a7d51e2941d61dac36ca716f32240f6ee6c42b5a3a8298be6f6bbdb0f36"
+  "sha256": "de4e68c5e5b8b23fdd914e5127dee0e9c96b131738f6a9b1c1ce8325a800d696"
  },
  "factory/014 Trap Bass 2": {
   "frames": 88200,
   "peak": 148374784,
   "rms_db": -23.6,
-  "sha256": "911e270baf7f90a477944484f79b1a81d5f6fb2c3b85b16b1b643d3bf7736ed7"
+  "sha256": "7626a65794f134e37fb35f2add1cfdedd00fba1dc57430b5a2ee49ec715d4a2c"
  },
  "factory/015 Resonant Filter Bass": {
   "frames": 88200,
-  "peak": 404921856,
+  "peak": 412462080,
   "rms_db": -27.66,
-  "sha256": "5a9170c12eed8cfdb49b615c684c1f2034c82f77512a4220e8feccac5c3ddaa7"
+  "sha256": "2b36a2ea2a4e33ac42b19c194e38eda59605812145895c52332940f8b18c9259"
  },
  "factory/016 Dark Saturated Bass": {
   "frames": 88200,
-  "peak": 488365824,
+  "peak": 488360704,
   "rms_db": -20.62,
-  "sha256": "70301899e9771118c9ae01a9e6910b9aa2d3663108877e9ceab03f929abde353"
+  "sha256": "a66cfffeaaa006521a04fd8119530016d801429a7d0529b865d768c4b1c3685a"
  },
  "factory/017 Impact Saw Lead": {
   "frames": 88200,
-  "peak": 473021184,
+  "peak": 472965120,
   "rms_db": -22.67,
-  "sha256": "48d33c591d374f4aa51e246798218778fe9a2c76f5f0b4b1a37220b4f71aef6c"
+  "sha256": "5a6b790b63b15bce3bed753f68cb4f611aca9f4a779b90234db3ff789bb040e6"
  },
  "factory/018 Rich Saw Lead": {
   "frames": 88200,
-  "peak": 886243584,
-  "rms_db": -22.07,
-  "sha256": "17ea0dc36da615d41188fe0761b63d64f451573843613c20f56b49cd3fce4bd1"
+  "peak": 884583424,
+  "rms_db": -22.08,
+  "sha256": "05f973c60533ae61b07b10ae8ed1343e28aa8a7cc135c9b2c19e2ceef2ab8e57"
  },
  "factory/019 Fizzy Strings": {
   "frames": 88200,
-  "peak": 562789632,
-  "rms_db": -21.31,
-  "sha256": "a2918514ddbcc6cbd3d1650264157b28d5cdd30c6bad97ca852c0e0111a0ed1d"
+  "peak": 562452736,
+  "rms_db": -21.32,
+  "sha256": "1b56bd30ddd992c72e396acf11779560da83e43c8c45f801acec780c8aaef1d0"
  },
  "factory/020 Soft Saw Lead": {
   "frames": 88200,
-  "peak": 640439808,
+  "peak": 640445952,
   "rms_db": -23.1,
-  "sha256": "979af9bdaf0e7d3d39cb38151d42f07597b32a3f6938964960419d81fc5ea7dc"
+  "sha256": "44e5adbdcf372f40dcbaded80722111dabd49c52bd13b64052008890efd691fb"
  },
  "factory/021 80s TV Lead": {
   "frames": 88200,
-  "peak": 378438656,
-  "rms_db": -24.59,
-  "sha256": "16de1c08a0214b5e63398678696ba41fcd2827fd2a75f5f7f56c5659a855469e"
+  "peak": 378219264,
+  "rms_db": -24.6,
+  "sha256": "f8c590cda37424db3e0a60b1fb78302bc8a0f3d597a5e651dcd3cc360ccd87b8"
  },
  "factory/022 Rich Filter LFO Lead": {
   "frames": 88200,
   "peak": 421426688,
   "rms_db": -22.51,
-  "sha256": "15f90c0695014cc5b632f9fdaa807fde1e57ac063b52329320a5ddee6760c409"
+  "sha256": "1ac8e63cba054949050649bac749b45fd19000a49b637c21fb6a476f3b1377cf"
  },
  "factory/023 Analog Mono Wow": {
   "frames": 88200,
-  "peak": 782400768,
+  "peak": 782413056,
   "rms_db": -20.06,
-  "sha256": "f9156ef9a68f133bf8f15506da29d5906dbd880bb4de1fb5681625aa46bc0559"
+  "sha256": "42f1d7224dee20ad1cc2ad64440c57ef1b30ea53842e790631a5665b899c921d"
  },
  "factory/024 Warble Bass Pluck": {
   "frames": 88200,
-  "peak": 980170496,
+  "peak": 979152896,
   "rms_db": -25.35,
-  "sha256": "d627b01d08399815073fcb10142cbf1dd6fa454e0eec52f80dec50c543f01931"
+  "sha256": "69c0fcb6997cde5d0df3ca4f72beb74112945d124fcbf49516457f9243adbb63"
  },
  "factory/025 Soft Synth Organ": {
   "frames": 88200,
-  "peak": 525199360,
-  "rms_db": -27.61,
-  "sha256": "89692a3d793910b375c41cb2ebae3d9f03f06111d5e85f562871b9f1ef7e458c"
+  "peak": 521414400,
+  "rms_db": -27.65,
+  "sha256": "1afc0572d6c0e16cc7759b71ff6fbdd87b8b213e13154a14b85ca27fa9b0dfa5"
  },
  "factory/026 PW Organ": {
   "frames": 88200,
-  "peak": 262633984,
+  "peak": 262509312,
   "rms_db": -24.38,
-  "sha256": "7eb1079c90d6b267b0f26613e3e617f9f298ecf6584355ad27e7bd6ee3b00bae"
+  "sha256": "8806e956ac65363ed01c810565e2b01b0fc5600fca8e43cf6b05335b7d6fb6b9"
  },
  "factory/027 PW Envelope": {
   "frames": 88200,
-  "peak": 240167424,
+  "peak": 241126912,
   "rms_db": -23.65,
-  "sha256": "2ab07514f2c5607a5de26b00f3d4c37fd4cef8dc9ac73c1b5bc782998863666e"
+  "sha256": "a38736d3b8cb9ecaddec874884b49b56555a4d292daa366c201db0a9bc4eb373"
  },
  "factory/028 PWM": {
   "frames": 88200,
-  "peak": 321611520,
+  "peak": 321422592,
   "rms_db": -19.99,
-  "sha256": "7fbab6ee7a8f6d5f8c64af037c6b1dc32fecd5c98e63dc464dcd5b9794fe2a4b"
+  "sha256": "3a2b2fa91e8ae0fc051a33a665852e449358ac97bd1a9d2c146518d369fad10b"
  },
  "factory/029 Chiptune Trill": {
   "frames": 88200,
@@ -1081,333 +1117,333 @@
  },
  "factory/030 Distant Porta": {
   "frames": 88200,
-  "peak": 666339072,
-  "rms_db": -20.16,
-  "sha256": "b3a993f470e47e0a9939b458d788e3184c44638001ae43a4e38adbfe4465e379"
+  "peak": 665341952,
+  "rms_db": -20.17,
+  "sha256": "57934a4f1fd539b18309ca170cd9910fcc1a1a8df2db488699da592089ecae5f"
  },
  "factory/031 Nasal Choir": {
   "frames": 88200,
   "peak": 642269696,
   "rms_db": -15.89,
-  "sha256": "fa510d5135dff62520e708779ef85bafc9ee1cd3c1ba61000338116b971d481d"
+  "sha256": "c89702d7791d1bbfd697f6bf98168c0115400763bf6f0c076ed8f721ffedb4f6"
  },
  "factory/032 Bandpass Choir": {
   "frames": 88200,
-  "peak": 690536704,
+  "peak": 690490880,
   "rms_db": -23.71,
-  "sha256": "fdab9a7fd25e8bc7b9f7551d2528ada0863155fc5ede421d829bb4942239c079"
+  "sha256": "c2d16af4408a70531722fce541ebce8519f9ec6d2a3b7bd1306ea471b97f3761"
  },
  "factory/033 Rich Square": {
   "frames": 88200,
-  "peak": 324227840,
-  "rms_db": -28.61,
-  "sha256": "2cba6984ded1033ccf98bcaa6fa3bf57d3780d0f8d35ae5f279d2fa75d74115e"
+  "peak": 323985664,
+  "rms_db": -28.62,
+  "sha256": "5d20e225e921a1f9fb7178f34bee659201d974c241ea370e0395ba888e0479be"
  },
  "factory/034 Square Choir": {
   "frames": 88200,
   "peak": 407466240,
   "rms_db": -19.77,
-  "sha256": "7c61c6f6c059b81429efa4d1b50219f7af0af62e3b4c634c8d5238c18c31315e"
+  "sha256": "f6cbf4cec1ffb7d8da68ee351013971424e32ced10fe2bd984f663e3dad0d170"
  },
  "factory/035 Bell Lead & Bass": {
   "frames": 88200,
-  "peak": 1062353152,
-  "rms_db": -19.3,
-  "sha256": "85513f852e6edda1ffea7a3c440b67e2f5e7f6271505d9ad97a97a3af61a9249"
+  "peak": 1061197312,
+  "rms_db": -19.31,
+  "sha256": "fddbb96162e60cb924e8c974ae2737e32dd65d3d3ebd120b9f0f6e40457fed4b"
  },
  "factory/036 Analog Ambient Square": {
   "frames": 88200,
-  "peak": 946572288,
-  "rms_db": -14.16,
-  "sha256": "1a49cfde386f08235d6df643b001e33d3011649bd684bf32e8da3e052802a04d"
+  "peak": 945510144,
+  "rms_db": -14.17,
+  "sha256": "6462a7e25b8b6670dd4c9d51ffc4014208c4558e461661b1235877420966819b"
  },
  "factory/037 Echo Chord": {
   "frames": 88200,
-  "peak": 405149440,
+  "peak": 405151488,
   "rms_db": -23.37,
-  "sha256": "ef87f9110c0713953cca108fe53c01d4921d88d58eac4166ab1d6fef123eb182"
+  "sha256": "011da05b851f6b8037838888b5ba4adb766136683fc2e429f5561a399e54056f"
  },
  "factory/038 Vapor Arp": {
   "frames": 88200,
-  "peak": 359073280,
-  "rms_db": -27.74,
-  "sha256": "a312dcc874fd3361c6b8ead937abe813e006ed599d813b03ea1bcaa4b941ba8e"
+  "peak": 359016960,
+  "rms_db": -27.76,
+  "sha256": "4e011a0a532b5096f3e836c660ccec7915ac1840804b2ff7d559fb8e19ef439c"
  },
  "factory/039 Detuned Retriggering Saws": {
   "frames": 88200,
-  "peak": 334710016,
+  "peak": 343282944,
   "rms_db": -25.31,
-  "sha256": "0fd5dd786f361e5ce39da68ec25997038b88d1e57bf0214afde2c0dbe8864b35"
+  "sha256": "e17455492d0b60b959a176bb949eca045fc56ec554b47ad605e21b06f0d0271f"
  },
  "factory/040 Spacer Leader": {
   "frames": 88200,
   "peak": 562710016,
   "rms_db": -18.61,
-  "sha256": "277379fedc9d93ba352d7c5953537c5c93f9d7e04bfdc2f48103cb302be65bbb"
+  "sha256": "1c1ff9ab5cb5b473aee83f1c8b50e96aa6826c4da986cb89800faaa646abb98d"
  },
  "factory/041 Zithar - Vibed": {
   "frames": 88200,
-  "peak": 474666496,
+  "peak": 474604288,
   "rms_db": -25.06,
-  "sha256": "b82976a1b598ccc227daa98a341bd3cd033ad05f84f13399da916869376e6816"
+  "sha256": "ee21d87e79d28257ed1c306be2b2aa54690c7142f27b24191f0a40ab32e3ec4d"
  },
  "factory/042 High Triangle": {
   "frames": 88200,
   "peak": 295018240,
   "rms_db": -24.4,
-  "sha256": "5ae7e361ba8d1059fdf4c2e525c941e5dc46cf58b9e77823468e2013b9a1cf64"
+  "sha256": "61c4ee40bd4262e73eeaf964addd963445bd8af34e9b0a906e27be59773ca66f"
  },
  "factory/043 Square Porta": {
   "frames": 88200,
   "peak": 280519424,
   "rms_db": -21.29,
-  "sha256": "7ab37e0e83548d5ab6e898de574f452cc071d6bace9b2774e39d56f992330413"
+  "sha256": "b1cbdf1385955d1984046334ee0af1d1ef3205cc1d085f61916e766f9b2714cd"
  },
  "factory/044 8-Bit Lead": {
   "frames": 88200,
-  "peak": 264780544,
+  "peak": 265020928,
   "rms_db": -21.63,
-  "sha256": "dbf953de1a151c329f55cd8ba35cfaec149ee660532fea56a828dcd4d2de16ff"
+  "sha256": "6e3aa1936250303ab80f9b74f1c6c12a34996570aa6ff2a41ae43fc3f248ff58"
  },
  "factory/045 Square Sync": {
   "frames": 88200,
-  "peak": 497441280,
+  "peak": 497557504,
   "rms_db": -22.13,
-  "sha256": "d82ea59a59387b1b787f3aaf6fbe82d0555f1e4079d1ce115e69c8a9a7963ff6"
+  "sha256": "4db35c3b87ba72e8d8bc4aec0620d887a629333905bc8a734bab3b30262c6782"
  },
  "factory/046 Saw Sync": {
   "frames": 88200,
-  "peak": 466130176,
+  "peak": 463272192,
   "rms_db": -23.16,
-  "sha256": "c75875450d1c9cd6d1923286824050cd20713e9075f46606b9ce6cfbe6031858"
+  "sha256": "fd3ba990ba0cc9b4eaf65072983eba205024417f1a828385ea166bdd03c985f9"
  },
  "factory/047 Basic Dirty Bass": {
   "frames": 88200,
   "peak": 362461440,
   "rms_db": -21.99,
-  "sha256": "2584bbb3c466cfc8233e1483b44edebe2ce6a9c8d3f3312e212d1c3f5f525aad"
+  "sha256": "aca9591b77b4425daf763cadd4e7c470a60b24ad5fb2a6805dcdaecbb2f3cab0"
  },
  "factory/048 Thin Pulse Bass": {
   "frames": 88200,
-  "peak": 472142848,
+  "peak": 472031744,
   "rms_db": -23.46,
-  "sha256": "f924bb5b92bdb02fd242a9020ce7ac8075828577699306f70d4d99e2c0c6334c"
+  "sha256": "6a53ed41445a32dedee79577b73e9d045b7254c8d5ed273a8191a9d93877de31"
  },
  "factory/049 Basic FM": {
   "frames": 88200,
-  "peak": 241918720,
+  "peak": 241849344,
   "rms_db": -25.45,
-  "sha256": "6f78c0f3f2a5f484da69dfedd055fdf6909f0f9ed43a6bdf1fdc00d19bfc6611"
+  "sha256": "562bdb0e898bc6fbdfdd47501b28c41507ea21904e9ba946fc42466eb822d6fb"
  },
  "factory/050 FM Basic Bass": {
   "frames": 88200,
-  "peak": 306485504,
-  "rms_db": -26.8,
-  "sha256": "232cc4d3557337aeea15e0ebbf1459652facb33f70dd53ffc4311a4381c77b58"
+  "peak": 306094080,
+  "rms_db": -26.81,
+  "sha256": "b3b5294cc48eec5ae625587ab36fc0c3ea924a9b6eecf3bbbdc09544c1a83013"
  },
  "factory/051 FM Rich Brass": {
   "frames": 88200,
-  "peak": 693646336,
-  "rms_db": -24.36,
-  "sha256": "f982a9d27d1e8ad4503234c88393b4e5e43d60ffe7589c1de8dbd496fe058c3d"
+  "peak": 690123776,
+  "rms_db": -24.4,
+  "sha256": "f4113b0cb28cb20ccd0309dc56d8dd114bb0a3e78c21adf6221996aa16b3bc80"
  },
  "factory/052 Soft FM": {
   "frames": 88200,
-  "peak": 508472576,
+  "peak": 508471552,
   "rms_db": -20.45,
-  "sha256": "dea893444d7807ab0546b36530e966d5fbbd507eefc0752f4deaef28efb3726a"
+  "sha256": "4b528e0797c13f56c888077dd84876cf06bd802dff3e5299d76fc94d2c70aa07"
  },
  "factory/053 Detuned FM Horns": {
   "frames": 88200,
-  "peak": 405959680,
+  "peak": 405899520,
   "rms_db": -23.69,
-  "sha256": "fcea9a21050515df9ab3db872917066ad18146b955e0c2b44dd568fa0ac4daaf"
+  "sha256": "92fdd305e5dd12ef7c70d0c44e603cfdcba9390630f8bba3a5e978031bb9995a"
  },
  "factory/054 Ghostly Sines": {
   "frames": 88200,
-  "peak": 837603584,
-  "rms_db": -18.47,
-  "sha256": "4c94eed6dc4ba3d72df8b3c95d95b526db3ff6a4f4a9beef26bf24d39068a64a"
+  "peak": 835633920,
+  "rms_db": -18.49,
+  "sha256": "9e3e13570b090f4476714a4213543e9580486e091c8c1880a180f93cbfb7b696"
  },
  "factory/055 FM Theremin": {
   "frames": 88200,
-  "peak": 544532224,
-  "rms_db": -18.75,
-  "sha256": "d21c3044b3dcbe243aaab3fc3bc977ba8e1347ebebec752431c4402469913ac3"
+  "peak": 544114688,
+  "rms_db": -18.76,
+  "sha256": "00ea5646a20da1c97e9ad027cdc9e3d59f5cc6b27db6535a3adf690fb1bead87"
  },
  "factory/056 FM Bell Modulation": {
   "frames": 88200,
-  "peak": 353619456,
+  "peak": 353612288,
   "rms_db": -23.24,
-  "sha256": "b7079fb13a3332948ce64c0a485fd6bdf68e98f9cd5bf8aed171d798d9d09bdb"
+  "sha256": "6d8ba37d55aaa66555b2354a5a07e80caddcbe65c3ffaea4f927ca4bb14bfbf3"
  },
  "factory/057 FM Lead": {
   "frames": 88200,
-  "peak": 366247168,
-  "rms_db": -25.53,
-  "sha256": "95ac95ded1ec25153a11a264b504889ccc19141ec89b770d27a880151f987a01"
+  "peak": 366180864,
+  "rms_db": -25.54,
+  "sha256": "06db17b36499c578f723107740cb55e61c31ed0a45fff39a1553a0b21f1aefd4"
  },
  "factory/058 FM Rising Attack": {
   "frames": 88200,
-  "peak": 480244992,
-  "rms_db": -28.87,
-  "sha256": "2790b9e69dbb112bc21d35ae1aa9472d2570dd70d649351f522ec1fc0c050d67"
+  "peak": 487252224,
+  "rms_db": -28.89,
+  "sha256": "af150f8395116b55b05171ef636feeddbde7acbafa6b998d7d7fe237f0f5c402"
  },
  "factory/059 Distorted Lead Guitar": {
   "frames": 88200,
   "peak": 83471616,
   "rms_db": -30.99,
-  "sha256": "f4dc1814a59134da80584f188413505204611b89299aa9109a4eb333a14f9291"
+  "sha256": "49ae78674e90ab1c517a6efa60961ec4aa57d0100aa2200b57a73bfc68d02d38"
  },
  "factory/060 Bass Guitar": {
   "frames": 88200,
-  "peak": 784577536,
-  "rms_db": -25.3,
-  "sha256": "90ae06aa4d9767d7b704556d9e6114cb450a8a2649b3522a76736854a855d57d"
+  "peak": 780242688,
+  "rms_db": -25.33,
+  "sha256": "77a0d6637c757752379c99ffbf2bbaa85ed5e8c8757524a05478f5d09029e1fd"
  },
  "factory/061 Blown-Staccato-Panpipes": {
   "frames": 88200,
-  "peak": 281687040,
-  "rms_db": -29.12,
-  "sha256": "99916bcaf7b4883b9bfd8e77c3ecf6c7961b880b23004a8ec6b647e2362c963d"
+  "peak": 276248576,
+  "rms_db": -29.15,
+  "sha256": "cb435809d996f8a676fa03dd39e1790e13262d6a8cac8fa909ccaee1e37acd81"
  },
  "factory/062 Trumpet": {
   "frames": 88200,
-  "peak": 608897024,
+  "peak": 609181952,
   "rms_db": -20.16,
-  "sha256": "b3a5d866fdb078abcb8f4f67e4ef74efbbb50890d70ae0c5f8465111435a303c"
+  "sha256": "60c46f9b45654478029f1d7164284e71e22b993dfb753c7ea5f5a35884410fcf"
  },
  "factory/063 Tuba": {
   "frames": 88200,
-  "peak": 505183232,
+  "peak": 505019904,
   "rms_db": -19.65,
-  "sha256": "70ff2b118b94a8703a36d4a1c3788b0e72110c232951cf6248b6fa8161bd28b4"
+  "sha256": "a8fabefaf9ba757992ce2cc8a086968b1d487b4655340f231895f2e071680eaf"
  },
  "factory/064 Reeds-Flute-Oboe": {
   "frames": 88200,
-  "peak": 904830976,
+  "peak": 904832000,
   "rms_db": -16.7,
-  "sha256": "872cf38a6ea298273ac706786a3718eeec2c2c9c7674f34456f268870715a283"
+  "sha256": "678be2bcaccf94ee64d7032a7a23f8c3b32b0069a426221e9a9d2fb1e86a02ab"
  },
  "factory/065 Cello": {
   "frames": 88200,
-  "peak": 510938112,
+  "peak": 510935040,
   "rms_db": -21.91,
-  "sha256": "8bc4245d7982fb064bf5f254b141a9433ba3b216b29c1df7779af47d0270fcc8"
+  "sha256": "14f1a137543121a53882dcb497859e8cccef01531b45348f05c898e4ef3418dc"
  },
  "factory/066 Violin": {
   "frames": 88200,
-  "peak": 514939392,
-  "rms_db": -25.18,
-  "sha256": "76e6340b5808154f373908036db51636a48c82b7581e717c6fc6480375097a95"
+  "peak": 514254592,
+  "rms_db": -25.19,
+  "sha256": "f3953fd693bd76f7d166da5bab4528700aacfe143d9a3217e49ecba407efa05f"
  },
  "factory/067 Marimba": {
   "frames": 88200,
-  "peak": 407016960,
-  "rms_db": -29.76,
-  "sha256": "6825fa38ec12f6e095e0c6403f2b44a3a1ef93334edf820accbe3ca5d570e787"
+  "peak": 399741696,
+  "rms_db": -29.83,
+  "sha256": "7421ca10061fff5d2241a4736a687d83ec8838cc697bab2fc7d5d0eb713a957b"
  },
  "factory/068 FM Bells 1": {
   "frames": 88200,
-  "peak": 247378432,
-  "rms_db": -28.83,
-  "sha256": "314b483fb1563c80db8d61e63e91566016090421d8e27c503d0e073cf059cdc0"
+  "peak": 246688000,
+  "rms_db": -28.84,
+  "sha256": "41691136f8860550305ed24588e495a3a047d05ad37c69e5c1a82cd5eb49671d"
  },
  "factory/069 FM Bells 2": {
   "frames": 88200,
-  "peak": 219689728,
-  "rms_db": -30.29,
-  "sha256": "da775c39797465a092cfb177745265b918707ae39e51218aba33e984454cea31"
+  "peak": 219760896,
+  "rms_db": -30.31,
+  "sha256": "11f18c78633ee99fc417de6ffc5b4f1d558933e1b477f7f2ccc7168bd7ae183b"
  },
  "factory/070 Glockenspiel": {
   "frames": 88200,
-  "peak": 433749504,
+  "peak": 433635072,
   "rms_db": -22.38,
-  "sha256": "f6db34924b669259cca2545dd8f066f7d986e4d5c2fba0956d43d98831e2df3b"
+  "sha256": "3b7b167d934cb2e249e5b3d813655409f9fad7e3568f2cf4d2e7ffc2d2757bff"
  },
  "factory/071 Rhodes": {
   "frames": 88200,
-  "peak": 491942400,
-  "rms_db": -26.89,
-  "sha256": "27ac86610c8f8dfee863ead17e77a24049a725300212b6dc916733cafced067b"
+  "peak": 477535232,
+  "rms_db": -26.92,
+  "sha256": "bbb1ff62eb6e809b5f38e392882355fa1c0cb2f714299a2b6befff56727dd698"
  },
  "factory/072 Kyoto Phono": {
   "frames": 88200,
-  "peak": 752611072,
-  "rms_db": -29.49,
-  "sha256": "681dcda43caf8d22c8f3e5f84b37958cd4bbeb4ea2b520883163e02153a6f814"
+  "peak": 736352000,
+  "rms_db": -29.62,
+  "sha256": "a649dff4ae07dc7f0cbd4da6c4d0deb53cc9d13c1fc6e5fcb2b9277dd55002ad"
  },
  "factory/073 Piano": {
   "frames": 88200,
-  "peak": 587851264,
-  "rms_db": -23.06,
-  "sha256": "cc7f7d449dac4d00b7fab572e5bb0816ef258cbb78e5e475b61df6c6af4b051c"
+  "peak": 586872320,
+  "rms_db": -23.07,
+  "sha256": "05fe9531807a332f124ce8e0dbce4fe1357d85e813160b9dda4786ceb9049f99"
  },
  "factory/074 Electric Piano": {
   "frames": 88200,
-  "peak": 621081088,
+  "peak": 621192192,
   "rms_db": -23.02,
-  "sha256": "dfa51ba6116be2572203fa60e1b713f4e2beda0f27595359e07d205b523f1c1f"
+  "sha256": "899c6935a7fec4fbf02403f538a74d63c163a824b57dc156c0590901bba307e3"
  },
  "factory/075 Electric Piano With Strings": {
   "frames": 88200,
-  "peak": 931994624,
+  "peak": 931805696,
   "rms_db": -19.58,
-  "sha256": "685855933cd8fe3be2252e3de1fd92acf95b0c3afcce5f7084eadf247153ab3e"
+  "sha256": "0c13a4e9a7a9cada500c35e03352fd95336169a030f99c50ca3049d04334f8da"
  },
  "factory/076 Organ": {
   "frames": 88200,
-  "peak": 531340544,
+  "peak": 531159808,
   "rms_db": -23.65,
-  "sha256": "7455c80f4a7f3e333c9a9593ad0adeb9c201a13f0dcd433cad9db77bb1d250f3"
+  "sha256": "0c27f9139bbfe82667f7b22b1839c569e08477d5e6771c22b616309923eec436"
  },
  "factory/077 FM Perc-Organ": {
   "frames": 88200,
-  "peak": 699062784,
-  "rms_db": -27.3,
-  "sha256": "e93d6eba70e8f0569136c3b053697c719c3805f2852d90092828e9d070b9549a"
+  "peak": 595880448,
+  "rms_db": -27.41,
+  "sha256": "dfa7cd2f472d3b4509ed3cc849734ecc7fd5fc4fb4292cb2b6deb2f22767f7f7"
  },
  "factory/078 House": {
   "frames": 88200,
-  "peak": 614845952,
-  "rms_db": -26.87,
-  "sha256": "ef0bca3dc1dbcbc61e75518dab33df17b16591fd7ba9bc63c61d5f3aefe479f3"
+  "peak": 607884544,
+  "rms_db": -26.98,
+  "sha256": "1307c7468eb764f5c4d7ccd8d9ecab69ebd560076d88d81165f4c6e0359a3976"
  },
  "factory/079 Phased Arper": {
   "frames": 88200,
-  "peak": 419858176,
+  "peak": 419827712,
   "rms_db": -22.51,
-  "sha256": "e5bb4f6e2e53a1bb102f644053e507f2bbf61c2a4b69b12ec3fc0846d1cfcf92"
+  "sha256": "e9c85e60efce3a955130f511114577a12b5316a41ddb6484280018621aa2bdee"
  },
  "factory/080 House": {
   "frames": 88200,
-  "peak": 507666688,
-  "rms_db": -25.52,
-  "sha256": "36d4524e0d179db28be3b44e9728e085dec832320d693299f0276c72540cd886"
+  "peak": 504732928,
+  "rms_db": -25.58,
+  "sha256": "ac5581a93c71433d23710980bd594fed4c114a2f6239677787f7f6953b0acc1a"
  },
  "factory/081 Xylophone Big Bass": {
   "frames": 88200,
-  "peak": 746500608,
-  "rms_db": -32.05,
-  "sha256": "3516e4843dcf358032965c39229af1fbe9c7024dece2a33cbf93ed7bee0535c7"
+  "peak": 744174848,
+  "rms_db": -32.08,
+  "sha256": "a01fd1ee259b50fb02d96842717ba342d4c6da7e01e34cf9922a374def5964b3"
  },
  "factory/082 Short Sharp Delay": {
   "frames": 88200,
-  "peak": 679995392,
-  "rms_db": -29.83,
-  "sha256": "4cbcf9d3b48e715595460a8acc34b640da7158c212041b7e0b06b47f1d4e6a9d"
+  "peak": 667624704,
+  "rms_db": -29.91,
+  "sha256": "2d2feb90eeb7585f10701ea39efaa49c86476dc215587e44471953b13e0dcc49"
  },
  "factory/083 Dark Chorus": {
   "frames": 88200,
-  "peak": 737632000,
+  "peak": 737862912,
   "rms_db": -24.28,
-  "sha256": "d1286339632b2ca47ca317de983f5d2326dca70033f5165503ee59dad0938a14"
+  "sha256": "658b2bf67f5c20c423d5c4915d9c42b94eb86d6d6e2c2d4e2b2a8d8739b60738"
  },
  "factory/084 FM Narrow Band": {
   "frames": 88200,
-  "peak": 401761024,
-  "rms_db": -23.15,
-  "sha256": "754a0731c602ebbf26b4906dd05c38170a3619f0d185f3f982029ab68f1299ad"
+  "peak": 401849088,
+  "rms_db": -23.14,
+  "sha256": "0c71fffbf71cb77f0741d5f48ad1ebe9b48ac4136d1eef0686d026ca9e9ea5d4"
  },
  "factory/085 Deep Fizz": {
   "frames": 88200,
@@ -1419,133 +1455,133 @@
   "frames": 88200,
   "peak": 782814720,
   "rms_db": -20.89,
-  "sha256": "9118589904d01c46cd128bc90df5bb7f2cef7e5a459a71c7a59eb694bcdd3f79"
+  "sha256": "e1c632a0909a3819d01b63f95bf1c671e65560f619bd78d98833650bcde8c45b"
  },
  "factory/087 Define Leader": {
   "frames": 88200,
-  "peak": 334519296,
+  "peak": 334516224,
   "rms_db": -26.07,
-  "sha256": "58832c9a5f3a7ce563acca160fc2512a5254a1c42198ea78219729c35220b83d"
+  "sha256": "a6553de4227a6b8dfab6f06a9799514240eb1f9f8507d2d9f1fe5b575d880966"
  },
  "factory/088 Yelp Chords": {
   "frames": 88200,
-  "peak": 524723968,
-  "rms_db": -21.04,
-  "sha256": "f26d671e7ca1d9be949e2d0664862f67aac26ec09499edb9082e8807e418fb4e"
+  "peak": 450677248,
+  "rms_db": -22.02,
+  "sha256": "9c94f2033d17dd2501125ea71f3b5e08803c8021de4911106983d5afc82d0e0d"
  },
  "factory/089 Degraded Retro Lead": {
   "frames": 88200,
-  "peak": 620201216,
+  "peak": 620302080,
   "rms_db": -23.14,
-  "sha256": "1d93726bbc8618492db2ce64faf4ec617b19180c0ef61df8a527cf3217397376"
+  "sha256": "50d5a60c2698840f48652a637be3339503cdda2c056b5b3d8585f1edef7f9ebd"
  },
  "factory/090 FM Organ": {
   "frames": 88200,
-  "peak": 498615808,
+  "peak": 498592256,
   "rms_db": -26.99,
-  "sha256": "500afb641bf7b83b33404f017484169c1afedbd1f3a81e5293bf2e5e59429087"
+  "sha256": "8a631ec6cccbf7ebe674676568471f7a1b345f49a516c64e0126c6be71a44bf9"
  },
  "factory/091 FM Ricochet": {
   "frames": 88200,
-  "peak": 535060736,
-  "rms_db": -26.9,
-  "sha256": "8a30a5812966dc744c89c65e2cb82af4bcc40fa3d310035fc4a0d85310ce4b34"
+  "peak": 535182592,
+  "rms_db": -26.91,
+  "sha256": "bd675ab5d5358850f1a383c3577bbc5c2415bcd032f2f8cab1d61ef2a07e0bda"
  },
  "factory/092 Degraded Tremolo": {
   "frames": 88200,
-  "peak": 993015808,
-  "rms_db": -23.13,
-  "sha256": "1b5b4da6646224a7f8b5fd9e6f0b17cbde54e8c2c24ea8c2e9285b68dc362dbd"
+  "peak": 987896576,
+  "rms_db": -23.18,
+  "sha256": "73b578ea6dd2b22daebfaeb9f83d2b9f72d9391d5ef87cbcfc38bc14c0a432bf"
  },
  "factory/093 FM Distorted Bells": {
   "frames": 88200,
-  "peak": 189905152,
-  "rms_db": -31.36,
-  "sha256": "6663e0277b774baac2101251dc22b73802b36f4812b9f2f38fe93260e1fcedca"
+  "peak": 189613568,
+  "rms_db": -31.38,
+  "sha256": "9f6989fd705c894e06b91dbcf643d81e72418be8db5f71fb9663d96267d6417e"
  },
  "factory/094 Ambient Occlusion Lead": {
   "frames": 88200,
-  "peak": 430051328,
+  "peak": 430022656,
   "rms_db": -26.06,
-  "sha256": "9de2b5c047d0ac6de452109c1a178225cfcb90b34462c6c4734a71625b28a47a"
+  "sha256": "566f19dfe9857b681de62ce0ce8787994717f29b450cfe3ecfb26a50b9cf5552"
  },
  "factory/095 Harsh FM Feedback": {
   "frames": 88200,
   "peak": 329868544,
   "rms_db": -22.71,
-  "sha256": "eaf23046f7524137ce5b31532ad6c4bdd09d69da34454b19ffe4ad1dd32e5b30"
+  "sha256": "0eb1a551f78750ddfc6ab64ebc191b2e78c13c829bf6a5e50078e873ec78ec2b"
  },
  "factory/096 FM Guitar Power Chord": {
   "frames": 88200,
   "peak": 457741568,
   "rms_db": -22.2,
-  "sha256": "ea0ee6dd8600137c2a37dc70d20a17af90007e2c861c0e0231fe0276dfe42cb8"
+  "sha256": "d06314230cb14726b398f60d47643dfe03ae1c8e1446560fb97a644cf5460c73"
  },
  "factory/097 Saturated Filter": {
   "frames": 88200,
   "peak": 99334912,
-  "rms_db": -29.23,
-  "sha256": "47ae57a4c185353117b8645ef0c220c103ef915f97022f67b7c8c1776134564b"
+  "rms_db": -29.22,
+  "sha256": "5848e60c6829c38fa2e491555f94cec1aa1d1c9490c7fc4d19b3e05d84fa278b"
  },
  "factory/098 Saturated Sync": {
   "frames": 88200,
   "peak": 140532736,
   "rms_db": -26.54,
-  "sha256": "9425455573a9e0a1aae28e39fbf9e25e3251d12085802c8794730693a4582089"
+  "sha256": "55a294119ab5b2c16d7d7ea40ab974764481d4631e02d2588ed965602802659a"
  },
  "factory/099 Overdrive Reese Sync": {
   "frames": 88200,
-  "peak": 186627840,
+  "peak": 186733312,
   "rms_db": -26.94,
-  "sha256": "ed048429b3ab41cd02712a1dc0b25d28b4496488724ff6454e334a989a968c06"
+  "sha256": "009e23362a6b62aeb7337fea7195108bea511d6bbe353055174d479bf45492f9"
  },
  "factory/100 Noise Lead": {
   "frames": 88200,
   "peak": 193156352,
   "rms_db": -25.79,
-  "sha256": "99019f5cca1fed77df56d85e1c702c29c43174df4dc2d8a281a3a3b25967babd"
+  "sha256": "fbe7bdd2db895d592bbefab33472a6ff30ef5c1dd833cf333c7fe1eb49bc7b58"
  },
  "factory/101 Atebit": {
   "frames": 88200,
   "peak": 423713280,
   "rms_db": -22.88,
-  "sha256": "a32d2cc355e926bcb196b8e234a90c7e6180ddd54411982c0c5fd96eb79bec2a"
+  "sha256": "0af84dd34fa093afc3351be846f23b9af0a9de3ffe94e8c144f5844f4a1b6670"
  },
  "factory/102 Harsh 5th": {
   "frames": 88200,
   "peak": 715025920,
   "rms_db": -22.32,
-  "sha256": "f905ad6e86cd93084f5086995f1045a32c3d852de08a0b0bbcbfa83604b07b38"
+  "sha256": "ee6e4ea45ac35a331a6c8d51f27760ddf69490aeee292fb2143ae948506acf66"
  },
  "factory/103 Sci-fi Chaos": {
   "frames": 88200,
-  "peak": 376666112,
-  "rms_db": -26.05,
-  "sha256": "e93c03d572724f3f10fc12cff31251fbce2de636477821ce49348ca40d5200bb"
+  "peak": 381736192,
+  "rms_db": -26.07,
+  "sha256": "36dee671370a9526db6fe6034a81504c51579e4dbeb258d82c5fc085ec008506"
  },
  "factory/104 Alien Vomit": {
   "frames": 88200,
   "peak": 583649280,
   "rms_db": -24.48,
-  "sha256": "1ee4880aece320aca9be8c17678c28a8afe9102883749547073abbf9636fbb7d"
+  "sha256": "b6fe6da2082b685c2db5c27b5640b7a1fa4a6d77400e36fd2bf809b84eba7b05"
  },
  "factory/105 Attack Bass": {
   "frames": 88200,
-  "peak": 277419008,
-  "rms_db": -27.59,
-  "sha256": "425181361c777188f2337f0fcdfeeca967633ac6a09ee6bbe673ea7ff8013748"
+  "peak": 278297600,
+  "rms_db": -27.64,
+  "sha256": "6453a3084fad5e255d74e4c5a8deea420767a2768d423ec5321da3974ede2918"
  },
  "factory/106 Hang Drum": {
   "frames": 88200,
-  "peak": 917588480,
-  "rms_db": -22.98,
-  "sha256": "edb8582f4c274f0babd56d03e849e5c41e20d2d6eae67d89e87651bf81db3010"
+  "peak": 912719872,
+  "rms_db": -23.02,
+  "sha256": "bd9e93e8a59bc2df28b94b53add4cda803ce2c45c468d1457d095dbd813412a6"
  },
  "factory/107 FM LPG Percussion": {
   "frames": 88200,
-  "peak": 297659904,
-  "rms_db": -40.2,
-  "sha256": "5d0b74bde4b6127e7dc91d341c4a3a5baffa5dbfd84a85cd6ceae6e2936511d7"
+  "peak": 294840320,
+  "rms_db": -41.53,
+  "sha256": "cf7d95b6b5848f492f064450e52f577aaa8f9002635758e8eb39883b222e71f5"
  },
  "factory/108 Robo Arp": {
   "frames": 88200,
@@ -1555,27 +1591,27 @@
  },
  "factory/109 Talking Arp": {
   "frames": 88200,
-  "peak": 1144077312,
+  "peak": 1152689920,
   "rms_db": -23.97,
-  "sha256": "aba60422ba848502e23d35aab2f321626132b9cf63f1d1cd2aab9d02ced8b162"
+  "sha256": "ee3a5a6fd57d71d365e3e2bfca77da9d131d2f9af60e44aa348b881c66b4bde1"
  },
  "factory/110 Crystalline Ringmod": {
   "frames": 88200,
   "peak": 2147483648,
   "rms_db": -9.44,
-  "sha256": "894cc15917906f8f3bb73a7d90d5ca030bf22384e80fe51be59371550d862a95"
+  "sha256": "48c36d9141ededc787b8f64d1d9ddf6145bb42926e87741e7f4bfa75b01a182c"
  },
  "factory/111 Satellite Drum": {
   "frames": 88200,
-  "peak": 668596736,
+  "peak": 668590592,
   "rms_db": -23.51,
-  "sha256": "037b5452a4589cb3e0e22b3d3d4c0e723dcf769e8a8b05a651a4eb668fc04499"
+  "sha256": "232a3a57d4473d06c7fc87797dd0e7cca33e991051d2354554ce5b8c714cb8a5"
  },
  "factory/112 Hard Tech Beat": {
   "frames": 88200,
-  "peak": 316934144,
-  "rms_db": -24.76,
-  "sha256": "d68d85b498f6198c9895096cea1b2b67be8620b385afe371fd821f01eeab8d89"
+  "peak": 317880576,
+  "rms_db": -24.83,
+  "sha256": "e5ac8281ff2afd2034bdda6341bf977eaa0cf47dbae9b141a529f2b7ffd70cf9"
  },
  "factory/113 Bio Lab": {
   "frames": 88200,
@@ -1585,39 +1621,39 @@
  },
  "factory/114 Sootheerio": {
   "frames": 88200,
-  "peak": 648599040,
+  "peak": 648598016,
   "rms_db": -22.19,
-  "sha256": "d2062ed577b388b95aad1248cc8e747c280a17a33cc0d588eb171fddef19f681"
+  "sha256": "2f5a340cac304ad637fc2a3982aaf033a6b69410516adc06bef7cb2b2c40beb4"
  },
  "factory/115 Sounds After Take-off": {
   "frames": 88200,
   "peak": 407640576,
   "rms_db": -24.01,
-  "sha256": "3347d12d06f11b91030d2606d3c1adb130f40c98e543ac7e62fd3d87bd551058"
+  "sha256": "73aa95a27b8d00b81f82594b1cfd4cb49cfcf35d29b632fd20830c47446dfcf9"
  },
  "factory/116 Evolving Frequencies": {
   "frames": 88200,
-  "peak": 276772864,
+  "peak": 276628736,
   "rms_db": -23.68,
-  "sha256": "21429eb3546a1fe96bce44f42cfa69d6ffd4329aeb41974caf2e763cfa87fc91"
+  "sha256": "0d4ef1a82009e2233d0fae9601fa97ddc484d6e1e1dd1596c76f4d7489a87e67"
  },
  "factory/117 Belledy": {
   "frames": 88200,
-  "peak": 593561600,
+  "peak": 593603072,
   "rms_db": -21.98,
-  "sha256": "be277793029bc6696bb4bf384abd34bdd5a1b4530c11202941b349ce00bf00c1"
+  "sha256": "cf32b0e4017ed42adef1581825390df0a9b420123fb89cc86d9d735b39ebd861"
  },
  "factory/118 Small Bridge Pad": {
   "frames": 88200,
-  "peak": 390370048,
+  "peak": 389800704,
   "rms_db": -25.88,
-  "sha256": "7cdf622d3964c1dc561f3a6814e787d85fc3d8af36de53707103f26e91d26fb6"
+  "sha256": "0555ab2d1734958f718fd5a5410d50c649193d0a9d9ce7e5e5c24bd9c54ce47c"
  },
  "factory/119 Stars Of The Bin Pad": {
   "frames": 88200,
-  "peak": 479861504,
+  "peak": 479855360,
   "rms_db": -24.7,
-  "sha256": "07b48afc261ed6dc5561f158930ead3999ce5dc5d58998a86c916e6efeffd0d8"
+  "sha256": "e3df8af92adce4a26159847fc5f586a8df2933c8e7e26a5e50a22845a32d003c"
  },
  "factory/120 High Harsh Pad": {
   "frames": 88200,
@@ -1627,285 +1663,285 @@
  },
  "factory/121 Tiny Lights": {
   "frames": 88200,
-  "peak": 607695616,
+  "peak": 607694592,
   "rms_db": -25.13,
-  "sha256": "49da0a4b1187cf449dac7a1193715ac719e5be271ffab900af3baa80e4ca0039"
+  "sha256": "7f60ab172dce005827710b9213f37e762140ca84570011d4a7f14642060b7a2a"
  },
  "factory/122 Majestic Synth Orchestra": {
   "frames": 88200,
   "peak": 936975872,
   "rms_db": -19.38,
-  "sha256": "cd18f971011b83418dfe8ea69106b2813e30f9ec1f8eec9b83a874dab3096596"
+  "sha256": "deda70f9dc16d5ad3b969b373cb36c47a256133ccda2e3c554040f549e9ba4d5"
  },
  "factory/123 Space Dust": {
   "frames": 88200,
-  "peak": 685740032,
-  "rms_db": -24.01,
-  "sha256": "9f5e1f53eeaa81cec5c2ccbc85a67505b381e7b04952957001a824df1067446a"
+  "peak": 685664768,
+  "rms_db": -24.02,
+  "sha256": "e05366f8521e749570262865359689ab02eaf0079b1fa528bd8a40b4f0a53f62"
  },
  "factory/124 Filter Modulation Pad": {
   "frames": 88200,
-  "peak": 1046535680,
+  "peak": 1046411776,
   "rms_db": -23.49,
-  "sha256": "a91a22c64f8cd715fd46890a82e0813b5b5cc224112054f758b19d4ac97bbf23"
+  "sha256": "42cb666d7db8e286715511f63be01d39a3e4cf476fde0019edbb7d04e90b6f01"
  },
  "factory/125 Evolving Pad": {
   "frames": 88200,
-  "peak": 541416192,
-  "rms_db": -24.27,
-  "sha256": "c79c4f3a3ad56043db9d6a5fc0e8ec69f8bbb60627f325a67ae281826549ca21"
+  "peak": 541226240,
+  "rms_db": -24.28,
+  "sha256": "0b81406e1bca157e155f714f67e4ecf4e92383f2d232d3463a0d738fc1b11ed4"
  },
  "factory/126 Dark FM Pad": {
   "frames": 88200,
-  "peak": 951170816,
+  "peak": 951169792,
   "rms_db": -21.61,
-  "sha256": "591b22db4ea78e1bf65d9ab3cdf2d5d3d9ec62d80a4d8e0b5cdd5c1172f7f7d3"
+  "sha256": "3db153a1b05cee302ab9504a8c6469be4df352d3fc90c65d656d11acca7e10fc"
  },
  "factory/127 Alien Larvae": {
   "frames": 88200,
   "peak": 835617792,
   "rms_db": -19.1,
-  "sha256": "4199d2a6a6a780dffce440c7b4bd559ee2dc79974e697a4eb703c07b2df954d1"
+  "sha256": "edcfaaa2b5db4626d1cdd7a324d7689cf0188cebf61f42dc31236799f4776a91"
  },
  "factory/128 Lunar Landing": {
   "frames": 88200,
-  "peak": 1014178560,
+  "peak": 1014055936,
   "rms_db": -17.88,
-  "sha256": "682a7f4a66aa24f137a2a01621278fdce84ee1e0ad50ff64a0c6b22abcea6c59"
+  "sha256": "892b936a795f0a32846bc0618a9ff97a33592eaeef1882e87fe61a0a7fb11db1"
  },
  "factory/129 Sci-fi Scenic": {
   "frames": 88200,
-  "peak": 478944512,
+  "peak": 478950656,
   "rms_db": -27.38,
-  "sha256": "89bb8da05d043fb1f4f4f7414be420ab3cd3ab4cf80ed838773e39afc23b305e"
+  "sha256": "b8935aca657905d1b35f9672e0e261fb58cbf7ff66c434aa00802295d704e77b"
  },
  "factory/130 Dark Strings": {
   "frames": 88200,
-  "peak": 792659200,
-  "rms_db": -19.85,
-  "sha256": "c7307042675b669d3ba623737ad13030a8d4597ce8cd66eb4c13fea9d067b4f2"
+  "peak": 792654080,
+  "rms_db": -19.86,
+  "sha256": "a1b50bc69d692d6e0966ec99590cc912cf81cbee7a50c57653d7003988acdaa5"
  },
  "factory/131 Warm Strings": {
   "frames": 88200,
   "peak": 564439552,
   "rms_db": -24.67,
-  "sha256": "d7a46f128de9eb5a934a759b935882e093b5fcac92bff11e111389207afc47fe"
+  "sha256": "faa7ed4330a5e4611b2049eba1c9957411708800c7efbf88af2dc2fb7f1caa0a"
  },
  "factory/132 Organ Strings": {
   "frames": 88200,
-  "peak": 659155200,
+  "peak": 659117568,
   "rms_db": -26.35,
-  "sha256": "fbc1fa8938c17ef03e58af34694052cf01f78640b4eff5bf159024280fb4f731"
+  "sha256": "0b9bb663eb53a363f5911f9ec7d9a01a80fdc156703a54b0bfce169daa6306a0"
  },
  "factory/133 80s Strings": {
   "frames": 88200,
-  "peak": 559740416,
-  "rms_db": -24.52,
-  "sha256": "0033cda89878ea395b315c96b19d0160b8a6168daf79f7a6d6a0e6ef40a08557"
+  "peak": 558693888,
+  "rms_db": -24.53,
+  "sha256": "d63da63c60ce399169cae301d34632eec2a9a323fb0b898d6ff6d039f4810e8d"
  },
  "factory/134 Melody String": {
   "frames": 88200,
-  "peak": 495804416,
+  "peak": 495880448,
   "rms_db": -24.28,
-  "sha256": "946b81b2bb0d63adb06ccc054bd09f61c7fc195f95f42f3ff407d3f5e04385d7"
+  "sha256": "42a8ce3baea617b01943318504ab0d426a885d3eea8695269e4c2e2fbe07cb5f"
  },
  "factory/135 Soothing Growth Pad": {
   "frames": 88200,
   "peak": 483559168,
   "rms_db": -24.27,
-  "sha256": "2a6bde3b364d4e8f6ab27f30853fab9272f3766be4020b7a3b30776a1ac339a1"
+  "sha256": "c0dacc12b7a1610e366b515e3dd1ce6ca01d938e76a4426d3ee95a37711d4d68"
  },
  "factory/136 Synthwave Pad": {
   "frames": 88200,
-  "peak": 383767040,
-  "rms_db": -26.69,
-  "sha256": "0134716d892194d2b4abbf06e4b70fdf9f05d5f8aec1ea393357cd3c03b4995f"
+  "peak": 383700736,
+  "rms_db": -26.7,
+  "sha256": "ef9254162392b03e2397e32f3a244601780a358f3c717a9d05f43b4097a6b795"
  },
  "factory/137 Epic Saw Modulation Pad": {
   "frames": 88200,
-  "peak": 512707584,
+  "peak": 512614656,
   "rms_db": -24.39,
-  "sha256": "5197d95ede753f3f9fcbf5e570e8185d7c3d465147ad595ea6194f224b7385ee"
+  "sha256": "ce90ff883a545d452b8c6a969cc2055fc0dd3e11d40f246df23bbc67a08c81e6"
  },
  "factory/138 Brassy Pad": {
   "frames": 88200,
-  "peak": 405184000,
+  "peak": 405187072,
   "rms_db": -27.7,
-  "sha256": "9ce8ef2e96c44f91a33e2cec83575d2e4843924566b28f5e17cd6a2097e23e82"
+  "sha256": "93e7580ef6c23e4a089e02344ac54c107e3194a316ac84e8c494f23da4564c55"
  },
  "factory/139 Detuned Saw Pad": {
   "frames": 88200,
-  "peak": 408618752,
+  "peak": 408620800,
   "rms_db": -23.76,
-  "sha256": "fd330b727d2392713f1a0532bc9cbcd95f17ef6917c147a8eb7a096254510be9"
+  "sha256": "986fc1514fffb6105c355646aacd73716ee5af117304f62bcaf94a27fe39b8c7"
  },
  "factory/140 Slow Aural Swells": {
   "frames": 88200,
-  "peak": 417943808,
+  "peak": 417942784,
   "rms_db": -22.16,
-  "sha256": "657791072504b2754418c745ce7e1dbe3c2120abb088d7c1e30d4ccbee68f8d6"
+  "sha256": "bf5c974a29ba269aafc999a18dec12de54ab944429fea1e7a2013e4e0e6e7d6f"
  },
  "factory/141 Ringmod Pad": {
   "frames": 88200,
-  "peak": 186777600,
+  "peak": 186776576,
   "rms_db": -29.61,
-  "sha256": "bae450c3266d95597ad9b5a61e62ca57b7bf97d479e3d0478a713f3d19902807"
+  "sha256": "ffef97cff9e4c337409ddaa8676df1f8d2b24a3cfff485931331be65feb156a5"
  },
  "factory/142 Phaser": {
   "frames": 88200,
-  "peak": 518676736,
+  "peak": 518398976,
   "rms_db": -24.14,
-  "sha256": "b306ad138add7ca0bb4adfc124494f6e066396cb4a1586a69743ba2e63954c3f"
+  "sha256": "272be2ecaad1644d3fe22b31575dc1698e6d7f349367e2819266513ab691b251"
  },
  "factory/143 Chillout Pad": {
   "frames": 88200,
-  "peak": 572134912,
+  "peak": 572151040,
   "rms_db": -21.33,
-  "sha256": "fa2082101bd78d1e4cba119cba7161814145f522ae89a6186810c94864ece15c"
+  "sha256": "27375f0f2b19395a945e8032b699f7e86e9f630650af21439b2a1f71e07ba747"
  },
  "factory/144 Sweep Chords": {
   "frames": 88200,
   "peak": 321201664,
   "rms_db": -24.55,
-  "sha256": "b5f9962f983dbc1f674164859d8745b0a7a02f53626ed1240376757c1c48cfe2"
+  "sha256": "9dd1d73d05e8b6e864be5f4f81e95af7f8100ee96297207a96799a770ca26ef0"
  },
  "factory/145 Eerie High Pad": {
   "frames": 88200,
   "peak": 210447872,
   "rms_db": -34.25,
-  "sha256": "bf3d7119d298ada5babda21138ff8ca993872645dbdb519a1cf6234b7233de78"
+  "sha256": "29332d06de3d78e0dab8e5ca80dcdf9e09998823d51717916bfd9b7a7c4796f5"
  },
  "factory/146 Atmospheric Squares Pad": {
   "frames": 88200,
-  "peak": 353799680,
+  "peak": 353821184,
   "rms_db": -26.53,
-  "sha256": "cb114c523e7c92e9ca99851789458eca46eb50fd8f6d135a28ff6926f59baa15"
+  "sha256": "c510ad71a046f8edd33b2a23d217e43b2d6b03a68cd64789e14dbf3057802685"
  },
  "factory/147 Resonant Filter Pad": {
   "frames": 88200,
-  "peak": 871098112,
+  "peak": 871091968,
   "rms_db": -18.66,
-  "sha256": "d346072ca1691f410ae2498b93b656edbbd47ddc0ee1b0dd21c36722aed2fdbe"
+  "sha256": "edfaa7586f67edb587cd6bd4bc489f1eb8e09d9073b338f1ca388028726653a7"
  },
  "factory/148 Warm 5th Pad": {
   "frames": 88200,
   "peak": 709940224,
   "rms_db": -22.1,
-  "sha256": "e98ee081d569ad2b2d15fcc3edaf1f469a258aa245ea7292ee830d9e87111aef"
+  "sha256": "804fcdd27b85b5d5e8b97082a71763c12628ea6e6a314028eac1b12cc74388bd"
  },
  "factory/149 Cold 5th Pad": {
   "frames": 88200,
-  "peak": 727435776,
+  "peak": 727426560,
   "rms_db": -23.02,
-  "sha256": "8500ea7c31766d9abea87917320317a52bf8bd3f40cb786bf2088c950fca7485"
+  "sha256": "f9d3ca0da7eef7d64b8de4566a82fc2c84f5a86923af15f0d95e71965b626ed5"
  },
  "factory/150 Vaporwave Pad": {
   "frames": 88200,
-  "peak": 651633920,
+  "peak": 651340032,
   "rms_db": -22.5,
-  "sha256": "21e407faeefb44db30871d04786c073002eef908afb3bc1cd6491fdf9f51aa83"
+  "sha256": "cfd930e86c25050d4b84a0ac70c5fd6c1efb76c6e1d28927ded2a238c2046602"
  },
  "factory/151 Radiant FM Pad": {
   "frames": 88200,
-  "peak": 508723456,
+  "peak": 508709120,
   "rms_db": -23.45,
-  "sha256": "27760bdaa938115c4b039f3293128917a7108ce816477285f97b8133befefe7c"
+  "sha256": "ee1c75e1f3bc98bd895077b0a912217e95b841e40d5b94ba9c03c3525c649bf0"
  },
  "factory/152 Small Jet Pad": {
   "frames": 88200,
-  "peak": 969173248,
-  "rms_db": -16.13,
-  "sha256": "de3c1a97d0a1d081bb2b81d93aaa4b2920b00d38ac233099af5ba2531301e758"
+  "peak": 966290432,
+  "rms_db": -16.15,
+  "sha256": "0be8f1ebede2c301c991f2c4df8fbea06865a90526d17fe185f56cc02c186408"
  },
  "factory/153 FM Modulation Pad": {
   "frames": 88200,
-  "peak": 644730112,
+  "peak": 644639488,
   "rms_db": -21.78,
-  "sha256": "0116f9d51375f8d1bc91012e6595eb0595462147819d4ad37dd3302d3fd553cb"
+  "sha256": "704b49b419f5372351efb3b7cc68bfcfa0a99c452e8aa49e677c1676142eb8c8"
  },
  "factory/154 Rich FM Pad 1": {
   "frames": 88200,
   "peak": 523207936,
   "rms_db": -21.57,
-  "sha256": "0e0d16dabf649cc09a62b4cd370331cfa0124f28e7deacd1346709839ca85062"
+  "sha256": "a335ddcb7e2fd394bfc37f220a6e4e3d1beb606614d6609010c3fc155c917c32"
  },
  "factory/155 Rich FM Pad 2": {
   "frames": 88200,
-  "peak": 766394624,
+  "peak": 766400512,
   "rms_db": -23.39,
-  "sha256": "b5519403c3f3c7d8f5085e2dfa109250ed68bf21f0603056cbbffc08c53f67a5"
+  "sha256": "77632b3e3c2e6f6d033dadebb18d0b02bc36c46d092d078b5649bb1a830bce60"
  },
  "factory/156 Rich FM Pad 3": {
   "frames": 88200,
-  "peak": 644535296,
+  "peak": 644536320,
   "rms_db": -22.21,
-  "sha256": "0b41501bff7fedfd11606895721d48925087656e49544d2951ccf17dfde80aca"
+  "sha256": "9953a80193073e0ca1c402010ad64c57a87a90e74c9cf5e1bfe37308862a36b0"
  },
  "factory/157 Rich FM Pad 4": {
   "frames": 88200,
   "peak": 521016576,
   "rms_db": -23.64,
-  "sha256": "013530d3041a6a157299732b977d49395ebdb8796c4dd654562a32d21e56ecf2"
+  "sha256": "67c2ada6d3d827290ad83d9e507dd539ae1a74f6dd6b306f041edd11d56e3207"
  },
  "factory/158 Tempo-Synced LFO": {
   "frames": 88200,
   "peak": 779952128,
   "rms_db": -23.17,
-  "sha256": "a7e236d1d081867c629775f1cfda6771a6642f192f81e72822543f64db6bc92e"
+  "sha256": "15da7c2bc7705c06c01c19f9c6f862762ea69a39c4a484651e8a53b40823968b"
  },
  "factory/159 80s Bass Rhythm": {
   "frames": 88200,
-  "peak": 420929024,
-  "rms_db": -27.84,
-  "sha256": "35bce8e7d473677d95f40d51e5fc886786b1fde7374df5c08c7e2cdab9bec6c1"
+  "peak": 420231424,
+  "rms_db": -27.92,
+  "sha256": "4eb7b5461b46f8704d8c34921040161d2e27b32ceae4aba56997cb6b9416bd78"
  },
  "factory/160 Synthwave Bass Arp": {
   "frames": 88200,
-  "peak": 826346496,
+  "peak": 826898432,
   "rms_db": -24.59,
-  "sha256": "e6912dd655b35ab30ebd5e069500b82b9b7ad75c0fe240e1f54c8efa9810d10d"
+  "sha256": "6156542921964272fee7f011f573b6b58702d486360de3953283c5165fbd41a5"
  },
  "factory/161 Synthwave Vibrato Arp": {
   "frames": 88200,
-  "peak": 921028352,
-  "rms_db": -18.42,
-  "sha256": "6a1cf8196c846a42a8152c1dd0be1952c9056d7dd2aff1591f9946bfbcd3d947"
+  "peak": 921055744,
+  "rms_db": -18.44,
+  "sha256": "59349464f36eeb6dc7ebba39e453f569905e306715e8247860f6909245f8001a"
  },
  "factory/162 Busy Arp": {
   "frames": 88200,
-  "peak": 534321664,
-  "rms_db": -24.03,
-  "sha256": "df8a00acbda531e2ed31d49da242a041ef3a0f2b895028cd0911649a89f65bd9"
+  "peak": 486591232,
+  "rms_db": -24.34,
+  "sha256": "a90953b259de3a1563e12e1890cbc075043a9c3783cc4ab7fb29544a14ad2e02"
  },
  "factory/163 Crisp Pop Arp": {
   "frames": 88200,
-  "peak": 438581504,
-  "rms_db": -23.91,
-  "sha256": "7eec755f7cae7bd0eb6b1c6e2b15a17a145035e8d6b02aa166fb7353b72eb09d"
+  "peak": 430164480,
+  "rms_db": -24.06,
+  "sha256": "7c3c57a7f3867a403a57f2b932ec54ff21c7b86923ed45844e2b694d534fca4e"
  },
  "factory/164 Study Arp": {
   "frames": 88200,
-  "peak": 630791680,
+  "peak": 630790656,
   "rms_db": -19.6,
-  "sha256": "4e40b7097b72923b4e96053a840ed72736403937016e2b00ec126aa6791ae93f"
+  "sha256": "9f06e4a3b2ee721f257c6847367597b4376603930e9624f29510392cb23ef1cb"
  },
  "factory/165 Acid Arp": {
   "frames": 88200,
-  "peak": 962675200,
-  "rms_db": -20.87,
-  "sha256": "4f6c6cbce09270b011030940a5eebccfef482b17a60d7e705813ae2103a07acc"
+  "peak": 978874368,
+  "rms_db": -20.8,
+  "sha256": "1a5e641cc0f0018e9cda32c064bce21df9ea7d8b51fd10e4c467b5408a7bbd5f"
  },
  "factory/166 Harpsichord Cyborg": {
   "frames": 88200,
-  "peak": 1093726720,
+  "peak": 1093725696,
   "rms_db": -20.41,
-  "sha256": "d42b5330a555718b5574981c382bf909b66e0d76adb9269ac7c0243c7e9c62ce"
+  "sha256": "e6410507325e8f157918efc0bc0d51c970248d69b7aa410b9fd04a198ac8d9ca"
  },
  "factory/167 FM Metallic Bass Arp": {
   "frames": 88200,
-  "peak": 360440064,
+  "peak": 360433920,
   "rms_db": -25.16,
-  "sha256": "17143fa18872edcc1070ea426a71c25f5b3f281b850278b162c8c935d8a72b8c"
+  "sha256": "e9c1b4bff53db6dd2b433e960103dec5a9e5d906047697e32007b34bbe625f7a"
  },
  "filter_fade_lpf_ladder_hpf_svf": {
   "frames": 88200,
@@ -1917,19 +1953,19 @@
   "frames": 88200,
   "peak": 499931904,
   "rms_db": -21.54,
-  "sha256": "3ecad2772ed49c1ad04e802bdaeda8a2046f1532b0e80e9a0002dfe947da2daf"
+  "sha256": "6d8f5d205ba5837bcd3587d51003eedc2b6c644d7aa2613df0883aa910b0a642"
  },
  "filter_parallel_lpf_only": {
   "frames": 88200,
   "peak": 428670208,
   "rms_db": -23.02,
-  "sha256": "140bd91047c4a90567286c5da52244ec34ef02c1c9517cd9baf4a16ab9e49bc2"
+  "sha256": "c0f78d879c2f15005d877a09594ba94b7ec5b1e8361d40f14c93da53b84316b7"
  },
  "filter_svf_notch": {
   "frames": 88200,
   "peak": 381075200,
   "rms_db": -25.11,
-  "sha256": "cded4ae066f3421c7dbc8753e78c4b0e1f3de5e52a490d86b114f2ed5290a07d"
+  "sha256": "7c53f6ca72abbcef8a5abbdb7f6f6a570c9de687cef807e66fe20650d43631c2"
  },
  "fm_2op": {
   "frames": 88200,
@@ -1947,7 +1983,7 @@
   "frames": 88200,
   "peak": 412395776,
   "rms_db": -20.91,
-  "sha256": "f109e4ad1a172b578781dbae10150fd28ad0377f690577f4eafe14435b66a544"
+  "sha256": "aa20eba30f38dfec1bcaa04bcb7d0a47381f5b53e4ce6fefe4a7617174c6d68a"
  },
  "input_mono": {
   "frames": 88200,
@@ -1965,7 +2001,7 @@
   "frames": 88200,
   "peak": 734262528,
   "rms_db": -21.0,
-  "sha256": "cd49d3fe8e62a96ba16b73f4f7a8486b935635fcef21e2809e24e06abb0816ec"
+  "sha256": "2c26db3adecabdcb9f026d1eee34478f16a25abbfc6a34e6e0ac0210a04b6023"
  },
  "input_pitchshift_down12": {
   "frames": 88200,
@@ -1977,19 +2013,19 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -23.04,
-  "sha256": "0a6e7c52538911203bf2f46ace9a1b5a5164ca7ac72889f3482c703da14d0980"
+  "sha256": "1fb299db8129fa15ca3f232c3fe7f6c3fb53680b8488720a9ab35ae6303374b4"
  },
  "input_pitchshift_glide": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -21.71,
-  "sha256": "00a98646ce768b1e4e6a2b485d3dc8cfb147040ef80c7e4d0d028cd36572395d"
+  "sha256": "0f3ad65cde03f787dc893d4b3eb5e72fddc62a36ede97522948e59c22b1309c4"
  },
  "input_pitchshift_linear": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -23.16,
-  "sha256": "55625f4029ef9b2795332428cda37f640bd93906fd0cf65b882e605af7221a39"
+  "sha256": "1ef7b3057885460eec34beb092577a4af129975ed0b2ef44b4851d26d612bb21"
  },
  "input_pitchshift_perc_down12": {
   "frames": 88200,
@@ -2001,7 +2037,7 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.45,
-  "sha256": "a1fed1ef58feb2950253b6d762441b078245ef7dfe8decc386e77e54c0bd4d5a"
+  "sha256": "67ee4dcb8f9c3e90079ad0f202ecde5323288eace7a0b687d31953f580b4e725"
  },
  "input_pitchshift_up24": {
   "frames": 88200,
@@ -2013,13 +2049,13 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -23.17,
-  "sha256": "60bf0039128e05aaaaa53b12e9a286792ccc180024d8e75414431b59d43ebda3"
+  "sha256": "f27dbb5126163dff188d1ea22aa49020c9f05bb1ee4854eff47494d193bd8e10"
  },
  "input_pitchshift_up_half": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -23.1,
-  "sha256": "f020b452ee88db22ef1ae02673d044cf34a5c6fd36ccd8857a3994c03497d2e8"
+  "sha256": "37773aa5223c3c429ded998194fc0d8d8f8b8a75fbe941fcde8a87bf12e27c77"
  },
  "input_stereo": {
   "frames": 88200,
@@ -2029,99 +2065,99 @@
  },
  "json/A Fm Pad": {
   "frames": 88200,
-  "peak": 578734592,
-  "rms_db": -24.52,
-  "sha256": "178c6ae6dea015af2d5ae006f1bb3ec6ae6ea9caeeb7c154eb5fb9549d787805"
+  "peak": 577571072,
+  "rms_db": -24.53,
+  "sha256": "9e385b9b7dd65e439d884afa6a3714a862ba8ff37538c0a4c442c87cb584e5d1"
  },
  "json/Basic Bass": {
   "frames": 88200,
-  "peak": 449075456,
+  "peak": 448538112,
   "rms_db": -24.41,
-  "sha256": "12a82f6816e89fe064ecf1e498d5212bb323c3589fb83e6527fd869863e16089"
+  "sha256": "42e693d4fce2f311e47212267287c6a1e264b8a6c29fe4252042e0351f19f18a"
  },
  "lfo_rwalk": {
   "frames": 88200,
   "peak": 345681920,
   "rms_db": -23.35,
-  "sha256": "864d3809ab6379e38051d5581f476f792aa44083d84baca046b9d7e865944f71"
+  "sha256": "7b7f4105bb1f8f2a81e5062b7cfec1586482008aa1fe235317cbd20365339184"
  },
  "lfo_sah": {
   "frames": 88200,
   "peak": 346244352,
   "rms_db": -23.38,
-  "sha256": "663ea6c83779a3b8ee6dc7d636bb9ee10443de1dd5abb0ab8ce60cf83dc49629"
+  "sha256": "8a682f2d8ff7c6ca0ad20e05e96d4a706817d840586fe9c1a86a18b2fdd0d1d2"
  },
  "lfo_vibrato": {
   "frames": 88200,
   "peak": 173388032,
   "rms_db": -26.78,
-  "sha256": "0240c103a910f6cabb746665abff0fa13d07dc38cc55be907e38f0f0874b7bcc"
+  "sha256": "7e93a958872f3c0d63e20c695cd6d7b8e93abaa1e65539382667807b0f02fa9b"
  },
  "lfo_warbler": {
   "frames": 88200,
   "peak": 345676032,
   "rms_db": -23.34,
-  "sha256": "64bee8f9f942743d98c66e9380b32ab590e04196fc8633f0b85de7fc0b7093e3"
+  "sha256": "151b32e0c89125954062a475df371eb48a26152a29bb8cc2e3ecc679ed0f09c2"
  },
  "lpf_24db_env2": {
   "frames": 88200,
-  "peak": 310303744,
-  "rms_db": -32.55,
-  "sha256": "25b21e4df78e05ca8ea37284f2607adf634a550a0c05e0cbb396f288eaee461a"
+  "peak": 310339328,
+  "rms_db": -32.54,
+  "sha256": "0099c12f9f85a1bf40642e8905f3483fc118609fa46b0b708b14fdb578275781"
  },
  "mono_legato": {
   "frames": 88200,
   "peak": 173388032,
   "rms_db": -26.12,
-  "sha256": "0ec58f8de35befd8eceac1c1311b06f4e913e8ecea466506a98867077063e597"
+  "sha256": "3578dc0c0aea02c897bed027bcc6a96d293c93ba36eedc470e6e312a2213b538"
  },
  "noise_only": {
   "frames": 88200,
   "peak": 173385984,
   "rms_db": -30.53,
-  "sha256": "22c5f4d5096b3c0c9f5d8dabd68b9f8879c76a6a5728cc6c2a60b483d55ee768"
+  "sha256": "b9b7f9c3c22f00998378abfa90b95030cda4981dea0124d876af45d2aa4b0348"
  },
  "pitch_bend": {
   "frames": 88200,
   "peak": 173388032,
   "rms_db": -25.39,
-  "sha256": "9328ab2e5af1e1db1759b52d644cf2df8764f3b38f4352ee6c8c452039997c10"
+  "sha256": "5ded022599653076326222fab2fc7d73bb727cdeb80fdd441a863d44c437373a"
  },
  "poly_chord": {
   "frames": 88200,
   "peak": 519441920,
   "rms_db": -22.06,
-  "sha256": "04f5fd3d7e24e14a0e05e6e092754b4c2a48bcad5454ff4f022d5cf88542bd08"
+  "sha256": "6477b57aebbd1f8b1bbd6c7f07494aae9fea169a4f487de2eb3e94ae6e670d10"
  },
  "porta": {
   "frames": 88200,
   "peak": 173388032,
   "rms_db": -25.41,
-  "sha256": "6bad3f7cf90f6216a1360079deaa2743467b325f888b75ce992148713923520d"
+  "sha256": "5df37ec900c02580620307587b55779e2d5ec08ed0ad53437f611e236ca098ef"
  },
  "ringmod": {
   "frames": 88200,
   "peak": 173387008,
   "rms_db": -26.67,
-  "sha256": "3cd93b96e5a98d22f9e5b1c5b62e55cdeacf76950916134b0815ab18c73b9700"
+  "sha256": "2f3dc8897f30ff9a3046be43aa2c17399828f44aa5d104e0d06eae35fefbe047"
  },
  "sample/depth24": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.05,
-  "sha256": "4493788a40c2c8eba468bb9c8f4e1e243d5ebd80dd300fb0cdcb6df7838c1802"
+  "sha256": "8a5aaf88268e2b919b7d6a14b3e11e0d22a81f0145ddc76d5f1355ec5d93288d"
  },
  "sample/depth24_linear_mono": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.28,
-  "sha256": "3231b859503222ae07672f7ef4b951d6a0d6b8fdcf356181b0be3dadad58f12c"
+  "sha256": "fb534c65dce894c7bd4dfbed8857422fe2db17d6c53b7d4ec697fc1d24a8ac1a"
  },
  "sample/depth24_pitched": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.04,
-  "sha256": "9dc20b7772ee21df7e75eff4dc91a2968f2f7413cb1ded267997d7386f70eccc"
+  "sha256": "0f2f8c819bc856a20d7ee4ae8fc2572679e956ca5a49d8c7f9788b4ab0426df2"
  },
  "sample/depth24_reversed": {
   "frames": 88200,
@@ -2133,7 +2169,7 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.1,
-  "sha256": "75a8ae13d80cb8c467ccc97c991a3ba735f0a8ab1ea7eb8d42c49e027cbffc27"
+  "sha256": "fe84067665816d8ce1184236e136c20792ccf794ce6ce134d7a3ffc9afb6f4d4"
  },
  "sample/depth8_mono": {
   "frames": 88200,
@@ -2163,7 +2199,7 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.26,
-  "sha256": "b98e661c7ec19233db56fde2b4a2cd95ec72d84fe5fca645d626a58ada22d373"
+  "sha256": "224993df492587f5d1f80d991c6e0617dd3a9d8f86064f268b3aca6f76d45c21"
  },
  "sample/reversed": {
   "frames": 88200,
@@ -2187,19 +2223,19 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -22.59,
-  "sha256": "187b051d9b0177963001241597a5a0bcaf910459056cfbac66c9bbbea81286f2"
+  "sha256": "a7c113f082da4a244b52049a5f3d7af6e5d517ed804e6fe9bbbd4465ecb19bf8"
  },
  "sample/ts_cache_bend": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.15,
-  "sha256": "1d72cbe7a0a67f945fb0e4b2f45530875931ea17faee4a8f825c9e8397015a53"
+  "sha256": "d5e88bf8de63917c475663e1dfeb9e66ba29dea875f86144a99363aa17b11b61"
  },
  "sample/ts_cache_bend_early": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.63,
-  "sha256": "1efdb3574b19549228be6d61f67a2e23aa63e3e5587aa86953d8a838ef47f4f3"
+  "sha256": "1f0bc72d5ad2da686ff732020c08048aa7f4148cff26a625f063b3807eea4dd7"
  },
  "sample/ts_cache_bend_root": {
   "frames": 88200,
@@ -2223,7 +2259,7 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.5,
-  "sha256": "d9cd5bb7644ffc1d01c38195e623bcc725f42a66bd3981c2bf16f0c6c319a3eb"
+  "sha256": "d32803e96f2bbb7027bfb78eaadde17dbe03074be012f5a79da590546d4d6a23"
  },
  "sample/ts_cache_replay": {
   "frames": 88200,
@@ -2235,25 +2271,25 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.71,
-  "sha256": "697220620b7c8887b9ac30ca5bb451b1530e2e1e92bebabfe31bd3fe97355bba"
+  "sha256": "df205235905d7810dfcf4e9d9c64dd909d77829add5871143bffcca305d8ea3f"
  },
  "sample/ts_cached_loop": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -23.23,
-  "sha256": "b86b25bbb5c17a6541fb5efc7089c8ddf52bb88d90dc80df17dc6abd19ceb8e6"
+  "sha256": "a1e25746851bbfc262255a8f402c4c25f931984b0227f1910795f8fb5677c1e9"
  },
  "sample/ts_depth24": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -26.88,
-  "sha256": "d784f23fa8afce5bf507402d7944d08682f60045aef213c355510ef95f7a7b2f"
+  "sha256": "4e574efc2c1f9c42042b540976a0a36235a94e366fd4b721e0f5cb973a10f72d"
  },
  "sample/ts_long_hold": {
   "frames": 176400,
   "peak": 245172224,
   "rms_db": -24.21,
-  "sha256": "68af5ed439f4e9faa63e807271d499cf7c4d1b292a15710720446925ebf405c8"
+  "sha256": "11d3c4f913729f97b07ba93072206516bb579d9a53e9822d7d5b49b1b1c32266"
  },
  "sample/ts_loop_fast": {
   "frames": 88200,
@@ -2265,13 +2301,13 @@
   "frames": 88200,
   "peak": 245151488,
   "rms_db": -25.27,
-  "sha256": "dfcca3275baa29bc2f503b47c4c64e2d2a3c4939a252cb3bf2a9db4c8c93e48e"
+  "sha256": "b0d965fc449db0fb9dc164fc3abf679efd03e2e97ab8c1c6bf15fc681a8cb545"
  },
  "sample/ts_marker_loop_end_ahead": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.71,
-  "sha256": "50a79a5af52da7b1be5e54691f84ddb5c43f79b2a861a518e41bf93e77a1b77a"
+  "sha256": "f72754053fbe8945ef9afd6940432f32acbdb830120d17cd9accee8c56dbfc0d"
  },
  "sample/ts_marker_loop_end_cached": {
   "frames": 88200,
@@ -2283,7 +2319,7 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -23.23,
-  "sha256": "8ca8210450bf0f2b18bd89327207dd59ef02859f77a45491a7801e5027302086"
+  "sha256": "544c6a81f107007c1b0f5ca8b8fec12b6ec24c9d721cfddd76773c0310480e2c"
  },
  "sample/ts_marker_loop_end_plain": {
   "frames": 88200,
@@ -2295,25 +2331,25 @@
   "frames": 88200,
   "peak": 245151488,
   "rms_db": -33.71,
-  "sha256": "43e784a62b3bc64efe5004b188f16bde1b724be4fcf24543885a3f2725da6d58"
+  "sha256": "a81d53b37ed7abdca1764683a1e9882a3e041b0f1180830076c385dfc0adce78"
  },
  "sample/ts_marker_loop_start": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.0,
-  "sha256": "4f805cc16e62f7e30374480a8ba237dc80c9d39efb351b2c2188418e0aff6757"
+  "sha256": "27d88ccd9ea0deebcb40224d551f8242db014680cb87d369be9a99228b553f8e"
  },
  "sample/ts_marker_start": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.82,
-  "sha256": "eba9dcc365f1a80e0137efdc0e1758e1f38648afcae8fd5a8b5191d35a52cf57"
+  "sha256": "3c98711beb930df3b3d1851779acc6798f7d12795e6f25c27af413eebc420941"
  },
  "sample/ts_marker_start_cached": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.94,
-  "sha256": "836cfc81a32591d5590f878487653fc9028917dcf1925d40d5b4731777c5b3b3"
+  "sha256": "4d3c95d1cbe52ce09f3b30863eaaadfb7e4954fe40eb27853ea2f62b9d15a71b"
  },
  "sample/ts_markers": {
   "frames": 88200,
@@ -2331,7 +2367,7 @@
   "frames": 88200,
   "peak": 173363456,
   "rms_db": -34.79,
-  "sha256": "df24e6a73bbd9f97991acbf3d4fbc0445c0beed5928c157c34bda0449feeeefd"
+  "sha256": "30b129d361cd16b0c36c5f4cb6f92711ed9a23f2fce381e6f17114d06047de1f"
  },
  "sample/ts_pitch_cents": {
   "frames": 88200,
@@ -2379,7 +2415,7 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.81,
-  "sha256": "62a326ea4db9f3ec50cdc4ead4192c90d29a7ec7769a5e792731398dff8d6757"
+  "sha256": "e1438c5a2a89e7a8c9295e59633cb247363bf0385be32ac614eb42e25d6ac0e6"
  },
  "sample/ts_repeat_once": {
   "frames": 88200,
@@ -2391,7 +2427,7 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.69,
-  "sha256": "84834755ed67d7f74e0411d48412f459ec08ecddd2c5d79161b5737be6cd53f3"
+  "sha256": "226e1fc4e9ee99cb813056b0e369d640d9b8e9a9c828b132c6dc59bb725f2eec"
  },
  "sample/ts_reversed": {
   "frames": 88200,
@@ -2439,7 +2475,7 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -23.23,
-  "sha256": "8ca8210450bf0f2b18bd89327207dd59ef02859f77a45491a7801e5027302086"
+  "sha256": "544c6a81f107007c1b0f5ca8b8fec12b6ec24c9d721cfddd76773c0310480e2c"
  },
  "sample/ts_zone_end_cached_once": {
   "frames": 88200,
@@ -2451,7 +2487,7 @@
   "frames": 88200,
   "peak": 245151488,
   "rms_db": -25.27,
-  "sha256": "dfcca3275baa29bc2f503b47c4c64e2d2a3c4939a252cb3bf2a9db4c8c93e48e"
+  "sha256": "b0d965fc449db0fb9dc164fc3abf679efd03e2e97ab8c1c6bf15fc681a8cb545"
  },
  "sample/ts_zone_end_once": {
   "frames": 88200,
@@ -2463,19 +2499,19 @@
   "frames": 88200,
   "peak": 245151488,
   "rms_db": -37.51,
-  "sha256": "e63d91eb9be784efdc23d2b2a9edfe203bf8bfac0e57bbe89a50f6b41fdef31e"
+  "sha256": "4684c9ceb5fea26699a7ff3f3663b72b2eb2d73d2c5d78ed34dc2178a560fb89"
  },
  "sample/unison_added": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.39,
-  "sha256": "2936bc36dd2b8952d0c66db9084f8864398a7ec3965d57cb9fe2cc927b5f423e"
+  "sha256": "c724c1d75463019df1f9cd127067cdca37282fd9257af16f92e1f395b30df61e"
  },
  "saw_basic": {
   "frames": 88200,
   "peak": 173388032,
   "rms_db": -26.78,
-  "sha256": "2e57b3ded626af2d3879b3ef7bdc978746735ceb2bcb7bf30f490253796f3851"
+  "sha256": "1a3553ef03b2f082b6b33b84b707e22f9ba01f487fc36c78d79d61f009b122af"
  },
  "sidechain_duck": {
   "frames": 88200,
@@ -2499,19 +2535,19 @@
   "frames": 88200,
   "peak": 173302016,
   "rms_db": -26.48,
-  "sha256": "b2e958a72aef35c3f249847813f2b9440b0a368fd332c02337265deb5ed1fc8a"
+  "sha256": "e576a8fc6836193eb6d445f5839681a10c2302b9cd4ae7643799268e051aca4f"
  },
  "square_basic": {
   "frames": 88200,
   "peak": 129006336,
   "rms_db": -27.7,
-  "sha256": "e60e885489cbf50beb7efdea914fc9b16f6ec9dc4b76ee4e119e170dbd807f4a"
+  "sha256": "dbeef0aa87ca85b482eb3d40987401b1ca2559e55d2d382eed858f2179121cea"
  },
  "square_pw": {
   "frames": 88200,
   "peak": 134956288,
   "rms_db": -28.13,
-  "sha256": "7251e864ecbe54b6c487e8560814224161bfb181ef860b852c6af5316be826b6"
+  "sha256": "118f17789b02300cc8416fc2f5b505404b24b1f0d5f9c91af461611653507921"
  },
  "square_pw_low": {
   "frames": 88200,
@@ -2521,27 +2557,27 @@
  },
  "stamped/community_1_2_1": {
   "frames": 88200,
-  "peak": 449075456,
+  "peak": 448538112,
   "rms_db": -24.41,
-  "sha256": "12a82f6816e89fe064ecf1e498d5212bb323c3589fb83e6527fd869863e16089"
+  "sha256": "42e693d4fce2f311e47212267287c6a1e264b8a6c29fe4252042e0351f19f18a"
  },
  "stamped/official_4_1_4_fm": {
   "frames": 88200,
-  "peak": 306485504,
-  "rms_db": -26.8,
-  "sha256": "232cc4d3557337aeea15e0ebbf1459652facb33f70dd53ffc4311a4381c77b58"
+  "peak": 306094080,
+  "rms_db": -26.81,
+  "sha256": "b3b5294cc48eec5ae625587ab36fc0c3ea924a9b6eecf3bbbdc09544c1a83013"
  },
  "stereo/clipping_1": {
   "frames": 88200,
   "peak": 163280640,
   "rms_db": -27.83,
-  "sha256": "946c5af443c877df40fc872cd785151db1190be84e168b84013b8a1c4e060f2b"
+  "sha256": "a7834fd8b2e07429ec729cf96740ae8338d865d93d46d30f88c398261faf4f5e"
  },
  "stereo/clipping_2": {
   "frames": 88200,
   "peak": 140240128,
   "rms_db": -28.85,
-  "sha256": "59501cba7ff62286271987998a0d004da7763c7c7f308d7ab6283ed7c3fb7b8d"
+  "sha256": "1a8cb1510f24b11c2de587e8ebe56ad7cee2b95881fe58f3c576ac8f7432afe4"
  },
  "stereo/clipping_5": {
   "frames": 88200,
@@ -2553,7 +2589,7 @@
   "frames": 88200,
   "peak": 488827392,
   "rms_db": -24.32,
-  "sha256": "3e1e2f8e5b397b7f909eed293db468ad2d186af0cd260c937da8272aa7e198f0"
+  "sha256": "76c34c6d5ec9635a068a682d8facf81fa17f2c01d5d7061914d30dc05699a8a8"
  },
  "stereo/filter_fade_lpf_ladder_hpf_svf": {
   "frames": 88200,
@@ -2565,25 +2601,25 @@
   "frames": 88200,
   "peak": 418182400,
   "rms_db": -21.89,
-  "sha256": "af2e4449e9df40b49a78391ddece6cedc09ba79740a326bcb77b581f21bf10cf"
+  "sha256": "7bd44813b09e6d07f46207f1301b91ad66235ea95b3a4e63ee5010b61540fdc5"
  },
  "stereo/input_pitchshift_stereo_up7": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.64,
-  "sha256": "110b1106f2087349653489fbcbd78ce76492f22fae7df50a98f3258713c91e85"
+  "sha256": "8fabda7a4abae0f6afd6e08507118b21846a986a940b739c8ed9f417b9d820d3"
  },
  "stereo/input_pitchshift_unison": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -24.04,
-  "sha256": "bc5844071cb2e4009eca9d32c0e99e16d7070fb54b3fc8ed6db2b38b47fff82e"
+  "sha256": "0c172b1d89346f49a626534995ef9d88280b3772423b7b3c574b5326dbc5cfba"
  },
  "stereo/lpf_12db_hpf_ladder_h2l": {
   "frames": 88200,
   "peak": 436834048,
   "rms_db": -25.36,
-  "sha256": "646f248e41c40007c532df0ce85865badef177c103a536013db89c7b7c4002e3"
+  "sha256": "c0601cf44fd5f4305dcfe450d875071cb1e81949d842065ccf8e21fb0363e312"
  },
  "stereo/lpf_24db_hpf_svf_band_l2h": {
   "frames": 88200,
@@ -2595,121 +2631,121 @@
   "frames": 88200,
   "peak": 204940544,
   "rms_db": -32.92,
-  "sha256": "1864d4a197d47f207106a492600c251bca32be20ea2751a7e66f06e10f3d7dad"
+  "sha256": "632d491220dc02454dfd9e62cb5ca45140b893d5420e1a0332cf42db0cfc7a60"
  },
  "stereo/lpf_svf_band_hpf_svf_notch_parallel": {
   "frames": 88200,
   "peak": 698751744,
   "rms_db": -20.23,
-  "sha256": "02a26d59500d8e5d973416acfe6777b38086808bdf139e5df11ab118418d9575"
+  "sha256": "517ec87cc7de2ab6cd8bb02d64c128b19e9e6d70b6b49e498d951dea339a14fd"
  },
  "stereo/lpf_svf_notch_parallel": {
   "frames": 88200,
   "peak": 668317440,
   "rms_db": -20.48,
-  "sha256": "a17b1f050df97d25a8aba26cca61a9ab3b148baae6650309f021fdb6b6c33b84"
+  "sha256": "10d0302f42e155802e7fa42636c1ee6370f36426b663609665eef6401733ab66"
  },
  "stereo/modfx_chorus": {
   "frames": 88200,
   "peak": 245145344,
   "rms_db": -27.29,
-  "sha256": "e0d00e5de470609290ef55c05ad64cbe8d4d61135077987355e246aa4b45f548"
+  "sha256": "9537f326371ca7885ca056790fcd2d440ce4514fbe3c8b1f82e75e27d08f9fa7"
  },
  "stereo/modfx_flanger": {
   "frames": 88200,
   "peak": 1061489152,
   "rms_db": -22.49,
-  "sha256": "76af0fe0923d3b1231e0628765f4154bf7a4771c4439d475859622076fed86e3"
+  "sha256": "64bf503063d54f9f72a88520b11081663c02240b1fecaec6e875961f0dcfbe9e"
  },
  "stereo/modfx_grain": {
   "frames": 88200,
   "peak": 340907264,
   "rms_db": -28.71,
-  "sha256": "86ee75d8e73c67e82c570fee1775c08ebef10ff53dbb79621eb014ffca70b93a"
+  "sha256": "eafed8fc7ad90fd4dcf86172a51127cdd07b5c9714a16b101bb0f843bc67b6a9"
  },
  "stereo/modfx_warble": {
   "frames": 88200,
   "peak": 336116992,
   "rms_db": -23.75,
-  "sha256": "4e87e13b6928857b5358fc2c22d9b637401191a6f154a1291a2092b1f02b275d"
+  "sha256": "8377e527445f09dd67617490ed11aab05a1095bb2dd796663c131cee2f6ea063"
  },
  "stereo/noise_unison": {
   "frames": 88200,
   "peak": 173385984,
   "rms_db": -30.01,
-  "sha256": "f333eb6cad2e525f682b6b30d94be02a3312c943bed0204113ac4ee6652ba3ee"
+  "sha256": "94a16f527986b99154f277c9805a3f5d20591d4743b23f3ef5edf29257865c58"
  },
  "stereo/ringmod_sync_unison": {
   "frames": 88200,
   "peak": 173388032,
   "rms_db": -28.13,
-  "sha256": "e3f96d2517d7675546fa7bb7c6ac72ebf0405b9657df9bdc03c7dba4a4d78cfd"
+  "sha256": "06abb1fb1f8dc4fb7ab739f1c84cc191acdb8dee5cb382f69f72fde96132f4d5"
  },
  "stereo/ts_cached_loop": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -22.99,
-  "sha256": "9e827df82af9d1f9665800a359ed958b379da7021312cd3475c9eb31175fc007"
+  "sha256": "b6aaf0572afc580efe02982d0e754f38a0391483871c70c70e67e33188010fdb"
  },
  "stereo/wavefold": {
   "frames": 88200,
   "peak": 173314304,
   "rms_db": -27.83,
-  "sha256": "6375f5aa1e5382c6ccdd916470e1926c5999b6e2a7f12c9212315555be5e9b33"
+  "sha256": "8c00969e67a645b97079fa4ea8c5462e4f9e96e1b411056d750122cca63f4cf0"
  },
  "svf_band": {
   "frames": 88200,
   "peak": 381075200,
   "rms_db": -25.11,
-  "sha256": "cded4ae066f3421c7dbc8753e78c4b0e1f3de5e52a490d86b114f2ed5290a07d"
+  "sha256": "7c53f6ca72abbcef8a5abbdb7f6f6a570c9de687cef807e66fe20650d43631c2"
  },
  "triangle_basic": {
   "frames": 88200,
   "peak": 173323520,
   "rms_db": -26.74,
-  "sha256": "e6cc703f822e730e0dd52f2440daa258018aa05d21b2cb84ba5c9783bec033ae"
+  "sha256": "4321533d715e57684afb016f58a70cdb1ba49b993c68f3eb66536cc4017073f5"
  },
  "two_osc_detune": {
   "frames": 88200,
   "peak": 173387008,
   "rms_db": -27.52,
-  "sha256": "80512182a38a0f7fc5eda79a8c56ad5d859cdf40d88d848e98d02a70b88f0c93"
+  "sha256": "37bbb34312328dfb86d1bee4f2522fdd2971ec4b461e92060f28f5fafd8b0185"
  },
  "unison_spread": {
   "frames": 88200,
   "peak": 173387008,
   "rms_db": -27.59,
-  "sha256": "f8cd3faada0ae6c1800d14860f1e12b3f1c3c9b2e5a2e116548011abd299e8c0"
+  "sha256": "7886bff07d0c4ac80d7960acf199de03e04c264efef9a87a95e504c0bc7a6c77"
  },
  "upgrade/ms_zone": {
   "frames": 88200,
   "peak": 366039552,
   "rms_db": -23.28,
-  "sha256": "89c63d4f8efa597a3e0cc811900adba69fb62b3dba3e55586b57461e830781ac"
+  "sha256": "8d2b8501bc9ec044e1c5488c12b94d82f79fdef277a7ff7a436c7bb52f9d8ddc"
  },
  "upgrade/ms_zone_end_only": {
   "frames": 88200,
   "peak": 346655744,
   "rms_db": -21.85,
-  "sha256": "668e8c7efdb8bed590d4a6d2a5e70da58d0e0a48c095e8d8f1d7ce7caa18d2f3"
+  "sha256": "8432f3231b18f36a344270e81ebd07055d589e12b6eb18a29d483a6360bb0e56"
  },
  "upgrade/ms_zone_far_overshoot": {
   "frames": 88200,
   "peak": 365797376,
   "rms_db": -21.88,
-  "sha256": "fac4b6bff4f5a0ab4f20d9803baf0267cdfba4c44561743ff2e528ceae70ed3c"
+  "sha256": "55cee4076da7d9332bf95a557de36600e786d851bf425b65490dfd1da32b5a9d"
  },
  "upgrade/ms_zone_overshoot": {
   "frames": 88200,
   "peak": 365797376,
   "rms_db": -21.88,
-  "sha256": "fac4b6bff4f5a0ab4f20d9803baf0267cdfba4c44561743ff2e528ceae70ed3c"
+  "sha256": "55cee4076da7d9332bf95a557de36600e786d851bf425b65490dfd1da32b5a9d"
  },
  "upgrade/ms_zone_reversed": {
   "frames": 88200,
   "peak": 358596352,
   "rms_db": -22.58,
-  "sha256": "15ab62097c42abaaecf63c88c75fddffbbd9013c31f4590d6e09b038fb5be53d"
+  "sha256": "fdbc3d6fcabeb8ca34607c9c8dcb21c1843f8145de4fce3f3017775d0e288109"
  },
  "velocity_dynamics": {
   "frames": 88200,
@@ -2721,13 +2757,13 @@
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.07,
-  "sha256": "ef48560f09d3f4c0a472e5d1f6df09a851fdae741d2ac75459fd276057cabb6a"
+  "sha256": "0f20ba301a4e377d43be0b86fe4a93652ae3731f11d24660082477764b39dfcd"
  },
  "voice/cache_lfo_pitch": {
   "frames": 88200,
   "peak": 245172224,
   "rms_db": -25.05,
-  "sha256": "575d69f5dd168b2b0c671cb02c370020c46060387fd88da7ad50cde2f8922ef6"
+  "sha256": "b839d9657798c6b8ded682b386cff89f5ccce5a8d1e8fb83d2113df79f431a97"
  },
  "voice/cache_velocity_pitch": {
   "frames": 88200,
@@ -2775,37 +2811,37 @@
   "frames": 88200,
   "peak": 171719424,
   "rms_db": -27.69,
-  "sha256": "92cea622eedd3188b0bda3981e9a0f4625224fa9156b17d15c449765c2b1f709"
+  "sha256": "c5bbe1ce24aa5b28a61717048e63cf227e815c268c050fa213dfb0e46d6920ae"
  },
  "voice/loop_points_release": {
   "frames": 88200,
   "peak": 245151488,
   "rms_db": -27.45,
-  "sha256": "1e740f6992a1c4d39bf57977a659a0b59fa8816ac34bbc9b857fa7f34983fff0"
+  "sha256": "753b1f4654dd7dc0a4ed0b0844b59ef3269e8f70c614c9b87907174922225971"
  },
  "voice/noise_unfiltered": {
   "frames": 88200,
   "peak": 173381632,
   "rms_db": -30.76,
-  "sha256": "871763c38122cf3785763e19faa47d56a942792c6978c986bc4cabf64fdb629c"
+  "sha256": "9c91e2d191a0cdb4c2719d1e160a823991bdb2816742ed9dc8db537b4f1010a6"
  },
  "voice/once_auto_release": {
   "frames": 88200,
   "peak": 232155136,
   "rms_db": -43.39,
-  "sha256": "d3ef12e224827323652e9b2516512abbb6df2f9e5ab228896312bf2a2d77f380"
+  "sha256": "ab2074b1df3c4fd8e9a287c778782ce3becff410dfe1f1368fd4267681cc04e0"
  },
  "voice/once_auto_release_pitched": {
   "frames": 88200,
   "peak": 245151488,
   "rms_db": -40.12,
-  "sha256": "1b386b5d195d7b222933469879b7c323fdde98447518117816c5c60666cc3a52"
+  "sha256": "1693923086d778213393ff853f4db82d16f62aa691d0d7396cac07837d70d776"
  },
  "voice/porta_legato": {
   "frames": 88200,
   "peak": 173388032,
   "rms_db": -26.11,
-  "sha256": "3a981db7468d3146b90ad1d218769cbb9c75f239b6d46c122dd654c963173e64"
+  "sha256": "5f7e42435f88abc902632e6aa2682263fb262c3bc9cf55738b839c8b018efeb9"
  },
  "voice/ringmod_supersaws": {
   "frames": 88200,
@@ -2817,31 +2853,31 @@
   "frames": 88200,
   "peak": 393759488,
   "rms_db": -29.84,
-  "sha256": "c8c75a8e4798bb9557d53eaf796fca8c9764fe694c639cab3f4c0cd38b8eb124"
+  "sha256": "4c6882f59fcfdc4093c347cd35ec5af7582c6f6fafd4724f98347af9d3678ddc"
  },
  "voice/ringmod_supersaws_resonance_top": {
   "frames": 88200,
   "peak": 808278528,
   "rms_db": -17.6,
-  "sha256": "bf65bcf6049ec9f780496778f2b8c75905a51551b588ba42b9d24b5874c4516a"
+  "sha256": "6af8e19ad5a4fa690a439c0a1c75de2d1cb9abfe4627e9fb9f7ddd76875bef36"
  },
  "voice/ringmod_sync": {
   "frames": 88200,
   "peak": 173382912,
   "rms_db": -28.0,
-  "sha256": "4cc75d0dbf6aee1861e755f690482942574e5d3aa9646acc3e3e74af0c961065"
+  "sha256": "5deecfa701be183a0a4b3b1549b752bc3bdff0eae4aa54aede7ee469fcc0de3a"
  },
  "voice/supersaw_retrigger": {
   "frames": 88200,
   "peak": 173383936,
   "rms_db": -27.51,
-  "sha256": "f1024654e27c5bbd5e407b64d34b3c00d4f4fc373f0fc613555b1534587b2589"
+  "sha256": "826c12e43c6f1b522b576505864789d8104ed0ff3858cc66b74b4963805468f5"
  },
  "voice/sync_silent_master": {
   "frames": 88200,
   "peak": 166102784,
   "rms_db": -28.67,
-  "sha256": "80ef626e481c7608ccd0e42add849e24da10b66087e861f0cb5b9d0140ab44ac"
+  "sha256": "a619fadfa8068d05527db73e6c271db5b7ff9f83d1ffd14b915fef35f0a31334"
  },
  "voice/type_change_mono_saw_square": {
   "frames": 88200,
@@ -2871,66 +2907,66 @@
   "frames": 88200,
   "peak": 245151488,
   "rms_db": -24.91,
-  "sha256": "03cc0cc14742c0b155c739870d23af267ed9e26f255d02d5f7502cbf46dc4a12"
+  "sha256": "bdd4d4ddeca516f2cba4b22a3d611da05c8b01b4dfb8d76bcb50963181d552dd"
  },
  "wavefold_sine": {
   "frames": 88200,
   "peak": 172996352,
   "rms_db": -28.34,
-  "sha256": "abdd3d31ad181b0a5427f82540022bf34bfcaf7698aeb57568a6b3b47be59914"
+  "sha256": "826526168596083b005d93301dbfc76cedf61d589c19330cfc311cade51b994f"
  },
  "wavetable/morph_lfo": {
   "frames": 88200,
   "peak": 825770752,
   "rms_db": -16.58,
-  "sha256": "30fee0ef812a0b3abc64a16336068be9dfb28fc8c8ac7568ddcc048ec5f03175"
+  "sha256": "41015e0dd7d26c39bab9eedbfc54ad56d4fe2f5bfb3ebf2f747397e4d5e0140b"
  },
  "wavetable/morph_note": {
   "frames": 88200,
-  "peak": 631793664,
-  "rms_db": -27.62,
-  "sha256": "f6f6fe63959f71e667e01d38caac272f6da694bba61a0d79423af714d6538ed6"
+  "peak": 627636736,
+  "rms_db": -27.68,
+  "sha256": "034fb6dc8bad15ce8ac937cdb3a97bc0b6acc639d46aa262d8d23d3f1f9519ac"
  },
  "wavetable/morph_sync": {
   "frames": 88200,
-  "peak": 467331584,
+  "peak": 467329536,
   "rms_db": -23.2,
-  "sha256": "f1f8e843e72055fc488e4a61e0d34eab61d887fb546afccfbfba6ca960b8d9f3"
+  "sha256": "6f372f545722209b9034d97383d822687404e75a08d1570fc403ccd5fc84bff7"
  },
  "wavetable/scw": {
   "frames": 88200,
-  "peak": 675409664,
-  "rms_db": -21.42,
-  "sha256": "9612d1addf3dffd00ba4ae4d0300f8b335ebf8fc802c8c92e0d269245975bdac"
+  "peak": 666648576,
+  "rms_db": -21.48,
+  "sha256": "1a15b0c9019ced364c2baccefbd5a88f9b55e495f5b087ae25e64c3467214122"
  },
  "wavetable/scw_hi": {
   "frames": 88200,
-  "peak": 492271360,
-  "rms_db": -23.78,
-  "sha256": "c36dc3314d5f607ac7c9af55e9916e71120c163cd04502fd974e9799d59566e4"
+  "peak": 478005248,
+  "rms_db": -23.95,
+  "sha256": "8c13df2ebe08f5e6b098167d81ae3c10d3fb1c24b5f408ba7917a4b0fbcf0646"
  },
  "wavetable/static": {
   "frames": 88200,
   "peak": 133132544,
   "rms_db": -30.28,
-  "sha256": "39f25b0f70dac153174fa52084964d3a5c2f0f6a8c0c425cc97e693c50004667"
+  "sha256": "08e09cfdd193a7e587f1e40edd1525b405ede5cf8c7801320f722b927d9094c9"
  },
  "wavetable/static_lo": {
   "frames": 88200,
   "peak": 118812416,
   "rms_db": -31.81,
-  "sha256": "93afe4665f2d66faa41abc24b444564c86ac18cd9ebf0b0ac567031596ed7c78"
+  "sha256": "d3b2b1f50815ce565c8fe9a8c28fe53ec2af9973582664928b06700d42aebf11"
  },
  "wavetable/sync": {
   "frames": 88200,
-  "peak": 503494656,
+  "peak": 503521280,
   "rms_db": -23.1,
-  "sha256": "dd45bd558a2dda72c9b35189560317073d53fc9eb234b69b3a6232326c96ae39"
+  "sha256": "1a4940f48a2b4802490d4d73c3c54e87c09c9bf9f14df0a04cfa3dcecafab030"
  },
  "wavetable_basic": {
   "frames": 88200,
   "peak": 205226752,
   "rms_db": -27.83,
-  "sha256": "03080f367b4e331dcabfd5af8bf18499ac58161c999820c72b037b2ed6c86e9e"
+  "sha256": "c0fe410acb05c0220081d0c48afa563040bc3fe2d6e65335945377fcc54239d2"
  }
 }

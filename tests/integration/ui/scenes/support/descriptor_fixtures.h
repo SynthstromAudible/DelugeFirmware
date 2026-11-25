@@ -54,9 +54,13 @@ inline void set_song_stutter(const MenuContext& ctx, Song& song, bool use) {
 	deluge::edits::effectSettingFor(*deluge::ui::scenes::spec::menu_engine(ctx, song).mod, "stutter/useSongStutter",
 	                                Value::makeNumber(use ? 1 : 0));
 }
-/// A sound as `enter` leaves it, poly, its arp off, using the song's stutter.
+/// A sound as `enter` leaves it, poly, its envelopes ADSR, its arp off, using the song's stutter.
 inline void plain_sound(const MenuContext& ctx, Song& song) {
 	set_word(*spec::menu_engine(ctx, song).sound, "polyphonic", "poly");
+	for (const std::string_view mode :
+	     {"envelope1Settings/mode", "envelope2Settings/mode", "envelope3Settings/mode", "envelope4Settings/mode"}) {
+		set_word(*spec::menu_engine(ctx, song).sound, mode, "adsr");
+	}
 	set_arp(ctx, song, "off");
 	set_song_stutter(ctx, song, true);
 }

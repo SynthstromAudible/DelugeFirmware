@@ -40,7 +40,7 @@ inline constexpr size_t kShortcutPlaceholderNameCells = 6;
 inline constexpr size_t kShortcutDynamicNameCells = 28;
 
 /// @brief How many sound-root entries have no param pad, so plan no source blink.
-inline constexpr size_t kPadlessShortcutNodes = 97;
+inline constexpr size_t kPadlessShortcutNodes = 109;
 
 /// @brief Landing cells whose page the port shares with another root's tree (main has one page per root family), so the
 ///        landing rows name the page by its paths in the landing root's own tree.
