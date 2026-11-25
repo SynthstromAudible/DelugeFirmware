@@ -162,6 +162,7 @@ public:
 	void gridPulseSelectedClip();
 
 private:
+	int32_t section_move_start_ = -1;
 	int32_t lastLaunchCountdown = 0;
 	uint32_t launchCountdownImageGeneration = 0;
 
@@ -257,6 +258,9 @@ private:
 	void setupNewClip(Clip* newClip);
 
 	void gridStartSection(uint32_t section, bool instant);
+	// Swap the exclusively held section with its neighbour in the encoder's direction.
+	ActionResult gridMoveSection(int32_t offset);
+	void gridFinishSectionMove(bool confirm);
 	void gridToggleClipPlay(Clip* clip, bool instant);
 
 	[[nodiscard]] const size_t gridTrackCount() const;
@@ -264,7 +268,7 @@ private:
 	uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack);
 	Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
 	int32_t gridYFromSection(uint32_t section);
-	int32_t gridSectionFromY(uint32_t y);
+	static int32_t gridSectionFromY(int32_t y);
 	int32_t gridXFromTrack(uint32_t trackIndex);
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
