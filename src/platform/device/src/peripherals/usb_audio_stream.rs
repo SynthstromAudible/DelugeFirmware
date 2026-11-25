@@ -94,6 +94,24 @@ pub fn unpack(packet: &[u8], bps: usize) -> impl Iterator<Item = Frame> + '_ {
         .map(move |c| [decode_sample(&c[..bps]), decode_sample(&c[bps..])])
 }
 
+/// Where the from-host reader takes its frames from: a ring that something else fills.
+pub trait FrameSource {
+    /// Frames it has been given in all, as a free-running count.
+    fn written(&self) -> u32;
+    /// How many frames it can hold before it overwrites the oldest.
+    fn capacity(&self) -> u32;
+    /// The frame at position `pos`.
+    ///
+    /// # Safety
+    /// `pos` is not before `written() - capacity()` and is before `written()` (wrapping), and not released.
+    unsafe fn peek(&self, pos: u32) -> Frame;
+    /// Lets go of every frame before `pos`, where the source can use that.
+    ///
+    /// # Safety
+    /// The caller is the source's one consumer; `pos` is no further than `written()` and never behind its last release.
+    unsafe fn release(&self, pos: u32);
+}
+
 /// A single-producer, single-consumer ring of [`RING_FRAMES`] frames.
 ///
 /// Both positions are free-running frame counts; `written - read` is the fill. The producer never
@@ -175,6 +193,26 @@ impl FrameRing {
     }
 }
 
+impl FrameSource for FrameRing {
+    fn written(&self) -> u32 {
+        FrameRing::written(self)
+    }
+
+    fn capacity(&self) -> u32 {
+        RING_FRAMES as u32
+    }
+
+    unsafe fn peek(&self, pos: u32) -> Frame {
+        // SAFETY: the caller's contract.
+        unsafe { FrameRing::peek(self, pos) }
+    }
+
+    unsafe fn release(&self, pos: u32) {
+        // SAFETY: the caller's contract.
+        unsafe { FrameRing::release(self, pos) }
+    }
+}
+
 impl Default for FrameRing {
     fn default() -> Self {
         Self::new()
@@ -227,9 +265,9 @@ impl FromHostReader {
     /// # Safety
     ///
     /// The caller is `ring`'s one consumer, and calls this for no other ring.
-    pub unsafe fn read(
+    pub unsafe fn read<S: FrameSource>(
         &mut self,
-        ring: &FrameRing,
+        ring: &S,
         generation: u32,
         lead: u32,
         out: &mut [Frame],
@@ -250,14 +288,14 @@ impl FromHostReader {
         self.avg_lead = Some(avg_lead);
 
         let mut fill = written.wrapping_sub(self.read);
-        if fill > RING_FRAMES as u32 {
+        if fill > ring.capacity() {
             // Not this stream's frames: start from the newest.
             self.read = written;
             fill = 0;
             self.primed = false;
         }
 
-        if !self.primed || fill > RING_FRAMES as u32 - FROM_HOST_OVERRUN_MARGIN {
+        if !self.primed || fill > ring.capacity() - FROM_HOST_OVERRUN_MARGIN {
             // (Re)start at the target, measured against the lead's average so the swing of the
             // lead at this one block does not set the stream's latency.
             let target = FROM_HOST_TARGET_FILL + (avg_lead >> 8) as u32;
@@ -267,7 +305,7 @@ impl FromHostReader {
                 unsafe { ring.release(self.read) };
                 return 0;
             }
-            let want = (target - lead).min(RING_FRAMES as u32 - FROM_HOST_OVERRUN_MARGIN);
+            let want = (target - lead).min(ring.capacity() - FROM_HOST_OVERRUN_MARGIN);
             self.read = written.wrapping_sub(want);
             fill = want;
             self.primed = true;
