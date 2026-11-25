@@ -63,7 +63,7 @@
   "frames": 384000,
   "peak": 1493415424,
   "rms_db": -14.08,
-  "sha256": "fc30325e7ba7cc33eadc63dcdcb9e1c4f34994753eec65d765af25a15c861f1c"
+  "sha256": "08fe7833295e86bca7dd0168acafe3b30318c387dd0409a1ab2d637a3aaa0dc7"
  },
  "RS_AUDIO_FILTERS": {
   "frames": 384000,
@@ -93,7 +93,7 @@
   "frames": 384000,
   "peak": 262900480,
   "rms_db": -30.72,
-  "sha256": "4143bd35bcc725b5d11d5757eb0be8fdd0852e557ae8f5141c79ec405dbb327c"
+  "sha256": "afe59d8f3f4c986de35cbfe8f92b8e9b31c9c929f29c34d66d5b13f74f296ced"
  },
  "RS_AUDIO_STRETCH_EDGES": {
   "frames": 384000,
@@ -135,19 +135,19 @@
   "frames": 384000,
   "peak": 285767168,
   "rms_db": -27.96,
-  "sha256": "f4b945cd10fd341ab2c5b6067085d2c563c573a6726e40a1edfd0001fea717bb"
+  "sha256": "d105607909163ff8a485f407370cf2321a6732373b5dbb0c289f4a0b58ef09b8"
  },
  "RS_DUCK_SHAPES": {
   "frames": 384000,
   "peak": 1504250368,
   "rms_db": -14.41,
-  "sha256": "5d7bc820437c9cba5f828544c8302c227d85937fcc7422712cd0031fb89c8a75"
+  "sha256": "a653b7f9e8471d7c5b9bd7beb81dfe76c838b581f556b030cff575338449e9de"
  },
  "RS_EQ_BANDS": {
   "frames": 384000,
   "peak": 1146359296,
   "rms_db": -14.71,
-  "sha256": "be0ba72b55187a42052a1a5d36a03ce54079f4dde2f7b58e8590915effc42645"
+  "sha256": "40437bae3641da8a8e0674dfa1afe2260b7c9aebe30d7fc55314956002439bc5"
  },
  "RS_GRAIN_MASTER": {
   "frames": 384000,
@@ -159,25 +159,25 @@
   "frames": 384000,
   "peak": 1228997120,
   "rms_db": -19.8,
-  "sha256": "c9aeab8f3b4fdaf344124ce7a897b98946a2001ea158005dcc73c61373ee299c"
+  "sha256": "5431211e117526f30ad61c5c6a52cec3f3db6fd22b0a9366e81dd8e68972089b"
  },
  "RS_GRAIN_OWNERS": {
   "frames": 384000,
   "peak": 192194816,
   "rms_db": -35.38,
-  "sha256": "0e90da2328316c3e2b4df705f690741933cb2cd57ad1412b5dd3195e6846face"
+  "sha256": "02dea10adbedf70e2577a52d89236c811aee13693466d6bda2867810b0caab40"
  },
  "RS_GRAIN_RESTART": {
   "frames": 512000,
   "peak": 1130131456,
   "rms_db": -19.53,
-  "sha256": "18630f94658e5ad999369b3d4ceb360eb960c744ff1148ce41e03bf63b7788c2"
+  "sha256": "cd0228cb1bda8996f7ba6b59d889960e3bee1f8d7e7e58394d9415d855e1b273"
  },
  "RS_GRAIN_STEREO": {
   "frames": 384000,
   "peak": 711760640,
   "rms_db": -24.81,
-  "sha256": "2c39f46df38418cf6d960338c47048b8692e36347be005b11ce792e9d1cc826d"
+  "sha256": "c20cb2219881c89a52658a7c1ff978789f6956a502d20706ff458ce4d5b42641"
  },
  "RS_GRAIN_SWITCH": {
   "frames": 384000,
@@ -189,7 +189,7 @@
   "frames": 384000,
   "peak": 844851968,
   "rms_db": -26.26,
-  "sha256": "d26e2f88dfa8622e303df127564df8f78bdb864b7ec949d632479343868136ab"
+  "sha256": "2d8a1c966550b720f033a5a42e6d361df545d9be21e75ae096868f177a7c4365"
  },
  "RS_KIT_DELAY": {
   "frames": 384000,
@@ -201,13 +201,13 @@
   "frames": 384000,
   "peak": 367291904,
   "rms_db": -27.4,
-  "sha256": "07a18b6226d62da8cc68a20f3ee9cd5a27293d18384ae8b512e4fd36a117a15b"
+  "sha256": "3ea23f4ff254025c5801fe80b917a8315b6661b732f6c1345f36af5ab298b0a8"
  },
  "RS_KIT_FILTER_FADE": {
   "frames": 384000,
   "peak": 222961152,
   "rms_db": -27.2,
-  "sha256": "39f8a202b26ed8e6793dc6d73dfa5ef405ba6a9f13866e0d09e0c9aacd5e26fc"
+  "sha256": "ca585a2641bd49535252318cbc3494b22b061766908fc7aba4d0ed5ff225d52a"
  },
  "RS_KIT_FX": {
   "frames": 384000,
@@ -219,19 +219,19 @@
   "frames": 384000,
   "peak": 286423808,
   "rms_db": -29.69,
-  "sha256": "e87334dd764091f9ef3609bb54c161967813a8d765903bc68bc7f6a9254e673d"
+  "sha256": "3874ee34958eccb1bb167b2e9c11a8bb10763befc6e80d77936eb9ce904528ad"
  },
  "RS_KIT_SVF_MORPH": {
   "frames": 384000,
   "peak": 191429632,
   "rms_db": -31.2,
-  "sha256": "34f575af7db511d963ed1ed4094836e0a931a6290d5c124163195e3a7378fd62"
+  "sha256": "cd561c4c6dca2e6855a38b25b155e3d244b0e577ab877dd0d8885edfb1783c8e"
  },
  "RS_LOW_CLIP": {
   "frames": 384000,
   "peak": 316533760,
   "rms_db": -23.99,
-  "sha256": "a8a99d3c51d762fae1844433fb34f396b73fbfba56fa02c2bcb29dcedaa9bb84"
+  "sha256": "aae37881eb31b9220dc082746bbec2c1ed07093921ca4ea2b8c8f3f30997d0b2"
  },
  "RS_MASTER_ARRANGER": {
   "frames": 384000,
@@ -279,25 +279,25 @@
   "frames": 384000,
   "peak": 1580326912,
   "rms_db": -12.06,
-  "sha256": "ec1f161193ff710a86a21d8d731db1350ba2dd19f888e65d31feb6f8311e017c"
+  "sha256": "2e959c35c702dcfb6a0e0418b076ffd592536129b0988ded11fd6ba0a458c326"
  },
  "RS_MODFX_SOFT_OFF": {
   "frames": 384000,
   "peak": 1222706944,
   "rms_db": -21.14,
-  "sha256": "f572cade6ff8b14ce144861d41629708f971e2bf9b16f19e122d63c5d6019286"
+  "sha256": "66287ca311754db3a34b435dd0cc5c94198f167ee2189f32a62e51b08e445244"
  },
  "RS_MODFX_STEREO_A": {
   "frames": 384000,
   "peak": 1452845824,
   "rms_db": -26.94,
-  "sha256": "7efde8dc6e539890fbed3bbde843145f1c8fcc21f51bfc67ee9a37e3733f47d6"
+  "sha256": "2f94f1023bc3903a34b0332ffc7699e1d47893afa91c3a8b4836bf0f9be572fd"
  },
  "RS_MODFX_STEREO_B": {
   "frames": 384000,
   "peak": 867592704,
   "rms_db": -18.39,
-  "sha256": "180edc08d5d5645ea18618ac64c3eba9297f10a91f185c43d0b0f0077ffccfec"
+  "sha256": "6ee78ead9766156540e1f85856b9839aec461bf78fe28761a3845eb21d0e0185"
  },
  "RS_MODFX_SWITCH": {
   "frames": 384000,
@@ -309,7 +309,7 @@
   "frames": 384000,
   "peak": 1217956608,
   "rms_db": -14.57,
-  "sha256": "7d4bee7f0116c4be2e305f38b42bf57161b6bad00df8ab823f41d9707116e75e"
+  "sha256": "2bb8f9f937533dd09142ae0f5acfc58ae8ae3c1a9ceedb3c803f22c43c4a06c0"
  },
  "RS_REVERB_DIGITAL": {
   "frames": 384000,
@@ -321,13 +321,13 @@
   "frames": 384000,
   "peak": 1779755264,
   "rms_db": -14.32,
-  "sha256": "cac5a0567380b027b9aa628b6d153969e108300786f4c2b656e26f94fd5a5406"
+  "sha256": "58d6d30b8713d59f8cfdff7963249664eabc83e59e11729c73e1e144d34c1868"
  },
  "RS_REVERB_DUCK_OVERRIDE_TRACK": {
   "frames": 384000,
   "peak": 1842103552,
   "rms_db": -13.37,
-  "sha256": "7a00808ade99578fb9ac9e620f14d041cd5cb0a307a95ca785e600b3395a188e"
+  "sha256": "71016346de8e499b73b2f660013920a82a1730e89f8dbfe858a835a4602ae19b"
  },
  "RS_REVERB_FREEVERB": {
   "frames": 384000,
@@ -363,13 +363,13 @@
   "frames": 384000,
   "peak": 1146359296,
   "rms_db": -14.77,
-  "sha256": "7c1d78959660d1c7be85f199a98b20a4ecc90eb805aa70931f06f79117626ec6"
+  "sha256": "d18c9dbdc48da59c3145d93fcc172fc281352a5f67b91ac01abea1065a3d56f5"
  },
  "RS_STUTTER_KIT": {
   "frames": 384000,
   "peak": 177563648,
   "rms_db": -30.99,
-  "sha256": "c11c019fd4b6f4351f4eb482e2322d785111a113eefe941de7962d8457080534"
+  "sha256": "e6455288103fbef698c9a1c9a0e52578429645d8dbf08a384cdf79ba2fb93ac1"
  },
  "RS_STUTTER_MASTER": {
   "frames": 384000,
