@@ -316,6 +316,46 @@ struct Envelope {
 		return s.target + ((s.start - s.target) * falling);
 	}
 
+	/// @brief Advances one copy @p n samples and returns the value after them, as @p n calls of @ref step would.
+	/// @details A timed stage moves in closed form: it ends on its exact sample, lands on its target and the rest of
+	/// the block runs on in the next stage, through as many stages as end within it. A hold or rest does not move.
+	/// EXPONENTIAL and LINEAR stages, which no block-rate owner uses, step sample by sample, so they stay bit-equal to
+	/// @ref step.
+	static f32 advance_block(const Coefficients& c, State& s, uint32_t n) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		uint32_t left = n;
+		while (left > 0) {
+			if (s.timed > 0.5f) {
+				// The samples to the end: the first count at which elapsed reaches length, as step's +1s find it.
+				auto to_end = static_cast<uint32_t>(std::max(1.f, std::ceil(s.length - s.elapsed)));
+				while (to_end > 1 && s.elapsed + static_cast<f32>(to_end - 1) >= s.length) {
+					--to_end;
+				}
+				while (s.elapsed + static_cast<f32>(to_end) < s.length) {
+					++to_end;
+				}
+				if (to_end <= left) {
+					left -= to_end;
+					s.elapsed = s.elapsed + static_cast<f32>(to_end);
+					enter(c, s, s.next, true);
+				}
+				else {
+					s.elapsed = s.elapsed + static_cast<f32>(left);
+					s.value = timed_level(s);
+					left = 0;
+				}
+			}
+			else if (s.threshold == kNever) { // a hold or rest
+				break;
+			}
+			else {
+				(void)step(c, EmptyBlock{}, s);
+				--left;
+			}
+		}
+		return s.value;
+	}
+
 	/// @brief One sample over V: f32 for one copy, Pack<f32, N> for one per lane.
 	template <class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/,
