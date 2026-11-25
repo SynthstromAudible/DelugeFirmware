@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Look after the J-Trace rig: restart its remote server, park the panel dark, stop the server.
+"""Look after the J-Trace rig: restart its remote server, park the panel dark, stop the server, say who has it.
 
 Usage:
     tools/rig.py restart [--host HOST]
     tools/rig.py park    [--host HOST] [--elf .superpowers/bench-park.elf]
     tools/rig.py stop    [--host HOST]
+    tools/rig.py status  [--host HOST]
 
 The probe hangs off a Raspberry Pi (`--host`, an ssh destination, `$DELUGE_PROBE_HOST` by default) that runs
 JLinkRemoteServerCLExe; tools/deluge_jlink.py and tools/stream_bench.py reach the probe through it
@@ -16,8 +17,11 @@ park     restarts, then boots the park image through tools/dsp_bench.py, which l
          display dark; done only once the run records the device's parked line, and it retries a few
          times until then.
 stop     stops the server, so the probe is free for a local session and the rig idles.
+status   says whether a run holds the rig's lock (tools/rig_lock.py), and which; needs nothing of it.
 
-Exit codes: 0 done; 1 the host could not be reached or the step failed after its retries.
+The other actions hold the lock while they run, and are refused while another run does (--wait waits).
+
+Exit codes: 0 done, or free; 1 the host could not be reached or the step failed after its retries; 75 the rig is held.
 """
 
 from __future__ import annotations
@@ -30,6 +34,9 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import rig_lock
 
 REPO = Path(__file__).resolve().parent.parent
 DEFAULT_HOST = os.environ.get("DELUGE_PROBE_HOST")
@@ -127,7 +134,7 @@ def park(host: str, elf: Path, tries: int = 3) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Look after the J-Trace rig.")
-    ap.add_argument("action", choices=("restart", "park", "stop"))
+    ap.add_argument("action", choices=("restart", "park", "stop", "status"))
     ap.add_argument(
         "--host",
         default=DEFAULT_HOST,
@@ -135,7 +142,26 @@ def main(argv: list[str] | None = None) -> int:
         help="ssh destination of the probe's Pi (default $DELUGE_PROBE_HOST)",
     )
     ap.add_argument("--elf", type=Path, default=DEFAULT_PARK, help="the park image")
+    rig_lock.add_argument(ap)
     args = ap.parse_args(argv)
+    if args.action == "status":
+        return report_status(args.host)
+    return rig_lock.guarded(
+        args.host, f"rig {args.action}", args.wait, lambda: act(args)
+    )
+
+
+def report_status(host: str) -> int:
+    try:
+        holder = rig_lock.status(host)
+    except rig_lock.RigLockError as exc:
+        print(f"rig: {exc}", file=sys.stderr)
+        return 1
+    print(f"rig: held by {holder}" if holder else "rig: free")
+    return rig_lock.EXIT_BUSY if holder else 0
+
+
+def act(args: argparse.Namespace) -> int:
     if args.action == "restart":
         ok = restart(args.host)
     elif args.action == "park":

@@ -47,6 +47,7 @@ sys.path.insert(0, str(REPO / "tools"))
 
 import emu_parity
 import rig
+import rig_lock
 import ui_script_cards
 from rig_session import DeviceSession
 
@@ -177,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="run the scripts on the device and keep its snapshots, with no delugemu side (device-only scripts)",
     )
+    rig_lock.add_argument(ap)
     ap.add_argument("scripts", nargs="+", type=Path)
     args = ap.parse_args(argv)
     if not args.host:
@@ -187,7 +189,12 @@ def main(argv: list[str] | None = None) -> int:
     if not args.record_only and args.emu_ref is None:
         print("device_parity: --emu-ref, or --record-only", file=sys.stderr)
         return 4
-    return parked_after(args.host, run, args)
+    return rig_lock.guarded(
+        args.host,
+        f"device_parity {args.device.name}",
+        args.wait,
+        lambda: parked_after(args.host, run, args),
+    )
 
 
 def run(args: argparse.Namespace) -> int:

@@ -42,6 +42,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 TOOLS = REPO / "tools"
+sys.path.insert(0, str(TOOLS))
+import rig_lock
 
 EXIT_INCOMPLETE = 2
 EXIT_PROBE = 3
@@ -425,12 +427,22 @@ def main(argv: list[str] | None = None) -> int:
         metavar="SEL",
         help="passed to deluge_jlink.py, e.g. IP=HOST",
     )
+    rig_lock.add_argument(ap)
     args = ap.parse_args(argv)
 
     if args.from_capture:
         rtt = Path(args.from_capture).read_text().splitlines()
     else:
-        code, rtt = run_probe(args)
+        try:
+            with rig_lock.hold(
+                rig_lock.host_of(args.select),
+                f"stream_bench {Path(args.elf).name}",
+                args.wait,
+            ):
+                code, rtt = run_probe(args)
+        except (rig_lock.RigBusy, rig_lock.RigLockError) as exc:
+            print(f"stream_bench: {exc}", file=sys.stderr)
+            return rig_lock.EXIT_BUSY
         if code == EXIT_PROBE:
             return code
 

@@ -8,6 +8,7 @@ Gate dsp-bench-parser:
 
 import io
 import json
+import os
 import re
 import subprocess
 import tempfile
@@ -17,6 +18,7 @@ from pathlib import Path
 from unittest import mock
 
 import dsp_bench
+import rig_lock
 
 DATA = Path(__file__).parent / "testdata"
 COMPLETE = DATA / "bench_capture_complete.txt"
@@ -426,6 +428,10 @@ class RunPathTests(unittest.TestCase):
             patcher = mock.patch.object(dsp_bench, name, return_value=value)
             patcher.start()
             self.addCleanup(patcher.stop)
+        # As if run by a tool that holds the rig: these runs reach no Pi
+        held = mock.patch.dict(os.environ, {rig_lock.HELD_ENV: "probe-host"})
+        held.start()
+        self.addCleanup(held.stop)
 
     def completed(self, rtt, code=0):
         return subprocess.CompletedProcess(
