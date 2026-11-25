@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#pragma once
 
 #include "dsp/core/pack_f32.h"
 #include "dsp/core/sample.h"
@@ -45,6 +44,10 @@ template <std::size_t N>
 }
 } // namespace detail
 
+/// @brief A curve bending less than this many octaves either way is a line: its arithmetic would divide by a difference
+/// that is 0, or flushed to it.
+inline constexpr f32 kLineOctaves = 1e-6f;
+
 /// @brief 2^y - 1, accurate relative to itself however near 0 @p y is; |y| below 126.
 /// @details y = w + f with w whole and |f| <= 1/2. `2^f - 1` is its series without the constant term, so where w is 0
 /// nothing cancels; elsewhere `2^w·(2^f - 1) + (2^w - 1)`. Rounded by the float's own last bit, with no compare.
@@ -67,10 +70,15 @@ template <class V>
 	return (fraction * power) + (power - V{1.f});
 }
 
+/// @brief Whether a curve of @p k octaves is a line.
+[[nodiscard]] inline bool is_line(f32 k) {
+	return k > -kLineOctaves && k < kLineOctaves;
+}
+
 /// @brief What a curve of @p k octaves divides by, as a factor: 1 / (2^k - 1); 0 at k = 0.
 [[nodiscard]] inline f32 curve_scale(f32 k) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-	return k == 0.f ? 0.f : 1.f / exp2m1(k);
+	return is_line(k) ? 0.f : 1.f / exp2m1(k);
 }
 
 /// @brief A falling stage from 1 at x = 0 to 0 at x = 1, `(2^(-k·x) - 2^-k) / (1 - 2^-k)`; `1 - x` at k = 0.
@@ -84,7 +92,7 @@ template <class V>
 	if (x >= 1.f) {
 		return 0.f;
 	}
-	return k == 0.f ? 1.f - x : exp2m1(k * (1.f - x)) * curve_scale(k);
+	return is_line(k) ? 1.f - x : exp2m1(k * (1.f - x)) * curve_scale(k);
 }
 
 /// @brief How much of the stage is left, 1 to 0, when the falling curve of @p k octaves is at @p level (1 to 0);
@@ -97,7 +105,7 @@ template <class V>
 	if (level >= 1.f) {
 		return 1.f;
 	}
-	if (k == 0.f) {
+	if (is_line(k)) {
 		return level;
 	}
 	// 2^(k·left) - 1 = level·(2^k - 1), by Newton's method in u = k·left from a line across each octave

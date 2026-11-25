@@ -33,7 +33,7 @@ namespace deluge::dsp::fp {
 
 /// @brief The signal times an envelope generator's level, times a gain: y = (x · e) · gain, in that order.
 /// @details @p E is an unmoded generator kernel with runs and no per-block values (an @ref Envelope). Its coefficients
-/// and state nest in the Vca's, so a lane carries its own program, stage and gain; its `prepare`, its runs and its
+/// and state nest in the Vca's, so a lane carries its own program, stage and gain. Its `prepare`, its runs and its
 /// events
 /// (`gate_on`, `gate_off`, `fade`) are forwarded: `on<&Vca<E>::gate_on>` reaches the envelope of a Mono, or of one lane
 /// of a Poly or Bank. The envelope steps once per sample, whatever the signal.

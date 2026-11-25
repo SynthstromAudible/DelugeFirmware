@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#pragma once
 
 #include "dsp/core/kernel.h"
 #include "dsp/core/pack.h"
@@ -53,12 +52,13 @@ template <class V>
 struct Segment {
 	V target{};    ///< The level the segment ends at.
 	V length{1.f}; ///< Its length, in samples; kForever to stay at `target`.
-	V curve{};     ///< Its curve, in octaves: positive is steep at the start, negative at the end, 0 is a line.
-	V next{kOff};  ///< The segment entered at its end, or kOff.
-	V fall{};      ///< A `follow` segment's length while it falls.
-	V follow{};    ///< 1 to slew to `target`, wherever it moves, until a gate event: over `length` while it rises and
-	               ///< `fall` while it falls, main's AR; a `curve` of 0 or less in a line.
-	V resume{};    ///< 1 to enter it where its curve from 0 reaches the level there is, so a retrigger is shorter.
+	V curve{}; ///< Its curve, in octaves (to 24 either way): positive is steep at the start, negative at the end, 0 is
+	           ///< a line.
+	V next{kOff}; ///< The segment entered at its end, or kOff.
+	V fall{};     ///< A `follow` segment's length while it falls.
+	V follow{};   ///< 1 to slew to `target`, wherever it moves, until a gate event: over `length` while it rises and
+	              ///< `fall` while it falls, main's AR; a `curve` of 0 or less in a line.
+	V resume{};   ///< 1 to enter it where its curve from 0 reaches the level there is, so a retrigger is shorter.
 	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
 	static constexpr auto fields = std::tuple{&Segment::target, &Segment::length, &Segment::curve, &Segment::next,
 	                                          &Segment::fall,   &Segment::follow, &Segment::resume};
@@ -232,7 +232,8 @@ struct Envelope {
 	using value_type = f32; ///< The level, 0 to 1 for the shipped programs.
 	using step_type = f32;  ///< One step per sample.
 
-	/// @brief What the owner sets.
+	/// @brief What the owner sets. A running stage is followed by its segment's number: a program of another shape set
+	/// under a sounding note goes on in that segment, whatever it is.
 	struct Settings {
 		Program program{}; ///< The stages.
 	};
@@ -272,7 +273,7 @@ struct Envelope {
 		V slew_inverse{};   ///< 1 / slew.
 		V under{};          ///< What a slew's level, kept in `from`, rounds off.
 		V fades{};          ///< 1 in a fade.
-		V index{kOff};      ///< The stage's segment, or kOff at rest.
+		V index{kOff};      ///< The stage's segment, kFading, or kOff at rest (where a gap may still be closing).
 		V at{std::bit_cast<f32>(kNowhere)}; ///< The bits of that segment's number, or kNowhere at rest or in a fade.
 		// NOLINTNEXTLINE(readability-identifier-naming): `step_fields` is the name poly_kernel reads.
 		static constexpr auto step_fields = std::tuple{&StateT::v, &StateT::a, &StateT::b, &StateT::c};
@@ -288,16 +289,23 @@ struct Envelope {
 	};
 	using State = StateT<f32>;
 
-	/// @brief The program of @p settings, every length at least a sample.
+	/// @brief The program of @p settings, made safe to run whatever its numbers: every length at least a sample, every
+	/// curve within kMostOctaves, every index a segment's or kOff.
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		Coefficients c;
 		c.segments = settings.program.segments;
 		for (Segment<f32>& g : c.segments) {
-			g.length = g.length < 1.f ? 1.f : g.length;
-			g.fall = g.fall < 1.f ? 1.f : g.fall;
+			g.length = at_least_a_sample(g.length);
+			g.fall = at_least_a_sample(g.fall);
+			if (g.follow > 0.5f) { // a slew's length is finite
+				g.length = std::min(g.length, kLongest);
+				g.fall = std::min(g.fall, kLongest);
+			}
+			g.curve = a_curve(g.curve);
+			g.next = an_index(g.next);
 		}
-		c.release = settings.program.release;
+		c.release = an_index(settings.program.release);
 		return c;
 	}
 
@@ -306,10 +314,10 @@ struct Envelope {
 		s.gap_left = 0.f;
 		enter(c, s, 0, 0.f, s.v, 0.f);
 	}
-	/// @brief Enters the release segment from the level there is; a program without one, or an envelope at rest,
-	/// ignores it.
+	/// @brief Enters the release segment from the level there is. A program without one ignores it, as does an envelope
+	/// at rest, in a fade, or already in its release.
 	static void gate_off(const Coefficients& c, State& s) {
-		if (c.release >= 0.f && s.index >= 0.f && !(s.fades > 0.f)) {
+		if (c.release >= 0.f && s.index >= 0.f && s.index != c.release && !(s.fades > 0.f)) {
 			s.gap_left = 0.f;
 			enter(c, s, 0, c.release, s.v, 0.f);
 		}
@@ -319,12 +327,13 @@ struct Envelope {
 	/// shorter of what is left of it and @p length, and an envelope at rest ignores it.
 	static void fade(State& s, f32 length) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		length = length < 1.f ? 1.f : length;
+		length = std::min(at_least_a_sample(length), kLongest);
 		if (s.index < 0.f || (s.fades > 0.f && ((1.f - s.hi) - s.lo) * s.length <= length)) {
 			return;
 		}
 		const f32 level = s.v;
 		rest(s, 0);
+		s.gap_left = 0.f;
 		s.index = kFading;
 		s.fades = 1.f;
 		s.from = level;
@@ -399,12 +408,39 @@ struct Envelope {
 	}
 
 private:
+	/// The most a curve bends, in octaves: past it nothing of the stage but its first sample is heard, and 2^curve
+	/// leaves a float's range.
+	static constexpr f32 kMostOctaves = 24.f;
+	/// The longest a slew or a fade is, in samples.
+	static constexpr f32 kLongest = 67108864.f; // 2^26
+	/// The octaves a slew may cover in a run, past which nothing of the way is left.
+	static constexpr f32 kAllOctaves = 64.f;
+
+	/// @p length, or a sample where it is less or no number.
+	[[nodiscard]] static f32 at_least_a_sample(f32 length) { return length >= 1.f ? length : 1.f; }
+	/// @p curve within kMostOctaves; a line where it is no number, or so near 0 that its arithmetic would be.
+	[[nodiscard]] static f32 a_curve(f32 curve) {
+		if (curve > kLineOctaves || curve < -kLineOctaves) {
+			return std::clamp(curve, -kMostOctaves, kMostOctaves);
+		}
+		return 0.f;
+	}
+	/// @p index, or kOff where it is no segment's.
+	[[nodiscard]] static f32 an_index(f32 index) {
+		return index >= 0.f && index < static_cast<f32>(kMaxSegments) ? index : kOff;
+	}
+
 	/// The index of a fade, which is no segment of a program.
 	static constexpr f32 kFading = static_cast<f32>(kMaxSegments);
 	/// The pieces a fade's cosine is drawn in.
 	static constexpr f32 kFadePieces = 16.f;
 	/// The octaves (times ln 2) a run may cover and its map be quadratic: its error is under 2^-17 of the stage.
 	static constexpr f32 kGentle = 0.02f;
+	/// A curve that bends less than this takes runs its quadratic covers: its affine's asymptote is far off, and
+	/// rounds.
+	static constexpr f32 kNearLine = 0.15f;
+	/// What a run near a line covers of it: a quadratic is off by the run's fall times this squared over six.
+	static constexpr f32 kNearLineRun = 0.012f;
 	/// A stage under this length whose curve grows (k below 0) takes runs of at most kGrowingRun: its affine's slope is
 	/// over 1, so rounding grows with it.
 	static constexpr f32 kGrowingLength = 1000.f;
@@ -459,7 +495,7 @@ private:
 			s.c = select(slews, c, s.c);
 			s.v = select(slews, s.from, s.v);
 			// The level at the run's end, in two floats
-			const V gone = V{0.f} - exp2m1(V{0.f} - ((s.curve * s.slew_inverse) * samples));
+			const V gone = V{0.f} - exp2m1(V{0.f} - min((s.curve * s.slew_inverse) * samples, V{kAllOctaves}));
 			const V moved = (V{0.f} - select(curved, span * gone, step * samples)) + s.under;
 			const V from = s.from + moved;
 			const V under = moved - (from - s.from);
@@ -559,10 +595,14 @@ private:
 	}
 
 	/// The most samples a run of a stage takes: to be asked again each sample for a line's slew, whose arrival the next
-	/// run counts to, and kGrowingRun for a short stage whose curve grows.
+	/// run counts to; what its quadratic covers for a curve near a line; kGrowingRun for a short stage whose curve
+	/// grows.
 	[[nodiscard]] static f32 most_of(bool follows, f32 curve, f32 length) {
 		if (follows) {
 			return curve > 0.f ? kForever : 1.f;
+		}
+		if (const f32 bend = std::fabs(curve) * std::numbers::ln2_v<f32>; bend > 0.f && bend < kNearLine) {
+			return std::max(1.f, std::floor((kNearLineRun / bend) * length));
 		}
 		return curve < 0.f && length < kGrowingLength ? kGrowingRun : kForever;
 	}
@@ -625,7 +665,8 @@ private:
 	[[gnu::noinline]] static void enter(const CoefficientsT<V>& c, StateT<V>& s, std::size_t l, f32 i, f32 from,
 	                                    f32 position) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		for (;;) {
+		// A program whose segments lead to each other with nothing left of any comes to rest
+		for (std::size_t passed = 0; passed <= kMaxSegments; ++passed) {
 			detail::set_lane_of(s.lo, l, 0.f);
 			if (i < 0.f) {
 				rest(s, l);
@@ -670,9 +711,10 @@ private:
 			from = end;
 			i = detail::lane(g.next, l);
 		}
+		rest(s, l);
 	}
 
-	/// Lane @p l at rest.
+	/// Lane @p l at rest: at 0, or on its way there in what is left of a gap.
 	template <class V>
 	static void rest(StateT<V>& s, std::size_t l) {
 		const State resting{};
@@ -687,7 +729,6 @@ private:
 		detail::set_lane_of(s.decrement, l, resting.decrement);
 		detail::set_lane_of(s.rate, l, resting.rate);
 		detail::set_lane_of(s.most, l, resting.most);
-		detail::set_lane_of(s.gap_left, l, resting.gap_left);
 		detail::set_lane_of(s.slew, l, resting.slew);
 		detail::set_lane_of(s.slew_inverse, l, resting.slew_inverse);
 		detail::set_lane_of(s.under, l, resting.under);

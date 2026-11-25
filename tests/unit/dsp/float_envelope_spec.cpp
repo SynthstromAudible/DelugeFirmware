@@ -32,6 +32,7 @@
 #include <cmath>
 #include <cppspec.hpp>
 #include <cstdint>
+#include <limits>
 #include <numbers>
 #include <vector>
 
@@ -764,6 +765,177 @@ describe float_envelope_spec_body("fp::Envelope", ${
 		for (std::size_t i = 0; i < 128; ++i) {
 			expect(out[i]).to_be_within(kTolerance).of(from + (static_cast<double>(i + 1) / 400.0));
 		}
+	});
+
+	it("slews in any length from one sample, at any curve, to its target and never past it", _ {
+		for (const f32 length : {1.f, 2.f, 4.f, 8.f, 9.f, 16.f, 40.f}) {
+			for (const f32 k : {-12.5f, 0.f, 1.f, 8.f, 12.5f, 24.f}) {
+				for (const std::size_t n : {std::size_t{1}, std::size_t{32}, std::size_t{64}, std::size_t{128}}) {
+					Mono<fp::Envelope> env;
+					std::vector<f32> out(n);
+					env.configure({.program = fp::ar(length, length * 1.5f, 1.f, {.decay = k})});
+					env.on<&fp::Envelope::gate_on>();
+					for (std::size_t t = 0; t < 1024; t += n) {
+						env.render_block(fp::Buffer{out});
+						for (std::size_t i = 0; i < n; ++i) {
+							const double gone = static_cast<double>(t + i + 1) / length;
+							const double want = k > 0.f ? 1.0 - std::exp2(-k * gone) : std::min(gone, 1.0);
+							expect(out[i]).to_be_within(kTolerance).of(want);
+						}
+					}
+				}
+			}
+		}
+	});
+
+	it("goes on closing a gap past a stage's end into rest, and only then is at 0", _ {
+		const auto bounded = [&self](const fp::Program& before, const fp::Program& after, std::size_t blocks, bool gate_off,
+		                             double steepest) {
+			Mono<fp::Envelope> env;
+			std::vector<f32> out(8);
+			env.configure({.program = before});
+			env.on<&fp::Envelope::gate_on>();
+			env.render_block(fp::Buffer{out});
+			if (gate_off) {
+				env.on<&fp::Envelope::gate_off>();
+			}
+			for (std::size_t b = 0; b < blocks; ++b) {
+				env.render_block(fp::Buffer{out});
+			}
+			f32 last = out[7];
+			const f32 gap = last;
+			env.configure({.program = after});
+			for (std::size_t b = 0; b < 16; ++b) {
+				env.render_block(fp::Buffer{out});
+				for (const f32 y : out) {
+					to_be_at_most(expect(std::abs(y - last)), (gap / 32.0) + steepest + kTolerance);
+					last = y;
+				}
+			}
+			expect(last).to_equal(0.f);
+			expect(env.state().index).to_be_less_than(0.f);
+		};
+		// A release with 8 samples left, its curve turned over; a decay with 16 left
+		bounded(fp::adsr(1.f, 1.f, 1.f, 64.f, {.attack = 0.f, .decay = 0.f, .release = -12.5f}),
+		        fp::adsr(1.f, 1.f, 1.f, 64.f, {.attack = 0.f, .decay = 0.f, .release = 12.5f}), 7, true, 0.0);
+		bounded(fp::ad(1.f, 1024.f, {.attack = 0.f, .decay = -8.f}), fp::ad(1.f, 1024.f, {.attack = 0.f, .decay = 8.f}),
+		        126, false, 0.0);
+	});
+
+	it("comes to rest, or to a level, from any program, whatever its numbers", _ {
+		constexpr f32 kNan = std::numeric_limits<f32>::quiet_NaN();
+		const auto finite = [&self](const fp::Program& p) {
+			Mono<fp::Envelope> env;
+			std::vector<f32> out(64);
+			env.configure({.program = p});
+			env.on<&fp::Envelope::gate_on>();
+			for (std::size_t b = 0; b < 40; ++b) {
+				if (b == 10) {
+					env.on<&fp::Envelope::gate_off>();
+				}
+				if (b == 20) {
+					env.on<&fp::Envelope::gate_on>();
+				}
+				env.render_block(fp::Buffer{out});
+				for (const f32 y : out) {
+					expect(std::isfinite(y)).to_equal(true);
+					to_be_at_most(expect(std::abs(y)), 1.5f);
+				}
+			}
+		};
+		finite(fp::looping(0.f, 1.f, kNan));
+		finite(fp::adsr(kNan, kNan, 0.5f, kNan, {}));
+		fp::Program resuming;
+		resuming.segments[0] = {.target = 1.f, .length = 100.f, .curve = 0.f, .next = 0.f, .resume = 1.f};
+		finite(resuming);
+		for (const f32 index : {8.f, 9.f, 1e9f, -3.f, 0.5f, kNan}) {
+			fp::Program p = fp::adsr(10.f, 10.f, 0.5f, 10.f, {});
+			p.segments[1].next = index;
+			p.release = index;
+			finite(p);
+		}
+		for (const f32 k : {1e-39f, -1e-39f, 1.5e-38f, -1.5e-38f, 1e-30f, 1e-10f, -1e-10f, 1e-4f, 40.f, -40.f, 130.f, -130.f,
+		                    1e9f, -1e9f, kNan, std::numeric_limits<f32>::infinity()}) {
+			finite(fp::adsr(50.f, 100.f, 0.5f, 100.f, {.attack = k, .decay = k, .release = k}));
+			finite(fp::ar(50.f, 100.f, 0.5f, {.decay = k, .release = k}));
+		}
+		for (const f32 length : {1e12f, std::numeric_limits<f32>::infinity(), kNan, -5.f}) {
+			Mono<fp::Envelope> env;
+			std::vector<f32> out(64);
+			env.configure({.program = fp::adsr(8.f, 8.f, 0.5f, 100.f, {})});
+			env.on<&fp::Envelope::gate_on>();
+			env.render_block(fp::Buffer{out});
+			env.on<&fp::Envelope::fade>(length);
+			for (std::size_t b = 0; b < 4; ++b) {
+				env.render_block(fp::Buffer{out});
+				for (const f32 y : out) {
+					to_be_at_least(expect(y), 0.f);
+					to_be_at_most(expect(y), 0.5f + kTolerance);
+				}
+			}
+		}
+		finite(fp::ar(kNan, fp::kForever, 0.5f, {}));
+		finite(fp::ar(fp::kForever, 50.f, 0.5f, {.decay = 0.f}));
+	});
+
+	it("follows a curve within 2^-14 at every eighth of an octave, and between them near a line", _ {
+		const auto worst = [](f32 k, f32 length, std::size_t n) {
+			return worst_error(fp::ad(1.f, length, {.attack = 0.f, .decay = k}), n,
+			                   static_cast<std::size_t>(length) + 64, {{0, true}});
+		};
+		for (int32_t e = -100; e <= 100; ++e) {
+			for (const f32 length : {64.f, 100.f, 1000.f}) {
+				for (const std::size_t n : {std::size_t{32}, std::size_t{128}}) {
+					to_be_at_most(expect(worst(static_cast<f32>(e) / 8.f, length, n)), kTolerance);
+				}
+			}
+		}
+		for (int32_t i = -200; i <= 200; ++i) {
+			const f32 k = static_cast<f32>(i) * 0.001f + 0.00025f;
+			for (const f32 length : {64.f, 80.f, 333.f, 640.f}) {
+				to_be_at_most(expect(worst(k, length, 128)), kTolerance);
+			}
+		}
+	});
+
+	it("is retimed to one sample and back every block, and passes each stage once", _ {
+		for (const std::size_t n : {std::size_t{1}, std::size_t{32}, std::size_t{128}}) {
+			Mono<fp::Envelope> env;
+			std::vector<f32> out(n);
+			const std::array<f32, 4> lengths{1.f, 60.f * 44100.f, 1.f, 1e9f};
+			env.configure({.program = fp::adsr(64.f, 5000.f, 0.25f, 100.f, {})});
+			env.on<&fp::Envelope::gate_on>();
+			f32 last = 0.f;
+			f32 index = 0.f;
+			std::size_t changes = 0;
+			for (std::size_t b = 0; b < 600; ++b) {
+				const f32 length = lengths[b % lengths.size()];
+				if (env.state().index == 1.f && env.state().hi > 1e-4f) { // a decay under way: one entered now falls in a sample
+					env.configure({.program = fp::adsr(64.f, length, 0.25f, 100.f, {})});
+				}
+				env.render_block(fp::Buffer{out});
+				changes += env.state().index == index ? 0 : 1;
+				index = env.state().index;
+				for (const f32 y : out) {
+					to_be_at_most(expect(std::abs(y - last)), (8.0 * std::numbers::ln2 / 64.0) + (1.0 / 32.0));
+					last = y;
+				}
+			}
+			to_be_at_most(expect(changes), std::size_t{2});
+			expect(env.state().index).to_equal(2.f);
+		}
+	});
+
+	it("goes on with a release that is gated off again", _ {
+		Mono<fp::Envelope> env;
+		std::vector<f32> out(128);
+		env.configure({.program = fp::adsr(1.f, 1.f, 1.f, 256.f, {})});
+		env.on<&fp::Envelope::gate_on>();
+		env.render_block(fp::Buffer{out});
+		env.on<&fp::Envelope::gate_off>();
+		env.render_block(fp::Buffer{out});
+		env.on<&fp::Envelope::gate_off>();
+		to_be_at_most(expect(samples_to_rest(env, 1, 1000)), std::size_t{129});
 	});
 
 	it("steps its lanes, in different stages, as scalar copies at the lanes' split", _ {
