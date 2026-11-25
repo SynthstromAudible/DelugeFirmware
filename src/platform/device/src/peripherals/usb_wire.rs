@@ -206,17 +206,24 @@ impl FrameSource for WireSource {
         }
         self.depth.unpack(&packed[..w])
     }
-
-    unsafe fn release(&self, _pos: u32) {}
 }
 
 #[cfg(test)]
 mod tests {
     extern crate std;
-    use super::super::usb_audio_stream::encode_sample;
     use super::*;
     use std::vec;
     use std::vec::Vec;
+
+    /// A full-scale sample as little-endian PCM of `out.len()` bytes (2 or 3), as a host reads it: its top bits, truncated.
+    fn encode_sample(sample: i32, out: &mut [u8]) {
+        let [_, b1, b2, b3] = sample.to_le_bytes();
+        match out {
+            [o0, o1] => (*o0, *o1) = (b2, b3),
+            [o0, o1, o2] => (*o0, *o1, *o2) = (b1, b2, b3),
+            _ => unreachable!(),
+        }
+    }
 
     /// Frames with no pattern, and the extremes.
     fn frames(n: usize) -> Vec<Frame> {
@@ -497,7 +504,7 @@ mod tests {
                 .collect();
             wire.receive(&sent);
             let mut block = vec![[1, 1]; 128];
-            unsafe { reader.read(&wire.source(), generation, 0, &mut block) };
+            reader.read(&wire.source(), generation, 0, &mut block);
             out.push(block);
         }
         out
@@ -534,7 +541,7 @@ mod tests {
         play(&mut wire, &mut reader, 1, 20, 0);
         let mut dry = vec![[1, 1]; 128];
         for _ in 0..6 {
-            unsafe { reader.read(&wire.source(), 1, 0, &mut dry) };
+            reader.read(&wire.source(), 1, 0, &mut dry);
         }
         assert!(dry.iter().all(|f| *f == SILENCE), "ran dry");
         let blocks = play(&mut wire, &mut reader, 1, 20, 5000);
@@ -561,7 +568,7 @@ mod tests {
             wire.receive(&sent);
         }
         let mut block = vec![[1, 1]; 128];
-        unsafe { reader.read(&wire.source(), 1, 0, &mut block) };
+        reader.read(&wire.source(), 1, 0, &mut block);
         let newest = (90_000 + 20 * 128 - 1) << 8;
         let (oldest_kept, masked_newest) = ((90_000 + 20 * 128 - 1024) << 8, newest & !0xFFFF);
         for f in block.iter().filter(|f| **f != SILENCE) {

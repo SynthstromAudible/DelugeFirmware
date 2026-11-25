@@ -148,6 +148,10 @@ rig-harness = ["rtt"]
 ## lateness and the drive's overruns, printed as an `AUDIO-TIMING` line every two seconds of audio. Never in a shipping image.
 audio-timing = ["rtt"]
 
+## USB audio's DMA rings in SDRAM rather than SRAM, to measure what that costs the render. Not for shipping images
+## until it is measured.
+usb-rings-sdram = []
+
 ## Link the host-built C++ app into the host binary: bindgen the libdeluge headers for the host
 ## ABI and export the C-ABI crates' symbols it calls.
 host_app = [

@@ -38,8 +38,8 @@ rza1_hal::bind_interrupts!(struct UsbIrqs {
     USB0 => rza1_hal::usb::DeviceInterruptHandler<rza1_hal::peripherals::USB0>;
 });
 
-/// USB0's device interrupt, with its time metered: it moves the audio packets, thousands of times a
-/// second, inside whatever it interrupts.
+/// USB0's device interrupt, with its time metered: it carries control requests and MIDI, inside whatever it
+/// interrupts.
 struct MeteredDeviceInterrupt;
 
 impl rza1_hal::interrupt::Handler<rza1_hal::interrupt::typelevel::USB0> for MeteredDeviceInterrupt {
@@ -112,15 +112,20 @@ abi_pin!(deluge_usb_device_start);
 
 /// Background task: waits for [`deluge_usb_device_start`], builds the device it asked for, then
 /// runs the embassy-usb device state machine (enumeration, control requests) and the two MIDI 1.0
-/// endpoint pumps. The audio streams need no task: their packets move in the USB0 interrupt.
+/// endpoint pumps. The audio streams need no task: a DMA channel each moves their packets.
 #[embassy_executor::task]
-pub async fn usb_task(driver: Rusb1Driver<'static>) {
+pub async fn usb_task(
+    driver: Rusb1Driver<'static>,
+    to_host_dma: rza1_hal::dmac::Dma<'static>,
+    from_host_dma: rza1_hal::dmac::Dma<'static>,
+) {
     START.wait().await;
     let with_audio = STARTED.load(Ordering::Acquire) == STARTED_WITH_AUDIO;
 
     let mut config = Config::new(USB_VID, USB_PID);
     config.manufacturer = Some("Synthstrom Audible");
     config.product = Some("Deluge");
+    config.device_release = 0x0020; // the configuration's descriptors: hosts cache them by this
     config.self_powered = false;
     config.max_power = 250; // 500 mA
 
@@ -138,7 +143,7 @@ pub async fn usb_task(driver: Rusb1Driver<'static>) {
 
     // The audio function goes first: its interface numbers are fixed from 0.
     if with_audio {
-        let handler = usb_audio::build(&mut builder);
+        let handler = usb_audio::build(&mut builder, to_host_dma, from_host_dma);
         // SAFETY: written once, here; the builder holds the only reference from now on.
         let handler_ref = unsafe { (*addr_of_mut!(AUDIO_HANDLER)).write(handler) };
         builder.handler(handler_ref);

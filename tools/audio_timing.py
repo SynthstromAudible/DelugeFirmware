@@ -5,8 +5,9 @@
 queue came to running dry, overruns, the render task's worst wake lateness and the drive's overruns,
 then each USB audio stream's frames, late services, missed microframes and longest gap (`in` to the
 host, `out` from it), and the frames lost: those sent to the host less those that came from it. That
-difference means loss only while a host that follows our implicit feedback runs both streams. The last
-column is the USB interrupt's share of real time.
+difference means loss only while a host that follows our implicit feedback runs both streams. Then comes
+the USB interrupt's share of real time, and, from an image that moves the streams by DMA (which has no
+services to be late), how often the DMA to the host ran dry and the fewest and most packets queued for it.
 `overhead --small A --large B` fits each render's fixed cost and its cost per frame from two captures
 whose renders are of two sizes (the drive renders 128 frames, so one of them comes from an image whose
 drive renders another size).
@@ -34,16 +35,28 @@ LOADED = re.compile(r"STREAM-BENCH-LOADED ")
 class UsbStream:
     packets: int = 0
     frames: int = 0
-    late: int = 0
-    missed: int = 0
-    max_gap_us: int = 0
+    # None until a line from an image that moves the stream in its interrupt is added.
+    late: int | None = None
+    missed: int | None = None
+    max_gap_us: int | None = None
+    # None until a line from an image that moves the stream by DMA is added.
+    stops: int | None = None
+    ahead: tuple[int, int] | None = None
 
     def add(self, f: dict[str, str], name: str) -> None:
-        self.packets += int(f[f"{name}_packets"])
+        self.packets += int(f.get(f"{name}_packets", 0))
         self.frames += int(f[f"{name}_frames"])
-        self.late += int(f[f"{name}_late"])
-        self.missed += int(f[f"{name}_missed"])
-        self.max_gap_us = max(self.max_gap_us, int(f[f"{name}_max_gap_us"]))
+        if f"{name}_late" in f:
+            self.late = (self.late or 0) + int(f[f"{name}_late"])
+            self.missed = (self.missed or 0) + int(f[f"{name}_missed"])
+            self.max_gap_us = max(self.max_gap_us or 0, int(f[f"{name}_max_gap_us"]))
+        if f"{name}_stops" in f:
+            self.stops = (self.stops or 0) + int(f[f"{name}_stops"])
+        if f"{name}_ahead_min" in f:
+            low, high = int(f[f"{name}_ahead_min"]), int(f[f"{name}_ahead_max"])
+            if self.ahead is not None:
+                low, high = min(low, self.ahead[0]), max(high, self.ahead[1])
+            self.ahead = (low, high)
 
 
 @dataclass
@@ -165,10 +178,20 @@ def read(path: str) -> dict[str, Phase]:
     return parse(Path(path).read_text(errors="replace").splitlines())
 
 
+def cell(v: int | None) -> str:
+    return "-" if v is None else str(v)
+
+
 def usb_columns(s: UsbStream | None) -> list[str]:
     if s is None:
         return ["-"] * 4
-    return [str(v) for v in (s.frames, s.late, s.missed, s.max_gap_us)]
+    return [cell(v) for v in (s.frames, s.late, s.missed, s.max_gap_us)]
+
+
+def dma_columns(s: UsbStream | None) -> list[str]:
+    if s is None:
+        return ["-"] * 2
+    return [cell(s.stops), "-" if s.ahead is None else f"{s.ahead[0]}..{s.ahead[1]}"]
 
 
 def row(capture: str, name: str, p: Phase) -> str:
@@ -190,6 +213,7 @@ def row(capture: str, name: str, p: Phase) -> str:
         *usb_columns(p.usb_out),
         "-" if p.usb_lost_frames is None else str(p.usb_lost_frames),
         "-" if p.usb_interrupt_share is None else f"{p.usb_interrupt_share:.1%}",
+        *dma_columns(p.usb_in),
     ]
     return f"| {' | '.join(cells)} |"
 
@@ -217,6 +241,8 @@ HEADERS = [
     "out max gap µs",
     "lost frames",
     "usb irq",
+    "in stops",
+    "in queued",
 ]
 
 

@@ -27,4 +27,5 @@ pub(crate) mod usb_audio;
 // Also on host: the PCM, ring and pacing logic is pure, for the host tests.
 pub(crate) mod usb_audio_stream;
 // Also on host: packing, packet sizes and the DMA ring reader are pure, for the host tests.
+pub(crate) mod usb_streams;
 pub(crate) mod usb_wire;
