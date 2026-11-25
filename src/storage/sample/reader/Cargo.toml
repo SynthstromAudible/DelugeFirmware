@@ -24,6 +24,7 @@ deluge_storage_resource = { path = "../../resource" }
 deluge_storage_sample_fill = { path = "../fill", features = ["native_fill"] }
 
 [dev-dependencies]
+deluge_storage_sample_peaks = { path = "../peaks", features = ["test_support"] }
 deluge_base_alloc = { path = "../../../base/alloc" }
 critical-section = { version = "1", features = ["std"] }
 

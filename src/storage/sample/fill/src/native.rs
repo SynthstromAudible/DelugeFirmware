@@ -201,6 +201,15 @@ pub unsafe fn native_finish(chunk_backing: *mut c_void, read_ok: bool) -> bool {
         next_view,
     );
 
+    fold_peaks(
+        asset,
+        index,
+        &ctx,
+        (chunk_backing, self_state),
+        prev_lease.map(|p| (p, prev_state)),
+        next_lease.map(|p| (p, next_state)),
+    );
+
     // Write back the convert states, then release the neighbour leases.
     // SAFETY: `chunk_backing` is still the leased chunk.
     unsafe { crate::chunk::set_convert_state(chunk_backing, from_logic_state(self_state)) };
@@ -223,4 +232,97 @@ pub unsafe fn native_finish(chunk_backing: *mut c_void, read_ok: bool) -> bool {
     // SAFETY: `mgr` and `chunk_backing` are both still valid.
     unsafe { deluge_resource_mark_ready(mgr, chunk_backing) };
     true
+}
+
+/// Folds the peaks of the blocks the just-filled cluster `index` (and its leased neighbours) holds into the index bound
+/// to `asset`, if one is.
+///
+/// A payload's bytes count as converted audio as follows. A native file needs no convert. Otherwise a boundary word
+/// straddling two clusters is converted only by a stitch with both present: a cluster's head word once its previous
+/// cluster has been present (this stitch, or `start_converted`), its tail word once its next has (this stitch, or
+/// `end_converted`). The first audio cluster has no head word to wait for and the last no tail word. The slack holds
+/// the next cluster's converted head only when this stitch wrote it.
+fn fold_peaks(
+    asset: u32,
+    index: u32,
+    ctx: &crate::FillContext,
+    this: (*mut c_void, crate::fill_logic::ConvertState),
+    prev: Option<(*mut c_void, crate::fill_logic::ConvertState)>,
+    next: Option<(*mut c_void, crate::fill_logic::ConvertState)>,
+) {
+    use deluge_storage_sample_peaks::tap::{ClusterGeometry, ClusterView, fold_cluster, lookup};
+    let Some(peaks) = lookup(asset) else {
+        return;
+    };
+    let cs = ctx.cluster_size;
+    let payload_len = cs as usize + 7;
+    let native = ctx.raw_data_format == 0;
+    let first_audio = ctx.audio_data_start_pos_bytes >> ctx.cluster_size_magnitude;
+    let last_audio = u32::try_from(ctx.first_cluster_index_with_no_audio_data)
+        .unwrap_or(0)
+        .saturating_sub(1);
+    let head_from = |c: u32, converted: bool| {
+        if native || converted || c == first_audio {
+            0
+        } else {
+            4
+        }
+    };
+    let tail_end = |c: u32, converted: bool| {
+        if native || converted || c >= last_audio {
+            cs
+        } else {
+            cs - 4
+        }
+    };
+    let view = |p: *mut c_void, c: u32, valid_from: u32, valid_end: u32| ClusterView {
+        index: c,
+        // SAFETY: `p` is a leased, resident chunk backing whose payload holds `cluster_size + 7` bytes; the view is
+        // read only while the lease is held, before the caller releases it.
+        payload: unsafe { core::slice::from_raw_parts(crate::chunk::payload(p), payload_len) },
+        valid_from,
+        valid_end,
+    };
+    let geo = ClusterGeometry {
+        audio_start: u64::from(ctx.audio_data_start_pos_bytes),
+        audio_length: ctx.audio_data_length_bytes,
+        cluster_size_log2: ctx.cluster_size_magnitude,
+        byte_depth: ctx.byte_depth,
+        channels: ctx.num_channels,
+    };
+    // This stitch converted this cluster's head (with `prev`) and tail and slack (with `next`), and `prev`'s tail and
+    // slack, and `next`'s head.
+    let this_view = view(
+        this.0,
+        index,
+        if prev.is_some() {
+            0
+        } else {
+            head_from(index, this.1.start_converted)
+        },
+        if next.is_some() {
+            cs + 7
+        } else {
+            tail_end(index, this.1.end_converted)
+        },
+    );
+    let prev_view = prev.map(|(p, st)| {
+        view(
+            p,
+            index - 1,
+            head_from(index - 1, st.start_converted),
+            cs + 7,
+        )
+    });
+    let next_view =
+        next.map(|(p, st)| view(p, index + 1, 0, tail_end(index + 1, st.end_converted)));
+    // SAFETY: `peaks` holds the reference `lookup` took until the release below.
+    fold_cluster(
+        unsafe { peaks.as_ref() },
+        &geo,
+        prev_view,
+        this_view,
+        next_view,
+    );
+    deluge_storage_sample_peaks::PeakIndex::release(peaks);
 }

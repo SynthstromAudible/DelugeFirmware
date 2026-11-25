@@ -913,6 +913,48 @@ mod tests {
         }
 
         #[test]
+        fn each_filled_cluster_folds_its_peaks_into_the_bound_index() {
+            use deluge_storage_sample_peaks::{mem, peak_of_frames, PeakIndex};
+            let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            set_force_read_failure(false);
+            set_fail_at_byte_offset(None);
+            let (_handle, asset) = harness(geo(3 * CLUSTER_SIZE as u64)); // 3 full clusters, 16-bit mono
+            mem::host::install();
+            let frames = u64::from(3 * CLUSTER_SIZE / 2);
+            let index = PeakIndex::create(frames, false, frames).expect("index");
+            // SAFETY: released at the end of the test.
+            let peaks = unsafe { index.as_ref() };
+            peaks.ensure_level0(0, frames);
+            deluge_storage_sample_peaks::tap::bind(asset, peaks);
+
+            // Read through every cluster, so each one is filled once.
+            let mut reader = Reader::open(asset, 0, 1, ReadHint::Cached);
+            let mut read = 0u64;
+            while read < frames {
+                let (ptr, n) = reader.window();
+                assert!(!ptr.is_null() && n > 0, "frame {read} fills");
+                read += u64::from(n);
+                reader.advance(n);
+            }
+            drop(reader);
+
+            // One cluster is 256 frames: one block each, each folded by its own fill.
+            for c in 0..3u32 {
+                let want = peak_of_frames(&expected_cluster_bytes(c), 2);
+                assert!(peaks.block_complete(u64::from(c)), "block {c} complete");
+                assert_eq!(
+                    peaks.block_peak(u64::from(c)),
+                    Some(want),
+                    "block {c}'s peak"
+                );
+            }
+            assert_eq!(peaks.next_unscanned(0), None);
+            deluge_storage_sample_peaks::tap::unbind(asset);
+            PeakIndex::release(index);
+            PeakIndex::collect();
+        }
+
+        #[test]
         fn window_past_the_last_audio_frame_is_eof_not_a_failure() {
             let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             set_force_read_failure(false);
