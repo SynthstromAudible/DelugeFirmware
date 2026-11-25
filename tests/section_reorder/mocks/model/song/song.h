@@ -26,6 +26,7 @@ struct SessionMacro {
 };
 // Match the production names used by the consequence; the remaining Song state is not involved.
 struct Song {
+	int32_t songGridScrollY = 0;
 	ClipArray sessionClips;
 	std::array<Section, 24> sections{};
 	std::array<SessionMacro, 8> sessionMacros{};

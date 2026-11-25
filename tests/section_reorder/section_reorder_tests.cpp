@@ -137,6 +137,30 @@ void reversedPreview() {
 	check(no_move.revert(AFTER, &stack) == Error::NONE);
 	check(song.sections == original);
 }
+void refocusViewport() {
+	for (uint8_t first = 0; first < kMaxNumSections; ++first) {
+		for (uint8_t second = 0; second < kMaxNumSections; ++second) {
+			Song song{};
+			ModelStack stack{.song = &song};
+			ConsequenceSectionReorder change(first, second);
+			for (int32_t scroll = -kDisplayHeight; scroll <= kMaxNumSections; ++scroll) {
+				for (auto time : {BEFORE, AFTER}) {
+					song.songGridScrollY = scroll; // Scroll away independently before undo and redo.
+					check(change.revert(time, &stack) == Error::NONE);
+					int32_t destination = time == BEFORE ? first : second;
+					check(song.songGridScrollY >= 0);
+					check(song.songGridScrollY <= kMaxNumSections - kDisplayHeight);
+					check(destination >= song.songGridScrollY);
+					check(destination < song.songGridScrollY + kDisplayHeight);
+					if (scroll >= 0 && scroll <= kMaxNumSections - kDisplayHeight && destination >= scroll
+					    && destination < scroll + kDisplayHeight) {
+						check(song.songGridScrollY == scroll);
+					}
+				}
+			}
+		}
+	}
+}
 } // namespace
 
 int main() try {
@@ -154,6 +178,7 @@ int main() try {
 	}
 	successiveMoves();
 	reversedPreview();
+	refocusViewport();
 	std::cout << "Passed 14352 confirmed-placement scenarios, repeated undo/redo and successive moves\n";
 } catch (...) {
 	std::cerr << "Unexpected exception during section reorder test\n";

@@ -19,6 +19,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
+#include <algorithm>
 #include <utility>
 
 void ConsequenceSectionReorder::swapSections(Song& song, uint8_t first_section, uint8_t second_section) {
@@ -57,5 +58,11 @@ Error ConsequenceSectionReorder::revert(TimeType time, ModelStack* model_stack) 
 	else {
 		moveSection(*model_stack->song, first_section_, second_section_);
 	}
+	// Keep the destination visible without moving a viewport that already shows it.
+	int32_t destination_section = time == TimeType::BEFORE ? first_section_ : second_section_;
+	auto minimum_scroll = std::max<int32_t>(0, destination_section - kDisplayHeight + 1);
+	auto maximum_scroll = std::min<int32_t>(destination_section, kMaxNumSections - kDisplayHeight);
+	model_stack->song->songGridScrollY =
+	    std::clamp<int32_t>(model_stack->song->songGridScrollY, minimum_scroll, maximum_scroll);
 	return Error::NONE;
 }
