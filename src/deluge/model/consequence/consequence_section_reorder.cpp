@@ -42,7 +42,20 @@ void ConsequenceSectionReorder::swapSections(Song& song, uint8_t first_section, 
 	swap_section_number(session.lastSectionArmed);
 }
 
-Error ConsequenceSectionReorder::revert(TimeType /*time*/, ModelStack* model_stack) {
-	swapSections(*model_stack->song, first_section_, second_section_);
+void ConsequenceSectionReorder::moveSection(Song& song, uint8_t from_section, uint8_t to_section) {
+	while (from_section != to_section) {
+		const auto next_section = static_cast<uint8_t>(from_section + (from_section < to_section ? 1 : -1));
+		swapSections(song, from_section, next_section);
+		from_section = next_section;
+	}
+}
+
+Error ConsequenceSectionReorder::revert(TimeType time, ModelStack* model_stack) {
+	if (time == TimeType::BEFORE) {
+		moveSection(*model_stack->song, second_section_, first_section_);
+	}
+	else {
+		moveSection(*model_stack->song, first_section_, second_section_);
+	}
 	return Error::NONE;
 }

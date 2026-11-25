@@ -20,12 +20,13 @@
 #include "model/consequence/consequence.h"
 #include <cstdint>
 
-// A section swap is its own inverse, so undo and redo need only the two section IDs.
+// A confirmed placement is a sequence of adjacent swaps between the start and end rows.
 class ConsequenceSectionReorder final : public Consequence {
 public:
 	ConsequenceSectionReorder(uint8_t first_section, uint8_t second_section)
 	    : first_section_(first_section), second_section_(second_section) {}
 	Error revert(TimeType time, ModelStack* model_stack) override;
+	static void moveSection(Song& song, uint8_t from_section, uint8_t to_section);
 	static void swapSections(Song& song, uint8_t first_section, uint8_t second_section);
 
 private:

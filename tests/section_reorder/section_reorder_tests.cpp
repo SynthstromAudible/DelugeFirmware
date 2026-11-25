@@ -16,12 +16,15 @@ void check(bool passed) {
 	}
 }
 
-uint8_t swapped(uint8_t value, uint8_t first, uint8_t second) {
+uint8_t moved(uint8_t value, uint8_t first, uint8_t second) {
 	if (value == first) {
 		return second;
 	}
-	if (value == second) {
-		return first;
+	if (first < second && value > first && value <= second) {
+		return static_cast<uint8_t>(value - 1);
+	}
+	if (first > second && value >= second && value < first) {
+		return static_cast<uint8_t>(value + 1);
 	}
 	return value;
 }
@@ -56,19 +59,20 @@ void roundTrip(uint8_t first, uint8_t second, uint8_t armed) {
 	session.lastSectionArmed = armed;
 	ModelStack stack{.song = &song};
 	ConsequenceSectionReorder change(first, second);
-	ConsequenceSectionReorder::swapSections(song, first, second);
-	check(song.sections.at(first) == original_sections.at(second));
-	check(song.sections.at(second) == original_sections.at(first));
+	ConsequenceSectionReorder::moveSection(song, first, second);
+	for (size_t index = 0; index < song.sections.size(); ++index) {
+		check(song.sections.at(moved(static_cast<uint8_t>(index), first, second)) == original_sections.at(index));
+	}
 	for (size_t index = 0; index < clips.size(); ++index) {
 		const auto before = original_clips.at(index).section;
-		check(clips.at(index).section == swapped(before, first, second));
+		check(clips.at(index).section == moved(before, first, second));
 	}
 	check(song.sessionMacros.at(0).section == second);
-	check(song.sessionMacros.at(1).section == first);
+	check(song.sessionMacros.at(1).section == moved(second, first, second));
 	for (size_t index = 2; index < 7; ++index) {
 		check(song.sessionMacros.at(index) == original_macros.at(index));
 	}
-	check(session.lastSectionArmed == swapped(armed, first, second));
+	check(session.lastSectionArmed == moved(armed, first, second));
 	const auto moved_sections = song.sections;
 	const auto moved_macros = song.sessionMacros;
 	const auto moved_clips = clips;
@@ -108,6 +112,31 @@ void successiveMoves() {
 	check(second.revert(AFTER, &stack) == Error::NONE);
 	check(song.sections == moved);
 }
+void reversedPreview() {
+	Song song{};
+	for (size_t index = 0; index < song.sections.size(); ++index) {
+		song.sections.at(index).colour = static_cast<uint8_t>(index);
+	}
+	const auto original = song.sections;
+	// Preview 3 -> 7 -> 1 -> 5, then confirm just the final placement.
+	ConsequenceSectionReorder::moveSection(song, 3, 7);
+	ConsequenceSectionReorder::moveSection(song, 7, 1);
+	ConsequenceSectionReorder::moveSection(song, 1, 5);
+	const auto final_placement = song.sections;
+	ModelStack stack{.song = &song};
+	ConsequenceSectionReorder confirmed(3, 5);
+	check(confirmed.revert(BEFORE, &stack) == Error::NONE);
+	check(song.sections == original);
+	check(confirmed.revert(AFTER, &stack) == Error::NONE);
+	check(song.sections == final_placement);
+	// Cancelling a preview, or returning to its start, restores all rows.
+	ConsequenceSectionReorder::moveSection(song, 5, 3);
+	check(song.sections == original);
+	ConsequenceSectionReorder no_move(3, 3);
+	check(no_move.revert(BEFORE, &stack) == Error::NONE);
+	check(no_move.revert(AFTER, &stack) == Error::NONE);
+	check(song.sections == original);
+}
 } // namespace
 
 int main() try {
@@ -124,7 +153,8 @@ int main() try {
 		}
 	}
 	successiveMoves();
-	std::cout << "Passed 14352 section-swap scenarios, repeated undo/redo and successive moves\n";
+	reversedPreview();
+	std::cout << "Passed 14352 confirmed-placement scenarios, repeated undo/redo and successive moves\n";
 } catch (...) {
 	std::cerr << "Unexpected exception during section reorder test\n";
 	return 1;

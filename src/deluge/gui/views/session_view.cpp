@@ -1093,9 +1093,10 @@ void SessionView::clipPressEnded() {
 	}
 
 	if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
-		// A mode-pad press can cancel a section move before release. Restore the normal
+		// A mode-pad press cancels an unconfirmed section move. Restore the normal
 		// viewport here too, but only redraw if snapping back actually changes it.
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			gridFinishSectionMove(false);
 			const auto scroll_y = std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - kGridHeight);
 			if (scroll_y != currentSong->songGridScrollY) {
 				currentSong->songGridScrollY = scroll_y;
@@ -3997,22 +3998,10 @@ ActionResult SessionView::gridMoveSection(int32_t offset) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	// Reserve the undo record before changing the song so a failed allocation
-	// cannot turn a section move into an unrecorded edit.
-	void* memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceSectionReorder));
-	if (memory == nullptr) {
-		display->displayError(Error::INSUFFICIENT_RAM);
-		return ActionResult::DEALT_WITH;
+	// Keep the original placement until the held pad is released.
+	if (section_move_start_ < 0) {
+		section_move_start_ = old_section;
 	}
-	Action* action = actionLogger.getNewAction(ActionType::SECTION_REORDER, ActionAddition::NOT_ALLOWED);
-	if (action == nullptr) {
-		delugeDealloc(memory);
-		display->displayError(Error::INSUFFICIENT_RAM);
-		return ActionResult::DEALT_WITH;
-	}
-	gsl::owner<Consequence*> consequence =
-	    new (memory) ConsequenceSectionReorder(static_cast<uint8_t>(old_section), static_cast<uint8_t>(new_section));
-	action->addConsequence(consequence);
 	ConsequenceSectionReorder::swapSections(*currentSong, static_cast<uint8_t>(old_section),
 	                                        static_cast<uint8_t>(new_section));
 
@@ -4032,6 +4021,38 @@ ActionResult SessionView::gridMoveSection(int32_t offset) {
 	// Scrolling shifts the clip rows as well as the section pads; refresh the pads only.
 	requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
 	return ActionResult::DEALT_WITH;
+}
+
+void SessionView::gridFinishSectionMove(bool confirm) {
+	if (section_move_start_ < 0) {
+		return;
+	}
+	const auto start_section = static_cast<uint8_t>(section_move_start_);
+	section_move_start_ = -1;
+	if (start_section == sectionPressed) {
+		return; // Returning to the original placement creates no undo action.
+	}
+
+	if (confirm) {
+		void* memory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceSectionReorder));
+		if (memory != nullptr) {
+			Action* action = actionLogger.getNewAction(ActionType::SECTION_REORDER, ActionAddition::NOT_ALLOWED);
+			if (action != nullptr) {
+				gsl::owner<Consequence*> consequence =
+				    new (memory) ConsequenceSectionReorder(start_section, sectionPressed);
+				action->addConsequence(consequence);
+				return;
+			}
+			delugeDealloc(memory);
+		}
+		display->displayError(Error::INSUFFICIENT_RAM);
+	}
+
+	// Cancellation or allocation failure restores the unconfirmed placement.
+	ConsequenceSectionReorder::moveSection(*currentSong, sectionPressed, start_section);
+	currentSong->songGridScrollY += static_cast<int32_t>(start_section) - sectionPressed;
+	sectionPressed = start_section;
+	requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
 }
 
 void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
@@ -4147,12 +4168,16 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 
 		// Immediate release of the pad arms the section, holding allows changing repeats
 		if (on) {
+			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+				return ActionResult::DEALT_WITH;
+			}
 			enterUIMode(UI_MODE_HOLDING_SECTION_PAD);
 			sectionPressed = section;
 			beginEditingSectionRepeatsNum();
 		}
 		else {
-			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD) && section == sectionPressed) {
+				gridFinishSectionMove(true);
 				// Blue-mode release ends the temporary overscroll used to keep the section under the finger.
 				currentSong->songGridScrollY =
 				    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - kGridHeight);
@@ -4325,6 +4350,9 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 		}
 
 		if (on) {
+			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+				return ActionResult::DEALT_WITH;
+			}
 			// Immediate launch if shift pressed
 			if (Buttons::isShiftButtonPressed()) {
 				gridStartSection(section, true);
@@ -4342,7 +4370,8 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 			}
 		}
 		else {
-			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD) && section == sectionPressed) {
+				gridFinishSectionMove(true);
 				// A short press (timer not yet fired) arms the section; a hold just edits repeats
 				if (performActionOnSectionPadRelease) {
 					session.armSection(sectionPressed, kInternalButtonPressLatency);
