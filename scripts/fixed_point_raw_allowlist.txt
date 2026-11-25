@@ -164,9 +164,8 @@ src/synth/matrix/evaluator.cpp raw=0 boundary=1
 src/synth/matrix/matrix_fixed.h raw=0 boundary=18
 src/synth/matrix/param_format.h raw=0 boundary=1
 src/synth/modulation/cable_depth.h raw=0 boundary=4
-src/synth/modulation/envelope.cpp raw=0 boundary=8
+src/synth/modulation/envelope.cpp raw=0 boundary=2
 src/synth/modulation/lfo.h raw=0 boundary=13
-src/synth/modulation/segment_envelope.cpp raw=0 boundary=2
 src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=3
 src/synth/sources/input/input_source.cpp raw=0 boundary=2
 src/synth/sources/input/live/live_input.cpp raw=0 boundary=1
@@ -182,6 +181,6 @@ src/synth/sources/supersaw/supersaw_source.h raw=0 boundary=4
 src/synth/sources/va/va_shapes.cpp raw=0 boundary=15
 src/synth/sources/wavetable/wavetable_source.cpp raw=0 boundary=11
 src/synth/voice/unison.h raw=0 boundary=1
-src/synth/voice/voice.cpp raw=0 boundary=28
+src/synth/voice/voice.cpp raw=0 boundary=29
 src/ui/scenes/menu/nodes/sound_compressor.cpp raw=0 boundary=5
 src/ui/scenes/services/knob_push.cpp raw=0 boundary=5

@@ -23,7 +23,6 @@
 #include "dsp/core/stereo_sample.h"
 #include "dsp/fixed/curves/param_curve.h"
 #include "dsp/fixed/mix/track_monitor.h"
-#include "dsp/fixed/tables/decay_small.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -248,10 +247,9 @@ bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::
 
 renderEnvelope:
 			// The centred envelope made unipolar: halved, plus a half
-			const deluge::dsp::Q<31> amplitudeLocal =
-			    add_wrap(halve_floor(envelope.render(render.size(), attack, 8388608, deluge::dsp::Q<31>::max(), 0,
-			                                         deluge::dsp::fixed::tables::kDecaySmall4.data())),
-			             deluge::dsp::q<31>(0.5));
+			const deluge::dsp::Q<31> amplitudeLocal = add_wrap(
+			    halve_floor(envelope.render_audio_clip(render.size(), attack, 8388608, deluge::dsp::Q<31>::max(), 0)),
+			    deluge::dsp::q<31>(0.5));
 
 			if (envelope.stage() >= Envelope::Stage::OFF) {
 				if (activeAudioClip.doingLateStart) {

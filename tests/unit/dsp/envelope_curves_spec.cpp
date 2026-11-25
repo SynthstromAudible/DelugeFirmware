@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// SegmentEnvelope against main's curves sampled at their exact times: each mode, each curve, a rate modulated every
+// Envelope against main's curves sampled at their exact times: each mode, each curve, a rate modulated every
 // block, a retrigger mid-release, the fast release and a held level of 0. Within 2^-16 of full scale, every block.
 
-#include "synth/modulation/segment_envelope.h"
+#include "synth/modulation/envelope.h"
 
 #include <cmath>
 #include <cppspec.hpp>
@@ -33,7 +33,7 @@ using deluge::dsp::Q;
 using deluge::synth::EnvelopeFollow;
 using deluge::synth::EnvelopeMode;
 using deluge::synth::EnvelopeState;
-using Stage = SegmentEnvelope::Stage;
+using Stage = Envelope::Stage;
 
 namespace {
 
@@ -70,14 +70,14 @@ constexpr uint32_t kRelease = rate_for(1200);
 } // namespace
 
 // clang-format off
-describe segment_envelope_spec_body("SegmentEnvelope", ${
+describe envelope_curves_spec_body("Envelope", ${
 	it("runs ADSR along main's curves at every curve control", _ {
 		for (int32_t curve : {-50, -20, 0, 1, 16, 32, 50}) {
 			const EnvelopeState s = state(EnvelopeMode::ADSR, curve);
 			const double ka = curve * 0.125, kd = curve * 0.25;
 			const double la = length(kAttack), ld = length(kDecay), lr = length(kRelease);
 			const double sustain = 0.5;
-			SegmentEnvelope env;
+			Envelope env;
 			(void)env.note_on(false, q31(sustain), s);
 			double at_off = 0.0;
 			for (uint32_t b = 0; b < 128; ++b) {
@@ -107,7 +107,7 @@ describe segment_envelope_spec_body("SegmentEnvelope", ${
 		const EnvelopeState s = state(EnvelopeMode::AHD, 32);
 		const uint32_t hold_param = rate_for(4000); // the hold is an eighth: 500 samples
 		const double la = length(kAttack), lh = length(hold_param * 8), ld = length(kRelease);
-		SegmentEnvelope env;
+		Envelope env;
 		(void)env.note_on(false, q31(0.5), s);
 		bool held = false;
 		for (uint32_t b = 0; b < 128; ++b) {
@@ -131,7 +131,7 @@ describe segment_envelope_spec_body("SegmentEnvelope", ${
 		for (int32_t curve : {0, 32}) {
 			const EnvelopeState s = state(EnvelopeMode::AR, curve);
 			const double k = curve * 0.25;
-			SegmentEnvelope env;
+			Envelope env;
 			(void)env.note_on(false, q31(0.7), s);
 			double model = 0.0;
 			for (uint32_t b = 0; b < 100; ++b) {
@@ -149,7 +149,7 @@ describe segment_envelope_spec_body("SegmentEnvelope", ${
 
 	it("raises MPE's target by its follow input", _ {
 		const EnvelopeState s = state(EnvelopeMode::MPE, 32, EnvelopeFollow::Y);
-		SegmentEnvelope env;
+		Envelope env;
 		(void)env.note_on(false, q31(0.25), s);
 		double model = 0.0;
 		for (uint32_t b = 0; b < 100; ++b) {
@@ -164,7 +164,7 @@ describe segment_envelope_spec_body("SegmentEnvelope", ${
 
 	it("carries a decay on from where it is when its rate changes every block", _ {
 		const EnvelopeState s = state(EnvelopeMode::ADSR, 32);
-		SegmentEnvelope env;
+		Envelope env;
 		(void)env.note_on(true, q31(0.3), s); // straight to decay at full level
 		double x = 0.0;
 		for (uint32_t b = 0; b < 60; ++b) {
@@ -179,7 +179,7 @@ describe segment_envelope_spec_body("SegmentEnvelope", ${
 	it("resumes from the level it had when retriggered mid-release, in every mode", _ {
 		for (EnvelopeMode mode : {EnvelopeMode::ADSR, EnvelopeMode::AHD, EnvelopeMode::AR, EnvelopeMode::MPE}) {
 			const EnvelopeState s = state(mode, 32);
-			SegmentEnvelope env;
+			Envelope env;
 			(void)env.note_on(false, q31(0.6), s);
 			double before = 0.0;
 			for (uint32_t b = 0; b < 80; ++b) {
@@ -202,7 +202,7 @@ describe segment_envelope_spec_body("SegmentEnvelope", ${
 
 	it("fast-releases along a raised cosine at twice the release rate or the rate given", _ {
 		const EnvelopeState s = state(EnvelopeMode::ADSR, 32);
-		SegmentEnvelope env;
+		Envelope env;
 		(void)env.note_on(false, q31(0.5), s);
 		double l0 = 0.0;
 		for (uint32_t b = 0; b < 100; ++b) {
@@ -221,7 +221,7 @@ describe segment_envelope_spec_body("SegmentEnvelope", ${
 
 	it("keeps a held AR note at level 0 alive, and frees it after release", _ {
 		const EnvelopeState s = state(EnvelopeMode::AR, 32);
-		SegmentEnvelope env;
+		Envelope env;
 		(void)env.note_on(false, Q<31>{}, s);
 		for (uint32_t b = 0; b < 50; ++b) {
 			const Q<31> word = env.render(kBlock, kAttack, kDecay, Q<31>{}, kRelease, s, Q<31>{});
@@ -237,4 +237,4 @@ describe segment_envelope_spec_body("SegmentEnvelope", ${
 });
 // clang-format on
 
-DELUGE_SPEC(segment_envelope_spec, segment_envelope_spec_body)
+DELUGE_SPEC(envelope_curves_spec, envelope_curves_spec_body)

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2026 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -16,223 +16,279 @@
  */
 
 #include "synth/modulation/envelope.h"
-#include "dsp/core/fixed_point.h"
-#include "dsp/fixed/interpolation/table_interpolation.h" // get_decay4/8, kLinearTableInterpolator
-#include "dsp/fixed/osc/sine_table.h"                    // kSineTable (sine-shaped fast-release)
-#include "dsp/fixed/tables/decay_small.h"
+
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 using deluge::dsp::Q;
-using deluge::dsp::fixed::get_decay4;
-using deluge::dsp::fixed::get_decay8;
-using deluge::dsp::fixed::kLinearTableInterpolator;
-using deluge::dsp::fixed::kSineTable;
+using deluge::dsp::fp::CurveShape;
+using deluge::synth::EnvelopeMode;
+using E = deluge::dsp::fp::Envelope;
 
 namespace {
-constexpr uint32_t kStageEnd = 1u << 23;              ///< A stage completes once its position reaches this.
-constexpr Q<31> kFullScale = Q<31>::max();            ///< A fully-open envelope level.
-constexpr Q<31> kHalfScale = deluge::dsp::q<31>(0.5); ///< The mid level (the output's zero-centre, the sine's DC).
-constexpr Q<31> kOff = Q<31>::min();                  ///< The centred output of a silent (level-0) envelope.
 
-/// Map an uncentred level (0 to full scale) to the centred output range (about 0): less a half, doubled.
-constexpr Q<31> centred(Q<31> level) {
-	return scale_shl_wrap<1>(sub_wrap(level, kHalfScale));
+constexpr Q<31> kCentre = deluge::dsp::q<31>(0.5); ///< The output's zero-centre.
+constexpr Q<31> kSilent = Q<31>::min();            ///< The centred output of a silent envelope.
+constexpr float kFloor = 0x1p-31f; ///< The least level an attack or a held AR or MPE note gives: not silent
+/// The longest stage, in samples: a rate of 0 never ends within a song, and the count stays exact in float.
+constexpr float kLongest = 16777216.f;
+
+/// A level's Q31 word, 0 to full scale, truncated as main's conversion truncates.
+[[nodiscard]] Q<31> to_q31(float level) {
+	if (level >= 1.f) {
+		return Q<31>::max();
+	}
+	// Raw: the level scaled to the word, truncated
+	return Q<31>::from_raw(static_cast<int32_t>(std::max(level, 0.f) * 2147483648.f));
+}
+/// A Q31 word as a level: its value.
+[[nodiscard]] float to_float(Q<31> word) {
+	// Raw: the word over 2^31
+	return static_cast<float>(word.raw()) * 0x1p-31f;
+}
+/// A level, 0 to 1, centred about 0 as the patch source reads it: less a half, doubled.
+[[nodiscard]] Q<31> centred(float level) {
+	return scale_shl_wrap<1>(sub_wrap(to_q31(level), kCentre));
+}
+/// The samples a stage lasts at @p rate position steps a sample.
+[[nodiscard]] float length_of(uint32_t rate) {
+	if (rate == 0) {
+		return kLongest;
+	}
+	return std::min(static_cast<float>(Envelope::kStageEnd) / static_cast<float>(rate), kLongest);
+}
+[[nodiscard]] bool follows(EnvelopeMode mode) {
+	return mode == EnvelopeMode::AR || mode == EnvelopeMode::MPE;
 }
 
-/// A stage's position, UQ23 of the stage (kStageEnd is its end), moved on by @p rate for @p num_samples: the integer
-/// step in 64 bits, as a patched attack's rate times a block can pass 2^32, and held at the stage's end, as no stage
-/// reads its position once it has ended.
-constexpr uint32_t advanced(uint32_t position, uint32_t rate, uint32_t num_samples) {
-	const uint64_t moved = uint64_t{position} + (uint64_t{rate} * num_samples);
-	return static_cast<uint32_t>(std::min<uint64_t>(moved, kStageEnd));
-}
-
-/// The smoothed sustain moved toward @p sustain_level: an integer step of 1/512 of the distance per sample, the sum
-/// saturating.
-constexpr Q<31> smoothed(Q<31> smoothed_sustain, Q<31> sustain_level, uint32_t num_samples) {
-	// Raw: the step is an integer product of the block's length and the shifted distance
-	const auto step =
-	    Q<31>::from_raw(static_cast<int32_t>(num_samples) * ((sustain_level.raw() - smoothed_sustain.raw()) >> 9));
-	return add_sat(smoothed_sustain, step);
-}
-
-/// A decay table's value at @p position: its words are Q31 levels.
-Q<31> decay4(uint32_t position) {
-	return Q<31>::from_raw(get_decay4(position, 23));
-}
 } // namespace
 
 Q<31> Envelope::render(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate, Q<31> sustain_level,
-                       uint32_t release_rate, const uint16_t* release_table) {
-	// Drive the stage machine: step the current stage for this block, then either emit its level,
-	// emit the off sentinel, or (attack→decay only) advance into the next stage and step again.
-	while (true) {
-		StepOutcome outcome;
-		switch (stage_) {
-		case Stage::ATTACK:
-			outcome = step_attack(attack_rate, num_samples);
-			break;
-		case Stage::DECAY:
-			outcome = step_decay(decay_rate, sustain_level, num_samples);
-			break;
-		case Stage::SUSTAIN:
-			outcome = step_sustain(sustain_level, num_samples);
-			break;
-		case Stage::RELEASE:
-			outcome = step_release(release_rate, num_samples, release_table);
-			break;
-		case Stage::FAST_RELEASE:
-			outcome = step_fast_release(release_rate, num_samples);
-			break;
-		default: // OFF / HOLD (unused)
-			outcome = StepOutcome::EMIT_OFF;
-			break;
-		}
-
-		if (outcome == StepOutcome::ADVANCE) {
-			continue;
-		}
-		if (outcome == StepOutcome::EMIT_OFF) {
-			return kOff;
-		}
-		return centred(current_level_);
-	}
+                       uint32_t release_rate, const deluge::synth::EnvelopeState& state, Q<31> follow_input) {
+	return render_shaped(num_samples, attack_rate, decay_rate, sustain_level, release_rate,
+	                     CurveShape::from_curve(state.curve), follow_input);
 }
 
-Envelope::StepOutcome Envelope::step_attack(uint32_t attack_rate, uint32_t num_samples) {
-	// Increment the position *before* taking a value, so a high rate can skip the attack entirely.
-	stage_position_ = advanced(stage_position_, attack_rate, num_samples);
-	if (stage_position_ >= kStageEnd) {
-		stage_position_ = 0;
-		set_state(Stage::DECAY);
-		return StepOutcome::ADVANCE; // Run decay this same block.
-	}
-	current_level_ = sub_wrap(kFullScale, decay4(stage_position_)); // Makes a curved attack.
-	// At least one LSB: the attack never emits a zero level
-	current_level_ = std::max(current_level_, deluge::dsp::q<31>(0x1p-31));
-	return StepOutcome::EMIT_LEVEL;
+Q<31> Envelope::render_audio_clip(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate, Q<31> sustain_level,
+                                  uint32_t release_rate) {
+	return render_shaped(num_samples, attack_rate, decay_rate, sustain_level, release_rate,
+	                     deluge::dsp::fp::kAudioClipShape, Q<31>{});
 }
 
-Envelope::StepOutcome Envelope::step_decay(uint32_t decay_rate, Q<31> sustain_level, uint32_t num_samples) {
-	// Smooth toward the sustain target: modulating sustain (e.g. with aftertouch) would otherwise cause
-	// un-smoothed jumps downstream, because params don't smooth the envelope value and envelopes are
-	// rendered before the other params (including their own sustain) are calculated. Doing it properly
-	// would mean patch+smooth expression→envelope, then render the envelope, then everything else —
-	// too involved for now, and this is close enough since we'd usually need to smooth it anyway.
-	smoothed_sustain_ = smoothed(smoothed_sustain_, sustain_level, num_samples);
-	// The sustain plus the decay curve's share of what lies above it: within full scale. The table's words are Q31
-	const auto above =
-	    mul_as_wrap<Q<31>>(Q<31>::from_raw(get_decay8(stage_position_, 23)), sub_wrap(kFullScale, smoothed_sustain_));
-	current_level_ = add_wrap(smoothed_sustain_, above);
+Q<31> Envelope::render_shaped(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate, Q<31> sustain_level,
+                              uint32_t release_rate, const CurveShape& shape, Q<31> follow_input) {
+	shape_ = shape;
+	// AHD reuses the ADSR params: the hold from decay, the decay from release, no sustain
+	uint32_t hold_rate = kStageEnd; // a hold of one sample, unused outside AHD
+	if (mode_ == EnvelopeMode::AHD) {
+		hold_rate = (decay_rate >= kStageEnd / kAhdHoldSpeedup) ? kStageEnd : decay_rate * kAhdHoldSpeedup;
+		decay_rate = release_rate;
+		sustain_level = Q<31>{};
+	}
+	else if (follows(mode_) && stage_ < Stage::RELEASE) {
+		return follow(num_samples, attack_rate, sustain_level, release_rate, shape,
+		              mode_ == EnvelopeMode::MPE ? follow_input : Q<31>{});
+	}
+	if (stage_ == Stage::OFF) {
+		return kSilent;
+	}
+	if (stage_ == Stage::FAST_RELEASE && fast_release_rate_ < 2 * release_rate) {
+		fast_release_rate_ = 2 * release_rate;
+	}
 
-	stage_position_ = advanced(stage_position_, decay_rate, num_samples);
+	// Every stage's length and curve from this block's params, so a stage entered within the block runs at them
+	auto set = [&](Segment s, uint32_t rate, float k) {
+		slot(s).length = length_of(rate);
+		slot(s).curve = k;
+	};
+	set(Segment::ATTACK, attack_rate, shape.attack.k);
+	set(Segment::HOLD, hold_rate, 0.f);
+	set(Segment::DECAY, decay_rate, shape.decay.k);
+	set(Segment::RELEASE, release_rate, shape.release.k);
+	set(Segment::FAST_RELEASE, fast_release_rate_, 0.f);
+	// and the stage under way carried on at them from where it is
+	if (segment_.index >= 0.f) {
+		const auto& g = program_.segments[static_cast<size_t>(segment_.index)];
+		E::retime(segment_, g.length);
+		segment_.curve = g.curve;
+	}
 
-	if (stage_position_ >= kStageEnd) {
+	if (stage_ != Stage::SUSTAIN) {
+		(void)E::advance_block(program_, segment_, num_samples);
+	}
+
+	Stage reached = Stage::OFF;
+	if (segment_.index >= 0.f) {
+		reached = static_cast<Stage>(static_cast<uint8_t>(segment_.index));
+	}
+	if (reached == Stage::DECAY || reached == Stage::SUSTAIN) {
+		// Smoothed toward its target: modulating sustain would otherwise jump downstream, since params don't smooth the
+		// envelope and envelopes render before the other params, their own sustain included
+		const float amount = std::min(static_cast<float>(num_samples) * (1.f / 512.f), 1.f);
+		smoothed_sustain_ += (to_float(sustain_level) - smoothed_sustain_) * amount;
+	}
+
+	switch (reached) {
+	case Stage::ATTACK:
+		level_ = std::max(segment_.value, kFloor);
+		break;
+	case Stage::HOLD:
+		level_ = 1.f;
+		break;
+	case Stage::DECAY:
+		level_ = smoothed_sustain_ + (segment_.value * (1.f - smoothed_sustain_));
+		break;
+	case Stage::SUSTAIN:
+		level_ = smoothed_sustain_;
 		set_state(Stage::SUSTAIN);
+		if (sustain_level == Q<31>{}) { // nothing to hold: as good as off
+			set_state(Stage::OFF);
+		}
+		else if (ignored_note_off_) {
+			unconditional_release();
+		}
+		return centred(level_);
+	case Stage::RELEASE:
+	case Stage::FAST_RELEASE:
+		level_ = segment_.value;
+		break;
+	default: // a release, or AHD's decay, has ended
+		level_ = 0.f;
+		set_state(Stage::OFF);
+		return kSilent;
 	}
-	return StepOutcome::EMIT_LEVEL;
+	set_state(reached);
+	return centred(level_);
 }
 
-Envelope::StepOutcome Envelope::step_sustain(Q<31> sustain_level, uint32_t num_samples) {
-	smoothed_sustain_ = smoothed(smoothed_sustain_, sustain_level, num_samples);
-	current_level_ = smoothed_sustain_;
-	// A zero sustain means there's nothing to hold — we may as well be off already.
-	if (sustain_level == Q<31>{}) {
-		set_state(Stage::OFF);
+Q<31> Envelope::follow(uint32_t num_samples, uint32_t attack_rate, Q<31> sustain_level, uint32_t release_rate,
+                       const CurveShape& shape, Q<31> follow_input) {
+	// While the note is held it sits in SUSTAIN, whatever the level does, so culling treats it as a held note
+	set_state(Stage::SUSTAIN);
+	// The input as stored: 0 to 1 for pressure and the mod wheel, -1 to 1 for per-note MPE Y, which below centre pulls
+	// the target under the level
+	const float level = to_float(sustain_level);
+	const float target = std::clamp(level + ((1.f - level) * to_float(follow_input)), 0.f, 1.f);
+	// How far through a full-scale stage this block goes, at the rate for the direction it goes
+	const uint32_t rate = target > level_ ? attack_rate : release_rate;
+	const float distance = static_cast<float>(rate) * static_cast<float>(num_samples) / static_cast<float>(kStageEnd);
+	const float k = shape.decay.k;
+	if (k > 0.f) {
+		level_ = target + ((level_ - target) * std::exp2(-k * distance)); // each stage-time leaves 2^-k of the gap
 	}
-	else if (ignored_note_off_) {
-		unconditional_release();
+	else {
+		level_ += std::clamp(target - level_, -distance, distance); // full scale per stage-time
 	}
-	return StepOutcome::EMIT_LEVEL;
-}
-
-Envelope::StepOutcome Envelope::step_release(uint32_t release_rate, uint32_t num_samples,
-                                             const uint16_t* release_table) {
-	stage_position_ = advanced(stage_position_, release_rate, num_samples);
-	if (stage_position_ >= kStageEnd) {
-		set_state(Stage::OFF);
-		current_level_ = Q<31>{};
-		return StepOutcome::EMIT_OFF;
-	}
-	// The release table's curve (its interpolation is Q31) times the level the release started from
-	current_level_ =
-	    mul_as_wrap<Q<31>>(Q<31>::from_raw(kLinearTableInterpolator.interpolate(stage_position_, 23, release_table)),
-	                       level_at_stage_entry_);
-	return StepOutcome::EMIT_LEVEL;
-}
-
-Envelope::StepOutcome Envelope::step_fast_release(uint32_t release_rate, uint32_t num_samples) {
-	if (fast_release_rate_ < 2 * release_rate) {
-		release_rate = 2 * release_rate;
-		fast_release_rate_ = release_rate;
-	}
-	stage_position_ = advanced(stage_position_, fast_release_rate_, num_samples);
-	if (stage_position_ >= kStageEnd) {
-		set_state(Stage::OFF);
-		return StepOutcome::EMIT_OFF;
-	}
-	// A sine-shaped release: less high-frequency content than a linear ramp, and sounds a touch better
-	// on deep bass samples.
-	// The Q31 sine from its peak, made unipolar (halved, plus a half), times the level the release started from
-	const Q<31> sine = Q<31>::from_raw(kSineTable.value(stage_position_ + (kStageEnd >> 1), 24));
-	const Q<31> shape = add_wrap(halve_floor(sine), kHalfScale);
-	current_level_ = mul_as_wrap<Q<31>>(shape, level_at_stage_entry_);
-	return StepOutcome::EMIT_LEVEL;
+	level_ = std::max(level_, kFloor); // a voice is freed at exactly 0, which a held level must not mean
+	segment_.value = level_;
+	return centred(level_);
 }
 
 Q<31> Envelope::note_on(bool directly_to_decay) {
-	ignored_note_off_ = false;
-	stage_position_ = 0;
-	if (!directly_to_decay) {
-		set_state(Stage::ATTACK);
-		current_level_ = Q<31>{};
-	}
-	else {
-		set_state(Stage::DECAY);
-		current_level_ = kFullScale;
-	}
-
-	return centred(current_level_);
+	return note_on(directly_to_decay, Q<31>{}, {});
 }
 
 Q<31> Envelope::note_on(bool directly_to_decay, Q<31> initial_sustain) {
-	smoothed_sustain_ = initial_sustain;
-	return note_on(directly_to_decay);
+	return note_on(directly_to_decay, initial_sustain, {});
+}
+
+Q<31> Envelope::note_on(bool directly_to_decay, Q<31> initial_sustain, const deluge::synth::EnvelopeState& state) {
+	mode_ = state.mode;
+	shape_ = CurveShape::from_curve(state.curve);
+	smoothed_sustain_ = mode_ == EnvelopeMode::AHD ? 0.f : to_float(initial_sustain);
+	ignored_note_off_ = false;
+	level_ = 0.f;
+	segment_ = E::State{};
+	build_program();
+	// The followers reach their target on the first render even without an attack, whose rate is then huge
+	if (!directly_to_decay || follows(mode_)) {
+		enter(Segment::ATTACK);
+		set_state(Stage::ATTACK);
+	}
+	else {
+		level_ = 1.f;
+		segment_.value = 1.f;
+		const bool ahd = mode_ == EnvelopeMode::AHD;
+		enter(ahd ? Segment::HOLD : Segment::DECAY);
+		set_state(ahd ? Stage::HOLD : Stage::DECAY);
+	}
+	return centred(level_);
+}
+
+void Envelope::build_program() {
+	using deluge::dsp::fp::kOff;
+	namespace seg = deluge::dsp::fp::detail;
+	const bool ahd = mode_ == EnvelopeMode::AHD;
+	// Lengths and curves are set every render; these give each segment its kind, target and successor
+	program_ = {};
+	auto at = [](Segment s) { return static_cast<float>(s); };
+	slot(Segment::ATTACK) = seg::curve_segment(1.f, 1.f, 0.f, at(ahd ? Segment::HOLD : Segment::DECAY));
+	slot(Segment::HOLD) = seg::curve_segment(1.f, 1.f, 0.f, at(Segment::DECAY));
+	slot(Segment::DECAY) = seg::curve_segment(0.f, 1.f, 0.f, ahd ? kOff : at(Segment::SUSTAIN));
+	slot(Segment::SUSTAIN) = seg::hold_segment(0.f);
+	slot(Segment::RELEASE) = seg::curve_segment(0.f, 1.f, 0.f, kOff);
+	slot(Segment::FAST_RELEASE) = seg::cosine_segment(0.f, 1.f, kOff);
+	program_.release = kOff;
+}
+
+void Envelope::enter(Segment s) {
+	E::enter(program_, segment_, static_cast<float>(s), false);
 }
 
 void Envelope::note_off(bool has_sustain) {
+	if (mode_ == EnvelopeMode::AHD) {
+		has_sustain = false; // a one-shot
+	}
+	else if (follows(mode_)) {
+		has_sustain = true; // held while the note is
+	}
 	if (!has_sustain) {
 		ignored_note_off_ = true;
 	}
-	else if (stage_ < Stage::RELEASE) { // Could we already be in a release stage? Probably not, but just in case.
+	else if (stage_ < Stage::RELEASE) {
 		unconditional_release();
 	}
 }
 
 void Envelope::set_state(Stage new_stage) {
-	stage_ = new_stage;
-	stage_changed_ = true;
+	if (stage_ != new_stage) {
+		stage_ = new_stage;
+		stage_changed_ = true;
+	}
 }
 
 void Envelope::unconditional_off() {
-	level_at_stage_entry_ = current_level_;
 	set_state(Stage::OFF);
 }
 
 void Envelope::unconditional_release(Stage release_stage, uint32_t fast_release_rate) {
 	fast_release_rate_ = fast_release_rate;
-
 	if (stage_ != release_stage) {
 		set_state(release_stage);
-		stage_position_ = 0;
-		level_at_stage_entry_ = current_level_;
+		segment_.value = level_; // the release runs from the level, which the decay's unit curve is not
+		enter(release_stage == Stage::FAST_RELEASE ? Segment::FAST_RELEASE : Segment::RELEASE);
 	}
 }
 
 void Envelope::resume_attack(Q<31> resume_level) {
-	if (stage_ == Stage::ATTACK) {
-		// Raw: the table's inverse takes the level's word
-		stage_position_ = kLinearTableInterpolator.inverse(sub_wrap(kFullScale, resume_level).raw(), 23,
-		                                                   deluge::dsp::fixed::tables::kDecaySmall4.data());
+	if (stage_ != Stage::ATTACK) {
+		return;
 	}
+	const float v = to_float(resume_level);
+	if (!follows(mode_)) {
+		// Where the attack's curve reaches the level: the fraction elapsed, which the next render's retime keeps
+		segment_.elapsed = shape_.attack.rising_inverse(v) * segment_.length;
+	}
+	level_ = v; // the followers carry on from it
+	segment_.value = v;
+}
+
+Q<31> Envelope::output_level() const {
+	return to_q31(level_);
+}
+
+void Envelope::set_output_level(Q<31> level) {
+	level_ = to_float(level);
+	segment_.value = level_;
 }

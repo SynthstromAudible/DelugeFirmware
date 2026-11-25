@@ -20,9 +20,7 @@
 // refactor. Asserts the stage-machine contract (the audio bit-exactness itself is pinned end-to-end
 // by the golden masters). Runs on x86 (SIMDe) and ARM/QEMU via CTest.
 
-#include "dsp/fixed/tables/decay_small.h"
 #include "synth/modulation/envelope.h"
-#include "util/lookuptables/lookuptables.h" // decayTableSmall8 (the release curve the voice passes)
 #include <cppspec.hpp>
 #include <cstdint>
 
@@ -36,11 +34,11 @@ constexpr int32_t kOff = -2147483648; // the centred output of a silent envelope
 constexpr uint32_t kBlock = 16;       // samples per render block.
 constexpr uint32_t kRate = 65536;     // a moderate per-sample rate (a stage spans ~8 blocks at this).
 
-// Render one block; the release curve is tables::kDecaySmall8, exactly as the voice supplies.
+// Render one block of the classic ADSR, as the voice renders a default sound.
 int32_t render(Envelope& env, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release) {
 	return env
 	    .render(kBlock, attack, decay, deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(sustain)), release,
-	            deluge::dsp::fixed::tables::kDecaySmall8.data())
+	            deluge::synth::EnvelopeState{}, deluge::dsp::Q<31>{})
 	    .raw();
 }
 
@@ -68,7 +66,7 @@ describe envelope_spec_body("Envelope", ${
 
 	it("can start straight in decay at full level", _ {
 		Envelope env;
-		env.note_on(true, deluge::dsp::Q<31>::from_raw(kFull)).raw();
+		(void)env.note_on(true, deluge::dsp::Q<31>::from_raw(kFull));
 		expect(env.stage()).to_equal(Stage::DECAY);
 		expect(env.output_level().raw()).to_equal(kFull);
 	});

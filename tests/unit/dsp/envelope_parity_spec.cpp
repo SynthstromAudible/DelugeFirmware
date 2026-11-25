@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// SegmentEnvelope against main's envelope (main_envelope_records.h) over every stimulus, and against next's Q31
+// Envelope against main's envelope (main_envelope_records.h) over every stimulus, and against next's Q31
 // envelope (envelope_q31_oracle.h) over the classic ADSR ones.
 //
 // The allowances are the spec's. main and the Q31 envelope change stage only on a block's edge, dropping the rest of
@@ -24,7 +24,7 @@
 // by two in a decay, where the two add.
 
 #include "dsp/fixed/tables/decay_small.h"
-#include "synth/modulation/segment_envelope.h"
+#include "synth/modulation/envelope.h"
 
 #include "envelope_q31_oracle.h"
 #include "main_envelope_records.h"
@@ -60,10 +60,10 @@ struct Render {
 	return ((static_cast<double>(word) / 2147483648.0) + 1.0) / 2.0;
 }
 
-/// SegmentEnvelope through @p s, as the probe drives main's.
+/// Envelope through @p s, as the probe drives main's.
 [[nodiscard]] std::vector<Render> run_segment(const me::Stimulus& s) {
 	const EnvelopeState state{.mode = static_cast<EnvelopeMode>(s.mode), .follow = EnvelopeFollow::Z, .curve = s.curve};
-	SegmentEnvelope env;
+	Envelope env;
 	(void)env.note_on(s.directly_to_decay, Q<31>::from_raw(me::params_at(s, 0).sustain), state);
 	std::vector<Render> out;
 	for (uint32_t b = 0; b < s.blocks; ++b) {
@@ -72,7 +72,7 @@ struct Render {
 			env.note_off(s.has_sustain);
 		}
 		if (b == s.fast_release) {
-			env.unconditional_release(SegmentEnvelope::Stage::FAST_RELEASE, kSoftCullIncrement);
+			env.unconditional_release(Envelope::Stage::FAST_RELEASE, kSoftCullIncrement);
 		}
 		if (b == s.retrigger) {
 			const Q<31> old = env.output_level();
@@ -219,7 +219,7 @@ struct Course {
 } // namespace
 
 // clang-format off
-describe segment_envelope_parity_spec_body("SegmentEnvelope against main's and the Q31 envelope", ${
+describe envelope_parity_spec_body("Envelope against main's and the Q31 envelope", ${
 	// A note struck again resumes its attack by the curve's inverse in both: one boundary.
 	it("matches main's envelope within 2^-16, with the block allowances", _ {
 		size_t failed = 0;
@@ -247,4 +247,4 @@ describe segment_envelope_parity_spec_body("SegmentEnvelope against main's and t
 });
 // clang-format on
 
-DELUGE_SPEC(segment_envelope_parity_spec, segment_envelope_parity_spec_body)
+DELUGE_SPEC(envelope_parity_spec, envelope_parity_spec_body)
