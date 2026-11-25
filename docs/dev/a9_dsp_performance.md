@@ -942,7 +942,8 @@ What a run costs (`run_length`, then `prepare_run` across the lanes) is per run,
 size: fitting cost = c + K/n to n = 32 and 128 gives K of about 940 cycles per lane per block moving and 280 held. An
 envelope that tested each sample for its stage's end (a threshold compare, a lane reduction and a branch) measured,
 through the same cases and lanes, 26.54 Mono, 27.24 moving and 23.41 held at n = 128; 33.52, 42.69 and 29.35 at n = 32.
-A fade is drawn in pieces of 8 samples, so each is a run: it costs 48 cycles whatever the block.
+A fade is drawn in pieces of a sixteenth of it, 8 samples of these 128, so each is a run: it costs 48 cycles whatever
+the block.
 
 **Oscillators.** The BLEP saw gains the most from Poly, 2.14x at two lanes and 2.67x at four: its step is arithmetic
 only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.58x; an earlier image

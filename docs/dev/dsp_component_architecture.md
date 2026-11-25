@@ -942,7 +942,8 @@ through part 1's `step`, then part 2's on what part 1 returned, and so on, every
 step inline, in one pass over the block. Run as separate passes, each part loads
 and stores the whole block; chained, the block is loaded once and stored once,
 and the values between parts stay in registers. A chain is bit for bit its parts
-run in sequence, since each part steps its own State in the order it would
+run in sequence (a part with runs at the chain's split, the least of its parts'), since each part steps its own State
+in the order it would
 alone.
 
 - **Loop state.** A part declaring `kLoopState` steps on that member of its
@@ -1463,7 +1464,8 @@ line.
 `Bank<K, N, Mix>` is N copies of a `poly_kernel`, each with its own settings, reading one input: each sample is
 broadcast to every lane, one step over `Pack<f32, N>` steps every copy, and `Mix` reduces the lanes to the output.
 `configure`, `reset`, `state` and `set_mode` are `Poly`'s (the shared `detail::Copies`), as are the one mode per block
-and the `prepare` call once per block. N is 2 or 4. Each copy is bit for bit `Mono<K>` with its settings.
+and the `prepare` call once per block. N is 2 or 4. Each copy is bit for bit `Mono<K>` with its settings,
+or, for a kernel with runs, a scalar copy stepped at the lanes' split: a Mono takes its own runs.
 
 | `Mix` | Output | `render_block` |
 |---|---|---|
@@ -1494,8 +1496,9 @@ delay). Nothing is implemented. The design is one `StereoSample` kernel template
 A voice is a generator, a filter and an amplifier, written once over the value type and run one voice per NEON lane:
 `Poly<Chain<oscillator, filter, fp::Vca<fp::Envelope>>, N>`, the filter `fp::Svf` or `fp::Ladder`. `Poly` runs generators (a source has no input signal to
 transpose); `Bank` takes processors only. The parts follow the rules above: plain-value `Coefficients` and `State`
-naming their V members in `fields`, a `step` that opens with the fp pragma, and every lane bit for bit `Mono`. The
-bench figures are in [a9_dsp_performance.md](a9_dsp_performance.md#float-voice-slice).
+naming their V members in `fields`, a `step` that opens with the fp pragma, and every lane bit for bit a
+scalar copy stepped at the lanes' run split (a `Mono` alone takes its own runs). The bench figures are in
+[a9_dsp_performance.md](a9_dsp_performance.md#float-voice-slice).
 
 ### Oscillators
 
@@ -1589,10 +1592,10 @@ entered by a gate-on, and the `release` a gate-off enters, or `kOff` to ignore i
   which a wrapper calls for exactly the samples until the first lane's stage ends (see [Runs](#runs)).
 - **The map.** A curve at a constant rate, sampled, is affine: `prepare_run` anchors each lane's level on its exact
   curve and takes `a` and `b` from the curve's asymptote. Where a run covers so little of the curve that `a` would
-  round to 1 it is quadratic, from the curve's slope and curvature. There is one exponential a run and no division, so
-  the lanes compute together, and host and target agree bit for bit, with fused arithmetic or without. Every sample is
-  within 2^-14 of the exact curve. A short stage whose curve grows (below 0 octaves) takes runs of at most 32 samples,
-  since its `a` is over 1 and rounding grows with it.
+  round to 1 it is quadratic, from the curve's slope and curvature. There is one exponential a run and no division (a
+  fade's pieces divide once), so the lanes compute together, and host and target agree bit for bit, with fused
+  arithmetic or without. Every sample is within 2^-14 of the exact curve. A short stage whose curve grows (below 0
+  octaves) takes runs of at most 32 samples, since its `a` is over 1 and rounding grows with it.
 - **A stage's end** is a run's end. The phase is kept in two floats, and the fraction of a sample past the end is
   carried into the next stage, so a stage of a minute ends within a sample at any block size. A length under a sample
   counts as one, so a looping program cannot spin.
@@ -1604,7 +1607,8 @@ entered by a gate-on, and the `release` a gate-off enters, or `kOff` to ignore i
   arrival is a run's end.
 - **Events.** `gate_on` enters segment 0 and `gate_off` the release, both from the level there is. A gate-off is
   ignored by a program without a release, at rest, and in a fade. `fade(length)` goes to 0 along a raised cosine from
-  any stage, in sixteen quadratic pieces; a fade asked for in a fade keeps the shorter, and one at rest is nothing.
+  any stage, in quadratic pieces of a sixteenth of it, whole samples and at least one; a fade asked for in a fade keeps
+  the shorter, and one at rest is nothing.
 - **The programs.** `adsr`, `ad`, `ahd`, `asr`, `ar` (a slew while the gate is held; MPE is this with a level its owner
   moves), `four_segment` (DX7-shaped) and `looping`, in samples and octaves. A sustain of 0 is a sustain like any
   other: freeing a silent voice is the pool's.
