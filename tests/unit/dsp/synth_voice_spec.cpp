@@ -131,6 +131,29 @@ describe synth_voice_spec_body("synth::Voice", ${
 		expect(rig->voice.param_final_values()[params::LOCAL_OSC_A_PITCH_ADJUST]).to_be_less_than(at_note_on);
 	});
 
+	// A sound of AHD allows no note tails, so the note-off never reaches the envelope
+	it("ends a held note whose envelope turns AHD, though the sound then ignores its note-off", _{
+		for (const EnvelopeMode from : {EnvelopeMode::ADSR, EnvelopeMode::AR, EnvelopeMode::MPE}) {
+			auto rig = std::make_unique<Rig>();
+			const NoteSetup setup = note_setup(OscType::SAW);
+			RenderConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAW);
+			cfg.sound.envelopes[0].mode = from;
+			SoundConfig at_note_on = snapshot(SynthMode::SUBTRACTIVE);
+			at_note_on.envelopes[0].mode = from;
+			expect(rig->voice.note_on(setup, at_note_on, note(60), rig->clock(), 1, rig->noise)).to_be_true();
+			for (int32_t i = 0; i < 8; i++) {
+				render_block(*rig, setup, cfg);
+			}
+			cfg.sound.envelopes[0].mode = EnvelopeMode::AHD;
+			cfg.values.note_tails_allowed = false;
+			ReleaseInfo off = release(cfg);
+			off.note_tails_allowed = false;
+			off.envelope_has_sustain = {};
+			rig->voice.note_off(off, true, rig->clock());
+			expect(blocks_until_silent(*rig, setup, cfg, 400)).to_be_less_than(400);
+		}
+	});
+
 	it("ranks a voice of a sound with more voices sooner in the cull order", _{
 		auto rig = std::make_unique<Rig>();
 		const NoteSetup setup = note_setup(OscType::SAW);

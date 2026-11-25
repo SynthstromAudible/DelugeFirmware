@@ -176,27 +176,31 @@ describe envelope_curves_spec_body("Envelope", ${
 		}
 	});
 
-	it("resumes from the level it had when retriggered mid-release, in every mode", _ {
+	it("resumes from the level it had when retriggered as it falls, in every mode", _ {
 		for (EnvelopeMode mode : {EnvelopeMode::ADSR, EnvelopeMode::AHD, EnvelopeMode::AR, EnvelopeMode::MPE}) {
 			const EnvelopeState s = state(mode, 32);
 			Envelope env;
 			(void)env.note_on(false, q31(0.6), s);
 			double before = 0.0;
-			for (uint32_t b = 0; b < 80; ++b) {
+			for (uint32_t b = 0; b < 46; ++b) { // an AHD in its decay, the others in their release
 				if (b == 40) {
 					env.note_off(true);
 				}
 				before = level_of(env.render(kBlock, kAttack, kDecay, q31(0.6), kRelease, s, Q<31>{}));
 			}
-			if (env.stage() == Stage::OFF) {
-				continue; // AHD has finished by now: nothing to resume
-			}
+			to_be_at_most(expect(before), 0.59);
+			to_be_at_least(expect(before), 0.01);
 			const Q<31> old = env.output_level();
 			(void)env.note_on(false, q31(0.6), s);
 			env.resume_attack(old);
 			const double after = level_of(env.render(kBlock, kAttack, kDecay, q31(0.6), kRelease, s, Q<31>{}));
-			to_be_at_least(expect(after), before - kTolerance);
-			to_be_at_most(expect(after), before + 0.2);
+			const double moved = kBlock / length(kAttack);
+			double expected = 0.6 + ((before - 0.6) * std::exp2(-8.0 * moved)); // AR and MPE: the slew, from there
+			if (mode == EnvelopeMode::ADSR || mode == EnvelopeMode::AHD) {     // the attack, from where it reaches there
+				const double x = -std::log2(((1.0 - before) * (1.0 - std::exp2(-4.0))) + std::exp2(-4.0)) / 4.0;
+				expected = 1.0 - falling(4.0, x + moved);
+			}
+			expect(after).to_be_within(kTolerance).of(expected);
 		}
 	});
 
@@ -217,6 +221,28 @@ describe envelope_curves_spec_body("Envelope", ${
 			expect(y).to_be_within(kTolerance).of(expected);
 		}
 		expect(env.stage()).to_equal(Stage::OFF);
+	});
+
+	it("fast-releases at twice the release rate where that is the faster, at any release rate", _ {
+		const EnvelopeState s = state(EnvelopeMode::ADSR, 32);
+		Envelope env;
+		(void)env.note_on(true, q31(0.5), s);
+		const double l0 = level_of(env.render(1, kAttack, 8388608U, q31(0.5), kRelease, s, Q<31>{}));
+		env.unconditional_release(Stage::FAST_RELEASE, kSoftCullIncrement);
+		constexpr uint32_t kFaster = 100000; // twice it is 42 samples; the rate given is 128
+		const double lf = length(2 * kFaster);
+		for (uint32_t i = 1; i <= 5; ++i) {
+			const double t = 8.0 * i;
+			const double y = level_of(env.render(8, kAttack, kDecay, q31(0.5), kFaster, s, Q<31>{}));
+			// The sine table's interpolation errs by up to 2^-15.6 of full scale at these phases
+			expect(y).to_be_within(0x1p-15).of(t < lf ? l0 * (0.5 + (0.5 * std::cos(std::numbers::pi * t / lf))) : 0.0);
+		}
+		Envelope extreme;
+		(void)extreme.note_on(true, q31(0.5), s);
+		(void)extreme.render(1, kAttack, 8388608U, q31(0.5), kRelease, s, Q<31>{});
+		extreme.unconditional_release(Stage::FAST_RELEASE, kSoftCullIncrement);
+		(void)extreme.render(1, kAttack, kDecay, q31(0.5), 0x80000000U, s, Q<31>{});
+		expect(extreme.stage()).to_equal(Stage::OFF);
 	});
 
 	it("is small: a voice holds four, and their bytes are the fast RAM a voice costs", _ {
@@ -242,6 +268,28 @@ describe envelope_curves_spec_body("Envelope", ${
 					}
 					to_be_at_most(expect(worst), 0x1p-13);
 				}
+			}
+		}
+	});
+
+	it("slews down a minute as it slews up", _ {
+		for (const int32_t curve : {1, 4}) {
+			for (const uint32_t n : {1U, 32U, 128U}) {
+				const EnvelopeState s = state(EnvelopeMode::AR, curve);
+				const uint32_t rate = rate_for(60 * 44100);
+				Envelope env;
+				(void)env.note_on(false, q31(0.75), s);
+				(void)env.render(128, 0x7FFFFFFFU, kDecay, q31(0.75), rate, s, Q<31>{}); // at its level at once
+				double worst = 0.0;
+				const auto blocks = 60U * 44100U / n;
+				for (uint32_t b = 0; b < blocks; ++b) {
+					const double y = level_of(env.render(n, kAttack, kDecay, q31(0.25), rate, s, Q<31>{}));
+					if (b % (blocks / 16) == 0 || b + 1 == blocks) {
+						const double octaves = curve * 0.25 * rate * (static_cast<double>(b + 1) * n) / kStageEnd;
+						worst = std::max(worst, std::abs(y - (0.25 + (0.5 * std::exp2(-octaves)))));
+					}
+				}
+				to_be_at_most(expect(worst), 0x1p-13);
 			}
 		}
 	});
@@ -275,6 +323,61 @@ describe envelope_curves_spec_body("Envelope", ${
 					expect(y).to_be_within(0x1p-16).of(level);
 				}
 			}
+		}
+	});
+
+	it("ends a note whose mode changes while it sounds, whichever way and whenever its key goes up", _ {
+		constexpr EnvelopeMode kModes[] = {EnvelopeMode::ADSR, EnvelopeMode::AHD, EnvelopeMode::AR, EnvelopeMode::MPE};
+		for (const EnvelopeMode from : kModes) {
+			for (const EnvelopeMode to : kModes) {
+				for (const uint32_t changed : {4U, 30U, 60U}) {     // in the attack, the decay or hold, the sustain
+					for (const uint32_t off : {2U, 20U, 59U, 61U}) { // before the change and after it
+						Envelope env;
+						(void)env.note_on(false, q31(0.5), state(from, 32));
+						for (uint32_t b = 0; b < 400; ++b) {
+							const EnvelopeMode mode = b < changed ? from : to;
+							if (b == off) {
+								env.note_off(mode != EnvelopeMode::AHD); // as the sound says of its mode
+							}
+							(void)env.render(kBlock, kAttack, kDecay, q31(0.5), kRelease, state(mode, 32), Q<31>{});
+						}
+						expect(env.stage()).to_equal(Stage::OFF);
+					}
+				}
+			}
+		}
+	});
+
+	it("ends at once a note that has sustained as it turns AHD, and an AHD's hold as it turns ADSR", _ {
+		for (const EnvelopeMode from : {EnvelopeMode::ADSR, EnvelopeMode::AR, EnvelopeMode::MPE}) {
+			Envelope env;
+			(void)env.note_on(false, q31(0.5), state(from, 32));
+			for (uint32_t b = 0; b < 60; ++b) {
+				(void)env.render(kBlock, kAttack, kDecay, q31(0.5), kRelease, state(from, 32), Q<31>{});
+			}
+			expect(env.stage()).to_equal(Stage::SUSTAIN);
+			(void)env.render(kBlock, kAttack, kDecay, q31(0.5), kRelease, state(EnvelopeMode::AHD, 32), Q<31>{});
+			expect(env.stage()).to_equal(Stage::OFF);
+		}
+		Envelope env;
+		(void)env.note_on(true, q31(0.5), state(EnvelopeMode::AHD, 32));
+		(void)env.render(kBlock, kAttack, 1, q31(0.5), kRelease, state(EnvelopeMode::AHD, 32), Q<31>{});
+		expect(env.stage()).to_equal(Stage::HOLD);
+		(void)env.render(kBlock, kAttack, 1, q31(0.5), kRelease, state(EnvelopeMode::ADSR, 32), Q<31>{});
+		expect(env.stage()).to_equal(Stage::DECAY);
+	});
+
+	it("runs an AHD's attack, hold and decay to their exact times within one block", _ {
+		// An instant attack, a hold of 4 samples and a decay of 64, in a block of 32 and 128
+		const EnvelopeState s = state(EnvelopeMode::AHD, 32);
+		for (const uint32_t n : {32U, 128U}) {
+			Envelope env;
+			(void)env.note_on(false, q31(0.5), s);
+			const uint32_t hold = rate_for(32); // an eighth of it
+			const double y = level_of(env.render(n, 8388608U, hold, q31(0.5), rate_for(64), s, Q<31>{}));
+			const double x = (n - 1.0 - 4.0) / 64.0;
+			expect(y).to_be_within(kTolerance).of(x < 1.0 ? falling(8.0, x) : 0.0);
+			expect(env.stage()).to_equal(x < 1.0 ? Stage::DECAY : Stage::OFF);
 		}
 	});
 

@@ -20,6 +20,7 @@
 #include "dsp/fixed/osc/sine_table.h"
 
 #include <algorithm>
+#include <limits>
 
 using deluge::dsp::Q;
 using deluge::dsp::fixed::carried;
@@ -39,6 +40,10 @@ constexpr Q<31> kFloor = deluge::dsp::q<31>(0x1p-31);
 /// A level centred about 0, as the patch source reads it: less a half, doubled.
 [[nodiscard]] Q<31> centred(Q<31> level) {
 	return scale_shl_wrap<1>(sub_wrap(level, kHalfScale));
+}
+/// Twice @p rate, or the greatest.
+[[nodiscard]] constexpr uint32_t doubled(uint32_t rate) {
+	return rate > std::numeric_limits<uint32_t>::max() / 2 ? std::numeric_limits<uint32_t>::max() : 2 * rate;
 }
 /// The product of two levels, rounded: at least one is not negative, so it cannot saturate.
 [[gnu::always_inline, nodiscard]] inline Q<31> product(Q<31> a, Q<31> b) {
@@ -127,7 +132,9 @@ constexpr Q<31> kFloor = deluge::dsp::q<31>(0x1p-31);
 
 Q<31> Envelope::render(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate, Q<31> sustain_level,
                        uint32_t release_rate, const deluge::synth::EnvelopeState& state, Q<31> follow_input) {
-	const Rates rates{.attack = attack_rate, .hold = 0, .decay = decay_rate, .release = release_rate};
+	// The sound's mode now: its hold and its note-off rules follow it, so a note must too
+	mode_ = state.mode;
+	const Rates rates{.attack = attack_rate, .hold = kStageEnd, .decay = decay_rate, .release = release_rate};
 	const EnvelopeEighths eighths = eighths_of(state.curve);
 	if (mode_ != EnvelopeMode::ADSR) [[unlikely]] {
 		return run_mode(num_samples, rates, sustain_level, eighths, follow_input);
@@ -150,6 +157,9 @@ Q<31> Envelope::render_audio_clip(uint32_t num_samples, uint32_t attack_rate, ui
 		rates.decay = rates.release;
 		return run_out_of_line(num_samples, rates, Q<31>{}, eighths);
 	}
+	if (stage_ < Stage::RELEASE && ignored_note_off_) {
+		unconditional_release(); // its key went up under a mode that had no release
+	}
 	if (stage_ < Stage::RELEASE) {
 		return follow(num_samples, rates, sustain_level, eighths.decay,
 		              mode_ == EnvelopeMode::MPE ? follow_input : Q<31>{});
@@ -168,7 +178,7 @@ uint32_t Envelope::rate_of(Stage stage, const Rates& rates) const {
 	case Stage::RELEASE:
 		return rates.release;
 	case Stage::FAST_RELEASE:
-		return std::max(fast_release_rate_, 2 * rates.release);
+		return fast_release_rate_;
 	default:
 		return 0;
 	}
@@ -182,7 +192,7 @@ uint32_t Envelope::rate_of(Stage stage, const Rates& rates) const {
 [[gnu::noinline]] Q<31> Envelope::run_through(uint32_t num_samples, const Rates& rates, Q<31> sustain_level,
                                               EnvelopeEighths eighths) {
 	if (stage_ == Stage::FAST_RELEASE) {
-		fast_release_rate_ = std::max(fast_release_rate_, 2 * rates.release);
+		fast_release_rate_ = std::max(fast_release_rate_, doubled(rates.release));
 	}
 	const uint32_t rate = rate_of(stage_, rates);
 	if (const std::optional<uint64_t> over = position_.advance(rate, num_samples)) {

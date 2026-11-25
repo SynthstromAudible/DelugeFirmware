@@ -59,6 +59,7 @@ public:
 	static constexpr uint32_t kAhdHoldSpeedup = 8;
 
 	/// @brief Advances @p num_samples and returns the centred level.
+	/// @param state The sound's, now: a note goes on under a mode that changes, from the stage and level it is at.
 	/// @param follow_input What MPE mode follows, as its patch source word; other modes ignore it.
 	deluge::dsp::Q<31> render(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate,
 	                          deluge::dsp::Q<31> sustain_level, uint32_t release_rate,
@@ -71,11 +72,11 @@ public:
 	deluge::dsp::Q<31> note_on(bool directly_to_decay);
 	/// @brief As above, the smoothed sustain starting at @p initial_sustain.
 	deluge::dsp::Q<31> note_on(bool directly_to_decay, deluge::dsp::Q<31> initial_sustain);
-	/// @brief Starts a note under @p state's mode, which holds until the next note-on. AR and MPE always attack.
+	/// @brief Starts a note under @p state's mode. AR and MPE always attack.
 	deluge::dsp::Q<31> note_on(bool directly_to_decay, deluge::dsp::Q<31> initial_sustain,
 	                           const deluge::synth::EnvelopeState& state);
 	/// @brief Releases the note. AHD ignores it (a one-shot); AR and MPE always release; ADSR releases when
-	/// @p has_sustain, and otherwise lets the sustain stage resolve it.
+	/// @p has_sustain, and otherwise lets the sustain stage resolve it. The mode is the last render's.
 	void note_off(bool has_sustain);
 	/// @brief Enters @p release_stage from the current level; a fast release runs at @p fast_release_rate or twice
 	/// the release rate, whichever is faster.
