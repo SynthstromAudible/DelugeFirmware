@@ -462,11 +462,6 @@ concept prepare_well_formed =
 template <typename K>
 concept reset_well_formed = !declares_reset<K> || resets_exactly<K>;
 
-/// @brief Whether K's runs, if it declares them, are exactly their signatures, on a step of one sample at a time that
-/// steps the whole State.
-template <typename K>
-concept runs_well_formed = !declares_runs<K> || (runs_exactly<K> && scalar_step_kernel<K> && !declares_loop_state<K>);
-
 /// @brief Whether `Mono` and `Linked` step K's member loop state in place rather than on a local copy.
 /// @details False unless K declares `static constexpr bool kStateInPlace` true. The wrappers normally copy the loop
 /// state to locals for the block and write it back, so a scalar loop state stays in registers across the loop.
@@ -482,6 +477,12 @@ inline constexpr bool state_in_place_v = false;
 template <typename K>
 requires std::same_as<std::remove_cv_t<decltype(K::kStateInPlace)>, bool>
 inline constexpr bool state_in_place_v<K> = K::kStateInPlace;
+
+/// @brief Whether K's runs, if it declares them, are exactly their signatures, on a step of one sample at a time that
+/// steps the whole State on a copy.
+template <typename K>
+concept runs_well_formed =
+    !declares_runs<K> || (runs_exactly<K> && scalar_step_kernel<K> && !declares_loop_state<K> && !state_in_place_v<K>);
 
 } // namespace detail
 

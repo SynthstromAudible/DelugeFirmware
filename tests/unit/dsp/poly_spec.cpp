@@ -705,6 +705,27 @@ void poly_specs(auto& self) {
 			}
 		}
 	});
+	it("keeps what a step does not name across a run, and gives the loop only what it does", _ {
+		Poly<run_test::Sparse, N> poly;
+		Mono<run_test::Sparse> mono;
+		mono.configure({.scale = 2.f});
+		std::array<std::vector<f32>, N> out{};
+		std::array<fp::Buffer, N> os{};
+		std::vector<f32> alone(20);
+		for (std::size_t l = 0; l < N; ++l) {
+			poly.configure(l, {.scale = 2.f});
+			out[l].resize(20);
+			os[l] = fp::Buffer{out[l]};
+		}
+		for (int32_t block = 0; block < 3; ++block) {
+			poly.render_block(os);
+			mono.render_block(fp::Buffer{alone});
+			for (std::size_t l = 0; l < N; ++l) {
+				expect(out[l]).to_equal(alone);
+				expect(poly.state(l).kept).to_equal(static_cast<f32>((block + 1) * 20));
+			}
+		}
+	});
 	it("is not split by a parked lane, which is at rest", _ {
 		Poly<run_test::Periodic, N> poly;
 		poly.configure(0, {.period = 0.f});

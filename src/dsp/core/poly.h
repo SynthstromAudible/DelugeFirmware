@@ -43,7 +43,8 @@ namespace deluge::dsp {
 /// **Per block.** A K that declares `prepare` has it called once, on the packed coefficients and state, before the
 /// block's frames, as Mono does for one copy.
 /// **Runs.** A block of a kernel with runs (@ref runs_kernel) is split at the least run of its lanes: `run_length` and
-/// `prepare_run` take the packed coefficients and state. A parked lane is at rest, and splits nothing.
+/// `prepare_run` take the packed coefficients and state. A parked lane is at rest, and splits nothing. A lane's
+/// arithmetic is then that of a scalar copy stepped at the lanes' split; Mono alone takes its own runs.
 /// **Parking.** A fresh Poly has every lane parked; `configure` un-parks a lane. A parked lane is fed zero, its output
 /// is not written, and its state is returned to K's reset state after every block; lanes share nothing, so it perturbs
 /// no other. **Blocks.** Every unparked lane's input and output spans have the block's length (a parked lane's may be
@@ -152,8 +153,7 @@ private:
 			while (i < n) {
 				const std::size_t m = kernel_ops::run_length<K>(this->coefficients(), kept, n - i);
 				kernel_ops::prepare_run<K>(this->coefficients(), kept, m);
-				PackedState looped{};
-				detail::copy_stepped(looped, kept);
+				PackedState looped = detail::looped(kept);
 				const std::size_t end = i + m;
 				for (; i + N <= end; i += N) {
 					step_frames<M>(c, block, looped, parked, p, i);

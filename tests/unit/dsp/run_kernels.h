@@ -139,6 +139,51 @@ struct AddPeriodic {
 	}
 };
 
+/// A generator whose step touches `level` and `gain` of its State and whose `prepare_run` keeps the rest: `kept` counts
+/// the samples prepared for, and `gain` is what the step multiplies by.
+struct Sparse {
+	using value_type = f32;
+	using step_type = f32;
+	struct Settings {
+		f32 scale = 1.f;
+	};
+	template <class V>
+	struct CoefficientsT {
+		V scale{};
+		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+		static constexpr auto fields = std::tuple{&CoefficientsT::scale};
+	};
+	using Coefficients = CoefficientsT<f32>;
+	template <class V>
+	struct StateT {
+		V level{};
+		V kept{};
+		V gain{};
+		// NOLINTNEXTLINE(readability-identifier-naming): `step_fields` is the name poly_kernel reads.
+		static constexpr auto step_fields = std::tuple{&StateT::level, &StateT::gain};
+		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+		static constexpr auto fields = std::tuple{&StateT::level, &StateT::kept, &StateT::gain};
+	};
+	using State = StateT<f32>;
+
+	[[nodiscard]] static Coefficients coefficients(const Settings& settings) { return {.scale = settings.scale}; }
+	template <class V>
+	[[nodiscard]] static std::size_t run_length(const CoefficientsT<V>& /*c*/, const StateT<V>& /*s*/, std::size_t n) {
+		return std::min<std::size_t>(n, 6);
+	}
+	template <class V>
+	static void prepare_run(const CoefficientsT<V>& c, StateT<V>& s, std::size_t m) {
+		s.gain = c.scale;
+		s.kept = s.kept + V{static_cast<f32>(m)};
+	}
+	template <class V>
+	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& /*c*/, const EmptyBlock& /*b*/,
+	                                                   StateT<V>& s) {
+		s.level = s.level + V{1.f};
+		return s.level * s.gain;
+	}
+};
+
 /// A generator whose run_length answers what its settings say, whatever it was asked, and which declares a prepare:
 /// its State logs every call's count, in order.
 struct Logged {

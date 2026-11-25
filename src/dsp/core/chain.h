@@ -542,8 +542,8 @@ private:
 /// **Step.** `step` takes the first part's arity: none, one or two inputs. It steps part 0 on them, then each later
 /// part on the value the part before it returned: `y = K1::step<M1>(c1, b1, s1, x…); y = K2::step<M2>(c2, b2, s2,
 /// y); …`. Each part steps its own State in the order it would alone, so a chain is bit for bit its parts run as
-/// separate passes. Each frame is read whole by its wrapper before any of it is written, so a chain renders in place
-/// as it does out of place.
+/// separate passes, a part with runs at the chain's split. Each frame is read whole by its wrapper before any of it is
+/// written, so a chain renders in place as it does out of place.
 ///
 /// **Reset.** `reset` is declared only when some part has a reset quirk; it runs each part's quirk, or sets a part
 /// without one to `State{}`. Without it the wrappers assign `State{}`, which is every part's `State{}`.

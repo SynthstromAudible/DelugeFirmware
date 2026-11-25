@@ -868,6 +868,21 @@ struct RunsOnInt : PrepareRunAlone {
 static_assert(runs_kernel<run_test::Logged> && runs_kernel<run_test::Periodic> && runs_kernel<run_test::AddPeriodic>);
 static_assert(!runs_kernel<Gain> && kernel<Gain>);
 static_assert(!kernel<OnlyRunLength> && !kernel<RunLengthAlone> && !kernel<PrepareRunAlone> && !kernel<RunsOnInt>);
+
+struct RunsStepState : run_test::Logged {
+	static constexpr bool kStateInPlace = true;
+};
+struct RunsLoopState : run_test::Logged {
+	static constexpr auto kLoopState = &State::steps;
+	static f32 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, std::size_t& steps) {
+		return static_cast<f32>(++steps);
+	}
+};
+struct RunsOnStaged : Staged {
+	static std::size_t run_length(const Coefficients&, const State&, std::size_t n) { return n; }
+	static void prepare_run(const Coefficients&, State&, std::size_t) {}
+};
+static_assert(!kernel<RunsStepState> && !kernel<RunsLoopState> && !kernel<RunsOnStaged>);
 static_assert(!kernel_base<NotPlain> && !kernel<NotPlain>);
 static_assert(!kernel<TemplatePrepare>);
 static_assert(!kernel<OverloadedPrepare>);

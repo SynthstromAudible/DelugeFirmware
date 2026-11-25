@@ -46,11 +46,12 @@ struct StereoPair {};
 /// every copy, and @p Mix reduces the lanes to the output.
 /// @details Settings per lane and one mode, as @ref Poly; a K that declares `prepare` has it called once per block
 /// on the packed coefficients and state, as Poly does. A block of a kernel with runs (@ref runs_kernel) is split at the
-/// least run of its lanes, as Poly splits it. Each copy is bit for bit Mono<K> with its settings; the mix
-/// adds the lanes in lane order, unfused (a lane's gain multiplies, then the sum adds), so the output is the Mono
-/// outputs' sum in that order. N = 4 StereoPair: left = lane 0 + lane 2, right = lane 1 + lane 3; N = 2: left =
-/// lane 0, right = lane 1. The mix takes N samples at a time: their N packs transpose into one pack per lane, which
-/// add as packs in lane order and store as one vector; the last n mod N samples mix one at a time.
+/// least run of its lanes, as Poly splits it. Each copy is bit for bit Mono<K> with its settings (for a kernel with
+/// runs, a scalar copy stepped at the lanes' split); the mix adds the lanes in lane order, unfused (a lane's gain
+/// multiplies, then the sum adds), so the output is the Mono outputs' sum in that order. N = 4 StereoPair: left = lane
+/// 0 + lane 2, right = lane 1 + lane 3; N = 2: left = lane 0, right = lane 1. The mix takes N samples at a time: their
+/// N packs transpose into one pack per lane, which add as packs in lane order and store as one vector; the last n mod N
+/// samples mix one at a time.
 template <poly_kernel K, std::size_t N, class Mix>
 requires(processor_kernel<K> && (N == 2 || N == 4))
 class Bank : public detail::Copies<K, N> {
@@ -108,8 +109,7 @@ private:
 			while (i < in.size()) {
 				const std::size_t m = kernel_ops::run_length<K>(this->coefficients(), kept, in.size() - i);
 				kernel_ops::prepare_run<K>(this->coefficients(), kept, m);
-				PackedState looped{};
-				detail::copy_stepped(looped, kept);
+				PackedState looped = detail::looped(kept);
 				run_to<M>(i + m, c, block, looped, gains, in, first, second, i);
 				detail::copy_stepped(kept, looped);
 			}

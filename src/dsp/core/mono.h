@@ -274,8 +274,7 @@ private:
 				for (std::size_t i = 0; i < out.size();) {
 					const std::size_t m = kernel_ops::run_length<K>(coefficients_, state_, out.size() - i);
 					kernel_ops::prepare_run<K>(coefficients_, state_, m);
-					State s{};
-					detail::copy_stepped(s, state_);
+					State s = detail::looped(state_);
 					scalar_loop<M>(c, block, s, context, out.data() + i, static_cast<std::ptrdiff_t>(m),
 					               (in.data() + i)...);
 					detail::copy_stepped(state_, s);
