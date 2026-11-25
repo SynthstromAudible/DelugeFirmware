@@ -67,11 +67,13 @@ impl<S: PacketSink> ToHostSender<S> {
     }
 
     /// The stream it queues on.
+    #[cfg(any(test, feature = "audio-timing"))]
     pub fn sink(&self) -> &S {
         &self.sink
     }
 
     /// What was queued since the last take.
+    #[cfg(any(test, feature = "audio-timing"))]
     pub fn take_counts(&mut self) -> SendCounts {
         core::mem::take(&mut self.counts)
     }
@@ -161,6 +163,7 @@ impl<T: WireTap> FromHostTracker<T> {
     }
 
     /// The frames that arrived since the last take.
+    #[cfg(any(test, feature = "audio-timing"))]
     pub fn take_received(&mut self) -> u32 {
         core::mem::take(&mut self.received)
     }
