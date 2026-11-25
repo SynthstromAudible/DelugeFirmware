@@ -58,6 +58,8 @@ extern crate deluge_audio_format;
 #[cfg(has_app)]
 extern crate deluge_storage_resource;
 #[cfg(has_app)]
+extern crate deluge_storage_sample_peaks;
+#[cfg(has_app)]
 extern crate deluge_storage_sample_reader;
 #[cfg(has_app)]
 extern crate deluge_storage_sample_source;

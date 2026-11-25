@@ -86,6 +86,7 @@ fs_alloc = { package = "deluge_base_alloc", path = "../../base/alloc" }
 deluge_storage_resource = { path = "../../storage/resource" }
 deluge_storage_sample_source = { path = "../../storage/sample/source", features = ["c_abi"] }
 deluge_storage_sample_reader = { path = "../../storage/sample/reader", features = ["c_abi"] }
+deluge_storage_sample_peaks = { path = "../../storage/sample/peaks", features = ["c_abi"] }
 deluge_storage_stream = { path = "../../storage/stream", features = ["c_abi"] }
 
 # Embassy versions match deluge-sdk's workspace pins.
@@ -113,6 +114,7 @@ env_logger = { version = "0.11", optional = true }
 deluge_storage_resource = { path = "../../storage/resource", optional = true }
 deluge_storage_sample_source = { path = "../../storage/sample/source", optional = true }
 deluge_storage_sample_reader = { path = "../../storage/sample/reader", optional = true }
+deluge_storage_sample_peaks = { path = "../../storage/sample/peaks", optional = true }
 deluge_storage_stream = { path = "../../storage/stream", optional = true }
 
 # The block-device stack under the host mount (`host_app`). A std host has a default allocator, so
@@ -156,6 +158,10 @@ host_app = [
     "deluge_storage_sample_source/c_abi",
     "dep:deluge_storage_sample_reader",
     "deluge_storage_sample_reader/c_abi",
+    "dep:deluge_storage_sample_peaks",
+    "deluge_storage_sample_peaks/c_abi",
+    # The host scene specs seed a fixture's peaks (deluge_peaks_fill_uniform); host builds only.
+    "deluge_storage_sample_peaks/test_support",
     "dep:deluge_storage_stream",
     "deluge_storage_stream/c_abi",
     "dep:block-device-driver",

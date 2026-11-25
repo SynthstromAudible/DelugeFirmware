@@ -37,12 +37,14 @@
 #include "libdeluge/stream_io.h"
 #include "libdeluge/system.h" // deluge_in_interrupt
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/sample/sample.h"
 #include "model/sample/waveform_scan.h"
 #include "storage/audio/card_reinsert.h"
 #include "util/notify.h"
 
 #include "deluge_storage_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
+#include "deluge_storage_sample_peaks.h"
 #include "deluge_storage_sample_reader.h"
 #include "deluge_storage_sample_source.h"
 #include "model/sample/sample_cache.h"
@@ -130,6 +132,9 @@ void AudioFileManager::firstCardRead() {
 }
 
 void AudioFileManager::init() {
+	// The samples' peak indexes allocate from external SDRAM, in thread mode only.
+	deluge_peaks_init([](size_t size, size_t align) { return deluge::memory::alloc_external(size, align); },
+	                  [](void* p) { deluge::memory::dealloc(p); });
 
 	Error error = StorageManager::initSD();
 	if (error == Error::NONE) {

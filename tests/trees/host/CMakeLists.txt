@@ -51,6 +51,7 @@ set(RUST_ALLOC ${CMAKE_CURRENT_LIST_DIR}/../../../src/base/alloc)
 set(RUST_RESOURCE ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/resource)
 set(RUST_SAMPLE_FILL ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/fill)
 set(RUST_SAMPLE_READER ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/reader)
+set(RUST_SAMPLE_PEAKS ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/peaks)
 set(RUST_SAMPLE_SOURCE ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/source)
 set(RUST_STREAM ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/stream)
 set(RUST_CONVERT ${CMAKE_CURRENT_LIST_DIR}/../../../src/storage/sample/convert)
@@ -94,7 +95,7 @@ if (UNIX AND NOT APPLE)
     # already-resolved paths to re-glob), mirroring src/platform/host/CMakeLists.txt's own SIM_RUST_SOURCES.
     file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
         ${RUST_ALLOC}/src/*.rs ${RUST_RESOURCE}/src/*.rs
-        ${RUST_SAMPLE_READER}/src/*.rs ${RUST_SAMPLE_FILL}/src/*.rs
+        ${RUST_SAMPLE_READER}/src/*.rs ${RUST_SAMPLE_PEAKS}/src/*.rs ${RUST_SAMPLE_FILL}/src/*.rs
         ${RUST_SAMPLE_SOURCE}/src/*.rs ${RUST_STREAM}/src/*.rs ${RUST_CONVERT}/src/*.rs ${RUST_CONVERT}/build.rs
         ${RUST_TEST_RUST}/src/*.rs)
     add_custom_command(
@@ -106,7 +107,7 @@ if (UNIX AND NOT APPLE)
             ${RUST_WS}/Cargo.lock
             ${RUST_WS}/Cargo.toml ${RUST_ALLOC}/Cargo.toml
             ${RUST_RESOURCE}/Cargo.toml ${RUST_TEST_RUST}/Cargo.toml
-            ${RUST_SAMPLE_READER}/Cargo.toml ${RUST_SAMPLE_FILL}/Cargo.toml
+            ${RUST_SAMPLE_READER}/Cargo.toml ${RUST_SAMPLE_PEAKS}/Cargo.toml ${RUST_SAMPLE_FILL}/Cargo.toml
             ${RUST_SAMPLE_SOURCE}/Cargo.toml ${RUST_STREAM}/Cargo.toml ${RUST_CONVERT}/Cargo.toml
         COMMENT "Building Rust deluge_test_rust staticlib with the sim feature (${RUST_TARGET})"
         VERBATIM)

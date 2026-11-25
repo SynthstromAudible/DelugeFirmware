@@ -15,12 +15,14 @@
 //!   the index for thread mode to free.
 #![no_std]
 
+pub mod abi;
 pub mod column;
 mod dir;
 pub mod div;
 mod index;
 pub mod mem;
 mod peak;
+pub mod tap;
 
 pub use column::{ColumnPlan, FrameReads};
 pub use index::PeakIndex;

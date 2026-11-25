@@ -22,6 +22,7 @@ deluge_storage_sample_fill = { path = "../../../../src/storage/sample/fill", opt
 # std-backed implementation for `deluge_storage_sample_fill`'s context-table mutex.
 critical-section = { version = "1", optional = true }
 deluge_storage_sample_reader = { path = "../../../../src/storage/sample/reader", optional = true }
+deluge_storage_sample_peaks = { path = "../../../../src/storage/sample/peaks", optional = true }
 deluge_storage_stream = { path = "../../../../src/storage/stream", optional = true }
 
 [features]
@@ -41,6 +42,9 @@ sample_abi = [
     "critical-section/std",
     "dep:deluge_storage_sample_reader",
     "deluge_storage_sample_reader/c_abi",
+    "dep:deluge_storage_sample_peaks",
+    "deluge_storage_sample_peaks/c_abi",
+    "deluge_storage_sample_peaks/test_support",
     "dep:deluge_storage_stream",
     "deluge_storage_stream/c_abi",
 ]

@@ -18,6 +18,9 @@ const STRUCTS: &[(&str, &str)] = &[
     ("DelugeFileLocation", "deluge_storage_sample_fill::FileLocation"),
     ("StreamingFillDescriptor", "deluge_storage_sample_fill::StreamingFillDescriptor"),
     ("DelugeFrameWindow", "deluge_storage_sample_reader::abi::DelugeFrameWindow"),
+    ("DelugePeak", "deluge_storage_sample_peaks::abi::DelugePeak"),
+    ("DelugeMaybePeak", "deluge_storage_sample_peaks::abi::DelugeMaybePeak"),
+    ("DelugePeaksColumn", "deluge_storage_sample_peaks::abi::DelugePeaksColumn"),
     ("DelugeSampleGeometry", "deluge_storage_sample_source::geometry::Geometry"),
     ("DelugeSampleRegion", "deluge_storage_sample_source::abi::DelugeSampleRegion"),
     ("DelugeSampleStreamGeometry", "deluge_storage_stream::DelugeSampleStreamGeometry"),
@@ -38,6 +41,7 @@ const ENUMS: &[(&str, &str)] = &[
 const OPAQUE: &[(&str, &str)] = &[
     // Several crates pass the manager through without owning it, so they all see it untyped.
     ("DelugeResource", "core::ffi::c_void"),
+    ("DelugePeakIndex", "deluge_storage_sample_peaks::abi::DelugePeakIndex"),
     ("DelugeSampleReader", "deluge_storage_sample_reader::abi::DelugeSampleReader"),
     ("DelugeSampleReservation", "deluge_storage_sample_reader::reservation::DelugeSampleReservation"),
     ("DelugeSampleSource", "deluge_storage_sample_source::abi::DelugeSampleSource"),
