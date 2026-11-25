@@ -42,6 +42,9 @@ namespace deluge::dsp {
 /// **One mode.** Every lane runs one mode, dispatched once per block; a kernel without modes steps without dispatch.
 /// **Per block.** A K that declares `prepare` has it called once, on the packed coefficients and state, before the
 /// block's frames, as Mono does for one copy.
+/// **Runs.** A block of a kernel with runs (@ref runs_kernel) is split at the least run of its lanes: `run_length` and
+/// `prepare_run` take the packed coefficients and state. A parked lane is at rest, and splits nothing. A lane's
+/// arithmetic is then that of a scalar copy stepped at the lanes' split; Mono alone takes its own runs.
 /// **Parking.** A fresh Poly has every lane parked; `configure` un-parks a lane. A parked lane is fed zero, its output
 /// is not written, and its state is returned to K's reset state after every block; lanes share nothing, so it perturbs
 /// no other. **Blocks.** Every unparked lane's input and output spans have the block's length (a parked lane's may be
@@ -135,27 +138,53 @@ private:
 	template <auto M>
 	void run(const std::array<fp::Signal, N>& in, const std::array<fp::Buffer, N>& out, std::size_t n) {
 		const PackedCoefficients c = this->coefficients();
-		PackedState s = this->packed_state();
 		const LaneMask parked = parked_;
 		LanePointers p{};
 		for (std::size_t l = 0; l < N; ++l) {
 			p.in[l] = in[l].data();
 			p.out[l] = out[l].data();
 		}
-		const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, n);
 		std::size_t i = 0;
-		for (; i + N <= n; i += N) {
-			step_frames<M>(c, block, s, parked, p, i);
-		}
-		for (; i < n; ++i) {
-			step_frame<M>(c, block, s, parked, p, i);
-		}
-		for (std::size_t l = 0; l < N; ++l) {
-			if ((parked & bit(l)) != 0) {
-				Base::reset_lane(s, l);
+		if constexpr (runs_kernel<K>) {
+			// The hooks work on the member state, the loop on a copy of what its step touches: a copy has no address
+			// anything else could write through, so it stays in registers
+			PackedState& kept = this->kept_state();
+			const kernel_block_t<K> block = kernel_ops::prepare_block<K>(this->coefficients(), kept, n);
+			while (i < n) {
+				const std::size_t m = kernel_ops::run_length<K>(this->coefficients(), kept, n - i);
+				kernel_ops::prepare_run<K>(this->coefficients(), kept, m);
+				PackedState looped = detail::looped(kept);
+				const std::size_t end = i + m;
+				for (; i + N <= end; i += N) {
+					step_frames<M>(c, block, looped, parked, p, i);
+				}
+				for (; i < end; ++i) {
+					step_frame<M>(c, block, looped, parked, p, i);
+				}
+				detail::copy_stepped(kept, looped);
+			}
+			for (std::size_t l = 0; l < N; ++l) {
+				if ((parked & bit(l)) != 0) {
+					Base::reset_lane(kept, l);
+				}
 			}
 		}
-		this->set_packed_state(s);
+		else {
+			PackedState s = this->packed_state();
+			const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, n);
+			for (; i + N <= n; i += N) {
+				step_frames<M>(c, block, s, parked, p, i);
+			}
+			for (; i < n; ++i) {
+				step_frame<M>(c, block, s, parked, p, i);
+			}
+			for (std::size_t l = 0; l < N; ++l) {
+				if ((parked & bit(l)) != 0) {
+					Base::reset_lane(s, l);
+				}
+			}
+			this->set_packed_state(s);
+		}
 	}
 
 	/// N frames, i … i + N − 1, through a transpose in and out.

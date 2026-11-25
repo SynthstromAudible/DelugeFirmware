@@ -45,11 +45,13 @@ struct StereoPair {};
 /// @brief N copies of @p K reading one input: each sample broadcasts to every lane, one step over Pack<f32, N> steps
 /// every copy, and @p Mix reduces the lanes to the output.
 /// @details Settings per lane and one mode, as @ref Poly; a K that declares `prepare` has it called once per block
-/// on the packed coefficients and state, as Poly does. Each copy is bit for bit Mono<K> with its settings; the mix
-/// adds the lanes in lane order, unfused (a lane's gain multiplies, then the sum adds), so the output is the Mono
-/// outputs' sum in that order. N = 4 StereoPair: left = lane 0 + lane 2, right = lane 1 + lane 3; N = 2: left =
-/// lane 0, right = lane 1. The mix takes N samples at a time: their N packs transpose into one pack per lane, which
-/// add as packs in lane order and store as one vector; the last n mod N samples mix one at a time.
+/// on the packed coefficients and state, as Poly does. A block of a kernel with runs (@ref runs_kernel) is split at the
+/// least run of its lanes, as Poly splits it. Each copy is bit for bit Mono<K> with its settings (for a kernel with
+/// runs, a scalar copy stepped at the lanes' split); the mix adds the lanes in lane order, unfused (a lane's gain
+/// multiplies, then the sum adds), so the output is the Mono outputs' sum in that order. N = 4 StereoPair: left = lane
+/// 0 + lane 2, right = lane 1 + lane 3; N = 2: left = lane 0, right = lane 1. The mix takes N samples at a time: their
+/// N packs transpose into one pack per lane, which add as packs in lane order and store as one vector; the last n mod N
+/// samples mix one at a time.
 template <poly_kernel K, std::size_t N, class Mix>
 requires(processor_kernel<K> && (N == 2 || N == 4))
 class Bank : public detail::Copies<K, N> {
@@ -98,21 +100,43 @@ private:
 	template <auto M>
 	void run(fp::Signal in, f32* first, f32* second) {
 		const PackedCoefficients c = this->coefficients();
-		PackedState s = this->packed_state();
 		const V gains = gains_;
-		const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, in.size());
 		std::size_t i = 0;
-		for (; i + N <= in.size(); i += N) {
+		if constexpr (runs_kernel<K>) {
+			// As Poly: the hooks work on the member state, the loop on a copy of what its step touches
+			PackedState& kept = this->kept_state();
+			const kernel_block_t<K> block = kernel_ops::prepare_block<K>(this->coefficients(), kept, in.size());
+			while (i < in.size()) {
+				const std::size_t m = kernel_ops::run_length<K>(this->coefficients(), kept, in.size() - i);
+				kernel_ops::prepare_run<K>(this->coefficients(), kept, m);
+				PackedState looped = detail::looped(kept);
+				run_to<M>(i + m, c, block, looped, gains, in, first, second, i);
+				detail::copy_stepped(kept, looped);
+			}
+		}
+		else {
+			PackedState s = this->packed_state();
+			const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, in.size());
+			run_to<M>(in.size(), c, block, s, gains, in, first, second, i);
+			this->set_packed_state(s);
+		}
+	}
+
+	/// Samples @p i to @p end: N at a time, the rest one at a time.
+	template <auto M>
+	[[gnu::always_inline]] static void run_to(std::size_t end, const PackedCoefficients& c,
+	                                          const kernel_block_t<K>& block, PackedState& s, V gains, fp::Signal in,
+	                                          f32* first, f32* second, std::size_t& i) {
+		for (; i + N <= end; i += N) {
 			Frames y;
 			for (std::size_t t = 0; t < N; ++t) {
 				y[t] = kernel_ops::step_at<K, M>(c, block, s, V{in[i + t]});
 			}
 			mix_frames(y, gains, first, second, i);
 		}
-		for (; i < in.size(); ++i) {
+		for (; i < end; ++i) {
 			mix_one(kernel_ops::step_at<K, M>(c, block, s, V{in[i]}), gains, first, second, i);
 		}
-		this->set_packed_state(s);
 	}
 
 	/// Mixes the outputs @p y of samples @p i … i + N − 1 into @p first (and @p second): the N packs transpose into

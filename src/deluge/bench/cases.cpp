@@ -939,6 +939,7 @@ std::span<const Case> float_voice_list(CaseSet& s) {
 	    make_case("fp_envelope_mono", s.fp_envelope_mono),
 	    make_case("fp_envelope_poly4", s.fp_envelope_poly4),
 	    make_case("fp_envelope_sustain_poly4", s.fp_envelope_sustain_poly4),
+	    make_case("fp_envelope_fade_poly4", s.fp_envelope_fade_poly4),
 	    make_case("fp_voice_blep_mono", s.fp_voice_blep_mono),
 	    make_case("fp_voice_blep_poly2", s.fp_voice_blep_poly2),
 	    make_case("fp_voice_blep_poly4", s.fp_voice_blep_poly4),

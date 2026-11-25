@@ -21,42 +21,47 @@
 #include "dsp/core/pack_f32.h"
 #include "dsp/core/poly_kernel.h"
 #include "dsp/core/sample.h"
-#include "dsp/float/math/detail.h"
+#include "dsp/float/envelope/curve.h"
 
+#include <algorithm>
 #include <array>
+#include <bit>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <numbers>
 #include <tuple>
 
 /// @file
-/// @brief fp::Envelope: a segment-program envelope in float, written once over its value type so Poly runs a copy per
-/// lane, each lane in its own stage.
+/// @brief fp::Envelope: an envelope of timed segments along main's curves, written once over its value type so
+/// Poly runs a copy per lane, each lane in its own stage.
 namespace deluge::dsp::fp {
 
 /// @brief The most segments a program holds.
 inline constexpr std::size_t kMaxSegments = 8;
-
-/// @brief A segment's `next` (and a program's `release`) when there is none: the envelope ends at 0 (or ignores
+/// @brief A segment's `next` (and a program's `release`) when there is none: the envelope rests at 0 (or ignores a
 /// gate-off).
 inline constexpr f32 kOff = -1.f;
-
-/// @brief The threshold of a stage that never ends by itself.
-inline constexpr f32 kNever = std::numeric_limits<f32>::infinity();
+/// @brief The length of a segment that never ends by itself: it stays at its target.
+inline constexpr f32 kForever = std::numeric_limits<f32>::infinity();
 
 /// @brief One stage of a program, over V; the flags and the index are 0/1 or whole numbers held in V.
 template <class V>
 struct Segment {
-	V target{};      ///< The level the segment ends at: the value lands on it exactly.
-	V aim{};         ///< The level an EXPONENTIAL segment heads for (beyond `target` for an analog-curve attack).
-	V rate{};        ///< EXPONENTIAL: the one-pole coefficient. LINEAR: the length in samples.
-	V exponential{}; ///< 1 for a one-pole segment, 0 for a linear one.
-	V hold{};        ///< 1 to stay (never reached) until a gate-off.
-	V next{kOff};    ///< The segment entered on reaching `target`, or kOff.
+	V target{};    ///< The level the segment ends at.
+	V length{1.f}; ///< Its length, in samples; kForever to stay at `target`.
+	V curve{}; ///< Its curve, in octaves (to 24 either way): positive is steep at the start, negative at the end, 0 is
+	           ///< a line.
+	V next{kOff}; ///< The segment entered at its end, or kOff.
+	V fall{};     ///< A `follow` segment's length while it falls.
+	V follow{};   ///< 1 to slew to `target`, wherever it moves, until a gate event: over `length` while it rises and
+	              ///< `fall` while it falls, main's AR; a `curve` of 0 or less in a line.
+	V resume{};   ///< 1 to enter it where its curve from 0 reaches the level there is, so a retrigger is shorter.
 	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
-	static constexpr auto fields = std::tuple{&Segment::target,      &Segment::aim,  &Segment::rate,
-	                                          &Segment::exponential, &Segment::hold, &Segment::next};
+	static constexpr auto fields = std::tuple{&Segment::target, &Segment::length, &Segment::curve, &Segment::next,
+	                                          &Segment::fall,   &Segment::follow, &Segment::resume};
 };
 
 /// @brief A program: its segments (the first is entered by a gate-on) and the segment a gate-off enters.
@@ -65,96 +70,175 @@ struct Program {
 	f32 release = kOff;                                ///< The segment a gate-off enters, or kOff to ignore it.
 };
 
+/// @brief Each stage's curve, in octaves; main's classic shape.
+struct Curves {
+	f32 attack = 4.f;
+	f32 decay = 8.f;
+	f32 release = 8.f;
+};
+
 namespace detail {
-/// A one-pole coefficient with time constant @p time samples (at least 1): 1 - e^(-1/time).
-[[nodiscard]] inline f32 one_pole_rate(f32 time) {
-#pragma clang fp contract(off) reassociate(off) reciprocal(off)
-	const double t = time < 1.f ? 1.0 : static_cast<double>(time);
-	return static_cast<f32>(1.0 - exp_negative(1.0 / t));
+/// An attack to 1 in @p length samples, entering @p next.
+[[nodiscard]] inline Segment<f32> attack_segment(f32 length, f32 curve, f32 next) {
+	return {
+	    .target = 1.f, .length = length, .curve = curve, .next = next, .fall = length, .follow = 0.f, .resume = 1.f};
 }
-/// An exponential segment aiming at @p aim, ending at @p target, entering @p next.
-[[nodiscard]] inline Segment<f32> exponential_segment(f32 target, f32 aim, f32 time, f32 next) {
-	return {.target = target, .aim = aim, .rate = one_pole_rate(time), .exponential = 1.f, .hold = 0.f, .next = next};
+/// A stage to @p target in @p length samples, entering @p next.
+[[nodiscard]] inline Segment<f32> segment(f32 target, f32 length, f32 curve, f32 next) {
+	return {
+	    .target = target, .length = length, .curve = curve, .next = next, .fall = length, .follow = 0.f, .resume = 0.f};
 }
-/// A linear segment to @p target in @p length samples (at least 1), entering @p next.
-[[nodiscard]] inline Segment<f32> linear_segment(f32 target, f32 length, f32 next) {
-	return {.target = target,
-	        .aim = target,
-	        .rate = length < 1.f ? 1.f : length,
-	        .exponential = 0.f,
-	        .hold = 0.f,
-	        .next = next};
-}
-/// A stage that stays at @p level until a gate-off.
+/// A stage that stays at @p level until a gate event.
 [[nodiscard]] inline Segment<f32> hold_segment(f32 level) {
-	return {.target = level, .aim = level, .rate = 1.f, .exponential = 0.f, .hold = 1.f, .next = kOff};
+	return {.target = level,
+	        .length = kForever,
+	        .curve = 0.f,
+	        .next = kOff,
+	        .fall = kForever,
+	        .follow = 0.f,
+	        .resume = 0.f};
 }
 } // namespace detail
 
-/// @brief Attack, decay, sustain, release: an exponential attack aiming at 1.2 and ending at 1, an exponential decay to
-/// @p sustain, a hold there, an exponential release to 0.
-/// @param attack Attack time constant, in samples (below 1 counts as 1).
-/// @param decay Decay time constant, in samples (below 1 counts as 1).
-/// @param sustain The held level.
-/// @param release Release time constant, in samples (below 1 counts as 1).
-[[nodiscard]] inline Program adsr(f32 attack, f32 decay, f32 sustain, f32 release) {
+/// @brief Attack, decay, sustain, release. Lengths in samples, as for every program; under a sample counts as one.
+[[nodiscard]] inline Program adsr(f32 attack, f32 decay, f32 sustain, f32 release, const Curves& curves) {
 	Program p;
-	p.segments[0] = detail::exponential_segment(1.f, 1.2f, attack, 1.f);
-	p.segments[1] = detail::exponential_segment(sustain, sustain, decay, 2.f);
+	p.segments[0] = detail::attack_segment(attack, curves.attack, 1.f);
+	p.segments[1] = detail::segment(sustain, decay, curves.decay, 2.f);
 	p.segments[2] = detail::hold_segment(sustain);
-	p.segments[3] = detail::exponential_segment(0.f, 0.f, release, kOff);
+	p.segments[3] = detail::segment(0.f, release, curves.release, kOff);
 	p.release = 3.f;
 	return p;
 }
-/// @brief Attack then decay to 0, ignoring gate-off. Times as @ref adsr.
-[[nodiscard]] inline Program ad(f32 attack, f32 decay) {
+/// @brief Attack then decay to 0, ignoring gate-off.
+[[nodiscard]] inline Program ad(f32 attack, f32 decay, const Curves& curves) {
 	Program p;
-	p.segments[0] = detail::exponential_segment(1.f, 1.2f, attack, 1.f);
-	p.segments[1] = detail::exponential_segment(0.f, 0.f, decay, kOff);
+	p.segments[0] = detail::attack_segment(attack, curves.attack, 1.f);
+	p.segments[1] = detail::segment(0.f, decay, curves.decay, kOff);
 	return p;
 }
-/// @brief Attack, a hold at 1, a release to 0. Times as @ref adsr.
-[[nodiscard]] inline Program asr(f32 attack, f32 release) {
+/// @brief Attack, a hold at 1 for @p hold samples, then decay to 0, ignoring gate-off.
+[[nodiscard]] inline Program ahd(f32 attack, f32 hold, f32 decay, const Curves& curves) {
 	Program p;
-	p.segments[0] = detail::exponential_segment(1.f, 1.2f, attack, 1.f);
+	p.segments[0] = detail::attack_segment(attack, curves.attack, 1.f);
+	p.segments[1] = detail::segment(1.f, hold, 0.f, 2.f);
+	p.segments[2] = detail::segment(0.f, decay, curves.decay, kOff);
+	return p;
+}
+/// @brief Attack, a hold at 1 while the gate is, release.
+[[nodiscard]] inline Program asr(f32 attack, f32 release, const Curves& curves) {
+	Program p;
+	p.segments[0] = detail::attack_segment(attack, curves.attack, 1.f);
 	p.segments[1] = detail::hold_segment(1.f);
-	p.segments[2] = detail::exponential_segment(0.f, 0.f, release, kOff);
+	p.segments[2] = detail::segment(0.f, release, curves.release, kOff);
 	p.release = 2.f;
 	return p;
 }
-/// @brief A DX7-shaped program: linear rises from 0 to @p levels[0], to @p levels[1], to @p levels[2] where it holds;
-/// a gate-off falls to @p levels[3], where it stays. @p times are the segments' lengths in samples (>= 1).
+/// @brief While the gate is, a slew to @p level along the decay's curve, over @p attack rising and @p release falling;
+/// then release. MPE is this with a level its owner moves.
+[[nodiscard]] inline Program ar(f32 attack, f32 release, f32 level, const Curves& curves) {
+	Program p;
+	p.segments[0] = {.target = level,
+	                 .length = attack,
+	                 .curve = curves.decay,
+	                 .next = kOff,
+	                 .fall = release,
+	                 .follow = 1.f,
+	                 .resume = 0.f};
+	p.segments[1] = detail::segment(0.f, release, curves.release, kOff);
+	p.release = 1.f;
+	return p;
+}
+/// @brief A DX7-shaped program: straight to @p levels[0], to @p levels[1], to @p levels[2] where it holds; a gate-off
+/// goes to @p levels[3], where it stays. @p times are the stages' lengths.
 [[nodiscard]] inline Program four_segment(std::array<f32, 4> levels, std::array<f32, 4> times) {
 	Program p;
-	p.segments[0] = detail::linear_segment(levels[0], times[0], 1.f);
-	p.segments[1] = detail::linear_segment(levels[1], times[1], 2.f);
-	p.segments[2] = detail::linear_segment(levels[2], times[2], 3.f);
+	p.segments[0] = detail::segment(levels[0], times[0], 0.f, 1.f);
+	p.segments[1] = detail::segment(levels[1], times[1], 0.f, 2.f);
+	p.segments[2] = detail::segment(levels[2], times[2], 0.f, 3.f);
 	p.segments[3] = detail::hold_segment(levels[2]);
-	p.segments[4] = detail::linear_segment(levels[3], times[3], 5.f);
+	p.segments[4] = detail::segment(levels[3], times[3], 0.f, 5.f);
 	p.segments[5] = detail::hold_segment(levels[3]);
 	p.release = 4.f;
 	return p;
 }
-/// @brief Two linear segments, rising to @p high and falling to @p low in @p time samples each, forever.
+/// @brief Straight to @p high and to @p low in @p time samples each, forever.
 [[nodiscard]] inline Program looping(f32 low, f32 high, f32 time) {
 	Program p;
-	p.segments[0] = detail::linear_segment(high, time, 1.f);
-	p.segments[1] = detail::linear_segment(low, time, 0.f);
+	p.segments[0] = detail::segment(high, time, 0.f, 1.f);
+	p.segments[1] = detail::segment(low, time, 0.f, 0.f);
 	return p;
 }
 
-/// @brief A segment-program envelope: one step and one end-compare per sample; a stage change, which falls on a
-/// different sample in each lane, runs scalar for the lanes that reached.
+namespace detail {
+/// @brief How many lanes a V has.
+template <class V>
+inline constexpr std::size_t kLanes = sizeof(V) / sizeof(f32);
+
+/// @brief Lane @p l of @p v.
+[[nodiscard, gnu::always_inline]] inline f32 lane(const f32& v, std::size_t /*l*/) {
+	return v;
+}
+template <std::size_t N>
+[[nodiscard, gnu::always_inline]] inline f32 lane(const Pack<f32, N>& v, std::size_t l) {
+	return v.get(l);
+}
+/// @brief The bits of lane @p l of @p v.
+[[nodiscard, gnu::always_inline]] inline uint32_t lane_bits(const f32& v, std::size_t /*l*/) {
+	return std::bit_cast<uint32_t>(v);
+}
+template <std::size_t N>
+[[nodiscard, gnu::always_inline]] inline uint32_t lane_bits(const Pack<f32, N>& v, std::size_t l) {
+	return std::bit_cast<std::array<uint32_t, N>>(v.v)[l];
+}
+/// @brief Sets lane @p l of @p v.
+[[gnu::always_inline]] inline void set_lane_of(f32& v, std::size_t /*l*/, f32 x) {
+	v = x;
+}
+template <std::size_t N>
+[[gnu::always_inline]] inline void set_lane_of(Pack<f32, N>& v, std::size_t l, f32 x) {
+	v.set(l, x);
+}
+
+/// @brief The least lane of @p v.
+[[nodiscard, gnu::always_inline]] inline f32 least(f32 v) {
+	return v;
+}
+template <std::size_t N>
+[[nodiscard, gnu::always_inline]] inline f32 least(Pack<f32, N> v) {
+	if constexpr (N == 4) {
+		const Pack<f32, 2> low{__builtin_shufflevector(v.v, v.v, 0, 1)};
+		const Pack<f32, 2> high{__builtin_shufflevector(v.v, v.v, 2, 3)};
+		return least(min(low, high));
+	}
+	else {
+		return min(v, Pack<f32, 2>{__builtin_shufflevector(v.v, v.v, 1, 0)}).get(0);
+	}
+}
+} // namespace detail
+
+/// @brief An envelope of timed segments: each runs from the level there is to its target along main's curve.
+/// @details The step is the run's map alone: `b += c; v = b + v·a`. `prepare_run` anchors each lane's level on its
+/// curve at the run's start, exactly, and sets the map for the run: affine, the curve's own asymptote (a curve at a
+/// constant rate is one), or quadratic where the run covers so little of the curve that the affine's slope would round.
+/// A stage's end is a run's end, where the lane enters its next stage, the fraction of a sample past the end carried.
+///
+/// **Settings** reach a running stage once a block, in `prepare`: its phase is kept, and a level that is then off its
+/// curve goes in a straight line to where the curve is 32 samples on.
 struct Envelope {
+	/// `at` where there is no segment whose settings to follow.
+	static constexpr uint32_t kNowhere = 0xFFFFFFFFU;
+
 	using value_type = f32; ///< The level, 0 to 1 for the shipped programs.
 	using step_type = f32;  ///< One step per sample.
 
-	/// @brief What the owner sets.
+	/// @brief What the owner sets. A running stage is followed by its segment's number: a program of another shape set
+	/// under a sounding note goes on in that segment, whatever it is.
 	struct Settings {
 		Program program{}; ///< The stages.
 	};
 
-	/// @brief The program, over V.
+	/// @brief The program, over V; no length under a sample.
 	template <class V>
 	struct CoefficientsT {
 		std::array<Segment<V>, kMaxSegments> segments{}; ///< The stages.
@@ -164,119 +248,506 @@ struct Envelope {
 	};
 	using Coefficients = CoefficientsT<f32>;
 
-	/// @brief The current stage and the level, over V. StateT{} rests at 0.
-	/// @details The step reads and writes `value`, `a`, `b`, `threshold` and `direction` only: every stage is the
-	/// affine map `value = b + value·a`, ended when `(value - threshold)·direction >= 0`. The rest is for a stage
-	/// change and the events.
+	/// @brief The level, the run's map and the stage, over V. StateT{} rests at 0.
 	template <class V>
 	struct StateT {
-		V value{}; ///< The level.
-		V a{1.f};  ///< The map's slope: 1 - rate for an EXPONENTIAL stage, 1 for a LINEAR one, a hold or rest.
-		V b{};     ///< The map's offset: rate·aim for an EXPONENTIAL stage, the step for a LINEAR one, 0 else.
-		V threshold{kNever}; ///< The level that ends the stage: just short of the target for an EXPONENTIAL stage
-		                     ///< aiming at it; +infinity for a hold or at rest, which never end by themselves.
-		V direction{1.f};    ///< +1 when the stage rises to its threshold, -1 when it falls; +1 for a hold or rest.
-		V target{};          ///< Where the stage ends: the value lands on it exactly.
-		V next{kOff};        ///< The stage entered at the end of this one.
-		V index{kOff};       ///< The stage's segment index, or kOff at rest.
+		V v{};    ///< The level.
+		V a{1.f}; ///< The map's slope.
+		V b{};    ///< The map's offset.
+		V c{};    ///< What the offset gains a sample.
+
+		V hi{};             ///< The phase at the last sample, 0 to 1 over the stage; under 0 by less than a sample's
+		                    ///< when the stage starts between samples.
+		V lo{};             ///< What `hi` rounds off.
+		V from{};           ///< The level the stage started at.
+		V target{};         ///< The stage's target.
+		V length{kForever}; ///< Its length in samples.
+		V inverse{};        ///< 1 / length; 0 for kForever.
+		V curve{};          ///< Its curve.
+		V scale{};          ///< 1 / (2^curve - 1); 0 for a line.
+		V decrement{};      ///< curve·ln 2 / length.
+		V rate{};           ///< 1 - 2^(-curve / length).
+		V most{kForever};   ///< The most samples a run of it takes.
+		V gap_left{};       ///< The samples until the level is on its curve again, after a change of settings.
+		V slew{};           ///< A slew's length, rising or falling as it is; 0 in no slew.
+		V slew_inverse{};   ///< 1 / slew.
+		V under{};          ///< What a slew's level, kept in `from`, rounds off.
+		V fades{};          ///< 1 in a fade.
+		V index{kOff};      ///< The stage's segment, kFading, or kOff at rest (where a gap may still be closing).
+		V at{std::bit_cast<f32>(kNowhere)}; ///< The bits of that segment's number, or kNowhere at rest or in a fade.
+		// NOLINTNEXTLINE(readability-identifier-naming): `step_fields` is the name poly_kernel reads.
+		static constexpr auto step_fields = std::tuple{&StateT::v, &StateT::a, &StateT::b, &StateT::c};
 		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
-		static constexpr auto fields =
-		    std::tuple{&StateT::value,     &StateT::a,      &StateT::b,    &StateT::threshold,
-		               &StateT::direction, &StateT::target, &StateT::next, &StateT::index};
+		static constexpr auto fields = std::tuple{&StateT::v,         &StateT::a,      &StateT::b,
+		                                          &StateT::c,         &StateT::hi,     &StateT::lo,
+		                                          &StateT::from,      &StateT::target, &StateT::length,
+		                                          &StateT::inverse,   &StateT::curve,  &StateT::scale,
+		                                          &StateT::decrement, &StateT::rate,   &StateT::most,
+		                                          &StateT::gap_left,  &StateT::slew,   &StateT::slew_inverse,
+		                                          &StateT::under,     &StateT::fades,  &StateT::index,
+		                                          &StateT::at};
 	};
 	using State = StateT<f32>;
 
-	/// @brief The program of @p settings.
+	/// @brief The program of @p settings, made safe to run whatever its numbers: every length at least a sample, every
+	/// curve within kMostOctaves, every index a segment's or kOff.
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		Coefficients c;
 		c.segments = settings.program.segments;
-		c.release = settings.program.release;
+		for (Segment<f32>& g : c.segments) {
+			g.length = at_least_a_sample(g.length);
+			g.fall = at_least_a_sample(g.fall);
+			if (g.follow > 0.5f) { // a slew's length is finite
+				g.length = std::min(g.length, kLongest);
+				g.fall = std::min(g.fall, kLongest);
+			}
+			g.curve = a_curve(g.curve);
+			g.next = an_index(g.next);
+		}
+		c.release = an_index(settings.program.release);
 		return c;
 	}
 
-	/// @brief Enters segment @p i of @p c in @p s: its level and rates loaded, the slope set from the current value.
-	/// @param land Whether the value first lands exactly on the stage being left (the end of a stage) or is kept (a
-	/// gate event).
-	/// @details kOff rests at exactly 0.
-	static void enter(const Coefficients& c, State& s, f32 i, bool land) {
-#pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		if (land) {
-			s.value = s.target;
-		}
-		if (i < 0.f) {
-			s = State{};
-			return;
-		}
-		const auto k = static_cast<std::size_t>(i);
-		assert(k < kMaxSegments);
-		const Segment<f32>& g = c.segments[k];
-		const bool hold = g.hold > 0.5f;
-		const bool exponential = g.exponential > 0.5f && !hold;
-		s.target = g.target;
-		s.next = g.next;
-		s.index = i;
-		if (hold) { // stays where it is, and never reaches
-			s.a = 1.f;
-			s.b = 0.f;
-			s.direction = 1.f;
-			s.threshold = kNever;
-			return;
-		}
-		s.direction = g.target >= s.value ? 1.f : -1.f;
-		// An exponential stage aiming at its target only approaches it, so it ends within epsilon.
-		const f32 epsilon = exponential && g.aim == g.target ? 1e-5f : 0.f;
-		s.threshold = g.target - (s.direction * epsilon);
-		if (exponential) {
-			s.a = 1.f - g.rate;
-			s.b = g.rate * g.aim;
-		}
-		else {
-			s.a = 1.f;
-			s.b = (g.target - s.value) / (g.rate < 1.f ? 1.f : g.rate); // a length under a sample is one
+	/// @brief Starts segment 0 from the level there is: a retrigger never jumps.
+	static void gate_on(const Coefficients& c, State& s) {
+		s.gap_left = 0.f;
+		enter(c, s, 0, 0.f, s.v, 0.f);
+	}
+	/// @brief Enters the release segment from the level there is. A program without one ignores it, as does an envelope
+	/// at rest, in a fade, or already in its release.
+	static void gate_off(const Coefficients& c, State& s) {
+		if (c.release >= 0.f && s.index >= 0.f && s.index != c.release && !(s.fades > 0.f)) {
+			s.gap_left = 0.f;
+			enter(c, s, 0, c.release, s.v, 0.f);
 		}
 	}
 
-	/// @brief Starts segment 0 from the current value: a retrigger never jumps.
-	static void gate_on(const Coefficients& c, State& s) {
+	/// @brief Fades to 0 along a raised cosine in @p length samples, from any stage; a fade already running keeps the
+	/// shorter of what is left of it and @p length, and an envelope at rest ignores it.
+	static void fade(State& s, f32 length) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		enter(c, s, 0.f, false);
+		length = std::min(at_least_a_sample(length), kLongest);
+		if (s.index < 0.f || (s.fades > 0.f && ((1.f - s.hi) - s.lo) * s.length <= length)) {
+			return;
+		}
+		const f32 level = s.v;
+		rest(s, 0);
+		s.gap_left = 0.f;
+		s.index = kFading;
+		s.fades = 1.f;
+		s.from = level;
+		s.length = length;
+		s.inverse = 1.f / length;
+		s.most = length < kFadePieces ? 1.f : trunc_nonnegative(length * (1.f / kFadePieces));
 	}
-	/// @brief Enters the release segment from the current value; a program without one, or an envelope at rest,
-	/// ignores it.
-	static void gate_off(const Coefficients& c, State& s) {
+
+	/// @brief Takes up each lane's running stage's settings where they changed.
+	template <class V>
+	[[gnu::noinline]] static EmptyBlock prepare(const CoefficientsT<V>& c, StateT<V>& s, std::size_t /*n*/) {
+		follow_settings(c, s);
+		return {};
+	}
+
+	/// @brief The samples to the first lane's stage end, or to where its map must be set again, at most @p n.
+	template <class V>
+	[[nodiscard]] [[gnu::always_inline]] static std::size_t run_length(const CoefficientsT<V>& /*c*/,
+	                                                                   const StateT<V>& s, std::size_t n) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		if (c.release >= 0.f && s.index >= 0.f) {
-			enter(c, s, c.release, false);
+		const V left = ((V{1.f} - s.hi) - s.lo) * s.length;
+		const V most = min(s.most, select(s.gap_left > V{0.f}, s.gap_left, V{kForever}));
+		const f32 samples = detail::least(min(left, most));
+		return samples < static_cast<f32>(n) ? static_cast<std::size_t>(samples) : n;
+	}
+
+	/// @brief Sets each lane's map for a run of @p m samples, and moves its stage past it.
+	template <class V>
+	[[gnu::noinline]] static void prepare_run(const CoefficientsT<V>& c, StateT<V>& s, std::size_t m) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		const V samples{static_cast<f32>(m)};
+		const V rest = (V{1.f} - s.hi) - s.lo;
+		const V exponential = exp2m1(s.curve * rest);
+		const auto curved = abs(s.scale) > V{0.f};
+		const V span = s.from - s.target;
+		const V level = s.target + (span * select(curved, exponential * s.scale, rest));
+		// Where the run covers little of the curve: its slope and curvature there
+		const V slope = select(curved, ((span * s.scale) * (exponential + V{1.f})) * s.decrement, span * s.inverse);
+		const V curvature = slope * s.decrement;
+		const auto gentle = (abs(s.decrement) * samples) < V{kGentle};
+		s.a = select(gentle, V{1.f}, V{1.f} - s.rate);
+		s.b = select(gentle, V{0.f} - (slope + (curvature * V{0.5f})), (s.target - (span * s.scale)) * s.rate);
+		s.c = select(gentle, curvature, V{0.f});
+		if (any(max(s.gap_left, max(s.slew, s.fades)) > V{0.f})) [[unlikely]] {
+			const V before = s.v;
+			s.v = level;
+			off_curve(s, samples, rest, before);
+		}
+		else {
+			s.v = level;
+		}
+		// The phase at the run's end, the rounding kept
+		const V moved = (samples * s.inverse) + s.lo;
+		const V hi = s.hi + moved;
+		s.lo = moved - (hi - s.hi);
+		s.hi = hi;
+		const V left = ((V{1.f} - s.hi) - s.lo) * s.length;
+		const auto ended = left < V{1.f};
+		if (any(ended)) [[unlikely]] {
+			go_on(c, s, ended);
 		}
 	}
 
 	/// @brief One sample over V: f32 for one copy, Pack<f32, N> for one per lane.
 	template <class V>
-	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/,
+	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& /*c*/, const EmptyBlock& /*b*/,
 	                                                   StateT<V>& s) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		s.value = mul_add(s.b, s.value, s.a);
-		const auto reached = ((s.value - s.threshold) * s.direction) >= V{0.f};
-		if (any(reached)) {
-			advance(c, s, reached);
-		}
-		return s.value;
+		s.b = s.b + s.c;
+		s.v = s.b + (s.v * s.a);
+		return s.v;
 	}
 
 private:
-	/// One copy: its stage ended.
-	[[gnu::always_inline]] static void advance(const Coefficients& c, State& s, bool /*reached*/) {
-		enter(c, s, s.next, true);
+	/// The most a curve bends, in octaves: past it nothing of the stage but its first sample is heard, and 2^curve
+	/// leaves a float's range.
+	static constexpr f32 kMostOctaves = 24.f;
+	/// The longest a slew or a fade is, in samples.
+	static constexpr f32 kLongest = 67108864.f; // 2^26
+	/// The octaves a slew may cover in a run, past which nothing of the way is left.
+	static constexpr f32 kAllOctaves = 64.f;
+
+	/// @p length, or a sample where it is less or no number.
+	[[nodiscard]] static f32 at_least_a_sample(f32 length) { return length >= 1.f ? length : 1.f; }
+	/// @p curve within kMostOctaves; a line where it is no number, or so near 0 that its arithmetic would be.
+	[[nodiscard]] static f32 a_curve(f32 curve) {
+		if (curve > kLineOctaves || curve < -kLineOctaves) {
+			return std::clamp(curve, -kMostOctaves, kMostOctaves);
+		}
+		return 0.f;
 	}
-	/// Each lane that reached enters its next stage, scalar, from its own program.
+	/// @p index, or kOff where it is no segment's.
+	[[nodiscard]] static f32 an_index(f32 index) {
+		return index >= 0.f && index < static_cast<f32>(kMaxSegments) ? index : kOff;
+	}
+
+	/// The index of a fade, which is no segment of a program.
+	static constexpr f32 kFading = static_cast<f32>(kMaxSegments);
+	/// The pieces a fade's cosine is drawn in.
+	static constexpr f32 kFadePieces = 16.f;
+	/// The octaves (times ln 2) a run may cover and its map be quadratic: its error is under 2^-17 of the stage.
+	static constexpr f32 kGentle = 0.02f;
+	/// A curve that bends less than this takes runs its quadratic covers: its affine's asymptote is far off, and
+	/// rounds.
+	static constexpr f32 kNearLine = 0.15f;
+	/// What a run near a line covers of it: a quadratic is off by the run's fall times this squared over six.
+	static constexpr f32 kNearLineRun = 0.012f;
+	/// A stage under this length whose curve grows (k below 0) takes runs of at most kGrowingRun: its affine's slope is
+	/// over 1, so rounding grows with it.
+	static constexpr f32 kGrowingLength = 1000.f;
+	static constexpr f32 kGrowingRun = 32.f;
+	/// The samples a gap is closed over.
+	static constexpr f32 kGapSamples = 32.f;
+	/// A gap under this is the arithmetic's own.
+	static constexpr f32 kNoGap = 0x1p-18f;
+	/// The samples to a slew's arrival past which they are not counted.
+	static constexpr f32 kFarSlew = 4096.f;
+	/// 1 / n for a gap of n samples left.
+	static constexpr std::array<f32, 33> kReciprocals = [] {
+		std::array<f32, 33> reciprocals{};
+		for (std::size_t n = 1; n < reciprocals.size(); ++n) {
+			reciprocals[n] = 1.f / static_cast<f32>(n);
+		}
+		return reciprocals;
+	}();
+
+	/// The maps of the lanes that are on no curve: a level going back to its own in a line, a slew, a fade.
+	/// @param before Each lane's level at its last sample.
+	template <class V>
+	[[gnu::noinline]] static void off_curve(StateT<V>& s, V samples, V rest, V before) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		if (const auto closing = s.gap_left > V{0.f}; any(closing)) {
+			// A line from the level to where the curve is when the gap is closed, or to the stage's target if that is
+			// first
+			const V then = max(rest - (s.gap_left * s.inverse), V{0.f});
+			const auto curved = abs(s.scale) > V{0.f};
+			const V aim = s.target + ((s.from - s.target) * select(curved, exp2m1(s.curve * then) * s.scale, then));
+			s.a = select(closing, V{1.f}, s.a);
+			s.b = select(closing, (aim - before) * gather(kReciprocals.data(), s.gap_left), s.b);
+			s.c = select(closing, V{0.f}, s.c);
+			s.v = select(closing, before, s.v);
+			s.gap_left = max(s.gap_left - samples, V{0.f});
+		}
+		if (const auto slews = s.slew > V{0.f}; any(slews)) {
+			const V span = (s.from - s.target) + s.under;
+			const auto curved = s.decrement > V{0.f};
+			// Along a curve: what each sample leaves of the way to the target. In a line: a step, or what is left
+			const V curvature = (span * s.decrement) * s.decrement;
+			const auto gentle = (s.decrement * samples) < V{kGentle};
+			const V most = select(span > V{0.f}, s.slew_inverse, V{0.f} - s.slew_inverse);
+			const V step = select(abs(span) > s.slew_inverse, most, span);
+			const V a = select(curved, select(gentle, V{1.f}, V{1.f} - s.rate), V{1.f});
+			const V b = select(
+			    curved, select(gentle, V{0.f} - ((span * s.decrement) + (curvature * V{0.5f})), s.target * s.rate),
+			    V{0.f} - step);
+			const V c = select(curved, select(gentle, curvature, V{0.f}), V{0.f});
+			s.a = select(slews, a, s.a);
+			s.b = select(slews, b, s.b);
+			s.c = select(slews, c, s.c);
+			s.v = select(slews, s.from, s.v);
+			// The level at the run's end, in two floats
+			const V gone = V{0.f} - exp2m1(V{0.f} - min((s.curve * s.slew_inverse) * samples, V{kAllOctaves}));
+			const V moved = (V{0.f} - select(curved, span * gone, step * samples)) + s.under;
+			const V from = s.from + moved;
+			const V under = moved - (from - s.from);
+			const auto lands = abs(span) <= s.slew_inverse;
+			const auto line = select(curved, V{0.f}, V{1.f}) > V{0.f};
+			const V at = select(line, select(lands, s.target, from), from);
+			s.under = select(slews, select(abs(at - s.target) > V{0.f}, under, V{0.f}), s.under);
+			s.from = select(slews, at, s.from);
+			// A line's arrival is a run's end
+			const V left = min(abs(at - s.target) * s.slew, V{kFarSlew});
+			const V whole = max(trunc_nonnegative(left), V{1.f});
+			s.most = select(slews, select(line, select(left > V{0.f}, whole, V{kForever}), s.most), s.most);
+		}
+		if (const auto fading = s.fades > V{0.f}; any(fading)) {
+			const V step = samples * s.inverse;
+			const V end = max(rest - step, V{0.f});
+			const V v0 = s.from * cosine(rest);
+			const V v1 = s.from * cosine(end);
+			const V middle = s.from * cosine(max(rest - (step * V{0.5f}), V{0.f}));
+			const V reciprocal{1.f / detail::lane(samples, 0)};
+			const V curvature = (((v1 - middle) - (middle - v0)) * V{4.f}) * (reciprocal * reciprocal);
+			const V slope = (v1 - v0) * reciprocal;
+			s.a = select(fading, V{1.f}, s.a);
+			s.b = select(fading, slope - (curvature * ((samples + V{1.f}) * V{0.5f})), s.b);
+			s.c = select(fading, curvature, s.c);
+			s.v = select(fading, v0, s.v);
+		}
+	}
+
+	/// 0.5 + 0.5·cos(pi·x) where @p rest of it, 1 - x, is left: the square of the sine of pi/2 of it.
+	template <class V>
+	[[nodiscard]] [[gnu::always_inline]] static V cosine(V rest) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		const V u = rest * V{std::numbers::pi_v<f32> * 0.5f};
+		const V u2 = u * u;
+		// The sine's series to the eleventh power
+		V p{-2.5052108e-8f};
+		p = (p * u2) + V{2.7557319e-6f};
+		p = (p * u2) + V{-1.9841270e-4f};
+		p = (p * u2) + V{8.3333333e-3f};
+		p = (p * u2) + V{-0.16666667f};
+		const V sine = u + (u * (u2 * p));
+		return sine * sine;
+	}
+
+	/// Whether lane @p l 's comparison held.
+	[[nodiscard]] [[gnu::always_inline]] static bool held(bool m, std::size_t /*l*/) { return m; }
 	template <std::size_t N>
-	static void advance(const CoefficientsT<Pack<f32, N>>& c, StateT<Pack<f32, N>>& s, Mask<N> reached) {
-		for (std::size_t l = 0; l < N; ++l) {
-			if (reached.get(l)) {
-				State lane = get_lane<State>(s, l);
-				enter(get_lane<Coefficients>(c, l), lane, lane.next, true);
-				set_lane(s, l, lane);
+	[[nodiscard]] [[gnu::always_inline]] static bool held(Mask<N> m, std::size_t l) {
+		return m.get(l);
+	}
+
+	/// Takes up a running stage's settings where they changed, its phase kept.
+	template <class V>
+	[[gnu::always_inline]] static void follow_settings(const CoefficientsT<V>& c, StateT<V>& s) {
+		for (std::size_t l = 0; l < detail::kLanes<V>; ++l) {
+			const uint32_t at = detail::lane_bits(s.at, l);
+			if (at == kNowhere) {
+				continue;
+			}
+			const Segment<V>& g = c.segments[at];
+			// Compared as bits: a float compare's flags stall the integer side
+			const uint32_t slew = detail::lane_bits(s.slew, l);
+			const uint32_t length = slew == 0 ? detail::lane_bits(g.length, l) ^ detail::lane_bits(s.length, l)
+			                                  : std::bit_cast<uint32_t>(slew_length(g, s, l)) ^ slew;
+			if (((detail::lane_bits(g.target, l) ^ detail::lane_bits(s.target, l))
+			     | (detail::lane_bits(g.curve, l) ^ detail::lane_bits(s.curve, l)) | length)
+			    != 0) [[unlikely]] {
+				take_up(c, s, l, detail::lane(s.index, l));
+			}
+		}
+	}
+
+	/// Lane @p l 's running stage, segment @p i, with its settings as they are now, from where its phase is: ended, if
+	/// no sample of it is left. What the level is then off its curve is the gap.
+	template <class V>
+	[[gnu::noinline]] static void take_up(const CoefficientsT<V>& c, StateT<V>& s, std::size_t l, f32 i) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		const f32 before = detail::lane(s.length, l);
+		load(c, s, l, i);
+		if (detail::lane(s.slew, l) > 0.f) {
+			return; // a slew goes on from its level
+		}
+		if (const f32 hi = detail::lane(s.hi, l); hi < 0.f) {
+			// Starting between samples: that fraction of one, whatever the length
+			detail::set_lane_of(s.hi, l, (hi * before) * detail::lane(s.inverse, l));
+		}
+		const f32 rest = (1.f - detail::lane(s.hi, l)) - detail::lane(s.lo, l);
+		const f32 left = rest * detail::lane(s.length, l);
+		if (left < 1.f) {
+			const Segment<V>& g = c.segments[static_cast<std::size_t>(i)];
+			enter(c, s, l, detail::lane(g.next, l), detail::lane(s.target, l), 0.f - left);
+		}
+		const f32 gap = detail::lane(s.v, l) - curve_level(s, l);
+		const bool closes = gap > kNoGap || gap < -kNoGap;
+		detail::set_lane_of(s.gap_left, l, closes ? kGapSamples : 0.f);
+	}
+
+	/// The most samples a run of a stage takes: to be asked again each sample for a line's slew, whose arrival the next
+	/// run counts to; what its quadratic covers for a curve near a line; kGrowingRun for a short stage whose curve
+	/// grows.
+	[[nodiscard]] static f32 most_of(bool follows, f32 curve, f32 length) {
+		if (follows) {
+			return curve > 0.f ? kForever : 1.f;
+		}
+		if (const f32 bend = std::fabs(curve) * std::numbers::ln2_v<f32>; bend > 0.f && bend < kNearLine) {
+			return std::max(1.f, std::floor((kNearLineRun / bend) * length));
+		}
+		return curve < 0.f && length < kGrowingLength ? kGrowingRun : kForever;
+	}
+
+	/// The length lane @p l slews over: up to its target, or down to it.
+	template <class V>
+	[[nodiscard, gnu::always_inline]] static f32 slew_length(const Segment<V>& g, const StateT<V>& s, std::size_t l) {
+		return detail::lane(g.target, l) > detail::lane(s.from, l) ? detail::lane(g.length, l)
+		                                                           : detail::lane(g.fall, l);
+	}
+
+	/// The level lane @p l 's curve gives at its phase.
+	template <class V>
+	[[nodiscard]] static f32 curve_level(const StateT<V>& s, std::size_t l) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		const f32 rest = (1.f - detail::lane(s.hi, l)) - detail::lane(s.lo, l);
+		const f32 scale = detail::lane(s.scale, l);
+		const f32 shape = scale == 0.f ? rest : exp2m1(detail::lane(s.curve, l) * rest) * scale;
+		const f32 target = detail::lane(s.target, l);
+		return target + ((detail::lane(s.from, l) - target) * shape);
+	}
+
+	/// Segment @p i of lane @p l as its running stage: its settings and what is computed from them.
+	template <class V>
+	[[gnu::noinline]] static void load(const CoefficientsT<V>& c, StateT<V>& s, std::size_t l, f32 i) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		const auto k = static_cast<std::size_t>(i);
+		assert(k < kMaxSegments);
+		const Segment<V>& g = c.segments[k];
+		const f32 target = detail::lane(g.target, l);
+		const f32 curve = detail::lane(g.curve, l);
+		const bool follows = detail::lane(g.follow, l) > 0.5f;
+		const f32 slew = follows ? slew_length(g, s, l) : 0.f;
+		detail::set_lane_of(s.slew, l, slew);
+		detail::set_lane_of(s.slew_inverse, l, follows ? 1.f / slew : 0.f);
+		detail::set_lane_of(s.fades, l, 0.f);
+		const f32 length = follows ? kForever : detail::lane(g.length, l);
+		const bool forever = length == kForever;
+		const f32 inverse = forever ? 0.f : 1.f / length;
+		detail::set_lane_of(s.index, l, i);
+		detail::set_lane_of(s.at, l, std::bit_cast<f32>(static_cast<uint32_t>(k)));
+		detail::set_lane_of(s.target, l, target);
+		detail::set_lane_of(s.length, l, length);
+		detail::set_lane_of(s.inverse, l, inverse);
+		detail::set_lane_of(s.curve, l, curve);
+		detail::set_lane_of(s.scale, l, forever ? 0.f : curve_scale(curve));
+		// A slew's along its own length; in a line where its curve is 0 or less
+		const f32 octaves = follows ? (curve > 0.f ? curve : 0.f) * detail::lane(s.slew_inverse, l) : curve * inverse;
+		detail::set_lane_of(s.decrement, l, octaves * std::numbers::ln2_v<f32>);
+		detail::set_lane_of(s.rate, l, 0.f - exp2m1(0.f - octaves));
+		detail::set_lane_of(s.most, l, most_of(follows, curve, length));
+		if (forever && !follows) {
+			detail::set_lane_of(s.from, l, target);
+		}
+	}
+
+	/// Enters segment @p i of lane @p l from the level @p from, the last sample @p position samples into it: over -1,
+	/// so that the next is in it.
+	template <class V>
+	[[gnu::noinline]] static void enter(const CoefficientsT<V>& c, StateT<V>& s, std::size_t l, f32 i, f32 from,
+	                                    f32 position) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		// A program whose segments lead to each other with nothing left of any comes to rest
+		for (std::size_t passed = 0; passed <= kMaxSegments; ++passed) {
+			detail::set_lane_of(s.lo, l, 0.f);
+			if (i < 0.f) {
+				rest(s, l);
+				return;
+			}
+			load(c, s, l, i);
+			const Segment<V>& g = c.segments[static_cast<std::size_t>(i)];
+			const f32 target = detail::lane(s.target, l);
+			const f32 length = detail::lane(s.length, l);
+			if (length == kForever) {
+				detail::set_lane_of(s.hi, l, 0.f);
+				if (detail::lane(g.follow, l) > 0.5f) {
+					detail::set_lane_of(s.from, l, from);
+					detail::set_lane_of(s.under, l, 0.f);
+					load(c, s, l, i); // its direction, from here
+				}
+				return;
+			}
+			f32 hi = position * detail::lane(s.inverse, l);
+			f32 left = length - position;
+			f32 end = target;
+			if (detail::lane(g.resume, l) > 0.5f && from > 0.f) {
+				if (from < target) {
+					const CurvePosition at = curve_position(detail::lane(s.curve, l), from / target);
+					hi = at.phase;
+					detail::set_lane_of(s.lo, l, at.rest);
+					left = ((1.f - at.phase) - at.rest) * length;
+					from = 0.f;
+				}
+				else { // there already
+					left = 0.f;
+					end = from;
+				}
+			}
+			detail::set_lane_of(s.from, l, from);
+			detail::set_lane_of(s.hi, l, hi);
+			if (left >= 1.f) {
+				return;
+			}
+			// Nothing of it is left for a sample: on to the next
+			position = 0.f - left;
+			from = end;
+			i = detail::lane(g.next, l);
+		}
+		rest(s, l);
+	}
+
+	/// Lane @p l at rest: at 0, or on its way there in what is left of a gap.
+	template <class V>
+	static void rest(StateT<V>& s, std::size_t l) {
+		const State resting{};
+		detail::set_lane_of(s.hi, l, resting.hi);
+		detail::set_lane_of(s.lo, l, resting.lo);
+		detail::set_lane_of(s.from, l, resting.from);
+		detail::set_lane_of(s.target, l, resting.target);
+		detail::set_lane_of(s.length, l, resting.length);
+		detail::set_lane_of(s.inverse, l, resting.inverse);
+		detail::set_lane_of(s.curve, l, resting.curve);
+		detail::set_lane_of(s.scale, l, resting.scale);
+		detail::set_lane_of(s.decrement, l, resting.decrement);
+		detail::set_lane_of(s.rate, l, resting.rate);
+		detail::set_lane_of(s.most, l, resting.most);
+		detail::set_lane_of(s.slew, l, resting.slew);
+		detail::set_lane_of(s.slew_inverse, l, resting.slew_inverse);
+		detail::set_lane_of(s.under, l, resting.under);
+		detail::set_lane_of(s.fades, l, resting.fades);
+		detail::set_lane_of(s.index, l, resting.index);
+		detail::set_lane_of(s.at, l, resting.at);
+	}
+
+	/// Each lane whose stage ends with this run enters its next.
+	template <class V, class M>
+	[[gnu::noinline]] static void go_on(const CoefficientsT<V>& c, StateT<V>& s, M ended) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		for (std::size_t l = 0; l < detail::kLanes<V>; ++l) {
+			if (held(ended, l)) {
+				const f32 left = ((1.f - detail::lane(s.hi, l)) - detail::lane(s.lo, l)) * detail::lane(s.length, l);
+				const f32 index = detail::lane(s.index, l);
+				const f32 next =
+				    index == kFading ? kOff : detail::lane(c.segments[static_cast<std::size_t>(index)].next, l);
+				enter(c, s, l, next, detail::lane(s.target, l), 0.f - left);
 			}
 		}
 	}
@@ -284,5 +755,6 @@ private:
 
 static_assert(generator_kernel<Envelope>);
 static_assert(poly_kernel<Envelope>);
+static_assert(runs_kernel<Envelope>);
 
 } // namespace deluge::dsp::fp

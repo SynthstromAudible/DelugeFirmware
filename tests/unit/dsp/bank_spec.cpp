@@ -22,6 +22,8 @@
 #include <random>
 #include <vector>
 
+#include "run_kernels.h"
+#include "scalar_lanes.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -237,18 +239,18 @@ void bank_specs(auto& self) {
 			expect(svf).to_be_less_than(1e-37f);
 		}
 	});
-	it("sums Vca lanes, each with its own program and gain gated on, as the summed Monos", _ {
+	it("sums Vca lanes, each with its own program and gain gated on, as scalar lanes at their split, summed", _ {
 		fp::FlushToZero ftz;
 		using VcaEnv = fp::Vca<fp::Envelope>;
 		const auto in = input(kBlock * 4);
 		Bank<VcaEnv, N, mix::Sum> bank;
-		std::array<Mono<VcaEnv>, N> mono{};
+		run_test::ScalarLanes<VcaEnv, N> mono;
 		for (std::size_t l = 0; l < N; ++l) {
 			const VcaEnv::Settings settings{
-			    .envelope = {.program = fp::adsr(20.f + (7.f * static_cast<f32>(l)), 30.f, 0.5f, 40.f)},
+			    .envelope = {.program = fp::adsr(20.f + (7.f * static_cast<f32>(l)), 130.f, 0.5f, 140.f, {})},
 			    .gain = 0.25f + (0.25f * static_cast<f32>(l))};
 			bank.configure(l, settings);
-			mono[l].configure(settings);
+			mono.configure(l, settings);
 		}
 		bool audible = false;
 		for (std::size_t b = 0; b < 4; ++b) {
@@ -256,18 +258,22 @@ void bank_specs(auto& self) {
 			for (std::size_t l = 0; l < N; ++l) {
 				if (b == 0 || b == 3) {
 					bank.template on<&VcaEnv::gate_on>(l);
-					mono[l].template on<&VcaEnv::gate_on>();
+					mono.template on<&VcaEnv::gate_on>(l);
 				}
 				else if (b == 2 && l % 2 == 1) {
 					bank.template on<&VcaEnv::gate_off>(l);
-					mono[l].template on<&VcaEnv::gate_off>();
+					mono.template on<&VcaEnv::gate_off>(l);
 				}
 			}
 			std::array<std::vector<f32>, N> ref{};
+			std::array<fp::Signal, N> lanes_in{};
+			std::array<fp::Buffer, N> refs{};
 			for (std::size_t l = 0; l < N; ++l) {
 				ref[l].resize(kBlock);
-				mono[l].render_block(is, fp::Buffer{ref[l]});
+				lanes_in[l] = is;
+				refs[l] = fp::Buffer{ref[l]};
 			}
+			mono.render_block(lanes_in, refs);
 			std::vector<f32> out(kBlock);
 			bank.render_block(is, fp::Buffer{out});
 			for (std::size_t i = 0; i < kBlock; ++i) {
@@ -279,10 +285,45 @@ void bank_specs(auto& self) {
 				audible = audible || expected != 0.f;
 			}
 			for (std::size_t l = 0; l < N; ++l) {
-				expect(same_bits(bank.state(l), mono[l].state())).to_be_true();
+				expect(same_bits(bank.state(l), mono.state(l))).to_be_true();
 			}
 		}
 		expect(audible).to_be_true();
+	});
+	it("splits a block at the least run of its lanes, as the lanes stepped at that split and summed", _ {
+		using run_test::AddPeriodic;
+		const std::array<f32, 4> periods{7.f, 5.f, 33.f, 4.f};
+		Bank<AddPeriodic, N, mix::Sum> bank;
+		std::array<AddPeriodic::Coefficients, N> c{};
+		std::array<AddPeriodic::State, N> s{};
+		for (std::size_t l = 0; l < N; ++l) {
+			bank.configure(l, {.period = periods[l]});
+			bank.template on<&AddPeriodic::start>(l);
+			c[l] = AddPeriodic::coefficients({.period = periods[l]});
+			AddPeriodic::start(c[l], s[l]);
+		}
+		std::vector<f32> in(57, 0.25f);
+		std::vector<f32> out(57);
+		bank.render_block(fp::Signal{in}, fp::Buffer{out});
+		std::vector<f32> want;
+		for (std::size_t i = 0; i < in.size();) {
+			std::size_t m = in.size() - i;
+			for (std::size_t l = 0; l < N; ++l) {
+				m = std::min(m, AddPeriodic::run_length(c[l], s[l], in.size() - i));
+			}
+			for (std::size_t l = 0; l < N; ++l) {
+				AddPeriodic::prepare_run(c[l], s[l], m);
+			}
+			for (std::size_t t = 0; t < m; ++t) {
+				f32 total = 0.f;
+				for (std::size_t l = 0; l < N; ++l) {
+					total += AddPeriodic::step(c[l], EmptyBlock{}, s[l], in[i + t]);
+				}
+				want.push_back(total);
+			}
+			i += m;
+		}
+		expect(out).to_equal(want);
 	});
 	it("reads back each lane's state, and resets one lane alone", _ {
 		fp::FlushToZero ftz;

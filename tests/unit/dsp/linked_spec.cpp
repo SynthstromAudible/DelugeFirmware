@@ -42,6 +42,7 @@
 #include <utility>
 #include <vector>
 
+#include "run_kernels.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -1293,6 +1294,39 @@ describe linked_spec_body("Linked<K, N>", ${
 				}
 			}
 		}
+	});
+
+	it("splits a block at the least run of its lanes, and one lane rendered alone at its own", _ {
+		using run_test::Periodic;
+		using Pair = Linked<Periodic, 2, Frame<f32, 2>>;
+		Pair pair{{.period = 7.f}};
+		Mono<Periodic> alone{{.period = 7.f}};
+		pair.on<&Periodic::start>();
+		alone.on<&Periodic::start>();
+		std::vector<Frame<f32, 2>> frames(40);
+		std::vector<f32> mono(40);
+		pair.render_block(Buffer<Frame<f32, 2>>{frames});
+		alone.render_block(Buffer<f32>{mono});
+		for (std::size_t i = 0; i < frames.size(); ++i) {
+			expect(frames[i].lane[0]).to_equal(mono[i]);
+			expect(frames[i].lane[1]).to_equal(mono[i]);
+		}
+		expect(pair.state(0).prepared).to_equal(alone.state().prepared);
+	});
+
+	it("renders one lane of a processor with runs alone, the other lane's State untouched", _ {
+		using run_test::AddPeriodic;
+		Linked<AddPeriodic, 2, Frame<f32, 2>> pair{{.period = 5.f}};
+		Mono<AddPeriodic> alone{{.period = 5.f}};
+		pair.on<&AddPeriodic::start>();
+		alone.on<&AddPeriodic::start>();
+		std::vector<f32> in(23, 0.5f);
+		std::vector<f32> lane(23);
+		std::vector<f32> mono(23);
+		pair.render_lane<1>(Signal<f32>{in}, Buffer<f32>{lane});
+		alone.render_block(Signal<f32>{in}, Buffer<f32>{mono});
+		expect(lane).to_equal(mono);
+		expect(pair.state(0).steps).to_equal(0.f);
 	});
 
 	it("renders one lane of a kernel declaring kLoopState or kStateInPlace, leaving the other lane's State alone", _ {

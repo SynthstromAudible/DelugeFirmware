@@ -23,6 +23,7 @@
 #include <array>
 #include <concepts>
 #include <cstddef>
+#include <limits>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -45,6 +46,8 @@ concept declares_fields = requires { std::tuple_size_v<std::remove_cvref_t<declt
 /// coefficient member that is not a V (the mode) is not a field: every lane of one Poly or Bank shares it. A `prepare`
 /// the kernel declares is a template over V, so it runs on a packed state as on a scalar one. It declares no
 /// `kLoopState`: Poly, Bank and a chain on packed lanes step a lane's whole State, as Mono steps a kernel without one.
+/// A State of a kernel with runs may name what its step touches, `step_fields`: a loop then has those alone, and must
+/// read and write no other field (debug builds fill the rest with NaN, so that a step that does shows it).
 template <class K>
 concept poly_kernel = (processor_kernel<K> || generator_kernel<K>) && std::same_as<typename K::value_type, f32>
                       && std::same_as<typename K::Coefficients, typename K::template CoefficientsT<f32>>
@@ -54,6 +57,84 @@ concept poly_kernel = (processor_kernel<K> || generator_kernel<K>) && std::same_
                       && detail::declares_fields<typename K::template StateT<f32>>
                       && detail::declares_fields<typename K::template StateT<Pack<f32, 4>>>
                       && !detail::declares_context<K> && !detail::declares_loop_state<K>;
+
+namespace detail {
+/// Whether @p T declares `step_fields`, a tuple of member pointers.
+template <class T>
+concept declares_step_fields = requires { std::tuple_size_v<std::remove_cvref_t<decltype(T::step_fields)>>; };
+
+/// Whether @p T declares `step_fields`, or a struct among its fields does, at any depth.
+template <class T>
+inline constexpr bool kNamesStepFields = [] {
+	if constexpr (declares_step_fields<T>) {
+		return true;
+	}
+	else if constexpr (declares_fields<T>) {
+		return std::apply(
+		    [](auto... field) { return (kNamesStepFields<std::remove_cvref_t<decltype(T{}.*field)>> || ... || false); },
+		    T::fields);
+	}
+	else {
+		return false;
+	}
+}();
+
+/// @brief A NaN in every lane of @p v, or in every value of a struct or array.
+template <class S>
+inline void poison_fields([[maybe_unused]] S& s) {
+	constexpr f32 kNaN = std::numeric_limits<f32>::quiet_NaN();
+	if constexpr (std::same_as<S, f32>) {
+		s = kNaN;
+	}
+	else if constexpr (requires { S::broadcast(kNaN); }) {
+		s = S::broadcast(kNaN);
+	}
+	else if constexpr (declares_fields<S>) {
+		std::apply([&](auto... field) { (poison_fields(s.*field), ...); }, S::fields);
+	}
+	else {
+		for (auto& value : s) {
+			poison_fields(value);
+		}
+	}
+}
+
+/// @brief A NaN in every f32 of @p s that its step does not name, in debug builds: what reads it shows.
+template <class S>
+inline void poison([[maybe_unused]] S& s) {
+#ifndef NDEBUG
+	if constexpr (kNamesStepFields<S>) {
+		poison_fields(s);
+	}
+#endif
+}
+
+/// @brief What a step reads or writes of @p from, into @p to: the `step_fields` a State declares, at any depth of its
+/// fields, or all of a State that declares none.
+/// @details For a kernel with runs, whose `prepare_run` keeps much that its step does not touch: a wrapper's loop then
+/// copies and writes back only what it steps.
+template <class S>
+[[gnu::always_inline]] inline void copy_stepped(S& to, const S& from) {
+	if constexpr (declares_step_fields<S>) {
+		std::apply([&](auto... field) { ((to.*field = from.*field), ...); }, S::step_fields);
+	}
+	else if constexpr (kNamesStepFields<S>) {
+		std::apply([&](auto... field) { (copy_stepped(to.*field, from.*field), ...); }, S::fields);
+	}
+	else {
+		to = from;
+	}
+}
+
+/// @brief The loop's copy of @p from: what its step names, the rest poisoned in debug builds.
+template <class S>
+[[nodiscard, gnu::always_inline]] inline S looped(const S& from) {
+	S to{};
+	poison(to);
+	copy_stepped(to, from);
+	return to;
+}
+} // namespace detail
 
 template <class S, class P>
 void set_lane(P& packed, std::size_t lane, const S& scalar);

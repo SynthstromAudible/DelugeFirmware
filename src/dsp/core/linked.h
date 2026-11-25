@@ -20,6 +20,7 @@
 #include "dsp/core/frame.h"
 #include "dsp/core/kernel.h"
 #include "dsp/core/pack.h"
+#include "dsp/core/poly_kernel.h"
 #include "dsp/core/stereo_sample.h"
 #include "dsp/core/types.h"
 
@@ -104,6 +105,9 @@ struct packed_state<K, N> {
 /// kernel, it dispatches once on `coefficients().mode` through with_mode, and inside that one dispatch a single loop
 /// runs every frame in the block's mode: a mode change set by `configure` takes effect at the next block, and every
 /// State carries across it untouched.
+///
+/// **Runs.** A block of a kernel with runs (@ref runs_kernel) is split at the least run of its lanes, each lane's
+/// `prepare_run` called for it, lane 0 first. `render_lane` takes the one lane's own.
 ///
 /// **Order.** Each frame steps lane 0, then 1, … N − 1, into a local frame, then stores it. A kernel drawing from a
 /// stream every lane shares (noise) therefore draws in lane order on every frame; at N = 2 that is left before right.
@@ -393,7 +397,18 @@ private:
 		else {
 			const Block block = kernel_ops::prepare_block<K>(coefficients_, states_.lane[Lane], out.size());
 			const Coefficients c = coefficients_;
-			if constexpr (kInPlace) {
+			if constexpr (runs_kernel<K>) {
+				State& kept = states_.lane[Lane];
+				for (std::size_t i = 0; i < out.size();) {
+					const std::size_t m = kernel_ops::run_length<K>(coefficients_, kept, out.size() - i);
+					kernel_ops::prepare_run<K>(coefficients_, kept, m);
+					State s = detail::looped(kept);
+					lane_loop(c, block, s, context, in.data() + i, out.data() + i, static_cast<std::ptrdiff_t>(m));
+					detail::copy_stepped(kept, s);
+					i += m;
+				}
+			}
+			else if constexpr (kInPlace) {
 				lane_loop(c, block, kernel_ops::loop_state<K>(states_.lane[Lane]), context, in.data(), out.data(), n);
 			}
 			else {
@@ -497,7 +512,18 @@ private:
 			const Blocks blocks = prepare_lanes(n, std::make_index_sequence<N>{});
 			const Coefficients c = coefficients_;
 			value_type* const dst = out.data();
-			if constexpr (kInPlace) {
+			if constexpr (runs_kernel<K>) {
+				kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] {
+					for (std::size_t i = 0; i < n;) {
+						const std::size_t m = prepare_lane_runs(n - i, std::make_index_sequence<N>{});
+						States s = states_;
+						loop<M>(c, blocks, s, context, dst + i, static_cast<std::ptrdiff_t>(m), (in.data() + i)...);
+						states_ = s;
+						i += m;
+					}
+				});
+			}
+			else if constexpr (kInPlace) {
 				kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] () {
 					loop<M>(c, blocks, states_, context, dst, static_cast<std::ptrdiff_t>(n), in.data()...);
 				});
@@ -524,6 +550,16 @@ private:
 	[[nodiscard]] [[gnu::always_inline]] Blocks prepare_lanes(std::size_t n, std::index_sequence<Lane...> /*lanes*/) {
 		// A braced list evaluates its elements left to right: lane 0 prepares first.
 		return Blocks{{kernel_ops::prepare_block<K>(coefficients_, states_.lane[Lane], n)...}};
+	}
+
+	/// @brief Every lane prepared for the least run of them all, within @p n frames, lane 0 first.
+	/// @return That run.
+	template <std::size_t... Lane>
+	[[nodiscard]] [[gnu::always_inline]] std::size_t prepare_lane_runs(std::size_t n,
+	                                                                   std::index_sequence<Lane...> /*lanes*/) {
+		((n = kernel_ops::run_length<K>(coefficients_, states_.lane[Lane], n)), ...);
+		(kernel_ops::prepare_run<K>(coefficients_, states_.lane[Lane], n), ...);
+		return n;
 	}
 
 	/// @brief Every lane's loop state, copied out of its member State.

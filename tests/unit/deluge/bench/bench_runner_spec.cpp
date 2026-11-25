@@ -551,6 +551,7 @@ const std::vector<std::string_view> kFloatVoiceCaseNames{
     "fp_envelope_mono",
     "fp_envelope_poly4",
     "fp_envelope_sustain_poly4",
+    "fp_envelope_fade_poly4",
     "fp_voice_blep_mono",
     "fp_voice_blep_poly2",
     "fp_voice_blep_poly4",

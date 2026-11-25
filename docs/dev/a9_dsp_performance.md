@@ -904,89 +904,62 @@ in blocks of one sample. The same shapes with a float level measured 244 to 279 
 
 The `float_voice` list (`DELUGE_DSP_BENCH_CASES=float_voice`) times the float oscillators (`fp::BlepOscillator` and
 `fp::TableOscillator`, both sawtooth), `fp::Envelope`, and a whole voice, `Chain<oscillator, fp::Svf,
-fp::Vca<fp::Envelope>>`, in `Mono`, `Poly` (2 and 4 independent voices, one per NEON lane) and `Linked` (2 lanes through
-one configuration). Every case is a generator, run under flush-to-zero in the device's `-funsafe-math-optimizations`
-build, over 128-sample blocks. Lane l's pitch is 0.0041 + 0.0137·l of the sample rate, and the voice's SVF is a low-pass
-at cutoff 0.03 + 0.05·l, Q 0.8 + l. The envelope and voice cases come in two regimes. The **transition-heavy** cases
-(`fp_envelope_mono`, `fp_envelope_poly4`, `fp_voice_blep_{mono,poly2,poly4,linked2}`, `fp_voice_table_poly4`) are
+fp::Vca<fp::Envelope>>`, in `Mono`, `Poly` (2 and 4 independent voices, one per NEON lane) and `Linked` (2 lanes
+through one configuration). Every case is a generator, run under flush-to-zero in the device's
+`-funsafe-math-optimizations` build. Lane l's pitch is 0.0041 + 0.0137·l of the sample rate, and the voice's SVF is a
+low-pass at cutoff 0.03 + 0.05·l, Q 0.8 + l. The envelope and voice cases come in two regimes. The **moving** cases are
 gated: lane l gets a gate-on once in 8 blocks and a gate-off 4 blocks later, 2·l blocks behind lane 0, and the lane
-programs differ (ADSR, four-segment, ASR), so the lanes sit in different stages. The gate cycle is 8 blocks (1024
-samples at n = 128) with the gate-off 4 blocks after the gate-on, and the programs' stage times are 15 to 93 samples
-(time constants for the exponential stages, lengths for the linear ones); the gate events are inside the timed region.
-The **sustain** cases (`fp_envelope_sustain_poly4`, `fp_voice_blep_sustain_{mono,poly4}`) gate every lane on once at
-setup, render 8192 samples so that every stage before the sustain has finished, and time blocks with no gate event and
-no stage change. A held note is in steady state between its stage changes, so the two regimes bound the cost: the
-sustain figures are the steady state, the transition-heavy ones a stage change on every lane in turn. Medians of three
-runs of one image on the rig (2026-11-08), n = 128, cycles per channel-sample; the three runs agree to within 0.1 on
-every case.
+programs differ (ADSR, four-segment, ASR), so the lanes sit in different stages; their stages last 25 to about 1,070
+samples, and the gate events are inside the timed region. The **sustain** cases gate every lane on once at setup,
+render 8192 samples, and time blocks with no gate event and no stage change. The **fade** case starts a fade of 128
+samples in every lane as the last one ends. One run of one image on the rig (2026-11-25), cycles per channel-sample:
 
-| case | regime | cycles per channel-sample | Poly over Mono |
-|---|---|---:|---:|
-| fp_blep_saw_mono | | 52.14 | |
-| fp_blep_saw_poly2 | | 24.38 | 2.14x |
-| fp_blep_saw_poly4 | | 19.55 | 2.67x |
-| fp_table_saw_mono | | 48.11 | |
-| fp_table_saw_poly2 | | 36.91 | 1.30x |
-| fp_table_saw_poly4 | | 31.58 | 1.52x |
-| fp_envelope_mono | transition-heavy | 26.48 | |
-| fp_envelope_poly4 | transition-heavy | 27.39 | 0.97x |
-| fp_envelope_sustain_poly4 | sustain | 23.36 | |
-| fp_voice_blep_mono | transition-heavy | 95.99 | |
-| fp_voice_blep_poly2 | transition-heavy | 70.11 | 1.37x |
-| fp_voice_blep_poly4 | transition-heavy | 55.38 | 1.73x |
-| fp_voice_blep_linked2 | transition-heavy | 96.35 | 1.00x (Linked) |
-| fp_voice_blep_sustain_mono | sustain | 95.51 | |
-| fp_voice_blep_sustain_poly4 | sustain | 50.78 | 1.88x |
-| fp_voice_table_poly4 | transition-heavy | 69.08 | |
+| case | n = 32 | n = 64 | n = 128 | Poly over Mono (128) |
+|---|---:|---:|---:|---:|
+| fp_blep_saw_mono | 52.51 | 52.25 | 52.12 | |
+| fp_blep_saw_poly2 | 25.18 | 24.71 | 24.48 | 2.13x |
+| fp_blep_saw_poly4 | 20.31 | 19.85 | 19.58 | 2.66x |
+| fp_table_saw_mono | 48.46 | 48.22 | 48.11 | |
+| fp_table_saw_poly2 | 37.51 | 37.07 | 36.90 | 1.30x |
+| fp_table_saw_poly4 | 31.82 | 30.82 | 30.51 | 1.58x |
+| fp_envelope_mono | 30.98 | 21.10 | 16.65 | |
+| fp_envelope_poly4 | 34.33 | 19.73 | 12.58 | 1.32x |
+| fp_envelope_sustain_poly4 | 13.44 | 9.14 | 6.98 | |
+| fp_envelope_fade_poly4 | 48.63 | 47.81 | 47.27 | |
+| fp_voice_blep_mono | 100.41 | 87.78 | 82.13 | |
+| fp_voice_blep_poly2 | 71.06 | 52.78 | 43.93 | 1.87x |
+| fp_voice_blep_poly4 | 70.17 | 54.60 | 46.78 | 1.76x |
+| fp_voice_blep_linked2 | 88.43 | 76.76 | 71.57 | 1.15x (Linked) |
+| fp_voice_blep_sustain_mono | 89.67 | 82.34 | 78.74 | |
+| fp_voice_blep_sustain_poly4 | 48.21 | 43.29 | 40.84 | 1.93x |
+| fp_voice_table_poly4 | 79.01 | 63.07 | 55.57 | |
 
-Controls: `calibration_loop` 32.02, `delay_feedback_chain_analog` 165.90, `delay_feedback_chain_digital` 12.35
-(the filters' list: 32.03, 165.89, 12.41).
+Controls: `calibration_loop` 32.03, `delay_feedback_chain_analog` 165.88, `delay_feedback_chain_digital` 12.36.
 
-The envelope advances by one affine map per stage and ends a stage on a threshold test, and the lanes' end test is one
-NEON reduction and one move to a core register. Measured on the same cases against the previous build (select-and-flag
-envelope, 13-instruction mask test), in cycles per channel-sample: envelope Mono 36.73 to 26.48, Poly at four lanes
-30.05 to 27.39 (held 25.83 to 23.36); voice Mono 110.07 to 95.99 (held 108.57 to 95.51), Poly at four lanes 62.61 to
-55.38 (held 57.82 to 50.78), Poly at two lanes 94.53 to 70.11. The oscillators did not change (the BLEP saw at 52.14
-and 19.55 is the same figure), and the table voice at four lanes, 69.76 to 69.08, moved least.
+**Envelope.** Its step is the run's map, `b += c; v = b + v·a`: a four-lane loop takes four frames in 32 instructions,
+12 of them vector arithmetic, loop control and the transpose's included, and nothing in it tests for a stage's end.
+What a run costs (`run_length`, then `prepare_run` across the lanes) is per run, so the figures depend on the block
+size: fitting cost = c + K/n to n = 32 and 128 gives K of about 930 cycles per lane per block moving and 280 held. An
+envelope that tested each sample for its stage's end (a threshold compare, a lane reduction and a branch) measured,
+through the same cases and lanes, 26.54 Mono, 27.24 moving and 23.41 held at n = 128; 33.52, 42.69 and 29.35 at n = 32.
+A fade is drawn in pieces of a sixteenth of it, 8 samples of these 128, so each is a run: it costs 48 cycles whatever
+the block.
 
 **Oscillators.** The BLEP saw gains the most from Poly, 2.14x at two lanes and 2.67x at four: its step is arithmetic
-only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.52x (its Poly at four
-lanes read 30.49 on an earlier image of the same code, 31.58 here: image-to-image variance of about 3.6%, not a code
-change). **Envelope.** In the transition-heavy regime Poly at four lanes costs 27.39 against Mono's 26.48, so the lanes
-buy nothing there: the stage-end handler is scalar and runs once per lane that ends a stage, and the gate events are
-out-of-line calls into one lane. The held envelope costs 23.36 against 27.39, 15% less. The transition-heavy figure
-depends on the block size more than the others do (Poly at four lanes: 43.53 at n = 32, 32.53 at 64, 27.39 at 128),
-consistent with work that costs a fixed amount per block; the list does not separate the gate events from the handler.
+only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.58x; an earlier image
+of the same code read 1.52x, so read the table cases to a few percent.
 
-**Whole voice.** The filters' 2.1 to 2.3x does not carry to a voice. Poly at four lanes runs the held BLEP voice 1.88x
-faster than its Mono, and the transition-heavy voice 1.73x faster than its Mono; at two lanes the transition-heavy voice
-gains 1.37x. The held voice at four lanes, 50.78, is 8% below the sum of its parts at four lanes (oscillator 19.55, SVF
-12.49 from the filters' list, held envelope 23.36: 55.40), and the envelope is 46% of the voice. Why the chain runs
-below the sum of its parts is not established. In Mono the transition-heavy voice, 95.99, is 8% below the sum of its
-parts (52.14 + 26.17 + 26.48 = 104.79). `Linked` at two lanes, which steps each lane's scalar chain one after the other,
-is level with Mono (96.35 against 95.99).
+**Whole voice.** The filters' 2.1 to 2.3x carries to a voice in part: at four lanes the held BLEP voice runs 1.93x
+faster than its Mono and the moving voice 1.76x; at two lanes the moving voice gains 1.87x. The held voice at four
+lanes, 40.84 at n = 128, is 5% above the sum of its parts at four lanes (oscillator 19.58, SVF 12.49 from the filters'
+list, held envelope 6.98: 39.05). The moving voice, 46.78, is 5% above its parts' 44.65. Why is not established.
+`Linked` at two lanes, which steps each lane's scalar chain one after the other, is 1.15x its Mono.
 
-**Table against BLEP.** In Mono the table saw is 8% cheaper than the BLEP saw (48.11 against 52.14). Under Poly at four
-lanes it is 62% dearer (31.58 against 19.55), and a transition-heavy table voice at four lanes costs 69.08 against 55.38
-for the BLEP voice, 25% more. The table's read is a gather: each lane loads its own two neighbouring samples from its
-own band, and a NEON register cannot do that in one instruction. The table saw at four lanes executes 5.99 more
-instructions per sample than the BLEP saw (13.74 against 7.75). The four bands (8 KB each in the 90 KB set, in SDRAM)
-also share the 32 KB data cache with the voice's own state: per channel-sample, the table voice at four lanes counts
-0.13 L1D refills and 4.44 data-cache stall cycles, the BLEP voice none, and the table saw alone 0.03 and 1.19. The
-table cases move by a few percent between images of the same list, so read them to a few percent.
-
-**Codegen.** The `fp_voice_blep_poly4` hot loop (the SAW and LOW_PASS mode of the chain's `run`) takes one frame per
-iteration in 73 instructions, loop control included: 23 vadd/vsub, 12 vmul, 11 vld1 and 5 vst1 (four of state
-quadwords, one of the voice's output), and 3 reload a pointer from the stack. There is no `vfma`, `vmla` or reciprocal
-estimate anywhere in the function, so the arithmetic is the source's, in the source's order. The loop has no call on
-its common path: its one call, to the envelope's scalar stage handler, is taken only when a lane has reached the end
-of a stage. Each frame tests for that with a `vcge` against the threshold, a `vorr` of the two halves, a `vpmax.u32`,
-one `vmov` to a core register, then `cmp` and `beq`: six instructions, one NEON-to-core move, which is part of the
-per-frame cost of the voice even when no lane reaches a stage end. The executed instruction counts per frame (four
-channel-samples): 128.8 for the transition-heavy voice, 107.0 for the held voice. Against the 73-instruction loop, 56
-instructions per frame (43%) execute outside it in the transition-heavy case and 34 (32%) in the held case; those
-include each group's prologue and the 4x4 transpose with its four stores, spread over four frames, and the stage
-handler where it runs.
+**Table against BLEP.** In Mono the table saw is 8% cheaper than the BLEP saw (48.11 against 52.12). Under Poly at four
+lanes it is 56% dearer (30.51 against 19.58), and a moving table voice at four lanes costs 55.57 against 46.78 for the
+BLEP voice, 19% more. The table's read is a gather: each lane loads its own two neighbouring samples from its own band,
+and a NEON register cannot do that in one instruction. The four bands (8 KB each in the 90 KB set, in SDRAM) also share
+the 32 KB data cache with the voice's own state.
 
 **Placement and build.** The saw-band set is 90,156 bytes of storage written once by `build_saw_bands()`. In the
 device's on-chip SRAM the `float_voice` image does not link (`.sdram_init_pack` overlaps `.rtt_cached_reserve`); the
@@ -1003,36 +976,35 @@ ladder voice `Chain<fp::BlepOscillator, fp::Ladder, fp::Vca<fp::Envelope>>` (`fp
 voice's saws, programs, gains and gate schedule through a CLEAN LP24 ladder at cutoff 0.03 + 0.05·l, resonance 2). In
 the voice cases every lane has its own `fp::Drift` (time 32 blocks), stepped once per block and applied as a voice's
 owner would, the pitch by up to 3 cents and the cutoff by up to 5%: each lane's whole chain is configured again at the
-start of every block, inside the timed region. Medians of three runs of one image on the rig (2026-11-08), cycles per
-channel-sample; the runs agree to within 0.1 on every case.
+start of every block, inside the timed region. One run of one image on the rig (2026-11-25), cycles per channel-sample:
 
 | case | n = 32 | n = 64 | n = 128 | Poly over Mono (128) |
 |---|---:|---:|---:|---:|
-| fp_ladder_clean_mono | 181.46 | 180.72 | 180.36 | |
-| fp_ladder_clean_poly4 | 71.73 | 70.55 | 69.97 | 2.58x |
-| fp_ladder_drive_mono | 696.20 | 695.22 | 695.26 | |
-| fp_ladder_drive_poly4 | 302.60 | 301.37 | 300.81 | 2.31x |
-| fp_voice_ladder_mono | 374.47 | 311.26 | 279.84 | |
-| fp_voice_ladder_poly4 | 241.87 | 175.31 | 142.48 | 1.96x |
-| fp_voice_blep_mono (SVF, no drift) | 105.25 | 99.17 | 96.20 | |
-| fp_voice_blep_poly4 (SVF, no drift) | 74.71 | 61.54 | 55.36 | 1.74x |
+| fp_ladder_clean_mono | 181.45 | 180.71 | 180.35 | |
+| fp_ladder_clean_poly4 | 72.99 | 71.74 | 71.12 | 2.54x |
+| fp_ladder_drive_mono | 695.81 | 694.96 | 694.80 | |
+| fp_ladder_drive_poly4 | 297.35 | 296.17 | 295.60 | 2.35x |
+| fp_voice_ladder_mono | 328.19 | 279.16 | 255.39 | |
+| fp_voice_ladder_poly4 | 207.95 | 150.63 | 122.20 | 2.09x |
+| fp_voice_blep_mono (SVF, no drift) | 100.41 | 87.78 | 82.13 | |
+| fp_voice_blep_poly4 (SVF, no drift) | 70.17 | 54.60 | 46.78 | 1.76x |
 
-**The ladder.** CLEAN costs 180.36 in Mono and 69.97 at four lanes, 5.6 times the SVF's 12.49 at four lanes (filters'
+**The ladder.** CLEAN costs 180.35 in Mono and 71.12 at four lanes, 5.7 times the SVF's 12.49 at four lanes (filters'
 list). Its step is one dependent chain (the feedback sum, the resolved input, the saturator, four stages in series), so
 Mono spends more cycles waiting than issuing: 72.3 instructions and 108.2 issue-empty cycles per sample. Four lanes
-hide part of that, 2.58x, in line with the SVF's 2.10x. DRIVE runs the four stages twice and saturates every stage's
-input, eight saturators (four in each of two passes) against one: 3.85 times CLEAN in Mono (695.26) and 4.30 times at four lanes (300.81), above the
-2 to 3 times the design estimated. At four lanes one DRIVE voice is about 13 million cycles a second at 44.1 kHz,
-3.3% of the A9's 400 MHz; one CLEAN voice is 0.8%.
+hide part of that, 2.54x. DRIVE runs the four stages twice and saturates every stage's input, eight saturators (four in
+each of two passes) against one: 3.85 times CLEAN in Mono (694.80) and 4.16 times at four lanes (295.60), above the 2
+to 3 times the design estimated. At four lanes one DRIVE voice is about 13 million cycles a second at 44.1 kHz, 3.3% of
+the A9's 400 MHz; one CLEAN voice is 0.8%.
 
-**The ladder voice.** At four lanes and n = 128 the drifting ladder voice costs 142.48, 2.57 times the SVF voice
-(55.36); in Mono 279.84, 2.91 times. Its parts at four lanes (BLEP saw 19.55, CLEAN ladder 69.97, transition-heavy
-envelope 27.39) sum to 116.91, 25.6 below the voice. The voice depends on the block size far more than its parts:
-fitting cost = c + K/n to n = 32 and 128 gives K of about 4,240 cycles per lane per block at four lanes (4,040 in
-Mono), against about 820 (390) for the SVF voice, which is gated on the same schedule but configured once. The
-difference, about 3,400 cycles per lane per block, is the inferred cost of reconfiguring the whole chain every block
-(the coefficients in double: the oscillator's increment, the ladder's tan_pi and loop terms, and the envelope's
-program), not a separate measurement. At n = 128 that is about 27 cycles per channel-sample, a fifth of the voice.
+**The ladder voice.** At four lanes and n = 128 the drifting ladder voice costs 122.20, 2.61 times the SVF voice
+(46.78); in Mono 255.39, 3.11 times. Its parts at four lanes (BLEP saw 19.58, CLEAN ladder 71.12, moving envelope
+12.58) sum to 103.28, 18.9 below the voice. Fitting cost = c + K/n to n = 32 and 128 gives K of about 3,660 cycles per
+lane per block at four lanes (3,110 in Mono), against about 1,000 (780) for the SVF voice, which is gated on the same
+schedule but configured once. The difference, about 2,700 cycles per lane per block (2,300 in Mono), is the inferred
+cost of reconfiguring the whole chain every block (the coefficients in double: the oscillator's increment and the
+ladder's tan_pi and loop terms; and the envelope's program, checked as it is set), not a separate measurement. At n =
+128 that is about 21 cycles per channel-sample, 17% of the voice.
 
 **Aliasing (host).** A measure in `float_ladder_spec` (`aliasing`) drives an additive saw, alias-free, through the
 ladder and reports the energy more than 8 bins from every harmonic over the fundamental's, under a four-term

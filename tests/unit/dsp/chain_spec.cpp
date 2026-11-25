@@ -48,6 +48,9 @@
 #include <utility>
 #include <vector>
 
+#include "dsp/core/poly.h"
+#include "dsp/float/filter/smoother.h"
+#include "run_kernels.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -1028,6 +1031,77 @@ describe chain("Chain", ${
 			    .to_equal(run_split_chain<loop_state_test::SplitWhole>(n, xor_mode, xor_mode));
 			expect(run_split_chain<PinnedSplitInPlace>(n, add, add))
 			    .to_equal(run_split_chain<loop_state_test::SplitWhole>(n, xor_mode, xor_mode));
+		}
+	});
+
+	it("splits its block where a part asks, a part with a prepare still prepared once for the whole block", _ {
+		using run_test::AddPeriodic;
+		using Both = Chain<fp::Smoother, AddPeriodic>;
+		static_assert(runs_kernel<Both> && poly_kernel<Both>);
+		static_assert(!runs_kernel<Chain<fp::Smoother, fp::Smoother>>);
+		const fp::Smoother::Settings ramp{.target = 0.75f, .mode = fp::Smoother::Mode::LINEAR};
+		Mono<Both> mono;
+		Poly<Both, 4> poly;
+		Mono<fp::Smoother> smoother;
+		Mono<AddPeriodic> alone{{.period = 5.f}};
+		alone.on<&AddPeriodic::start>();
+		mono.configure(Both::Settings{ramp, AddPeriodic::Settings{.period = 5.f}});
+		smoother.configure(ramp);
+		mono.on<part_event<1, &AddPeriodic::start>>();
+		for (std::size_t l = 0; l < 4; ++l) {
+			poly.configure(l, Both::Settings{ramp, AddPeriodic::Settings{.period = 5.f}});
+			poly.on<part_event<1, &AddPeriodic::start>>(l);
+		}
+		for (const std::size_t n : {std::size_t{33}, std::size_t{4}, std::size_t{0}, std::size_t{64}}) {
+			std::vector<f32> zero(n);
+			std::vector<f32> out(n);
+			std::vector<f32> smooth(n);
+			std::array<std::vector<f32>, 4> lanes{};
+			std::array<fp::Signal, 4> in{};
+			std::array<fp::Buffer, 4> os{};
+			for (std::size_t l = 0; l < 4; ++l) {
+				lanes[l].resize(n);
+				in[l] = fp::Signal{zero};
+				os[l] = fp::Buffer{lanes[l]};
+			}
+			mono.render_block(fp::Signal{zero}, fp::Buffer{out});
+			smoother.render_block(fp::Signal{zero}, fp::Buffer{smooth});
+			poly.render_block(in, os);
+			// The runs' part alone, over what the smoother made of the whole block
+			std::vector<f32> want(n);
+			alone.render_block(fp::Signal{smooth}, fp::Buffer{want});
+			expect(out).to_equal(want);
+			for (std::size_t l = 0; l < 4; ++l) {
+				expect(lanes[l]).to_equal(want);
+			}
+		}
+	});
+
+	it("steps a part without runs, or one nested in a chain, as it would alone", _ {
+		using run_test::AddPeriodic;
+		using run_test::Periodic;
+		using Flat = Chain<Periodic, AddPeriodic>;
+		using Nested = Chain<Flat, AddPeriodic>;
+		Mono<Flat> flat;
+		Mono<Nested> nested;
+		flat.configure(Flat::Settings{Periodic::Settings{.period = 7.f}, AddPeriodic::Settings{.period = 5.f}});
+		nested.configure(Nested::Settings{Flat::Settings{Periodic::Settings{.period = 7.f}, AddPeriodic::Settings{.period = 5.f}}, AddPeriodic::Settings{}});
+		flat.on<part_event<0, &Periodic::start>>();
+		flat.on<part_event<1, &AddPeriodic::start>>();
+		nested.on<part_event<0, part_event<0, &Periodic::start>>>();
+		nested.on<part_event<0, part_event<1, &AddPeriodic::start>>>();
+		std::vector<f32> a(60);
+		std::vector<f32> b(60);
+		flat.render_block(fp::Buffer{a});
+		nested.render_block(fp::Buffer{b});
+		// Both parts are prepared at every multiple of 5 or 7, the unstarted third part too
+		std::size_t runs = 0;
+		for (std::size_t i = 0; i < a.size(); ++i) {
+			runs += (i % 5 == 0 || i % 7 == 0) ? 1 : 0;
+			const auto run = static_cast<f32>(runs);
+			const auto steps = static_cast<f32>(i + 1);
+			expect(a[i]).to_equal(2.f * ((1000.f * run) + steps));
+			expect(b[i]).to_equal(3.f * ((1000.f * run) + steps));
 		}
 	});
 });

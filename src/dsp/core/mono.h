@@ -18,6 +18,7 @@
 
 #include "dsp/core/kernel.h"
 #include "dsp/core/mode.h"
+#include "dsp/core/poly_kernel.h"
 #include "dsp/core/stereo_vector.h"
 #include "dsp/core/types.h"
 #include "dsp/core/vector_step.h"
@@ -43,6 +44,9 @@ namespace deluge::dsp {
 /// Inside that one dispatch a single loop runs every sample in the block's mode, so a mode change set by
 /// `configure` takes effect at the next block, and State carries across it untouched. The loop steps the kernel's loop
 /// state (@ref loop_state_t); the rest of the State is `prepare`'s and the events'.
+///
+/// **Runs.** A block of a kernel with runs (@ref runs_kernel) is rendered as runs inside that one dispatch:
+/// `run_length` for what is left, `prepare_run` for that many on the member State, the loop over them.
 ///
 /// **The loop** is chosen from K's step type:
 /// - `step_type == value_type` (a Q<F> or StereoSample): a raw-pointer index loop, one `step` per sample.
@@ -265,7 +269,20 @@ private:
 	[[gnu::always_inline]] void run_block(Ctx& context, Buffer<value_type> out, In... in) {
 		const Block block = kernel_ops::prepare_block<K>(coefficients_, state_, out.size());
 		const Coefficients c = coefficients_;
-		if constexpr (detail::state_in_place_v<K>) {
+		if constexpr (runs_kernel<K>) {
+			kernel_ops::dispatch_mode<K>(c, [&]<auto M> [[gnu::always_inline]] {
+				for (std::size_t i = 0; i < out.size();) {
+					const std::size_t m = kernel_ops::run_length<K>(coefficients_, state_, out.size() - i);
+					kernel_ops::prepare_run<K>(coefficients_, state_, m);
+					State s = detail::looped(state_);
+					scalar_loop<M>(c, block, s, context, out.data() + i, static_cast<std::ptrdiff_t>(m),
+					               (in.data() + i)...);
+					detail::copy_stepped(state_, s);
+					i += m;
+				}
+			});
+		}
+		else if constexpr (detail::state_in_place_v<K>) {
 			LoopState& s = kernel_ops::loop_state<K>(state_);
 			kernel_ops::dispatch_mode<K>(
 			    c, [&]<auto M> [[gnu::always_inline]] () { loop<M>(c, block, s, context, out, in...); });

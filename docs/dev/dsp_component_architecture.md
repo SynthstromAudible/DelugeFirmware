@@ -232,6 +232,27 @@ accepted, and a `prepare` taking any other type is rejected, never converted. `n
 The wrapper runs `prepare` on the wrapper's own state, before it takes the
 local copies the loop runs on, so the loop's state stays in registers.
 
+
+### Runs
+
+A kernel may be prepared again within a block (`runs_kernel`):
+```cpp
+static std::size_t run_length(const Coefficients&, const State&, std::size_t n);
+static void prepare_run(const Coefficients&, State&, std::size_t m);
+```
+A wrapper renders its block as runs: it asks `run_length` how many of the `n` samples left the kernel can take, calls
+`prepare_run` for that many, steps exactly those, and asks again. What changes only at a boundary (an envelope's stage)
+is then work for `prepare_run`, and the step has no test for it.
+
+- `run_length` changes nothing. An answer past `n` is `n`, and 0 is 1. A copy in its reset State asks for no split, so
+  a parked lane splits nothing.
+- `Poly`, `Bank` and `Linked` take the least run of their lanes; a `Chain` the least of its parts'.
+- `prepare` is still once a block, for the whole of it: a part of a chain with a block-long ramp keeps it. An empty
+  block has no run.
+- Both hooks are declared together, exactly as above (templates over V for a poly kernel), by a kernel whose step is
+  one sample and which declares no `kLoopState`; `kernel_base` rejects anything else. `Linked` does not pack such a
+  kernel.
+
 ### The kernel's Context
 
 A kernel may declare `Context`, a plain value its owner passes to each block
@@ -921,7 +942,8 @@ through part 1's `step`, then part 2's on what part 1 returned, and so on, every
 step inline, in one pass over the block. Run as separate passes, each part loads
 and stores the whole block; chained, the block is loaded once and stored once,
 and the values between parts stay in registers. A chain is bit for bit its parts
-run in sequence, since each part steps its own State in the order it would
+run in sequence (a part with runs at the chain's split, the least of its parts'), since each part steps its own State
+in the order it would
 alone.
 
 - **Loop state.** A part declaring `kLoopState` steps on that member of its
@@ -1442,7 +1464,8 @@ line.
 `Bank<K, N, Mix>` is N copies of a `poly_kernel`, each with its own settings, reading one input: each sample is
 broadcast to every lane, one step over `Pack<f32, N>` steps every copy, and `Mix` reduces the lanes to the output.
 `configure`, `reset`, `state` and `set_mode` are `Poly`'s (the shared `detail::Copies`), as are the one mode per block
-and the `prepare` call once per block. N is 2 or 4. Each copy is bit for bit `Mono<K>` with its settings.
+and the `prepare` call once per block. N is 2 or 4. Each copy is bit for bit `Mono<K>` with its settings,
+or, for a kernel with runs, a scalar copy stepped at the lanes' split: a Mono takes its own runs.
 
 | `Mix` | Output | `render_block` |
 |---|---|---|
@@ -1473,8 +1496,9 @@ delay). Nothing is implemented. The design is one `StereoSample` kernel template
 A voice is a generator, a filter and an amplifier, written once over the value type and run one voice per NEON lane:
 `Poly<Chain<oscillator, filter, fp::Vca<fp::Envelope>>, N>`, the filter `fp::Svf` or `fp::Ladder`. `Poly` runs generators (a source has no input signal to
 transpose); `Bank` takes processors only. The parts follow the rules above: plain-value `Coefficients` and `State`
-naming their V members in `fields`, a `step` that opens with the fp pragma, and every lane bit for bit `Mono`. The
-bench figures are in [a9_dsp_performance.md](a9_dsp_performance.md#float-voice-slice).
+naming their V members in `fields`, a `step` that opens with the fp pragma, and every lane bit for bit a
+scalar copy stepped at the lanes' run split (a `Mono` alone takes its own runs). The bench figures are in
+[a9_dsp_performance.md](a9_dsp_performance.md#float-voice-slice).
 
 ### Oscillators
 
@@ -1557,39 +1581,45 @@ every part's coefficients; the bench's drifting ladder voice measures that cost.
 
 ### `Envelope` (`float/envelope/envelope.h`)
 
-`fp::Envelope` runs a program of up to 8 segments. A `Segment` holds `target` (where it ends: the value lands on it
-exactly), `aim` (where an exponential segment heads, beyond the target for an analog-curve attack), `rate` (the
-one-pole coefficient, or a linear segment's length in samples), an exponential flag, a `hold` flag (stay until a
-gate-off, never reached) and `next` (the segment entered on reaching the target, or `kOff`). A `Program` is its
-segments, the first entered by a gate-on, and a `release` index a gate-off enters, or `kOff` to ignore gate-off. The
-flags and indices are 0/1 or whole numbers held in V, so a segment is a plain value like any coefficient.
+`fp::Envelope` runs a program of up to 8 segments. Every `Segment` goes from the level there is to its `target` in
+`length` samples along main's curve of `curve` octaves (positive is steep at the start, negative at the end, 0 a line),
+then enters `next`, or rests at 0 (`kOff`). A `length` of `kForever` stays at its target. Two flags: `resume` enters a
+rising segment where its curve reaches the level there is, so a retriggered attack is shorter; `follow` slews to a
+target that may move, over `length` while rising and `fall` while falling. A `Program` is its segments, the first
+entered by a gate-on, and the `release` a gate-off enters, or `kOff` to ignore it.
 
-The State holds the current segment unpacked: value, target, aim, slope, flags, next, direction and an end tolerance.
-**The common path** is one step and one end-compare per sample on every lane at once: a one-pole step
-`value + slope · (aim − value)` or a linear one `value + slope`, selected per lane, then one test of whether any lane
-reached its target (in its direction, within 1e-5 for an exponential aiming at its own target, which only approaches
-it). **Transitions are rare and run scalar**: when `any(reached)`, each lane that did extracts its own scalar State and
-Coefficients, runs `enter` on its next segment and stores the result. Lanes reach on different samples, so the common
-path never branches per lane.
-
-- **Events.** `gate_on` enters segment 0 from the current value, so a retrigger never jumps. `gate_off` enters the
-  program's release from the current value, and is ignored by a program with none and by an envelope at rest.
-  `kOff` as a `next` rests at exactly 0.
-- **Clamps.** A time under one sample counts as one, for an exponential time constant and a linear length alike. The
-  builders compute the one-pole rate `1 − e^(−1/t)` libm-free (a Taylor series in double), and so the program is the
-  same on every target.
-- **The five programs.** `adsr` (exponential attack aiming at 1.2 and ending at 1, decay to the sustain, a hold, an
-  exponential release), `ad` (attack then decay to 0, ignoring gate-off), `asr` (attack, hold at 1, release),
-  `four_segment` (DX7-shaped: three linear rises, a hold, a gate-off fall to a fourth level and a hold) and
-  `looping` (two linear segments, forever).
+- **The step is the run's map alone:** `b += c; v = b + v·a`, no test and no call. Everything else is in `prepare_run`,
+  which a wrapper calls for exactly the samples until the first lane's stage ends (see [Runs](#runs)).
+- **The map.** A curve at a constant rate, sampled, is affine: `prepare_run` anchors each lane's level on its exact
+  curve and takes `a` and `b` from the curve's asymptote. Where a run covers so little of the curve that `a` would
+  round to 1 it is quadratic, from the curve's slope and curvature. There is one exponential a run and no division (a
+  fade's pieces divide once), so the lanes compute together, and host and target agree bit for bit, with fused
+  arithmetic or without. Every sample is within 2^-14 of the exact curve. A short stage whose curve grows (below 0
+  octaves) takes runs of at most 32 samples, since its `a` is over 1 and rounding grows with it.
+- **A stage's end** is a run's end. The phase is kept in two floats, and the fraction of a sample past the end is
+  carried into the next stage, so a stage of a minute ends within a sample at any block size. A length under a sample
+  counts as one, so a looping program cannot spin.
+- **Settings** reach a running stage once a block, in `prepare`: its phase is kept. A level that is then off its curve
+  goes in a straight line to where the curve is 32 samples on, whatever the block size: a line, and not an offset that
+  shrinks, which would pass full scale beside a curve that still rises.
+- **A slew** keeps its level in two floats, since a slow one moves less than a float's last bit a sample. Along a curve
+  it leaves `2^-curve` of the way for each length that passes; at a curve of 0 or less it goes in a line, and its
+  arrival is a run's end.
+- **Events.** `gate_on` enters segment 0 and `gate_off` the release, both from the level there is. A gate-off is
+  ignored by a program without a release, at rest, and in a fade. `fade(length)` goes to 0 along a raised cosine from
+  any stage, in quadratic pieces of a sixteenth of it, whole samples and at least one; a fade asked for in a fade keeps
+  the shorter, and one at rest is nothing.
+- **The programs.** `adsr`, `ad`, `ahd`, `asr`, `ar` (a slew while the gate is held; MPE is this with a level its owner
+  moves), `four_segment` (DX7-shaped) and `looping`, in samples and octaves. A sustain of 0 is a sustain like any
+  other: freeing a silent voice is the pool's.
 
 ### `Vca<E>` (`float/vca/vca.h`)
 
 `fp::Vca<E>` is a processor: `y = (x · e) · gain`, in that order, where `e` is the next level of an envelope part `E`.
 `E`'s Settings, Coefficients and State nest in the Vca's, so a lane carries its own program, stage and gain, and the
-envelope steps once per sample whatever the signal. `gate_on` and `gate_off` forward to `E`, so
-`on<&Vca<E>::gate_on>` reaches the envelope of a `Mono` or of one lane of a `Poly` or `Bank`. `E` must be a float
-generator kernel with no modes and no `prepare`; the Vca `static_assert`s it, since a Vca adds neither.
+envelope steps once per sample whatever the signal. `gate_on`, `gate_off`, `fade`, `prepare` and the runs forward to
+`E`, so `on<&Vca<E>::gate_on>` reaches the envelope of a `Mono` or of one lane of a `Poly` or `Bank`. `E` must be a
+float generator kernel with runs, no modes and no per-block values; the Vca `static_assert`s it.
 
 ### Chain over V, and `part_event`
 
