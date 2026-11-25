@@ -268,14 +268,14 @@ private:
 	uint32_t gridClipCountForTrack(Output* track);
 	static int32_t gridTrackIndexFromTrack(Output* track, int32_t max_track);
 	static Output* gridTrackFromIndex(int32_t track_index, int32_t max_track);
-	int32_t gridYFromSection(uint32_t section);
+	static int32_t gridYFromSection(int32_t section);
 	static int32_t gridSectionFromY(int32_t y);
 	static int32_t gridXFromTrack(int32_t track_index);
 	static int32_t gridTrackIndexFromX(int32_t x, int32_t max_track);
 	static Output* gridTrackFromX(int32_t x, int32_t max_track);
-	Clip* gridClipFromCoords(int32_t x, uint32_t y);
-	int32_t gridClipIndexFromCoords(int32_t x, uint32_t y);
-	Cartesian gridXYFromClip(Clip& clip);
+	static Clip* gridClipFromCoords(int32_t x, int32_t y);
+	static int32_t gridClipIndexFromCoords(int32_t x, int32_t y);
+	static Cartesian gridXYFromClip(Clip& clip);
 
 	void gridSetDefaultMode() {
 		switch (FlashStorage::defaultGridActiveMode) {

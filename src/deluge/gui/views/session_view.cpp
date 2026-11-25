@@ -86,6 +86,7 @@
 #include <cstdint>
 #include <gsl/gsl>
 #include <new>
+#include <utility>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -4996,9 +4997,12 @@ Output* SessionView::gridTrackFromIndex(int32_t track_index, int32_t max_track) 
 	return nullptr;
 }
 
-int32_t SessionView::gridYFromSection(uint32_t section) {
-	int32_t result = (kGridHeight - 1) - section + currentSong->songGridScrollY;
-	if (result >= kGridHeight) {
+int32_t SessionView::gridYFromSection(int32_t section) {
+	if (section < 0 || section >= kMaxNumSections) {
+		return -1;
+	}
+	int32_t result = (static_cast<int32_t>(kGridHeight) - 1) - section + currentSong->songGridScrollY;
+	if (result < 0 || std::cmp_greater_equal(result, kGridHeight)) {
 		return -1;
 	}
 
@@ -5050,7 +5054,7 @@ Output* SessionView::gridTrackFromX(int32_t x, int32_t max_track) {
 	return gridTrackFromIndex(track_index, max_track);
 }
 
-Clip* SessionView::gridClipFromCoords(int32_t x, uint32_t y) {
+Clip* SessionView::gridClipFromCoords(int32_t x, int32_t y) {
 	auto maxTrack = gridTrackCount();
 	Output* track = gridTrackFromX(x, maxTrack);
 
@@ -5073,7 +5077,7 @@ Clip* SessionView::gridClipFromCoords(int32_t x, uint32_t y) {
 	return nullptr;
 }
 
-int32_t SessionView::gridClipIndexFromCoords(int32_t x, uint32_t y) {
+int32_t SessionView::gridClipIndexFromCoords(int32_t x, int32_t y) {
 	auto maxTrack = gridTrackCount();
 	Output* track = gridTrackFromX(x, maxTrack);
 
