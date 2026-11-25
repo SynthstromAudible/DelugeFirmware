@@ -463,51 +463,269 @@ describe timed_envelope_spec_body("fp::TimedEnvelope", ${
 		}
 	});
 
+	it("slews a minute as it slews a second, up and down, at any block size", _ {
+		for (const f32 seconds : {1.f, 60.f}) {
+			for (const f32 k : {0.25f, 1.f, 8.f}) {
+				for (const std::size_t n : {std::size_t{1}, std::size_t{32}, std::size_t{128}}) {
+					if (n == 1 && seconds > 10.f && k > 1.f) {
+						continue;
+					}
+					const f32 length = seconds * 44100.f;
+					Mono<TimedEnvelope> env;
+					std::vector<f32> out(n);
+					env.configure({.program = timed::ar(length, length * 0.5f, 0.75f, {.decay = k})});
+					env.on<&TimedEnvelope::gate_on>();
+					const auto blocks = static_cast<std::size_t>(length) / n;
+					double worst = 0.0;
+					for (std::size_t b = 0; b < blocks; ++b) {
+						env.render_block(fp::Buffer{out});
+						const double gone = static_cast<double>((b + 1) * n) / length;
+						worst = std::max(worst, std::abs(out[n - 1] - (0.75 * (1.0 - std::exp2(-k * gone)))));
+					}
+					const double top = out[n - 1];
+					env.configure({.program = timed::ar(length, length * 0.5f, 0.25f, {.decay = k})});
+					for (std::size_t b = 0; b < blocks / 2; ++b) {
+						env.render_block(fp::Buffer{out});
+						const double gone = static_cast<double>((b + 1) * n) / (length * 0.5);
+						const bool falls = top > 0.25;
+						const double run = falls ? gone : gone * 0.5;
+						worst = std::max(worst, std::abs(out[n - 1] - (0.25 + ((top - 0.25) * std::exp2(-k * run)))));
+					}
+					to_be_at_most(expect(worst), 0x1p-13);
+				}
+			}
+		}
+	});
+
+	it("slews every sample along the curve, within a block as at its end", _ {
+		for (const f32 k : {0.25f, 1.f, 4.f, 8.f, 12.5f}) {
+			for (const f32 length : {100.f, 1000.f, 44100.f}) {
+				Mono<TimedEnvelope> env;
+				std::vector<f32> out(128);
+				env.configure({.program = timed::ar(length, length, 0.75f, {.decay = k})});
+				env.on<&TimedEnvelope::gate_on>();
+				for (std::size_t t = 0; t < 2048; t += 128) {
+					env.render_block(fp::Buffer{out});
+					for (std::size_t i = 0; i < 128; ++i) {
+						const double gone = static_cast<double>(t + i + 1) / length;
+						expect(out[i]).to_be_within(kTolerance).of(0.75 * (1.0 - std::exp2(-k * gone)));
+					}
+				}
+			}
+		}
+	});
+
+	it("slews in a line at a curve of 0 or less, and arrives at its sample", _ {
+		for (const f32 k : {0.f, -2.f, -12.5f}) {
+			for (const f32 length : {100.f, 333.3f, 1000.f}) {
+				for (const std::size_t n : {std::size_t{1}, std::size_t{32}, std::size_t{128}}) {
+					Mono<TimedEnvelope> env;
+					std::vector<f32> out(n);
+					env.configure({.program = timed::ar(length, length * 2.f, 0.6f, {.decay = k})});
+					env.on<&TimedEnvelope::gate_on>();
+					for (std::size_t t = 0; t < 1024; t += n) {
+						env.render_block(fp::Buffer{out});
+						for (std::size_t i = 0; i < n; ++i) {
+							const double line = static_cast<double>(t + i + 1) / length;
+							expect(out[i]).to_be_within(kTolerance).of(std::min(line, 0.6));
+						}
+					}
+					expect(out[n - 1]).to_equal(0.6f);
+					env.configure({.program = timed::ar(length, length * 2.f, 0.1f, {.decay = k})});
+					for (std::size_t t = 0; t < 1280; t += n) {
+						env.render_block(fp::Buffer{out});
+						for (std::size_t i = 0; i < n; ++i) {
+							const double line = 0.6 - (static_cast<double>(t + i + 1) / (length * 2.0));
+							expect(out[i]).to_be_within(kTolerance).of(std::max(line, 0.1));
+						}
+					}
+				}
+			}
+		}
+	});
+
+	it("follows a target moved every block, without a jump", _ {
+		for (const f32 k : {-1.f, 0.f, 1.f, 8.f}) {
+			Mono<TimedEnvelope> env;
+			std::vector<f32> out(32);
+			env.configure({.program = timed::ar(600.f, 900.f, 0.5f, {.decay = k})});
+			env.on<&TimedEnvelope::gate_on>();
+			double level = 0.0;
+			for (std::size_t block = 0; block < 400; ++block) {
+				const double target = 0.5 + (0.4 * std::sin(0.11 * static_cast<double>(block)));
+				env.configure({.program = timed::ar(600.f, 900.f, static_cast<f32>(target), {.decay = k})});
+				env.render_block(fp::Buffer{out});
+				const double start = level;
+				for (std::size_t i = 0; i < 32; ++i) {
+					const double gone = static_cast<double>(i + 1) / (target > start ? 600.0 : 900.0);
+					level = k > 0.f ? target + ((start - target) * std::exp2(-k * gone))
+					                : start + std::clamp(target - start, -gone, gone);
+					expect(out[i]).to_be_within(kTolerance * 2.0).of(level);
+				}
+			}
+		}
+	});
+
+	it("releases from a slew, and retriggers into one, from the level there is", _ {
+		Mono<TimedEnvelope> env;
+		std::vector<f32> out(64);
+		env.configure({.program = timed::ar(1000.f, 500.f, 0.8f, {})});
+		env.on<&TimedEnvelope::gate_on>();
+		env.render_block(fp::Buffer{out});
+		const double held = out[63];
+		env.on<&TimedEnvelope::gate_off>();
+		env.render_block(fp::Buffer{out});
+		for (std::size_t i = 0; i < 64; ++i) {
+			expect(out[i]).to_be_within(kTolerance).of(held * falling(8.0, static_cast<double>(i + 1) / 500.0));
+		}
+		const double left = out[63];
+		env.on<&TimedEnvelope::gate_on>();
+		env.render_block(fp::Buffer{out});
+		for (std::size_t i = 0; i < 64; ++i) {
+			const double gone = static_cast<double>(i + 1) / 1000.0;
+			expect(out[i]).to_be_within(kTolerance).of(0.8 + ((left - 0.8) * std::exp2(-8.0 * gone)));
+		}
+	});
+
+	it("fades along a raised cosine from any stage of any program, to 0 in its length, and stays", _ {
+		for (const timed::Program& p :
+		     {timed::adsr(300.f, 400.f, 0.5f, 600.f, {}), timed::ahd(300.f, 200.f, 500.f, {}),
+		      timed::ar(400.f, 300.f, 0.7f, {}), timed::ar(400.f, 300.f, 0.7f, {.decay = 0.f}),
+		      timed::four_segment({0.9f, 0.4f, 0.6f, 0.1f}, {130.f, 125.f, 140.f, 150.f})}) {
+			for (std::size_t at = 64; at <= 960; at += 64) {
+				for (const f32 length : {1.f, 5.f, 128.f, 300.f}) {
+					for (const std::size_t n : {std::size_t{1}, std::size_t{32}, std::size_t{128}}) {
+						Mono<TimedEnvelope> env;
+						std::vector<f32> out(n);
+						env.configure({.program = p});
+						env.on<&TimedEnvelope::gate_on>();
+						std::vector<f32> before(64);
+						for (std::size_t t = 0; t < at; t += 64) {
+							if (t == 640) {
+								env.on<&TimedEnvelope::gate_off>();
+							}
+							env.render_block(fp::Buffer{before});
+						}
+						const double from = env.state().v;
+						env.on<&TimedEnvelope::fade>(length);
+						for (std::size_t t = 0; t < 512; t += n) {
+							env.render_block(fp::Buffer{out});
+							for (std::size_t i = 0; i < n; ++i) {
+								const double x = std::min(1.0, static_cast<double>(t + i + 1) / length);
+								expect(out[i]).to_be_within(kTolerance).of(
+								    from * (0.5 + (0.5 * std::cos(std::numbers::pi * x))));
+							}
+						}
+						expect(out[n - 1]).to_equal(0.f);
+						expect(env.state().index).to_be_less_than(0.f);
+					}
+				}
+			}
+		}
+	});
+
+	it("never slows a fade: the shorter of what is left and what is asked, and a gate-off is nothing to it", _ {
+		const auto rests_after = [](f32 first, std::size_t wait, f32 second, bool gate_off) {
+			Mono<TimedEnvelope> env;
+			env.configure({.program = timed::adsr(8.f, 8.f, 0.5f, 9000.f, {})});
+			env.on<&TimedEnvelope::gate_on>();
+			std::vector<f32> out(64);
+			env.render_block(fp::Buffer{out});
+			env.on<&TimedEnvelope::fade>(first);
+			std::vector<f32> part(wait);
+			env.render_block(fp::Buffer{part});
+			if (gate_off) {
+				env.on<&TimedEnvelope::gate_off>();
+			}
+			else {
+				env.on<&TimedEnvelope::fade>(second);
+			}
+			return wait + samples_to_rest(env, 1, 2000);
+		};
+		to_be_at_most(expect(rests_after(128.f, 64, 1000.f, false)), std::size_t{129});
+		to_be_at_most(expect(rests_after(1000.f, 64, 100.f, false)), std::size_t{165});
+		to_be_at_least(expect(rests_after(1000.f, 64, 100.f, false)), std::size_t{164});
+		to_be_at_most(expect(rests_after(128.f, 64, 0.f, true)), std::size_t{129});
+	});
+
+	it("does not fade at rest, and retriggers out of a fade from its level", _ {
+		Mono<TimedEnvelope> env;
+		env.configure({.program = timed::adsr(400.f, 8.f, 0.5f, 100.f, {.attack = 0.f})});
+		env.on<&TimedEnvelope::fade>(64.f);
+		expect(env.state().index).to_be_less_than(0.f);
+		env.on<&TimedEnvelope::gate_on>();
+		std::vector<f32> out(128);
+		env.render_block(fp::Buffer{out});
+		env.on<&TimedEnvelope::fade>(128.f);
+		std::vector<f32> half(64);
+		env.render_block(fp::Buffer{half});
+		const double from = half[63];
+		env.on<&TimedEnvelope::gate_on>();
+		env.render_block(fp::Buffer{out});
+		for (std::size_t i = 0; i < 128; ++i) {
+			expect(out[i]).to_be_within(kTolerance).of(from + (static_cast<double>(i + 1) / 400.0));
+		}
+	});
+
 	it("steps its lanes, in different stages, as scalar copies at the lanes' split", _ {
 		const std::array<timed::Program, 4> programs{
 		    timed::adsr(20.5f, 310.f, 0.5f, 60.f, {}), timed::four_segment({0.9f, 0.4f, 0.6f, 0.1f}, {30.f, 25.f, 40.f, 50.f}),
 		    timed::asr(15.f, 90.f, {.attack = -6.f, .release = -12.5f}), timed::looping(0.1f, 0.8f, 17.3f)};
-		Poly<TimedEnvelope, 4> poly;
-		std::array<TimedEnvelope::Coefficients, 4> c{};
-		std::array<TimedEnvelope::State, 4> s{};
-		for (std::size_t l = 0; l < 4; ++l) {
-			poly.configure(l, {.program = programs[l]});
-			c[l] = TimedEnvelope::coefficients({.program = programs[l]});
-		}
-		std::size_t block = 0;
-		for (const std::size_t n : {std::size_t{128}, std::size_t{37}, std::size_t{1}, std::size_t{0}, std::size_t{64},
-		                            std::size_t{128}, std::size_t{5}, std::size_t{128}, std::size_t{128}}) {
+		const std::array<timed::Program, 4> others{timed::ar(70.f, 90.f, 0.8f, {}), timed::ar(70.f, 90.f, 0.3f, {.decay = -1.f}),
+		                                           timed::adsr(90.f, 70.f, 0.1f, 80.f, {}), timed::ahd(9.f, 40.f, 80.f, {})};
+		for (const std::array<timed::Program, 4>& set : {programs, others}) {
+			Poly<TimedEnvelope, 4> poly;
+			std::array<TimedEnvelope::Coefficients, 4> c{};
+			std::array<TimedEnvelope::State, 4> s{};
+			const auto configure = [&](std::size_t l, const timed::Program& p) {
+				poly.configure(l, {.program = p});
+				c[l] = TimedEnvelope::coefficients({.program = p});
+			};
 			for (std::size_t l = 0; l < 4; ++l) {
-				if (block % 4 == l) {
-					poly.on<&TimedEnvelope::gate_on>(l);
-					TimedEnvelope::gate_on(c[l], s[l]);
-				}
-				if (block % 4 == (l + 2) % 4) {
-					poly.on<&TimedEnvelope::gate_off>(l);
-					TimedEnvelope::gate_off(c[l], s[l]);
-				}
+				configure(l, set[l]);
 			}
-			++block;
-			std::array<std::vector<f32>, 4> out{};
-			std::array<fp::Buffer, 4> os{};
-			for (std::size_t l = 0; l < 4; ++l) {
-				out[l].resize(n);
-				os[l] = fp::Buffer{out[l]};
-			}
-			poly.render_block(os);
-			for (std::size_t i = 0; i < n;) {
-				std::size_t m = n - i;
+			std::size_t block = 0;
+			for (const std::size_t n : {std::size_t{128}, std::size_t{37}, std::size_t{1}, std::size_t{0}, std::size_t{64},
+			                            std::size_t{128}, std::size_t{5}, std::size_t{128}, std::size_t{128}, std::size_t{33}}) {
 				for (std::size_t l = 0; l < 4; ++l) {
-					m = std::min(m, kernel_ops::run_length<TimedEnvelope>(c[l], s[l], n - i));
-				}
-				for (std::size_t l = 0; l < 4; ++l) {
-					TimedEnvelope::prepare_run(c[l], s[l], m);
-					for (std::size_t t = 0; t < m; ++t) {
-						expect(std::bit_cast<uint32_t>(out[l][i + t]))
-						    .to_equal(std::bit_cast<uint32_t>(TimedEnvelope::step(c[l], EmptyBlock{}, s[l])));
+					if (block % 4 == l) {
+						poly.on<&TimedEnvelope::gate_on>(l);
+						TimedEnvelope::gate_on(c[l], s[l]);
+					}
+					if (block % 4 == (l + 2) % 4) {
+						poly.on<&TimedEnvelope::gate_off>(l);
+						TimedEnvelope::gate_off(c[l], s[l]);
 					}
 				}
-				i += m;
+				if (block == 5) { // one lane fades and one changes its settings while the others go on
+					poly.on<&TimedEnvelope::fade>(0, 77.f);
+					TimedEnvelope::fade(s[0], 77.f);
+					configure(1, timed::ar(33.f, 400.f, 0.9f, {.decay = 2.f}));
+					configure(2, timed::adsr(60.f, 900.f, 0.35f, 70.f, {.decay = -3.f}));
+				}
+				++block;
+				std::array<std::vector<f32>, 4> out{};
+				std::array<fp::Buffer, 4> os{};
+				for (std::size_t l = 0; l < 4; ++l) {
+					out[l].resize(n);
+					os[l] = fp::Buffer{out[l]};
+					(void)TimedEnvelope::prepare(c[l], s[l], n);
+				}
+				poly.render_block(os);
+				for (std::size_t i = 0; i < n;) {
+					std::size_t m = n - i;
+					for (std::size_t l = 0; l < 4; ++l) {
+						m = std::min(m, kernel_ops::run_length<TimedEnvelope>(c[l], s[l], n - i));
+					}
+					for (std::size_t l = 0; l < 4; ++l) {
+						TimedEnvelope::prepare_run(c[l], s[l], m);
+						for (std::size_t t = 0; t < m; ++t) {
+							expect(std::bit_cast<uint32_t>(out[l][i + t]))
+							    .to_equal(std::bit_cast<uint32_t>(TimedEnvelope::step(c[l], EmptyBlock{}, s[l])));
+						}
+					}
+					i += m;
+				}
 			}
 		}
 	});
