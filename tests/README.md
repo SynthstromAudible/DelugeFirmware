@@ -212,6 +212,7 @@ builds only `golden-vt-render`.
 | stream-bench-parser | unit | script | unit | gate | the streaming benchmark host script's parsing of device captures | pr | tooling | ~1s |
 | device-check-parser | unit | script | unit | gate | device_check's reading of a rig capture | pr | tooling | ~1s |
 | rig-session | unit | script | unit | gate | rig_session's reading of the rig harness's RTT stream | pr | tooling | ~2s |
+| rig-lock | unit | script | unit | gate | one run at a time holds the rig, every tool that opens it is refused or waits, and a holder that dies lets go | pr | tooling | ~6s |
 | device-parity | unit | script | unit | gate | emu_parity's script runner drives delugemu or the rig through the same steps and timings, and device_parity seeds delugemu's flash from the rig's settings | pr | tooling | ~1s |
 | ui-script-cards | unit | script | unit | gate | the cards a UI script's header names, as the UI script runners read them | pr | tooling | ~1s |
 | x86-parity-tool | unit | script | unit | gate | x86_parity turns a parity script into the host app's UI script, keys its card cache by the image's mtime, and lists every file two runs disagree on | pr | tooling | ~1s |

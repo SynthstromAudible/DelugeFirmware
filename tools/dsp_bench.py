@@ -62,6 +62,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 TOOLS = Path(__file__).resolve().parent
+sys.path.insert(0, str(TOOLS))
+import rig_lock
+
 REPO = TOOLS.parent
 PROBES = {"jlink": "deluge_jlink.py", "probe-rs": "deluge_run.py"}
 EVENTS = ("l1d_refill", "inst", "dc_stall", "issue_empty", "neon")
@@ -346,13 +349,23 @@ def main(argv: list[str] | None = None) -> int:
         metavar="SEL",
         help="passed to the probe script's --select, e.g. IP=HOST for a remote J-Link",
     )
+    rig_lock.add_argument(ap)
     args = ap.parse_args(argv)
 
     if args.from_capture:
         rtt = Path(args.from_capture).read_text().splitlines()
         probe = "capture"
     else:
-        code, rtt = run_probe(args)
+        try:
+            with rig_lock.hold(
+                rig_lock.host_of(args.select),
+                f"dsp_bench {Path(args.elf).name}",
+                args.wait,
+            ):
+                code, rtt = run_probe(args)
+        except (rig_lock.RigBusy, rig_lock.RigLockError) as exc:
+            print(f"dsp_bench: {exc}", file=sys.stderr)
+            return rig_lock.EXIT_BUSY
         if code not in (0, 1, 2):
             return code
         probe = args.probe

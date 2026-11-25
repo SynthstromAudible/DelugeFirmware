@@ -51,9 +51,11 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
+sys.path.append(str(HERE.parent))
 
 import elf
 import report
+import rig_lock
 import symbols
 import trace_profile
 
@@ -165,11 +167,16 @@ def capture_args(
     return cmd
 
 
+def probe_host(host: str) -> str:
+    """The ssh destination of the probe's Pi; its user is pi unless given."""
+    return host if "@" in host else f"pi@{host}"
+
+
 def run_remote(
     args: argparse.Namespace, ranges: list[tuple[str, int, int]], out: Path
 ) -> tuple[int, int]:
     """Capture and decode on args.host; return the two exit codes."""
-    host = args.host if "@" in args.host else f"pi@{args.host}"
+    host = probe_host(args.host)
     remote = f"/tmp/deluge_trace/{out.name}"
 
     def ssh(command: str, **kw) -> subprocess.CompletedProcess:
@@ -249,7 +256,16 @@ def cmd_run(args: argparse.Namespace) -> int:
     out = run_dir(Path(args.out), slug(ranges[0][0]))
     for name, lo, hi in ranges:
         print(f"deluge_trace: {name}: 0x{lo:08X}-0x{hi:08X}", file=sys.stderr)
-    code, dcode = (run_local if args.local else run_remote)(args, ranges, out)
+    try:
+        with rig_lock.hold(
+            None if args.local else probe_host(args.host),
+            f"deluge_trace {ranges[0][0]}",
+            args.wait,
+        ):
+            code, dcode = (run_local if args.local else run_remote)(args, ranges, out)
+    except (rig_lock.RigBusy, rig_lock.RigLockError) as exc:
+        print(f"deluge_trace: {exc}", file=sys.stderr)
+        return rig_lock.EXIT_BUSY
     print(f"deluge_trace: results in {out}", file=sys.stderr)
     if code not in (0, 1, 2):
         return code
@@ -300,6 +316,7 @@ def main(argv: list[str] | None = None) -> int:
         metavar="START-END",
         help="a raw range [START, END)",
     )
+    rig_lock.add_argument(run)
     where = run.add_mutually_exclusive_group()
     where.add_argument(
         "--host",

@@ -1049,6 +1049,21 @@
     "STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK": "Channel Track",
     "STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_A": "Channel Track + Channel A",
     "STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_B": "Channel Track + Channel B",
-    "STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_C": "Channel Track + Channel C"
+    "STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_C": "Channel Track + Channel C",
+    "STRING_FOR_ENV_MODE_MENU_TITLE": "Env* mode",
+    "STRING_FOR_ENV_CURVE_MENU_TITLE": "Env* curve",
+    "STRING_FOR_ENV_HOLD_MENU_TITLE": "Env* hold",
+    "STRING_FOR_ENV_LEVEL_MENU_TITLE": "Env* level",
+    "STRING_FOR_CURVE": "Curve",
+    "STRING_FOR_HOLD": "Hold",
+    "STRING_FOR_ENV_LEVEL": "Level",
+    "STRING_FOR_ADSR": "ADSR",
+    "STRING_FOR_AHD": "AHD",
+    "STRING_FOR_AR": "AR",
+    "STRING_FOR_ENV_FOLLOW_MENU_TITLE": "Env* follow",
+    "STRING_FOR_ENV_FOLLOW_Z": "Pressure (Z)",
+    "STRING_FOR_ENV_FOLLOW_Z_SHORT": "Z",
+    "STRING_FOR_ENV_FOLLOW_Y": "Mod wheel (Y)",
+    "STRING_FOR_ENV_FOLLOW_Y_SHORT": "Y"
   }
 }

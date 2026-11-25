@@ -229,6 +229,16 @@ const deluge::instruments::classic::SoundState* sound_state_of(const MenuContext
 /// @return The name; empty for an index no patched param has.
 std::string_view destination_short_name(const MenuContext& ctx, uint8_t p) {
 	const deluge::instruments::classic::SoundState* state = sound_state_of(ctx);
+	if (state != nullptr) {
+		deluge::l10n::EnvelopeModes modes{};
+		for (size_t e = 0; e < modes.size(); ++e) {
+			modes[e] = deluge::instruments::classic::envelope(*state, e).mode;
+		}
+		if (const auto name = deluge::l10n::envelope_param_name_at(deluge::plugin::ParamKind::PATCHED, p, modes,
+		                                                           /*brief=*/true)) {
+			return *name;
+		}
+	}
 	const deluge::effects::FilterState* filter =
 	    state != nullptr ? &deluge::instruments::classic::sound_effects(*state).filter : nullptr;
 	return filter != nullptr ? deluge::l10n::patched_param_short_name_at(p, filter->lpf_mode, filter->hpf_mode)

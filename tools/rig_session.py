@@ -94,6 +94,7 @@ class DeviceSession:
         self._flashes: list[tuple[int, int, int]] = []
         self._pic = {"refresh_time": -1, "dimmer_interval": -1}
         self._target = None
+        self._lock = None
         # Leaving the session parks the panel dark; a run of several scripts parks only after the last.
         self.park_on_close = True
         # The probe host's ALSA port for the Deluge's USB-MIDI (`amidi -l`), for `midi`.
@@ -306,12 +307,27 @@ class DeviceSession:
         cls, elf: Path, host: str, out: Path, boot_s: float = 60.0
     ) -> DeviceSession:
         """Restarts the rig, loads `elf` into RAM (no breakpoints, QSPI untouched), connects to its RTT
-        and attaches. Use as a context manager: leaving it parks the panel dark and stops the server."""
+        and attaches, holding the rig's lock until closed. Use as a context manager: leaving it parks the panel
+        dark and stops the server."""
         sys.path.insert(0, str(REPO / "tools"))
+        import rig_lock
+
+        out.mkdir(parents=True, exist_ok=True)
+        lock = rig_lock.hold(host, f"rig_session {Path(elf).name}")
+        lock.__enter__()
+        try:
+            session = cls._launch(elf, host, out, boot_s)
+        except BaseException:
+            lock.__exit__(*sys.exc_info())
+            raise
+        session._lock = lock
+        return session
+
+    @classmethod
+    def _launch(cls, elf: Path, host: str, out: Path, boot_s: float) -> DeviceSession:
         import deluge_jlink
         import rig
 
-        out.mkdir(parents=True, exist_ok=True)
         if not rig.restart(host):
             raise ConnectionError(
                 f"rig harness: could not restart the probe server on {host}"
@@ -365,12 +381,17 @@ class DeviceSession:
             return
         import rig
 
-        Path(self._out / "device.log").write_text("\n".join(self.log) + "\n")
-        self._target.close()
-        self._target = None
-        if self.park_on_close if park is None else park:
-            rig.park(self._host, rig.DEFAULT_PARK)
-            rig.stop(self._host)
+        try:
+            Path(self._out / "device.log").write_text("\n".join(self.log) + "\n")
+            self._target.close()
+            self._target = None
+            if self.park_on_close if park is None else park:
+                rig.park(self._host, rig.DEFAULT_PARK)
+                rig.stop(self._host)
+        finally:
+            if self._lock is not None:
+                self._lock.__exit__(None, None, None)
+                self._lock = None
 
     def assert_no_aborts(self) -> None:
         """Raises AssertionError if the firmware logged a panic or a freeze, as delugemu's check does."""

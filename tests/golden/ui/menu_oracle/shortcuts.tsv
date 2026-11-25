@@ -1349,18 +1349,30 @@ blink/leaf sound/13/0	plan	param 8,3 f0 white;
 blink/leaf sound/13/1	plan	param 8,2 f0 white;
 blink/leaf sound/13/2	plan	param 8,1 f0 white;
 blink/leaf sound/13/3	plan	param 8,0 f0 white;
+blink/leaf sound/13/4	plan	
+blink/leaf sound/13/5	plan	
+blink/leaf sound/13/6	plan	
 blink/leaf sound/14/0	plan	param 9,3 f0 white;
 blink/leaf sound/14/1	plan	param 9,2 f0 white;
 blink/leaf sound/14/2	plan	param 9,1 f0 white;
 blink/leaf sound/14/3	plan	param 9,0 f0 white;
+blink/leaf sound/14/4	plan	
+blink/leaf sound/14/5	plan	
+blink/leaf sound/14/6	plan	
 blink/leaf sound/15/0	plan	param 8,3 f0 yellow; src 1,2 f3 white
 blink/leaf sound/15/1	plan	param 8,2 f0 yellow;
 blink/leaf sound/15/2	plan	param 8,1 f0 yellow;
 blink/leaf sound/15/3	plan	param 8,0 f0 yellow;
+blink/leaf sound/15/4	plan	
+blink/leaf sound/15/5	plan	
+blink/leaf sound/15/6	plan	
 blink/leaf sound/16/0	plan	param 9,3 f0 yellow;
 blink/leaf sound/16/1	plan	param 9,2 f0 yellow;
 blink/leaf sound/16/2	plan	param 9,1 f0 yellow;
 blink/leaf sound/16/3	plan	param 9,0 f0 yellow;
+blink/leaf sound/16/4	plan	
+blink/leaf sound/16/5	plan	
+blink/leaf sound/16/6	plan	
 blink/leaf sound/17/0	plan	param 12,2 f0 white;
 blink/leaf sound/17/1	plan	param 12,1 f0 white;
 blink/leaf sound/17/2	plan	param 12,0 f0 white;

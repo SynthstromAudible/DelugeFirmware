@@ -143,8 +143,20 @@ struct Indicators {
 
 } // namespace
 
-void envelope_graph(OledFrame& panel, int32_t attack, int32_t decay, int32_t sustain, int32_t release,
-                    int32_t selected) {
+namespace {
+
+/// @brief `EnvelopeCurve::rising`: 0 at @p x = 0, 1 at 1, bent by @p k octaves; 0 is a straight line.
+float rising(float k, float x) {
+	if (k == 0.f) {
+		return x;
+	}
+	const float floor = std::exp2(-k);
+	return 1.f - ((std::exp2(-k * x) - floor) / (1.f - floor));
+}
+
+} // namespace
+
+void envelope_graph(OledFrame& panel, const EnvelopeGraph& envelope, int32_t selected) {
 	const gfx::oled::Geometry g = panel.canvas.geometry();
 	ClipScope scope{panel.canvas, panel.clip};
 	gfx::oled::Canvas& image = panel.canvas;
@@ -155,45 +167,106 @@ void envelope_graph(OledFrame& panel, int32_t attack, int32_t decay, int32_t sus
 	const auto end_y = static_cast<uint8_t>(g.height - 6);
 	const int32_t draw_width = g.width - 2 * padding_x;
 	const auto draw_height = static_cast<uint8_t>(end_y - start_y);
-	const float max_segment_width = static_cast<float>(draw_width / 4);
-
-	const float attack_width = static_cast<float>(attack) / 50.0f * max_segment_width;
-	const float decay_width = sigmoid_like_curve(static_cast<float>(decay), 50.0f, 8.0f) * max_segment_width;
-
-	const float attack_x = std::round(start_x + attack_width);
-	const float decay_x = std::round(attack_x + decay_width);
-	const float sustain_x = start_x + max_segment_width * 3;
-	const float release_x = std::round(
-	    sustain_x + static_cast<float>(release) / 50.0f * (static_cast<float>(start_x + draw_width) - sustain_x));
-
+	const auto max_segment_width = static_cast<float>(draw_width / 4);
 	const int32_t base_y = start_y + draw_height;
-	const auto sustain_y = static_cast<int32_t>(base_y - std::round(static_cast<float>(sustain) / 50.0f * draw_height));
+	const auto end_x = static_cast<float>(start_x + draw_width);
 
 	const auto ix = [](float v) { return static_cast<int32_t>(v); };
-	image.draw_line(start_x, base_y, ix(attack_x), start_y);
-	image.draw_line(ix(attack_x), start_y, ix(decay_x), sustain_y);
-	image.draw_line(ix(decay_x), sustain_y, ix(sustain_x), sustain_y);
-	image.draw_line(ix(sustain_x), sustain_y, ix(release_x), base_y);
-	image.draw_line(ix(release_x), base_y, start_x + draw_width, base_y);
-
+	const auto level_y = [&](float level) {
+		return static_cast<int32_t>(std::round(static_cast<float>(base_y) - level * static_cast<float>(draw_height)));
+	};
+	const auto fraction = [](int32_t value) { return static_cast<float>(value) / 50.0f; };
+	// A stage from one level to another, bent like the envelope's curve
+	const auto stage = [&](float x0, float from, float x1, float to, float k) {
+		constexpr int32_t kSteps = 12;
+		int32_t last_x = ix(x0);
+		int32_t last_y = level_y(from);
+		for (int32_t i = 1; i <= kSteps; i++) {
+			const float t = static_cast<float>(i) / kSteps;
+			const auto this_x = static_cast<int32_t>(std::round(x0 + (x1 - x0) * t));
+			const int32_t this_y = level_y(from + (to - from) * rising(k, t));
+			image.draw_line(last_x, last_y, this_x, this_y);
+			last_x = this_x;
+			last_y = this_y;
+		}
+	};
+	// The vertical dotted line marking a stage transition, from the bottom of the screen up to top_y
 	const int32_t visible_height = g.height - g.visible_top;
-	for (int32_t y = visible_height + 1; y >= start_y - 2; y -= 4) {
-		if (attack_x > start_x + 3) {
-			image.draw_pixel(ix(attack_x), y);
+	const auto dotted = [&](float x, bool draw, int32_t top_y) {
+		for (int32_t y = visible_height + 1; draw && y >= top_y - 2; y -= 4) {
+			image.draw_pixel(ix(x), y);
 		}
-		if (decay_x - attack_x > 4) {
-			image.draw_pixel(ix(decay_x), y);
-		}
-		if (sustain_y > start_y || y > sustain_y) {
-			image.draw_pixel(ix(sustain_x), y);
-		}
-	}
-
+	};
 	Indicators marks{image};
-	marks.draw(attack_x, start_y, selected == 0);
-	marks.draw(decay_x, static_cast<float>(sustain_y), selected == 1);
-	marks.draw(decay_x + (sustain_x - decay_x) / 2, static_cast<float>(sustain_y), selected == 2);
-	marks.draw(release_x, static_cast<float>(base_y), selected == 3);
+	const auto mark = [&](float x, int32_t y, int32_t segment) {
+		marks.draw(x, static_cast<float>(y), selected == segment);
+	};
+
+	using Mode = EnvelopeGraph::Mode;
+	const float attack_x = std::round(start_x + fraction(envelope.attack) * max_segment_width);
+	const float decay_width = sigmoid_like_curve(static_cast<float>(envelope.decay), 50.0f, 8.0f) * max_segment_width;
+	const float sustain_level = envelope.mode == Mode::AHD ? 0.f : fraction(envelope.sustain);
+	const int32_t sustain_y = level_y(sustain_level);
+	const float sustain_x = start_x + max_segment_width * 3;
+	const float release_x = std::round(sustain_x + fraction(envelope.release) * (end_x - sustain_x));
+
+	// AR rises to its level; every other mode to full
+	const float attack_level = envelope.mode == Mode::AR ? sustain_level : 1.f;
+	stage(start_x, 0.f, attack_x, attack_level, envelope.attack_k);
+
+	switch (envelope.mode) {
+	case Mode::AHD: {
+		const float hold_x = std::round(attack_x + decay_width);
+		// The decay gets the room the release would have had, so the line ends where the release knob says
+		const float decay_end_x = std::round(hold_x + fraction(envelope.release) * (end_x - hold_x));
+		image.draw_line(ix(attack_x), start_y, ix(hold_x), start_y);
+		stage(hold_x, 1.f, decay_end_x, 0.f, envelope.decay_k);
+		image.draw_line(ix(decay_end_x), base_y, ix(end_x), base_y);
+		dotted(attack_x, attack_x > start_x + 3, start_y);
+		dotted(hold_x, hold_x - attack_x > 4, start_y);
+		mark(attack_x, start_y, 0);
+		mark(hold_x, start_y, 1);
+		mark(decay_end_x, base_y, 3);
+		break;
+	}
+	case Mode::AR: // up to the level while held, down on release
+		image.draw_line(ix(attack_x), sustain_y, ix(sustain_x), sustain_y);
+		stage(sustain_x, sustain_level, release_x, 0.f, envelope.release_k);
+		image.draw_line(ix(release_x), base_y, ix(end_x), base_y);
+		dotted(sustain_x, true, sustain_y);
+		mark(attack_x, level_y(attack_level), 0);
+		mark(attack_x + (sustain_x - attack_x) / 2, sustain_y, 2);
+		mark(release_x, base_y, 3);
+		break;
+	case Mode::MPE: // up to full with the input fully on, resting at the level with it off, down on release
+		image.draw_line(ix(attack_x), start_y, ix(sustain_x), start_y);
+		stage(sustain_x, 1.f, release_x, 0.f, envelope.release_k);
+		image.draw_line(ix(release_x), base_y, ix(end_x), base_y);
+		for (int32_t x = start_x; x <= ix(sustain_x); x += 3) {
+			image.draw_pixel(x, sustain_y);
+		}
+		dotted(sustain_x, true, start_y);
+		mark(attack_x, start_y, 0);
+		mark(start_x + (sustain_x - start_x) / 2, sustain_y, 2);
+		mark(release_x, base_y, 3);
+		break;
+	case Mode::ADSR: {
+		const float decay_x = std::round(attack_x + decay_width);
+		stage(attack_x, 1.f, decay_x, sustain_level, envelope.decay_k);
+		image.draw_line(ix(decay_x), sustain_y, ix(sustain_x), sustain_y);
+		stage(sustain_x, sustain_level, release_x, 0.f, envelope.release_k);
+		image.draw_line(ix(release_x), base_y, ix(end_x), base_y);
+		// Lines close to each other look messy: the nearer is left out
+		dotted(attack_x, attack_x > start_x + 3, start_y);
+		dotted(decay_x, decay_x - attack_x > 4, start_y);
+		dotted(sustain_x, true, sustain_y > start_y ? start_y : sustain_y);
+		mark(attack_x, start_y, 0);
+		mark(decay_x, sustain_y, 1);
+		mark(decay_x + (sustain_x - decay_x) / 2, sustain_y, 2);
+		mark(release_x, base_y, 3);
+		break;
+	}
+	}
 }
 
 void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float treble_freq, int32_t selected) {

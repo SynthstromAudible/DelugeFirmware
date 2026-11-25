@@ -3,7 +3,7 @@
   "frames": 384000,
   "peak": 2147483392,
   "rms_db": -17.61,
-  "sha256": "0428c4c297b4083ec67307f5fd78aeb528e276b717c6c45bf4a249d8dbe1db52"
+  "sha256": "2f7071f3ce6d29808f8020c939ec74c1e6f69fefc22ca81762270288ea51de0d"
  },
  "RS_AUDIO_CENTS": {
   "frames": 384000,
@@ -63,7 +63,7 @@
   "frames": 384000,
   "peak": 1493415424,
   "rms_db": -14.08,
-  "sha256": "6ebd05658371ac84e48beeff21b80cb82e2fb9b4dcccade68428caa07d36be0a"
+  "sha256": "08fe7833295e86bca7dd0168acafe3b30318c387dd0409a1ab2d637a3aaa0dc7"
  },
  "RS_AUDIO_FILTERS": {
   "frames": 384000,
@@ -93,7 +93,7 @@
   "frames": 384000,
   "peak": 262900480,
   "rms_db": -30.72,
-  "sha256": "4cd4ec9aa0d184c44f913063392badda8ef6b9bc3c5a160cecd5ce236a6e2138"
+  "sha256": "afe59d8f3f4c986de35cbfe8f92b8e9b31c9c929f29c34d66d5b13f74f296ced"
  },
  "RS_AUDIO_STRETCH_EDGES": {
   "frames": 384000,
@@ -141,7 +141,7 @@
   "frames": 384000,
   "peak": 1504250368,
   "rms_db": -14.41,
-  "sha256": "b076148718535f1e6351272ac848ed0390ce6669eccb3145ab0aa46a346b9570"
+  "sha256": "a653b7f9e8471d7c5b9bd7beb81dfe76c838b581f556b030cff575338449e9de"
  },
  "RS_EQ_BANDS": {
   "frames": 384000,
@@ -219,7 +219,7 @@
   "frames": 384000,
   "peak": 286423808,
   "rms_db": -29.69,
-  "sha256": "17eb24444d699afdb31ad600ed84efa97f74391f3218ab1cd4169e84f550fc15"
+  "sha256": "3874ee34958eccb1bb167b2e9c11a8bb10763befc6e80d77936eb9ce904528ad"
  },
  "RS_KIT_SVF_MORPH": {
   "frames": 384000,
@@ -291,7 +291,7 @@
   "frames": 384000,
   "peak": 1452845824,
   "rms_db": -26.94,
-  "sha256": "8596ca11d86b13a2987113e8bdc06924048bb9e70794526686cb8e0495313398"
+  "sha256": "2f94f1023bc3903a34b0332ffc7699e1d47893afa91c3a8b4836bf0f9be572fd"
  },
  "RS_MODFX_STEREO_B": {
   "frames": 384000,
@@ -321,13 +321,13 @@
   "frames": 384000,
   "peak": 1779755264,
   "rms_db": -14.32,
-  "sha256": "02253f852fa6d47f47ec0b2d9db1d7c94f44e468d7e8959df929c281660faaf3"
+  "sha256": "58d6d30b8713d59f8cfdff7963249664eabc83e59e11729c73e1e144d34c1868"
  },
  "RS_REVERB_DUCK_OVERRIDE_TRACK": {
   "frames": 384000,
   "peak": 1842103552,
   "rms_db": -13.37,
-  "sha256": "37ee3204d28eb0c2847518f6bb73afca26466ba4608920b01f3a215e3b09cc46"
+  "sha256": "71016346de8e499b73b2f660013920a82a1730e89f8dbfe858a835a4602ae19b"
  },
  "RS_REVERB_FREEVERB": {
   "frames": 384000,

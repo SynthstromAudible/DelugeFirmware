@@ -200,6 +200,10 @@ synth::LfoState& lfo_of(SoundState& state, size_t index) noexcept {
 	return pair[index / 2];
 }
 
+synth::EnvelopeState& envelope_of(SoundState& state, size_t index) noexcept {
+	return state.plays.envelopes[index];
+}
+
 std::array<synth::Pitch, 2>& modulators_of(SoundState& state) noexcept {
 	auto* fm = std::get_if<synth::FmState>(&state.plays.engine);
 	return fm != nullptr ? fm->modulators : state.recall.modulators;

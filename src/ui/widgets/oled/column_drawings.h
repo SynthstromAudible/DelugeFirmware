@@ -75,16 +75,26 @@ void draw_column(OledFrame& slot_frame, bool focused, void* ctx);
 /// @param g    The filter's state.
 void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g);
 
+/// @brief What an envelope's graph draws.
+struct EnvelopeGraph {
+	enum class Mode : uint8_t { ADSR, AHD, AR, MPE };
+	int32_t attack = 0;  ///< The four segments' values, 0..50.
+	int32_t decay = 0;   ///< An AHD's hold.
+	int32_t sustain = 0; ///< An AR's or MPE's level.
+	int32_t release = 0; ///< An AHD's decay.
+	Mode mode = Mode::ADSR;
+	float attack_k = 4.f;  ///< Each stage's curve, the octaves it falls: 0 a straight line.
+	float decay_k = 8.f;   ///< The decay's.
+	float release_k = 8.f; ///< The release's.
+};
+
 /// @brief `envelope::EnvelopeMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`):
-///        the ADSR shape with dotted stage lines and a square on each stage, the focused one inverted.
+///        the envelope's shape for its mode, its stages bent as its curve bends them, with dotted stage lines and a
+///        square on each segment's point, the focused one inverted.
 /// @param panel    A whole-panel frame (`panel_frame`): legacy draws in canvas coordinates.
-/// @param attack   The four segments' values, 0..50.
-/// @param decay
-/// @param sustain
-/// @param release
+/// @param envelope The envelope.
 /// @param selected The focused segment, 0..3.
-void envelope_graph(OledFrame& panel, int32_t attack, int32_t decay, int32_t sustain, int32_t release,
-                    int32_t selected);
+void envelope_graph(OledFrame& panel, const EnvelopeGraph& envelope, int32_t selected);
 
 /// @brief `eq::EqMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`): the shelving curve with
 ///        reference lines and a handle on each of bass, bass frequency, treble frequency and treble, the focused one

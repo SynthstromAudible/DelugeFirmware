@@ -49,6 +49,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 import rig
+import rig_lock
 
 DEFAULT_ELF = REPO / "build" / "RelWithDebInfo" / "deluge.elf"
 DEFAULT_OUT = REPO / ".superpowers" / "estate" / "device-check"
@@ -231,6 +232,7 @@ def main(argv: list[str] | None = None) -> int:
         default=4 * 1024,
         help="least unused program stack to pass",
     )
+    rig_lock.add_argument(ap)
     args = ap.parse_args(argv)
     if not args.host:
         print(
@@ -247,6 +249,15 @@ def main(argv: list[str] | None = None) -> int:
         print("device_check: the ELF names no program stack to paint", file=sys.stderr)
         return 4
 
+    return rig_lock.guarded(
+        args.host,
+        f"device_check {args.elf.name}",
+        args.wait,
+        lambda: check(args, lo, hi),
+    )
+
+
+def check(args: argparse.Namespace, lo: int, hi: int) -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     # The Pi's server occasionally refuses one restart; a second normally takes.
     if not any(rig.restart(args.host) for _ in range(3)):

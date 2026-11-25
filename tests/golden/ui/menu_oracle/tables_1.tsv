@@ -413,7 +413,7 @@ b1/8/5	slots	1
 b1/8/5	range_dep	0
 b1/9	name	Envelope 1
 b1/9	title	Envelope 1
-b1/9	kids	4
+b1/9	kids	7
 b1/9/0	name	Attack
 b1/9/0	title	Env1 attack
 b1/9/0	ae	1
@@ -442,9 +442,27 @@ b1/9/3	edits	1
 b1/9/3	slots	1
 b1/9/3	range_dep	0
 b1/9/3	param_index	41
+b1/9/4	name	Mode
+b1/9/4	title	Env1 mode
+b1/9/4	ae	1
+b1/9/4	edits	1
+b1/9/4	slots	1
+b1/9/4	range_dep	0
+b1/9/5	name	Curve
+b1/9/5	title	Env1 curve
+b1/9/5	ae	1
+b1/9/5	edits	1
+b1/9/5	slots	1
+b1/9/5	range_dep	0
+b1/9/6	name	Follow
+b1/9/6	title	Env1 follow
+b1/9/6	ae	1
+b1/9/6	edits	1
+b1/9/6	slots	1
+b1/9/6	range_dep	0
 b1/10	name	Envelope 2
 b1/10	title	Envelope 2
-b1/10	kids	4
+b1/10	kids	7
 b1/10/0	name	Attack
 b1/10/0	title	Env2 attack
 b1/10/0	ae	1
@@ -473,9 +491,27 @@ b1/10/3	edits	1
 b1/10/3	slots	1
 b1/10/3	range_dep	0
 b1/10/3	param_index	42
+b1/10/4	name	Mode
+b1/10/4	title	Env2 mode
+b1/10/4	ae	1
+b1/10/4	edits	1
+b1/10/4	slots	1
+b1/10/4	range_dep	0
+b1/10/5	name	Curve
+b1/10/5	title	Env2 curve
+b1/10/5	ae	1
+b1/10/5	edits	1
+b1/10/5	slots	1
+b1/10/5	range_dep	0
+b1/10/6	name	Follow
+b1/10/6	title	Env2 follow
+b1/10/6	ae	1
+b1/10/6	edits	1
+b1/10/6	slots	1
+b1/10/6	range_dep	0
 b1/11	name	Envelope 3
 b1/11	title	Envelope 3
-b1/11	kids	4
+b1/11	kids	7
 b1/11/0	name	Attack
 b1/11/0	title	Env3 attack
 b1/11/0	ae	1
@@ -504,9 +540,27 @@ b1/11/3	edits	1
 b1/11/3	slots	1
 b1/11/3	range_dep	0
 b1/11/3	param_index	43
+b1/11/4	name	Mode
+b1/11/4	title	Env3 mode
+b1/11/4	ae	1
+b1/11/4	edits	1
+b1/11/4	slots	1
+b1/11/4	range_dep	0
+b1/11/5	name	Curve
+b1/11/5	title	Env3 curve
+b1/11/5	ae	1
+b1/11/5	edits	1
+b1/11/5	slots	1
+b1/11/5	range_dep	0
+b1/11/6	name	Follow
+b1/11/6	title	Env3 follow
+b1/11/6	ae	1
+b1/11/6	edits	1
+b1/11/6	slots	1
+b1/11/6	range_dep	0
 b1/12	name	Envelope 4
 b1/12	title	Envelope 4
-b1/12	kids	4
+b1/12	kids	7
 b1/12/0	name	Attack
 b1/12/0	title	Env4 attack
 b1/12/0	ae	1
@@ -535,6 +589,24 @@ b1/12/3	edits	1
 b1/12/3	slots	1
 b1/12/3	range_dep	0
 b1/12/3	param_index	44
+b1/12/4	name	Mode
+b1/12/4	title	Env4 mode
+b1/12/4	ae	1
+b1/12/4	edits	1
+b1/12/4	slots	1
+b1/12/4	range_dep	0
+b1/12/5	name	Curve
+b1/12/5	title	Env4 curve
+b1/12/5	ae	1
+b1/12/5	edits	1
+b1/12/5	slots	1
+b1/12/5	range_dep	0
+b1/12/6	name	Follow
+b1/12/6	title	Env4 follow
+b1/12/6	ae	1
+b1/12/6	edits	1
+b1/12/6	slots	1
+b1/12/6	range_dep	0
 b1/13	name	LFO 1
 b1/13	title	LFO 1
 b1/13	kids	3
@@ -798,6 +870,13 @@ b1/9/3	rel	1
 b1/9/3	read	1
 b1/9/3	learn	41
 b1/9/3	param_kind	1
+b1/9/4	rel	1
+b1/9/4	read	0
+b1/9/4	options	ADSR	AHD	AR	MPE
+b1/9/5	rel	1
+b1/9/5	read	32
+b1/9/6	rel	0
+b1/9/6	options	Pressure (Z)	Mod wheel (Y)
 b1/10	rel	1
 b1/10/0	rel	1
 b1/10/0	read	7
@@ -815,6 +894,13 @@ b1/10/3	rel	1
 b1/10/3	read	20
 b1/10/3	learn	42
 b1/10/3	param_kind	1
+b1/10/4	rel	1
+b1/10/4	read	0
+b1/10/4	options	ADSR	AHD	AR	MPE
+b1/10/5	rel	1
+b1/10/5	read	32
+b1/10/6	rel	0
+b1/10/6	options	Pressure (Z)	Mod wheel (Y)
 b1/11	rel	1
 b1/11/0	rel	1
 b1/11/0	read	25
@@ -832,6 +918,13 @@ b1/11/3	rel	1
 b1/11/3	read	25
 b1/11/3	learn	43
 b1/11/3	param_kind	1
+b1/11/4	rel	1
+b1/11/4	read	0
+b1/11/4	options	ADSR	AHD	AR	MPE
+b1/11/5	rel	1
+b1/11/5	read	32
+b1/11/6	rel	0
+b1/11/6	options	Pressure (Z)	Mod wheel (Y)
 b1/12	rel	1
 b1/12/0	rel	1
 b1/12/0	read	25
@@ -849,6 +942,13 @@ b1/12/3	rel	1
 b1/12/3	read	25
 b1/12/3	learn	44
 b1/12/3	param_kind	1
+b1/12/4	rel	1
+b1/12/4	read	0
+b1/12/4	options	ADSR	AHD	AR	MPE
+b1/12/5	rel	1
+b1/12/5	read	32
+b1/12/6	rel	0
+b1/12/6	options	Pressure (Z)	Mod wheel (Y)
 b1/13	rel	1
 b1/13/0	rel	1
 b1/13/0	read	1

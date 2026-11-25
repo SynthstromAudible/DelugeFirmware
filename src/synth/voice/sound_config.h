@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp" // SynthMode, VoicePriority, PolyphonyMode, kNumSources, kNumModulators, LFO_COUNT
 #include "dsp/fixed/pitch/fine_tune.h"
+#include "synth/modulation/envelope_state.h"
 #include "synth/modulation/lfo_state.h"
 #include "synth/sources/source_state.h" // kFreeRunningPhase
 #include "synth/voice/unison.h"
@@ -86,7 +87,8 @@ struct SoundConfig {
 	EngineSettings engine;
 	std::array<LfoState, LFO_COUNT>
 	    lfos{}; ///< each LFO's wave and sync; LFO1 and LFO3 run per sound, 2 and 4 per voice
-	std::array<SourceConfig, kNumSources> sources{}; ///< each oscillator's playback settings
+	std::array<SourceConfig, kNumSources> sources{};      ///< each oscillator's playback settings
+	std::array<EnvelopeState, kNumEnvelopes> envelopes{}; ///< each envelope's mode, curve and follow input
 	bool operator==(const SoundConfig&) const = default;
 };
 

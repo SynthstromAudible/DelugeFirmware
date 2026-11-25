@@ -45,7 +45,9 @@ constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release
 /// What a push reads beyond the song's records: the owner's effects (through the gesture's track and sound ports), the
 /// device facts (through its controls port) and the gesture's context.
 struct Reads {
-	effects::EffectStates effects;   ///< the owner's effect settings (a new chain's for none)
+	effects::EffectStates effects; ///< the owner's effect settings (a new chain's for none)
+	/// the sound's envelopes' modes; all ADSR for no sound
+	l10n::EnvelopeModes envelopes{};
 	ui::controls::PageSources pages; ///< the publishers and the device facts (the alternative delay knobs)
 	bool button_held{false};         ///< the mode's mod button is held
 	bool clip_context{false};        ///< the knobs are on a clip, not the song
@@ -64,6 +66,9 @@ Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
 		if (const effects::EffectStates* fx = owner_effects(focus, *tracks, *sound)) {
 			out.effects = *fx;
 		}
+	}
+	if (sound != nullptr) {
+		out.envelopes = owner_envelope_modes(focus, *sound).value_or(l10n::EnvelopeModes{});
 	}
 	return out;
 }
@@ -428,9 +433,11 @@ std::string cc_name(const project::DocOutput& output, const project::ModKnobCc& 
 	return "CC " + std::to_string(cc.number);
 }
 
-/// The name a mod button shows for knob @p knob: its param's, as the filter modes name morph.
-std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, int32_t knob,
-                      const effects::EffectStates& fx, const ui::controls::Board& board) {
+/// The name a mod button shows for knob @p knob: its param's, as the filter modes name morph and the envelopes' modes
+/// their params.
+std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, const Reads& inputs) {
+	const effects::EffectStates& fx = inputs.effects;
+	const ui::controls::Board& board = inputs.pages.board;
 	const bind::KnobAssignment assignment = bind::knob_assignment(song, focus, knob, board);
 	const auto* address = std::get_if<project::ParamAddress>(&assignment.target);
 	if (address == nullptr) {
@@ -452,8 +459,9 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 			out += source_short_name(second);
 			out += " -> ";
 		}
-		out += l10n::patched_param_short_name_at(destination ? destination->index : 0, fx.filter.lpf_mode,
-		                                         fx.filter.hpf_mode);
+		const uint32_t index = destination ? destination->index : 0;
+		out += l10n::envelope_param_name_at(plugin::ParamKind::PATCHED, index, inputs.envelopes, /*brief=*/true)
+		           .value_or(l10n::patched_param_short_name_at(index, fx.filter.lpf_mode, fx.filter.hpf_mode));
 		return out;
 	}
 	if (assignment.kind == plugin::ParamKind::UNPATCHED_GLOBAL) {
@@ -469,15 +477,16 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 	const plugin::ParamKind kind = slot->set == instruments::classic::RuntimeSet::PATCHED
 	                                   ? plugin::ParamKind::PATCHED
 	                                   : plugin::ParamKind::UNPATCHED_SOUND;
-	return std::string{l10n::param_name_at(kind, slot->index, fx.filter.lpf_mode, fx.filter.hpf_mode)};
+	return std::string{l10n::envelope_param_name_at(kind, slot->index, inputs.envelopes)
+	                       .value_or(l10n::param_name_at(kind, slot->index, fx.filter.lpf_mode, fx.filter.hpf_mode))};
 }
 
 /// Both knobs' names, the upper first; the stutter button's lower knob has none on the song.
 std::string names_popup(const project::Song& song, const bind::KnobFocus& focus, int32_t button, const Reads& inputs) {
-	std::string out = knob_name(song, focus, 1, inputs.effects, inputs.pages.board);
+	std::string out = knob_name(song, focus, 1, inputs);
 	if (!(std::cmp_equal(button, host::chains::kStutterSection) && !inputs.clip_context)) {
 		out += "\n";
-		out += knob_name(song, focus, 0, inputs.effects, inputs.pages.board);
+		out += knob_name(song, focus, 0, inputs);
 	}
 	return out;
 }
@@ -508,6 +517,19 @@ const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const b
 		return state != nullptr ? &instruments::classic::sound_effects(*state) : nullptr;
 	}
 	return tracks.chain_effects(std::get<project::ChainAddress>(*owner));
+}
+
+std::optional<l10n::EnvelopeModes> owner_envelope_modes(const bind::KnobFocus& focus, const bind::SoundFacts& sound) {
+	const auto* focused = std::get_if<bind::SoundFocus>(&focus.owner);
+	const instruments::classic::SoundState* state = focused != nullptr ? sound.sound_state(focused->slot) : nullptr;
+	if (state == nullptr) {
+		return std::nullopt;
+	}
+	l10n::EnvelopeModes modes{};
+	for (size_t e = 0; e < modes.size(); ++e) {
+		modes[e] = instruments::classic::envelope(*state, e).mode;
+	}
+	return modes;
 }
 
 KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, bool on,

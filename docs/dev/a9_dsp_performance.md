@@ -879,6 +879,27 @@ At n = 128 the controls sit above the earlier tables in this file (analog chain 
 11.35 to 12.41, +9%): the whole list runs under flush-to-zero and in a different image layout, and the controls bound
 how much the image moved the rest, so read the float figures with that margin.
 
+## The classic voice's envelope
+
+`synth::Envelope` renders once a block for each envelope a voice uses, in integers (`dsp/fixed/envelope/`). The
+`mod_matrix` list times it per stage, an AHD's hold, an AR's slew, and 64 decaying envelopes, sixteen voices' worth.
+Beside it, the oracle of `tests/unit/dsp/envelope_q31_oracle.h`, which reads the decay tables, through the same case (the
+rig, 2026-11-25). Cycles a render over blocks of 32, 64 and 128 samples:
+
+| case | the envelope | the table envelope |
+|---|---:|---:|
+| envelope_attack | 145 | 72 to 74 |
+| envelope_decay | 155 to 170 | 87 to 88 |
+| envelope_sustain | 84 to 94 | 43 to 44 |
+| envelope_release | 147 to 155 | 63 to 65 |
+| envelope_hold | 114 to 115 | |
+| envelope_slew | 209 | |
+| envelope_decay_x64 | 8,989 to 9,006 | 4,586 to 4,588 |
+
+A stage is a 23-bit position and a curve: an exponential by polynomial, for any curve, where the tables hold two. Both
+hold 32 bytes. The slew's level keeps 31 bits below its last, two 64-bit multiplies, so that one a minute long is right
+in blocks of one sample. The same shapes with a float level measured 244 to 279 cycles in a moving stage.
+
 ## Float voice slice
 
 The `float_voice` list (`DELUGE_DSP_BENCH_CASES=float_voice`) times the float oscillators (`fp::BlepOscillator` and

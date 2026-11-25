@@ -15,5 +15,9 @@ void MatrixCase::setup(std::size_t /*n*/) {
 }
 void MatrixCase::block(std::size_t /*n*/) {
 }
+void EnvelopeCase::setup(std::size_t /*n*/) {
+}
+void EnvelopeCase::block(std::size_t /*n*/) {
+}
 
 } // namespace deluge::bench

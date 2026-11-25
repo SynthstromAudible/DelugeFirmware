@@ -1755,13 +1755,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(menu::nodes::eq.page_draw).not_().to_be_null();
 	});
 
-	it("the envelope group pages ENV1..ENV4 as 1/4..4/4, each drawn as main's envelope graph", _ {
+	it("the envelope group pages ENV1..ENV4 as 1/8..8/8, each main's envelope graph, then its settings", _ {
 		select_language();
 		deluge::base::notify::dirty().drain();
 		Rig r;
 		(void)r.open_real(menu::nodes::env_group);
 		r.shell.tick(0);
-		expect(static_cast<int>(menu_scene().horizontal_paging().total_pages)).to_equal(4);
+		expect(static_cast<int>(menu_scene().horizontal_paging().total_pages)).to_equal(8);
 		expect(menu::nodes::env1.page_draw).not_().to_be_null();
 		r.press(kCrossScreenX, kCrossScreenY, 300);
 		r.shell.tick(400);

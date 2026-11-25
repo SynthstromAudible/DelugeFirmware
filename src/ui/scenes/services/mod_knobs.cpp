@@ -384,6 +384,9 @@ void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation
 	if (const effects::EffectStates* fx = owner_effects()) {
 		context.filter = fx->filter;
 	}
+	if (const bind::SoundFacts* const sound = port_of(ports_, &Ports::sound)) {
+		context.envelopes = services::owner_envelope_modes(*focus_, *sound);
+	}
 	context.stutter_quantized = owner_stutter_quantized();
 	if (const auto* midi = std::get_if<bind::MidiFocus>(&focus_->owner); midi != nullptr && midi->clip) {
 		context.midi_clip = true;

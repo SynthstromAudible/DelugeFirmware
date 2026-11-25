@@ -8,6 +8,7 @@
 #include "instruments/classic/words.h"
 #include "plugin/types/arp.h"
 #include "plugin/types/setting.h"
+#include "synth/modulation/envelope_state.h"
 #include "ui/scenes/bind/target.h"
 #include "ui/scenes/menu/node.h"
 
@@ -124,7 +125,27 @@ inline constexpr std::array kOnKitChain{plugin::owner_is(kKitOwner)};
 inline constexpr std::array kOnSound{plugin::instrument_is(kSoundInstruments)};
 inline constexpr std::array kOnSynth{plugin::instrument_is(kSynthInstrument)};
 
+// An envelope's mode (`envelope::Segment::isRelevant`): AR and MPE have no decay, AHD no sustain.
+inline constexpr std::array<int32_t, 2> kArOrMpe{value_of(synth::EnvelopeMode::AR), value_of(synth::EnvelopeMode::MPE)};
+inline constexpr std::array<int32_t, 1> kAhd{value_of(synth::EnvelopeMode::AHD)};
+inline constexpr std::array<std::string_view, 4> kEnvelopeModePath{"envelope1Settings/mode", "envelope2Settings/mode",
+                                                                   "envelope3Settings/mode", "envelope4Settings/mode"};
+inline constexpr std::array<std::array<SettingCondition, 1>, 4> kHasDecay{
+    {{plugin::setting_is_not(kEnvelopeModePath[0], kArOrMpe)},
+     {plugin::setting_is_not(kEnvelopeModePath[1], kArOrMpe)},
+     {plugin::setting_is_not(kEnvelopeModePath[2], kArOrMpe)},
+     {plugin::setting_is_not(kEnvelopeModePath[3], kArOrMpe)}}};
+inline constexpr std::array<std::array<SettingCondition, 1>, 4> kHasSustain{
+    {{plugin::setting_is_not(kEnvelopeModePath[0], kAhd)},
+     {plugin::setting_is_not(kEnvelopeModePath[1], kAhd)},
+     {plugin::setting_is_not(kEnvelopeModePath[2], kAhd)},
+     {plugin::setting_is_not(kEnvelopeModePath[3], kAhd)}}};
+
 // Where each family shows.
+inline constexpr std::array<ParamShows, 4> kEnvelopeDecay{
+    {{.when = kHasDecay[0]}, {.when = kHasDecay[1]}, {.when = kHasDecay[2]}, {.when = kHasDecay[3]}}};
+inline constexpr std::array<ParamShows, 4> kEnvelopeSustain{
+    {{.when = kHasSustain[0]}, {.when = kHasSustain[1]}, {.when = kHasSustain[2]}, {.when = kHasSustain[3]}}};
 inline constexpr ParamShows kHasLpf{.when = kLpfOn};
 inline constexpr ParamShows kHasHpf{.when = kHpfOn};
 inline constexpr ParamShows kOnFm{.when = kIsFm};
