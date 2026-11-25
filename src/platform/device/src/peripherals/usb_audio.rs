@@ -108,6 +108,41 @@ static mut PACER: ToHostPacer = ToHostPacer::new();
 static mut SPEAKER_SINK: SpeakerSink = SpeakerSink;
 static mut CAPTURE_SOURCE: CaptureSource = CaptureSource;
 
+/// The service probe (the `audio-timing` feature): the interrupt records each stream's services, and
+/// the render takes the interval's.
+#[cfg(feature = "audio-timing")]
+mod service_probe {
+    use core::cell::RefCell;
+
+    use critical_section::Mutex;
+
+    use crate::audio::usb_service_probe::{StreamGaps, UsbServiceStats};
+
+    static STATS: Mutex<RefCell<UsbServiceStats>> = Mutex::new(RefCell::new(UsbServiceStats {
+        to_host: StreamGaps::EMPTY,
+        from_host: StreamGaps::EMPTY,
+    }));
+
+    /// Runs `f` on the statistics with interrupts masked.
+    pub(super) fn with<R>(f: impl FnOnce(&mut UsbServiceStats) -> R) -> R {
+        critical_section::with(|cs| f(&mut STATS.borrow_ref_mut(cs)))
+    }
+
+    /// The probe's clock: embassy-time µs, truncated.
+    pub(super) fn now_us() -> u32 {
+        embassy_time::Instant::now().as_micros() as u32
+    }
+}
+
+/// Both streams' services since the last take, for the audio-timing probe's line.
+#[cfg(feature = "audio-timing")]
+pub(crate) fn take_service_stats() -> crate::audio::usb_service_probe::UsbServiceStats {
+    service_probe::with(|s| crate::audio::usb_service_probe::UsbServiceStats {
+        to_host: s.to_host.take(),
+        from_host: s.from_host.take(),
+    })
+}
+
 /// Adds the USB audio function to `builder` and binds its isochronous streams. Returns the class
 /// handler, to register with the builder.
 ///
@@ -143,6 +178,11 @@ impl IsoOutConsumer for SpeakerSink {
         let bps = bytes_per_sample(USB_BITS_PER_SAMPLE.load(Ordering::Relaxed));
         // SAFETY: this is FROM_HOST's one producer, and the interrupt does not reenter.
         unsafe { FROM_HOST.push(unpack(packet, bps)) };
+        #[cfg(feature = "audio-timing")]
+        if bps != 0 {
+            let now = service_probe::now_us();
+            service_probe::with(|s| s.from_host.record(now, (packet.len() / (2 * bps)) as u32));
+        }
         LAST_PACKET_US.store(
             embassy_time::Instant::now().as_micros() as u32,
             Ordering::Relaxed,
@@ -162,9 +202,15 @@ impl IsoInProducer for CaptureSource {
         let epoch = CAPTURE_EPOCH.load(Ordering::Acquire);
         // SAFETY: PACER is this producer's alone, and it never runs twice at once; it is TO_HOST's
         // one consumer.
-        unsafe {
+        let len = unsafe {
             (*addr_of_mut!(PACER)).fill_packet(&TO_HOST, epoch, rx_write_frame(), RX_MASK, bps, out)
+        };
+        #[cfg(feature = "audio-timing")]
+        if bps != 0 {
+            let now = service_probe::now_us();
+            service_probe::with(|s| s.to_host.record(now, (len / (2 * bps)) as u32));
         }
+        len
     }
 }
 
@@ -198,6 +244,11 @@ impl AudioHandler {
         SPEAKER_GENERATION.fetch_add(1, Ordering::Release);
         CAPTURE_EPOCH.fetch_add(1, Ordering::Release);
         PACKET_SEEN.store(false, Ordering::Release);
+        #[cfg(feature = "audio-timing")]
+        service_probe::with(|s| {
+            s.to_host.restart();
+            s.from_host.restart();
+        });
     }
 }
 
@@ -228,10 +279,14 @@ impl Handler for AudioHandler {
                 SPEAKER_ALT.store(alternate_setting, Ordering::Release);
                 SPEAKER_GENERATION.fetch_add(1, Ordering::Release);
                 PACKET_SEEN.store(false, Ordering::Release);
+                #[cfg(feature = "audio-timing")]
+                service_probe::with(|s| s.from_host.restart());
             }
             CAPTURE_INTERFACE => {
                 CAPTURE_ALT.store(alternate_setting, Ordering::Release);
                 CAPTURE_EPOCH.fetch_add(1, Ordering::Release);
+                #[cfg(feature = "audio-timing")]
+                service_probe::with(|s| s.to_host.restart());
             }
             _ => {}
         }

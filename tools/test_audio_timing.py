@@ -76,6 +76,71 @@ class ParseTest(unittest.TestCase):
         self.assertAlmostEqual(steady.load, 1.5 / (176640 / 44100), places=6)
 
 
+def usb(in_, out):
+    streams = " ".join(
+        f"{name}_packets={p} {name}_frames={f} {name}_late={late} {name}_missed={missed} {name}_max_gap_us={gap}"
+        for name, (p, f, late, missed, gap) in (("in", in_), ("out", out))
+    )
+    return f"12.0: INFO  [deluge_platform_device::audio::device::probe] USB-AUDIO-TIMING {streams}"
+
+
+def usb_capture():
+    boot, loaded, idle, idle_end, steady_1, steady_2, steady_end = capture()
+    return [
+        boot,
+        usb((9, 9, 9, 9, 9), (9, 9, 9, 9, 9)),  # the boot's too
+        loaded,
+        idle,
+        idle_end,
+        steady_1,
+        usb((16000, 88200, 2, 7, 600), (15990, 88150, 1, 4, 700)),
+        steady_2,
+        usb((15900, 88100, 1, 3, 500), (15980, 88000, 5, 20, 900)),
+        steady_end,
+    ]
+
+
+class UsbTest(unittest.TestCase):
+    def test_a_phase_sums_each_streams_counts_and_keeps_its_longest_gap(self):
+        steady = audio_timing.parse(usb_capture())["steady"]
+        self.assertEqual(
+            steady.usb_in, audio_timing.UsbStream(31900, 176300, 3, 10, 600)
+        )
+        self.assertEqual(
+            steady.usb_out, audio_timing.UsbStream(31970, 176150, 6, 24, 900)
+        )
+
+    def test_boot_lines_are_left_out(self):
+        phases = audio_timing.parse(usb_capture())
+        self.assertIsNone(phases["idle"].usb_in)
+
+    def test_a_usb_line_is_not_a_render_line(self):
+        self.assertEqual(audio_timing.parse(usb_capture())["steady"].renders, 1380)
+
+    def test_a_capture_without_usb_lines_has_no_streams(self):
+        steady = audio_timing.parse(capture())["steady"]
+        self.assertIsNone(steady.usb_in)
+        self.assertIsNone(steady.usb_out)
+
+    def test_lost_frames_are_what_we_sent_less_what_arrived(self):
+        self.assertEqual(
+            audio_timing.parse(usb_capture())["steady"].usb_lost_frames, 150
+        )
+        self.assertIsNone(audio_timing.parse(capture())["steady"].usb_lost_frames)
+
+    def test_the_report_dashes_the_usb_columns_of_a_phase_with_no_usb_lines(self):
+        row = audio_timing.row("run", "steady", audio_timing.parse(capture())["steady"])
+        self.assertTrue(row.endswith("| - | - | - | - | - | - | - | - | - |"), row)
+
+    def test_the_report_gives_each_streams_columns(self):
+        row = audio_timing.row(
+            "run", "steady", audio_timing.parse(usb_capture())["steady"]
+        )
+        self.assertTrue(
+            row.endswith("| 176300 | 3 | 10 | 600 | 176150 | 6 | 24 | 900 | 150 |"), row
+        )
+
+
 class OverheadTest(unittest.TestCase):
     def test_two_sizes_give_the_fixed_and_per_frame_cost(self):
         small = audio_timing.Phase(renders=100, frames=6400, us=100 * (200 + 64 * 5))
