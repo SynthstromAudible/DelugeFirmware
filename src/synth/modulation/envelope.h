@@ -113,13 +113,27 @@ private:
 		uint32_t release;
 	};
 
+	/// One block of the stages, whatever the mode: inline where ADSR renders.
 	deluge::dsp::Q<31> run(uint32_t num_samples, const Rates& rates, deluge::dsp::Q<31> sustain_level,
 	                       deluge::synth::EnvelopeEighths eighths);
+	/// @ref run for the modes, and for an audio clip.
+	deluge::dsp::Q<31> run_out_of_line(uint32_t num_samples, const Rates& rates, deluge::dsp::Q<31> sustain_level,
+	                                   deluge::synth::EnvelopeEighths eighths);
+	/// A block in which the running stage ends, or of a fast release.
+	deluge::dsp::Q<31> run_through(uint32_t num_samples, const Rates& rates, deluge::dsp::Q<31> sustain_level,
+	                               deluge::synth::EnvelopeEighths eighths);
 	deluge::dsp::Q<31> run_mode(uint32_t num_samples, Rates rates, deluge::dsp::Q<31> sustain_level,
 	                            deluge::synth::EnvelopeEighths eighths, deluge::dsp::Q<31> follow_input);
 	deluge::dsp::Q<31> follow(uint32_t num_samples, const Rates& rates, deluge::dsp::Q<31> sustain_level,
 	                          int8_t eighths, deluge::dsp::Q<31> follow_input);
-	/// The stage this block runs at, its rate; a stage with none is 0.
+	/// The running stage moved on by the block; false, and left, where it ends in it.
+	bool moves(uint32_t rate, uint32_t num_samples) { return !position_.advance(rate, num_samples).has_value(); }
+	// Each stage's level where the block ends
+	deluge::dsp::Q<31> attack_level(int8_t eighths);
+	deluge::dsp::Q<31> decay_level(uint32_t num_samples, deluge::dsp::Q<31> sustain_level, int8_t eighths);
+	deluge::dsp::Q<31> sustain(uint32_t num_samples, deluge::dsp::Q<31> sustain_level);
+	deluge::dsp::Q<31> release_level(int8_t eighths);
+	/// The rate of @p stage; a stage with none is 0.
 	[[nodiscard]] uint32_t rate_of(Stage stage, const Rates& rates) const;
 	/// The running stage, at @p rate, ran @p over steps past its end: goes on to the stage the block ends in.
 	void go_on(uint64_t over, uint32_t rate, const Rates& rates);

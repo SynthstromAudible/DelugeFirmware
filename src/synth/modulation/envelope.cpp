@@ -40,12 +40,90 @@ constexpr Q<31> kFloor = deluge::dsp::q<31>(0x1p-31);
 [[nodiscard]] Q<31> centred(Q<31> level) {
 	return scale_shl_wrap<1>(sub_wrap(level, kHalfScale));
 }
-/// The product of two levels, rounded.
+/// The product of two levels, rounded: at least one is not negative, so it cannot saturate.
 [[gnu::always_inline, nodiscard]] inline Q<31> product(Q<31> a, Q<31> b) {
-	return mul_doubling_r_sat(a, b);
+	return Q<31>::from_raw(static_cast<int32_t>(((int64_t{a.raw()} * b.raw()) + (1 << 30)) >> 31)); // Raw: Q62 to Q31
 }
 
 } // namespace
+
+[[gnu::always_inline]] inline void Envelope::smooth_sustain(uint32_t num_samples, Q<31> sustain_level) {
+	// Smoothed toward its target: modulating sustain would otherwise jump downstream, since params don't smooth the
+	// envelope and envelopes render before the other params, their own sustain included
+	// Raw: 1/512 of the gap a sample, rounded, and a word at least so it arrives
+	const int32_t gap = sustain_level.raw() - smoothed_sustain_.raw();
+	auto step = static_cast<int32_t>(((int64_t{gap} * std::min<uint32_t>(num_samples, 512)) + 256) >> 9);
+	if (step == 0) [[unlikely]] {
+		step = static_cast<int32_t>(gap > 0) - static_cast<int32_t>(gap < 0);
+	}
+	smoothed_sustain_ = Q<31>::from_raw(smoothed_sustain_.raw() + step);
+}
+
+[[gnu::always_inline]] inline Q<31> Envelope::attack_level(int8_t eighths) {
+	level_ = std::max(sub_wrap(kFullScale, EnvelopeCurve{eighths}.falling(position_.position)), kFloor);
+	return centred(level_);
+}
+
+[[gnu::always_inline]] inline Q<31> Envelope::decay_level(uint32_t num_samples, Q<31> sustain_level, int8_t eighths) {
+	smooth_sustain(num_samples, sustain_level);
+	level_ = add_wrap(smoothed_sustain_, product(EnvelopeCurve{eighths}.falling(position_.position),
+	                                             sub_wrap(kFullScale, smoothed_sustain_)));
+	return centred(level_);
+}
+
+[[gnu::always_inline]] inline Q<31> Envelope::sustain(uint32_t num_samples, Q<31> sustain_level) {
+	smooth_sustain(num_samples, sustain_level);
+	level_ = smoothed_sustain_;
+	if (sustain_level == Q<31>{}) [[unlikely]] { // nothing to hold: as good as off
+		set_state(Stage::OFF);
+	}
+	else if (ignored_note_off_) [[unlikely]] {
+		unconditional_release();
+	}
+	return centred(level_);
+}
+
+[[gnu::always_inline]] inline Q<31> Envelope::release_level(int8_t eighths) {
+	level_ = product(EnvelopeCurve{eighths}.falling(position_.position), from_);
+	return centred(level_);
+}
+
+// A voice renders this every block for each envelope it uses. Each stage is one case: its rate, whether it ends in the
+// block, its level. What an end takes is out of line.
+[[gnu::always_inline]] inline Q<31> Envelope::run(uint32_t num_samples, const Rates& rates, Q<31> sustain_level,
+                                                  EnvelopeEighths eighths) {
+	switch (stage_) {
+	case Stage::ATTACK:
+		if (moves(rates.attack, num_samples)) [[likely]] {
+			return attack_level(eighths.attack);
+		}
+		break;
+	case Stage::HOLD:
+		if (moves(rates.hold, num_samples)) [[likely]] {
+			level_ = kFullScale;
+			return centred(level_);
+		}
+		break;
+	case Stage::DECAY:
+		if (moves(rates.decay, num_samples)) [[likely]] {
+			return decay_level(num_samples, sustain_level, eighths.decay);
+		}
+		break;
+	case Stage::SUSTAIN:
+		return sustain(num_samples, sustain_level);
+	case Stage::RELEASE:
+		if (moves(rates.release, num_samples)) [[likely]] {
+			return release_level(eighths.release);
+		}
+		break;
+	case Stage::FAST_RELEASE:
+		break;
+	default:
+		level_ = Q<31>{};
+		return kSilent;
+	}
+	return run_through(num_samples, rates, sustain_level, eighths);
+}
 
 Q<31> Envelope::render(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate, Q<31> sustain_level,
                        uint32_t release_rate, const deluge::synth::EnvelopeState& state, Q<31> follow_input) {
@@ -59,8 +137,9 @@ Q<31> Envelope::render(uint32_t num_samples, uint32_t attack_rate, uint32_t deca
 
 Q<31> Envelope::render_audio_clip(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate, Q<31> sustain_level,
                                   uint32_t release_rate) {
-	return run(num_samples, {.attack = attack_rate, .hold = 0, .decay = decay_rate, .release = release_rate},
-	           sustain_level, deluge::synth::kAudioClipEighths);
+	return run_out_of_line(num_samples,
+	                       {.attack = attack_rate, .hold = 0, .decay = decay_rate, .release = release_rate},
+	                       sustain_level, deluge::synth::kAudioClipEighths);
 }
 
 [[gnu::noinline]] Q<31> Envelope::run_mode(uint32_t num_samples, Rates rates, Q<31> sustain_level,
@@ -69,13 +148,13 @@ Q<31> Envelope::render_audio_clip(uint32_t num_samples, uint32_t attack_rate, ui
 		// The ADSR params at other jobs: the hold from decay, the decay from release, no sustain
 		rates.hold = rates.decay >= kStageEnd / kAhdHoldSpeedup ? kStageEnd : rates.decay * kAhdHoldSpeedup;
 		rates.decay = rates.release;
-		return run(num_samples, rates, Q<31>{}, eighths);
+		return run_out_of_line(num_samples, rates, Q<31>{}, eighths);
 	}
 	if (stage_ < Stage::RELEASE) {
 		return follow(num_samples, rates, sustain_level, eighths.decay,
 		              mode_ == EnvelopeMode::MPE ? follow_input : Q<31>{});
 	}
-	return run(num_samples, rates, sustain_level, eighths);
+	return run_out_of_line(num_samples, rates, sustain_level, eighths);
 }
 
 uint32_t Envelope::rate_of(Stage stage, const Rates& rates) const {
@@ -95,55 +174,43 @@ uint32_t Envelope::rate_of(Stage stage, const Rates& rates) const {
 	}
 }
 
-Q<31> Envelope::run(uint32_t num_samples, const Rates& rates, Q<31> sustain_level, EnvelopeEighths eighths) {
-	if (stage_ != Stage::SUSTAIN) {
-		if (stage_ == Stage::FAST_RELEASE) [[unlikely]] {
-			fast_release_rate_ = std::max(fast_release_rate_, 2 * rates.release);
-		}
-		const uint32_t rate = rate_of(stage_, rates);
-		if (const std::optional<uint64_t> over = position_.advance(rate, num_samples)) [[unlikely]] {
-			go_on(*over, rate, rates);
-		}
-	}
+[[gnu::noinline]] Q<31> Envelope::run_out_of_line(uint32_t num_samples, const Rates& rates, Q<31> sustain_level,
+                                                  EnvelopeEighths eighths) {
+	return run(num_samples, rates, sustain_level, eighths);
+}
 
-	const uint32_t position = position_.position;
+[[gnu::noinline]] Q<31> Envelope::run_through(uint32_t num_samples, const Rates& rates, Q<31> sustain_level,
+                                              EnvelopeEighths eighths) {
+	if (stage_ == Stage::FAST_RELEASE) {
+		fast_release_rate_ = std::max(fast_release_rate_, 2 * rates.release);
+	}
+	const uint32_t rate = rate_of(stage_, rates);
+	if (const std::optional<uint64_t> over = position_.advance(rate, num_samples)) {
+		go_on(*over, rate, rates);
+	}
 	switch (stage_) {
 	case Stage::ATTACK:
-		level_ = std::max(sub_wrap(kFullScale, EnvelopeCurve{eighths.attack}.falling(position)), kFloor);
-		break;
+		return attack_level(eighths.attack);
 	case Stage::HOLD:
 		level_ = kFullScale;
-		break;
+		return centred(level_);
 	case Stage::DECAY:
-		smooth_sustain(num_samples, sustain_level);
-		level_ = add_wrap(smoothed_sustain_, product(EnvelopeCurve{eighths.decay}.falling(position),
-		                                             sub_wrap(kFullScale, smoothed_sustain_)));
-		break;
+		return decay_level(num_samples, sustain_level, eighths.decay);
 	case Stage::SUSTAIN:
-		smooth_sustain(num_samples, sustain_level);
-		level_ = smoothed_sustain_;
-		if (sustain_level == Q<31>{}) [[unlikely]] { // nothing to hold: as good as off
-			set_state(Stage::OFF);
-		}
-		else if (ignored_note_off_) [[unlikely]] {
-			unconditional_release();
-		}
-		break;
+		return sustain(num_samples, sustain_level);
 	case Stage::RELEASE:
-		level_ = product(EnvelopeCurve{eighths.release}.falling(position), from_);
-		break;
+		return release_level(eighths.release);
 	case Stage::FAST_RELEASE: {
 		// The Q31 sine from its peak, made unipolar: less high-frequency content than a line
-		const Q<31> sine =
-		    Q<31>::from_raw(deluge::dsp::fixed::kSineTable.value(position + (kStageEnd >> 1), 24)); // Raw: a Q31 word
+		const Q<31> sine = Q<31>::from_raw(
+		    deluge::dsp::fixed::kSineTable.value(position_.position + (kStageEnd >> 1), 24)); // Raw: a Q31 word
 		level_ = product(add_wrap(halve_floor(sine), kHalfScale), from_);
-		break;
+		return centred(level_);
 	}
 	default:
 		level_ = Q<31>{};
 		return kSilent;
 	}
-	return centred(level_);
 }
 
 [[gnu::noinline]] void Envelope::go_on(uint64_t over, uint32_t rate, const Rates& rates) {
@@ -176,18 +243,6 @@ Q<31> Envelope::run(uint32_t num_samples, const Rates& rates, Q<31> sustain_leve
 		over = at - kStageEnd;
 		rate = next_rate;
 	}
-}
-
-void Envelope::smooth_sustain(uint32_t num_samples, Q<31> sustain_level) {
-	// Smoothed toward its target: modulating sustain would otherwise jump downstream, since params don't smooth the
-	// envelope and envelopes render before the other params, their own sustain included
-	// Raw: 1/512 of the gap a sample, rounded, and a word at least so it arrives
-	const int32_t gap = sustain_level.raw() - smoothed_sustain_.raw();
-	auto step = static_cast<int32_t>(((int64_t{gap} * std::min<uint32_t>(num_samples, 512)) + 256) >> 9);
-	if (step == 0) [[unlikely]] {
-		step = static_cast<int32_t>(gap > 0) - static_cast<int32_t>(gap < 0);
-	}
-	smoothed_sustain_ = Q<31>::from_raw(smoothed_sustain_.raw() + step);
 }
 
 Q<31> Envelope::follow(uint32_t num_samples, const Rates& rates, Q<31> sustain_level, int8_t eighths,

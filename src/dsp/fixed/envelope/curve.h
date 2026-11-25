@@ -104,13 +104,13 @@ struct EnvelopeCurve {
 
 	/// @brief The falling curve at @p position, 0 to kEnvelopeStageEnd: full scale at 0 and 0 at the end, exactly.
 	[[gnu::always_inline, nodiscard]] Q<31> falling(uint32_t position) const {
-		if (position == 0) {
+		if (position == 0) [[unlikely]] {
 			return Q<31>::max();
 		}
-		if (position >= kEnvelopeStageEnd) {
+		if (position >= kEnvelopeStageEnd) [[unlikely]] {
 			return Q<31>{};
 		}
-		if (eighths == 0) {
+		if (eighths == 0) [[unlikely]] {
 			return Q<31>::from_raw(static_cast<int32_t>((kEnvelopeStageEnd - position) << 8)); // Raw: UQ23 to Q31
 		}
 		return eighths > 0
@@ -141,8 +141,10 @@ private:
 		const detail::CurveNorm& norm = detail::kCurveNorms[eighths];
 		const Q<31> above = std::max(sub_wrap(exp2_neg(eighths * position), norm.floor), Q<31>{});
 		// Raw: Q31 × Q27 is Q58, rounded to Q31 and held at full scale
-		const int64_t scaled = ((int64_t{above.raw()} * norm.scale.raw()) + (int64_t{1} << 26)) >> 27;
-		return Q<31>::from_raw(static_cast<int32_t>(std::min<int64_t>(scaled, Q<31>::max().raw())));
+		// (full scale and a rounding over it at the most, so 32 bits unsigned)
+		const auto scaled =
+		    static_cast<uint32_t>(((int64_t{above.raw()} * norm.scale.raw()) + (int64_t{1} << 26)) >> 27);
+		return Q<31>::from_raw(static_cast<int32_t>(std::min<uint32_t>(scaled, 0x7FFF'FFFFU)));
 	}
 };
 
