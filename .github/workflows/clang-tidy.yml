@@ -94,6 +94,12 @@ jobs:
           jq -s 'add' build/compile_commands.json build/tidy-cv-gate/compile_commands.json > build/compile_commands.merged.json
           mv build/compile_commands.merged.json build/compile_commands.json
 
+      - name: Add native section reorder test commands
+        run: |
+          cmake -S tests/section_reorder -B build/tidy-section-reorder -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          jq -s '.[0] + [.[1][] | select(.file | contains("/tests/section_reorder/"))]' build/compile_commands.json build/tidy-section-reorder/compile_commands.json > build/compile_commands.merged.json
+          mv build/compile_commands.merged.json build/compile_commands.json
+
       - uses: ZehMatt/clang-tidy-annotations@v1.1.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -78,15 +78,9 @@ OutputType getCurrentOutputType();
 class Section {
 public:
 	LearnedMIDI launchMIDICommand;
-	int16_t numRepetitions;
+	int16_t num_repetitions = 0;
 	// Index into defaultClipSectionColours, so the colour can travel with the section when it's moved
-	uint8_t colourIndex;
-
-	Section() {
-		numRepetitions = 0;
-		// Song::resetSectionColours assigns each section its initial palette index.
-		colourIndex = 0;
-	}
+	uint8_t colour_index = 0;
 
 	// Resolve this section's colour independently of its current position in the song.
 	[[nodiscard]] RGB getColour() const;
@@ -256,8 +250,6 @@ public:
 	uint8_t swingInterval;
 
 	Section sections[kMaxNumSections];
-	// Restore the default palette mapping for new songs and before loading saved colours.
-	void resetSectionColours();
 
 	MusicalKey key;
 	std::bitset<NUM_PRESET_SCALES> disabledPresetScales;

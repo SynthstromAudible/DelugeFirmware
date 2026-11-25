@@ -12,7 +12,7 @@ template <class Enum, std::size_t N>
 class EnumStringMap {
 
 public:
-	constexpr EnumStringMap(const std::array<std::pair<Enum, const char*>, N>& init) : stringList_() {
+	constexpr EnumStringMap(const std::array<std::pair<Enum, const char*>, N>& init) noexcept : stringList_() {
 		for (std::size_t i = 0; i < N; ++i) {
 			const auto& p = init[i];
 			const auto index = static_cast<std::underlying_type_t<Enum>>(p.first);
