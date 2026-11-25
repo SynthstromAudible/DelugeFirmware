@@ -71,7 +71,6 @@
 #include <cstring>
 #include <hid/buttons.h>
 #include <new>
-#include <span>
 #include <stdint.h>
 
 extern "C" {}
@@ -148,17 +147,17 @@ RGB Section::getColour() const {
 
 namespace {
 // Restore the default palette mapping for new songs and old song files.
-void resetSectionColours(std::span<Section, kMaxNumSections> sections) {
+void resetSectionColours(Song& song) {
 	// Start with the original section-number-to-colour mapping before any sections are moved.
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		sections[s].colour_index = static_cast<uint8_t>(s);
+		song.sections[s].colour_index = static_cast<uint8_t>(s);
 	}
 }
 
 } // namespace
 
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
-	resetSectionColours(sections);
+	resetSectionColours(*this);
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
@@ -1463,7 +1462,7 @@ Error Song::readFromFile(Deserializer& reader) {
 		sections[s].num_repetitions = 0;
 	}
 	// Songs saved before section colours were stored use each section's default colour
-	resetSectionColours(sections);
+	resetSectionColours(*this);
 	for (int32_t y = 0; y < 8; y++) {
 		sessionMacros[y].kind = NO_MACRO;
 	}

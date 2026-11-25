@@ -54,7 +54,7 @@ Action::Action(ActionType newActionType) {
 	offset = 0;
 }
 
-constinit EnumStringMap<ActionType, 29> actionTypeMap{
+constinit EnumStringMap<ActionType, 29> action_type_map{
     {{{ActionType::MISC, "misc"},
       {ActionType::NOTE_EDIT, "note_edit"},
       {ActionType::NOTE_TAIL_EXTEND, "note_tail_extend"},

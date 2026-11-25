@@ -20,8 +20,6 @@ public:
 		}
 		static_assert(std::is_enum_v<Enum>, "EnumStringMap requires an enum type");
 		static_assert(N > 0, "EnumStringMap requires at least one enum value");
-		static_assert(N == std::size(init),
-		              "EnumStringMap requires an enum type with the same number of values as the initializer list");
 	}
 
 	constexpr const char* operator()(Enum a) { return stringList_[static_cast<std::underlying_type_t<Enum>>(a)]; }

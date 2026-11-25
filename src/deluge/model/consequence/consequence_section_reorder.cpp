@@ -23,11 +23,8 @@
 
 void ConsequenceSectionReorder::swapSections(Song& song, uint8_t first_section, uint8_t second_section) {
 	auto swap_section_number = [first_section, second_section](auto& section) {
-		if (section == first_section) {
-			section = second_section;
-		}
-		else if (section == second_section) {
-			section = first_section;
+		if (section == first_section || section == second_section) {
+			section = (section == first_section) ? second_section : first_section;
 		}
 	};
 

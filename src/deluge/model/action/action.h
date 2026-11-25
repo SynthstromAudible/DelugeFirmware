@@ -75,8 +75,6 @@ enum class ActionType {
 	SECTION_REORDER,
 };
 
-extern EnumStringMap<ActionType, 29> actionTypeMap;
-
 class Action {
 public:
 	Action(ActionType newActionType);
