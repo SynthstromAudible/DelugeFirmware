@@ -63,6 +63,16 @@ bool hasPatch(const SoundState& state, SourceId id) {
 	return dx_patch(state, id) != nullptr;
 }
 
+/// Everything a decode gives slot @p id: its type, tuning, whether it holds a patch, its retrigger phase and its range
+/// count, so a change to any of them fails the case that pins it.
+std::string slotOf(const SoundState& state, SourceId id) {
+	const Tuning tuning = source_tuning(state, id);
+	return std::format("type {} transpose {} cents {} patch {} retrigger {} ranges {}",
+	                   std::to_underlying(source_type(state, id)), tuning.transpose, int{tuning.cents},
+	                   hasPatch(state, id) ? 1 : 0, phase_word(source_retrigger(state, id)),
+	                   source_ranges(state, id).size());
+}
+
 } // namespace
 
 // clang-format off
@@ -81,6 +91,9 @@ describe dx7_forms("a sound's oscillator-slot DX7 in every form it was saved in"
 		expect(int{source_tuning(*state, SourceId::A).transpose}).to_equal(3);
 		expect(int{source_tuning(*state, SourceId::A).cents}).to_equal(-7);
 		expect(hasPatch(*state, SourceId::B)).to_equal(false);
+		expect(slotOf(*state, SourceId::A)).to_equal(std::string{"type 9 transpose 3 cents -7 patch 1 retrigger 0 ranges 0"});
+		expect(slotOf(*state, SourceId::B)).to_equal(std::string{"type 2 transpose 0 cents 0 patch 0 retrigger 0 ranges 0"});
+		expect(oscillator_sync(*state)).to_equal(false);
 	});
 
 	it("gives a DX7 saved without a patch the init voice", _ {
@@ -92,6 +105,9 @@ describe dx7_forms("a sound's oscillator-slot DX7 in every form it was saved in"
 		expect(patch->params).to_equal(kDx7InitVoice);
 		expect(int{patch->engine_mode}).to_equal(0);
 		expect(patch->random_detune).to_equal(0);
+		expect(slotOf(*state, SourceId::A)).to_equal(std::string{"type 9 transpose 0 cents 0 patch 1 retrigger 0 ranges 0"});
+		expect(slotOf(*state, SourceId::B)).to_equal(std::string{"type 2 transpose 0 cents 0 patch 0 retrigger 0 ranges 0"});
+		expect(oscillator_sync(*state)).to_equal(false);
 	});
 
 	it("reads a DX7 on the second slot as that slot's", _ {
@@ -102,6 +118,9 @@ describe dx7_forms("a sound's oscillator-slot DX7 in every form it was saved in"
 		expect(hasPatch(*state, SourceId::B)).to_equal(true);
 		expect(dx_patch(*state, SourceId::B)->params).to_equal(patchBytes());
 		expect(int{source_tuning(*state, SourceId::B).transpose}).to_equal(3);
+		expect(slotOf(*state, SourceId::A)).to_equal(std::string{"type 2 transpose 0 cents 0 patch 0 retrigger 0 ranges 0"});
+		expect(slotOf(*state, SourceId::B)).to_equal(std::string{"type 9 transpose 3 cents -7 patch 1 retrigger 0 ranges 0"});
+		expect(oscillator_sync(*state)).to_equal(false);
 	});
 
 	it("reads a ring-modulated sound's DX7 as a wavetable, keeping its patch", _ {
@@ -110,6 +129,9 @@ describe dx7_forms("a sound's oscillator-slot DX7 in every form it was saved in"
 		expect(synth_mode(*state)).to_equal(SynthMode::RINGMOD);
 		expect(source_type(*state, SourceId::A)).to_equal(OscType::WAVETABLE);
 		expect(hasPatch(*state, SourceId::A)).to_equal(true);
+		expect(slotOf(*state, SourceId::A)).to_equal(std::string{"type 7 transpose 3 cents -7 patch 1 retrigger 0 ranges 0"});
+		expect(slotOf(*state, SourceId::B)).to_equal(std::string{"type 2 transpose 0 cents 0 patch 0 retrigger 0 ranges 0"});
+		expect(oscillator_sync(*state)).to_equal(false);
 	});
 
 	it("reads an FM sound's DX7 as a sine, keeping its patch", _ {
@@ -118,6 +140,9 @@ describe dx7_forms("a sound's oscillator-slot DX7 in every form it was saved in"
 		expect(synth_mode(*state)).to_equal(SynthMode::FM);
 		expect(source_type(*state, SourceId::A)).to_equal(OscType::SINE);
 		expect(hasPatch(*state, SourceId::A)).to_equal(true);
+		expect(slotOf(*state, SourceId::A)).to_equal(std::string{"type 0 transpose 3 cents -7 patch 1 retrigger 0 ranges 0"});
+		expect(slotOf(*state, SourceId::B)).to_equal(std::string{"type 0 transpose 0 cents 0 patch 0 retrigger 0 ranges 0"});
+		expect(oscillator_sync(*state)).to_equal(false);
 	});
 
 	it("reads the JSON form as the XML form", _ {

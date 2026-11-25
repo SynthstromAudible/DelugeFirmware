@@ -6,9 +6,10 @@
 volume or by a cable that reaches it.
 
 Gate dx7-presets-selftest:
-    the DX7 preset scan finds a DX7 on either slot in XML and JSON presets, reads a volume written as an attribute or a
-    child element as the signed word it is, counts a cable to the other oscillator's volume as making it audible, and
-    its check names the first preset that differs from the manifest
+    the DX7 preset scan finds a DX7 on either slot of every sound in XML and JSON files, kits' included, reads a volume
+    written as an attribute or a child element as the signed word it is, counts a cable to the other oscillator's
+    volume, ring modulation, oscillator sync, automation or an unwritten volume as making it audible, and its check
+    names the first preset that differs from the manifest
 """
 
 import json
@@ -122,6 +123,54 @@ class ScanTest(unittest.TestCase):
                     "dx7_slot": "osc1",
                     "other_type": "square",
                     "other_audible": True,
+                }
+            ],
+        )
+
+    def test_ring_modulation_and_oscillator_sync_count_the_other_oscillator_audible(
+        self,
+    ) -> None:
+        self.write(
+            "r.xml",
+            xml_preset("dx7", "square").replace('mode="subtractive"', 'mode="ringmod"'),
+        )
+        self.write(
+            "s.xml",
+            xml_preset("saw", "dx7", a_volume=SILENT).replace(
+                "<osc1", "<oscillatorSync>1</oscillatorSync><osc1"
+            ),
+        )
+        self.assertEqual(
+            [p["other_audible"] for p in scanner.scan(self.root)], [True, True]
+        )
+
+    def test_an_automated_or_unwritten_volume_counts_audible(self) -> None:
+        self.write(
+            "a.xml",
+            xml_preset("dx7", "square", b_volume="0x80000000000000000000000040000000"),
+        )
+        self.write(
+            "b.xml",
+            '<sound><osc1 type="dx7"/><osc2 type="square"/><defaultParams oscAVolume="0x7FFFFFFF"/></sound>',
+        )
+        self.assertEqual(
+            [p["other_audible"] for p in scanner.scan(self.root)], [True, True]
+        )
+
+    def test_each_sound_a_kit_holds_is_scanned(self) -> None:
+        silent = xml_preset("dx7", "square")
+        self.write(
+            "k.xml",
+            f"<kit><soundSources>{xml_preset('saw', 'square')}{silent}</soundSources></kit>",
+        )
+        self.assertEqual(
+            scanner.scan(self.root),
+            [
+                {
+                    "path": "k.xml#1",
+                    "dx7_slot": "osc1",
+                    "other_type": "square",
+                    "other_audible": False,
                 }
             ],
         )

@@ -8,7 +8,8 @@
 A DX7 becomes a sound-level engine: a sound that held a DX7 on one oscillator slot loads with its other oscillator
 dropped. The manifest (tests/golden/render/dx7_presets.json) lists every render-golden preset holding a DX7, which
 slot it is on, and whether the other oscillator can sound — by its volume above the minimum, or by a cable reaching
-its volume. Presets whose other oscillator cannot sound must render unchanged once the DX7 is an engine; the others
+its volume, or by ring modulation, oscillator sync or automation (each counted audible). Presets whose other
+oscillator cannot sound must render unchanged once the DX7 is an engine; the others
 are the goldens that change with it.
 
 Usage: check_dx7_presets.py [--check | --write] [--root DIR] [--manifest FILE]
@@ -38,65 +39,123 @@ VOLUME = {"osc1": "oscAVolume", "osc2": "oscBVolume"}
 OTHER = {"osc1": "osc2", "osc2": "osc1"}
 
 
-def _param(value: object) -> int:
-    """A param word as the file writes it (hex text, or a number), as the signed 32-bit value it is."""
-    word = (int(value, 16) if isinstance(value, str) else int(value)) & 0xFFFFFFFF
+def _volume(value: object) -> int | None:
+    """A volume param as the file writes it, as the signed 32-bit word it is; none for automation (a node string longer
+    than one word), which can raise it anywhere."""
+    if isinstance(value, str):
+        text = value.strip()
+        digits = text[2:] if text.lower().startswith("0x") else text
+        if len(digits) > 8:
+            return None
+        word = int(text, 16) & 0xFFFFFFFF
+    else:
+        word = int(value) & 0xFFFFFFFF
     return word - (1 << 32) if word & (1 << 31) else word
 
 
-def _sound_from_xml(text: str) -> dict | None:
-    """The fields the scan reads, from an XML preset: each slot's type, the source volumes and the cables' targets."""
+def _field(element: ElementTree.Element, name: str) -> str | None:
+    """An attribute, or the text of the child element of that name (both forms are written)."""
+    value = element.get(name)
+    if value is None and (child := element.find(name)) is not None:
+        value = (child.text or "").strip()
+    return value
+
+
+def _sounds_from_xml(text: str) -> list[dict]:
+    """The fields the scan reads from each sound an XML file holds, wherever it is nested (a preset, a kit's rows, a
+    song's instruments): each slot's type, the mode, oscillator sync, the source volumes and the cables' targets."""
     root = ElementTree.fromstring(text)
-    sound = root if root.tag == "sound" else root.find("sound")
-    if sound is None:
-        return None
-    slots = {
-        name: (el.get("type") or "sine")
-        for name in VOLUME
-        if (el := sound.find(name)) is not None
-    }
-    params = sound.find("defaultParams")
-    volumes: dict[str, int] = {}
-    destinations: set[str] = set()
-    if params is not None:
-        for name in VOLUME.values():
-            value = params.get(name)
-            if value is None and (child := params.find(name)) is not None:
-                value = (child.text or "").strip()
-            if value:
-                volumes[name] = _param(value)
-        for cable in params.iter("patchCable"):
-            destination = cable.get("destination")
-            if destination is None and (child := cable.find("destination")) is not None:
-                destination = (child.text or "").strip()
-            if destination:
-                destinations.add(destination)
-    return {"slots": slots, "volumes": volumes, "destinations": destinations}
+    sounds = [root] if root.tag == "sound" else list(root.iter("sound"))
+    found = []
+    for sound in sounds:
+        slots = {
+            name: (el.get("type") or "sine")
+            for name in VOLUME
+            if (el := sound.find(name)) is not None
+        }
+        params = sound.find("defaultParams")
+        volumes: dict[str, int | None] = {}
+        destinations: set[str] = set()
+        if params is not None:
+            for name in VOLUME.values():
+                if (value := _field(params, name)) is not None and value != "":
+                    volumes[name] = _volume(value)
+            for cable in params.iter("patchCable"):
+                if destination := _field(cable, "destination"):
+                    destinations.add(destination)
+        found.append(
+            {
+                "slots": slots,
+                "mode": _field(sound, "mode") or "subtractive",
+                "sync": (_field(sound, "oscillatorSync") or "0") not in ("0", ""),
+                "volumes": volumes,
+                "destinations": destinations,
+            }
+        )
+    return found
 
 
-def _sound_from_json(text: str) -> dict | None:
-    """The same fields from a JSON preset."""
-    document = json.loads(text)
-    sound = document.get("sound") if isinstance(document, dict) else None
-    if not isinstance(sound, dict):
-        return None
-    slots = {
-        name: (sound[name].get("type") or "sine")
-        for name in VOLUME
-        if isinstance(sound.get(name), dict)
-    }
-    params = sound.get("defaultParams") or {}
-    volumes = {name: _param(params[name]) for name in VOLUME.values() if name in params}
-    destinations = set()
-    for entry in params.get("patchCables") or []:
-        cable = entry.get("patchCable", entry) if isinstance(entry, dict) else {}
-        if cable.get("destination"):
-            destinations.add(cable["destination"])
-    return {"slots": slots, "volumes": volumes, "destinations": destinations}
+def _json_sounds(node: object) -> list[dict]:
+    """Every object under a "sound" key, wherever it is nested."""
+    found = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "sound" and isinstance(value, dict):
+                found.append(value)
+            found.extend(_json_sounds(value))
+    elif isinstance(node, list):
+        for value in node:
+            found.extend(_json_sounds(value))
+    return found
+
+
+def _sounds_from_json(text: str) -> list[dict]:
+    """The same fields from each sound a JSON file holds."""
+    found = []
+    for sound in _json_sounds(json.loads(text)):
+        slots = {
+            name: (sound[name].get("type") or "sine")
+            for name in VOLUME
+            if isinstance(sound.get(name), dict)
+        }
+        params = sound.get("defaultParams") or {}
+        volumes = {
+            name: _volume(params[name]) for name in VOLUME.values() if name in params
+        }
+        destinations = set()
+        for entry in params.get("patchCables") or []:
+            cable = entry.get("patchCable", entry) if isinstance(entry, dict) else {}
+            if cable.get("destination"):
+                destinations.add(cable["destination"])
+        found.append(
+            {
+                "slots": slots,
+                "mode": sound.get("mode") or "subtractive",
+                "sync": str(sound.get("oscillatorSync", 0))
+                not in ("0", "", "False", "false"),
+                "volumes": volumes,
+                "destinations": destinations,
+            }
+        )
+    return found
+
+
+def _audible(sound: dict, other: str) -> bool:
+    """Whether the other oscillator can sound — or can shape the DX7 — as the app decides a source is active: ring
+    modulation always plays both sources, oscillator sync runs the first as the second's master, an automated or
+    unwritten volume may rise, and a cable to the volume can raise it. Any of these counts it audible."""
+    volume = VOLUME[other]
+    if sound["mode"] == "ringmod" or sound["sync"] or volume in sound["destinations"]:
+        return True
+    if volume not in sound["volumes"]:
+        return True
+    level = sound["volumes"][volume]
+    return level is None or level > SILENT
 
 
 def scan(root: pathlib.Path) -> list[dict]:
-    """Every preset under @p root holding a DX7, sorted by path."""
+    """Every sound under @p root holding a DX7, sorted by path; a file holding several sounds names each one's index
+    after a '#'."""
     found = []
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
         suffix = path.suffix.lower()
@@ -104,31 +163,26 @@ def scan(root: pathlib.Path) -> list[dict]:
             continue
         text = path.read_text(errors="replace")
         try:
-            sound = (
-                _sound_from_xml(text) if suffix == ".xml" else _sound_from_json(text)
+            sounds = (
+                _sounds_from_xml(text) if suffix == ".xml" else _sounds_from_json(text)
             )
         except (ElementTree.ParseError, json.JSONDecodeError):
             continue
-        if sound is None:
-            continue
-        for slot, kind in sound["slots"].items():
-            if kind != "dx7":
-                continue
-            other = OTHER[slot]
-            volume = VOLUME[other]
-            audible = (
-                sound["volumes"].get(volume, SILENT) > SILENT
-                or volume in sound["destinations"]
-            )
-            found.append(
-                {
-                    "path": path.relative_to(root).as_posix(),
-                    "dx7_slot": slot,
-                    "other_type": sound["slots"].get(other, "sine"),
-                    "other_audible": audible,
-                }
-            )
-            break
+        name = path.relative_to(root).as_posix()
+        for index, sound in enumerate(sounds):
+            for slot, kind in sound["slots"].items():
+                if kind != "dx7":
+                    continue
+                other = OTHER[slot]
+                found.append(
+                    {
+                        "path": name if len(sounds) == 1 else f"{name}#{index}",
+                        "dx7_slot": slot,
+                        "other_type": sound["slots"].get(other, "sine"),
+                        "other_audible": _audible(sound, other),
+                    }
+                )
+                break
     return found
 
 
