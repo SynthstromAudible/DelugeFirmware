@@ -36,6 +36,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rig
+import rig_lock
 import stream_bench
 
 REPO = Path(__file__).resolve().parent.parent
@@ -240,13 +241,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     r.add_argument("--timeout", type=int, default=320)
     r.add_argument("--no-park", action="store_true")
+    rig_lock.add_argument(r)
     s = sub.add_parser("summarise")
     s.add_argument("dir", type=Path)
     s.add_argument("--compare", nargs=2, metavar=("A", "B"))
     s.add_argument("--match")
     args = ap.parse_args(argv)
     if args.cmd == "run":
-        return run_matrix(args)
+        return rig_lock.guarded(
+            args.host,
+            f"stream_bench_matrix {args.name}",
+            args.wait,
+            lambda: run_matrix(args),
+        )
     if not any(args.dir.glob("*/stream-*.json")):
         print(f"stream_bench_matrix: no runs in {args.dir}", file=sys.stderr)
         return 2

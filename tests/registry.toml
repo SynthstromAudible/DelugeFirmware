@@ -1990,6 +1990,15 @@ run = ["python3", "-m", "unittest", "test_rig_session"]
 runtime_s = 2
 
 [[harness]]
+name = "rig-lock"
+template = "unittest"
+override = ["runtime_s"]
+path = "tools"
+gates = "one run at a time holds the rig, every tool that opens it is refused or waits, and a holder that dies lets go"
+run = ["python3", "-m", "unittest", "test_rig_lock"]
+runtime_s = 6
+
+[[harness]]
 name = "device-parity"
 template = "unittest"
 path = "tools"

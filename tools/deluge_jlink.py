@@ -36,6 +36,8 @@ Exit codes (identical to deluge_run.py):
     2  timed out before any --until matched
     3  probe/load/attach error
     4  usage error
+and, its own:
+    75 another run holds the rig's lock (tools/rig_lock.py; --wait waits for it)
 """
 
 from __future__ import annotations
@@ -54,6 +56,9 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import rig_lock
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # The toolchain ./dbt uses: DBT_TOOLCHAIN_PATH's when set (a worktree shares its clone's), else the one in the checkout.
@@ -248,6 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="a gdb command run after the load and before the core starts, e.g. a `restore` that paints"
         " memory (repeatable; ignored with --no-load)",
     )
+    rig_lock.add_argument(ap)
     return ap
 
 
@@ -448,7 +454,15 @@ def start_target(args: argparse.Namespace, res: Result, started: float) -> Targe
 
 def main() -> int:
     args = build_parser().parse_args()
+    return rig_lock.guarded(
+        rig_lock.host_of(args.select),
+        f"deluge_jlink {os.path.basename(args.elf)}",
+        args.wait,
+        lambda: run(args),
+    )
 
+
+def run(args: argparse.Namespace) -> int:
     res = Result(elf=args.elf, chip=args.device)
     started = time.time()
 

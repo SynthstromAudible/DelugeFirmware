@@ -11,6 +11,12 @@ through it (`--select IP=<host>`, and `--host`, which defaults to `$DELUGE_PROBE
 panel dark when you are done; `tools/rig.py stop` frees the probe. A dropped connection is usually the
 network to the Pi, not the rig: retry.
 
+One run has the rig at a time. Each of these tools holds a lock on the Pi while it runs
+(`tools/rig_lock.py`), which every checkout and machine sees: `tools/rig.py status` says who has it, what
+for and since when. A second run is refused with exit code 75 and the holder's name: that is not a dropped
+connection, so wait (`--wait`, or `DELUGE_RIG_WAIT=1`) rather than retry. A holder that dies, or goes
+silent for 30 seconds, lets go. Tools from a checkout without the lock neither take it nor see it.
+
 ## Does it boot? `tools/device_check.py`
 
 `tools/device_check.py [ELF]` boots an image once and reports, as JSON with exit code 0/1: the times of
