@@ -466,8 +466,17 @@ const std::vector<std::string_view> kFftInverseCaseNames{
 
 /// The mod-matrix list's names, in order.
 const std::vector<std::string_view> kModMatrixCaseNames{
-    "calibration_loop",   "matrix_q31_typical",          "matrix_q31_all",
-    "matrix_q31_initial", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
+    "calibration_loop",
+    "matrix_q31_typical",
+    "matrix_q31_all",
+    "matrix_q31_initial",
+    "envelope_attack",
+    "envelope_decay",
+    "envelope_sustain",
+    "envelope_release",
+    "envelope_decay_x64",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
 };
 
 /// The virtual-analog shapes list's names, in order.

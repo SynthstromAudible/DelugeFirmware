@@ -1935,6 +1935,28 @@ private:
 	FxChainConfig config_;
 };
 
+/// @brief Which stage an envelope case times.
+enum class EnvelopeKind : uint8_t { ATTACK, DECAY, SUSTAIN, RELEASE };
+
+/// @brief A synth voice's `Envelope` rendered once per block, as a voice renders each of its four.
+/// @details Classic ADSR, in one stage for the whole run: at 64 position steps a sample a stage lasts 131,072 samples,
+/// and a run is 8,704. Its cycles per sample divide the block's cost by n, though it works once per block. The case of
+/// 64 is sixteen voices' envelopes, whose state the block walks.
+class EnvelopeCase {
+public:
+	/// @param kind  The stage.
+	/// @param count How many envelopes a block renders, at most 64.
+	constexpr explicit EnvelopeCase(EnvelopeKind kind, std::size_t count = 1) : kind_{kind}, count_{count} {}
+	/// @brief Puts the envelopes in the stage.
+	void setup(std::size_t n);
+	/// @brief Renders each envelope's block.
+	void block(std::size_t n);
+
+private:
+	EnvelopeKind kind_;
+	std::size_t count_;
+};
+
 /// @brief Which patching a matrix case times.
 enum class ModMatrixKind : uint8_t {
 	TYPICAL, ///< a block's patching with a held note's moving sources: envelopes 1 and 2, the LFOs, the sidechain.
@@ -2606,6 +2628,11 @@ struct CaseSet {
 	MatrixCase matrix_q31_typical{ModMatrixKind::TYPICAL};                        ///< `matrix_q31_typical`
 	MatrixCase matrix_q31_all{ModMatrixKind::ALL};                                ///< `matrix_q31_all`
 	MatrixCase matrix_q31_initial{ModMatrixKind::INITIAL};                        ///< `matrix_q31_initial`
+	EnvelopeCase envelope_attack{EnvelopeKind::ATTACK};                           ///< `envelope_attack`
+	EnvelopeCase envelope_decay{EnvelopeKind::DECAY};                             ///< `envelope_decay`
+	EnvelopeCase envelope_sustain{EnvelopeKind::SUSTAIN};                         ///< `envelope_sustain`
+	EnvelopeCase envelope_release{EnvelopeKind::RELEASE};                         ///< `envelope_release`
+	EnvelopeCase envelope_decay_x64{EnvelopeKind::DECAY, 64};                     ///< `envelope_decay_x64`
 	FftCase fft_fwd_16{{.inverse = false, .magnitude = 4}};                       ///< `fft_fwd_16`
 	FftCase fft_fwd_32{{.inverse = false, .magnitude = 5}};                       ///< `fft_fwd_32`
 	FftCase fft_fwd_64{{.inverse = false, .magnitude = 6}};                       ///< `fft_fwd_64`
