@@ -4167,7 +4167,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 		}
 
 		// Immediate release of the pad arms the section, holding allows changing repeats
-		if (on) {
+		if (on != 0) {
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
 				return ActionResult::DEALT_WITH;
 			}
@@ -4349,7 +4349,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 			return ActionResult::DEALT_WITH;
 		}
 
-		if (on) {
+		if (on != 0) {
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
 				return ActionResult::DEALT_WITH;
 			}

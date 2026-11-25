@@ -44,7 +44,7 @@ void ConsequenceSectionReorder::swapSections(Song& song, uint8_t first_section, 
 
 void ConsequenceSectionReorder::moveSection(Song& song, uint8_t from_section, uint8_t to_section) {
 	while (from_section != to_section) {
-		const auto next_section = static_cast<uint8_t>(from_section + (from_section < to_section ? 1 : -1));
+		auto next_section = static_cast<uint8_t>(from_section + (from_section < to_section ? 1 : -1));
 		swapSections(song, from_section, next_section);
 		from_section = next_section;
 	}
