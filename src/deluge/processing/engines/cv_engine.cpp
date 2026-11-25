@@ -190,8 +190,13 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 			voltage = calculateVoltage(note, channel);
 			voltage = std::min(voltage, (int32_t)65535);
 			voltage = std::max(voltage, (int32_t)0);
-			cvOutPending = true;
-			sendVoltageOut(channel, voltage);
+			{
+				// The MIDI/gate timer's interrupt reads the pending flag and the snapshot sendVoltageOut() takes:
+				// between the two, the last voltage's snapshot would end this one's wait at once
+				CriticalSectionGuard guard;
+				cvOutPending = true;
+				sendVoltageOut(channel, voltage);
+			}
 			switchGateOn(channel); // won't switch before the cv has been updated
 		}
 		else {
@@ -208,6 +213,8 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	// Snapshot the dispatch count *before* queuing: deluge_cv_set() may dispatch
 	// the write inline (if the SPI bus is idle), and updateGateOutputs() clears
 	// cvOutPending once the count moves past this snapshot (see pollCVSent()).
+	// Guarded with the write, as the MIDI/gate timer's interrupt polls it.
+	CriticalSectionGuard guard;
 	uint32_t sentBefore = deluge_cv_sent_count();
 	deluge_cv_set(channel, voltage);
 	// On non-OLED units the CV DAC has the SPI bus to itself, so the write has
