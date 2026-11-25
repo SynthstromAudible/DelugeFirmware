@@ -2706,7 +2706,27 @@ deluge::storage::Walk Sound::walkSourceDemands(deluge::storage::SampleLoadVisito
 	return deluge::storage::Walk::Continue;
 }
 
+namespace {
+/// Whether an envelope in @p mode holds its note, where the mode alone says: an AHD is a one-shot, AR and MPE hold
+/// while the note does. An ADSR's params decide.
+std::optional<bool> holds_by_mode(deluge::synth::EnvelopeMode mode) {
+	switch (mode) {
+	case deluge::synth::EnvelopeMode::AHD:
+		return false;
+	case deluge::synth::EnvelopeMode::AR:
+	case deluge::synth::EnvelopeMode::MPE:
+		return true;
+	case deluge::synth::EnvelopeMode::ADSR:
+		break;
+	}
+	return std::nullopt;
+}
+} // namespace
+
 bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager) {
+	if (const std::optional<bool> holds = holds_by_mode(config().envelopes[e].mode)) {
+		return *holds;
+	}
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
@@ -2717,6 +2737,9 @@ bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* para
 }
 
 bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager) {
+	if (const std::optional<bool> holds = holds_by_mode(config().envelopes[e].mode)) {
+		return *holds;
+	}
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
