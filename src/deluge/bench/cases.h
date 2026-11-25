@@ -2346,6 +2346,19 @@ struct FloatEnvelopeSustainSettings : FloatEnvelopeSettings {
 	static constexpr bool kHeld = true;   ///< Gated on at setup and rendered into sustain.
 };
 
+/// @brief The envelope fading: every lane at full level starts a fade of kFadeSamples as the last one ends, so every
+/// lane is always in one.
+struct FloatEnvelopeFadeSettings : FloatEnvelopeSettings {
+	static constexpr bool kGated = false;            ///< No gate events in the timed region.
+	static constexpr std::size_t kFadeSamples = 128; ///< A soft cull's length.
+	/// @brief The event that starts a lane's fade.
+	static void fade(const Kernel::Coefficients& c, Kernel::State& s) {
+		Kernel::gate_on(c, s);
+		s.v = 1.f;
+		Kernel::fade(s, static_cast<dsp::f32>(kFadeSamples));
+	}
+};
+
 /// @brief The BLEP voice held in sustain, as FloatEnvelopeSustainSettings.
 struct FloatBlepVoiceSustainSettings : FloatBlepVoiceSettings {
 	static constexpr bool kGated = false; ///< No gate events in the timed region.
@@ -2612,6 +2625,7 @@ struct CaseSet {
 	FloatSourceMonoCase<FloatEnvelopeSettings> fp_envelope_mono;                    ///< `fp_envelope_mono`
 	FloatSourcePolyCase<FloatEnvelopeSettings, 4> fp_envelope_poly4;                ///< `fp_envelope_poly4`
 	FloatSourcePolyCase<FloatEnvelopeSustainSettings, 4> fp_envelope_sustain_poly4; ///< `fp_envelope_sustain_poly4`
+	FloatSourcePolyCase<FloatEnvelopeFadeSettings, 4> fp_envelope_fade_poly4;       ///< `fp_envelope_fade_poly4`
 	FloatSourceMonoCase<FloatBlepVoiceSettings> fp_voice_blep_mono;                 ///< `fp_voice_blep_mono`
 	FloatSourcePolyCase<FloatBlepVoiceSettings, 2> fp_voice_blep_poly2;             ///< `fp_voice_blep_poly2`
 	FloatSourcePolyCase<FloatBlepVoiceSettings, 4> fp_voice_blep_poly4;             ///< `fp_voice_blep_poly4`

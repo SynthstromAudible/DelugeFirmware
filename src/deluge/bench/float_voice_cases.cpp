@@ -135,7 +135,7 @@ void FloatSourcePolyCase<S, N>::setup(std::size_t n) {
 }
 
 template <class S, std::size_t N>
-void FloatSourcePolyCase<S, N>::block(std::size_t /*n*/) {
+void FloatSourcePolyCase<S, N>::block([[maybe_unused]] std::size_t n) {
 	[[maybe_unused]] const auto flush = flush_.scope();
 	if constexpr (drifting_source<S>) {
 		for (std::size_t lane = 0; lane < N; ++lane) {
@@ -145,6 +145,13 @@ void FloatSourcePolyCase<S, N>::block(std::size_t /*n*/) {
 	if constexpr (S::kGated) {
 		for (std::size_t lane = 0; lane < N; ++lane) {
 			run_gate<S>(poly_, float_gate_at(lane, block_), lane);
+		}
+	}
+	if constexpr (requires { S::kFadeSamples; }) {
+		if ((block_ * n) % S::kFadeSamples == 0) {
+			for (std::size_t lane = 0; lane < N; ++lane) {
+				poly_.template on<&S::fade>(lane);
+			}
 		}
 	}
 	++block_;
@@ -190,6 +197,7 @@ template class FloatSourcePolyCase<FloatTableSettings, 2>;
 template class FloatSourcePolyCase<FloatTableSettings, 4>;
 template class FloatSourcePolyCase<FloatEnvelopeSettings, 4>;
 template class FloatSourcePolyCase<FloatEnvelopeSustainSettings, 4>;
+template class FloatSourcePolyCase<FloatEnvelopeFadeSettings, 4>;
 template class FloatSourcePolyCase<FloatBlepVoiceSettings, 2>;
 template class FloatSourcePolyCase<FloatBlepVoiceSettings, 4>;
 template class FloatSourcePolyCase<FloatBlepVoiceSustainSettings, 4>;
