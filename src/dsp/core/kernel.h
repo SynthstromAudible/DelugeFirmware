@@ -728,9 +728,9 @@ concept steps_packed =
 /// step would draw for every lane at once.
 template <typename K>
 concept lane_packable =
-    (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>)
-    && detail::q_sample<typename K::value_type> && std::same_as<typename K::step_type, typename K::value_type>
-    && detail::declares_lane_packable<K> && !detail::declares_prepare<K> && !detail::declares_reset<K>
+    (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>) && detail::q_sample<typename K::value_type>
+    && std::same_as<typename K::step_type, typename K::value_type> && detail::declares_lane_packable<K>
+    && !detail::declares_prepare<K> && !detail::declares_runs<K> && !detail::declares_reset<K>
     && !detail::declares_loop_state<K> && !detail::state_in_place_v<K> && !detail::declares_context<K>
     && detail::state_written_over_value<K, detail::ProbePack<K>> && detail::steps_packed<K, detail::ProbePack<K>>;
 

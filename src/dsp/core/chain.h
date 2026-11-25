@@ -443,6 +443,53 @@ private:
 	}
 };
 
+/// @brief A chain's runs, present only when some part declares them: a base, so that a chain without any declares no
+/// member for @ref declares_runs to find.
+template <bool Declares, typename Over, typename... Ks>
+struct ChainRuns {};
+
+/// @brief A chain's runs: the least run of its parts, each declaring part prepared for it, in part order.
+template <typename Over, typename... Ks>
+struct ChainRuns<true, Over, Ks...> {
+private:
+	/// @brief The chain's Coefficients over V.
+	template <typename V>
+	using CoefficientsOf = Over::template CoefficientsOf<V>;
+	/// @brief The chain's State over V.
+	template <typename V>
+	using StateOf = Over::template StateOf<V>;
+
+public:
+	/// @brief The least of the parts' run lengths, at most @p n.
+	/// @tparam V The value type, as `prepare`'s.
+	template <typename V = std::tuple_element_t<0, std::tuple<Ks...>>::value_type>
+	[[nodiscard]] [[gnu::always_inline]] static std::size_t run_length(const CoefficientsOf<V>& c, const StateOf<V>& s,
+	                                                                   std::size_t n) {
+		return least_run<V>(c, s, n, std::index_sequence_for<Ks...>{});
+	}
+	/// @brief Each declaring part prepared for @p m samples.
+	template <typename V = std::tuple_element_t<0, std::tuple<Ks...>>::value_type>
+	[[gnu::always_inline]] static void prepare_run(const CoefficientsOf<V>& c, StateOf<V>& s, std::size_t m) {
+		prepare_runs<V>(c, s, m, std::index_sequence_for<Ks...>{});
+	}
+
+private:
+	/// @brief @ref run_length, with the parts' indices.
+	template <typename V, std::size_t... I>
+	[[nodiscard]] [[gnu::always_inline]] static std::size_t
+	least_run(const CoefficientsOf<V>& c, const StateOf<V>& s, std::size_t n, std::index_sequence<I...> /*parts*/) {
+		// Each part answers within what the parts before it left
+		((n = kernel_ops::run_length<Ks>(get<I>(c), get<I>(s), n)), ...);
+		return n;
+	}
+	/// @brief @ref prepare_run, with the parts' indices.
+	template <typename V, std::size_t... I>
+	[[gnu::always_inline]] static void prepare_runs(const CoefficientsOf<V>& c, StateOf<V>& s, std::size_t m,
+	                                                std::index_sequence<I...> /*parts*/) {
+		(kernel_ops::prepare_run<Ks>(get<I>(c), get<I>(s), m), ...);
+	}
+};
+
 /// @brief A chain's `reset`, present only when some part has a reset quirk: a base, so that a chain without one
 /// declares no member named `reset` for @ref declares_reset to find, and its wrappers assign `State{}`.
 template <bool Declares, typename... Ks>
@@ -513,6 +560,10 @@ private:
 /// product is every combination, each a loop of its own: keep it small, and leave a part with many modes its own
 /// component. A chain with no moded part declares no `Mode` or `Modes`, and its step is unmoded.
 ///
+/// **Runs.** A chain with a part that declares runs (@ref runs_kernel) is one: its run is the least of its parts', and
+/// each such part is prepared for it. A part's `prepare` is still called once a block, for the whole of it, and its
+/// Block serves every run of the block.
+///
 /// **Op-major.** A chain declares no `kLanePackable`: `Linked` steps it lane by lane.
 ///
 /// **Loop state.** A part declaring `kLoopState` steps on that member of its State; the chain declares none, so a
@@ -526,6 +577,7 @@ struct Chain
     : detail::ChainTypes<Ks...>::ModesBase,
       detail::ChainTypes<Ks...>::Over,
       detail::ChainPrepare<(detail::declares_prepare<Ks> || ...), typename detail::ChainTypes<Ks...>::Over, Ks...>,
+      detail::ChainRuns<(runs_kernel<Ks> || ...), typename detail::ChainTypes<Ks...>::Over, Ks...>,
       detail::ChainReset<(detail::declares_reset<Ks> || ...), Ks...> {
 private:
 	/// @brief The chain's mode types, Coefficients and value forms.
@@ -767,6 +819,24 @@ struct PinnedPrepare<true, K> {
 	}
 };
 
+/// @brief A pinned kernel's runs, present only when K declares them.
+template <bool Declares, typename K>
+struct PinnedRuns {};
+
+/// @brief A pinned kernel's runs: K's.
+template <typename K>
+struct PinnedRuns<true, K> {
+	/// @brief K's `run_length`.
+	[[nodiscard]] [[gnu::always_inline]] static std::size_t run_length(const K::Coefficients& c, const K::State& s,
+	                                                                   std::size_t n) {
+		return K::run_length(c, s, n);
+	}
+	/// @brief K's `prepare_run`.
+	[[gnu::always_inline]] static void prepare_run(const K::Coefficients& c, K::State& s, std::size_t m) {
+		K::prepare_run(c, s, m);
+	}
+};
+
 /// @brief A pinned kernel's `kLoopState`, present only when K declares one.
 template <bool Declares, typename K>
 struct PinnedLoopState {};
@@ -794,8 +864,8 @@ struct PinnedReset<true, K> {
 /// `K::step<M>`.
 /// @tparam K A moded kernel.
 /// @tparam M One of K's listed modes.
-/// @details Its Settings, Coefficients, State and Block are K's, and its `coefficients`, `prepare`, `reset` and
-/// `kLoopState` are K's, declared exactly when K declares them. The Coefficients keep K's `mode` member, which
+/// @details Its Settings, Coefficients, State and Block are K's, and its `coefficients`, `prepare`, runs, `reset`
+/// and `kLoopState` are K's, declared exactly when K declares them. The Coefficients keep K's `mode` member, which
 /// `coefficients` sets to @p M and the step never reads: it is fixed at @p M. Pinned declares no `Modes`, so it is no
 /// moded kernel, and a chain dispatches on nothing for it. It declares no `kLanePackable`, so `Linked` steps it lane by
 /// lane. Its step forwards whatever K's takes, the counted partial step included, and it declares K's
@@ -804,6 +874,7 @@ template <kernel K, auto M>
 requires detail::has_modes<K> && std::same_as<decltype(M), std::remove_cv_t<decltype(K::Coefficients::mode)>>
              && (detail::lists_mode(typename K::Modes{}, M))
 struct Pinned : detail::PinnedPrepare<detail::declares_prepare<K>, K>,
+                detail::PinnedRuns<runs_kernel<K>, K>,
                 detail::PinnedReset<detail::declares_reset<K>, K>,
                 detail::PinnedLoopState<detail::declares_loop_state<K>, K> {
 	using value_type = typename K::value_type;     ///< K's value type.
