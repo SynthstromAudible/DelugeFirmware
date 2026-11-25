@@ -30,7 +30,6 @@
 #include "io/midi/midi_takeover.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
@@ -398,9 +397,9 @@ Clip* MidiFollow::getSelectedOrActiveClip() {
 
 	clip = getSelectedClip();
 
-	// if the clip is null, it means you're in a song view and you aren't holding a clip
-	// in that case, we want to control the active clip
-	if (!clip) {
+	// Fall back only when no arranger row is held. A selected row without a clip must not control another output.
+	if (!clip && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)
+	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
 		clip = getCurrentClip();
 		if (clip) {
 			Output* output = clip->output;
@@ -458,17 +457,22 @@ Clip* MidiFollow::getSelectedClip() {
 /// special case for note and performance data where you want to let notes,
 /// midi modulation sources (e.g. mod wheel), and MPE through to the active clip
 Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
-	// If you have an output for which no clip is active,
-	// when auditioning a clip for that output,
-	// the active clip for that output should be set to the current clip.
-	Clip* currentClip = getCurrentClip();
-	if (currentClip && (currentClip->type == ClipType::INSTRUMENT)) {
-		if (currentClip->output) {
-			InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-			return currentClip->output->getActiveClip();
-		}
+	// Arranger audition pads select an output without changing the current clip. Use the same selection as CCs.
+	Clip* clip = getSelectedClip();
+	if (!clip && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)
+	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
+		clip = getCurrentClip();
 	}
-	return nullptr;
+	if (!clip || clip->type != ClipType::INSTRUMENT || !clip->output) {
+		return nullptr;
+	}
+
+	Output* output = clip->output;
+	// Activate the selected clip only if its output is available; do not replace a clip that is playing.
+	if (!clip->isActiveOnOutput() && currentPlaybackMode->isOutputAvailable(output)) {
+		output->setActiveClip(modelStack->addTimelineCounter(clip));
+	}
+	return output->getActiveClip();
 }
 
 /// used to forward midi messages to specific tracks
@@ -1086,9 +1090,18 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	// check if model stack is valid
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		int32_t currentValue;
+		// Holding note pads in the clip view locks a local param on those notes instead of step-automating it
+		HeldNoteLock held = isStepEditing
+		                        ? instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &currentValue)
+		                        : HeldNoteLock::NONE;
+		if (held == HeldNoteLock::NO_NOTE) {
+			return; // No held note plays this param's Sound
+		}
+		bool noteLock = (held == HeldNoteLock::LOCK);
 
 		// get current value
-		if (isStepEditing) {
+		if (noteLock) {}
+		else if (isStepEditing) {
 			currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		}
 		else {
@@ -1109,7 +1122,13 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 			// Set the new Parameter Value for the MIDI Learned Parameter
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+			if (noteLock) {
+				instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
+			}
+			else {
+				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
+				                                                          modLength);
+			}
 
 			// check if you're currently editing the same learned param in automation view or
 			// performance view if so, you will need to refresh the automation editor grid or the
@@ -1137,7 +1156,12 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			// mode don't display popup if you're currently editing the same param
 			if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+				view.displayModEncoderValuePopup(
+				    kind, modelStackWithParam->paramId, newKnobPos, PatchSource::NONE, PatchSource::NONE,
+				    noteLock ? View::HeldPadEdit::NOTE_LOCK
+				    : isStepEditing && instrumentClipView.noteLocks.automatesHeldNotes(modelStackWithParam)
+				        ? View::HeldPadEdit::AUTOMATING
+				        : View::HeldPadEdit::NONE);
 			}
 		}
 	}
@@ -1336,7 +1360,12 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 				if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
 					int32_t currentValue;
 					// obtain current value of the learned parameter
-					if (isStepEditing) {
+					if (isStepEditing
+					    && instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &currentValue)
+					           != HeldNoteLock::NONE) {
+						// A held note's parameter lock
+					}
+					else if (isStepEditing) {
 						currentValue =
 						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 					}

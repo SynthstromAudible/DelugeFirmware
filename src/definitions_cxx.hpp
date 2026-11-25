@@ -503,6 +503,7 @@ constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::PINGPONG)
 constexpr bool isLoopingRepeatMode(SampleRepeatMode mode) {
 	return mode == SampleRepeatMode::LOOP || mode == SampleRepeatMode::PINGPONG;
 }
+constexpr int32_t kMaxLoopCrossfadeMs = 1000;
 
 enum class FilterType {
 	LPF,
@@ -874,7 +875,8 @@ enum class AudioInputChannel {
 	RIGHT,
 	STEREO,
 	BALANCED,
-	USB, // Stereo audio from a USB host (drivers/usb/usb_audio.h)
+	USB,   // Stereo audio from a USB host (drivers/usb/usb_audio.h) - with multitrack, its channels 1/2
+	USB_2, // With multitrack, channels 3/4 from a USB host. Otherwise the same as USB
 	MIX,
 	OUTPUT,
 	SPECIFIC_OUTPUT,

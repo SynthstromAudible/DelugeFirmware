@@ -134,6 +134,7 @@
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
 #include "gui/menu_item/note/iterance_step_toggle.h"
+#include "gui/menu_item/note/param_locks.h"
 #include "gui/menu_item/note/probability.h"
 #include "gui/menu_item/note/velocity.h"
 #include "gui/menu_item/note_row/fill.h"
@@ -186,6 +187,7 @@
 #include "gui/menu_item/sample/browser_preview/mode.h"
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/interpolation.h"
+#include "gui/menu_item/sample/loop_crossfade.h"
 #include "gui/menu_item/sample/pitch_speed.h"
 #include "gui/menu_item/sample/repeat.h"
 #include "gui/menu_item/sample/reverse.h"
@@ -1046,8 +1048,10 @@ PLACE_SDRAM_BSS Submenu recordSubmenu{
 PLACE_SDRAM_BSS sample::browser_preview::Mode sampleBrowserPreviewModeMenu{STRING_FOR_SAMPLE_PREVIEW};
 
 PLACE_SDRAM_BSS flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
-PLACE_SDRAM_BSS usb::Audio usbAudioEnabledMenu{STRING_FOR_ENABLED, STRING_FOR_USB_AUDIO};
-PLACE_SDRAM_BSS usb::DirectMonitoring usbAudioInputMenu{STRING_FOR_INPUT, STRING_FOR_USB_INPUT};
+PLACE_SDRAM_BSS usb::Audio usbAudioEnabledMenu{STRING_FOR_MODE, STRING_FOR_USB_AUDIO};
+// Per track, in the synth, kit and audio clip menus. Only shown while multitrack USB audio is on
+PLACE_SDRAM_BSS usb::TrackBus usbTrackBusMenu{STRING_FOR_USB_BUS};
+PLACE_SDRAM_BSS usb::DirectMonitoring usbAudioInputMenu{STRING_FOR_USB_SMART_MONITORING, STRING_FOR_USB_INPUT};
 PLACE_SDRAM_BSS usb::OutputSource usbAudioOutputMenu{STRING_FOR_OUTPUT, STRING_FOR_USB_OUTPUT};
 PLACE_SDRAM_BSS Submenu usbAudioMenu{
     STRING_FOR_USB_AUDIO,
@@ -1368,12 +1372,9 @@ PLACE_SDRAM_BSS Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
                                                 &defaultUseLastClipTypeMenu,
                                             }};
 
-PLACE_SDRAM_BSS ToggleBool defaultUseSharps{STRING_FOR_DEFAULT_UI_SHARPS, STRING_FOR_DEFAULT_UI_SHARPS,
-                                            FlashStorage::defaultUseSharps};
-
 PLACE_SDRAM_BSS Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu, &defaultUseSharps},
+    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
 };
 
 PLACE_SDRAM_BSS ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
@@ -1558,6 +1559,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
         &patchCablesMenu,
         &sequenceDirectionMenu,
         &outputMidiSubmenu,
+        &usbTrackBusMenu,
     },
 };
 
@@ -1632,6 +1634,8 @@ PLACE_SDRAM_BSS menu_item::note::Velocity noteVelocityMenu{STRING_FOR_NOTE_EDITO
 PLACE_SDRAM_BSS menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
 PLACE_SDRAM_BSS menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
 PLACE_SDRAM_BSS menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
+PLACE_SDRAM_BSS menu_item::note::ParamLocks noteParamLocksMenu{STRING_FOR_NOTE_EDITOR_PARAM_LOCKS};
+PLACE_SDRAM_BSS menu_item::note::ParamLockValue noteParamLockValueMenu{STRING_FOR_NOTE_EDITOR_PARAM_LOCKS};
 
 // Root menu for Note Editor
 PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
@@ -1640,6 +1644,7 @@ PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                       &noteProbabilityMenu,
                                                       &noteIteranceMenu,
                                                       &noteFillMenu,
+                                                      &noteParamLocksMenu,
                                                   }};
 
 PLACE_SDRAM_BSS menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
@@ -1755,6 +1760,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuAudioClip{
         &audioClipSampleMenu,
         &audioClipAttackMenu,
         &priorityMenu,
+        &usbTrackBusMenu,
     },
 };
 
@@ -1902,6 +1908,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuKitGlobalFX{
         &globalFiltersMenu,
         &globalFXMenu,
         &globalSidechainMenu,
+        &usbTrackBusMenu,
     },
 };
 

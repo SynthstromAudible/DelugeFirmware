@@ -33,6 +33,7 @@
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/drum/non_audio_drum.h"
+#include "model/note/note_lock_playback.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
@@ -772,6 +773,9 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 					    modelStackWithTimelineCounter
 					        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
 					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					// The kit arp's note remembers the parameter locks of the sequenced note that's holding it
+					deluge::note_locks::PendingScope locks(modelStackWithThreeMainThings->song->noteLocks,
+					                                       kitInstruction.arpNoteOn->locks);
 					thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
 					                          0, 0);
@@ -1191,8 +1195,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			}
 		}
 	}
-	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteStatus[0] == ArpNoteStatus::PENDING
-	    && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+	if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 		// Note on
 		if (kitInstruction.arpNoteOn->noteCodeOnPostArp[0] < ((InstrumentClip*)activeClip)->noteRows.getNumElements()) {
 			NoteRow* thisNoteRow =
@@ -1208,7 +1211,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn, 0,
 				                          0);
-				// no check needed - will be held by the drum's own arp if it can't start immediately
+				// No check needed: if it can't start a voice in this render, DeferredNoteOns starts it in a later one
 				kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
 			}
 		}
@@ -1252,7 +1255,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					}
 					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp[n]);
 				}
-				soundDrum->process_postarp_notes(modelStackWithSoundFlags, &drum->arpSettings, instruction);
+				soundDrum->startArpNoteOns(modelStackWithSoundFlags, instruction);
 			}
 			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
 				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
@@ -1286,6 +1289,23 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	return ticksTilNextArpEvent;
 }
 
+// The active Clip's NoteRow for drum, and its index. The sequencer and auditioning already pass that NoteRow in the
+// model stack, so use it when it's the right one, rather than searching every row for every note (O(rows^2) per step).
+// A drum has at most one NoteRow in a Clip, so this finds the same row as getNoteRowForDrum().
+NoteRow* Kit::getNoteRowForDrumInActiveClip(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t* index) {
+	InstrumentClip* clip = (InstrumentClip*)activeClip;
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	if (noteRow != nullptr && noteRow->drum == drum && modelStack->getTimelineCounterAllowNull() == clip) {
+		int32_t noteRowId = modelStack->noteRowId;
+		if (noteRowId >= 0 && noteRowId < clip->noteRows.getNumElements()
+		    && clip->noteRows.getElement(noteRowId) == noteRow) {
+			*index = noteRowId;
+			return noteRow;
+		}
+	}
+	return clip->getNoteRowForDrum(drum, index);
+}
+
 void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, uint8_t velocity,
                           int16_t const* mpeValues, int32_t fromMIDIChannel, uint32_t sampleSyncLength,
                           int32_t ticksLate, uint32_t samplesLate) {
@@ -1297,7 +1317,7 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 		drum->noteOn(modelStack, velocity, mpeValues, fromMIDIChannel, sampleSyncLength, ticksLate, samplesLate);
 		return;
 	}
-	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
+	NoteRow* thisNoteRow = getNoteRowForDrumInActiveClip(modelStack, drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
 		// Check if kit arp is bypassed
 		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {
@@ -1322,7 +1342,8 @@ void Kit::noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum,
 		if (kitInstruction.arpNoteOn != nullptr && kitInstruction.arpNoteOn->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
 			// Set the invertReverse flag for the drum arpeggiator
 			thisNoteRow->drum->arpeggiator.invertReversedFromKitArp = kitInstruction.invertReversed;
-			// Do row note on
+			// Do row note on, with the locks of whichever note the arp chose
+			deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, kitInstruction.arpNoteOn->locks);
 			thisNoteRow->drum->noteOn(modelStack, kitInstruction.arpNoteOn->velocity,
 			                          kitInstruction.arpNoteOn->mpeValues, 0, sampleSyncLength, ticksLate, samplesLate);
 			kitInstruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PLAYING;
@@ -1339,7 +1360,7 @@ void Kit::noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum
 		drum->noteOff(modelStack, velocity);
 		return;
 	}
-	NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(drum, &drumIndex);
+	NoteRow* thisNoteRow = getNoteRowForDrumInActiveClip(modelStack, drum, &drumIndex);
 	if (drumIndex != -1 && thisNoteRow->drum != nullptr) {
 		// Check if kit arp is bypassed
 		if (!thisNoteRow->drum->arpSettings.includeInKitArp) {

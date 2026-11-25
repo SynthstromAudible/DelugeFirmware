@@ -17,6 +17,7 @@
 
 #include "io/midi/midi_engine.h"
 #include "definitions_cxx.hpp"
+#include "drivers/usb/usb_audio.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -898,6 +899,7 @@ void MidiEngine::check_incoming_usb() {
 		// Have to call this regularly, to do "callbacks" that will grab out the received data
 		usbLock = 1;
 		usb_cstd_usb_task();
+		usbAudioServiceTask();
 		usbLock = 0;
 	}
 }

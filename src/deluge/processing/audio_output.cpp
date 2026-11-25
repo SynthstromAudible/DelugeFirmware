@@ -18,6 +18,7 @@
 #include "processing/audio_output.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "drivers/usb/usb_audio.h"
 #include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
@@ -220,9 +221,10 @@ renderEnvelope:
 		int32_t const* const input_end = AudioEngine::getInputBufferEnd(inputChannel);
 
 		AudioInputChannel input_channel = this->inputChannel;
-		if (input_channel == AudioInputChannel::USB) {
+		if (AudioEngine::isUSBInput(input_channel)) {
+			AudioEngine::usbInputsMonitoredByTrack |=
+			    1 << deluge::usb_audio::resolveInput(AudioEngine::usbInputNumber(input_channel));
 			input_channel = AudioInputChannel::STEREO; // Just a stereo input, from a different buffer
-			AudioEngine::usbInputMonitoredByTrack = true;
 		}
 		if (input_channel == AudioInputChannel::STEREO && !AudioEngine::renderInStereo) {
 			input_channel = AudioInputChannel::NONE; // 0 means combine channels

@@ -101,12 +101,6 @@ LoopType VoiceSamplePlaybackGuide::getLoopingType(const Source& source) const {
 	return isLoopingRepeatMode(source.repeatMode) ? LoopType::LOW_LEVEL : LoopType::NONE;
 }
 
-void VoiceSamplePlaybackGuide::onLoopRestart() {
-	if (pingpongAllowed) {
-		setPingpongReversed(!pingpongReversed);
-	}
-}
-
 // The reversed bounds cover exactly the same loop region, so turning around is just a switch of orientation. The
 // "loop start" is then the edge we just reached, and the reader reflects any overshoot back from it.
 void VoiceSamplePlaybackGuide::setPingpongReversed(bool reversed) {

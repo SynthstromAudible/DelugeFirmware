@@ -507,6 +507,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 ### 3.36 - Selectable Accidental
 
 - (#3794) <Badge text="c1.3" variant="tip" /> Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental. If selected, `D.` will mean D#. If not selected, `D.` will mean D♭.
+- (#5345) <Badge text="c1.4" variant="tip" /> Note names now follow the song's key instead of a setting, and the `USE SHARPS` toggle has been removed. Keys that are normally written with flats (those whose relative major is F, B♭, E♭, A♭ or D♭) show flats, all other keys show sharps. Changing the root note or scale changes the spelling to match. In 7SEG mode the dot means sharp in a sharp key and flat in a flat key.
 
 ### 3.37 - Battery Level Display in System Menu
 
@@ -1125,7 +1126,9 @@ For a detailed description of this feature, please refer to the feature document
       Marva (Indian), Arabian
     - `6-note scales:` Whole Tone, Blues
     - `5-note scales:` Pentatonic Minor, Hirajoshi (Japanese)
-  - You rotate through them the same way as before, using Shift + Scale.
+  - You rotate through them the same way as before, using Shift + Scale. <Badge text="c1.4" variant="tip" /> (#5345)
+    :key[Shift + Scale] now opens a list of the active scales instead: turn :key[Select] to highlight one, press
+    :key[Select] to change to it, or press :key[Back] to cancel.
   - **Improvement:** when you exit Scale mode, and enter Scale mode again, if there was already a selected Scale, and
     it fits the notes you have entered, the Deluge will prefer that scale, instead of trying to change your scale or
     root note to other scale.
@@ -1135,22 +1138,52 @@ For a detailed description of this feature, please refer to the feature document
     Tone, or from Blues to Pentatonic), in order for the Deluge to be able to transpose them, the notes entered among
     all clips in the song must fit the new scale. If you have added more notes that what can fit in the new scale, the
     Deluge will omit those scales, and cycle back to the beginning of the Scales list (that is, going back to the
-    Major scale).
+    Major scale). <Badge text="c1.4" variant="tip" /> (#5345) This limitation no longer applies to scales of up to
+    7 notes, see [Accidentals](#443---accidentals).
 
 - (#2365) <Badge text="c1.2" variant="tip" /> Added learning a user specified scale.
   - Press :key[Learn + Scale] while in clip view. Notes from current clip & all scale mode clips are learned as the "USER"
-    scale. This scale is part of the normal scale rotation, accessible with :key[Shift + Scale], and saved as part of the song.
+    scale. This scale is part of the normal scale list, accessible with :key[Shift + Scale], and saved as part of the song.
     If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
   - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
     preset scales, it will be learned as a user scale, overwriting the previous `USER` scale.
   - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded. Soon!
 
 - (#2376) <Badge text="c1.2" variant="tip" /> Added `ACTIVE SCALES` menu.
-  - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` rotation for the current song. Active scales
+  - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` list for the current song. Active scales
     are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates
     it has been disabled.
   - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as
     `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
+
+### 4.4.3 - Accidentals
+
+- (#5345) <Badge text="c1.4" variant="tip" /> Scale mode clips can hold notes outside the scale ("accidentals"), and
+  the scale only changes when you change it.
+  - **The scale is never changed automatically.** Recording or playing a note outside the scale into a scale mode clip
+    no longer adds it to the scale, and entering scale mode keeps the song's root note and scale instead of guessing
+    them from the clip's notes. Notes outside the scale become accidentals. To change the key, use
+    :key[Scale + Audition Pad] (root note), :key[Shift + Scale] (scale) or :key[Learn + Scale] (user scale).
+  - **Display:** an accidental is drawn in a dimmer, washed-out version of the row colour on the neighbouring in-scale
+    row: the row below it in a sharp key (C♯ on the C row), the row above it in a flat key (D♭ on the D row). If an
+    in-scale note and an accidental share a pad, the in-scale note is shown. With scale mode off, every note is on its
+    own row as before.
+  - **Editing:** pressing a pad that shows an accidental edits the accidental (length, velocity, probability, nudge,
+    delete, note editor), and auditions its actual pitch. Copy and paste keep accidentals.
+  - **Creating:** hold one or more note pads and turn :key[Shift + Turn Vertical] to move the held notes up or down a
+    semitone, out of the scale or back into it. The display shows the new note name. Nothing moves if a held note would
+    land on top of another note. (:key[Shift + Turn Vertical] without a note held still changes the clip colour.)
+  - **Changing scale:** notes are mapped by scale degree (the 3rd goes to the new scale's 3rd, and so on), so changing
+    to a scale with fewer notes is always possible: notes on a degree the new scale lacks keep their pitch and become
+    accidentals. Accidentals move with the in-scale note they are displayed on. User scales with more than 7 notes
+    are still mapped the previous way, and can still be refused.
+  - **Transposing:** when nudging the clip by scale steps (:key[Shift + Press Turn Vertical]) or transposing in-scale
+    over MIDI, accidentals move with the in-scale note they are displayed on. When a single scale note is sharpened or
+    flattened (:key[Audition Pad] + :key[Press Turn Select]), accidentals keep their pitch.
+  - If one of these changes lands an accidental on a scale note, the Deluge remembers where it came from, so reversing
+    the change brings the accidental back. This is saved with the song. Moving the note yourself forgets it.
+  - A scale change or in-key transposition that moves notes between rows or merges rows makes everything done
+    before it impossible to undo or redo.
 
 ## 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
@@ -1222,6 +1255,25 @@ For a detailed description of this feature, please refer to the feature document
   - While time-stretching (pitch and speed unlinked with a transpose applied, or a `SPEED` other than 0), it loops like
     `LOOP` instead.
   - A ping-pong sample doesn't use the playback cache, so a transposed one uses a bit more CPU than in `LOOP` mode.
+  - With `LOOP XFADE` on, each turnaround is crossfaded: the pass heading back starts from the loop boundary alongside
+    the one arriving at it.
+
+### 4.5.12 - Loop Crossfade <Badge text="c1.4" variant="tip" />
+
+- (#5308) Added a `LOOP XFADE` setting to each sample oscillator, right after `REPEAT MODE`
+  (`OSCILLATOR 1 / 2 > LOOP XFADE`), from `OFF` up to 1000 ms in 10 ms steps. It smooths out loops that don't join up perfectly.
+  - When playback gets that close to the loop end, the next pass through the loop starts from the loop start alongside
+    it. The end of the loop fades out while its start fades in (equal-power), then the new pass carries on alone.
+  - The crossfade is limited to half the loop length, so there are never more than two passes playing at once. With no
+    loop points set, the loop is the whole sample.
+  - It's measured in the sample's own time, so it gets shorter as the sample is played higher.
+  - It works when the sample loops (`LOOP` or `PINGPONG` mode, or a loop end point while the note is held), forwards or
+    reversed. In `PINGPONG` mode, the next pass runs the other way, so it starts from the boundary being reached and
+    each turnaround is crossfaded.
+  - It needs pitch and speed linked (`PITCH/SPEED`) and `SPEED` at 0. With them unlinked, the Deluge time-stretches any
+    note that isn't at the sample's own pitch (other keys, unison detune, vibrato), and the loop then jumps as usual.
+  - While it's on, a looping sample doesn't use the playback cache, and the voice reads the sample twice during each
+    crossfade, so it uses a bit more CPU. Set to `OFF`, it costs nothing.
 
 ## 4.6 - Instrument Clip View - Kit Clip Features
 
@@ -1340,7 +1392,11 @@ for the Lumi Keys Studio Edition, described below.
   - `SETTINGS > USB AUDIO > INPUT` chooses whether the computer's audio is mixed straight into the Deluge's outputs
     (on by default). `SETTINGS > USB AUDIO > OUTPUT` chooses whether the computer receives the Deluge's main mix (the
     default) or its line input.
-  - USB audio can be turned off in `SETTINGS > USB AUDIO > ENABLED`, after which the Deluge is a USB MIDI device only.
+  - The computer's own volume and mute controls work for the Deluge. They set the level its audio arrives at, so
+    they affect what's recorded from `USB INPUT` as well as what you hear.
+  - `SETTINGS > USB AUDIO > MODE` turns USB audio off (the Deluge is then a USB MIDI device only), or switches it to
+    multitrack: 8 channels of 16-bit audio to the computer - the main mix plus three stereo buses that tracks can be
+    routed to with each track's `USB BUS` setting - and 4 back, a second stereo input being `USB INPUT 3/4`.
   - See [USB Audio](/features/usb_audio) for details.
 
 ## 5. Community Features Menu (aka Runtime Settings)

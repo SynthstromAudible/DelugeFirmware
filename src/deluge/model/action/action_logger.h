@@ -48,6 +48,10 @@ public:
 	void closeAction(ActionType actionType);
 	void closeActionUnlessCreatedJustNow(ActionType actionType);
 	void deleteAllLogs();
+	/// Makes sure nothing logged so far can be undone or redone any more, without freeing anything now: the Actions
+	/// are only marked, and deleted when an undo or redo reaches them. Unlike deleteAllLogs(), this is safe to call
+	/// from playback (e.g. a sequenced transpose), which may be running in the middle of UI code that holds an Action.
+	void invalidateLogs();
 	void deleteLog(int32_t time);
 	bool revert(TimeType time, bool updateVisually = true, bool doNavigation = true);
 	void updateAction(Action* newAction);
@@ -64,6 +68,7 @@ private:
 	void revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time);
 	void deleteLastActionIfEmpty();
 	void deleteLastAction();
+	bool deleteLogIfStale(TimeType time);
 };
 
 extern ActionLogger actionLogger;

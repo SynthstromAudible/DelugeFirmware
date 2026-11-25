@@ -30,14 +30,17 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/deferred_note_ons.h"
+#include "model/clip/note_regrouper.h"
 #include "model/consequence/consequence_note_row_mute.h"
-#include "model/consequence/consequence_scale_add_note.h"
 #include "model/drum/drum_name.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/iterance/iterance.h"
 #include "model/note/note.h"
+#include "model/note/note_lock_playback.h"
 #include "model/output.h"
+#include "model/scale/accidentals.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -57,6 +60,7 @@
 #include <array>
 #include <cmath>
 #include <new>
+#include <optional>
 #include <ranges>
 
 #include "playback/mode/playback_mode.h"
@@ -106,11 +110,14 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 // You must call prepareForDestruction() before this, preferably by calling Song::deleteClipObject()
 // Will call audio routine!!! Necessary to avoid voice cuts, especially when switching song
 InstrumentClip::~InstrumentClip() {
+	// A held pad's uncommitted lock edits can't outlive their Clip
+	deluge::note_locks::liveEdits.disarmAllOf(static_cast<TimelineCounter*>(this));
 
 	// Note: it's possible that we might be currentlyRecordingLinearly if we're being destructed because of a song-swap.
 	// That's ok. Whereas, for AudioClips, it's made sure that all linear recording is stopped first
 
 	deleteBackedUpParamManagerMIDI();
+	DeferredNoteOns::forgetClip(this);
 }
 
 void InstrumentClip::deleteBackedUpParamManagerMIDI() {
@@ -482,13 +489,10 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 		if (!melodicInstrument->earlyNotes.empty()) {
 
 			Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-			bool scaleAltered = false;
-
 			for (auto [note, noteInfo] : melodicInstrument->earlyNotes) {
 				const auto [velocity, still_active] = noteInfo;
 
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getOrCreateNoteRowForYNote(note, modelStack, action, &scaleAltered);
+				ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYNote(note, modelStack);
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow != nullptr) {
 					int32_t probability = noteRow->getDefaultProbability();
@@ -503,10 +507,6 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 				}
 			}
 
-			// If this caused the scale to change, update scroll
-			if (action != nullptr && scaleAltered) {
-				action->updateYScrollClipViewAfter();
-			}
 			melodicInstrument->earlyNotes.clear();
 		}
 	}
@@ -893,9 +893,12 @@ doNewProbability:
 					}
 				}
 
-				// probability, iterance and fill conditions have passed
+				// probability, iterance and fill conditions have passed. If the note couldn't get a voice in this
+				// render anyway, it may be held back to be sent in a later one (see DeferredNoteOns)
 				if (conditionPassed) {
-					sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+					if (!DeferredNoteOns::tryDefer(this, pendingNoteOnList.pendingNoteOns[i])) {
+						sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+					}
 				}
 				else {
 					pendingNoteOnList.pendingNoteOns[i].noteRow->sequenced = false;
@@ -919,6 +922,17 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 
 	int16_t mpeValues[kNumExpressionDimensions];
 	pendingNoteOn->noteRow->getMPEValues(modelStackWithNoteRow, mpeValues);
+
+	// Voice::noteOn picks the note's parameter locks up from here - for a note that waited, as they were when it was
+	// due
+	std::optional<deluge::note_locks::PendingScope> locks;
+	if (pendingNoteOn->locksWhenDue != nullptr) {
+		locks.emplace(*pendingNoteOn->locksWhenDue, pendingNoteOn->locks);
+	}
+	else {
+		locks.emplace(modelStack->song->noteLocks, pendingNoteOn->locks.lockSet,
+		              deluge::note_locks::liveEdits.findByTag(pendingNoteOn->locks.liveTag));
+	}
 
 	if (output->type == OutputType::KIT) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
@@ -1075,11 +1089,9 @@ foundIt:
 	return modelStack->addNoteRow(i, thisNoteRow);
 }
 
-// Beware - this may change yScroll (via currentSong->setRootNote())
-// *scaleAltered will not be set to false first - set it yourself. So that this can be called multiple times
+// This never changes the scale: a note outside the scale of a scale-mode clip just gets an "accidental" row.
 ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
-                                                                  ModelStackWithTimelineCounter* modelStack,
-                                                                  Action* action, bool* scaleAltered) {
+                                                                  ModelStackWithTimelineCounter* modelStack) {
 	ModelStackWithNoteRow* modelStackWithNoteRow = getNoteRowForYNote(yNote, modelStack);
 
 	// If one didn't already exist, create one
@@ -1089,41 +1101,6 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 
 		// If that created successfully (i.e. enough RAM)...
 		if (thisNoteRow) {
-
-			// Check that this yNote is allowed within our scale, if we have a scale. And if not allowed, then...
-			if (!modelStack->song->isYNoteAllowed(yNote, inScaleMode)) {
-
-				if (scaleAltered) {
-					*scaleAltered = true;
-				}
-
-				// Recalculate the scale
-				int32_t newI = thisNoteRow->notes.insertAtKey(
-				    0); // Total hack - make it look like the NoteRow has a Note, so it doesn't get discarded during
-				        // setRootNote(). We set it back (and then will soon give it a real note) really soon
-				modelStack->song->setRootNote(modelStack->song->key.rootNote);
-
-				thisNoteRow = getNoteRowForYNote(yNote); // Must re-get it
-				if (!thisNoteRow) {
-					FREEZE_WITH_ERROR("E -1");
-					return modelStackWithNoteRow; // Still has no NoteRow - same as the out-of-RAM case
-				}
-
-				thisNoteRow->notes.empty(); // Undo our "total hack", above
-
-				if (action) {
-					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceScaleAddNote));
-
-					if (consMemory) {
-						ConsequenceScaleAddNote* newConsequence =
-						    new (consMemory) ConsequenceScaleAddNote((yNote + 120) % 12);
-						action->addConsequence(newConsequence);
-					}
-
-					action->modeNotes[AFTER] = modelStack->song->key.modeNotes;
-				}
-			}
-
 			modelStackWithNoteRow->setNoteRow(thisNoteRow, yNote);
 		}
 	}
@@ -1245,26 +1222,20 @@ RGB InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset
 	return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
 }
 
-void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack) {
+int32_t InstrumentClip::getDisplayAnchorYNote(int32_t yNote, Song* song) {
 	if (!isScaleModeClip()) {
-		return;
+		return yNote;
 	}
-	// Find all NoteRows which belong to this scale, and change their note
-	//
-	// TODO: There probably should not be _any_ rows which don't below to the
-	// current scale? FREEZE_WITH_ERROR?
-	MusicalKey key = modelStack->song->key;
-	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = noteRows.getElement(i);
-		int8_t degree = key.degreeOf(thisNoteRow->y);
-		if (degree >= 0) {
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+	return song->key.accidentalAnchor(yNote, song->key.prefersFlats());
+}
 
-			thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
-			thisNoteRow->y += changes[degree];
-		}
+bool InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack,
+                                        deluge::accidentals::AccidentalHandling accidentalHandling,
+                                        int32_t pendingTranspose) {
+	if (!isScaleModeClip()) {
+		return false;
 	}
+	bool rowsRestructured = NoteRegrouper{*this, modelStack}.regroup(changes, accidentalHandling, pendingTranspose);
 
 	uint8_t oldSize = changes.source.scaleSize();
 	uint8_t newSize = changes.target.scaleSize();
@@ -1274,23 +1245,7 @@ void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWi
 	int yDegree = yScroll - (yOctave * oldSize);
 	// Take scale size changes into account and adjust yScroll to keep same octave visible
 	yScroll = yOctave * newSize + yDegree;
-}
-
-void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) {
-	if (!isScaleModeClip()) {
-		return;
-	}
-
-	for (int32_t i = 0; i < noteRows.getNumElements();) {
-		NoteRow* thisNoteRow = noteRows.getElement(i);
-
-		if ((thisNoteRow->y + 120) % 12 == yNoteWithinOctave) {
-			noteRows.deleteNoteRowAtIndex(i);
-		}
-		else {
-			i++;
-		}
-	}
+	return rowsRestructured;
 }
 
 void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOctavePresent, MusicalKey key) {
@@ -1306,6 +1261,38 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOcta
 		else {
 			noteRows.deleteNoteRowAtIndex(i);
 		}
+	}
+}
+
+void InstrumentClip::seeWhatAnchorsWithinOctaveArePresent(NoteSet& anchorsWithinOctavePresent, MusicalKey key,
+                                                          const MusicalKey& lineageKey) {
+	const deluge::accidentals::SpelledKey spelledLineageKey{lineageKey};
+	for (int32_t i = 0; i < noteRows.getNumElements();) {
+		NoteRow* thisNoteRow = noteRows.getElement(i);
+
+		// If this NoteRow has no notes, delete it, otherwise we'll have problems as the musical mode is changed
+		if (thisNoteRow->hasNoNotes()) {
+			noteRows.deleteNoteRowAtIndex(i);
+			continue;
+		}
+
+		// An in-key row is its own anchor, and an accidental row has the anchor it is displayed on. All its notes
+		// without an AnchorMarker share that, so only the first of them needs counting; marked notes name their own.
+		int32_t y = thisNoteRow->getNoteCode();
+		bool unmarkedCounted = false;
+		for (int32_t n = 0; n < thisNoteRow->notes.getNumElements(); n++) {
+			AnchorMarker marker = thisNoteRow->notes.getElement(n)->anchorMarker;
+			if (marker.isDerived() && unmarkedCounted) {
+				continue;
+			}
+			unmarkedCounted = unmarkedCounted || marker.isDerived();
+			int32_t anchor = deluge::accidentals::lineageAnchor(y, marker, spelledLineageKey);
+			// An anchor which is no longer in the key counts for nothing
+			if (lineageKey.isInKey(anchor)) {
+				anchorsWithinOctavePresent.add(key.intervalOf(anchor));
+			}
+		}
+		i++;
 	}
 }
 
@@ -1375,20 +1362,25 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		// Scale clip changing less than an octave, transpose by scale note jumps
 		for (int32_t interval = 0; interval < 12; interval++) {
 			int32_t degree = key.modeNotes.degreeOf(interval);
-			int32_t newDegree;
-			if (degree >= 0) {
-				newDegree = degree + change;
+			if (degree < 0) {
+				continue; // Accidentals follow their display anchor, below
 			}
-			else {
-				// Out of scale, so it sits between two degrees: land it on the
-				// neighbouring degree in the direction we're travelling.
-				int32_t degreesBelow = key.modeNotes.degreesBelow(interval);
-				newDegree = (change > 0) ? degreesBelow + change - 1 : degreesBelow + change;
-			}
+			int32_t newDegree = degree + change;
 			// A degree outside the scale's bounds wraps into the octave above or below.
 			int32_t wrappedDegree = mod(newDegree, numModeNotes);
 			int32_t octaves = (newDegree - wrappedDegree) / numModeNotes;
 			shiftForInterval[interval] = key.modeNotes[wrappedDegree] + 12 * octaves - interval;
+		}
+
+		// Out of scale rows (accidentals) move by the same number of semitones as the in-scale row they are
+		// displayed on, so they keep their relation to it.
+		bool flats = key.prefersFlats();
+		for (int32_t interval = 0; interval < 12; interval++) {
+			if (key.modeNotes.has(interval)) {
+				continue;
+			}
+			int32_t anchorNote = key.accidentalAnchor(key.rootNote + interval, flats);
+			shiftForInterval[interval] = shiftForInterval[key.intervalOf(anchorNote)];
 		}
 	}
 
@@ -1411,10 +1403,21 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		if (thisNoteRow->hasNoNotes()) {
 			continue;
 		}
-		int32_t newYNote = thisNoteRow->y + shiftFor(thisNoteRow);
-		if (!anyNotesFound || (change > 0 ? newYNote > extremeNewYNote : newYNote < extremeNewYNote)) {
-			extremeNewYNote = newYNote;
-			anyNotesFound = true;
+		// Marked notes move by their anchor's shift rather than their row's, so each note gets a vote
+		auto vote = [&](int32_t newYNote) {
+			if (!anyNotesFound || (change > 0 ? newYNote > extremeNewYNote : newYNote < extremeNewYNote)) {
+				extremeNewYNote = newYNote;
+				anyNotesFound = true;
+			}
+		};
+		vote(thisNoteRow->y + shiftFor(thisNoteRow));
+		for (int32_t n = 0; n < thisNoteRow->notes.getNumElements(); n++) {
+			AnchorMarker marker = thisNoteRow->notes.getElement(n)->anchorMarker;
+			if (!marker.isDerived()) {
+				// A marker names its anchor outright, whatever the key
+				int32_t anchor = thisNoteRow->y + marker.semitonesToAnchor();
+				vote(thisNoteRow->y + shiftForInterval[key.intervalOf(anchor)]);
+			}
 		}
 	}
 	// Nothing to transpose, and moving the rows and the scroll in step would be invisible
@@ -1429,6 +1432,9 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
+	// A scale clip nudged by scale degrees moves its notes one at a time, so that it stays reversible. Otherwise every
+	// row moves by the fixed amount.
+	bool perNote = isScaleModeClip() && std::abs(change) != numModeNotes;
 	for (int32_t i = 0; i < noteRows.getNumElements();) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		int32_t newYNote = thisNoteRow->y + shiftFor(thisNoteRow);
@@ -1441,8 +1447,23 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 			continue;
 		}
 
-		thisNoteRow->y = newYNote;
+		if (!perNote) {
+			thisNoteRow->y = newYNote;
+		}
 		i++;
+	}
+
+	if (perNote) {
+		// Express the nudge as a semitone shift per scale degree. The mode doesn't change. Accidentals follow their
+		// anchor, and rows landing on each other are merged.
+		ScaleChange nudge;
+		nudge.source = key.modeNotes;
+		nudge.target = key.modeNotes;
+		for (int32_t degree = 0; degree < numModeNotes; degree++) {
+			nudge[degree] = shiftForInterval[key.modeNotes[degree]];
+		}
+		// The caller clears the undo history whatever this did to the rows
+		(void)NoteRegrouper{*this, modelStack}.regroup(nudge, deluge::accidentals::AccidentalHandling::FOLLOW_ANCHOR);
 	}
 
 	yScroll += change;
@@ -1501,8 +1522,8 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		}
 
 		thisNoteRow->renderRow(editorScreen, mainColour, tailColour, blurColour, image, occupancyMask, false,
-		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd,
-		                       drawRepeats);
+		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd, drawRepeats,
+		                       thisNoteRow->locksTakeEffect(this));
 	}
 	if (addUndefinedArea) {
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen,
@@ -1523,86 +1544,6 @@ int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
 	else {
 		return song->getYNoteFromYVisual(yVisual, inScaleMode);
 	}
-}
-
-int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
-	NoteSet notesPresent;
-
-	// It's important this comes before noteRows.getNumElements(), since fetching
-	// used notes also deletes empty note rows!
-	seeWhatNotesWithinOctaveArePresent(notesPresent, song->key);
-
-	// If no NoteRows, not much we can do
-	if (noteRows.getNumElements() == 0) {
-		return previousRoot;
-	}
-
-	previousRoot = previousRoot % 12;
-	if (previousRoot < 0) {
-		previousRoot += 12;
-	}
-
-	int32_t lowestNote = noteRows.getElement(0)->getNoteCode() % 12;
-	if (lowestNote < 0) {
-		lowestNote += 12;
-	}
-
-	uint8_t lowestIncompatibility = 255;
-	uint8_t mostViableRoot = 0;
-
-	// Go through each possible root note
-	for (int32_t root = 0; root < 12; root++) {
-		uint8_t incompatibility = 255;
-
-		if (notesPresent.has(root)) { // || root == previousRoot) {
-			// Assess viability of this being the root note
-			uint8_t majorIncompatibility = 0;
-			if (notesPresent.has((root + 1) % 12)) {
-				majorIncompatibility++;
-			}
-			if (notesPresent.has((root + 3) % 12)) {
-				majorIncompatibility += 2;
-			}
-			if (notesPresent.has((root + 6) % 12)) {
-				majorIncompatibility++;
-			}
-			if (notesPresent.has((root + 8) % 12)) {
-				majorIncompatibility++;
-			}
-			if (notesPresent.has((root + 10) % 12)) {
-				majorIncompatibility++;
-			}
-
-			uint8_t minorIncompatibility = 0;
-			if (notesPresent.has((root + 1) % 12)) {
-				minorIncompatibility++;
-			}
-			if (notesPresent.has((root + 4) % 12)) {
-				minorIncompatibility += 2;
-			}
-			if (notesPresent.has((root + 6) % 12)) {
-				minorIncompatibility++;
-			}
-			if (notesPresent.has((root + 9) % 12)) {
-				minorIncompatibility++;
-			}
-			if (notesPresent.has((root + 11) % 12)) {
-				minorIncompatibility++;
-			}
-
-			incompatibility = std::min(majorIncompatibility, minorIncompatibility);
-		}
-
-		if (incompatibility < lowestIncompatibility
-		    || (incompatibility == lowestIncompatibility
-		        && (root == lowestNote || root == previousRoot // Favour the previous root and the lowest note
-		            ))) {
-			lowestIncompatibility = incompatibility;
-			mostViableRoot = root;
-		}
-	}
-
-	return mostViableRoot;
 }
 
 int32_t InstrumentClip::getNumNoteRows() {
@@ -2451,7 +2392,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			}
 			// no matching drum found
 			if (drumIndex != -1) {
-				thisNoteRow->writeToFile(writer, drumIndex, this);
+				thisNoteRow->writeToFile(writer, drumIndex, this, song);
 			}
 		}
 
@@ -4207,7 +4148,8 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 						// I'm guessing I deliberately didn't send the Action in here, cos didn't want to
 						// make this Note on the new InstrumentClip undoable?
 						newNoteRow->attemptNoteAdd(0, lastNote->length, lastNote->velocity, lastNote->probability,
-						                           lastNote->iterance, lastNote->fill, modelStackWithNoteRow, nullptr);
+						                           lastNote->iterance, lastNote->fill, modelStackWithNoteRow, nullptr,
+						                           lastNote->lockSet);
 						// Make sure we don't double-play the note
 						newNoteRow->ignoreNoteOnsBefore_ = 1;
 					}

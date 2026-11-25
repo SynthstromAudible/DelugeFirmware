@@ -46,6 +46,11 @@
 #if defined(USB_CFG_PMIDI_USE)
 #include "deluge/drivers/usb/userdef/r_usb_paudio_config.h"
 #include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
+
+/* The audio pipes' buffers, in 64-byte blocks and double buffered, fit for either the stereo or the multitrack
+ * configuration: the from-host pipe's at block 8, the to-host pipe's at 20, then MIDI's bulk in at 44 */
+_Static_assert(8 + 2 * USB_PAUDIO_FROM_HOST_PIPE_BUF_BYTES / 64 <= 20, "USB audio pipe buffer layout needs updating");
+_Static_assert(20 + 2 * USB_PAUDIO_TO_HOST_PIPE_BUF_BYTES / 64 <= 44, "USB audio pipe buffer layout needs updating");
 #endif
 
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
@@ -114,7 +119,7 @@ uint16_t g_usb_pstd_eptbl[] = {
     USB_CFG_PAUDIO_ISO_OUT, /* Pipe No. - the out stream's asynchronous alternate setting */
     /* TYPE    / BFRE        / DBLB         / CNTMD         / SHTNAK         / DIR      / EPNUM */
     USB_NULL | USB_BFREOFF | USB_CFG_DBLB | USB_CFG_CNTMD | USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
-    (uint16_t)USB_BUF_SIZE(USB_PAUDIO_MAX_PACKET_BYTES) | USB_BUF_NUMB(8u),                 /* PIPEBUF */
+    (uint16_t)USB_BUF_SIZE(USB_PAUDIO_FROM_HOST_PIPE_BUF_BYTES) | USB_BUF_NUMB(8u),         /* PIPEBUF */
     USB_NULL,                                                                               /* PIPEMAXP */
     USB_NULL,                                                                               /* PIPEPERI */
     USB_NULL,                                                                               /* reserve */
@@ -122,7 +127,7 @@ uint16_t g_usb_pstd_eptbl[] = {
     USB_CFG_PAUDIO_ISO_OUT, /* Pipe No. - the same pipe and buffer, for the adaptive alternate setting */
     /* TYPE    / BFRE        / DBLB         / CNTMD         / SHTNAK         / DIR      / EPNUM */
     USB_NULL | USB_BFREOFF | USB_CFG_DBLB | USB_CFG_CNTMD | USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
-    (uint16_t)USB_BUF_SIZE(USB_PAUDIO_MAX_PACKET_BYTES) | USB_BUF_NUMB(8u),                 /* PIPEBUF */
+    (uint16_t)USB_BUF_SIZE(USB_PAUDIO_FROM_HOST_PIPE_BUF_BYTES) | USB_BUF_NUMB(8u),         /* PIPEBUF */
     USB_NULL,                                                                               /* PIPEMAXP */
     USB_NULL,                                                                               /* PIPEPERI */
     USB_NULL,                                                                               /* reserve */
@@ -130,7 +135,7 @@ uint16_t g_usb_pstd_eptbl[] = {
     USB_CFG_PAUDIO_ISO_IN, /* Pipe No. */
     /* TYPE    / BFRE        / DBLB         / CNTMD         / SHTNAK         / DIR      / EPNUM */
     USB_NULL | USB_BFREOFF | USB_CFG_DBLB | USB_CFG_CNTMD | USB_NULL | USB_NULL | USB_NULL, /* PIPECFG */
-    (uint16_t)USB_BUF_SIZE(USB_PAUDIO_MAX_PACKET_BYTES) | USB_BUF_NUMB(20u),                /* PIPEBUF */
+    (uint16_t)USB_BUF_SIZE(USB_PAUDIO_TO_HOST_PIPE_BUF_BYTES) | USB_BUF_NUMB(20u),          /* PIPEBUF */
     USB_NULL,                                                                               /* PIPEMAXP */
     USB_IFISON, /* PIPEPERI - drop a packet the host didn't collect in its frame, so we never lag behind */
     USB_NULL,   /* reserve */
@@ -138,7 +143,7 @@ uint16_t g_usb_pstd_eptbl[] = {
     USB_CFG_PMIDI_BULK_IN, /* Pipe No. */
     /* TYPE    / BFRE        / DBLB         / CNTMD         / SHTNAK         / DIR      / EPNUM */
     USB_NULL | USB_BFREOFF | USB_CFG_DBLB | USB_CFG_CNTMD | USB_CFG_SHTNAK | USB_NULL | USB_NULL, /* PIPECFG */
-    (uint16_t)USB_BUF_SIZE(512u) | USB_BUF_NUMB(40u),                                             /* PIPEBUF */
+    (uint16_t)USB_BUF_SIZE(512u) | USB_BUF_NUMB(44u),                                             /* PIPEBUF */
     USB_NULL,                                                                                     /* PIPEMAXP */
     USB_NULL,                                                                                     /* PIPEPERI */
     USB_NULL,                                                                                     /* reserve */

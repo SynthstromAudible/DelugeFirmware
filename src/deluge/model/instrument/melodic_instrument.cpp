@@ -183,14 +183,8 @@ doRecord:
 							    (InstrumentClip*)
 							        modelStack->getTimelineCounter(); // Re-get it, cos it might have changed
 
-							Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-
-							bool scaleAltered = false;
-
-							modelStackWithNoteRow = instrumentClip->getOrCreateNoteRowForYNote(
-							    note, modelStack, action,
-							    &scaleAltered); // Have to re-get this anyway since called
-							                    // possiblyCloneForArrangementRecording(), above.
+							// Have to re-get this anyway since called possiblyCloneForArrangementRecording(), above.
+							modelStackWithNoteRow = instrumentClip->getOrCreateNoteRowForYNote(note, modelStack);
 							noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 							if (noteRow) {
 								// midichannel is not used by instrument clip
@@ -199,11 +193,6 @@ doRecord:
 								if (getRootUI()) {
 									getRootUI()->noteRowChanged(instrumentClip, noteRow);
 								}
-							}
-
-							// If this caused the scale to change, update scroll
-							if (action && scaleAltered) {
-								action->updateYScrollClipViewAfter();
 							}
 						}
 					}

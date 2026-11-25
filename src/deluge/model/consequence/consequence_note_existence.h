@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
 #include "model/iterance/iterance.h"
+#include "model/scale/anchor_marker.h"
 #include <cstdint>
 
 class Note;
@@ -38,6 +39,8 @@ public:
 	uint8_t lift;
 	Iterance iterance;
 	int8_t fill;
+	uint16_t lockSet; // Index into the Song's note_locks::Pool, which outlives the action log
+	AnchorMarker anchorMarker;
 
 	ExistenceChangeType type;
 };

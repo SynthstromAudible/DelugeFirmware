@@ -57,7 +57,7 @@ void usb_pstd_bus_reset(void)
 {
     uint16_t connect_info;
 
-    usbAudioStopAll();
+    usbAudioBusReset();
 
     /* Bus Reset */
     usb_pstd_busreset_function();

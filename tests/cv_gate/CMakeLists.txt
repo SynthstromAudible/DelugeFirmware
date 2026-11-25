@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.24)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    project(DelugeCVGateTests C)
+    enable_testing()
+endif()
+
+# Compile the production driver on the host, substituting hardware declarations.
+get_filename_component(OLED_DRIVER "${CMAKE_CURRENT_SOURCE_DIR}/../../src/RZA1/oled/oled_low_level.c" ABSOLUTE)
+set(OLED_STUBS "${CMAKE_CURRENT_BINARY_DIR}/cv_gate_stubs")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${OLED_DRIVER}")
+file(STRINGS "${OLED_DRIVER}" OLED_INCLUDES REGEX "^#include \"")
+foreach(INCLUDE_LINE IN LISTS OLED_INCLUDES)
+    string(REGEX REPLACE "^#include \"([^\"]+)\".*" "\\1" HEADER "${INCLUDE_LINE}")
+    get_filename_component(HEADER_DIR "${OLED_STUBS}/${HEADER}" DIRECTORY)
+    file(MAKE_DIRECTORY "${HEADER_DIR}")
+    file(WRITE "${OLED_STUBS}/${HEADER}" "/* Hardware declarations are supplied by mock_hardware.h. */\n")
+endforeach()
+
+add_executable(cv_gate_driver_tests driver_tests.c)
+# Verify that the mocks are self-contained and supply an explicit C command
+# when the PR annotation action checks the header independently.
+add_library(cv_gate_mock_header_check OBJECT mock_hardware.h)
+set_source_files_properties(mock_hardware.h PROPERTIES LANGUAGE C)
+foreach(TARGET cv_gate_driver_tests cv_gate_mock_header_check)
+    target_include_directories(${TARGET} PRIVATE "${OLED_STUBS}" "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(${TARGET} PRIVATE -Wno-pointer-to-int-cast)
+    endif()
+endforeach()
+add_test(NAME CVGateDriverTests COMMAND cv_gate_driver_tests)

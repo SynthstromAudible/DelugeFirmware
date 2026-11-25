@@ -33,7 +33,8 @@ public:
 	int32_t getBytePosToStartPlayback(bool justLooped) override;
 	int32_t getBytePosToEndOrLoopPlayback() override;
 	LoopType getLoopingType(const Source& source) const;
-	void onLoopRestart() override;
+	[[nodiscard]] bool loopPassesAlternate() const override { return pingpongAllowed; }
+	void turnAround() override { setPingpongReversed(!pingpongReversed); }
 	void setPingpongReversed(bool reversed);
 
 	[[nodiscard]] uint32_t getLoopStartPlaybackAtByte() const override { return loopStartPlaybackAtByte; }

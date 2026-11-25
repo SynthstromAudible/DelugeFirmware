@@ -38,6 +38,7 @@ extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 void VoiceSample::beenUnassigned(bool wontBeUsedAgain) {
 	unassignAllReasons(wontBeUsedAgain);
 	endTimeStretching();
+	freeLoopIncoming();
 }
 
 // You'll normally want to call setupClustersForInitialPlay() after this
@@ -54,6 +55,194 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 	fudging = false;
 	forAudioClip = false;
 	pingpongReversed = false;
+	cancelLoopCrossfade();
+}
+
+namespace {
+// In ping-pong, the next pass through the loop runs the other way, starting from the edge we're about to reach. While
+// the incoming pass of a loop crossfade is set up or read, the guide is turned around to its orientation
+class NextLoopPassOrientation {
+public:
+	NextLoopPassOrientation(SamplePlaybackGuide* guide, bool turned) : guide_{guide}, turned_{turned} {
+		if (turned_) {
+			guide_->turnAround();
+		}
+	}
+	~NextLoopPassOrientation() {
+		if (turned_) {
+			guide_->turnAround();
+		}
+	}
+	NextLoopPassOrientation(const NextLoopPassOrientation&) = delete;
+	NextLoopPassOrientation& operator=(const NextLoopPassOrientation&) = delete;
+
+private:
+	SamplePlaybackGuide* guide_;
+	bool turned_;
+};
+} // namespace
+
+// Once we're within the crossfade length of the loop end, start the next pass through the loop alongside us. It starts
+// as far into the loop as we are into the crossfade, so the two finish the crossfade together, just as we hit the end.
+// We only get to check once per render window, so we'll usually start a little after the ideal sample. The fade then
+// runs over whatever's actually left, so it still starts from silence rather than jumping in part-way.
+void VoiceSample::considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample, int32_t wantedLength,
+                                                int32_t priorityRating) {
+	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
+	int32_t loopEndByte = guide->getBytePosToEndOrLoopPlayback();
+
+	int32_t bytesLeft = (loopEndByte - getPlayByteLowLevel(sample, guide, true)) * guide->playDirection;
+	if (bytesLeft <= 0 || bytesLeft > wantedLength * bytesPerSample) {
+		return;
+	}
+
+	// No longer than half the loop, so each pass gets to finish its crossfade before the next one starts
+	int32_t loopStartByte = guide->getBytePosToStartPlayback(true);
+	int32_t loopLength = (loopEndByte - loopStartByte) * guide->playDirection / bytesPerSample;
+	int32_t length = std::min(wantedLength, loopLength >> 1);
+	int32_t samplesLeft = bytesLeft / bytesPerSample;
+	if (length <= 0 || samplesLeft <= 0 || samplesLeft > length) {
+		return;
+	}
+
+	if (loopIncoming == nullptr) {
+		loopIncoming = AudioEngine::solicitLoopCrossfadeReader();
+		if (loopIncoming == nullptr) {
+			return; // Just loop without the crossfade
+		}
+	}
+
+	int32_t incomingOffsetBytes = (length - samplesLeft) * bytesPerSample;
+	loopIncoming->oscPos = oscPos;
+	loopIncoming->interpolationBufferSizeLastTime = 0;
+	// Fixed for the whole crossfade, in case the repeat mode changes during it
+	loopIncomingTurned = guide->loopPassesAlternate();
+	bool success;
+	{
+		NextLoopPassOrientation orientation{guide, loopIncomingTurned};
+		success = loopIncoming->setupClusersForInitialPlay(guide, sample, incomingOffsetBytes, true, priorityRating);
+	}
+	if (success) {
+		loopCrossfadeLength = samplesLeft;
+	}
+	else {
+		loopIncoming->unassignAllReasons(false); // It may have got some of them. We'll try again next window
+	}
+}
+
+// The incoming pass takes over from us
+bool VoiceSample::finishLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample, LoopType loopingType,
+                                      int32_t priorityRating) {
+	static_cast<SampleLowLevelReader&>(*this) = std::move(*loopIncoming);
+	loopCrossfadeLength = 0;
+	if (loopIncomingTurned) {
+		guide->turnAround(); // Ping-pong: we're now heading back the other way
+	}
+
+	// The incoming reader didn't obey the markers, and a note-off may have moved the end since, so work out again where
+	// to stop or loop
+	return reassessReassessmentLocation(guide, sample, priorityRating)
+	       && changeClusterIfNecessary(guide, sample, loopingType != LoopType::NONE, priorityRating);
+}
+
+void VoiceSample::cancelLoopCrossfade() {
+	if (loopIncoming != nullptr) {
+		loopIncoming->unassignAllReasons(false);
+	}
+	loopCrossfadeLength = 0;
+}
+
+void VoiceSample::freeLoopIncoming() {
+	if (loopIncoming != nullptr) {
+		AudioEngine::loopCrossfadeReaderUnassigned(loopIncoming);
+		loopIncoming = nullptr;
+	}
+	loopCrossfadeLength = 0;
+}
+
+// Mixes the incoming pass of the loop into the output buffer. Returns false if it ran out
+bool VoiceSample::readLoopCrossfadeIncoming(SamplePlaybackGuide* guide, Sample* sample, int32_t* outputBuffer,
+                                            int32_t numSamples, int32_t numChannels, int32_t numChannelsInOutputBuffer,
+                                            int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
+                                            int32_t interpolationBufferSize, int32_t whichKernel,
+                                            int32_t priorityRating) {
+	NextLoopPassOrientation orientation{guide, loopIncomingTurned};
+	int32_t jumpAmount = sample->byteDepth * numChannels * guide->playDirection;
+	while (numSamples) {
+		int32_t numSamplesNow = numSamples;
+		if (!loopIncoming->considerUpcomingWindow(guide, sample, &numSamplesNow, phaseIncrement, false,
+		                                          interpolationBufferSize, false, priorityRating)) {
+			return false;
+		}
+		if (phaseIncrement == kMaxSampleValue) {
+			loopIncoming->readSamplesNative(&outputBuffer, numSamplesNow, sample, jumpAmount, numChannels,
+			                                numChannelsInOutputBuffer, &amplitude, amplitudeIncrement);
+		}
+		else {
+			bool doneAnySamplesYet = false;
+			loopIncoming->readSamplesResampled(&outputBuffer, numSamplesNow, sample, jumpAmount, numChannels,
+			                                   numChannelsInOutputBuffer, phaseIncrement, &amplitude,
+			                                   amplitudeIncrement, interpolationBufferSize, false, nullptr,
+			                                   &doneAnySamplesYet, nullptr, false, whichKernel);
+		}
+		numSamples -= numSamplesNow;
+	}
+	return true;
+}
+
+// Equal-power levels (Q30) for the incoming and outgoing passes, a given number of source samples into the crossfade
+static void getLoopCrossfadeLevels(int32_t progress, int32_t length, int32_t* incoming, int32_t* outgoing) {
+	float x = std::clamp(static_cast<float>(progress) / static_cast<float>(length), 0.0f, 1.0f);
+	*incoming = static_cast<int32_t>(sqrtf(x) * 1073741824.0f);
+	*outgoing = static_cast<int32_t>(sqrtf(1.0f - x) * 1073741824.0f);
+}
+
+// The amplitude ramps for both passes over the next numSamples of output, and whether the crossfade finishes in them
+VoiceSample::LoopCrossfadeGains VoiceSample::getLoopCrossfadeGains(SamplePlaybackGuide* guide, Sample* sample,
+                                                                   int32_t numSamples, int32_t phaseIncrement,
+                                                                   int32_t amplitude, int32_t amplitudeIncrement) {
+	// The crossfade ends as the outgoing pass reaches the loop end. That's the loop marker even after a note-off, which
+	// would otherwise let this pass play on past it
+	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
+	int32_t loopEndByte = static_cast<int32_t>(guide->getLoopEndPlaybackAtByte());
+	int32_t samplesLeft =
+	    (loopEndByte - getPlayByteLowLevel(sample, guide, true)) * guide->playDirection / bytesPerSample;
+	int32_t progress = loopCrossfadeLength - samplesLeft;
+	int32_t progressAfter = progress + (int32_t)(((uint64_t)numSamples * (uint32_t)phaseIncrement) >> 24);
+
+	int32_t inStart, outStart, inEnd, outEnd;
+	getLoopCrossfadeLevels(progress, loopCrossfadeLength, &inStart, &outStart);
+	getLoopCrossfadeLevels(progressAfter, loopCrossfadeLength, &inEnd, &outEnd);
+	int32_t amplitudeAfter = amplitude + amplitudeIncrement * numSamples;
+
+	LoopCrossfadeGains gains;
+	gains.outgoingAmplitude = multiply_32x32_rshift32(amplitude, outStart) << 2;
+	gains.outgoingAmplitudeIncrement =
+	    ((multiply_32x32_rshift32(amplitudeAfter, outEnd) << 2) - gains.outgoingAmplitude) / numSamples;
+	gains.incomingAmplitude = multiply_32x32_rshift32(amplitude, inStart) << 2;
+	gains.incomingAmplitudeIncrement =
+	    ((multiply_32x32_rshift32(amplitudeAfter, inEnd) << 2) - gains.incomingAmplitude) / numSamples;
+	gains.done = (progressAfter >= loopCrossfadeLength);
+	return gains;
+}
+
+// Mixes the incoming pass in over the window we just read, and hands over to it if the crossfade is done. Returns false
+// if the voice should stop
+bool VoiceSample::mixInLoopCrossfadeIncoming(SamplePlaybackGuide* guide, Sample* sample, int32_t* outputBuffer,
+                                             int32_t numSamples, int32_t numChannels, int32_t numChannelsInOutputBuffer,
+                                             int32_t phaseIncrement, const LoopCrossfadeGains& gains,
+                                             int32_t interpolationBufferSize, int32_t whichKernel, LoopType loopingType,
+                                             int32_t priorityRating) {
+	if (!readLoopCrossfadeIncoming(guide, sample, outputBuffer, numSamples, numChannels, numChannelsInOutputBuffer,
+	                               phaseIncrement, gains.incomingAmplitude, gains.incomingAmplitudeIncrement,
+	                               interpolationBufferSize, whichKernel, priorityRating)) {
+		cancelLoopCrossfade();
+		return true;
+	}
+	if (gains.done) {
+		return finishLoopCrossfade(guide, sample, loopingType, priorityRating);
+	}
+	return true;
 }
 
 // Returns false if error
@@ -435,7 +624,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
                          Sample* sample, int32_t sampleSourceNumChannels, LoopType loopingType, int32_t phaseIncrement,
                          int32_t timeStretchRatio, int32_t amplitude, int32_t amplitudeIncrement,
                          int32_t interpolationBufferSize, InterpolationMode desiredInterpolationMode,
-                         int32_t priorityRating) {
+                         int32_t priorityRating, int32_t loopCrossfadeSamples) {
 
 	int32_t playDirection = guide->playDirection;
 
@@ -621,11 +810,15 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 
 timeStretchingConsidered:
 
+	if (timeStretcher) {
+		cancelLoopCrossfade(); // Only done on the plain low-level path
+	}
+
 	int32_t bytesPerSample = sampleSourceNumChannels * sample->byteDepth;
 	int32_t jumpAmount = sample->byteDepth * sampleSourceNumChannels * playDirection;
 	int32_t* __restrict__ outputBufferWritePos = outputBuffer;
 	int32_t numChannelsInOutputBuffer = (sampleSourceNumChannels == 2 && AudioEngine::renderInStereo) ? 2 : 1;
-	int32_t whichKernel;
+	int32_t whichKernel = 0;
 	uint64_t combinedIncrement;
 
 	amplitude <<= 3;
@@ -1101,21 +1294,40 @@ readNonTimestretched:
 
 			int32_t numSamplesThisNonTimestretchedRead = numSamplesThisUncachedRead;
 
+			if (loopCrossfadeSamples && !isLoopCrossfading() && loopingType != LoopType::NONE && !cache) {
+				considerStartingLoopCrossfade(guide, sample, loopCrossfadeSamples, priorityRating);
+			}
+
+			// While crossfading, we don't loop - we play on to the loop end and the incoming pass takes over
 			bool stillActive = considerUpcomingWindow(
-			    guide, sample, &numSamplesThisNonTimestretchedRead, phaseIncrement, loopingType != LoopType::NONE,
-			    interpolationBufferSize, (cache != nullptr),
+			    guide, sample, &numSamplesThisNonTimestretchedRead, phaseIncrement,
+			    loopingType != LoopType::NONE && !isLoopCrossfading(), interpolationBufferSize, (cache != nullptr),
 			    priorityRating); // Keep it reading silence forever so we can definitely fill up the cache
 			if (!stillActive) {
+				if (isLoopCrossfading() && finishLoopCrossfade(guide, sample, loopingType, priorityRating)) {
+					goto readNonTimestretched;
+				}
 				return false;
 			}
 			jumpAmount = bytesPerSample * guide->playDirection; // Ping-pong may have just turned around
+
+			// While crossfading, this pass reads with its own fading-out copy of the amplitude
+			int32_t* readAmplitude = &amplitude;
+			int32_t readAmplitudeIncrement = amplitudeIncrement;
+			LoopCrossfadeGains crossfadeGains{};
+			if (isLoopCrossfading()) [[unlikely]] {
+				crossfadeGains = getLoopCrossfadeGains(guide, sample, numSamplesThisNonTimestretchedRead,
+				                                       phaseIncrement, amplitude, amplitudeIncrement);
+				readAmplitude = &crossfadeGains.outgoingAmplitude;
+				readAmplitudeIncrement = crossfadeGains.outgoingAmplitudeIncrement;
+			}
 
 			// No pitch adjustment - in which case we know we're not writing to cache either
 			if (phaseIncrement == kMaxSampleValue) {
 
 				readSamplesNative((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample,
-				                  jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, &amplitude,
-				                  amplitudeIncrement);
+				                  jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, readAmplitude,
+				                  readAmplitudeIncrement);
 			}
 
 			// Yes pitch adjustment - meaning we might be wanting to write to a cache, too...
@@ -1135,8 +1347,19 @@ readNonTimestretched:
 				// (re-check that?)
 				readSamplesResampled((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample,
 				                     jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, phaseIncrement,
-				                     &amplitude, amplitudeIncrement, interpolationBufferSize, (cache != nullptr),
+				                     readAmplitude, readAmplitudeIncrement, interpolationBufferSize, (cache != nullptr),
 				                     &cacheWritePos, &doneAnySamplesYet, NULL, false, whichKernel);
+			}
+			if (isLoopCrossfading()) [[unlikely]] {
+				amplitude += amplitudeIncrement * numSamplesThisNonTimestretchedRead;
+				int32_t* readStartPos =
+				    outputBufferWritePos - numSamplesThisNonTimestretchedRead * numChannelsInOutputBuffer;
+				if (!mixInLoopCrossfadeIncoming(guide, sample, readStartPos, numSamplesThisNonTimestretchedRead,
+				                                sampleSourceNumChannels, numChannelsInOutputBuffer, phaseIncrement,
+				                                crossfadeGains, interpolationBufferSize, whichKernel, loopingType,
+				                                priorityRating)) {
+					return false;
+				}
 			}
 
 			if (cache) {
@@ -1601,6 +1824,8 @@ bool VoiceSample::sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sa
                                     MarkerType markerType, LoopType loopingType, int32_t priorityRating,
                                     bool forAudioClip) {
 
+	cancelLoopCrossfade(); // It was set up for the old markers
+
 	if (cache && cache->reversed != reversed) {
 		// If the reversing has changed, then the cache is no longer valid
 		bool success = stopUsingCache(voiceSource, sample, priorityRating, loopingType == LoopType::LOW_LEVEL);
@@ -1785,6 +2010,16 @@ int32_t VoiceSample::getPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
 		int32_t bytePosFromAudioDataStart = getPlayByteLowLevel(sample, guide) - sample->audioDataStartPosBytes;
 		return bytePosFromAudioDataStart / (sample->byteDepth * sample->numChannels);
 	}
+}
+
+// Where the incoming pass of a loop crossfade has got to, or -1 if there's no crossfade going on
+int32_t VoiceSample::getLoopCrossfadeIncomingPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
+	if (!isLoopCrossfading()) {
+		return -1;
+	}
+	int32_t bytePosFromAudioDataStart =
+	    loopIncoming->getPlayByteLowLevel(sample, guide) - sample->audioDataStartPosBytes;
+	return bytePosFromAudioDataStart / (sample->byteDepth * sample->numChannels);
 }
 
 void VoiceSample::switchToReadingCacheFromWriting() {

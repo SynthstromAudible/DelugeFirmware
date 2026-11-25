@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/clip/deferred_note_ons.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/voiced.h"
@@ -79,7 +80,10 @@ public:
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
 
 	Sound();
-	~Sound() override { std::erase(AudioEngine::sounds, this); }
+	~Sound() override {
+		DeferredNoteOns::forgetSound(this);
+		std::erase(AudioEngine::sounds, this);
+	}
 
 	Patcher patcher;
 
@@ -94,6 +98,15 @@ public:
 	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues{};
 
 	uint32_t sourcesChanged{}; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
+
+	/// Set when a voice starts with parameter locks; render() clears it once no voice has any. Lets render() skip
+	/// looking at voices' locks entirely in the usual case.
+	bool voicesMayHaveNoteLocks{false};
+
+	/// Sets one parameter lock on the voices started from a held pad's live (uncommitted) lock edits (those with
+	/// that VoiceNoteLocks::liveEditTag) and re-patches them, so the edit is heard while the note sounds. UI context
+	/// only.
+	void updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, ModelStackWithSoundFlags* modelStack);
 
 	LFO globalLFO1;
 	LFO globalLFO3;
@@ -242,8 +255,11 @@ public:
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	void set_cents(int8_t new_cents);
 	Error loadAllAudioFiles(bool mayActuallyReadFiles);
-	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
-	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
+	/// `locks`: a voice's note locks, which take the place of the knob values of the params they lock
+	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager,
+	                                 const deluge::note_locks::LockSet* locks = nullptr);
+	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager,
+	                            const deluge::note_locks::LockSet* locks = nullptr);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
 	void setupAsBlankSynth(ParamManager* paramManager, bool is_dx = false);
@@ -330,8 +346,8 @@ public:
 	bool anyNoteIsOn() override;
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 	void prepareForHibernation() override;
-	void process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
-	                           ArpReturnInstruction instruction);
+	/// Start (or queue, see DeferredNoteOns) the voices for the note-ons an arpeggiator returned
+	void startArpNoteOns(ModelStackWithSoundFlags* modelStack, ArpReturnInstruction const& instruction);
 
 	virtual const char* getName() { return nullptr; }
 

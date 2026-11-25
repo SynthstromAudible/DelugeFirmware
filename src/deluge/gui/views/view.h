@@ -135,8 +135,15 @@ public:
 	uint32_t modLength;
 
 	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
+	/// What a knob turn on held note pads is doing to the param, shown in the value popup
+	enum class HeldPadEdit : uint8_t {
+		NONE,
+		NOTE_LOCK,  // Locking it on the held notes
+		AUTOMATING, // It can't be locked, so step-automating it over the held notes
+	};
 	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
-	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
+	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE,
+	                                 HeldPadEdit heldPadEdit = HeldPadEdit::NONE);
 	void flushPendingModEncoderValuePopup();
 	void potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
 	                                       int32_t newKnobPos);
@@ -187,6 +194,7 @@ private:
 	int32_t pendingPopupKnobPos = 0;
 	PatchSource pendingPopupSource1 = PatchSource::NONE;
 	PatchSource pendingPopupSource2 = PatchSource::NONE;
+	HeldPadEdit pendingPopupHeldPadEdit = HeldPadEdit::NONE;
 };
 
 extern View view;
