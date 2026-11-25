@@ -265,7 +265,7 @@ private:
 	void gridToggleClipPlay(Clip* clip, bool instant);
 
 	[[nodiscard]] static int32_t gridTrackCount();
-	uint32_t gridClipCountForTrack(Output* track);
+	static uint32_t gridClipCountForTrack(Output* track);
 	static int32_t gridTrackIndexFromTrack(Output* track, int32_t max_track);
 	static Output* gridTrackFromIndex(int32_t track_index, int32_t max_track);
 	static int32_t gridYFromSection(int32_t section);
