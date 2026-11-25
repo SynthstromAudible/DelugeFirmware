@@ -21,6 +21,7 @@
 #include "dsp/core/pack_f32.h"
 #include "dsp/core/poly_kernel.h"
 #include "dsp/core/sample.h"
+#include "dsp/float/envelope/curve.h"
 #include "dsp/float/math/detail.h"
 
 #include <array>
@@ -28,6 +29,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <numbers>
 #include <tuple>
 
 /// @file
@@ -54,9 +56,14 @@ struct Segment {
 	V exponential{}; ///< 1 for a one-pole segment, 0 for a linear one.
 	V hold{};        ///< 1 to stay (never reached) until a gate-off.
 	V next{kOff};    ///< The segment entered on reaching `target`, or kOff.
+	V timed{};  ///< 1 for a CURVE or COSINE segment: its level in closed form from the time elapsed, ended by count.
+	V cosine{}; ///< 1 for a raised cosine, 0 for a curve; timed segments only.
+	V curve{};  ///< A CURVE's octaves, as fp::Curve's k.
+	V length{}; ///< A timed segment's length in samples (below 1 counts as 1).
 	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
-	static constexpr auto fields = std::tuple{&Segment::target,      &Segment::aim,  &Segment::rate,
-	                                          &Segment::exponential, &Segment::hold, &Segment::next};
+	static constexpr auto fields =
+	    std::tuple{&Segment::target, &Segment::aim,   &Segment::rate,   &Segment::exponential, &Segment::hold,
+	               &Segment::next,   &Segment::timed, &Segment::cosine, &Segment::curve,       &Segment::length};
 };
 
 /// @brief A program: its segments (the first is entered by a gate-on) and the segment a gate-off enters.
@@ -84,6 +91,14 @@ namespace detail {
 	        .exponential = 0.f,
 	        .hold = 0.f,
 	        .next = next};
+}
+/// A curve of @p k octaves (fp::Curve) from wherever it starts to @p target in @p length samples, entering @p next.
+[[nodiscard]] inline Segment<f32> curve_segment(f32 target, f32 length, f32 k, f32 next) {
+	return {.target = target, .aim = target, .rate = 1.f, .next = next, .timed = 1.f, .curve = k, .length = length};
+}
+/// A raised cosine from wherever it starts to @p target in @p length samples, entering @p next.
+[[nodiscard]] inline Segment<f32> cosine_segment(f32 target, f32 length, f32 next) {
+	return {.target = target, .aim = target, .rate = 1.f, .next = next, .timed = 1.f, .cosine = 1.f, .length = length};
 }
 /// A stage that stays at @p level until a gate-off.
 [[nodiscard]] inline Segment<f32> hold_segment(f32 level) {
@@ -165,9 +180,10 @@ struct Envelope {
 	using Coefficients = CoefficientsT<f32>;
 
 	/// @brief The current stage and the level, over V. StateT{} rests at 0.
-	/// @details The step reads and writes `value`, `a`, `b`, `threshold` and `direction` only: every stage is the
-	/// affine map `value = b + value·a`, ended when `(value - threshold)·direction >= 0`. The rest is for a stage
-	/// change and the events.
+	/// @details An EXPONENTIAL or LINEAR stage is the affine map `value = b + value·a`, ended when
+	/// `(value - threshold)·direction >= 0`. A timed stage (CURVE or COSINE) sits on the identity map (a = 1, b = 0,
+	/// threshold +infinity) and computes its level from `start`, `target` and `elapsed / length`, ended when `elapsed`
+	/// reaches `length`: a count, which a long stage holds exactly in float where a slope near 1 would not.
 	template <class V>
 	struct StateT {
 		V value{}; ///< The level.
@@ -179,10 +195,17 @@ struct Envelope {
 		V target{};          ///< Where the stage ends: the value lands on it exactly.
 		V next{kOff};        ///< The stage entered at the end of this one.
 		V index{kOff};       ///< The stage's segment index, or kOff at rest.
+		V start{};           ///< A timed stage's level when it began.
+		V elapsed{};         ///< A timed stage's samples so far (fractional after a retime).
+		V length{1.f};       ///< A timed stage's length in samples.
+		V curve{};           ///< A timed CURVE stage's octaves.
+		V timed{};           ///< 1 in a timed stage.
+		V cosine{};          ///< 1 in a timed COSINE stage.
 		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
 		static constexpr auto fields =
-		    std::tuple{&StateT::value,     &StateT::a,      &StateT::b,    &StateT::threshold,
-		               &StateT::direction, &StateT::target, &StateT::next, &StateT::index};
+		    std::tuple{&StateT::value,  &StateT::a,     &StateT::b,     &StateT::threshold, &StateT::direction,
+		               &StateT::target, &StateT::next,  &StateT::index, &StateT::start,     &StateT::elapsed,
+		               &StateT::length, &StateT::curve, &StateT::timed, &StateT::cosine};
 	};
 	using State = StateT<f32>;
 
@@ -216,6 +239,21 @@ struct Envelope {
 		s.target = g.target;
 		s.next = g.next;
 		s.index = i;
+		s.timed = 0.f;
+		s.cosine = 0.f;
+		if (g.timed > 0.5f && !hold) { // the identity map, never reached by value: the count ends it
+			s.a = 1.f;
+			s.b = 0.f;
+			s.direction = 1.f;
+			s.threshold = kNever;
+			s.start = s.value;
+			s.elapsed = 0.f;
+			s.length = g.length < 1.f ? 1.f : g.length;
+			s.curve = g.curve;
+			s.timed = 1.f;
+			s.cosine = g.cosine;
+			return;
+		}
 		if (hold) { // stays where it is, and never reaches
 			s.a = 1.f;
 			s.b = 0.f;
@@ -251,6 +289,33 @@ struct Envelope {
 		}
 	}
 
+	/// @brief A timed stage takes @p length samples (below 1 counts as 1) from now on, keeping the fraction already
+	/// elapsed: its level carries on from where it is. Other stages ignore it.
+	static void retime(State& s, f32 length) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		if (s.timed > 0.5f) {
+			const f32 l = length < 1.f ? 1.f : length;
+			s.elapsed = (s.elapsed / s.length) * l;
+			s.length = l;
+		}
+	}
+	/// @brief A timed stage heads for @p target from now on, keeping its start: it lands there at its end. Other
+	/// stages ignore it.
+	static void retarget(State& s, f32 target) {
+		if (s.timed > 0.5f) {
+			s.target = target;
+		}
+	}
+
+	/// @brief A timed stage's level at its elapsed fraction.
+	[[nodiscard]] static f32 timed_level(const State& s) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		const f32 x = s.elapsed / s.length;
+		const f32 falling =
+		    s.cosine > 0.5f ? 0.5f + (0.5f * std::cos(std::numbers::pi_v<f32> * x)) : curve_falling(s.curve, x);
+		return s.target + ((s.start - s.target) * falling);
+	}
+
 	/// @brief One sample over V: f32 for one copy, Pack<f32, N> for one per lane.
 	template <class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/,
@@ -258,24 +323,42 @@ struct Envelope {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		s.value = mul_add(s.b, s.value, s.a);
 		const auto reached = ((s.value - s.threshold) * s.direction) >= V{0.f};
-		if (any(reached)) {
-			advance(c, s, reached);
+		const auto timed = s.timed > V{0.5f};
+		if (any(reached) || any(timed)) {
+			reach(c, s, reached, timed);
 		}
 		return s.value;
 	}
 
 private:
-	/// One copy: its stage ended.
-	[[gnu::always_inline]] static void advance(const Coefficients& c, State& s, bool /*reached*/) {
-		enter(c, s, s.next, true);
+	/// One copy past one sample of a timed stage: its level, or its end when the count runs out.
+	static void tick(const Coefficients& c, State& s) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		s.elapsed = s.elapsed + 1.f;
+		if (s.elapsed >= s.length) {
+			enter(c, s, s.next, true);
+		}
+		else {
+			s.value = timed_level(s);
+		}
 	}
-	/// Each lane that reached enters its next stage, scalar, from its own program.
+	/// One copy: its stage ended, or it is timed.
+	[[gnu::always_inline]] static void reach(const Coefficients& c, State& s, bool /*reached*/, bool timed) {
+		if (timed) {
+			tick(c, s);
+		}
+		else {
+			enter(c, s, s.next, true);
+		}
+	}
+	/// Each lane that reached enters its next stage, and each timed lane ticks, scalar, from its own program.
 	template <std::size_t N>
-	static void advance(const CoefficientsT<Pack<f32, N>>& c, StateT<Pack<f32, N>>& s, Mask<N> reached) {
+	static void reach(const CoefficientsT<Pack<f32, N>>& c, StateT<Pack<f32, N>>& s, Mask<N> reached, Mask<N> timed) {
 		for (std::size_t l = 0; l < N; ++l) {
-			if (reached.get(l)) {
+			if (reached.get(l) || timed.get(l)) {
 				State lane = get_lane<State>(s, l);
-				enter(get_lane<Coefficients>(c, l), lane, lane.next, true);
+				const Coefficients own = get_lane<Coefficients>(c, l);
+				reach(own, lane, reached.get(l), timed.get(l));
 				set_lane(s, l, lane);
 			}
 		}
