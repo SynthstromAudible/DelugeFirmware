@@ -190,6 +190,9 @@ template <std::size_t N>
 /// curve at the run's start, exactly, and sets the map for the run: affine, the curve's own asymptote (a curve at a
 /// constant rate is one), or quadratic where the run covers so little of the curve that the affine's slope would round.
 /// A stage's end is a run's end, where the lane enters its next stage, the fraction of a sample past the end carried.
+///
+/// **Settings** reach a running stage once a block, in `prepare`: its phase is kept, and a level that is then off its
+/// curve goes in a straight line to where the curve is 32 samples on.
 struct TimedEnvelope {
 	using value_type = f32; ///< The level, 0 to 1 for the shipped programs.
 	using step_type = f32;  ///< One step per sample.
@@ -229,12 +232,13 @@ struct TimedEnvelope {
 		V decrement{};             ///< curve·ln 2 / length.
 		V rate{};                  ///< 1 - 2^(-curve / length).
 		V most{timed::kForever};   ///< The most samples a run of it takes.
+		V gap_left{};              ///< The samples until the level is on its curve again, after a change of settings.
 		V index{timed::kOff};      ///< The stage's segment, or kOff at rest.
 		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
-		static constexpr auto fields = std::tuple{&StateT::v,         &StateT::a,       &StateT::b,     &StateT::c,
-		                                          &StateT::hi,        &StateT::lo,      &StateT::from,  &StateT::target,
-		                                          &StateT::length,    &StateT::inverse, &StateT::curve, &StateT::scale,
-		                                          &StateT::decrement, &StateT::rate,    &StateT::most,  &StateT::index};
+		static constexpr auto fields = std::tuple{
+		    &StateT::v,         &StateT::a,      &StateT::b,      &StateT::c,        &StateT::hi,    &StateT::lo,
+		    &StateT::from,      &StateT::target, &StateT::length, &StateT::inverse,  &StateT::curve, &StateT::scale,
+		    &StateT::decrement, &StateT::rate,   &StateT::most,   &StateT::gap_left, &StateT::index};
 	};
 	using State = StateT<f32>;
 
@@ -251,13 +255,24 @@ struct TimedEnvelope {
 	}
 
 	/// @brief Starts segment 0 from the level there is: a retrigger never jumps.
-	static void gate_on(const Coefficients& c, State& s) { enter(c, s, 0, 0.f, s.v, 0.f); }
+	static void gate_on(const Coefficients& c, State& s) {
+		s.gap_left = 0.f;
+		enter(c, s, 0, 0.f, s.v, 0.f);
+	}
 	/// @brief Enters the release segment from the level there is; a program without one, or an envelope at rest,
 	/// ignores it.
 	static void gate_off(const Coefficients& c, State& s) {
 		if (c.release >= 0.f && s.index >= 0.f) {
+			s.gap_left = 0.f;
 			enter(c, s, 0, c.release, s.v, 0.f);
 		}
+	}
+
+	/// @brief Takes up each lane's running stage's settings where they changed.
+	template <class V>
+	[[gnu::always_inline]] static EmptyBlock prepare(const CoefficientsT<V>& c, StateT<V>& s, std::size_t /*n*/) {
+		follow_settings(c, s);
+		return {};
 	}
 
 	/// @brief The samples to the first lane's stage end, or to where its map must be set again, at most @p n.
@@ -266,7 +281,8 @@ struct TimedEnvelope {
 	                                                                   const StateT<V>& s, std::size_t n) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		const V left = ((V{1.f} - s.hi) - s.lo) * s.length;
-		const f32 samples = detail::least(min(left, s.most));
+		const V most = min(s.most, select(s.gap_left > V{0.f}, s.gap_left, V{timed::kForever}));
+		const f32 samples = detail::least(min(left, most));
 		return samples < static_cast<f32>(n) ? static_cast<std::size_t>(samples) : n;
 	}
 
@@ -274,13 +290,12 @@ struct TimedEnvelope {
 	template <class V>
 	[[gnu::noinline]] static void prepare_run(const CoefficientsT<V>& c, StateT<V>& s, std::size_t m) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		follow_settings(c, s);
 		const V samples{static_cast<f32>(m)};
 		const V rest = (V{1.f} - s.hi) - s.lo;
 		const V exponential = exp2m1(s.curve * rest);
 		const auto curved = abs(s.scale) > V{0.f};
 		const V span = s.from - s.target;
-		s.v = s.target + (span * select(curved, exponential * s.scale, rest));
+		const V level = s.target + (span * select(curved, exponential * s.scale, rest));
 		// Where the run covers little of the curve: its slope and curvature there
 		const V slope = select(curved, ((span * s.scale) * (exponential + V{1.f})) * s.decrement, span * s.inverse);
 		const V curvature = slope * s.decrement;
@@ -288,6 +303,21 @@ struct TimedEnvelope {
 		s.a = select(gentle, V{1.f}, V{1.f} - s.rate);
 		s.b = select(gentle, V{0.f} - (slope + (curvature * V{0.5f})), (s.target - (span * s.scale)) * s.rate);
 		s.c = select(gentle, curvature, V{0.f});
+		const auto off = s.gap_left > V{0.f};
+		if (any(off)) [[unlikely]] {
+			// A line from the level to where the curve is when the gap is closed, or to the stage's target if that is
+			// first
+			const V then = max(rest - (s.gap_left * s.inverse), V{0.f});
+			const V aim = s.target + (span * select(curved, exp2m1(s.curve * then) * s.scale, then));
+			s.a = select(off, V{1.f}, s.a);
+			s.b = select(off, (aim - s.v) * gather(kReciprocals.data(), s.gap_left), s.b);
+			s.c = select(off, V{0.f}, s.c);
+			s.v = select(off, s.v, level);
+			s.gap_left = max(s.gap_left - samples, V{0.f});
+		}
+		else {
+			s.v = level;
+		}
 		// The phase at the run's end, the rounding kept
 		const V moved = (samples * s.inverse) + s.lo;
 		const V hi = s.hi + moved;
@@ -317,6 +347,18 @@ private:
 	/// over 1, so rounding grows with it.
 	static constexpr f32 kGrowingLength = 1000.f;
 	static constexpr f32 kGrowingRun = 32.f;
+	/// The samples a gap is closed over.
+	static constexpr f32 kGapSamples = 32.f;
+	/// A gap under this is the arithmetic's own.
+	static constexpr f32 kNoGap = 0x1p-18f;
+	/// 1 / n for a gap of n samples left.
+	static constexpr std::array<f32, 33> kReciprocals = [] {
+		std::array<f32, 33> reciprocals{};
+		for (std::size_t n = 1; n < reciprocals.size(); ++n) {
+			reciprocals[n] = 1.f / static_cast<f32>(n);
+		}
+		return reciprocals;
+	}();
 
 	/// Whether lane @p l 's comparison held.
 	[[nodiscard]] [[gnu::always_inline]] static bool held(bool m, std::size_t /*l*/) { return m; }
@@ -337,9 +379,42 @@ private:
 			if (detail::lane(g.target, l) != detail::lane(s.target, l)
 			    || detail::lane(g.length, l) != detail::lane(s.length, l)
 			    || detail::lane(g.curve, l) != detail::lane(s.curve, l)) [[unlikely]] {
-				load(c, s, l, index);
+				take_up(c, s, l, index);
 			}
 		}
+	}
+
+	/// Lane @p l 's running stage, segment @p i, with its settings as they are now, from where its phase is: ended, if
+	/// no sample of it is left. What the level is then off its curve is the gap.
+	template <class V>
+	[[gnu::noinline]] static void take_up(const CoefficientsT<V>& c, StateT<V>& s, std::size_t l, f32 i) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		const f32 before = detail::lane(s.length, l);
+		load(c, s, l, i);
+		if (const f32 hi = detail::lane(s.hi, l); hi < 0.f) {
+			// Starting between samples: that fraction of one, whatever the length
+			detail::set_lane_of(s.hi, l, (hi * before) * detail::lane(s.inverse, l));
+		}
+		const f32 rest = (1.f - detail::lane(s.hi, l)) - detail::lane(s.lo, l);
+		const f32 left = rest * detail::lane(s.length, l);
+		if (left < 1.f) {
+			const timed::Segment<V>& g = c.segments[static_cast<std::size_t>(i)];
+			enter(c, s, l, detail::lane(g.next, l), detail::lane(s.target, l), 0.f - left);
+		}
+		const f32 gap = detail::lane(s.v, l) - curve_level(s, l);
+		const bool closes = gap > kNoGap || gap < -kNoGap;
+		detail::set_lane_of(s.gap_left, l, closes ? kGapSamples : 0.f);
+	}
+
+	/// The level lane @p l 's curve gives at its phase.
+	template <class V>
+	[[nodiscard]] static f32 curve_level(const StateT<V>& s, std::size_t l) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		const f32 rest = (1.f - detail::lane(s.hi, l)) - detail::lane(s.lo, l);
+		const f32 scale = detail::lane(s.scale, l);
+		const f32 shape = scale == 0.f ? rest : exp2m1(detail::lane(s.curve, l) * rest) * scale;
+		const f32 target = detail::lane(s.target, l);
+		return target + ((detail::lane(s.from, l) - target) * shape);
 	}
 
 	/// Segment @p i of lane @p l as its running stage: its settings and what is computed from them.

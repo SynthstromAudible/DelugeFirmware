@@ -304,6 +304,165 @@ describe timed_envelope_spec_body("fp::TimedEnvelope", ${
 		}
 	});
 
+	it("moves a held level to a changed one over 32 samples, at any block size", _ {
+		for (const std::size_t n : {std::size_t{1}, std::size_t{7}, std::size_t{32}, std::size_t{128}}) {
+			Mono<TimedEnvelope> env;
+			env.configure({.program = timed::adsr(8.f, 8.f, 0.9f, 100.f, {})});
+			env.on<&TimedEnvelope::gate_on>();
+			std::vector<f32> out(n);
+			for (std::size_t t = 0; t < 512; t += n) {
+				env.render_block(fp::Buffer{out});
+			}
+			env.configure({.program = timed::adsr(8.f, 8.f, 0.4f, 100.f, {})});
+			std::vector<f32> all;
+			while (all.size() < 64) {
+				env.render_block(fp::Buffer{out});
+				all.insert(all.end(), out.begin(), out.end());
+			}
+			for (std::size_t i = 0; i < 64; ++i) {
+				const double want = i < 32 ? 0.9 - (0.5 * static_cast<double>(i + 1) / 32.0) : 0.4;
+				expect(all[i]).to_be_within(kTolerance).of(want);
+			}
+		}
+	});
+
+	it("goes in a line from where it was to where a changed curve is 32 samples on, and along it", _ {
+		for (const f32 k : kCurves) {
+			for (const std::size_t n : {std::size_t{1}, std::size_t{32}, std::size_t{128}}) {
+				const auto program = [](f32 curve) {
+					return timed::adsr(8.f, 1024.f, 0.25f, 100.f, {.attack = 0.f, .decay = curve});
+				};
+				Mono<TimedEnvelope> env;
+				env.configure({.program = program(4.f)});
+				env.on<&TimedEnvelope::gate_on>();
+				std::vector<f32> out(n);
+				for (std::size_t t = 0; t < 264 - (264 % n); t += n) {
+					env.render_block(fp::Buffer{out});
+				}
+				const double at = 264.0 - static_cast<double>(264 % n) - 8.0;
+				const double before = env.state().v;
+				const double aim = 0.25 + (0.75 * falling(k, (at + 32.0) / 1024.0));
+				env.configure({.program = program(k)});
+				std::vector<f32> all;
+				while (all.size() < 128) {
+					env.render_block(fp::Buffer{out});
+					all.insert(all.end(), out.begin(), out.end());
+				}
+				for (std::size_t i = 0; i < 128; ++i) {
+					const double done = static_cast<double>(i + 1) / 32.0;
+					const double exact = 0.25 + (0.75 * falling(k, (at + static_cast<double>(i + 1)) / 1024.0));
+					// The curve it was on is the one it stays on
+					const bool same = k == 4.f;
+					expect(all[i]).to_be_within(kTolerance).of(
+					    done < 1.0 && !same ? before + ((aim - before) * done) : exact);
+				}
+			}
+		}
+	});
+
+	// A stage's length from one sample to a minute, another every block
+	it("is retimed every block without a jump, and ends once", _ {
+		for (const f32 k : kCurves) {
+			for (const std::size_t n : {std::size_t{1}, std::size_t{32}, std::size_t{128}}) {
+				Mono<TimedEnvelope> env;
+				const std::array<f32, 6> lengths{5000.f, 60.f * 44100.f, 300.f, 20000.f, 5000.f, 1e9f};
+				double position = 0.0; // of the decay, at the last sample
+				std::vector<f32> out(n);
+				env.configure({.program = timed::adsr(1.f, lengths[0], 0.25f, 100.f, {.attack = 0.f, .decay = k})});
+				env.on<&TimedEnvelope::gate_on>();
+				std::size_t t = 0;
+				for (std::size_t block = 0; block < 1200 && env.state().index < 2.f; ++block) {
+					const f32 length = lengths[block % lengths.size()];
+					env.configure({.program = timed::adsr(1.f, length, 0.25f, 100.f, {.attack = 0.f, .decay = k})});
+					env.render_block(fp::Buffer{out});
+					for (const f32 y : out) {
+						++t;
+						if (t > 1) {
+							position += 1.0 / length;
+						}
+						const double exact = position < 1.0 ? 0.25 + (0.75 * falling(k, position)) : 0.25;
+						expect(y).to_be_within(kTolerance).of(exact);
+					}
+				}
+			}
+		}
+	});
+
+	it("ends a stage at once that is shortened past its end, and goes on from its level", _ {
+		for (const std::size_t n : {std::size_t{1}, std::size_t{32}, std::size_t{128}}) {
+			Mono<TimedEnvelope> env;
+			std::vector<f32> out(n);
+			env.configure({.program = timed::adsr(1.f, 10000.f, 0.25f, 100.f, {})});
+			env.on<&TimedEnvelope::gate_on>();
+			for (std::size_t t = 0; t < 1280; t += n) {
+				env.render_block(fp::Buffer{out});
+			}
+			f32 last = out[n - 1];
+			const f32 begun = last;
+			env.configure({.program = timed::adsr(1.f, 1.f, 0.25f, 100.f, {})});
+			std::size_t t = 0;
+			while (t < 64) {
+				env.render_block(fp::Buffer{out});
+				for (const f32 y : out) {
+					to_be_at_most(expect(std::abs(y - last)), ((begun - 0.25) / 32.0) + kTolerance);
+					last = y;
+				}
+				t += n;
+			}
+			expect(env.state().index).to_equal(2.f);
+			expect(last).to_be_within(kTolerance).of(0.25f);
+		}
+	});
+
+	it("starts a stage on time that is lengthened before its first sample", _ {
+		for (const f32 fraction : {0.05f, 0.5f, 0.95f}) {
+			Mono<TimedEnvelope> env;
+			std::vector<f32> out(32);
+			env.configure({.program = timed::adsr(32.f + fraction, 64.f, 0.25f, 100.f, {.attack = 0.f, .decay = 8.f})});
+			env.on<&TimedEnvelope::gate_on>();
+			env.render_block(fp::Buffer{out}); // the attack ends before the next sample
+			env.configure({.program = timed::adsr(32.f + fraction, 1e5f, 0.25f, 100.f, {.attack = 0.f, .decay = 8.f})});
+			env.render_block(fp::Buffer{out});
+			for (const f32 y : out) {
+				to_be_at_most(expect(y), 1.f);
+			}
+			// At its 64th sample it has run 64 less its attack, whatever the length
+			expect(env.state().hi * 1e5f).to_be_within(0.05).of(32.0 - fraction);
+		}
+	});
+
+	it("is bounded, sample to sample, when every setting changes every block", _ {
+		uint32_t seed = 12345;
+		const auto random = [&seed](f32 low, f32 high) {
+			seed = (seed * 1664525U) + 1013904223U;
+			return low + ((high - low) * static_cast<f32>(seed >> 8) / 16777216.f);
+		};
+		Mono<TimedEnvelope> env;
+		std::vector<f32> out(32);
+		f32 last = 0.f;
+		for (std::size_t block = 0; block < 4000; ++block) {
+			const f32 k = random(-12.5f, 12.5f);
+			const f32 length = std::exp2(random(6.f, 18.f));
+			const f32 sustain = random(0.f, 1.f);
+			env.configure(
+			    {.program = timed::adsr(length, length, sustain, length, {.attack = k, .decay = k, .release = k})});
+			if (block % 37 == 0) {
+				env.on<&TimedEnvelope::gate_on>();
+			}
+			if (block % 37 == 25) {
+				env.on<&TimedEnvelope::gate_off>();
+			}
+			env.render_block(fp::Buffer{out});
+			// The steepest a curve of 12.5 octaves moves in a sample of 64, and a 32nd of the most a gap can be
+			for (const f32 y : out) {
+				to_be_at_most(expect(std::abs(y - last)), (12.5 * std::numbers::ln2 / 64.0) + (1.0 / 32.0) + kTolerance);
+				to_be_at_least(expect(y), -kTolerance);
+				to_be_at_most(expect(y), 1.0 + kTolerance);
+				last = y;
+			}
+		}
+	});
+
 	it("steps its lanes, in different stages, as scalar copies at the lanes' split", _ {
 		const std::array<timed::Program, 4> programs{
 		    timed::adsr(20.5f, 310.f, 0.5f, 60.f, {}), timed::four_segment({0.9f, 0.4f, 0.6f, 0.1f}, {30.f, 25.f, 40.f, 50.f}),
