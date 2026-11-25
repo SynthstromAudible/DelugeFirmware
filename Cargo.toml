@@ -34,6 +34,7 @@ members = [
     "src/storage/sample/convert",
     "src/storage/sample/fill",
     "src/storage/sample/reader",
+    "src/storage/sample/peaks",
     "src/storage/sample/source",
     "src/platform/device",
     "src/platform/host/link",
@@ -76,6 +77,8 @@ panic = "abort"
 opt-level = "s"
 [profile.release.package.deluge_storage_sample_reader]
 opt-level = "s"
+[profile.release.package.deluge_storage_sample_peaks]
+opt-level = "s"
 [profile.release.package.deluge_storage_stream]
 opt-level = "s"
 [profile.release.package.deluge_storage_sample_source]
@@ -109,6 +112,8 @@ opt-level = 0
 opt-level = 0
 [profile.test.package.deluge_storage_sample_reader]
 opt-level = 0
+[profile.test.package.deluge_storage_sample_peaks]
+opt-level = 0
 [profile.test.package.deluge_storage_sample_source]
 opt-level = 0
 [profile.test.package.deluge_test_rust]
@@ -140,6 +145,8 @@ panic = "unwind"
 opt-level = 3
 [profile.harness.package.deluge_storage_sample_reader]
 opt-level = 3
+[profile.harness.package.deluge_storage_sample_peaks]
+opt-level = 3
 [profile.harness.package.deluge_storage_stream]
 opt-level = 3
 [profile.harness.package.deluge_storage_sample_source]
@@ -166,6 +173,8 @@ panic = "abort"
 [profile.host-test.package.deluge_storage_sample_fill]
 opt-level = 3
 [profile.host-test.package.deluge_storage_sample_reader]
+opt-level = 3
+[profile.host-test.package.deluge_storage_sample_peaks]
 opt-level = 3
 [profile.host-test.package.deluge_storage_stream]
 opt-level = 3

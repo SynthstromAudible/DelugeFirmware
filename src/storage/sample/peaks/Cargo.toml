@@ -1,0 +1,35 @@
+# A sample's waveform peak index (`deluge_storage_sample_peaks.h`): one lock-free pyramid of 16-bit peaks per
+# sample, measured in frames, filled by the cluster fill, the recorder and the background scan, and read by the
+# waveform columns.
+#
+# A plain `no_std` rlib with no `#[panic_handler]`: the final artifact provides one. It allocates only through the
+# callbacks the app installs (`deluge_peaks_init`), never through a global allocator.
+[package]
+name = "deluge_storage_sample_peaks"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+name = "deluge_storage_sample_peaks"
+crate-type = ["rlib"]
+
+[dev-dependencies]
+proptest = "1"
+# The integration tests need the host allocator and the test accessors, which the library itself builds only under
+# `test_support`.
+deluge_storage_sample_peaks = { path = ".", features = ["test_support"] }
+
+[target.'cfg(loom)'.dev-dependencies]
+loom = "0.7.2"
+
+[features]
+default = []
+## Export the C ABI (`#[no_mangle]`). The BSP and the unit-test umbrella turn it on.
+c_abi = []
+## The host allocator (`mem::host`), the test accessors and `deluge_peaks_fill_uniform`. Host test builds only.
+test_support = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(loom)"] }

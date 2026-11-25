@@ -1414,6 +1414,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "deluge_storage_sample_peaks"
+version = "0.1.0"
+dependencies = [
+ "deluge_storage_sample_peaks",
+ "loom",
+ "proptest",
+]
+
+[[package]]
 name = "deluge_storage_sample_reader"
 version = "0.1.0"
 dependencies = [
