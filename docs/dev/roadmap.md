@@ -252,7 +252,7 @@ budget.
 ### Track B: the float instrument
 
 1. The voice pool: banks per sound, stage-major render, and a part-level configure (a whole-chain reconfigure costs
-   about 3,400 cycles per lane per block).
+   about 2,000 cycles per lane per block).
 2. Ladder oversampling: Kate's call (aliasing measured at −26 to −27 dB at resonance 3.5).
 3. Its rule set: the uniform matrix rules parked on `window/matrix` (Tasks 3 to 5), and a float matrix evaluator.
 4. The instrument itself, built against the L3 interface from the start **(proposed)**: two different instruments
