@@ -278,7 +278,7 @@ uint32_t SoundVoiceHost::next_voice_order() {
 }
 
 uint32_t SoundVoiceHost::cycles() {
-	return deluge_cycle_count();
+	return deluge_work_cycle_count(); // what a note-on costs, not the USB interrupt inside it
 }
 
 void SoundVoiceHost::note_started(SoundVoice& voice) const {

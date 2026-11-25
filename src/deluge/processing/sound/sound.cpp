@@ -1812,7 +1812,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 #if defined(DELUGE_STREAM_BENCH)
 		voiceHost_.benchFrames = sound_mono.size();
 #endif
-		const uint32_t voicesStart = deluge_cycle_count();
+		// Without the USB interrupt's time: it lands in a Sound's voices by chance, and is not what they cost
+		const uint32_t voicesStart = deluge_work_cycle_count();
 		const uint32_t voicesRendered =
 		    synth_.voices().render(controlBlock, synth_.config(), blockValues,
 		                           deluge::synth::VoiceRenderArgs{
@@ -1828,7 +1829,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		                               .noise = &deluge::synth_noise,
 		                           },
 		                           modelStackWithSoundFlags);
-		voiceCost_.add_render(deluge_cycle_count() - voicesStart,
+		voiceCost_.add_render(deluge_work_cycle_count() - voicesStart,
 		                      voicesRendered * static_cast<uint32_t>(sound_mono.size()));
 
 		// We know that nothing's patched to pan, so can read it in this very basic way.

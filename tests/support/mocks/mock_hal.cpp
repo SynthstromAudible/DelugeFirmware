@@ -34,6 +34,9 @@ extern "C" uint64_t deluge_clock_now() noexcept {
 extern "C" uint32_t deluge_cycle_count() noexcept {
 	return 0;
 }
+extern "C" uint32_t deluge_work_cycle_count() noexcept {
+	return 0;
+}
 extern "C" uint32_t deluge_cycle_hz() noexcept {
 	return 0;
 }
