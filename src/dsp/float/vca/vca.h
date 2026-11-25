@@ -21,6 +21,8 @@
 #include "dsp/core/poly_kernel.h"
 #include "dsp/core/sample.h"
 
+#include <concepts>
+#include <cstddef>
 #include <tuple>
 #include <type_traits>
 
@@ -30,15 +32,17 @@
 namespace deluge::dsp::fp {
 
 /// @brief The signal times an envelope generator's level, times a gain: y = (x · e) · gain, in that order.
-/// @details @p E is an unmoded generator kernel with no per-block values (an @ref Envelope). Its coefficients and
-/// state nest in the Vca's, so a lane carries its own program, stage and gain, and its events (`gate_on`, `gate_off`)
-/// are forwarded: `on<&Vca<E>::gate_on>` reaches the envelope of a Mono, or of one lane of a Poly or Bank. The
-/// envelope steps once per sample, whatever the signal.
+/// @details @p E is an unmoded generator kernel with runs and no per-block values (an @ref Envelope). Its coefficients
+/// and state nest in the Vca's, so a lane carries its own program, stage and gain; its `prepare`, its runs and its
+/// events
+/// (`gate_on`, `gate_off`, `fade`) are forwarded: `on<&Vca<E>::gate_on>` reaches the envelope of a Mono, or of one lane
+/// of a Poly or Bank. The envelope steps once per sample, whatever the signal.
 /// @tparam E The envelope part.
 template <class E>
 struct Vca {
 	static_assert(generator_kernel<E> && poly_kernel<E>, "a Vca's envelope part is a float generator kernel");
-	static_assert(!deluge::dsp::detail::has_modes<E> && !deluge::dsp::detail::declares_prepare<E>,
+	static_assert(runs_kernel<E>, "a Vca's envelope part has runs");
+	static_assert(!deluge::dsp::detail::has_modes<E> && std::same_as<kernel_block_t<E>, EmptyBlock>,
 	              "a Vca's envelope part has no modes and no per-block values");
 
 	using value_type = f32; ///< A sample.
@@ -87,6 +91,29 @@ struct Vca {
 	static void gate_off(const Coefficients& c, State& s) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		E::gate_off(c.envelope, s.envelope);
+	}
+
+	/// @brief Fades the envelope part to 0 in @p length samples.
+	static void fade(State& s, f32 length) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		E::fade(s.envelope, length);
+	}
+
+	/// @brief The envelope part's `prepare`.
+	template <class V>
+	[[gnu::always_inline]] static EmptyBlock prepare(const CoefficientsT<V>& c, StateT<V>& s, std::size_t n) {
+		return kernel_ops::prepare_block<E>(c.envelope, s.envelope, n);
+	}
+	/// @brief The envelope part's run.
+	template <class V>
+	[[nodiscard]] [[gnu::always_inline]] static std::size_t run_length(const CoefficientsT<V>& c, const StateT<V>& s,
+	                                                                   std::size_t n) {
+		return kernel_ops::run_length<E>(c.envelope, s.envelope, n);
+	}
+	/// @brief The envelope part prepared for a run of @p m samples.
+	template <class V>
+	[[gnu::always_inline]] static void prepare_run(const CoefficientsT<V>& c, StateT<V>& s, std::size_t m) {
+		kernel_ops::prepare_run<E>(c.envelope, s.envelope, m);
 	}
 
 	/// @brief One sample over V: f32 for one copy, Pack<f32, N> for one per lane.

@@ -42,6 +42,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "scalar_lanes.h"
+
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -63,7 +65,7 @@ static_assert(poly_kernel<BlepVoice> && poly_kernel<TableVoice> && poly_kernel<S
 static_assert(generator_kernel<BlepVoice> && processor_kernel<Smoothed>);
 static_assert(std::same_as<BlepVoice::Coefficients, BlepVoice::CoefficientsT<f32>>
               && std::same_as<BlepVoice::State, BlepVoice::StateT<f32>>);
-static_assert(detail::declares_prepare<Smoothed> && !detail::declares_prepare<BlepVoice>);
+static_assert(detail::declares_prepare<Smoothed> && !runs_kernel<Smoothed> && runs_kernel<BlepVoice>);
 
 constexpr std::size_t kBlock = 37;
 constexpr std::size_t kBlocks = 12;
@@ -121,11 +123,11 @@ template <class T, std::size_t K>
 	const auto t = static_cast<f32>(lane);
 	switch (lane % 3) {
 	case 0:
-		return fp::adsr(20.f + (7.f * t), 40.f, 0.5f, 60.f + (11.f * t));
+		return fp::adsr(20.f + (7.f * t), 140.f, 0.5f, 160.f + (11.f * t), {});
 	case 1:
 		return fp::four_segment({0.9f, 0.4f, 0.6f, 0.1f}, {30.f, 25.f + t, 40.f, 50.f});
 	default:
-		return fp::asr(15.f + t, 90.f);
+		return fp::asr(15.f + t, 290.f, {.attack = -3.f});
 	}
 }
 
@@ -230,15 +232,16 @@ void expect_voice_equals_parts(auto& self, const typename Voice::Settings& setti
 }
 
 /// N lanes of a voice under Poly, each with its own settings (one mode for all) and gated at its own blocks through
-/// part_event, against N Mono voices: every sample of 12 blocks of 37, and each lane's final state, equal bit for bit.
+/// part_event, against scalar voices at the lanes' split: every sample of 12 blocks of 37, and each lane's final state,
+/// equal bit for bit.
 template <class Voice, std::size_t N>
-void expect_voice_lanes_equal_mono(auto& self, auto settings) {
+void expect_voice_lanes_equal_scalars(auto& self, auto settings) {
 	fp::FlushToZero ftz;
 	Poly<Voice, N> poly;
-	std::array<Mono<Voice>, N> mono{};
+	run_test::ScalarLanes<Voice, N> mono;
 	for (std::size_t l = 0; l < N; ++l) {
 		poly.configure(l, settings(l));
-		mono[l].configure(settings(l));
+		mono.configure(l, settings(l));
 	}
 	bool audible = false;
 	for (std::size_t b = 0; b < kBlocks; ++b) {
@@ -246,22 +249,23 @@ void expect_voice_lanes_equal_mono(auto& self, auto settings) {
 			const int g = gate(l, b);
 			if (g > 0) {
 				poly.template on<part_event<2, &VcaEnv::gate_on>>(l);
-				mono[l].template on<part_event<2, &VcaEnv::gate_on>>();
+				mono.template on<part_event<2, &VcaEnv::gate_on>>(l);
 			}
 			else if (g < 0) {
 				poly.template on<part_event<2, &VcaEnv::gate_off>>(l);
-				mono[l].template on<part_event<2, &VcaEnv::gate_off>>();
+				mono.template on<part_event<2, &VcaEnv::gate_off>>(l);
 			}
 		}
 		std::array<std::vector<f32>, N> out{}, ref{};
-		std::array<fp::Buffer, N> spans{};
+		std::array<fp::Buffer, N> spans{}, refs{};
 		for (std::size_t l = 0; l < N; ++l) {
 			out[l].resize(kBlock);
 			ref[l].resize(kBlock);
 			spans[l] = fp::Buffer{out[l]};
-			mono[l].render_block(fp::Buffer{ref[l]});
+			refs[l] = fp::Buffer{ref[l]};
 		}
 		poly.render_block(spans);
+		mono.render_block(refs);
 		for (std::size_t l = 0; l < N; ++l) {
 			for (std::size_t i = 0; i < kBlock; ++i) {
 				expect(bits(out[l][i])).to_equal(bits(ref[l][i]));
@@ -270,7 +274,7 @@ void expect_voice_lanes_equal_mono(auto& self, auto settings) {
 		}
 	}
 	for (std::size_t l = 0; l < N; ++l) {
-		expect(same_fields(poly.state(l), mono[l].state())).to_be_true();
+		expect(same_fields(poly.state(l), mono.state(l))).to_be_true();
 	}
 	expect(audible).to_be_true();
 }
@@ -370,27 +374,27 @@ describe float_voice_spec_body("float voice", ${
 	});
 
 	context("under Poly", _ {
-		it("runs two Blep voices, each lane bit for bit its Mono", _ {
-			expect_voice_lanes_equal_mono<BlepVoice, 2>(self, blep(BlepOscillator::Mode::SAW, Svf::Mode::LOW_PASS));
+		it("runs two Blep voices, each lane bit for bit a scalar at the lanes' split", _ {
+			expect_voice_lanes_equal_scalars<BlepVoice, 2>(self, blep(BlepOscillator::Mode::SAW, Svf::Mode::LOW_PASS));
 		});
-		it("runs four Blep voices, each lane bit for bit its Mono", _ {
-			expect_voice_lanes_equal_mono<BlepVoice, 4>(self, blep(BlepOscillator::Mode::SAW, Svf::Mode::LOW_PASS));
+		it("runs four Blep voices, each lane bit for bit a scalar at the lanes' split", _ {
+			expect_voice_lanes_equal_scalars<BlepVoice, 4>(self, blep(BlepOscillator::Mode::SAW, Svf::Mode::LOW_PASS));
 		});
-		it("runs four Blep voices at the chain's last mode, each lane bit for bit its Mono", _ {
-			expect_voice_lanes_equal_mono<BlepVoice, 4>(self, blep(BlepOscillator::Mode::PULSE, Svf::Mode::NOTCH));
+		it("runs four Blep voices at the chain's last mode, each lane bit for bit a scalar at the lanes' split", _ {
+			expect_voice_lanes_equal_scalars<BlepVoice, 4>(self, blep(BlepOscillator::Mode::PULSE, Svf::Mode::NOTCH));
 		});
-		it("runs two Table voices, each lane bit for bit its Mono", _ {
-			expect_voice_lanes_equal_mono<TableVoice, 2>(self, table(Svf::Mode::LOW_PASS));
+		it("runs two Table voices, each lane bit for bit a scalar at the lanes' split", _ {
+			expect_voice_lanes_equal_scalars<TableVoice, 2>(self, table(Svf::Mode::LOW_PASS));
 		});
-		it("runs four Table voices, each lane bit for bit its Mono", _ {
-			expect_voice_lanes_equal_mono<TableVoice, 4>(self, table(Svf::Mode::BAND_PASS));
+		it("runs four Table voices, each lane bit for bit a scalar at the lanes' split", _ {
+			expect_voice_lanes_equal_scalars<TableVoice, 4>(self, table(Svf::Mode::BAND_PASS));
 		});
-		it("runs two ladder voices, each lane bit for bit its Mono", _ {
-			expect_voice_lanes_equal_mono<LadderVoice, 2>(self, ladder(BlepOscillator::Mode::SAW, fp::Ladder::Mode::CLEAN));
+		it("runs two ladder voices, each lane bit for bit a scalar at the lanes' split", _ {
+			expect_voice_lanes_equal_scalars<LadderVoice, 2>(self, ladder(BlepOscillator::Mode::SAW, fp::Ladder::Mode::CLEAN));
 		});
-		it("runs four ladder voices in each flavour, each lane bit for bit its Mono", _ {
-			expect_voice_lanes_equal_mono<LadderVoice, 4>(self, ladder(BlepOscillator::Mode::SAW, fp::Ladder::Mode::CLEAN));
-			expect_voice_lanes_equal_mono<LadderVoice, 4>(self, ladder(BlepOscillator::Mode::PULSE, fp::Ladder::Mode::DRIVE));
+		it("runs four ladder voices in each flavour, each lane bit for bit a scalar at the lanes' split", _ {
+			expect_voice_lanes_equal_scalars<LadderVoice, 4>(self, ladder(BlepOscillator::Mode::SAW, fp::Ladder::Mode::CLEAN));
+			expect_voice_lanes_equal_scalars<LadderVoice, 4>(self, ladder(BlepOscillator::Mode::PULSE, fp::Ladder::Mode::DRIVE));
 		});
 		it("prepares a chain's packed lanes once per block, each lane bit for bit its Mono", _ {
 			expect_prepared_lanes_equal_mono<2>(self);
@@ -436,8 +440,8 @@ describe float_voice_spec_body("float voice", ${
 				expect(same_fields(get_lane<BlepVoice::State>(packed_s, l), s[l])).to_be_true();
 			}
 			// Each lane's program differs, so a lane read from the wrong place could not match.
-			expect(bits(get<2>(c[0]).envelope.segments[0].rate))
-			    .not_().to_equal(bits(get<2>(c[2]).envelope.segments[0].rate));
+			expect(bits(get<2>(c[0]).envelope.segments[0].length))
+			    .not_().to_equal(bits(get<2>(c[2]).envelope.segments[0].length));
 		});
 	});
 

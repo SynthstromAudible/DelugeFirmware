@@ -2205,16 +2205,23 @@ enum class FloatGate : uint8_t {
 }
 
 /// @brief Lane @p lane's envelope program in the float voice cases: ADSR, four-segment and ASR in turn, each with
-/// times (in samples) that differ by lane.
+/// lengths (in samples) that differ by lane. A rise of time constant t to 1 aiming at 1.2 lasts t·ln 6 and bends by
+/// log2 6 octaves; a fall of one to within 1e-5 of it lasts t·ln 1e5 and bends by log2 1e5: the same shapes, as
+/// segments.
 [[nodiscard]] inline dsp::fp::Program float_voice_program(std::size_t lane) {
 	const auto t = static_cast<dsp::f32>(lane);
+	constexpr dsp::f32 kRise = 1.791759f;         // ln 6
+	constexpr dsp::f32 kRiseOctaves = 2.5849625f; // log2 6
+	constexpr dsp::f32 kFall = 11.512925f;        // ln 1e5
+	constexpr dsp::f32 kFallOctaves = 16.609640f; // log2 1e5
+	constexpr dsp::fp::Curves kCurves{.attack = kRiseOctaves, .decay = kFallOctaves, .release = kFallOctaves};
 	switch (lane % 3) {
 	case 0:
-		return dsp::fp::adsr(20.f + (7.f * t), 40.f, 0.5f, 60.f + (11.f * t));
+		return dsp::fp::adsr((20.f + (7.f * t)) * kRise, 40.f * kFall, 0.5f, (60.f + (11.f * t)) * kFall, kCurves);
 	case 1:
 		return dsp::fp::four_segment({0.9f, 0.4f, 0.6f, 0.1f}, {30.f, 25.f + t, 40.f, 50.f});
 	default:
-		return dsp::fp::asr(15.f + t, 90.f);
+		return dsp::fp::asr((15.f + t) * kRise, 90.f * kFall, kCurves);
 	}
 }
 
