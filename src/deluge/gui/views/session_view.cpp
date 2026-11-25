@@ -1127,8 +1127,8 @@ void SessionView::clipPressEnded() {
 
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		// Reordering keeps the held column under the finger, temporarily allowing overscroll.
-		const int32_t scroll = std::clamp<int32_t>(currentSong->songGridScrollX, 0,
-		                                           std::max<int32_t>(0, int32_t(gridTrackCount()) - kDisplayWidth + 1));
+		const auto scroll = std::clamp<int32_t>(currentSong->songGridScrollX, 0,
+		                                        std::max<int32_t>(0, gridTrackCount() - kDisplayWidth + 1));
 		if (scroll != currentSong->songGridScrollX) {
 			currentSong->songGridScrollX = scroll;
 			requestRendering(getRootUI());
@@ -4082,7 +4082,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	}
 
 	// Temporary blank columns to the left of the first track are not clip slots.
-	if (on && x < kDisplayWidth && gridModeActive != SessionGridModeMacros && x + currentSong->songGridScrollX < 0) {
+	if (on != 0 && x < kDisplayWidth && gridModeActive != SessionGridModeMacros
+	    && x + currentSong->songGridScrollX < 0) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -4224,12 +4225,11 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 
 			// Create new track on empty slots
 			if (clip == nullptr) {
-				uint32_t trackCount = gridTrackCount();
-				auto trackIndex = gridTrackIndexFromX(x, trackCount);
+				const int32_t track_count = gridTrackCount();
 
 				// Create clip if it does not exist
-				if ((x + currentSong->songGridScrollX) <= trackCount) {
-					Output* track = gridTrackFromX(x, trackCount);
+				if ((x + currentSong->songGridScrollX) <= track_count) {
+					Output* track = gridTrackFromX(x, track_count);
 					clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
 					// Immediately start playing it for new tracks
 					if (clip != nullptr && track == nullptr) {
@@ -4704,15 +4704,15 @@ ActionResult SessionView::gridMoveHeldTrack(int32_t offset) {
 	performActionOnPadRelease = false;
 	Output* output = clip->output;
 	const int32_t count = gridTrackCount();
-	const int32_t oldIndex = gridTrackIndexFromTrack(output, count);
-	if (oldIndex < 0 || count == 0) {
+	const int32_t old_index = gridTrackIndexFromTrack(output, count);
+	if (old_index < 0 || count == 0) {
 		return ActionResult::DEALT_WITH;
 	}
-	const int32_t newIndex = std::clamp<int32_t>(oldIndex + offset, 0, count - 1);
-	if (newIndex == oldIndex) {
+	const auto new_index = std::clamp<int32_t>(old_index + offset, 0, count - 1);
+	if (new_index == old_index) {
 		return ActionResult::DEALT_WITH;
 	}
-	Output* neighbour = gridTrackFromIndex(newIndex, count);
+	Output* neighbour = gridTrackFromIndex(new_index, count);
 	actionLogger.deleteAllLogs(); // As in arranger, output reordering is not undoable.
 
 	// Grid columns run opposite to the output list. Move past the target visible
@@ -4726,14 +4726,14 @@ ActionResult SessionView::gridMoveHeldTrack(int32_t offset) {
 	while (*link != neighbour) {
 		link = &(*link)->next;
 	}
-	if (newIndex < oldIndex) {
+	if (new_index < old_index) {
 		link = &neighbour->next;
 	}
 	output->next = *link;
 	*link = output;
 
 	// Keep the clip at the physical press coordinates for further turns and release.
-	currentSong->songGridScrollX += newIndex - oldIndex;
+	currentSong->songGridScrollX += new_index - old_index;
 	requestRendering(getRootUI());
 	return ActionResult::DEALT_WITH;
 }
@@ -4934,14 +4934,14 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW);
 }
 
-const size_t SessionView::gridTrackCount() const {
-	size_t count = 0;
-	Output* currentTrack = currentSong->firstOutput;
-	while (currentTrack != nullptr) {
-		if (currentTrack->getActiveClip() != nullptr) {
+int32_t SessionView::gridTrackCount() {
+	int32_t count = 0;
+	Output* current_track = currentSong->firstOutput;
+	while (current_track != nullptr) {
+		if (current_track->getActiveClip() != nullptr) {
 			++count;
 		}
-		currentTrack = currentTrack->next;
+		current_track = current_track->next;
 	}
 
 	return count;
@@ -4959,35 +4959,38 @@ uint32_t SessionView::gridClipCountForTrack(Output* track) {
 	return count;
 }
 
-uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) {
-	if (maxTrack <= 0) {
+int32_t SessionView::gridTrackIndexFromTrack(Output* track, int32_t max_track) {
+	if (max_track <= 0 || track == nullptr || track->getActiveClip() == nullptr) {
 		return -1;
 	}
 
-	uint32_t reverseOutputIndex = 0;
-	for (Output* ptrOutput = currentSong->firstOutput; ptrOutput; ptrOutput = ptrOutput->next) {
-		if (ptrOutput == track) {
-			return ((maxTrack - 1) - reverseOutputIndex);
+	int32_t reverse_output_index = 0;
+	for (Output* ptr_output = currentSong->firstOutput; ptr_output != nullptr; ptr_output = ptr_output->next) {
+		if (ptr_output == track) {
+			return ((max_track - 1) - reverse_output_index);
 		}
-		if (ptrOutput->getActiveClip() != nullptr) {
-			++reverseOutputIndex;
+		if (ptr_output->getActiveClip() != nullptr) {
+			++reverse_output_index;
 		}
 	}
 	return -1;
 }
 
-Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) {
-	uint32_t count = 0;
-	Output* currentTrack = currentSong->firstOutput;
-	while (currentTrack != nullptr) {
-		if (currentTrack->getActiveClip() != nullptr) {
-			if (((maxTrack - 1) - count) == trackIndex) {
-				return currentTrack;
+Output* SessionView::gridTrackFromIndex(int32_t track_index, int32_t max_track) {
+	if (track_index < 0 || track_index >= max_track) {
+		return nullptr;
+	}
+	int32_t count = 0;
+	Output* current_track = currentSong->firstOutput;
+	while (current_track != nullptr) {
+		if (current_track->getActiveClip() != nullptr) {
+			if (((max_track - 1) - count) == track_index) {
+				return current_track;
 			}
 
 			++count;
 		}
-		currentTrack = currentTrack->next;
+		current_track = current_track->next;
 	}
 
 	return nullptr;
@@ -5013,38 +5016,41 @@ int32_t SessionView::gridSectionFromY(int32_t y) {
 	return result;
 }
 
-int32_t SessionView::gridXFromTrack(uint32_t trackIndex) {
-	int32_t result = trackIndex - currentSong->songGridScrollX;
-	if (result >= kDisplayWidth) {
+int32_t SessionView::gridXFromTrack(int32_t track_index) {
+	if (track_index < 0) {
+		return -1;
+	}
+	int32_t result = track_index - currentSong->songGridScrollX;
+	if (result < 0 || result >= kDisplayWidth) {
 		return -1;
 	}
 
 	return result;
 }
 
-int32_t SessionView::gridTrackIndexFromX(uint32_t x, uint32_t maxTrack) {
-	if (maxTrack <= 0) {
-		return 0;
+int32_t SessionView::gridTrackIndexFromX(int32_t x, int32_t max_track) {
+	if (max_track <= 0) {
+		return -1;
 	}
 	int32_t result = x + currentSong->songGridScrollX;
-	if (result >= maxTrack) {
+	if (result < 0 || result >= max_track) {
 		return -1;
 	}
 
 	return result;
 }
 
-Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
-	auto trackIndex = gridTrackIndexFromX(x, maxTrack);
+Output* SessionView::gridTrackFromX(int32_t x, int32_t max_track) {
+	auto track_index = gridTrackIndexFromX(x, max_track);
 
-	if (trackIndex < 0) {
+	if (track_index < 0) {
 		return nullptr;
 	}
 
-	return gridTrackFromIndex(trackIndex, maxTrack);
+	return gridTrackFromIndex(track_index, max_track);
 }
 
-Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
+Clip* SessionView::gridClipFromCoords(int32_t x, uint32_t y) {
 	auto maxTrack = gridTrackCount();
 	Output* track = gridTrackFromX(x, maxTrack);
 
@@ -5067,7 +5073,7 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 	return nullptr;
 }
 
-int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
+int32_t SessionView::gridClipIndexFromCoords(int32_t x, uint32_t y) {
 	auto maxTrack = gridTrackCount();
 	Output* track = gridTrackFromX(x, maxTrack);
 
@@ -5103,9 +5109,9 @@ Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 
 Cartesian SessionView::gridXYFromClip(Clip& clip) {
 	Output& track = *clip.output;
-	size_t maxTrack = gridTrackCount();
-	int32_t trackIndex = gridTrackIndexFromTrack(&track, maxTrack);
-	return {gridXFromTrack(trackIndex), gridYFromSection(clip.section)};
+	const int32_t max_track = gridTrackCount();
+	const int32_t track_index = gridTrackIndexFromTrack(&track, max_track);
+	return {.x = gridXFromTrack(track_index), .y = gridYFromSection(clip.section)};
 }
 
 // stop pulsing selected clip
