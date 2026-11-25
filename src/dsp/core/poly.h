@@ -137,22 +137,23 @@ private:
 	template <auto M>
 	void run(const std::array<fp::Signal, N>& in, const std::array<fp::Buffer, N>& out, std::size_t n) {
 		const PackedCoefficients c = this->coefficients();
-		PackedState s = this->packed_state();
 		const LaneMask parked = parked_;
 		LanePointers p{};
 		for (std::size_t l = 0; l < N; ++l) {
 			p.in[l] = in[l].data();
 			p.out[l] = out[l].data();
 		}
-		const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, n);
 		std::size_t i = 0;
 		if constexpr (runs_kernel<K>) {
+			// The hooks work on the member state, the loop on a copy of what its step touches: a copy has no address
+			// anything else could write through, so it stays in registers
+			PackedState& kept = this->kept_state();
+			const kernel_block_t<K> block = kernel_ops::prepare_block<K>(this->coefficients(), kept, n);
 			while (i < n) {
-				// The hooks see the member coefficients and this state, so that neither the loop's coefficients nor its
-				// state has an address anything else could write through: both stay in registers
-				const std::size_t m = kernel_ops::run_length<K>(this->coefficients(), s, n - i);
-				kernel_ops::prepare_run<K>(this->coefficients(), s, m);
-				PackedState looped = s;
+				const std::size_t m = kernel_ops::run_length<K>(this->coefficients(), kept, n - i);
+				kernel_ops::prepare_run<K>(this->coefficients(), kept, m);
+				PackedState looped{};
+				detail::copy_stepped(looped, kept);
 				const std::size_t end = i + m;
 				for (; i + N <= end; i += N) {
 					step_frames<M>(c, block, looped, parked, p, i);
@@ -160,23 +161,30 @@ private:
 				for (; i < end; ++i) {
 					step_frame<M>(c, block, looped, parked, p, i);
 				}
-				s = looped;
+				detail::copy_stepped(kept, looped);
+			}
+			for (std::size_t l = 0; l < N; ++l) {
+				if ((parked & bit(l)) != 0) {
+					Base::reset_lane(kept, l);
+				}
 			}
 		}
 		else {
+			PackedState s = this->packed_state();
+			const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, n);
 			for (; i + N <= n; i += N) {
 				step_frames<M>(c, block, s, parked, p, i);
 			}
 			for (; i < n; ++i) {
 				step_frame<M>(c, block, s, parked, p, i);
 			}
-		}
-		for (std::size_t l = 0; l < N; ++l) {
-			if ((parked & bit(l)) != 0) {
-				Base::reset_lane(s, l);
+			for (std::size_t l = 0; l < N; ++l) {
+				if ((parked & bit(l)) != 0) {
+					Base::reset_lane(s, l);
+				}
 			}
+			this->set_packed_state(s);
 		}
-		this->set_packed_state(s);
 	}
 
 	/// N frames, i … i + N − 1, through a transpose in and out.

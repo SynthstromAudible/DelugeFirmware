@@ -87,8 +87,8 @@ template <class V>
 	return k == 0.f ? 1.f - x : exp2m1(k * (1.f - x)) * curve_scale(k);
 }
 
-/// @brief How much of the stage is left, 1 to 0, when the falling curve of @p k octaves is at @p level (1 to 0), by
-/// bisection; accurate relative to itself as it nears 0.
+/// @brief How much of the stage is left, 1 to 0, when the falling curve of @p k octaves is at @p level (1 to 0);
+/// accurate relative to itself as it nears 0.
 [[nodiscard]] inline f32 curve_remaining(f32 k, f32 level) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 	if (level <= 0.f) {
@@ -97,14 +97,22 @@ template <class V>
 	if (level >= 1.f) {
 		return 1.f;
 	}
-	const f32 scale = curve_scale(k);
-	f32 low = 0.f;
-	f32 high = 1.f;
-	for (int32_t i = 0; i < 48; ++i) {
-		const f32 middle = 0.5f * (low + high);
-		((k == 0.f ? middle : exp2m1(k * middle) * scale) < level ? low : high) = middle;
+	if (k == 0.f) {
+		return level;
 	}
-	return high;
+	// 2^(k·left) - 1 = level·(2^k - 1), by Newton's method in u = k·left from a line across each octave
+	const f32 want = level * exp2m1(k);
+	const f32 power = 1.f + want;
+	const auto bits = std::bit_cast<int32_t>(power);
+	const f32 whole = static_cast<f32>((bits >> 23) - 127);
+	const f32 mantissa = std::bit_cast<f32>((bits & 0x7FFFFF) | 0x3F800000);
+	f32 u = whole + (mantissa - 1.f);
+	for (int32_t i = 0; i < 4; ++i) {
+		const f32 at = exp2m1(u);
+		u = u - ((at - want) / ((at + 1.f) * std::numbers::ln2_v<f32>));
+	}
+	const f32 left = u / k;
+	return left > 1.f ? 1.f : left;
 }
 
 /// @brief Where a rising stage of @p k octaves is when it reaches @p level (0 to 1), as a float and what it rounds off.

@@ -78,6 +78,18 @@ public:
 		typename K::State s = get_lane<typename K::State>(this->packed_state(), lane);
 		const typename K::Coefficients c = get_lane(this->coefficients(), lane, shared_);
 		using Result = decltype(detail::run_event<K, Event>(c, s, std::forward<A>(args)...));
+		if constexpr (runs_kernel<K>) { // its State is large, and nothing else has it: no copy
+			if constexpr (std::is_void_v<Result>) {
+				detail::run_event<K, Event>(c, s, std::forward<A>(args)...);
+				set_lane(state_, lane, s);
+				return;
+			}
+			else {
+				std::remove_cvref_t<Result> result = detail::run_event<K, Event>(c, s, std::forward<A>(args)...);
+				set_lane(state_, lane, s);
+				return result;
+			}
+		}
 		PackedState packed = this->packed_state();
 		if constexpr (std::is_void_v<Result>) {
 			detail::run_event<K, Event>(c, s, std::forward<A>(args)...);
@@ -105,6 +117,8 @@ protected:
 	[[nodiscard]] const PackedCoefficients& coefficients() const { return coefficients_; }
 	/// @brief Every lane's state.
 	[[nodiscard]] const PackedState& packed_state() const { return state_; }
+	/// @brief Every lane's state, in place: what a kernel's runs work on.
+	[[nodiscard]] PackedState& kept_state() { return state_; }
 	/// @brief Stores @p s as every lane's state.
 	void set_packed_state(const PackedState& s) { state_ = s; }
 	/// @brief Lane @p lane of @p s to K's reset state, through the one reset rule (detail::reset_state), so a reset

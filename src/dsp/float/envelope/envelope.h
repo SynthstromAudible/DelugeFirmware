@@ -26,9 +26,11 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <numbers>
 #include <tuple>
@@ -181,6 +183,14 @@ template <std::size_t N>
 [[nodiscard, gnu::always_inline]] inline f32 lane(const Pack<f32, N>& v, std::size_t l) {
 	return v.get(l);
 }
+/// @brief The bits of lane @p l of @p v.
+[[nodiscard, gnu::always_inline]] inline uint32_t lane_bits(const f32& v, std::size_t /*l*/) {
+	return std::bit_cast<uint32_t>(v);
+}
+template <std::size_t N>
+[[nodiscard, gnu::always_inline]] inline uint32_t lane_bits(const Pack<f32, N>& v, std::size_t l) {
+	return std::bit_cast<std::array<uint32_t, N>>(v.v)[l];
+}
 /// @brief Sets lane @p l of @p v.
 [[gnu::always_inline]] inline void set_lane_of(f32& v, std::size_t /*l*/, f32 x) {
 	v = x;
@@ -216,6 +226,9 @@ template <std::size_t N>
 /// **Settings** reach a running stage once a block, in `prepare`: its phase is kept, and a level that is then off its
 /// curve goes in a straight line to where the curve is 32 samples on.
 struct Envelope {
+	/// `at` where there is no segment whose settings to follow.
+	static constexpr uint32_t kNowhere = 0xFFFFFFFFU;
+
 	using value_type = f32; ///< The level, 0 to 1 for the shipped programs.
 	using step_type = f32;  ///< One step per sample.
 
@@ -260,6 +273,9 @@ struct Envelope {
 		V under{};          ///< What a slew's level, kept in `from`, rounds off.
 		V fades{};          ///< 1 in a fade.
 		V index{kOff};      ///< The stage's segment, or kOff at rest.
+		V at{std::bit_cast<f32>(kNowhere)}; ///< The bits of that segment's number, or kNowhere at rest or in a fade.
+		// NOLINTNEXTLINE(readability-identifier-naming): `step_fields` is the name poly_kernel reads.
+		static constexpr auto step_fields = std::tuple{&StateT::v, &StateT::a, &StateT::b, &StateT::c};
 		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
 		static constexpr auto fields = std::tuple{&StateT::v,         &StateT::a,      &StateT::b,
 		                                          &StateT::c,         &StateT::hi,     &StateT::lo,
@@ -267,7 +283,8 @@ struct Envelope {
 		                                          &StateT::inverse,   &StateT::curve,  &StateT::scale,
 		                                          &StateT::decrement, &StateT::rate,   &StateT::most,
 		                                          &StateT::gap_left,  &StateT::slew,   &StateT::slew_inverse,
-		                                          &StateT::under,     &StateT::fades,  &StateT::index};
+		                                          &StateT::under,     &StateT::fades,  &StateT::index,
+		                                          &StateT::at};
 	};
 	using State = StateT<f32>;
 
@@ -318,7 +335,7 @@ struct Envelope {
 
 	/// @brief Takes up each lane's running stage's settings where they changed.
 	template <class V>
-	[[gnu::always_inline]] static EmptyBlock prepare(const CoefficientsT<V>& c, StateT<V>& s, std::size_t /*n*/) {
+	[[gnu::noinline]] static EmptyBlock prepare(const CoefficientsT<V>& c, StateT<V>& s, std::size_t /*n*/) {
 		follow_settings(c, s);
 		return {};
 	}
@@ -499,17 +516,19 @@ private:
 	template <class V>
 	[[gnu::always_inline]] static void follow_settings(const CoefficientsT<V>& c, StateT<V>& s) {
 		for (std::size_t l = 0; l < detail::kLanes<V>; ++l) {
-			const f32 index = detail::lane(s.index, l);
-			if (index < 0.f || index == kFading) {
+			const uint32_t at = detail::lane_bits(s.at, l);
+			if (at == kNowhere) {
 				continue;
 			}
-			const Segment<V>& g = c.segments[static_cast<std::size_t>(index)];
-			if (const bool slews = detail::lane(s.slew, l) > 0.f;
-			    detail::lane(g.target, l) != detail::lane(s.target, l)
-			    || detail::lane(g.curve, l) != detail::lane(s.curve, l)
-			    || (slews ? slew_length(g, s, l) != detail::lane(s.slew, l)
-			              : detail::lane(g.length, l) != detail::lane(s.length, l))) [[unlikely]] {
-				take_up(c, s, l, index);
+			const Segment<V>& g = c.segments[at];
+			// Compared as bits: a float compare's flags stall the integer side
+			const uint32_t slew = detail::lane_bits(s.slew, l);
+			const uint32_t length = slew == 0 ? detail::lane_bits(g.length, l) ^ detail::lane_bits(s.length, l)
+			                                  : std::bit_cast<uint32_t>(slew_length(g, s, l)) ^ slew;
+			if (((detail::lane_bits(g.target, l) ^ detail::lane_bits(s.target, l))
+			     | (detail::lane_bits(g.curve, l) ^ detail::lane_bits(s.curve, l)) | length)
+			    != 0) [[unlikely]] {
+				take_up(c, s, l, detail::lane(s.index, l));
 			}
 		}
 	}
@@ -584,6 +603,7 @@ private:
 		const bool forever = length == kForever;
 		const f32 inverse = forever ? 0.f : 1.f / length;
 		detail::set_lane_of(s.index, l, i);
+		detail::set_lane_of(s.at, l, std::bit_cast<f32>(static_cast<uint32_t>(k)));
 		detail::set_lane_of(s.target, l, target);
 		detail::set_lane_of(s.length, l, length);
 		detail::set_lane_of(s.inverse, l, inverse);
@@ -673,6 +693,7 @@ private:
 		detail::set_lane_of(s.under, l, resting.under);
 		detail::set_lane_of(s.fades, l, resting.fades);
 		detail::set_lane_of(s.index, l, resting.index);
+		detail::set_lane_of(s.at, l, resting.at);
 	}
 
 	/// Each lane whose stage ends with this run enters its next.

@@ -99,24 +99,27 @@ private:
 	template <auto M>
 	void run(fp::Signal in, f32* first, f32* second) {
 		const PackedCoefficients c = this->coefficients();
-		PackedState s = this->packed_state();
 		const V gains = gains_;
-		const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, in.size());
 		std::size_t i = 0;
 		if constexpr (runs_kernel<K>) {
+			// As Poly: the hooks work on the member state, the loop on a copy of what its step touches
+			PackedState& kept = this->kept_state();
+			const kernel_block_t<K> block = kernel_ops::prepare_block<K>(this->coefficients(), kept, in.size());
 			while (i < in.size()) {
-				// As Poly: the hooks see the member coefficients and this state, the loop its own copies
-				const std::size_t m = kernel_ops::run_length<K>(this->coefficients(), s, in.size() - i);
-				kernel_ops::prepare_run<K>(this->coefficients(), s, m);
-				PackedState looped = s;
+				const std::size_t m = kernel_ops::run_length<K>(this->coefficients(), kept, in.size() - i);
+				kernel_ops::prepare_run<K>(this->coefficients(), kept, m);
+				PackedState looped{};
+				detail::copy_stepped(looped, kept);
 				run_to<M>(i + m, c, block, looped, gains, in, first, second, i);
-				s = looped;
+				detail::copy_stepped(kept, looped);
 			}
 		}
 		else {
+			PackedState s = this->packed_state();
+			const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, in.size());
 			run_to<M>(in.size(), c, block, s, gains, in, first, second, i);
+			this->set_packed_state(s);
 		}
-		this->set_packed_state(s);
 	}
 
 	/// Samples @p i to @p end: N at a time, the rest one at a time.

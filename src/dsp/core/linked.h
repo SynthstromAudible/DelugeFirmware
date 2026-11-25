@@ -20,6 +20,7 @@
 #include "dsp/core/frame.h"
 #include "dsp/core/kernel.h"
 #include "dsp/core/pack.h"
+#include "dsp/core/poly_kernel.h"
 #include "dsp/core/stereo_sample.h"
 #include "dsp/core/types.h"
 
@@ -401,9 +402,10 @@ private:
 				for (std::size_t i = 0; i < out.size();) {
 					const std::size_t m = kernel_ops::run_length<K>(coefficients_, kept, out.size() - i);
 					kernel_ops::prepare_run<K>(coefficients_, kept, m);
-					State s = kept;
+					State s{};
+					detail::copy_stepped(s, kept);
 					lane_loop(c, block, s, context, in.data() + i, out.data() + i, static_cast<std::ptrdiff_t>(m));
-					kept = s;
+					detail::copy_stepped(kept, s);
 					i += m;
 				}
 			}

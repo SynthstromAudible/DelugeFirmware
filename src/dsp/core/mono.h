@@ -18,6 +18,7 @@
 
 #include "dsp/core/kernel.h"
 #include "dsp/core/mode.h"
+#include "dsp/core/poly_kernel.h"
 #include "dsp/core/stereo_vector.h"
 #include "dsp/core/types.h"
 #include "dsp/core/vector_step.h"
@@ -273,10 +274,11 @@ private:
 				for (std::size_t i = 0; i < out.size();) {
 					const std::size_t m = kernel_ops::run_length<K>(coefficients_, state_, out.size() - i);
 					kernel_ops::prepare_run<K>(coefficients_, state_, m);
-					State s = state_;
+					State s{};
+					detail::copy_stepped(s, state_);
 					scalar_loop<M>(c, block, s, context, out.data() + i, static_cast<std::ptrdiff_t>(m),
 					               (in.data() + i)...);
-					state_ = s;
+					detail::copy_stepped(state_, s);
 					i += m;
 				}
 			});
