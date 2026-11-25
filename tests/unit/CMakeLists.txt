@@ -43,6 +43,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/util/lookuptables.cpp
         ../../src/deluge/util/waves.cpp
         ../../src/deluge/modulation/lfo.cpp
+        ../../src/deluge/modulation/params/param_value.cpp
         # For value scaling
         ../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests
@@ -88,6 +89,7 @@ add_executable(UnitTests
         scale_tests.cpp
         accidentals_tests.cpp
         value_scaling_tests.cpp
+        parameter_value_tests.cpp
         clip_iterator_tests.cpp
         function_tests.cpp
         volume_param_gain_tests.cpp
@@ -135,3 +137,5 @@ target_link_libraries(UnitTests CppUTestExt etl::etl)
 target_compile_options(UnitTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )
+
+add_subdirectory(parameters)

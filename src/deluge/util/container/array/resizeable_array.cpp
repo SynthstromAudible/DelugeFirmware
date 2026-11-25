@@ -17,7 +17,7 @@
 
 #include "util/container/array/resizeable_array.h"
 #include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
+#include "processing/engines/voice_culling.h"
 // #include <algorithm>
 #include "hid/display/display.h"
 #include "io/debug/log.h"
@@ -210,25 +210,29 @@ void ResizeableArray::attemptMemoryShorten() {
 	if (staticMemoryAllocationSize) {
 		return;
 	}
-	if ((uint32_t)memoryAllocationStart >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
+	// The allocator classifies memory by its hardware address range.
+	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+	if (reinterpret_cast<uintptr_t>(memoryAllocationStart) >= INTERNAL_MEMORY_BEGIN) {
 		return;
 	}
 
 	uint32_t allocatedSize = GeneralMemoryAllocator::get().getAllocatedSize(memoryAllocationStart);
 
 	if (allocatedSize > (memorySize + maxNumEmptySpacesToKeep) * elementSize) {
-		int32_t extraSpaceLeft = (uint32_t)memory - (uint32_t)memoryAllocationStart;
+		auto extra_space_left =
+		    static_cast<uint32_t>(static_cast<char*>(memory) - static_cast<char*>(memoryAllocationStart));
 
-		int32_t extraSpaceRight = allocatedSize - extraSpaceLeft - memorySize * elementSize;
+		uint32_t extra_space_right = allocatedSize - extra_space_left - (memorySize * elementSize);
 
-		if (extraSpaceLeft > extraSpaceRight) {
-			uint32_t amountShortened = GeneralMemoryAllocator::get().shortenLeft(memoryAllocationStart, extraSpaceLeft);
-			memoryAllocationStart = (char* __restrict__)memoryAllocationStart + amountShortened;
+		if (extra_space_left > extra_space_right) {
+			uint32_t amount_shortened =
+			    GeneralMemoryAllocator::get().shortenLeft(memoryAllocationStart, extra_space_left);
+			memoryAllocationStart = static_cast<char*>(memoryAllocationStart) + amount_shortened;
 		}
 
 		else {
 			GeneralMemoryAllocator::get().shortenRight(memoryAllocationStart,
-			                                           extraSpaceLeft + memorySize * elementSize);
+			                                           extra_space_left + (memorySize * elementSize));
 		}
 	}
 }
@@ -499,15 +503,17 @@ tryAgain:
 	uint32_t allocatedSize = GeneralMemoryAllocator::get().getAllocatedSize(memoryAllocationStart);
 
 	// Try expanding left into existing memory
-	uint32_t extraSpaceLeft = (uint32_t)memory - (uint32_t)memoryAllocationStart;
-	uint32_t extraElementsLeft = extraSpaceLeft / elementSize;
-	memory = (char* __restrict__)memory - extraElementsLeft * elementSize;
-	memoryStart += extraElementsLeft;
-	memorySize += extraElementsLeft;
+	auto extra_space_left =
+	    static_cast<uint32_t>(static_cast<char*>(memory) - static_cast<char*>(memoryAllocationStart));
+	auto extra_elements_left = static_cast<int32_t>(extra_space_left / elementSize);
+	memory = static_cast<char*>(memory) - (extra_elements_left * elementSize);
+	memoryStart += extra_elements_left;
+	memorySize += extra_elements_left;
 
 	// Try expanding right into existing memory
-	extraSpaceLeft = (uint32_t)memory - (uint32_t)memoryAllocationStart; // Updates it
-	memorySize = (uint32_t)(allocatedSize - extraSpaceLeft) / elementSize;
+	extra_space_left =
+	    static_cast<uint32_t>(static_cast<char*>(memory) - static_cast<char*>(memoryAllocationStart)); // Updates it
+	memorySize = static_cast<int32_t>((allocatedSize - extra_space_left) / elementSize);
 
 	int32_t memoryIncreasedBy = memorySize - oldMemorySize;
 
@@ -639,30 +645,29 @@ bool ResizeableArray::attemptMemoryExpansion(int32_t minNumToExtend, int32_t ide
 
 startAgain:
 	// If we actually had a bit more already, left...
-	uint32_t extraBytesLeft = (uint32_t)memory - (uint32_t)memoryAllocationStart;
-	if (extraBytesLeft >= elementSize) {
-		int32_t extraElementsLeft =
-		    extraBytesLeft / elementSize; // See how many extra elements there are space for on the left
-		if (extraElementsLeft > minNumToExtend) {
-			extraElementsLeft = minNumToExtend; // We might not want all the extra space
-		}
+	auto extra_bytes_left =
+	    static_cast<uint32_t>(static_cast<char*>(memory) - static_cast<char*>(memoryAllocationStart));
+	if (extra_bytes_left >= elementSize) {
+		auto extra_elements_left = static_cast<int32_t>(
+		    extra_bytes_left / elementSize); // See how many extra elements there are space for on the left
+		extra_elements_left = std::min(extra_elements_left, minNumToExtend); // We might not want all the extra space
 
-		memory = (char* __restrict__)memory - (elementSize * extraElementsLeft);
-		memorySize += extraElementsLeft;
-		memoryStart += extraElementsLeft;
+		memory = static_cast<char*>(memory) - (elementSize * extra_elements_left);
+		memorySize += extra_elements_left;
+		memoryStart += extra_elements_left;
 
-		minNumToExtend -= extraElementsLeft;
+		minNumToExtend -= extra_elements_left;
 		if (minNumToExtend <= 0) {
 			return true;
 		}
-		idealNumToExtendIfExtendingAllocation -= extraElementsLeft;
-		extraBytesLeft -= elementSize * extraElementsLeft;
+		idealNumToExtendIfExtendingAllocation -= extra_elements_left;
+		extra_bytes_left -= elementSize * extra_elements_left;
 	}
 
 	// If we actually had a bit more already, right...
 	uint32_t potentialMemorySize = staticMemoryAllocationSize;
 	if (!potentialMemorySize) {
-		potentialMemorySize = GeneralMemoryAllocator::get().getAllocatedSize(memoryAllocationStart) - extraBytesLeft;
+		potentialMemorySize = GeneralMemoryAllocator::get().getAllocatedSize(memoryAllocationStart) - extra_bytes_left;
 	}
 	uint32_t extraBytesRight = potentialMemorySize - (memorySize * elementSize);
 	if (extraBytesRight >= elementSize) {

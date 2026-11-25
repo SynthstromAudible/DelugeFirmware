@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "modulation/params/param.h"
 
+class ParamManager;
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;
 class InstrumentClip;
@@ -41,6 +42,12 @@ class ModControllable {
 public:
 	ModControllable() = default;
 	virtual ~ModControllable() = default;
+	virtual void bindPresetValues(ParamManager* /*manager*/) {}
+	// Whether binding the manager to this owner's baselines would change nothing.
+	virtual bool isBoundToPresetValues(ParamManager* /*manager*/) { return true; }
+	virtual int32_t* getPresetValueStorage(deluge::modulation::params::Kind /*kind*/, int32_t /*id*/) {
+		return nullptr;
+	}
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 		return false;
 	} // Returns whether Instrument was changed

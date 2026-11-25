@@ -20,51 +20,6 @@
 #include "definitions.h"
 #include <string.h>
 
-int32_t getNumDecimalDigits(uint32_t number) {
-	uint32_t sizeTest = 10;
-	int32_t totalNumDigits = 1;
-	while (number >= sizeTest) {
-		totalNumDigits++;
-		if (totalNumDigits == 10) {
-			break;
-		}
-		sizeTest *= 10;
-	}
-	return totalNumDigits;
-}
-
-void intToString(int32_t number, char* __restrict__ buffer, int32_t minNumDigits) {
-
-	int32_t isNegative = (number < 0);
-	if (isNegative) {
-		number = (uint32_t)0
-		         - (uint32_t)number; // Can't just go "-number", cos somehow that doesn't work for negative 2 billion!
-	}
-
-	int32_t totalNumDigits = getNumDecimalDigits(number);
-
-	if (totalNumDigits < minNumDigits) {
-		totalNumDigits = minNumDigits;
-	}
-
-	if (isNegative) {
-		totalNumDigits++;
-		buffer[0] = '-';
-	}
-
-	buffer[totalNumDigits] = 0;
-	int32_t charPos = totalNumDigits - 1;
-	while (1) {
-		if (charPos == isNegative) {
-			buffer[charPos] = '0' + number;
-			break;
-		}
-		int32_t divided = (uint32_t)number / 10;
-		buffer[charPos--] = '0' + (number - (divided * 10));
-		number = divided;
-	}
-}
-
 void floatToString(float number, char* __restrict__ buffer, int32_t minNumDecimalPlaces, int32_t maxNumDecimalPlaces) {
 
 	uint32_t rawBinary = *(uint32_t*)&number;

@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "modulation/automation/auto_param_access.h"
 
 #include "chrono"
 #include "definitions.h"
@@ -281,7 +282,6 @@ uint32_t timeThereWasLastSomeReverb = 0x8FFFFFFF;
 int32_t numSamplesLastTime = 0;
 uint32_t nextVoiceState = 1;
 bool renderInStereo = true;
-bool bypassCulling = false;
 bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 bool inputMonitoringWarmedUp = false;
@@ -1390,7 +1390,7 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 
 		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below
 		// anyway
-		int32_t pan = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_PAN) >> 1;
+		int32_t pan = currentSong->paramManager.getUnpatchedValueForRender(params::UNPATCHED_PAN) >> 1;
 
 		if (pan != 0) {
 			// Set up panning
@@ -1408,7 +1408,7 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 		int32_t songVolume =
 		    getFinalParameterValueVolume(
 		        134217728, cableToLinearParamShortcut(
-		                       currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
+		                       currentSong->paramManager.getUnpatchedValueForRender(params::UNPATCHED_VOLUME)))
 		    >> 1;
 		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
 		// equivalent
@@ -1857,7 +1857,7 @@ void updateReverbParams() {
 		// Set the initial "highest amount found" to that of the song itself, which can't be affected by sidechain.
 		// If nothing found with more reverb, then we don't want the reverb affected by sidechain
 		int32_t highestReverbAmountFound =
-		    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
+		    currentSong->paramManager.getUnpatchedValueForRender(params::UNPATCHED_REVERB_SEND_AMOUNT);
 
 		for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
@@ -1892,7 +1892,7 @@ void updateReverbParams() {
 
 sidechainFound:
 			reverbSidechainShapeInEffect =
-			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE);
+			    paramManagerWithMostReverb->getUnpatchedValueForRender(params::UNPATCHED_SIDECHAIN_SHAPE);
 			reverbSidechain.attack = modControllable->sidechain.attack;
 			reverbSidechain.release = modControllable->sidechain.release;
 			reverbSidechain.syncLevel = modControllable->sidechain.syncLevel;
@@ -1942,12 +1942,13 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		// before and after selecting it (issue #1591). The caller has folded in the song and kit output
 		// stages the preview skips; master FX are applied downstream in renderSongFX().
 		PatchedParamSet* previewParams = paramManagerForSamplePreview->getPatchedParamSet();
-		previewParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(volume.volumePostFX);
-		previewParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(volume.localVolume);
+		AutoParamSetup(previewParams->params[params::GLOBAL_VOLUME_POST_FX])
+		    .setCurrentValueBasicForSetup(volume.volumePostFX);
+		AutoParamSetup(previewParams->params[params::LOCAL_VOLUME]).setCurrentValueBasicForSetup(volume.localVolume);
 
 		// setupAsSample() gives the preview drum exactly one patch cable: VELOCITY -> LOCAL_VOLUME.
 		PatchCable& velocityCable = paramManagerForSamplePreview->getPatchCableSet()->patchCables[0];
-		velocityCable.param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
+		AutoParamSetup(velocityCable.param).setCurrentValueBasicForSetup(volume.velocityCableDepth);
 		velocityCable.polarity = volume.velocityCablePolarity;
 
 		// GLOBAL_VOLUME_POST_FX is a Sound-level param with no patch cables on the preview drum, so its final value

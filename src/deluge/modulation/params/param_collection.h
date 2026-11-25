@@ -32,6 +32,8 @@ class TimelineCounter;
 class Output;
 class Clip;
 class ModelStackWithAutoParam;
+class ModelStackWithThreeMainThings;
+class ClipParamValue;
 class ModelStackWithParamId;
 class ModelStackWithParamCollection;
 class ParamCollectionSummary;
@@ -40,6 +42,20 @@ class ParamCollection {
 public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
 	virtual ~ParamCollection();
+
+	virtual ClipParamValue* getClipValueStorage(int32_t /*paramId*/) { return nullptr; }
+	static Output* getLinkedOutput(ModelStackWithThreeMainThings const* modelStack);
+	// The same for a control of one parameter. While a quantized stutter runs, its rate control edits the
+	// stutter's centred clip value rather than the shared baseline.
+	static Output* getLinkedOutput(ModelStackWithThreeMainThings const* modelStack,
+	                               deluge::modulation::params::Kind kind, int32_t id);
+	static Output* getLinkedOutput(ModelStackWithParamId const* modelStack);
+	static bool controlsEditClipValue(ModelStackWithThreeMainThings const* modelStack);
+	// Collections choose which value layer their normal panel controls edit.
+	int32_t getValueForControl(ModelStackWithParamId const* modelStack);
+	virtual int32_t getValueForControl(int32_t paramId, ModelStackWithThreeMainThings const* modelStack) = 0;
+	void setValueFromControl(int32_t value, ModelStackWithParamId const* modelStack, int32_t pos = 0,
+	                         int32_t length = 0, bool mayDeleteNodesInLinearRun = true);
 
 	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0) = 0;
 
@@ -66,10 +82,16 @@ public:
 	virtual void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) = 0;
 	virtual void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                             ModelStackWithParamCollection* modelStack) = 0;
-	virtual void
-	notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged,
-	                             bool automatedBefore,
-	                             bool automatedNow); // Watch the heck out! This might delete the AutoParam in question.
+	// Announces that a parameter's value and/or automation may have changed. If the parameter lost its
+	// automation, first removes its automation offset; then reads its current value and passes it to
+	// notifyParamValueModified(). Watch the heck out! This might delete the AutoParam in question.
+	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
+	// The same announcement, for callers which already know the parameter's new current value, such as
+	// playback ticks. Does not clear the automation offset. Watch the heck out! This might delete the
+	// AutoParam in question: PatchCableSet deletes a cable whose strength and automation become zero.
+	virtual void notifyParamValueModified(ModelStackWithAutoParam const* modelStack, int32_t oldValue, int32_t newValue,
+	                                      bool automationChanged, bool automatedBefore, bool automatedNow);
 	virtual ModelStackWithAutoParam* getAutoParamFromId(
 	    ModelStackWithParamId* modelStack,
 	    bool allowCreation = false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings
@@ -87,4 +109,28 @@ public:
 
 	const int32_t objectSize;
 	int32_t ticksTilNextEvent;
+
+protected:
+	void setRenderValues(int32_t* values) {
+		renderValues_ = values;
+		renderVersion_ = 0;
+	}
+	[[nodiscard]] int32_t* renderValues() const { return renderValues_; }
+	[[nodiscard]] uint32_t* renderVersionStorage() const { return &renderVersion_; }
+	// The step array, allocated on first use; null if that failed.
+	int32_t* rampSteps(int32_t count) { return (rampSteps_ != nullptr) ? rampSteps_ : allocateRampSteps(count); }
+	// For a clone, whose copied pointer is its source's.
+	void forgetRampSteps() { rampSteps_ = nullptr; }
+
+private:
+	friend class ParamRenderValues;
+	// For collections rendering reads through ParamRenderValues: the values resolved from the
+	// layers, refreshed whenever parameter_value_epoch moves. Playback loops keep the parameters
+	// they advance up to date.
+	int32_t* renderValues_ = nullptr;
+	mutable uint32_t renderVersion_ = 0;
+	// Steps of ramps held for parameters with interpolating automation, indexed like
+	// renderValues_. Allocated by the first tick that can hold one; a clone allocates its own.
+	int32_t* rampSteps_ = nullptr;
+	[[gnu::noinline]] int32_t* allocateRampSteps(int32_t count);
 };

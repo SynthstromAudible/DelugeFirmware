@@ -2115,6 +2115,7 @@ doMIDIOrCV:
 	ParamManagerForTimeline* const previousParamManager = currentParamManager;
 	ModControllableAudio* const previousModControllable = currentModControllable;
 	currentParamManager = newParamManager;
+	view.setSoundEditorParamManager(currentParamManager);
 	// And we also have to set currentModControllable before focusing on the child item in a horizontal menu
 	currentModControllable = newModControllable;
 
@@ -2134,6 +2135,7 @@ doMIDIOrCV:
 		// The browser won't be opened so forget where maybeGetParentMenu() said to go once a file is chosen
 		sampleBrowser.clearMenuHeadingTo();
 		currentParamManager = previousParamManager;
+		view.setSoundEditorParamManager(currentParamManager);
 		currentModControllable = previousModControllable;
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return false;
@@ -2328,29 +2330,38 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Instrument* instrument = getCurrentInstrument();
-
 	if (!rootUIIsClipMinderScreen()) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
-	else if (instrument->type == OutputType::KIT && clip->affectEntire) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
+		return currentSong->setupModelStackWithCurrentClip(memory)->addOtherTwoThingsButNoNoteRow(
+		    currentModControllable, currentParamManager);
+	}
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	Instrument* instrument = getCurrentInstrument();
+	if (instrument->type == OutputType::KIT && clip->affectEntire) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(memory);
 
 		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
 	}
 	else {
 		NoteRow* noteRow = nullptr;
-		int32_t noteRowIndex;
+		int32_t note_row_index = 0;
 		if (instrument->type == OutputType::KIT) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
 			if (selectedDrum) {
-				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);
+				noteRow = clip->getNoteRowForDrum(selectedDrum, &note_row_index);
 			}
 		}
 
-		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
-		                                                          noteRow, currentModControllable, currentParamManager);
+		// currentModControllable is audio-only and stays null for MIDI/CV menus.
+		// Their parameter model stack still needs the actual output owner.
+		ModControllable* owner = currentModControllable;
+		if ((owner == nullptr) && currentParamManager == &clip->paramManager) {
+			owner = clip->output->toModControllable();
+		}
+		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), note_row_index,
+		                                                          noteRow, owner, currentParamManager);
 	}
 }
 

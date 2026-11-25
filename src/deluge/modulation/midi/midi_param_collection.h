@@ -60,8 +60,8 @@ public:
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void sendMIDI(MIDISource source, int32_t channel, int32_t cc, int32_t newValue, int32_t midiOutputFilter);
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyParamValueModified(ModelStackWithAutoParam const* modelStack, int32_t oldValue, int32_t newValue,
+	                              bool automationChanged, bool automatedBefore, bool automatedNow) override;
 	bool mayParamInterpolate(int32_t paramId) override;
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) override;
@@ -71,6 +71,11 @@ public:
 
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::MIDI; }
 
+	ClipParamValue* getClipValueStorage(int32_t cc) override;
+	using ParamCollection::getValueForControl;
+	int32_t getValueForControl(int32_t cc, ModelStackWithThreeMainThings const* modelStack) override;
+	// Delete a CC's entry and any automation, for undoing the entry's creation.
+	void deleteParam(int32_t cc);
 	MIDIParamVector params;
 
 private:

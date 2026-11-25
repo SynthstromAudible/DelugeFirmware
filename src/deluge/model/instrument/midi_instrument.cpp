@@ -25,15 +25,22 @@
 #include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
+#include "storage/parameter_value_io.h"
+#include "storage/preset_save_values.h"
 #include "storage/storage_manager.h"
 #include "util/d_stringbuf.h"
+#include <algorithm>
+#include <array>
+#include <charconv>
 #include <cstring>
 #include <string_view>
 
@@ -45,6 +52,24 @@ MIDIInstrument::MIDIInstrument()
       modKnobCCAssignments() {
 	modKnobMode = 0;
 	modKnobCCAssignments.fill(CC_NUMBER_NONE);
+}
+
+MIDIInstrument::~MIDIInstrument() {
+	if (presetMidiValues_ != nullptr) {
+		delugeDealloc(presetMidiValues_);
+	}
+}
+
+bool MIDIInstrument::ensurePresetMidiValues() {
+	if (presetMidiValues_ == nullptr) {
+		void* memory = GeneralMemoryAllocator::get().allocLowSpeed(kNumPresetMidiValues * sizeof(int32_t));
+		if (memory == nullptr) {
+			return false;
+		}
+		presetMidiValues_ = static_cast<int32_t*>(memory);
+		std::fill_n(presetMidiValues_, kNumPresetMidiValues, 0);
+	}
+	return true;
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -367,12 +392,93 @@ void MIDIInstrument::sendMIDIPGM() {
 	}
 }
 
-bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
+// Clip launches call this, so it stays in internal RAM.
+bool MIDIInstrument::isBoundToPresetValues(ParamManager* manager) {
+	if ((manager->summaries[0].paramCollection == nullptr)
+	    || manager->summaries[0].paramCollection->getParamKind() != deluge::modulation::params::Kind::MIDI) {
+		return true;
+	}
+	auto* collection = manager->getMIDIParamCollection();
+	// Without baselines there's nothing to bind to; binding now would only allocate them.
+	return collection == nullptr || presetMidiValues_ == nullptr
+	       || (hasPresetMidiValues_ && collection->params.boundPresetValues() == presetMidiValues_);
+}
+
+PLACE_SDRAM_TEXT void MIDIInstrument::bindPresetValues(ParamManager* manager) {
+	if ((manager->summaries[0].paramCollection == nullptr)
+	    || manager->summaries[0].paramCollection->getParamKind() != deluge::modulation::params::Kind::MIDI) {
+		return;
+	}
+	auto* collection = manager->getMIDIParamCollection();
+	if (collection == nullptr) {
+		return;
+	}
+	if (!ensurePresetMidiValues()) {
+		// Without storage every baseline reads as zero, as an unbound collection does.
+		collection->params.bindPresetValues(nullptr);
+		return;
+	}
+	if (!hasPresetMidiValues_) {
+		for (int32_t i = 0; i < collection->params.getNumElements(); ++i) {
+			auto* entry = collection->params.getElement(i);
+			if (entry->cc < kNumPresetMidiValues) {
+				presetMidiValues_[entry->cc] = entry->clipValue.getValue();
+			}
+		}
+		hasPresetMidiValues_ = true;
+		// Clips may already be bound to the baselines just filled. Otherwise rebinding changes a value
+		// only where its binding changes, which records the change itself.
+		parameterBaselinesChanged();
+	}
+	collection->params.bindPresetValues(presetMidiValues_);
+}
+
+PLACE_SDRAM_TEXT void MIDIInstrument::writePresetMidiValuesToFile(Serializer& writer,
+                                                                  Clip* clipForSavingOutputOnly) const {
+	if (hasPresetMidiValues_ || clipForSavingOutputOnly != nullptr) {
+		writer.writeOpeningTagBeginning("presetMidiValues");
+		for (int32_t cc = 0; cc < kNumPresetMidiValues; ++cc) {
+			int32_t value = getPresetMidiValue(cc);
+			if (clipForSavingOutputOnly != nullptr) {
+				auto* collection = clipForSavingOutputOnly->paramManager.getMIDIParamCollection();
+				auto* entry = collection != nullptr ? collection->params.getParamFromCC(cc) : nullptr;
+				value = entry != nullptr ? entry->param.getCurrentValue() : value;
+				if (entry != nullptr) {
+					PresetSaveValues::record(collection, cc, value);
+				}
+			}
+			if (value != 0) {
+				std::array<char, 8> name_storage{};
+				char* name = name_storage.data();
+				name[0] = 'p';
+				std::to_chars(name + 1, name + name_storage.size() - 1, cc);
+				writer.writeAttribute(name, value);
+			}
+		}
+		writer.closeTag();
+	}
+}
+
+PLACE_SDRAM_TEXT void MIDIInstrument::readPresetMidiValuesFromFile(Deserializer& reader) {
+	bool stored = ensurePresetMidiValues();
+	if (stored) {
+		std::fill_n(presetMidiValues_, kNumPresetMidiValues, 0);
+	}
+	readParameterValueObject(reader, "presetMidiValues", [&](uint32_t cc, int32_t value) {
+		if (stored && cc < kNumPresetMidiValues) {
+			presetMidiValues_[cc] = value;
+		}
+	});
+	hasPresetMidiValues_ = stored;
+	parameterBaselinesChanged();
+}
+
+PLACE_SDRAM_TEXT bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 	// NonAudioInstrument::writeDataToFile(writer, clipForSavingOutputOnly, song); // Nope, this gets called within the
 	// below call
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
 
-	if (editedByUser || clipForSavingOutputOnly) { // Otherwise, there'll be nothing in here
+	if (editedByUser || (clipForSavingOutputOnly != nullptr)) { // Otherwise, there'll be nothing in here
 		writer.writeOpeningTagEnd();
 		writer.writeOpeningTag("modKnobs");
 		for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
@@ -405,7 +511,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writeDeviceDefinitionFile(writer, true);
 	}
 	else {
-		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
+		if ((clipForSavingOutputOnly == nullptr) && !midiInput.containsSomething() && !hasPresetMidiValues_) {
 			// If we don't need to write a "device" tag, opt not to end the opening tag, unless we're saving the output
 			// since then it's the whole tag
 			return false;
@@ -414,6 +520,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeOpeningTagEnd();
 	}
 
+	writePresetMidiValuesToFile(writer, clipForSavingOutputOnly);
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 	return true;
 }
@@ -464,7 +571,11 @@ void MIDIInstrument::writeCCLabelsToFile(Serializer& writer) {
 	writer.closeTag();
 }
 
-bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
+PLACE_SDRAM_TEXT bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
+	if (strcmp(tagName, "presetMidiValues") == 0) {
+		readPresetMidiValuesFromFile(reader);
+		return true;
+	}
 
 	char const* subSlotXMLTag = getSubSlotXMLTag();
 
@@ -651,6 +762,9 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
+	int32_t clip_value = 0;
+	bool has_clip_value = false;
+	bool has_relative_value = false;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
 			char const* contents = reader.readTagOrAttributeValue();
@@ -673,6 +787,20 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 
 			reader.exitTag("cc");
 		}
+		else if (strcmp(tagName, "clipValue") == 0) {
+			clip_value = reader.readTagOrAttributeValueInt();
+			has_clip_value = true;
+			reader.exitTag("clipValue");
+		}
+		else if (strcmp(tagName, "relativeValue") == 0) {
+			if (midiParamCollection != nullptr) {
+				auto* entry = midiParamCollection->params.getParamFromCC(cc);
+				if (entry != nullptr) {
+					has_relative_value = entry->readRelativeFromFile(reader);
+				}
+			}
+			reader.exitTag("relativeValue");
+		}
 		else if (!strcmp(tagName, "value")) {
 			if (cc != CC_NUMBER_NONE && midiParamCollection) {
 
@@ -681,7 +809,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
+				Error error = midiParam->readFromFile(reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -693,6 +821,12 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 		}
 	}
 
+	if (has_clip_value && !has_relative_value && (midiParamCollection != nullptr)) {
+		auto* entry = midiParamCollection->params.getParamFromCC(cc);
+		if ((entry != nullptr) && entry->param.isAutomated()) {
+			AutoParamSetup(entry->param).restoreClipValueFromFile(clip_value);
+		}
+	}
 	if (getCC) {
 		*getCC = cc;
 	}
@@ -798,7 +932,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 	}
 
 	AutoParamState state;
-	oldParam->swapState(&state, modelStackWithAutoParam);
+	AutoParamOwnership(*oldParam).swapState(&state, modelStackWithAutoParam);
 
 	// Delete or clear old parameter
 	MIDIParamCollection* midiParamCollection = modelStackWithAutoParam->paramManager->getMIDIParamCollection();
@@ -822,8 +956,8 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 		}
 	}
 	else {
-		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)
-		    ->params[modelStackWithAutoParam->paramId]
+		AutoParamSetup((static_cast<ExpressionParamSet*>(modelStackWithAutoParam->paramCollection))
+		                   ->params[modelStackWithAutoParam->paramId])
 		    .setCurrentValueBasicForSetup(0);
 	}
 
@@ -833,7 +967,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	newParam->swapState(&state, modelStackWithAutoParam);
+	AutoParamOwnership(*newParam).swapState(&state, modelStackWithAutoParam);
 
 	return Error::NONE;
 }
@@ -1337,4 +1471,12 @@ void MIDIInstrument::setNameForCC(int32_t cc, std::string_view name) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
 		labels[cc] = name;
 	}
+}
+
+int32_t* MIDIInstrument::getPresetValueStorage(deluge::modulation::params::Kind kind, int32_t id) {
+	if (kind != deluge::modulation::params::Kind::MIDI || id < 0 || id >= kNumPresetMidiValues
+	    || !ensurePresetMidiValues()) {
+		return nullptr;
+	}
+	return &presetMidiValues_[id];
 }

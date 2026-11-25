@@ -3896,12 +3896,12 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 				}
 				else {
+					newOutput->cloneFrom(static_cast<AudioOutput*>(sourceClip->output));
 					targetOutput = newOutput;
 				}
 			}
 
 			if (targetOutput && targetOutput != sourceClip->output && targetOutput->type == OutputType::AUDIO) {
-				((AudioOutput*)targetOutput)->cloneFrom((AudioOutput*)(sourceClip->output));
 				newAudioClip->setOutput(modelStack, targetOutput);
 			}
 		}

@@ -18,6 +18,7 @@
 #include "modulation/patch/patcher.h"
 #include "definitions_cxx.hpp"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
@@ -29,22 +30,22 @@ namespace params = deluge::modulation::params;
 // If NULL Destination, that means no cables - just the preset value
 template <bool kLocks>
 [[gnu::always_inline]] inline int32_t Patcher::presetValue(uint32_t param, Sound& sound,
-                                                           ParamManager& param_manager) const {
+                                                           const ParamRenderValues& values) const {
 	if constexpr (kLocks) {
 		if (std::optional<int32_t> locked = locks_->get(param)) {
 			return *locked;
 		}
 	}
-	return sound.getSmoothedPatchedParamValue(param, param_manager);
+	return sound.getSmoothedPatchedParamValue(static_cast<int32_t>(param), values);
 }
 
 template <bool kLocks>
 void Patcher::recalculateFinalValueForParamWithNoCablesImpl(int32_t p, Sound& sound,
                                                             ParamManagerForTimeline& param_manager) {
-
+	const ParamRenderValues values = param_manager.patchedRenderValues();
 	int32_t cable_combination = (p < config.firstHybridParam)
-	                                ? combineCablesLinear<kLocks>(nullptr, p, sound, param_manager)
-	                                : combineCablesExp<kLocks>(nullptr, p, sound, param_manager);
+	                                ? combineCablesLinear<kLocks>(nullptr, p, sound, param_manager, values)
+	                                : combineCablesExp<kLocks>(nullptr, p, sound, param_manager, values);
 
 	int32_t final_value = 0;
 	int32_t param_neutral_value = paramNeutralValues[p];
@@ -99,6 +100,8 @@ void Patcher::performPatchingImpl(uint32_t sourcesChanged, Sound& sound, ParamMa
 		rangeFinalValues[i] = getFinalParameterValueLinear(536870912, cables_combination);
 	}
 
+	const ParamRenderValues values = param_manager.patchedRenderValues();
+
 	// param_id, cable_combo
 	etl::vector<std::pair<int32_t, int32_t>, params::kNumParams> cable_combos;
 
@@ -109,7 +112,7 @@ void Patcher::performPatchingImpl(uint32_t sourcesChanged, Sound& sound, ParamMa
 		}
 
 		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
-		cable_combos.push_back({param, combineCablesLinear<kLocks>(destination, param, sound, param_manager)});
+		cable_combos.push_back({param, combineCablesLinear<kLocks>(destination, param, sound, param_manager, values)});
 	}
 
 	for (; destination->sources != 0u; destination++) {
@@ -118,7 +121,7 @@ void Patcher::performPatchingImpl(uint32_t sourcesChanged, Sound& sound, ParamMa
 		}
 
 		int32_t param = destination->destinationParamDescriptor.getJustTheParam();
-		cable_combos.push_back({param, combineCablesExp<kLocks>(destination, param, sound, param_manager)});
+		cable_combos.push_back({param, combineCablesExp<kLocks>(destination, param, sound, param_manager, values)});
 	}
 
 	// sort by param_id
@@ -212,7 +215,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 			source_value = patch_cable.toPolarity(source_value);
 		}
 
-		int32_t cable_strength = patch_cable.param.getCurrentValue();
+		int32_t cable_strength = patch_cable_set.getStrengthForRender(cable);
 		running_total = cableToLinearParamWithoutRangeAdjustment(running_total, source_value, cable_strength);
 	}
 
@@ -226,15 +229,16 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 // of the linear params and is the exception to the rule - it doesn't want this multiplying treatment
 template <bool kLocks>
 [[gnu::always_inline]] inline int32_t Patcher::combineCablesLinear(const Destination* destination, uint32_t p,
-                                                                   Sound& sound, ParamManager& param_manager) {
+                                                                   Sound& sound, ParamManager& param_manager,
+                                                                   const ParamRenderValues& values) {
 	int32_t running_total = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed
 	                                   // to get bigger than 2147483647, which means "4".
 
 	PatchCableSet& patch_cable_set = *param_manager.getPatchCableSet();
 
 	// Do the "preset value" (which we treat like a "cable" here)
-	running_total = cableToLinearParamWithoutRangeAdjustment(
-	    running_total, presetValue<kLocks>(p, sound, param_manager), paramRanges[p]);
+	running_total =
+	    cableToLinearParamWithoutRangeAdjustment(running_total, presetValue<kLocks>(p, sound, values), paramRanges[p]);
 
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
@@ -243,7 +247,7 @@ template <bool kLocks>
 			PatchSource source = patch_cable.from;
 			int32_t source_value = source_values_[std::to_underlying(source)];
 			source_value = patch_cable.toPolarity(source_value);
-			int32_t cable_strength = patch_cable.param.getCurrentValue();
+			int32_t cable_strength = patch_cable_set.getStrengthForRender(cable);
 			running_total = cableToLinearParam(running_total, patch_cable, source_value, cable_strength);
 		}
 	}
@@ -257,7 +261,8 @@ template <bool kLocks>
 // Call this if (p >= getFirstHybridParam())
 template <bool kLocks>
 [[gnu::always_inline]] inline int32_t Patcher::combineCablesExp(const Destination* destination, uint32_t param,
-                                                                Sound& sound, ParamManager& param_manager) {
+                                                                Sound& sound, ParamManager& param_manager,
+                                                                const ParamRenderValues& values) {
 
 	int32_t running_total = 0;
 
@@ -283,8 +288,8 @@ template <bool kLocks>
 	}
 
 	// Do the "preset value" (which we treat like a "cable" here)
-	running_total = cableToExpParamWithoutRangeAdjustment(
-	    running_total, presetValue<kLocks>(param, sound, param_manager), paramRanges[param]);
+	running_total = cableToExpParamWithoutRangeAdjustment(running_total, presetValue<kLocks>(param, sound, values),
+	                                                      paramRanges[param]);
 
 	return running_total;
 }
@@ -300,15 +305,18 @@ void Patcher::performInitialPatchingImpl(Sound& sound, ParamManager& param_manag
 	// combineCablesLinear into iterations, which sometimes could be done on all params at once. Or, could just
 	// pre-compute and copy "final values" for where there's no patching
 
+	const ParamRenderValues values = param_manager.patchedRenderValues();
+
 	// First for the params whose cables get multiplied, we go do them all as if they have no patching, and then for
 	// the few which do, we overwrite those values
 	for (int32_t p = config.firstParam; p < config.firstHybridParam; p++) {
-		param_final_values_[p - config.firstParam] = combineCablesLinear<kLocks>(nullptr, p, sound, param_manager);
+		param_final_values_[p - config.firstParam] =
+		    combineCablesLinear<kLocks>(nullptr, p, sound, param_manager, values);
 	}
 
 	// And now we do the same for params whose cables get added
 	for (int32_t p = config.firstHybridParam; p < config.endParams; p++) {
-		param_final_values_[p - config.firstParam] = combineCablesExp<kLocks>(nullptr, p, sound, param_manager);
+		param_final_values_[p - config.firstParam] = combineCablesExp<kLocks>(nullptr, p, sound, param_manager, values);
 	}
 
 	Destination* destination = param_manager.getPatchCableSet()->destinations[config.globality];
@@ -325,11 +333,12 @@ void Patcher::performInitialPatchingImpl(Sound& sound, ParamManager& param_manag
 		for (; destination->destinationParamDescriptor.data < (config.firstHybridParam | 0xFFFFFF00); destination++) {
 			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
 			param_final_values_[p - config.firstParam] =
-			    combineCablesLinear<kLocks>(destination, p, sound, param_manager);
+			    combineCablesLinear<kLocks>(destination, p, sound, param_manager, values);
 		}
 		for (; destination->sources; destination++) {
 			int32_t p = destination->destinationParamDescriptor.getJustTheParam();
-			param_final_values_[p - config.firstParam] = combineCablesExp<kLocks>(destination, p, sound, param_manager);
+			param_final_values_[p - config.firstParam] =
+			    combineCablesExp<kLocks>(destination, p, sound, param_manager, values);
 		}
 	}
 

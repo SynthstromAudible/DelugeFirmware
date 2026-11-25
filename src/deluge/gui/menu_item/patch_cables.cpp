@@ -2,6 +2,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
+#include "model/model_stack.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "patch_cable_strength/range.h"
@@ -10,6 +11,8 @@
 #include "source_selection/range.h"
 #include "source_selection/regular.h"
 #include "util/functions.h"
+#include <algorithm>
+#include <array>
 
 namespace deluge::gui::menu_item {
 
@@ -48,6 +51,9 @@ void PatchCables::readValueAgain() {
 
 void PatchCables::renderOptions() {
 	options.clear();
+	std::array<char, MODEL_STACK_MAX_SIZE> model_stack_memory_storage{};
+	char* model_stack_memory = model_stack_memory_storage.data();
+	auto* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 
 	for (int i = 0; i < set->numPatchCables; i++) {
@@ -78,7 +84,7 @@ void PatchCables::renderOptions() {
 			off = 5;
 		}
 
-		int32_t param_value = cable->param.getCurrentValue();
+		int32_t param_value = set->getValueForControl(PatchCableSet::getParamId(desc, src), model_stack);
 		int32_t level = ((int64_t)param_value * kMaxMenuPatchCableValue + (1 << 29)) >> 30;
 
 		float floatLevel = (float)level / 100;

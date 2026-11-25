@@ -17,6 +17,7 @@
 
 #include "model/fx/stutterer.h"
 #include "dsp/stereo_sample.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 
@@ -25,31 +26,32 @@ namespace params = deluge::modulation::params;
 Stutterer stutterer{};
 
 void Stutterer::initParams(ParamManager* paramManager) {
-	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+	AutoParamSetup(paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_STUTTER_RATE])
+	    .setCurrentValueBasicForSetup(0);
 }
 
 int32_t Stutterer::getStutterRate(ParamManager* paramManager, int32_t magnitude, uint32_t timePerTickInverse) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
+	int32_t param_value = paramManager->getUnpatchedValueForRender(params::UNPATCHED_STUTTER_RATE);
 
 	// Quantized Stutter diff
 	// Convert to knobPos (range -64 to 64) for easy operation
-	int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
+	int32_t knob_pos = unpatchedParams->paramValueToKnobPos(param_value, nullptr);
 	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be
 	// a no-op)
-	knobPos = knobPos + lastQuantizedKnobDiff;
+	knob_pos = knob_pos + lastQuantizedKnobDiff;
 	// Avoid the param to go beyond limits
-	if (knobPos < -64) {
-		knobPos = -64;
+	if (knob_pos < -64) {
+		knob_pos = -64;
 	}
-	else if (knobPos > 64) {
-		knobPos = 64;
+	else if (knob_pos > 64) {
+		knob_pos = 64;
 	}
 	// Convert back to value range
-	paramValue = unpatchedParams->knobPosToParamValue(knobPos, nullptr);
+	param_value = unpatchedParams->knobPosToParamValue(knob_pos, nullptr);
 
 	int32_t rate =
-	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(paramValue));
+	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(param_value));
 
 	if (sync != 0) {
 		rate = multiply_32x32_rshift32(rate, timePerTickInverse);
@@ -69,31 +71,31 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 	currentReverse = stutterConfig.reversed;
 	if (stutterConfig.quantized) {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-		int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
-		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
-		if (knobPos < -39) {
-			knobPos = -16; // 4ths
+		int32_t param_value = paramManager->getUnpatchedValueForRender(params::UNPATCHED_STUTTER_RATE);
+		int32_t knob_pos = unpatchedParams->paramValueToKnobPos(param_value, nullptr);
+		if (knob_pos < -39) {
+			knob_pos = -16; // 4ths
 		}
-		else if (knobPos < -14) {
-			knobPos = -8; // 8ths
+		else if (knob_pos < -14) {
+			knob_pos = -8; // 8ths
 		}
-		else if (knobPos < 14) {
-			knobPos = 0; // 16ths
+		else if (knob_pos < 14) {
+			knob_pos = 0; // 16ths
 		}
-		else if (knobPos < 39) {
-			knobPos = 8; // 32nds
+		else if (knob_pos < 39) {
+			knob_pos = 8; // 32nds
 		}
 		else {
-			knobPos = 16; // 64ths
+			knob_pos = 16; // 64ths
 		}
 		// Save current values for later recovering them
-		valueBeforeStuttering = paramValue;
-		lastQuantizedKnobDiff = knobPos;
+		valueBeforeStuttering = param_value;
+		lastQuantizedKnobDiff = knob_pos;
 
 		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we
 		// selected just before pressing the knob and we use the lastQuantizedKnobDiff value to calculate the relative
 		// (real) value
-		unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+		AutoParamSetup(unpatchedParams->params[params::UNPATCHED_STUTTER_RATE]).setCurrentValueBasicForSetup(0);
 	}
 
 	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to
@@ -205,13 +207,14 @@ void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
 
 		if (stutterConfig.quantized) {
 			// Sset back the value it had just before stuttering so orange LEDs are redrawn.
-			unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(valueBeforeStuttering);
+			AutoParamSetup(unpatchedParams->params[params::UNPATCHED_STUTTER_RATE])
+			    .setCurrentValueBasicForSetup(valueBeforeStuttering);
 		}
 		else {
 			// Regular Stutter FX (if below middle value, reset it back to middle)
 			// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter anyway
-			if (unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE) < 0) {
-				unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+			if (paramManager->getUnpatchedValueForRender(params::UNPATCHED_STUTTER_RATE) < 0) {
+				AutoParamSetup(unpatchedParams->params[params::UNPATCHED_STUTTER_RATE]).setCurrentValueBasicForSetup(0);
 			}
 		}
 	}

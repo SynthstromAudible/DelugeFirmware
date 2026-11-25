@@ -19,14 +19,14 @@
 #include "definitions_cxx.hpp"
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
-#include "modulation/params/param_set.h"
+#include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include "util/comparison.h"
 #include <cstdint>
 
 /// NOT GRAIN! - this only does the comb filter based mod fx
 void ModFXProcessor::processModFX(std::span<StereoSample> buffer, const ModFXType& modFXType, int32_t modFXRate,
-                                  int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+                                  int32_t modFXDepth, int32_t* postFXVolume, ParamManager* param_manager,
                                   bool anySoundComingIn) {
 	// if nothing rendered into the clip then we can just return
 	if (anySoundComingIn == false)
@@ -40,12 +40,12 @@ void ModFXProcessor::processModFX(std::span<StereoSample> buffer, const ModFXTyp
 
 		if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::PHASER || modFXType == ModFXType::WARBLE) {
 
-			setupModFXWFeedback(modFXType, modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType,
-			                    modFXDelayOffset, thisModFXDelayDepth, feedback);
+			setupModFXWFeedback(modFXType, modFXDepth, postFXVolume, param_manager, modFXLFOWaveType, modFXDelayOffset,
+			                    thisModFXDelayDepth, feedback);
 		}
 		else if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO
 		         || modFXType == ModFXType::DIMENSION) {
-			setupChorus(modFXType, modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType, modFXDelayOffset,
+			setupChorus(modFXType, modFXDepth, postFXVolume, param_manager, modFXLFOWaveType, modFXDelayOffset,
 			            thisModFXDelayDepth);
 		}
 
@@ -84,11 +84,12 @@ void ModFXProcessor::processModFX(std::span<StereoSample> buffer, const ModFXTyp
 	}
 }
 void ModFXProcessor::setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
-                                 UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType,
-                                 int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const {
+                                 ParamManager* param_manager, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
+                                 int32_t& thisModFXDelayDepth) const {
 	modFXDelayOffset = multiply_32x32_rshift32(
 	    kModFXMaxDelay,
-	    (unpatchedParams->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824);
+	    (param_manager->getUnpatchedValueForRender(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET) >> 1)
+	        + 1073741824);
 	thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 2;
 	if (modFXType == ModFXType::DIMENSION) {
 		modFXLFOWaveType = LFOType::TRIANGLE;
@@ -100,10 +101,10 @@ void ModFXProcessor::setupChorus(const ModFXType& modFXType, int32_t modFXDepth,
 	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
 }
 void ModFXProcessor::setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
-                                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType,
+                                         ParamManager* param_manager, LFOType& modFXLFOWaveType,
                                          int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth,
                                          int32_t& feedback) const {
-	int32_t a = unpatchedParams->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK) >> 1;
+	int32_t a = param_manager->getUnpatchedValueForRender(deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK) >> 1;
 	int32_t b = 2147483647 - ((a + 1073741824) >> 2) * 3;
 	int32_t c = multiply_32x32_rshift32(b, b);
 	int32_t d = multiply_32x32_rshift32(b, c);
@@ -129,7 +130,8 @@ void ModFXProcessor::setupModFXWFeedback(const ModFXType& modFXType, int32_t mod
 		*postFXVolume <<= 1;
 		modFXDelayOffset = kFlangerOffset;
 		modFXDelayOffset += multiply_32x32_rshift32(
-		    kFlangerOffset, (unpatchedParams->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET)));
+		    kFlangerOffset,
+		    (param_manager->getUnpatchedValueForRender(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET)));
 		thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 1;
 		modFXLFOWaveType = LFOType::WARBLER;
 	}

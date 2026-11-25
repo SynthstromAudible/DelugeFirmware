@@ -47,6 +47,7 @@
 #include "model/scale/utils.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -1576,6 +1577,9 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 		}
 	}
 	output = newInstrument;
+	if (newInstrument->type == OutputType::MIDI_OUT) {
+		newInstrument->toModControllable()->bindPresetValues(&paramManager);
+	}
 	affectEntire = true; // Moved here from changeInstrument, March 2021
 
 	return Error::NONE;
@@ -2141,6 +2145,8 @@ void InstrumentClip::setBackedUpParamManagerMIDI(ParamManagerForTimeline* newOne
 		// Delete the old one
 		backedUpParamManagerMIDI.destructAndForgetParamCollections();
 	}
+	// Materialize while the previous output still owns its baseline storage.
+	newOne->getMIDIParamCollection()->params.bindPresetValues(nullptr);
 	backedUpParamManagerMIDI.stealParamCollectionsFrom(newOne);
 }
 
@@ -2150,6 +2156,7 @@ void InstrumentClip::restoreBackedUpParamManagerMIDI(ModelStackWithModControllab
 	}
 
 	paramManager.stealParamCollectionsFrom(&backedUpParamManagerMIDI);
+	modelStack->modControllable->bindPresetValues(&paramManager);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addParamManager(&paramManager);
@@ -2983,6 +2990,9 @@ Error InstrumentClip::readMIDIParamsFromFile(Deserializer& reader, int32_t readA
 			char const* tagName;
 			int32_t paramId = CC_NUMBER_NONE;
 			AutoParam* param = nullptr;
+			int32_t clip_value = 0;
+			bool has_clip_value = false;
+			bool has_relative_value = false;
 			ParamCollectionSummary* summary;
 			ExpressionParamSet* expressionParams = nullptr;
 
@@ -3030,10 +3040,21 @@ expressionParam:
 					}
 					reader.exitTag("cc");
 				}
+				else if (strcmp(tagName, "clipValue") == 0) {
+					clip_value = reader.readTagOrAttributeValueInt();
+					has_clip_value = true;
+					reader.exitTag("clipValue");
+				}
+				else if (strcmp(tagName, "relativeValue") == 0) {
+					if (param != nullptr && expressionParams == nullptr) {
+						has_relative_value = AutoParamSetup(*param).readRelativeFromFile(reader);
+					}
+					reader.exitTag("relativeValue");
+				}
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
-						Error error = param->readFromFile(reader, readAutomationUpToPos);
+						Error error = AutoParamSetup(*param).readFromFile(reader, readAutomationUpToPos);
 						if (error != Error::NONE) {
 							return error;
 						}
@@ -3049,13 +3070,13 @@ expressionParam:
 							// If channel pressure, gotta move and scale the values from how they were in the pre-V3.2
 							// firmware
 							if (paramId) {
-								param->transposeCCValuesToChannelPressureValues();
+								AutoParamSetup(*param).transposeCCValuesToChannelPressureValues();
 							}
 
 							// Or if pitch bend, it'll no longer interpolate, so go place some new nodes. Actually even
 							// without this step, you can only just tell there's any problem.
 							else {
-								param->makeInterpolationGoodAgain(
+								AutoParamSetup(*param).makeInterpolationGoodAgain(
 								    loopLength,
 								    22); // 22 is picked somewhat arbitrarily - see comment for function itself.
 							}
@@ -3068,6 +3089,9 @@ expressionParam:
 				}
 			}
 
+			if (has_clip_value && !has_relative_value && (param != nullptr) && param->isAutomated()) {
+				AutoParamSetup(*param).restoreClipValueFromFile(clip_value);
+			}
 			reader.exitTag("param");
 		}
 		else {
@@ -4086,7 +4110,8 @@ haveNoDrum:
 
 						patchedParams->deleteAutomationForParamBasicForSetup(modelStackWithParamCollection,
 						                                                     params::LOCAL_OSC_A_PHASE_WIDTH + s);
-						patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(0);
+						AutoParamSetup(patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH + s])
+						    .setCurrentValueBasicForSetup(0);
 						patchedCables->removeAllPatchingToParam(modelStackWithParamCollection,
 						                                        params::LOCAL_OSC_A_PHASE_WIDTH + s);
 					}
@@ -4095,6 +4120,17 @@ haveNoDrum:
 		}
 	}
 
+	if (auto* owner = output->toModControllable()) {
+		owner->bindPresetValues(&paramManager);
+	}
+	if (output->type == OutputType::KIT) {
+		for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+			auto* row = noteRows.getElement(i);
+			if ((row->drum != nullptr) && row->drum->type == DrumType::SOUND) {
+				static_cast<SoundDrum*>(row->drum)->bindPresetValues(&row->paramManager);
+			}
+		}
+	}
 	return Error::NONE;
 }
 
@@ -4564,33 +4600,27 @@ doNormal: // Wrap it back to the start.
 		// Special case for MPE - in this case where we're setting the value for the whole length, we still do want to
 		// place one - just one - node at pos. It'll be for the start of a note.
 		if (effectiveLength == distanceToNextNote) {
-			param->deleteAutomation(nullptr, modelStackWithAutoParam, false);
+			param->automation().erase(nullptr, modelStackWithAutoParam, false);
 
-			Error error = param->nodes.insertAtIndex(0);
-			if (error == Error::NONE) {
-				ParamNode* firstNode = param->nodes.getElement(0);
-				firstNode->pos = quantizedPos;
-				firstNode->value = value;
-				firstNode->interpolated = reversed;
-			}
+			param->automation().setNodeAtPos(quantizedPos, value, reversed);
 		}
 
 		else if (reversed) {
 doHomogenize:
 #if ENABLE_SEQUENTIALITY_TESTS
-			param->nodes.testSequentiality("E442"); // drbourbon got, when check was inside homogenizeRegion(). Now
-			                                        // trying to work out where that came from. March 2022.
+			param->automation().testSequentiality("E442"); // drbourbon got, when check was inside homogenizeRegion().
+			                                               // Now trying to work out where that came from. March 2022.
 #endif
 
-			param->homogenizeRegion(modelStackWithAutoParam, quantizedPos, distanceToNextNote, value, reversed,
-			                        reversed, effectiveLength, reversed, posAtWhichClipWillCut);
+			param->automation().homogenizeRegion(modelStackWithAutoParam, quantizedPos, distanceToNextNote, value,
+			                                     reversed, reversed, effectiveLength, reversed, posAtWhichClipWillCut);
 		}
 
 		else {
 
 			// Special case for if linear recording, quantized later, right to end of effectiveLength.
 			if (quantizedPos >= effectiveLength) {
-				param->setNodeAtPos(quantizedPos, value, false);
+				param->automation().setNodeAtPos(quantizedPos, value, false);
 			}
 
 			// Or, normal case
@@ -4603,8 +4633,8 @@ doHomogenize:
 
 		// These manual sets are in case we quantized forwards and the region we just created actually begins after
 		// "now"-time.
-		param->currentValue = value;
-		param->resetInterpolationIncrement();
+		AutoParamSetup(*param).setCurrentValueBasicForSetup(value);
+		AutoParamPlayback(*param).resetInterpolationIncrement();
 		// TODO: and to make it perfect, we'd also want to ignore any further nodes between now and the start of the
 		// region. Or, could probably get away with just deleting them.
 	}

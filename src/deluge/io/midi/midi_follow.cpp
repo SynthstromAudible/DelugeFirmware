@@ -1105,7 +1105,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		}
 		else {
-			currentValue = modelStackWithParam->autoParam->getCurrentValue();
+			currentValue = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
 		}
 
 		// convert current value to knobPos to compare to cc value being received
@@ -1126,7 +1126,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 				instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
 			}
 			else {
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
+				modelStackWithParam->paramCollection->setValueFromControl(newValue, modelStackWithParam, modPos,
 				                                                          modLength);
 			}
 
@@ -1370,7 +1370,12 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 					}
 					else {
-						currentValue = modelStackWithParam->autoParam->getCurrentValue();
+						// Report what an incoming CC edits (see handleReceivedCC()). Only unlinked
+						// automation feedback follows the live automated value.
+						bool live = isAutomation && (ParamCollection::getLinkedOutput(modelStackWithParam) == nullptr);
+						currentValue =
+						    live ? modelStackWithParam->autoParam->getCurrentValue()
+						         : modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
 					}
 
 					// convert current value to a knob position

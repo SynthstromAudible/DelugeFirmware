@@ -16,10 +16,12 @@
  */
 
 #include "modulation/midi/midi_param_vector.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/midi/midi_param.h"
+#include "modulation/params/param_control_value.h"
 #include <new>
 
-MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 8) {
+MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 32) {
 }
 
 MIDIParam* MIDIParamVector::getParamFromCC(int32_t cc) {
@@ -33,6 +35,9 @@ MIDIParam* MIDIParamVector::getParamFromCC(int32_t cc) {
 }
 
 MIDIParam* MIDIParamVector::getOrCreateParamFromCC(int32_t cc, int32_t defaultValue, bool allowCreation) {
+	if (cc < 0 || cc > 255) {
+		return nullptr;
+	}
 	int32_t i = search(cc, GREATER_OR_EQUAL);
 	MIDIParam* param;
 	if (i >= getNumElements()) {
@@ -45,7 +50,9 @@ doesntExistYet:
 			return NULL;
 		}
 		param->cc = cc;
-		param->param.setCurrentValueBasicForSetup(defaultValue);
+		const int32_t* preset = presetValueFor(cc);
+		AutoParamSetup(param->param).setCurrentValueBasicForSetup((preset != nullptr) ? *preset : defaultValue);
+		param->clipValue.bindPreset(preset);
 	}
 	else {
 		param = getElement(i);
@@ -64,10 +71,50 @@ MIDIParam* MIDIParamVector::insertParam(int32_t i) {
 	else {
 		void* address = getElementAddress(i);
 		MIDIParam* param = new (address) MIDIParam();
+		rebindAfterMove();
 		return param;
 	}
 }
 
 MIDIParam* MIDIParamVector::getElement(int32_t i) {
 	return (MIDIParam*)getElementAddress(i);
+}
+
+void MIDIParamVector::rebindAfterMove() {
+	for (int32_t i = 0; i < getNumElements(); ++i) {
+		auto* entry = getElement(i);
+		AutoParamOwnership(entry->param).rebindClipValueAfterMove(&entry->clipValue);
+	}
+}
+
+Error MIDIParamVector::beenCloned() {
+	Error error = OrderedResizeableArray::beenCloned();
+	if (error == Error::NONE) {
+		rebindAfterMove();
+	}
+	return error;
+}
+
+void MIDIParamVector::deleteAtKey(int32_t key) {
+	OrderedResizeableArray::deleteAtKey(key);
+	rebindAfterMove();
+}
+
+PLACE_SDRAM_TEXT void MIDIParamVector::bindPresetValues(const int32_t* values) {
+	presetValues_ = values;
+	for (int32_t i = 0; i < getNumElements(); ++i) {
+		auto* entry = getElement(i);
+		entry->clipValue.bindPreset(presetValueFor(entry->cc));
+	}
+}
+
+int32_t MIDIParamVector::getValueForControl(int32_t cc, deluge::modulation::params::ControlLayer layer) {
+	using namespace deluge::modulation::params;
+	if (cc < 0 || cc > 255) {
+		return 0;
+	}
+	auto* entry = getParamFromCC(cc);
+	return readControlValue(layer, entry != nullptr ? &entry->clipValue : nullptr,
+	                        layer == ControlLayer::LIVE && entry != nullptr ? &entry->param.data() : nullptr,
+	                        presetValueFor(cc) != nullptr ? *presetValueFor(cc) : 0);
 }

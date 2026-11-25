@@ -268,7 +268,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 			if (expressionParams) {
 				for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-					monophonicExpressionValues[i] = expressionParams->params[i].getCurrentValue();
+					monophonicExpressionValues.at(i) = expressionParams->getExpressionValue(i);
 				}
 			}
 			else {
@@ -420,10 +420,8 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
 
-	UnpatchedParamSet* unpatchedParams = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSet();
-
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	arpSettings->updateParamsFromParamManager(modelStackWithThreeMainThings->paramManager);
 
 	ArpReturnInstruction instruction;
 

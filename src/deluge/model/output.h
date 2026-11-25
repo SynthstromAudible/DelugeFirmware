@@ -30,6 +30,7 @@ class Song;
 class Clip;
 class ParamManagerForTimeline;
 class Kit;
+class SoundDrum;
 class Sound;
 class StereoSample;
 class TimelineCounter;
@@ -43,6 +44,7 @@ class LearnedMIDI;
 class ParamManager;
 class Serializer;
 class Deserializer;
+class PresetSaveValues;
 
 inline const char* outputTypeToString(OutputType type) {
 	switch (type) {
@@ -85,6 +87,24 @@ public:
 	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
 	                           char const* dirPath) = 0;
 
+	// Make the saved values the in-memory baseline. Either every baseline is rebased or,
+	// when storage cannot be prepared, none is.
+	Error captureSavedPreset(Song* song, Clip* clip, PresetSaveValues& saved);
+	// The same for one sound drum, after saving its kit row as a sound preset.
+	Error captureSavedDrumPreset(Song* song, SoundDrum* drum, ParamManager* manager, PresetSaveValues& saved);
+	// Makes value the parameter's baseline. saved, the manager whose values were saved, keeps them.
+	// Every other clip, note row and backup keeps its offset and relative curve, so its value moves with
+	// the baseline. Call preparePresetParameter() first.
+	Error rebasePresetParameter(Song* song, ModControllable* owner, deluge::modulation::params::Kind kind, int32_t id,
+	                            int32_t value, ParamManager* saved);
+	// Value-neutral: allocates any clip storage the rebase will need.
+	Error preparePresetParameter(Song* song, ModControllable* owner, deluge::modulation::params::Kind kind, int32_t id,
+	                             int32_t value);
+	// Announces each clip value a baseline change from previous has moved. Values in preserved did not move.
+	// offset_shift is the amount every other bound value's offset was shifted along with the baseline.
+	Error announcePresetParameterChange(Song* song, ModControllable* owner, deluge::modulation::params::Kind kind,
+	                                    int32_t id, int32_t previous, const ParamManager* preserved,
+	                                    int64_t offset_shift = 0);
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;
 	/// Which multitrack USB bus this track goes to instead of the main mix: 0 for none (the main mix), or 1 to
@@ -105,6 +125,21 @@ public:
 	bool inValidState;
 	bool wasCreatedForAutoOverdub;
 	bool armedForRecording;
+	// Output settings are public throughout the existing firmware model.
+	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+	bool trackLink{false};
+	// offset_shift also moves every value bound to the baseline, for an undo record whose baseline
+	// could not hold the whole of a rebase's difference.
+	Error setPresetParameter(Song* song, ModControllable* owner, deluge::modulation::params::Kind kind, int32_t id,
+	                         int32_t value, bool recordUndo = true, int64_t offset_shift = 0);
+	// A preset save moved this baseline by difference. Undo records hold absolute baselines, so shift
+	// those for this parameter by the same amount: undoing a linked edit then still moves the baseline
+	// as much as the edit did. A record keeps any part its baseline can't hold as an offset shift.
+	void rebasePresetHistory(ModControllable* owner, deluge::modulation::params::Kind kind, int32_t id,
+	                         int64_t difference);
+	// Adds shift to every clip, note row and backup value bound to preset, keeping its curve relative.
+	static void shiftPresetOffsets(Song* song, deluge::modulation::params::Kind kind, int32_t id, const int32_t* preset,
+	                               int64_t shift);
 	int16_t colour{0};
 
 	uint8_t modKnobMode;

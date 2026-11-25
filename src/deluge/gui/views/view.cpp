@@ -73,9 +73,12 @@
 #include "model/timeline_counter.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_control.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "processing/audio_output.h"
@@ -866,8 +869,11 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		return; // No held note plays this param's Sound, so there's nothing to lock it on
 	}
 	bool noteLock = (held == HeldNoteLock::LOCK);
+	bool editing_region = (modLength != 0u) && modelStackWithParam->timelineCounterIsSet();
 	if (!noteLock) {
-		value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+		value = editing_region ? modelStackWithParam->autoParam->getValuePossiblyAtPos(static_cast<int32_t>(modPos),
+		                                                                               modelStackWithParam)
+		                       : modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
 	}
 	HeldPadEdit heldPadEdit = noteLock ? HeldPadEdit::NOTE_LOCK
 	                          : instrumentClipView.noteLocks.automatesHeldNotes(modelStackWithParam)
@@ -935,7 +941,9 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	// Hack to make it so stutter can't be automated
 	if (modelStackWithParam->timelineCounterIsSet()
-	    && !modelStackWithParam->paramCollection->doesParamIdAllowAutomation(modelStackWithParam)) {
+	    && !params::retainControlTimeline(
+	        modelStackWithParam->paramCollection->doesParamIdAllowAutomation(modelStackWithParam),
+	        ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr, editing_region)) {
 		copyModelStack(newModelStackMemory, modelStackWithParam, sizeof(ModelStackWithAutoParam));
 		modelStackWithParam = (ModelStackWithAutoParam*)newModelStackMemory;
 		modelStackWithParam->setTimelineCounter(nullptr);
@@ -944,7 +952,13 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 	// Perform the actual change
-	modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+	if (editing_region) {
+		modelStackWithParam->paramCollection->setValueFromControl(
+		    newValue, modelStackWithParam, static_cast<int32_t>(modPos), static_cast<int32_t>(modLength));
+	}
+	else {
+		modelStackWithParam->paramCollection->setValueFromControl(newValue, modelStackWithParam);
+	}
 
 	if (activeModControllableModelStack.timelineCounterIsSet()) {
 		bool noteTailsAllowedAfter =
@@ -1096,7 +1110,7 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 	// if you're dealing with a patch cable which has a -128 to +128 range
 	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
 	if (kind == params::Kind::PATCH_CABLE) {
-		newKnobPos = view.convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
+		newKnobPos = View::convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
 	}
 
 	bool shouldParamIndicateMiddleValue =
@@ -1449,7 +1463,7 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		modelStackWithParam->autoParam->automation().erase(action, modelStackWithParam);
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 	}
 }
@@ -1501,84 +1515,109 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	    activeModControllableModelStack.modControllable->getParamFromModEncoder(
 	        whichModEncoder, &activeModControllableModelStack, false);
 
-	int32_t knobPos;
+	int32_t knob_pos = kKnobPosOffset;
 	bool isBipolar = false;
+	auto* param_collection = modelStackWithParam->paramCollection;
+	auto kind = (param_collection != nullptr) ? param_collection->getParamKind() : params::Kind::NONE;
+	bool editing_region = (modLength != 0u) && modelStackWithParam->timelineCounterIsSet();
+	bool show_linked_preset = !editing_region && kind != params::Kind::EXPRESSION
+	                          && (ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr);
+	bool show_control_value = show_linked_preset || (!editing_region && !playbackHandler.isEitherClockActive());
+	bool missing_linked_param = show_linked_preset && (kind == params::Kind::MIDI || kind == params::Kind::PATCH_CABLE);
 
-	if (modelStackWithParam->autoParam) {
-		int32_t value;
-		if (instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &value) == HeldNoteLock::NONE) {
-			value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+	if (param_collection != nullptr && ((modelStackWithParam->autoParam != nullptr) || missing_linked_param)) {
+		int32_t value = 0;
+		// Held note pads show their lock instead.
+		bool held_note =
+		    (modelStackWithParam->autoParam != nullptr)
+		    && instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &value) != HeldNoteLock::NONE;
+		if (!held_note && show_control_value) {
+			// Stopped controls show the clip scalar; linked controls show the shared
+			// baseline. Neither should inherit the last automation value.
+			if (modelStackWithParam->autoParam != nullptr) {
+				value = param_collection->getValueForControl(modelStackWithParam);
+			}
+			else if (kind == params::Kind::MIDI) {
+				auto* instrument = static_cast<MIDIInstrument*>(modelStackWithParam->modControllable);
+				value = (instrument != nullptr) ? instrument->getPresetMidiValue(modelStackWithParam->paramId) : 0;
+			}
+			else {
+				value = static_cast<PatchCableSet*>(param_collection)
+				            ->getValueForControl(modelStackWithParam->paramId, modelStackWithParam);
+			}
 		}
-		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
-		params::Kind kind = paramCollection->getParamKind();
+		else if (!held_note) {
+			value = modelStackWithParam->autoParam->getValuePossiblyAtPos(static_cast<int32_t>(modPos),
+			                                                              modelStackWithParam);
+		}
 		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
-		knobPos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+		knob_pos = param_collection->paramValueToKnobPos(value, modelStackWithParam);
 		int32_t lowerLimit;
 
 		if (kind == params::Kind::PATCH_CABLE) {
-			lowerLimit = std::min(-192_i32, knobPos);
+			lowerLimit = std::min(-192_i32, knob_pos);
 		}
 		else {
-			lowerLimit = std::min(-64_i32, knobPos);
+			lowerLimit = std::min(-64_i32, knob_pos);
 		}
-		knobPos = std::clamp(knobPos, lowerLimit, 64_i32);
+		knob_pos = std::clamp(knob_pos, lowerLimit, 64_i32);
 		if (isParamQuantizedStutter(kind, modelStackWithParam->paramId,
 		                            (ModControllableAudio*)modelStackWithParam->modControllable)
 		    && !isUIModeActive(UI_MODE_STUTTERING)) {
-			if (knobPos < -39) { // 4ths stutter: no leds turned on
-				knobPos = -64;
+			if (knob_pos < -39) { // 4ths stutter: no leds turned on
+				knob_pos = -64;
 			}
-			else if (knobPos < -14) { // 8ths stutter: 1 led turned on
-				knobPos = -32;
+			else if (knob_pos < -14) { // 8ths stutter: 1 led turned on
+				knob_pos = -32;
 			}
-			else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
-				knobPos = 0;
+			else if (knob_pos < 14) { // 16ths stutter: 2 leds turned on
+				knob_pos = 0;
 			}
-			else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
-				knobPos = 32;
+			else if (knob_pos < 39) { // 32nds stutter: 3 leds turned on
+				knob_pos = 32;
 			}
 			else { // 64ths stutter: all 4 leds turned on
-				knobPos = 64;
+				knob_pos = 64;
 			}
 		}
-		knobPos += kKnobPosOffset;
+		knob_pos += kKnobPosOffset;
 
 		if (kind == params::Kind::PATCH_CABLE) {
-			knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
+			knob_pos = View::convertPatchCableKnobPosToIndicatorLevel(knob_pos);
 		}
 	}
 	else {
 		if (modelStackWithParam->paramId == 255) {
-			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
-			                                                                              modelStackWithParam);
-			knobPos += kKnobPosOffset;
+			knob_pos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
+			                                                                               modelStackWithParam);
+			knob_pos += kKnobPosOffset;
 		}
 		// is it not just a param? then its a patch cable
 		else if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
 			// default value for patch cable
 			// (equals 0 (midpoint) in -128 to +128 range)
-			knobPos = 64;
+			knob_pos = 64;
 			isBipolar = true;
 		}
 	}
 
-	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos, isBipolar);
+	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knob_pos, isBipolar);
 }
 
 /// if you're dealing with a patch cable which has a -128 to +128 range
 /// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
-int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
-	int32_t newKnobPos = (knobPos + kMaxKnobPos) >> 1;
-	// adjustment to make sure that when knobPos returned is 64, it's really 64
+int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knob_pos) {
+	int32_t new_knob_pos = (knob_pos + kMaxKnobPos) >> 1;
+	// adjustment to make sure that when new_knob_pos returned is 64, it's really 64
 	// the knob LED indicator is centred around 64
 	// so the knob pos returned from this function is used to blink the LED when it reaches 64
 	// so to make sure it doesn't blink twice (e.g. when the value is 64 and in between 64 and 65)
 	// we adjust it here so it only returns 64 once
-	if (newKnobPos == 64 && knobPos != 0) {
-		newKnobPos += knobPos;
+	if (new_knob_pos == 64 && knob_pos != 0) {
+		new_knob_pos += knob_pos;
 	}
 
-	return newKnobPos;
+	return new_knob_pos;
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
@@ -1785,25 +1824,29 @@ int32_t View::getModKnobMode() {
 	return modKnobMode;
 }
 
-void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
-	if (paramManager == activeModControllableModelStack.paramManager
-	    || (getCurrentUI() == &soundEditor && paramManager == soundEditor.currentParamManager)) {
+void View::startParamAutomationTimers() {
+	uint8_t notice = paramAutomationNotice_;
+	paramAutomationNotice_ = 0;
+	// A change for the sound editor's parameters only counts while the sound editor is showing.
+	if ((notice & kParamNoticeActive) == 0 && getCurrentUI() != &soundEditor) {
+		return;
+	}
+	bool update_mod_levels = (notice & kParamNoticeModLevels) != 0;
 
-		// If timer wasn't set yet, set it now
-		if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
-			pendingParamAutomationUpdatesModLevels = updateModLevels;
-			uiTimerManager.setTimer(TimerName::DISPLAY_AUTOMATION, 25);
-		}
+	// If timer wasn't set yet, set it now
+	if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
+		pendingParamAutomationUpdatesModLevels = update_mod_levels;
+		uiTimerManager.setTimer(TimerName::DISPLAY_AUTOMATION, 25);
+	}
 
-		else {
-			if (updateModLevels) {
-				pendingParamAutomationUpdatesModLevels = true;
-			}
+	else {
+		if (update_mod_levels) {
+			pendingParamAutomationUpdatesModLevels = true;
 		}
+	}
 
-		if (!uiTimerManager.isTimerSet(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
-			uiTimerManager.setTimer(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
-		}
+	if (!uiTimerManager.isTimerSet(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
+		uiTimerManager.setTimer(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
 	}
 }
 

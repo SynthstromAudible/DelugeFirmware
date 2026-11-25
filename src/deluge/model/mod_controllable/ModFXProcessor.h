@@ -23,15 +23,16 @@
 #include <cstdint>
 #include <span>
 
+class ParamManager;
+
 class ModFXProcessor {
 
-	void setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
-	                 UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
-	                 int32_t& thisModFXDelayDepth) const;
+	void setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume, ParamManager* param_manager,
+	                 LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const;
 
 	/// flanger, phaser, warble - generally any modulated delay tap based effect with feedback
 	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
-	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
+	                         ParamManager* param_manager, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
 	                         int32_t& thisModFXDelayDepth, int32_t& feedback) const;
 	// not grain!
 	template <ModFXType modFXType>
@@ -68,7 +69,7 @@ public:
 	LFO modFXLFO;
 	LFO modFXLFOStereo;
 	void processModFX(std::span<StereoSample> buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
-	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, bool anySoundComingIn);
+	                  int32_t* postFXVolume, ParamManager* param_manager, bool anySoundComingIn);
 	void resetMemory();
 	void setupBuffer();
 	void disableBuffer();

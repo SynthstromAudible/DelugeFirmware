@@ -38,6 +38,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -1433,8 +1434,9 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 			int32_t newParameterValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(knobPos, modelStackWithParam);
 
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
-			                                                          view.modPos, view.modLength);
+			AutoParamLiveInput(*modelStackWithParam->autoParam)
+			    .setLiveValuePossiblyForRegion(newParameterValue, modelStackWithParam,
+			                                   static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength));
 
 			if (!defaultEditingMode && params::isParamStutter(paramKind, paramID)
 			    && (fxPress[xDisplay].previousKnobPosition != knobPos)) {

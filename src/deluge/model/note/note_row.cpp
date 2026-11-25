@@ -37,6 +37,7 @@
 #include "model/note/note_lock_playback.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
@@ -3903,6 +3904,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			}
 		}
 
+		soundDrum->bindPresetValues(&paramManager);
+
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addOtherTwoThings(soundDrum, &paramManager);
 		drum = soundDrum;
@@ -4541,10 +4544,10 @@ needToDoIt:
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(i, param);
 
 			if (shouldJustDeleteNodes) {
-				param->deleteNodesWithinRegion(modelStackWithAutoParam, pos, length);
+				param->automation().deleteNodesWithinRegion(modelStackWithAutoParam, pos, length);
 			}
 			else {
-				param->setValueForRegion(pos, length, 0, modelStackWithAutoParam);
+				param->automation().setValueForRegion(pos, length, 0, modelStackWithAutoParam);
 			}
 		}
 
@@ -4586,7 +4589,7 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 
 		// And also, set the values now, for in case they're instead gonna stop editing the note before
 		// releasing this MIDI note.
-		param->setValueForRegion(view.modPos, view.modLength, newValueBig, modelStackWithAutoParam);
+		param->automation().setValueForRegion(view.modPos, view.modLength, newValueBig, modelStackWithAutoParam);
 	}
 	else {
 		int32_t distanceToNextNote =
@@ -4596,8 +4599,8 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 
 		bool doMPEMode = (distanceToNextNode >= distanceToNextNote);
 
-		param->setCurrentValueInResponseToUserInput(
-		    newValueBig, modelStackWithAutoParam, true, livePos, false,
+		AutoParamLiveInput(*param).setValueForLiveInput(
+		    newValueBig, modelStackWithAutoParam, static_cast<int32_t>(livePos), false,
 		    doMPEMode); // Don't allow deletion of nodes in linear run. See comments above that function
 	}
 

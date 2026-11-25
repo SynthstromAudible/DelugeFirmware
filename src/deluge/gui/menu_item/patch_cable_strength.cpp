@@ -36,6 +36,8 @@
 #include "source_selection.h"
 #include "source_selection/range.h"
 #include "util/functions.h"
+#include <algorithm>
+#include <array>
 
 using hid::display::OLED;
 
@@ -195,16 +197,18 @@ void PatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 	uint32_t c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	if (c == 255) {
-		this->setValue(0);
 		patch_cable_exists_ = false;
 	}
-	else {
-		PatchCable& patchCable = patchCableSet->patchCables[c];
-		const int32_t paramValue = patchCable.param.getCurrentValue();
-		// the internal values are stored in the range -(2^30) to 2^30.
-		// rescale them to the range -5000 to 5000 and round to nearest.
-		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
-	}
+	std::array<char, MODEL_STACK_MAX_SIZE> model_stack_memory_storage{};
+	char* model_stack_memory = model_stack_memory_storage.data();
+	auto* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+	// A missing local route can still have a shared baseline when Track Link is on.
+	const int32_t param_value =
+	    patchCableSet->getValueForControl(static_cast<int32_t>(getLearningThing().data), model_stack);
+	// The internal values are stored in the range -(2^30) to 2^30.
+	// Rescale them to the range -5000 to 5000 and round to nearest.
+	this->setValue(
+	    static_cast<int32_t>((static_cast<int64_t>(param_value) * kMaxMenuPatchCableValue + (1 << 29)) >> 30));
 }
 
 ModelStackWithAutoParam* PatchCableStrength::getModelStackWithParam(void* memory) {
@@ -240,7 +244,7 @@ void PatchCableStrength::writeCurrentValue() {
 	// rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
 	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
-	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+	modelStackWithParam->paramCollection->setValueFromControl(finalValue, modelStackWithParam);
 
 	if (getRootUI() == &automationView) {
 		int32_t p = modelStackWithParam->paramId;

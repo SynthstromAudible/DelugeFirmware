@@ -24,6 +24,7 @@
 #include "model/clip/clip.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
@@ -747,34 +748,37 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos);
+			int32_t value = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
+			int32_t knob_pos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
-			int32_t newKnobPos = calculateAutomationKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
+			int32_t new_knob_pos = calculateAutomationKnobPosForModEncoderTurn(modelStackWithParam, knob_pos, offset);
 
 			int32_t newValue =
-			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+			    modelStackWithParam->paramCollection->knobPosToParamValue(new_knob_pos, modelStackWithParam);
 
 			// use default interpolation settings
 			initInterpolation();
 
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
-			                                                          view.modLength);
+			// Selected pads have their own step-editing path. With no selection, edit the
+			// clip scalar layer (or the live value where the collection has none), or record
+			// automation when recording is active.
+			modelStackWithParam->paramCollection->setValueFromControl(newValue, modelStackWithParam);
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
 			}
 
 			if (!playbackHandler.isEitherClockActive() || !modelStackWithParam->autoParam->isAutomated()) {
-				int32_t knobPos = newKnobPos + kKnobPosOffset;
-				renderDisplay(knobPos, kNoSelection, true);
-				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
+				int32_t display_knob_pos = new_knob_pos + kKnobPosOffset;
+				renderDisplay(display_knob_pos, kNoSelection, true);
+				setAutomationKnobIndicatorLevels(modelStackWithParam, display_knob_pos, display_knob_pos);
 			}
 
-			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
+			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, new_knob_pos);
 
 			// midi follow and midi feedback enabled
 			// re-send midi cc because learned parameter value has changed
-			view.sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
+			view.sendMidiFollowFeedback(modelStackWithParam, new_knob_pos);
 		}
 	}
 }
@@ -801,8 +805,8 @@ void AutomationEditorLayoutModControllable::copyAutomation(ModelStackWithAutoPar
 		// the possibly invalid memory here doesn't accidentally
 		// equal modelStack->paramCollection.
 
-		modelStackWithParam->autoParam->copy(startPos, endPos, getCopiedParamAutomation(), isPatchCable,
-		                                     modelStackWithParam);
+		modelStackWithParam->autoParam->automation().copy(startPos, endPos, getCopiedParamAutomation(), isPatchCable,
+		                                                  modelStackWithParam);
 
 		if (getCopiedParamAutomation()->nodes) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_COPIED));
@@ -843,8 +847,8 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 		// the possibly invalid memory here doesn't accidentally
 		// equal modelStack->paramCollection.
 
-		modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
-		                                      getCopiedParamAutomation(), isPatchCable);
+		modelStackWithParam->autoParam->automation().paste(startPos, endPos, scaleFactor, modelStackWithParam,
+		                                                   getCopiedParamAutomation(), isPatchCable);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
 
@@ -913,27 +917,27 @@ int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(Mod
 bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack,
                                                                            int32_t pos, bool reversed) {
 
-	if (!modelStack->autoParam->nodes.getNumElements()) {
+	if (modelStack->autoParam->nodeCount() == 0) {
 		return false;
 	}
 
-	int32_t rightI = modelStack->autoParam->nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
-	if (rightI >= modelStack->autoParam->nodes.getNumElements()) {
-		rightI = 0;
+	int32_t right_i = modelStack->autoParam->searchNodes(pos + static_cast<int32_t>(!reversed), GREATER_OR_EQUAL);
+	if (right_i >= modelStack->autoParam->nodeCount()) {
+		right_i = 0;
 	}
-	ParamNode* rightNode = modelStack->autoParam->nodes.getElement(rightI);
+	const ParamNode* right_node = modelStack->autoParam->nodeAt(right_i);
 
-	int32_t leftI = rightI - 1;
-	if (leftI < 0) {
-		leftI += modelStack->autoParam->nodes.getNumElements();
+	int32_t left_i = right_i - 1;
+	if (left_i < 0) {
+		left_i += modelStack->autoParam->nodeCount();
 	}
-	ParamNode* leftNode = modelStack->autoParam->nodes.getElement(leftI);
+	const ParamNode* left_node = modelStack->autoParam->nodeAt(left_i);
 
 	if (reversed) {
-		return leftNode->interpolated;
+		return left_node->interpolated;
 	}
 	else {
-		return rightNode->interpolated;
+		return right_node->interpolated;
 	}
 }
 
@@ -944,6 +948,10 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
                                                                         int32_t xDisplay, int32_t effectiveLength,
                                                                         int32_t xScroll, int32_t xZoom,
                                                                         bool modEncoderAction) {
+
+	if (squareStart < 0 || squareStart >= effectiveLength) {
+		return;
+	}
 
 	int32_t newValue = modelStack->paramCollection->knobPosToParamValue(knobPos, modelStack);
 
@@ -958,6 +966,11 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 		squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
 	}
 
+	// An empty region is not a scalar edit and must not create boundary nodes either.
+	if (squareWidth == 0) {
+		return;
+	}
+
 	// if you're doing a single pad press, you don't want the values around that single press position
 	// to change they will change if those nodes around the single pad press were created with
 	// interpolation turned on to fix this, re-create those nodes with their current value with
@@ -970,16 +983,16 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	int32_t squareNodeLeftStart = squareStart - kParamNodeWidth;
 	if (squareNodeLeftStart >= 0) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeLeftStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeLeftStart,
-		                                                 kParamNodeWidth);
+		modelStack->autoParam->automation().setValueForRegion(squareNodeLeftStart, kParamNodeWidth, currentValue,
+		                                                      modelStack);
 	}
 
 	// create a node to the right with the current interpolation status
 	int32_t squareNodeRightStart = squareStart + kParamNodeWidth;
 	if (squareNodeRightStart < effectiveLength) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeRightStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart,
-		                                                 kParamNodeWidth);
+		modelStack->autoParam->automation().setValueForRegion(squareNodeRightStart, kParamNodeWidth, currentValue,
+		                                                      modelStack);
 	}
 
 	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't
@@ -989,8 +1002,8 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	// called twice because there was a weird bug where for some reason the first call wasn't taking
 	// effect on one pad (and whatever pad it was changed every time)...super weird...calling twice
 	// fixed it...
-	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
-	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
+	modelStack->autoParam->automation().setValueForRegion(squareStart, squareWidth, newValue, modelStack);
+	modelStack->autoParam->automation().setValueForRegion(squareStart, squareWidth, newValue, modelStack);
 
 	if (!getOnArrangerView()) {
 		modelStack->getTimelineCounter()->instrumentBeenEdited();
@@ -1020,8 +1033,8 @@ void AutomationEditorLayoutModControllable::setAutomationKnobIndicatorLevels(Mod
 	// if you're dealing with a patch cable which has a -128 to +128 range
 	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
 	if (kind == params::Kind::PATCH_CABLE) {
-		knobPosLeft = view.convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
-		knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
+		knobPosLeft = View::convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
+		knobPosRight = View::convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
 	}
 
 	bool isBlinking = indicator_leds::isKnobIndicatorBlinking(0) || indicator_leds::isKnobIndicatorBlinking(1);
@@ -1199,7 +1212,7 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 
 	int32_t secondPadLeftEdge = getPosFromSquare(secondPadX, xScroll, xZoom);
 
-	if (effectiveLength <= 0 || secondPadLeftEdge > effectiveLength) {
+	if (effectiveLength <= 0 || secondPadLeftEdge >= effectiveLength) {
 		return;
 	}
 
@@ -1255,26 +1268,34 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 		for (int32_t x = firstPadX; x <= secondPadX; x++) {
 
 			int32_t newKnobPos = 0;
-			uint32_t squareWidth = 0;
+			int32_t square_width = 0;
 
 			// we've already set the value for the very first node corresponding to the first pad above
 			// now we will set the value for the remaining nodes within the first pad
 			if (x == firstPadX) {
 				squareStart = getPosFromSquare(x, xScroll, xZoom) + kParamNodeWidth;
-				squareWidth = getSquareWidth(x, effectiveLength, xScroll, xZoom) - kParamNodeWidth;
+				square_width =
+				    static_cast<int32_t>(getSquareWidth(x, effectiveLength, xScroll, xZoom)) - kParamNodeWidth;
 			}
 
 			// we've already set the value for the very last node corresponding to the second pad above
 			// now we will set the value for the remaining nodes within the second pad
 			else if (x == secondPadX) {
 				squareStart = getPosFromSquare(x, xScroll, xZoom);
-				squareWidth = getSquareWidth(x, effectiveLength, xScroll, xZoom) - kParamNodeWidth;
+				square_width =
+				    static_cast<int32_t>(getSquareWidth(x, effectiveLength, xScroll, xZoom)) - kParamNodeWidth;
 			}
 
 			// now we will set the values for the nodes between the first and second pad's pressed
 			else {
 				squareStart = getPosFromSquare(x, xScroll, xZoom);
-				squareWidth = getSquareWidth(x, effectiveLength, xScroll, xZoom);
+				square_width = static_cast<int32_t>(getSquareWidth(x, effectiveLength, xScroll, xZoom));
+			}
+
+			// Endpoints were already written above. At the smallest zoom there may be
+			// no remaining region; do not reinterpret it as a clip or preset edit.
+			if (square_width <= 0) {
+				continue;
 			}
 
 			// linear interpolation formula to calculate the value of the pads
@@ -1297,10 +1318,10 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 			// set value for pads in between
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
-			                                                          squareWidth);
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
-			                                                          squareWidth);
+			modelStackWithParam->autoParam->automation().setValueForRegion(squareStart, square_width, newValue,
+			                                                               modelStackWithParam);
+			modelStackWithParam->autoParam->automation().setValueForRegion(squareStart, square_width, newValue,
+			                                                               modelStackWithParam);
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
@@ -1325,7 +1346,7 @@ void AutomationEditorLayoutModControllable::renderAutomationDisplayForMultiPadPr
 
 	int32_t secondPadLeftEdge = getPosFromSquare(getRightPadSelectedX(), xScroll, xZoom);
 
-	if (effectiveLength <= 0 || secondPadLeftEdge > effectiveLength) {
+	if (effectiveLength <= 0 || secondPadLeftEdge >= effectiveLength) {
 		return;
 	}
 

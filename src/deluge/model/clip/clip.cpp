@@ -919,6 +919,7 @@ Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip*
 	// Occasionally, like for AudioClips changing their Output, they will actually have a paramManager already, so
 	// everything's fine and we can return
 	if (paramManager.containsAnyMainParamCollections()) {
+		output->toModControllable()->bindPresetValues(&paramManager);
 		return Error::NONE;
 	}
 
@@ -944,6 +945,7 @@ trimFoundParamManager:
 				                                                   &paramManager);
 				paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, nullptr,
 				                          false); // oldLength actually has no consequence anyway
+				output->toModControllable()->bindPresetValues(&paramManager);
 				return Error::NONE;
 			}
 
@@ -983,6 +985,7 @@ trimFoundParamManager:
 		}
 	}
 
+	output->toModControllable()->bindPresetValues(&paramManager);
 	return Error::NONE;
 }
 

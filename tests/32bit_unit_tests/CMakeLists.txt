@@ -84,6 +84,7 @@ add_executable(SmallPointerTests
         container/open_addressing_hash_table.cpp
         container/lazy_param_node_vector.cpp
         ../../src/deluge/modulation/params/param_node_vector.cpp
+        ../../src/deluge/modulation/params/param_value.cpp
 )
 
 add_test(NAME SmallPointerTests COMMAND SmallPointerTests)

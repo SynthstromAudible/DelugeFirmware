@@ -18,8 +18,10 @@
 #pragma once
 
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param_descriptor.h"
 #include "util/fixedpoint.h"
+#include <algorithm>
 #include <cstdint>
 
 class Sound;
@@ -37,7 +39,13 @@ std::string_view polarityToStringShort(const Polarity polarity);
 
 class PatchCable {
 public:
-	PatchCable() = default;
+	PatchCable() { AutoParamOwnership(param).rebindClipValueAfterMove(&clipValue); }
+	// Layering a clip adjustment over a changed baseline can exceed the strength range
+	// which patching assumes. Clamp what rendering sees; the stored layers stay intact.
+	[[nodiscard]] [[gnu::noinline]] int32_t getValue() const {
+		return std::clamp(param.getValueForRender(), -kMaxStrength, kMaxStrength);
+	}
+	static constexpr int32_t kMaxStrength = 1073741824;
 	void setDefaultPolarity();
 	static bool hasPolarity(PatchSource source);
 	static Polarity getDefaultPolarity(PatchSource source);
@@ -69,6 +77,7 @@ public:
 	PatchSource from{PatchSource::NONE};
 	Polarity polarity{Polarity::BIPOLAR};
 	ParamDescriptor destinationParamDescriptor;
+	ClipParamValue clipValue;
 	AutoParam param; // Amounts have to be within +1073741824 and -1073741824
 	int32_t const* rangeAdjustmentPointer = nullptr;
 };

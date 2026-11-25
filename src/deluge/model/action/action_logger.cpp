@@ -83,7 +83,8 @@ void ActionLogger::deleteLastAction() {
 	delugeDealloc(toDelete);
 }
 
-Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible) {
+Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible,
+                                   ActionOrigin origin) {
 
 	if (!currentSong) {
 		return nullptr;
@@ -94,9 +95,9 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// Exception for sound editor note editor UI which can edit notes on the grid
 	// Exception for sound editor note row editor UI which can edit note rows on the grid
 	// Exception for loadPatternUI which does edit note rows on the grid
-	if ((getCurrentUI() != getRootUI())
-	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))
-	    && (getCurrentUI() != &loadPatternUI)) {
+	if (!actionAllowedFromUI(getCurrentUI() == getRootUI(), getCurrentUI() == &soundEditor,
+	                         soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor(),
+	                         getCurrentUI() == &loadPatternUI, origin)) {
 		return nullptr;
 	}
 
@@ -242,10 +243,12 @@ ActionType ActionLogger::getParameterChangeActionType() const {
 	// parameter itself has no automation. Otherwise these edits (e.g. MIDI
 	// expression) split RECORD actions, repeatedly snapshotting the same note
 	// and automation data until undo history consumes all available memory.
-	if (playbackHandler.recording == RecordingMode::NORMAL && playbackHandler.isEitherClockActive()) {
-		return ActionType::RECORD;
-	}
-	return ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE;
+	return parameterChangeActionType(playbackHandler.recording == RecordingMode::NORMAL,
+	                                 playbackHandler.isEitherClockActive());
+}
+
+Action* ActionLogger::getParameterChangeAction(ActionOrigin origin) {
+	return getNewAction(getParameterChangeActionType(), ActionAddition::ALLOWED, origin);
 }
 
 void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, ActionType actionType) {
@@ -289,26 +292,32 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 	}
 }
 
-void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter) {
-
+void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter, const int64_t* scalarBefore) {
+	// getNewAction() returns null without a current song, so read the scalar afterwards.
 	Action* action = getNewAction(ActionType::TEMPO_CHANGE, ActionAddition::ALLOWED);
 	if (!action) {
 		return;
 	}
+	int64_t scalar_after = currentSong->paramManager.getUnpatchedParamSet()
+	                           ->getClipValueStorage(deluge::modulation::params::UNPATCHED_TEMPO)
+	                           ->getUnclampedValue();
 
 	// See if there's a previous one we can update
 	if (action->firstConsequence) {
 		ConsequenceTempoChange* consequence = (ConsequenceTempoChange*)action->firstConsequence;
-		consequence->timePerBig[AFTER] = timePerBigAfter;
+		consequence->change.updateAfter(timePerBigAfter, scalar_after);
 	}
 	else {
 
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
-			ConsequenceTempoChange* newConsequence =
-			    new (consMemory) ConsequenceTempoChange(timePerBigBefore, timePerBigAfter);
-			action->addConsequence(newConsequence);
+			// Ownership passes to the action.
+			// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+			auto* new_consequence = new (consMemory)
+			    ConsequenceTempoChange(timePerBigBefore, timePerBigAfter,
+			                           scalarBefore != nullptr ? *scalarBefore : scalar_after, scalar_after);
+			action->addConsequence(new_consequence);
 		}
 	}
 }

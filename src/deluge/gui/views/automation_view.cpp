@@ -75,6 +75,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
@@ -1144,7 +1145,18 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			if (modelStackWithParam->getTimelineCounter()
 			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-				int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos) + kKnobPosOffset;
+				bool show_control_value = !padSelected && !padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)
+				                          && (!playbackHandler.isEitherClockActive()
+				                              || (ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr));
+				int32_t knob_pos = 0;
+				if (show_control_value) {
+					int32_t value = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
+					knob_pos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+				}
+				else {
+					knob_pos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos);
+				}
+				knob_pos += kKnobPosOffset;
 
 				bool displayValue = updateDisplay
 				                    && (display->haveOLED()
@@ -1155,7 +1167,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 				// don't update value displayed if there's no automation unless instructed to update display
 				// don't update value displayed when playback is stopped
 				if (displayValue) {
-					renderDisplay(knobPos);
+					renderDisplay(knob_pos);
 				}
 				// on 7SEG re-render parameter name under certain circumstances
 				// e.g. when entering pad selection mode, when stopping playback
@@ -1163,7 +1175,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 					renderDisplay();
 				}
 
-				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
+				setAutomationKnobIndicatorLevels(modelStackWithParam, knob_pos, knob_pos);
 			}
 		}
 	}
@@ -1659,7 +1671,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+			modelStackWithParam->autoParam->automation().erase(action, modelStackWithParam);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
@@ -2418,7 +2430,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
                                                  int32_t effectiveLength) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
+		modelStackWithParam->autoParam->automation().shiftHorizontally(offset, effectiveLength);
 	}
 
 	uiNeedsRendering(&automationView);
@@ -2664,7 +2676,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// if they want to delete automation
 	else if (is_delete_action) {
 		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		modelStackWithParam->autoParam->automation().erase(action, modelStackWithParam);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
