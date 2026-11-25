@@ -166,6 +166,7 @@ src/synth/matrix/param_format.h raw=0 boundary=1
 src/synth/modulation/cable_depth.h raw=0 boundary=4
 src/synth/modulation/envelope.cpp raw=0 boundary=8
 src/synth/modulation/lfo.h raw=0 boundary=13
+src/synth/modulation/segment_envelope.cpp raw=0 boundary=2
 src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=3
 src/synth/sources/input/input_source.cpp raw=0 boundary=2
 src/synth/sources/input/live/live_input.cpp raw=0 boundary=1

@@ -337,7 +337,7 @@ struct Envelope {
 				if (to_end <= left) {
 					left -= to_end;
 					s.elapsed = s.elapsed + static_cast<f32>(to_end);
-					enter(c, s, s.next, true);
+					finish(c, s);
 				}
 				else {
 					s.elapsed = s.elapsed + static_cast<f32>(left);
@@ -371,12 +371,24 @@ struct Envelope {
 	}
 
 private:
+	/// One copy at the end of a timed stage, some fraction of a sample past it when its length is not whole: lands on
+	/// its target and enters the next stage, which, when timed, starts that fraction in, so the stages keep their
+	/// lengths end to end instead of each losing the fraction to the sample grid.
+	static void finish(const Coefficients& c, State& s) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		const f32 over = s.elapsed - s.length;
+		enter(c, s, s.next, true);
+		if (s.timed > 0.5f && over > 0.f) {
+			s.elapsed = over;
+			s.value = timed_level(s);
+		}
+	}
 	/// One copy past one sample of a timed stage: its level, or its end when the count runs out.
 	static void tick(const Coefficients& c, State& s) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		s.elapsed = s.elapsed + 1.f;
 		if (s.elapsed >= s.length) {
-			enter(c, s, s.next, true);
+			finish(c, s);
 		}
 		else {
 			s.value = timed_level(s);
