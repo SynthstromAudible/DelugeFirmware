@@ -1117,6 +1117,9 @@ struct Node {
 	PageTitleFn page_title = nullptr;
 	/// @brief The page drawn whole in place of its columns (`PageDrawFn`'s own doc). Null: the columns draw.
 	PageDrawFn page_draw = nullptr;
+	/// @brief How many of the page's first columns `page_draw` draws in place of: with the focus past them the columns
+	///        draw, as `EnvelopeMenu`'s settings page does after its graph.
+	uint8_t page_draw_columns = 255;
 };
 
 /// @brief `Node::title_arg`'s value for "the context's `source_index` plus one".
@@ -1274,8 +1277,9 @@ constexpr Node with_learn(Node n, LearnFn learn, UnlearnFn unlearn = nullptr) {
 }
 
 /// @brief `n` drawn whole by @p fn in place of its columns (`Node::page_draw`).
-constexpr Node with_page_draw(Node n, PageDrawFn fn) {
+constexpr Node with_page_draw(Node n, PageDrawFn fn, uint8_t columns = 255) {
 	n.page_draw = fn;
+	n.page_draw_columns = columns;
 	return n;
 }
 

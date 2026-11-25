@@ -713,7 +713,7 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 			expect(menu_scene().state().edit_int).to_equal(std::max(range.min, range.max - 5 * step));
 			walked++;
 		}
-		expect(walked).to_equal(size_t(136));
+		expect(walked).to_equal(size_t(140));
 	});
 
 	it("starts each Decimal's cursor where main does, whichever way it is opened", _ {

@@ -318,6 +318,18 @@ constexpr std::array kLfoSyncExtras{lfo_sync_extras("lfo1/syncType"), lfo_sync_e
 		.path = "lfo" #n "/syncType", .kind = CHOICE, .choices = kSyncTypes                                            \
 	}
 
+/// The follow input shows for an MPE envelope alone.
+constexpr std::array<int32_t, 1> kMpeValue{std::to_underlying(synth::EnvelopeMode::MPE)};
+constexpr std::array<std::array<plugin::SettingCondition, 1>, 4> kEnvelopeIsMpe{
+    {{plugin::setting_is("envelope1Settings/mode", kMpeValue)},
+     {plugin::setting_is("envelope2Settings/mode", kMpeValue)},
+     {plugin::setting_is("envelope3Settings/mode", kMpeValue)},
+     {plugin::setting_is("envelope4Settings/mode", kMpeValue)}}};
+constexpr std::array<plugin::SettingDescriptorExtras, 4> kEnvelopeFollowExtras{{{.applies_when = kEnvelopeIsMpe[0]},
+                                                                                {.applies_when = kEnvelopeIsMpe[1]},
+                                                                                {.applies_when = kEnvelopeIsMpe[2]},
+                                                                                {.applies_when = kEnvelopeIsMpe[3]}}};
+
 // An envelope's settings are main's `envelopeNSettings` attributes: its mode, its one curve control (classic 32) and
 // what MPE mode follows.
 #define ENVELOPE_ROWS(n)                                                                                               \
@@ -328,7 +340,8 @@ constexpr std::array kLfoSyncExtras{lfo_sync_extras("lfo1/syncType"), lfo_sync_e
 	                .max = dsp::fp::kMaxCurve,                                                                         \
 	                .default_value = dsp::fp::kClassicCurve},                                                          \
 	    SettingInfo {                                                                                                  \
-		.path = "envelope" #n "Settings/follow", .kind = CHOICE, .choices = kEnvelopeFollows                           \
+		.path = "envelope" #n "Settings/follow", .kind = CHOICE, .choices = kEnvelopeFollows,                          \
+		.extras = &kEnvelopeFollowExtras[(n) - 1]                                                                      \
 	}
 
 #define MODULATOR_ROWS(n)                                                                                              \

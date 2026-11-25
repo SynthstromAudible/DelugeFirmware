@@ -69,6 +69,7 @@
 ///          `Action` in `ui/shell/scene.h`. This scene has no gate that would ever want it: `handle()`
 ///          is unreachable (`input_transparent()` is true) and nothing here blocks on the card.
 
+#include "gui/l10n/param_names.h"
 #include "ui/shell/scene.h"
 
 #include "plugin/types/param_kind.h"
@@ -93,6 +94,8 @@ inline constexpr deluge::ui::shell::SceneKind kParamPopupSceneKind =
 struct PopupContext {
 	/// The knob owner's filters, whose modes name the morph params; none for no owner.
 	std::optional<deluge::effects::FilterState> filter;
+	/// The sound's envelopes' modes, which name some of their params; none for no sound.
+	std::optional<deluge::l10n::EnvelopeModes> envelopes;
 	/// The stutter rate the knob turns is quantized: the song's stutter's setting where the owner plays the song's.
 	bool stutter_quantized = false;
 	/// The knobs are on a MIDI clip, whose CCs and expression the popup names.

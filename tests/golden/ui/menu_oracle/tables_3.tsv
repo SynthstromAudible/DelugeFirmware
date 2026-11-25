@@ -1002,7 +1002,7 @@ sound/12/5	slots	1
 sound/12/5	range_dep	0
 sound/13	name	Envelope 1
 sound/13	title	Envelope 1
-sound/13	kids	4
+sound/13	kids	7
 sound/13/0	name	Attack
 sound/13/0	title	Env1 attack
 sound/13/0	ae	1
@@ -1031,9 +1031,27 @@ sound/13/3	edits	1
 sound/13/3	slots	1
 sound/13/3	range_dep	0
 sound/13/3	param_index	41
+sound/13/4	name	Mode
+sound/13/4	title	Env1 mode
+sound/13/4	ae	1
+sound/13/4	edits	1
+sound/13/4	slots	1
+sound/13/4	range_dep	0
+sound/13/5	name	Curve
+sound/13/5	title	Env1 curve
+sound/13/5	ae	1
+sound/13/5	edits	1
+sound/13/5	slots	1
+sound/13/5	range_dep	0
+sound/13/6	name	Follow
+sound/13/6	title	Env1 follow
+sound/13/6	ae	1
+sound/13/6	edits	1
+sound/13/6	slots	1
+sound/13/6	range_dep	0
 sound/14	name	Envelope 2
 sound/14	title	Envelope 2
-sound/14	kids	4
+sound/14	kids	7
 sound/14/0	name	Attack
 sound/14/0	title	Env2 attack
 sound/14/0	ae	1
@@ -1062,9 +1080,27 @@ sound/14/3	edits	1
 sound/14/3	slots	1
 sound/14/3	range_dep	0
 sound/14/3	param_index	42
+sound/14/4	name	Mode
+sound/14/4	title	Env2 mode
+sound/14/4	ae	1
+sound/14/4	edits	1
+sound/14/4	slots	1
+sound/14/4	range_dep	0
+sound/14/5	name	Curve
+sound/14/5	title	Env2 curve
+sound/14/5	ae	1
+sound/14/5	edits	1
+sound/14/5	slots	1
+sound/14/5	range_dep	0
+sound/14/6	name	Follow
+sound/14/6	title	Env2 follow
+sound/14/6	ae	1
+sound/14/6	edits	1
+sound/14/6	slots	1
+sound/14/6	range_dep	0
 sound/15	name	Envelope 3
 sound/15	title	Envelope 3
-sound/15	kids	4
+sound/15	kids	7
 sound/15/0	name	Attack
 sound/15/0	title	Env3 attack
 sound/15/0	ae	1
@@ -1093,9 +1129,27 @@ sound/15/3	edits	1
 sound/15/3	slots	1
 sound/15/3	range_dep	0
 sound/15/3	param_index	43
+sound/15/4	name	Mode
+sound/15/4	title	Env3 mode
+sound/15/4	ae	1
+sound/15/4	edits	1
+sound/15/4	slots	1
+sound/15/4	range_dep	0
+sound/15/5	name	Curve
+sound/15/5	title	Env3 curve
+sound/15/5	ae	1
+sound/15/5	edits	1
+sound/15/5	slots	1
+sound/15/5	range_dep	0
+sound/15/6	name	Follow
+sound/15/6	title	Env3 follow
+sound/15/6	ae	1
+sound/15/6	edits	1
+sound/15/6	slots	1
+sound/15/6	range_dep	0
 sound/16	name	Envelope 4
 sound/16	title	Envelope 4
-sound/16	kids	4
+sound/16	kids	7
 sound/16/0	name	Attack
 sound/16/0	title	Env4 attack
 sound/16/0	ae	1
@@ -1124,6 +1178,24 @@ sound/16/3	edits	1
 sound/16/3	slots	1
 sound/16/3	range_dep	0
 sound/16/3	param_index	44
+sound/16/4	name	Mode
+sound/16/4	title	Env4 mode
+sound/16/4	ae	1
+sound/16/4	edits	1
+sound/16/4	slots	1
+sound/16/4	range_dep	0
+sound/16/5	name	Curve
+sound/16/5	title	Env4 curve
+sound/16/5	ae	1
+sound/16/5	edits	1
+sound/16/5	slots	1
+sound/16/5	range_dep	0
+sound/16/6	name	Follow
+sound/16/6	title	Env4 follow
+sound/16/6	ae	1
+sound/16/6	edits	1
+sound/16/6	slots	1
+sound/16/6	range_dep	0
 sound/17	name	LFO 1
 sound/17	title	LFO 1
 sound/17	kids	3
@@ -2302,7 +2374,7 @@ drum/12/5	slots	1
 drum/12/5	range_dep	0
 drum/13	name	Envelope 1
 drum/13	title	Envelope 1
-drum/13	kids	4
+drum/13	kids	7
 drum/13/0	name	Attack
 drum/13/0	title	Env1 attack
 drum/13/0	ae	1
@@ -2331,9 +2403,27 @@ drum/13/3	edits	1
 drum/13/3	slots	1
 drum/13/3	range_dep	0
 drum/13/3	param_index	41
+drum/13/4	name	Mode
+drum/13/4	title	Env1 mode
+drum/13/4	ae	1
+drum/13/4	edits	1
+drum/13/4	slots	1
+drum/13/4	range_dep	0
+drum/13/5	name	Curve
+drum/13/5	title	Env1 curve
+drum/13/5	ae	1
+drum/13/5	edits	1
+drum/13/5	slots	1
+drum/13/5	range_dep	0
+drum/13/6	name	Follow
+drum/13/6	title	Env1 follow
+drum/13/6	ae	1
+drum/13/6	edits	1
+drum/13/6	slots	1
+drum/13/6	range_dep	0
 drum/14	name	Envelope 2
 drum/14	title	Envelope 2
-drum/14	kids	4
+drum/14	kids	7
 drum/14/0	name	Attack
 drum/14/0	title	Env2 attack
 drum/14/0	ae	1
@@ -2362,9 +2452,27 @@ drum/14/3	edits	1
 drum/14/3	slots	1
 drum/14/3	range_dep	0
 drum/14/3	param_index	42
+drum/14/4	name	Mode
+drum/14/4	title	Env2 mode
+drum/14/4	ae	1
+drum/14/4	edits	1
+drum/14/4	slots	1
+drum/14/4	range_dep	0
+drum/14/5	name	Curve
+drum/14/5	title	Env2 curve
+drum/14/5	ae	1
+drum/14/5	edits	1
+drum/14/5	slots	1
+drum/14/5	range_dep	0
+drum/14/6	name	Follow
+drum/14/6	title	Env2 follow
+drum/14/6	ae	1
+drum/14/6	edits	1
+drum/14/6	slots	1
+drum/14/6	range_dep	0
 drum/15	name	Envelope 3
 drum/15	title	Envelope 3
-drum/15	kids	4
+drum/15	kids	7
 drum/15/0	name	Attack
 drum/15/0	title	Env3 attack
 drum/15/0	ae	1
@@ -2393,9 +2501,27 @@ drum/15/3	edits	1
 drum/15/3	slots	1
 drum/15/3	range_dep	0
 drum/15/3	param_index	43
+drum/15/4	name	Mode
+drum/15/4	title	Env3 mode
+drum/15/4	ae	1
+drum/15/4	edits	1
+drum/15/4	slots	1
+drum/15/4	range_dep	0
+drum/15/5	name	Curve
+drum/15/5	title	Env3 curve
+drum/15/5	ae	1
+drum/15/5	edits	1
+drum/15/5	slots	1
+drum/15/5	range_dep	0
+drum/15/6	name	Follow
+drum/15/6	title	Env3 follow
+drum/15/6	ae	1
+drum/15/6	edits	1
+drum/15/6	slots	1
+drum/15/6	range_dep	0
 drum/16	name	Envelope 4
 drum/16	title	Envelope 4
-drum/16	kids	4
+drum/16	kids	7
 drum/16/0	name	Attack
 drum/16/0	title	Env4 attack
 drum/16/0	ae	1
@@ -2424,6 +2550,24 @@ drum/16/3	edits	1
 drum/16/3	slots	1
 drum/16/3	range_dep	0
 drum/16/3	param_index	44
+drum/16/4	name	Mode
+drum/16/4	title	Env4 mode
+drum/16/4	ae	1
+drum/16/4	edits	1
+drum/16/4	slots	1
+drum/16/4	range_dep	0
+drum/16/5	name	Curve
+drum/16/5	title	Env4 curve
+drum/16/5	ae	1
+drum/16/5	edits	1
+drum/16/5	slots	1
+drum/16/5	range_dep	0
+drum/16/6	name	Follow
+drum/16/6	title	Env4 follow
+drum/16/6	ae	1
+drum/16/6	edits	1
+drum/16/6	slots	1
+drum/16/6	range_dep	0
 drum/17	name	LFO 1
 drum/17	title	LFO 1
 drum/17	kids	3
@@ -6761,6 +6905,12 @@ sound/13/3	rel	1
 sound/13/3	read	1
 sound/13/3	learn	41
 sound/13/3	param_kind	1
+sound/13/4	rel	1
+sound/13/4	read	0
+sound/13/4	options	ADSR	AHD	AR	MPE
+sound/13/5	rel	1
+sound/13/5	read	32
+sound/13/6	rel	0
 sound/14	rel	1
 sound/14/0	rel	1
 sound/14/0	read	7
@@ -6778,6 +6928,12 @@ sound/14/3	rel	1
 sound/14/3	read	20
 sound/14/3	learn	42
 sound/14/3	param_kind	1
+sound/14/4	rel	1
+sound/14/4	read	0
+sound/14/4	options	ADSR	AHD	AR	MPE
+sound/14/5	rel	1
+sound/14/5	read	32
+sound/14/6	rel	0
 sound/15	rel	1
 sound/15/0	rel	1
 sound/15/0	read	25
@@ -6795,6 +6951,12 @@ sound/15/3	rel	1
 sound/15/3	read	25
 sound/15/3	learn	43
 sound/15/3	param_kind	1
+sound/15/4	rel	1
+sound/15/4	read	0
+sound/15/4	options	ADSR	AHD	AR	MPE
+sound/15/5	rel	1
+sound/15/5	read	32
+sound/15/6	rel	0
 sound/16	rel	1
 sound/16/0	rel	1
 sound/16/0	read	25
@@ -6812,6 +6974,12 @@ sound/16/3	rel	1
 sound/16/3	read	25
 sound/16/3	learn	44
 sound/16/3	param_kind	1
+sound/16/4	rel	1
+sound/16/4	read	0
+sound/16/4	options	ADSR	AHD	AR	MPE
+sound/16/5	rel	1
+sound/16/5	read	32
+sound/16/6	rel	0
 sound/17	rel	1
 sound/17/0	rel	1
 sound/17/0	read	1
@@ -7223,6 +7391,12 @@ drum/13/3	rel	1
 drum/13/3	read	0
 drum/13/3	learn	41
 drum/13/3	param_kind	1
+drum/13/4	rel	1
+drum/13/4	read	0
+drum/13/4	options	ADSR	AHD	AR	MPE
+drum/13/5	rel	1
+drum/13/5	read	32
+drum/13/6	rel	0
 drum/14	rel	1
 drum/14/0	rel	1
 drum/14/0	read	20
@@ -7240,6 +7414,12 @@ drum/14/3	rel	1
 drum/14/3	read	20
 drum/14/3	learn	42
 drum/14/3	param_kind	1
+drum/14/4	rel	1
+drum/14/4	read	0
+drum/14/4	options	ADSR	AHD	AR	MPE
+drum/14/5	rel	1
+drum/14/5	read	32
+drum/14/6	rel	0
 drum/15	rel	1
 drum/15/0	rel	1
 drum/15/0	read	25
@@ -7257,6 +7437,12 @@ drum/15/3	rel	1
 drum/15/3	read	25
 drum/15/3	learn	43
 drum/15/3	param_kind	1
+drum/15/4	rel	1
+drum/15/4	read	0
+drum/15/4	options	ADSR	AHD	AR	MPE
+drum/15/5	rel	1
+drum/15/5	read	32
+drum/15/6	rel	0
 drum/16	rel	1
 drum/16/0	rel	1
 drum/16/0	read	25
@@ -7274,6 +7460,12 @@ drum/16/3	rel	1
 drum/16/3	read	25
 drum/16/3	learn	44
 drum/16/3	param_kind	1
+drum/16/4	rel	1
+drum/16/4	read	0
+drum/16/4	options	ADSR	AHD	AR	MPE
+drum/16/5	rel	1
+drum/16/5	read	32
+drum/16/6	rel	0
 drum/17	rel	1
 drum/17/0	rel	1
 drum/17/0	read	1

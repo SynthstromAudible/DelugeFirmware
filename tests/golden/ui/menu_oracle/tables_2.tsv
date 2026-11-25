@@ -1002,7 +1002,7 @@ sound/12/5	slots	1
 sound/12/5	range_dep	0
 sound/13	name	Envelope 1
 sound/13	title	Envelope 1
-sound/13	kids	4
+sound/13	kids	7
 sound/13/0	name	Attack
 sound/13/0	title	Env1 attack
 sound/13/0	ae	1
@@ -1031,9 +1031,27 @@ sound/13/3	edits	1
 sound/13/3	slots	1
 sound/13/3	range_dep	0
 sound/13/3	param_index	41
+sound/13/4	name	Mode
+sound/13/4	title	Env1 mode
+sound/13/4	ae	1
+sound/13/4	edits	1
+sound/13/4	slots	1
+sound/13/4	range_dep	0
+sound/13/5	name	Curve
+sound/13/5	title	Env1 curve
+sound/13/5	ae	1
+sound/13/5	edits	1
+sound/13/5	slots	1
+sound/13/5	range_dep	0
+sound/13/6	name	Follow
+sound/13/6	title	Env1 follow
+sound/13/6	ae	1
+sound/13/6	edits	1
+sound/13/6	slots	1
+sound/13/6	range_dep	0
 sound/14	name	Envelope 2
 sound/14	title	Envelope 2
-sound/14	kids	4
+sound/14	kids	7
 sound/14/0	name	Attack
 sound/14/0	title	Env2 attack
 sound/14/0	ae	1
@@ -1062,9 +1080,27 @@ sound/14/3	edits	1
 sound/14/3	slots	1
 sound/14/3	range_dep	0
 sound/14/3	param_index	42
+sound/14/4	name	Mode
+sound/14/4	title	Env2 mode
+sound/14/4	ae	1
+sound/14/4	edits	1
+sound/14/4	slots	1
+sound/14/4	range_dep	0
+sound/14/5	name	Curve
+sound/14/5	title	Env2 curve
+sound/14/5	ae	1
+sound/14/5	edits	1
+sound/14/5	slots	1
+sound/14/5	range_dep	0
+sound/14/6	name	Follow
+sound/14/6	title	Env2 follow
+sound/14/6	ae	1
+sound/14/6	edits	1
+sound/14/6	slots	1
+sound/14/6	range_dep	0
 sound/15	name	Envelope 3
 sound/15	title	Envelope 3
-sound/15	kids	4
+sound/15	kids	7
 sound/15/0	name	Attack
 sound/15/0	title	Env3 attack
 sound/15/0	ae	1
@@ -1093,9 +1129,27 @@ sound/15/3	edits	1
 sound/15/3	slots	1
 sound/15/3	range_dep	0
 sound/15/3	param_index	43
+sound/15/4	name	Mode
+sound/15/4	title	Env3 mode
+sound/15/4	ae	1
+sound/15/4	edits	1
+sound/15/4	slots	1
+sound/15/4	range_dep	0
+sound/15/5	name	Curve
+sound/15/5	title	Env3 curve
+sound/15/5	ae	1
+sound/15/5	edits	1
+sound/15/5	slots	1
+sound/15/5	range_dep	0
+sound/15/6	name	Follow
+sound/15/6	title	Env3 follow
+sound/15/6	ae	1
+sound/15/6	edits	1
+sound/15/6	slots	1
+sound/15/6	range_dep	0
 sound/16	name	Envelope 4
 sound/16	title	Envelope 4
-sound/16	kids	4
+sound/16	kids	7
 sound/16/0	name	Attack
 sound/16/0	title	Env4 attack
 sound/16/0	ae	1
@@ -1124,6 +1178,24 @@ sound/16/3	edits	1
 sound/16/3	slots	1
 sound/16/3	range_dep	0
 sound/16/3	param_index	44
+sound/16/4	name	Mode
+sound/16/4	title	Env4 mode
+sound/16/4	ae	1
+sound/16/4	edits	1
+sound/16/4	slots	1
+sound/16/4	range_dep	0
+sound/16/5	name	Curve
+sound/16/5	title	Env4 curve
+sound/16/5	ae	1
+sound/16/5	edits	1
+sound/16/5	slots	1
+sound/16/5	range_dep	0
+sound/16/6	name	Follow
+sound/16/6	title	Env4 follow
+sound/16/6	ae	1
+sound/16/6	edits	1
+sound/16/6	slots	1
+sound/16/6	range_dep	0
 sound/17	name	LFO 1
 sound/17	title	LFO 1
 sound/17	kids	3
@@ -1713,6 +1785,13 @@ sound/13/3	rel@synth	1
 sound/13/3	read@synth	1
 sound/13/3	learn@synth	41
 sound/13/3	param_kind@synth	1
+sound/13/4	rel@synth	1
+sound/13/4	read@synth	0
+sound/13/4	options@synth	ADSR	AHD	AR	MPE
+sound/13/5	rel@synth	1
+sound/13/5	read@synth	32
+sound/13/6	rel@synth	0
+sound/13/6	options@synth	Pressure (Z)	Mod wheel (Y)
 sound/14	rel@synth	1
 sound/14/0	rel@synth	1
 sound/14/0	read@synth	7
@@ -1730,6 +1809,13 @@ sound/14/3	rel@synth	1
 sound/14/3	read@synth	20
 sound/14/3	learn@synth	42
 sound/14/3	param_kind@synth	1
+sound/14/4	rel@synth	1
+sound/14/4	read@synth	0
+sound/14/4	options@synth	ADSR	AHD	AR	MPE
+sound/14/5	rel@synth	1
+sound/14/5	read@synth	32
+sound/14/6	rel@synth	0
+sound/14/6	options@synth	Pressure (Z)	Mod wheel (Y)
 sound/15	rel@synth	1
 sound/15/0	rel@synth	1
 sound/15/0	read@synth	25
@@ -1747,6 +1833,13 @@ sound/15/3	rel@synth	1
 sound/15/3	read@synth	25
 sound/15/3	learn@synth	43
 sound/15/3	param_kind@synth	1
+sound/15/4	rel@synth	1
+sound/15/4	read@synth	0
+sound/15/4	options@synth	ADSR	AHD	AR	MPE
+sound/15/5	rel@synth	1
+sound/15/5	read@synth	32
+sound/15/6	rel@synth	0
+sound/15/6	options@synth	Pressure (Z)	Mod wheel (Y)
 sound/16	rel@synth	1
 sound/16/0	rel@synth	1
 sound/16/0	read@synth	25
@@ -1764,6 +1857,13 @@ sound/16/3	rel@synth	1
 sound/16/3	read@synth	25
 sound/16/3	learn@synth	44
 sound/16/3	param_kind@synth	1
+sound/16/4	rel@synth	1
+sound/16/4	read@synth	0
+sound/16/4	options@synth	ADSR	AHD	AR	MPE
+sound/16/5	rel@synth	1
+sound/16/5	read@synth	32
+sound/16/6	rel@synth	0
+sound/16/6	options@synth	Pressure (Z)	Mod wheel (Y)
 sound/17	rel@synth	1
 sound/17/0	rel@synth	1
 sound/17/0	read@synth	1
@@ -2177,6 +2277,13 @@ sound/13/3	rel@kit row	1
 sound/13/3	read@kit row	0
 sound/13/3	learn@kit row	41
 sound/13/3	param_kind@kit row	1
+sound/13/4	rel@kit row	1
+sound/13/4	read@kit row	0
+sound/13/4	options@kit row	ADSR	AHD	AR	MPE
+sound/13/5	rel@kit row	1
+sound/13/5	read@kit row	32
+sound/13/6	rel@kit row	0
+sound/13/6	options@kit row	Pressure (Z)	Mod wheel (Y)
 sound/14	rel@kit row	1
 sound/14/0	rel@kit row	1
 sound/14/0	read@kit row	20
@@ -2194,6 +2301,13 @@ sound/14/3	rel@kit row	1
 sound/14/3	read@kit row	20
 sound/14/3	learn@kit row	42
 sound/14/3	param_kind@kit row	1
+sound/14/4	rel@kit row	1
+sound/14/4	read@kit row	0
+sound/14/4	options@kit row	ADSR	AHD	AR	MPE
+sound/14/5	rel@kit row	1
+sound/14/5	read@kit row	32
+sound/14/6	rel@kit row	0
+sound/14/6	options@kit row	Pressure (Z)	Mod wheel (Y)
 sound/15	rel@kit row	1
 sound/15/0	rel@kit row	1
 sound/15/0	read@kit row	25
@@ -2211,6 +2325,13 @@ sound/15/3	rel@kit row	1
 sound/15/3	read@kit row	25
 sound/15/3	learn@kit row	43
 sound/15/3	param_kind@kit row	1
+sound/15/4	rel@kit row	1
+sound/15/4	read@kit row	0
+sound/15/4	options@kit row	ADSR	AHD	AR	MPE
+sound/15/5	rel@kit row	1
+sound/15/5	read@kit row	32
+sound/15/6	rel@kit row	0
+sound/15/6	options@kit row	Pressure (Z)	Mod wheel (Y)
 sound/16	rel@kit row	1
 sound/16/0	rel@kit row	1
 sound/16/0	read@kit row	25
@@ -2228,6 +2349,13 @@ sound/16/3	rel@kit row	1
 sound/16/3	read@kit row	25
 sound/16/3	learn@kit row	44
 sound/16/3	param_kind@kit row	1
+sound/16/4	rel@kit row	1
+sound/16/4	read@kit row	0
+sound/16/4	options@kit row	ADSR	AHD	AR	MPE
+sound/16/5	rel@kit row	1
+sound/16/5	read@kit row	32
+sound/16/6	rel@kit row	0
+sound/16/6	options@kit row	Pressure (Z)	Mod wheel (Y)
 sound/17	rel@kit row	1
 sound/17/0	rel@kit row	1
 sound/17/0	read@kit row	1
