@@ -42,10 +42,10 @@ inline constexpr uint32_t kEnvelopeStageEnd = 1U << 23;
 	// Raw: the exponent's fraction as a Q31 word, and the result shifted by its whole octaves
 	const auto f = Q<31>::from_raw(static_cast<int32_t>((octaves_q26 << 5) & 0x7FFF'FFFFU));
 	const auto times_f = [f](Q<31> p) { return scale_shl_wrap<1>(Q<31>::from_raw(mul_r(p, f).raw())); };
-	Q<31> p = q<31>(0.00106327236);
-	p = add_wrap(q<31>(-0.00945633231), times_f(p));
-	p = add_wrap(q<31>(0.05547229387), times_f(p));
-	p = add_wrap(q<31>(-0.24022551579), times_f(p));
+	Q<31> p = q<31>(0.00101239420);
+	p = add_wrap(q<31>(-0.00936339423), times_f(p));
+	p = add_wrap(q<31>(0.05542235030), times_f(p));
+	p = add_wrap(q<31>(-0.24021827523), times_f(p));
 	p = add_wrap(q<31>(std::numbers::ln2), times_f(p));
 	return Q<31>::from_raw(sub_wrap(Q<31>::max(), times_f(p)).raw() >> whole);
 }
