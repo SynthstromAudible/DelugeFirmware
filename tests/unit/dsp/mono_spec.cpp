@@ -39,6 +39,7 @@
 #include <utility>
 #include <vector>
 
+#include "run_kernels.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -1105,6 +1106,65 @@ describe mono("Mono", ${
 		vector.render_block(typed(block), typed(block));
 		vector.render_block(typed(block), typed(block));
 		expect(vector.state().prepares).to_equal(3);
+	});
+
+	it("prepares a kernel with runs once a block, then each run of it for exactly its samples", _ {
+		Mono<run_test::Logged> mono;
+		std::vector<f32> out(13);
+		mono.configure({.answer = 5});
+		mono.render_block(Buffer<f32>{out});
+		expect(mono.state().prepares).to_equal(std::size_t{1});
+		expect(mono.state().prepared_for).to_equal(std::size_t{13});
+		expect(mono.state().runs).to_equal(std::size_t{3});
+		expect(mono.state().run[0]).to_equal(std::size_t{5});
+		expect(mono.state().run[1]).to_equal(std::size_t{5});
+		expect(mono.state().run[2]).to_equal(std::size_t{3}); // no more than is left of the block
+		for (std::size_t i = 0; i < out.size(); ++i) {
+			expect(out[i]).to_equal(static_cast<f32>(i + 1));
+		}
+	});
+
+	it("takes a run length over the block as the block, and of 0 as 1", _ {
+		std::vector<f32> out(4);
+		Mono<run_test::Logged> whole;
+		whole.configure({.answer = 1000});
+		whole.render_block(Buffer<f32>{out});
+		expect(whole.state().runs).to_equal(std::size_t{1});
+		expect(whole.state().run[0]).to_equal(std::size_t{4});
+		Mono<run_test::Logged> one;
+		one.configure({.answer = 0});
+		one.render_block(Buffer<f32>{out});
+		expect(one.state().runs).to_equal(std::size_t{4});
+		expect(one.state().run[3]).to_equal(std::size_t{1});
+	});
+
+	it("prepares an empty block of a kernel with runs, and no run of it", _ {
+		Mono<run_test::Logged> mono;
+		mono.render_block(Buffer<f32>{});
+		expect(mono.state().prepares).to_equal(std::size_t{1});
+		expect(mono.state().runs).to_equal(std::size_t{0});
+	});
+
+	it("splits a processor's block where its kernel asks, in and out of place", _ {
+		std::vector<f32> in(40);
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			in[i] = static_cast<f32>(i) * 0.25f;
+		}
+		std::vector<f32> out(40);
+		std::vector<f32> same = in;
+		Mono<run_test::AddPeriodic> apart;
+		Mono<run_test::AddPeriodic> together;
+		apart.configure({.period = 7.f});
+		together.configure({.period = 7.f});
+		apart.on<&run_test::AddPeriodic::start>();
+		together.on<&run_test::AddPeriodic::start>();
+		apart.render_block(Signal<f32>{in}, Buffer<f32>{out});
+		together.render_block(Signal<f32>{same}, Buffer<f32>{same});
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			const auto run = static_cast<f32>((i / 7) + 1);
+			expect(out[i]).to_equal((1000.f * run) + static_cast<f32>(i + 1) + in[i]);
+			expect(same[i]).to_equal(out[i]);
+		}
 	});
 
 	it("keeps state across a mode switch, each block in its own mode", _ {

@@ -24,6 +24,7 @@
 #include <tuple>
 #include <vector>
 
+#include "run_kernels.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -662,6 +663,60 @@ void poly_specs(auto& self) {
 		poly.reset(1);
 		expect(poly.state(1).s).to_equal(0.f);
 		expect(poly.state(0).s).to_be_greater_than(0.f);
+	});
+	it("splits a block at the least run of its lanes, each lane as a Mono stepped at that split", _ {
+		using run_test::Periodic;
+		const std::array<f32, 4> periods{7.f, 5.f, 0.f, 33.f};
+		Poly<Periodic, N> poly;
+		std::array<Periodic::Coefficients, N> c{};
+		std::array<Periodic::State, N> s{};
+		std::array<std::vector<f32>, N> out{};
+		std::array<std::vector<f32>, N> want{};
+		for (std::size_t l = 0; l < N; ++l) {
+			poly.configure(l, {.period = periods[l]});
+			c[l] = Periodic::coefficients({.period = periods[l]});
+			poly.template on<&Periodic::start>(l);
+			Periodic::start(c[l], s[l]);
+		}
+		for (const std::size_t n : {std::size_t{128}, std::size_t{1}, std::size_t{0}, std::size_t{37}}) {
+			std::array<fp::Buffer, N> os{};
+			for (std::size_t l = 0; l < N; ++l) {
+				out[l].assign(n, -1.f);
+				want[l].clear();
+				os[l] = fp::Buffer{out[l]};
+			}
+			poly.render_block(os);
+			for (std::size_t i = 0; i < n;) {
+				std::size_t m = n - i;
+				for (std::size_t l = 0; l < N; ++l) {
+					m = std::min(m, Periodic::run_length(c[l], s[l], n - i));
+				}
+				for (std::size_t l = 0; l < N; ++l) {
+					Periodic::prepare_run(c[l], s[l], m);
+					for (std::size_t t = 0; t < m; ++t) {
+						want[l].push_back(Periodic::step(c[l], EmptyBlock{}, s[l]));
+					}
+				}
+				i += m;
+			}
+			for (std::size_t l = 0; l < N; ++l) {
+				expect(out[l]).to_equal(want[l]);
+				expect(poly.state(l).asked).to_equal(s[l].asked);
+			}
+		}
+	});
+	it("is not split by a parked lane, which is at rest", _ {
+		Poly<run_test::Periodic, N> poly;
+		poly.configure(0, {.period = 0.f});
+		poly.configure(1, {.period = 1.f});
+		poly.template on<&run_test::Periodic::start>(1);
+		poly.park(1);
+		std::array<std::vector<f32>, N> out{};
+		std::array<fp::Buffer, N> os{};
+		out[0].resize(40);
+		os[0] = fp::Buffer{out[0]};
+		poly.render_block(os);
+		expect(poly.state(0).prepared).to_equal(1.f);
 	});
 	// clang-format on
 }

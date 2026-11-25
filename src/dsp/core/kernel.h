@@ -22,6 +22,7 @@
 #include "dsp/core/stereo_vector.h"
 #include "dsp/core/types.h"
 #include "dsp/core/vector_step.h"
+#include <algorithm>
 #include <array>
 #include <concepts>
 #include <cstddef>
@@ -216,6 +217,40 @@ template <typename K>
 concept prepares_exactly = requires {
 	static_cast<typename kernel_block<K>::type (*)(const typename K::Coefficients&, typename K::State&, std::size_t)>(
 	    &K::prepare);
+};
+
+/// @brief A `run_length` every probe has, as PrepareFallback.
+struct RunLengthFallback {
+	/// @brief Never defined or called; it exists only to collide with a kernel's own `run_length`.
+	static void run_length();
+};
+/// @brief Derives from a kernel and the fallback, as PrepareProbe.
+template <typename K>
+struct RunLengthProbe : K, RunLengthFallback {};
+/// @brief A `prepare_run` every probe has, as PrepareFallback.
+struct PrepareRunFallback {
+	/// @brief Never defined or called; it exists only to collide with a kernel's own `prepare_run`.
+	static void prepare_run();
+};
+/// @brief Derives from a kernel and the fallback, as PrepareProbe.
+template <typename K>
+struct PrepareRunProbe : K, PrepareRunFallback {};
+
+/// @brief Whether K declares a member named `run_length` or `prepare_run`, of any kind, detected by name as @ref
+/// declares_prepare is: a kernel declaring one of them, or one of the wrong shape, is rejected, never run whole.
+template <typename K>
+concept declares_runs =
+    std::is_class_v<K> && !std::is_final_v<K>
+    && (!requires { &RunLengthProbe<K>::run_length; } || !requires { &PrepareRunProbe<K>::prepare_run; });
+
+/// @brief Whether K's hooks are exactly `static std::size_t run_length(const Coefficients&, const State&,
+/// std::size_t)` and `static void prepare_run(const Coefficients&, State&, std::size_t)`, checked as @ref
+/// prepares_exactly is.
+template <typename K>
+concept runs_exactly = requires {
+	static_cast<std::size_t (*)(const typename K::Coefficients&, const typename K::State&, std::size_t)>(
+	    &K::run_length);
+	static_cast<void (*)(const typename K::Coefficients&, typename K::State&, std::size_t)>(&K::prepare_run);
 };
 
 /// @brief Whether K declares a member named `kLoopState`, of any kind, so that a wrong one is seen and rejected by
@@ -427,6 +462,11 @@ concept prepare_well_formed =
 template <typename K>
 concept reset_well_formed = !declares_reset<K> || resets_exactly<K>;
 
+/// @brief Whether K's runs, if it declares them, are exactly their signatures, on a step of one sample at a time that
+/// steps the whole State.
+template <typename K>
+concept runs_well_formed = !declares_runs<K> || (runs_exactly<K> && scalar_step_kernel<K> && !declares_loop_state<K>);
+
 /// @brief Whether `Mono` and `Linked` step K's member loop state in place rather than on a local copy.
 /// @details False unless K declares `static constexpr bool kStateInPlace` true. The wrappers normally copy the loop
 /// state to locals for the block and write it back, so a scalar loop state stays in registers across the loop.
@@ -529,7 +569,22 @@ concept kernel_base =
     detail::declares_kernel_types<K> && detail::supported_step_pair<K> && detail::plain_value<typename K::Coefficients>
     && detail::plain_value<typename K::State> && detail::plain_value<kernel_block_t<K>>
     && detail::computes_coefficients<K> && detail::prepare_well_formed<K> && detail::reset_well_formed<K>
-    && detail::loop_state_well_formed<K> && (!detail::has_modes<K> || detail::default_mode_listed<K>);
+    && detail::loop_state_well_formed<K> && detail::runs_well_formed<K>
+    && (!detail::has_modes<K> || detail::default_mode_listed<K>);
+
+/// @brief A kernel that is prepared again within a block: `run_length(c, s, n)`, how many of the next @c n samples it
+/// may take before that, and `prepare_run(c, s, m)`, called before exactly @c m samples of steps.
+/// @details A wrapper renders its block as runs: it asks `run_length` for what is left, prepares that many, steps
+/// them, and asks again. What changes only at a stage's end is work for `prepare_run`, so the step has no test for it.
+/// - `run_length` changes nothing. An answer past @c n is @c n, and 0 is 1. A copy in its reset State asks for no split
+///   (it answers @c n), so a parked lane does not split its neighbours' blocks.
+/// - `prepare`, for a kernel that declares one too, is still called once, before the block's first run, for the whole
+///   block. An empty block has no run.
+/// - The two are declared together, exactly `static std::size_t run_length(const Coefficients&, const State&,
+///   std::size_t)` and `static void prepare_run(const Coefficients&, State&, std::size_t)` (for a @ref poly_kernel,
+///   templates over V), by a kernel whose step is one sample and which declares no `kLoopState`.
+template <typename K>
+concept runs_kernel = kernel_base<K> && detail::declares_runs<K>;
 
 /// @brief A kernel generating its output: `step(c, b, s) -> step_type`, and no other form. When K declares
 /// kPartialStepAdvancesByCount, which only a vector step may (a scalar loop has no partial step), also the counted
@@ -573,7 +628,7 @@ concept mixer_kernel = kernel_base<K> && detail::kernel_form_count_v<K> == 1
 template <typename K>
 concept staged_kernel = kernel_base<K> && detail::kernel_form_count_v<K> == 1 && detail::processes_blocks<K>
                         && !partial_step_advances_by_count_v<K> && !detail::declares_prepare<K>
-                        && !detail::declares_loop_state<K> && !detail::declares_context<K>;
+                        && !detail::declares_runs<K> && !detail::declares_loop_state<K> && !detail::declares_context<K>;
 
 /// @brief A block-rate kernel: `advance(c, s, n) -> value_type` moves a control signal on by a whole block of @c n
 /// samples, and no other form.
@@ -593,9 +648,9 @@ concept staged_kernel = kernel_base<K> && detail::kernel_form_count_v<K> == 1 &&
 /// - declares no `kLoopState`: it has no step.
 template <typename K>
 concept control_kernel =
-    kernel_base<K> && detail::kernel_form_count_v<K> == 1
-    && detail::advances_blocks<K> && detail::scalar_step_kernel<K> && !detail::declares_prepare<K>
-    && !partial_step_advances_by_count_v<K> && !detail::declares_loop_state<K> && !detail::declares_context<K>;
+    kernel_base<K> && detail::kernel_form_count_v<K> == 1 && detail::advances_blocks<K> && detail::scalar_step_kernel<K>
+    && !detail::declares_prepare<K> && !detail::declares_runs<K> && !partial_step_advances_by_count_v<K>
+    && !detail::declares_loop_state<K> && !detail::declares_context<K>;
 
 /// @brief A kernel of any form; a class satisfies at most one of the five form concepts.
 template <typename K>
@@ -779,6 +834,29 @@ template <kernel K, typename C = K::Coefficients, typename S = K::State>
 	}
 	else {
 		return kernel_block_t<K>{};
+	}
+}
+
+/// @brief How many of the next @p n samples K may take before it is prepared again: at least 1, at most @p n; @p n
+/// for a kernel without runs.
+/// @param n What is left of the block, at least 1.
+template <kernel K, typename C = K::Coefficients, typename S = K::State>
+[[nodiscard, gnu::always_inline]] inline std::size_t run_length([[maybe_unused]] const C& c,
+                                                                [[maybe_unused]] const S& s, std::size_t n) {
+	if constexpr (runs_kernel<K>) {
+		return std::clamp<std::size_t>(K::run_length(c, s, n), 1, n);
+	}
+	else {
+		return n;
+	}
+}
+
+/// @brief K's `prepare_run` for exactly @p m samples, when it declares runs.
+template <kernel K, typename C = K::Coefficients, typename S = K::State>
+[[gnu::always_inline]] inline void prepare_run([[maybe_unused]] const C& c, [[maybe_unused]] S& s,
+                                               [[maybe_unused]] std::size_t m) {
+	if constexpr (runs_kernel<K>) {
+		K::prepare_run(c, s, m);
 	}
 }
 

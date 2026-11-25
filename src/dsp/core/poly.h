@@ -42,6 +42,8 @@ namespace deluge::dsp {
 /// **One mode.** Every lane runs one mode, dispatched once per block; a kernel without modes steps without dispatch.
 /// **Per block.** A K that declares `prepare` has it called once, on the packed coefficients and state, before the
 /// block's frames, as Mono does for one copy.
+/// **Runs.** A block of a kernel with runs (@ref runs_kernel) is split at the least run of its lanes: `run_length` and
+/// `prepare_run` take the packed coefficients and state. A parked lane is at rest, and splits nothing.
 /// **Parking.** A fresh Poly has every lane parked; `configure` un-parks a lane. A parked lane is fed zero, its output
 /// is not written, and its state is returned to K's reset state after every block; lanes share nothing, so it perturbs
 /// no other. **Blocks.** Every unparked lane's input and output spans have the block's length (a parked lane's may be
@@ -144,11 +146,30 @@ private:
 		}
 		const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, n);
 		std::size_t i = 0;
-		for (; i + N <= n; i += N) {
-			step_frames<M>(c, block, s, parked, p, i);
+		if constexpr (runs_kernel<K>) {
+			while (i < n) {
+				// The hooks see the member coefficients and this state, so that neither the loop's coefficients nor its
+				// state has an address anything else could write through: both stay in registers
+				const std::size_t m = kernel_ops::run_length<K>(this->coefficients(), s, n - i);
+				kernel_ops::prepare_run<K>(this->coefficients(), s, m);
+				PackedState looped = s;
+				const std::size_t end = i + m;
+				for (; i + N <= end; i += N) {
+					step_frames<M>(c, block, looped, parked, p, i);
+				}
+				for (; i < end; ++i) {
+					step_frame<M>(c, block, looped, parked, p, i);
+				}
+				s = looped;
+			}
 		}
-		for (; i < n; ++i) {
-			step_frame<M>(c, block, s, parked, p, i);
+		else {
+			for (; i + N <= n; i += N) {
+				step_frames<M>(c, block, s, parked, p, i);
+			}
+			for (; i < n; ++i) {
+				step_frame<M>(c, block, s, parked, p, i);
+			}
 		}
 		for (std::size_t l = 0; l < N; ++l) {
 			if ((parked & bit(l)) != 0) {

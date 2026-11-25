@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <tuple>
 
+#include "run_kernels.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -836,6 +837,37 @@ static_assert(!generator_kernel<Staged> && !processor_kernel<Staged> && !mixer_k
 static_assert(!mixer_kernel<Ramp>);
 static_assert(kernel_base<TwoArities> && !kernel<TwoArities>);
 static_assert(!kernel_base<BadPrepare> && !kernel<BadPrepare>);
+
+/// Runs are declared whole: both hooks, of exactly their signatures, on a kernel stepping one sample at a time.
+struct OnlyRunLength : run_test::Logged {
+	static void prepare_run() = delete;
+};
+struct RunLengthAlone {
+	using value_type = f32;
+	using step_type = f32;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings&) { return {}; }
+	static std::size_t run_length(const Coefficients&, const State&, std::size_t n) { return n; }
+	static f32 step(const Coefficients&, const EmptyBlock&, State&) { return 0.f; }
+};
+struct PrepareRunAlone {
+	using value_type = f32;
+	using step_type = f32;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	static Coefficients coefficients(const Settings&) { return {}; }
+	static void prepare_run(const Coefficients&, State&, std::size_t) {}
+	static f32 step(const Coefficients&, const EmptyBlock&, State&) { return 0.f; }
+};
+struct RunsOnInt : PrepareRunAlone {
+	static int run_length(const Coefficients&, const State&, int n) { return n; }
+};
+static_assert(runs_kernel<run_test::Logged> && runs_kernel<run_test::Periodic> && runs_kernel<run_test::AddPeriodic>);
+static_assert(!runs_kernel<Gain> && kernel<Gain>);
+static_assert(!kernel<OnlyRunLength> && !kernel<RunLengthAlone> && !kernel<PrepareRunAlone> && !kernel<RunsOnInt>);
 static_assert(!kernel_base<NotPlain> && !kernel<NotPlain>);
 static_assert(!kernel<TemplatePrepare>);
 static_assert(!kernel<OverloadedPrepare>);
