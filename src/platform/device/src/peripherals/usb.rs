@@ -38,6 +38,29 @@ rza1_hal::bind_interrupts!(struct UsbIrqs {
     USB0 => rza1_hal::usb::DeviceInterruptHandler<rza1_hal::peripherals::USB0>;
 });
 
+/// USB0's device interrupt, with its time metered: it moves the audio packets, thousands of times a
+/// second, inside whatever it interrupts.
+struct MeteredDeviceInterrupt;
+
+impl rza1_hal::interrupt::Handler<rza1_hal::interrupt::typelevel::USB0> for MeteredDeviceInterrupt {
+    unsafe fn on_interrupt() {
+        let began = crate::services::deluge_cycle_count();
+        // SAFETY: the caller's contract: this is USB0's interrupt.
+        unsafe {
+            <rza1_hal::usb::DeviceInterruptHandler<rza1_hal::peripherals::USB0> as rza1_hal::interrupt::Handler<
+                rza1_hal::interrupt::typelevel::USB0,
+            >>::on_interrupt()
+        };
+        crate::work_cycles::add_interrupt(
+            crate::services::deluge_cycle_count().wrapping_sub(began),
+        );
+    }
+}
+
+rza1_hal::bind_interrupts!(struct MeteredUsbIrqs {
+    USB0 => MeteredDeviceInterrupt;
+});
+
 /// [`STARTED`]'s states: not started, started with USB-MIDI only, started with audio as well.
 const NOT_STARTED: u8 = 0;
 const STARTED_MIDI: u8 = 1;
@@ -63,6 +86,10 @@ pub unsafe fn init(
     // init_device_mode binds the device-mode handler (host mode is not implemented), ungates the
     // USB module clock and yields the driver.
     let (_port, driver) = init_device_mode(usb0, UsbIrqs);
+    // The driver takes only its own handler; this replaces it with one that calls it.
+    rza1_hal::interrupt::bind::<rza1_hal::interrupt::typelevel::USB0, MeteredDeviceInterrupt>(
+        MeteredUsbIrqs,
+    );
     driver
 }
 

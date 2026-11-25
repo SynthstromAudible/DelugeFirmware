@@ -113,6 +113,7 @@ static mut CAPTURE_SOURCE: CaptureSource = CaptureSource;
 #[cfg(feature = "audio-timing")]
 mod service_probe {
     use core::cell::RefCell;
+    use core::sync::atomic::{AtomicU32, Ordering};
 
     use critical_section::Mutex;
 
@@ -121,7 +122,17 @@ mod service_probe {
     static STATS: Mutex<RefCell<UsbServiceStats>> = Mutex::new(RefCell::new(UsbServiceStats {
         to_host: StreamGaps::EMPTY,
         from_host: StreamGaps::EMPTY,
+        interrupt_us: 0,
     }));
+    /// The interrupt's cycle count at the last take.
+    static TAKEN_CYCLES: AtomicU32 = AtomicU32::new(0);
+
+    /// The µs the USB interrupt took since the last take.
+    pub(super) fn take_interrupt_us() -> u32 {
+        let now = crate::work_cycles::interrupt_cycles();
+        let cycles = now.wrapping_sub(TAKEN_CYCLES.swap(now, Ordering::Relaxed));
+        (u64::from(cycles) * 1_000_000 / u64::from(crate::services::deluge_cycle_hz())) as u32
+    }
 
     /// Runs `f` on the statistics with interrupts masked.
     pub(super) fn with<R>(f: impl FnOnce(&mut UsbServiceStats) -> R) -> R {
@@ -137,9 +148,11 @@ mod service_probe {
 /// Both streams' services since the last take, for the audio-timing probe's line.
 #[cfg(feature = "audio-timing")]
 pub(crate) fn take_service_stats() -> crate::audio::usb_service_probe::UsbServiceStats {
+    let interrupt_us = service_probe::take_interrupt_us();
     service_probe::with(|s| crate::audio::usb_service_probe::UsbServiceStats {
         to_host: s.to_host.take(),
         from_host: s.from_host.take(),
+        interrupt_us,
     })
 }
 

@@ -5,7 +5,8 @@
 queue came to running dry, overruns, the render task's worst wake lateness and the drive's overruns,
 then each USB audio stream's frames, late services, missed microframes and longest gap (`in` to the
 host, `out` from it), and the frames lost: those sent to the host less those that came from it. That
-difference means loss only while a host that follows our implicit feedback runs both streams.
+difference means loss only while a host that follows our implicit feedback runs both streams. The last
+column is the USB interrupt's share of real time.
 `overhead --small A --large B` fits each render's fixed cost and its cost per frame from two captures
 whose renders are of two sizes (the drive renders 128 frames, so one of them comes from an image whose
 drive renders another size).
@@ -61,6 +62,8 @@ class Phase:
     # None until a line from an image that reports the USB streams is added.
     usb_in: UsbStream | None = None
     usb_out: UsbStream | None = None
+    # None until a line that reports the USB interrupt's time is added.
+    usb_interrupt_us: int | None = None
 
     def add(self, f: dict[str, str]) -> None:
         self.renders += int(f["renders"])
@@ -82,6 +85,17 @@ class Phase:
             self.usb_in, self.usb_out = UsbStream(), UsbStream()
         self.usb_in.add(f, "in")
         self.usb_out.add(f, "out")
+        if "interrupt_us" in f:
+            self.usb_interrupt_us = (self.usb_interrupt_us or 0) + int(
+                f["interrupt_us"]
+            )
+
+    @property
+    def usb_interrupt_share(self) -> float | None:
+        """The USB interrupt's time over the real time the rendered frames last."""
+        if self.usb_interrupt_us is None or not self.frames:
+            return None
+        return (self.usb_interrupt_us / 1e6) / (self.frames / SAMPLE_RATE)
 
     @property
     def usb_lost_frames(self) -> int | None:
@@ -175,6 +189,7 @@ def row(capture: str, name: str, p: Phase) -> str:
         *usb_columns(p.usb_in),
         *usb_columns(p.usb_out),
         "-" if p.usb_lost_frames is None else str(p.usb_lost_frames),
+        "-" if p.usb_interrupt_share is None else f"{p.usb_interrupt_share:.1%}",
     ]
     return f"| {' | '.join(cells)} |"
 
@@ -201,6 +216,7 @@ HEADERS = [
     "out missed",
     "out max gap µs",
     "lost frames",
+    "usb irq",
 ]
 
 

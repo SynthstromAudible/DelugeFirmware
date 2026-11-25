@@ -121,7 +121,8 @@ A `USB-AUDIO-TIMING` line follows it, with how late the USB interrupt serviced e
 `out` from it): packets and frames, services more than 250 µs after the one before (`late`: both hardware buffers had
 gone), the microframes those left with no packet (`missed`, an estimate, at high speed) and the longest gap. It reads
 zero until a host streams: run `arecord` and `aplay` on the device from the probe host. The report's `lost frames`, the
-frames sent less the frames received, is loss only while that host follows our implicit feedback.
+frames sent less the frames received, is loss only while that host follows our implicit feedback. `interrupt_us` is the
+USB interrupt's whole time, audio and MIDI alike.
 
 Build the feature into a stream-bench image:
 

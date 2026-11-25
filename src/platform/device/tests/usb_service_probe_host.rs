@@ -70,6 +70,7 @@ fn the_line_names_both_streams() {
     let mut stats = UsbServiceStats {
         to_host: StreamGaps::EMPTY,
         from_host: StreamGaps::EMPTY,
+        interrupt_us: 1_234,
     };
     stats.to_host.record(0, 5);
     stats.to_host.record(500, 6);
@@ -78,6 +79,6 @@ fn the_line_names_both_streams() {
     assert_eq!(
         line,
         "USB-AUDIO-TIMING in_packets=2 in_frames=11 in_late=1 in_missed=2 in_max_gap_us=500 \
-         out_packets=1 out_frames=7 out_late=0 out_missed=0 out_max_gap_us=0"
+         out_packets=1 out_frames=7 out_late=0 out_missed=0 out_max_gap_us=0 interrupt_us=1234"
     );
 }

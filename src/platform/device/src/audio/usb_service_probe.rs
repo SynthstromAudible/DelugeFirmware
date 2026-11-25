@@ -78,6 +78,8 @@ pub struct UsbServiceStats {
     pub to_host: StreamGaps,
     /// The speaker stream: packets from the host.
     pub from_host: StreamGaps,
+    /// Time in the USB interrupt, µs.
+    pub interrupt_us: u32,
 }
 
 impl fmt::Display for UsbServiceStats {
@@ -91,6 +93,6 @@ impl fmt::Display for UsbServiceStats {
                 s.packets, s.frames, s.late, s.missed, s.max_gap_us,
             )?;
         }
-        Ok(())
+        write!(f, " interrupt_us={}", self.interrupt_us)
     }
 }

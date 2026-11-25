@@ -216,6 +216,15 @@ pub extern "C" fn deluge_cycle_count() -> u32 {
     0
 }
 
+/// The CPU cycles spent on the caller's work: [`deluge_cycle_count`] less the USB interrupt's time; 0
+/// on the host. `[task]` `[audio]`
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_work_cycle_count() -> u32 {
+    crate::work_cycles::read(crate::work_cycles::interrupt_cycles, || {
+        deluge_cycle_count()
+    })
+}
+
 /// The rate [`deluge_cycle_count`] counts at: the A9's core clock Iφ, the crystal × 30 (the CPG's
 /// PLL, with Iφ at ×1), so 396,768,750 Hz on the Deluge's 13.2256 MHz crystal; 0 on the host,
 /// which has no counter. `[task]` `[audio]` `[isr]`
@@ -417,6 +426,7 @@ abi_pin!(
     deluge_memory_region,
     deluge_memory_region_count,
     deluge_memory_scratch,
+    deluge_work_cycle_count,
     ENTER_CRITICAL_SECTION,
     EXIT_CRITICAL_SECTION,
 );

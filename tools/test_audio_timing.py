@@ -76,12 +76,12 @@ class ParseTest(unittest.TestCase):
         self.assertAlmostEqual(steady.load, 1.5 / (176640 / 44100), places=6)
 
 
-def usb(in_, out):
+def usb(in_, out, interrupt_us=None):
     streams = " ".join(
         f"{name}_packets={p} {name}_frames={f} {name}_late={late} {name}_missed={missed} {name}_max_gap_us={gap}"
         for name, (p, f, late, missed, gap) in (("in", in_), ("out", out))
     )
-    return f"12.0: INFO  [deluge_platform_device::audio::device::probe] USB-AUDIO-TIMING {streams}"
+    return f"12.0: INFO  [deluge_platform_device::audio::device::probe] USB-AUDIO-TIMING {streams}{'' if interrupt_us is None else f' interrupt_us={interrupt_us}'}"
 
 
 def usb_capture():
@@ -130,15 +130,32 @@ class UsbTest(unittest.TestCase):
 
     def test_the_report_dashes_the_usb_columns_of_a_phase_with_no_usb_lines(self):
         row = audio_timing.row("run", "steady", audio_timing.parse(capture())["steady"])
-        self.assertTrue(row.endswith("| - | - | - | - | - | - | - | - | - |"), row)
+        self.assertTrue(row.endswith("| - | - | - | - | - | - | - | - | - | - |"), row)
 
     def test_the_report_gives_each_streams_columns(self):
         row = audio_timing.row(
             "run", "steady", audio_timing.parse(usb_capture())["steady"]
         )
         self.assertTrue(
-            row.endswith("| 176300 | 3 | 10 | 600 | 176150 | 6 | 24 | 900 | 150 |"), row
+            row.endswith("| 176300 | 3 | 10 | 600 | 176150 | 6 | 24 | 900 | 150 | - |"),
+            row,
         )
+
+    def test_the_interrupts_share_is_its_time_over_the_rendered_time(self):
+        lines = usb_capture()
+        lines[6] = usb((1, 1, 0, 0, 0), (1, 1, 0, 0, 0), interrupt_us=100_000)
+        lines[8] = usb((1, 1, 0, 0, 0), (1, 1, 0, 0, 0), interrupt_us=60_000)
+        steady = audio_timing.parse(lines)["steady"]
+        self.assertEqual(steady.usb_interrupt_us, 160_000)
+        self.assertAlmostEqual(
+            steady.usb_interrupt_share, 0.16 / (176640 / 44100), places=6
+        )
+        self.assertTrue(audio_timing.row("run", "steady", steady).endswith("| 4.0% |"))
+
+    def test_a_line_without_the_interrupt_time_has_no_share(self):
+        steady = audio_timing.parse(usb_capture())["steady"]
+        self.assertIsNone(steady.usb_interrupt_us)
+        self.assertIsNone(steady.usb_interrupt_share)
 
 
 class OverheadTest(unittest.TestCase):
