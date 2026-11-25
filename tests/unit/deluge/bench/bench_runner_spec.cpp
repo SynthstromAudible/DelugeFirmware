@@ -474,6 +474,8 @@ const std::vector<std::string_view> kModMatrixCaseNames{
     "envelope_decay",
     "envelope_sustain",
     "envelope_release",
+    "envelope_hold",
+    "envelope_slew",
     "envelope_decay_x64",
     "delay_feedback_chain_analog",
     "delay_feedback_chain_digital",

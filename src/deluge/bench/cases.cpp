@@ -850,6 +850,8 @@ std::span<const Case> mod_matrix_list(CaseSet& s) {
 	    make_case("envelope_decay", s.envelope_decay),
 	    make_case("envelope_sustain", s.envelope_sustain),
 	    make_case("envelope_release", s.envelope_release),
+	    make_case("envelope_hold", s.envelope_hold),
+	    make_case("envelope_slew", s.envelope_slew),
 	    make_case("envelope_decay_x64", s.envelope_decay_x64),
 	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
 	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),

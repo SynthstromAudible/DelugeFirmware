@@ -1936,12 +1936,19 @@ private:
 };
 
 /// @brief Which stage an envelope case times.
-enum class EnvelopeKind : uint8_t { ATTACK, DECAY, SUSTAIN, RELEASE };
+enum class EnvelopeKind : uint8_t {
+	ATTACK,
+	DECAY,
+	SUSTAIN,
+	RELEASE,
+	HOLD, ///< an AHD's
+	SLEW, ///< an AR's, toward its level
+};
 
 /// @brief A synth voice's `Envelope` rendered once per block, as a voice renders each of its four.
-/// @details Classic ADSR, in one stage for the whole run: at 64 position steps a sample a stage lasts 131,072 samples,
-/// and a run is 8,704. Its cycles per sample divide the block's cost by n, though it works once per block. The case of
-/// 64 is sixteen voices' envelopes, whose state the block walks.
+/// @details Classic ADSR but for the last two kinds, in one stage for the whole run: at 64 position steps a sample a
+/// stage lasts 131,072 samples, and a run is 8,704. Its cycles per sample divide the block's cost by n, though it works
+/// once per block. The case of 64 is sixteen voices' envelopes, whose state the block walks.
 class EnvelopeCase {
 public:
 	/// @param kind  The stage.
@@ -2632,6 +2639,8 @@ struct CaseSet {
 	EnvelopeCase envelope_decay{EnvelopeKind::DECAY};                             ///< `envelope_decay`
 	EnvelopeCase envelope_sustain{EnvelopeKind::SUSTAIN};                         ///< `envelope_sustain`
 	EnvelopeCase envelope_release{EnvelopeKind::RELEASE};                         ///< `envelope_release`
+	EnvelopeCase envelope_hold{EnvelopeKind::HOLD};                               ///< `envelope_hold`
+	EnvelopeCase envelope_slew{EnvelopeKind::SLEW};                               ///< `envelope_slew`
 	EnvelopeCase envelope_decay_x64{EnvelopeKind::DECAY, 64};                     ///< `envelope_decay_x64`
 	FftCase fft_fwd_16{{.inverse = false, .magnitude = 4}};                       ///< `fft_fwd_16`
 	FftCase fft_fwd_32{{.inverse = false, .magnitude = 5}};                       ///< `fft_fwd_32`

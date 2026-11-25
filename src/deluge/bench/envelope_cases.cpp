@@ -32,29 +32,43 @@ Envelopes& envelopes() {
 	return *made;
 }
 
-[[gnu::noinline]] Q<31> render(Envelope& e, std::size_t n, uint32_t decay = kRate) {
-	return e.render(n, kRate, decay, kSustain, kRate, synth::EnvelopeState{}, Q<31>{});
+/// The settings of a case's envelopes.
+constexpr synth::EnvelopeState state_of(EnvelopeKind kind) {
+	switch (kind) {
+	case EnvelopeKind::HOLD:
+		return {.mode = synth::EnvelopeMode::AHD};
+	case EnvelopeKind::SLEW:
+		return {.mode = synth::EnvelopeMode::AR};
+	default:
+		return {};
+	}
+}
+
+[[gnu::noinline]] Q<31> render(Envelope& e, std::size_t n, const synth::EnvelopeState& state, uint32_t decay = kRate) {
+	return e.render(n, kRate, decay, kSustain, kRate, state, Q<31>{});
 }
 
 } // namespace
 
 void EnvelopeCase::setup(std::size_t n) {
+	const synth::EnvelopeState state = state_of(kind_);
 	for (std::size_t i = 0; i < count_; ++i) {
 		Envelope& e = envelopes()[i];
-		(void)e.note_on(kind_ != EnvelopeKind::ATTACK, kSustain);
+		(void)e.note_on(kind_ != EnvelopeKind::ATTACK, kSustain, state);
 		if (kind_ == EnvelopeKind::SUSTAIN) {
-			(void)render(e, n, 1U << 23); // the decay ends in this block
+			(void)render(e, n, state, 1U << 23); // the decay ends in this block
 		}
 		else if (kind_ == EnvelopeKind::RELEASE) {
-			(void)render(e, n);
+			(void)render(e, n, state);
 			e.unconditional_release();
 		}
 	}
 }
 
 void EnvelopeCase::block(std::size_t n) {
+	const synth::EnvelopeState state = state_of(kind_);
 	for (std::size_t i = 0; i < count_; ++i) {
-		levels[i] = render(envelopes()[i], n);
+		levels[i] = render(envelopes()[i], n, state);
 	}
 }
 
