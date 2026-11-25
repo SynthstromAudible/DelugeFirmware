@@ -63,6 +63,8 @@ void set_engine(SoundState& state, SynthMode mode);
 
 /// @brief One of @p state's four LFOs, in file order, to change in place.
 [[nodiscard]] synth::LfoState& lfo_of(SoundState& state, size_t index) noexcept;
+/// @brief One of the sound's four envelopes' settings, to edit.
+[[nodiscard]] synth::EnvelopeState& envelope_of(SoundState& state, size_t index) noexcept;
 
 /// @brief Slot @p slot's kind with its parts: the one it plays, or while FM plays the one it parks.
 /// @return The kind, or null when FM plays and the slot parks none (a new synth's square).

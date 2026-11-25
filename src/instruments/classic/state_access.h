@@ -132,6 +132,11 @@ using synth::SamplePlayback;
 /// @param index 0..3.
 [[nodiscard]] synth::LfoState lfo(const SoundState& state, size_t index) noexcept;
 
+/// @brief One of the sound's four envelopes' mode, curve and follow input.
+/// @param state The sound's state.
+/// @param index 0..3.
+[[nodiscard]] synth::EnvelopeState envelope(const SoundState& state, size_t index) noexcept;
+
 /// @brief @p state with one oscillator slot's ranges replaced.
 /// @param state The sound's state.
 /// @param id The slot.

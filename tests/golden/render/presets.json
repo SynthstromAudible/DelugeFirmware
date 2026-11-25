@@ -893,6 +893,42 @@
   "rms_db": -36.78,
   "sha256": "bae67f3371671e4811c8ba9c42f70966127dee10e3a5e23ec4bbae222ad995ee"
  },
+ "env_ahd": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -25.32,
+  "sha256": "ee737478ff4e1ae0df2fadf3b92e8ca8e84e71c8d6a59747b1155f584148a085"
+ },
+ "env_ar": {
+  "frames": 88200,
+  "peak": 108381952,
+  "rms_db": -30.04,
+  "sha256": "269043980d3311345bc09fea6a63430c679654cb42b7c2c97be68235cae78034"
+ },
+ "env_curve_0": {
+  "frames": 88200,
+  "peak": 173344000,
+  "rms_db": -25.26,
+  "sha256": "bb81beab90b155c6dc2fc4295b15a3177c9a46eb6ed6f3071d2e84bc30264f93"
+ },
+ "env_curve_50": {
+  "frames": 88200,
+  "peak": 173285376,
+  "rms_db": -27.44,
+  "sha256": "e0ee025404268729741a2506dbdb2122f77d7cf0462d151a6554fe1502e516d9"
+ },
+ "env_curve_neg50": {
+  "frames": 88200,
+  "peak": 173387008,
+  "rms_db": -24.6,
+  "sha256": "78712ef5331c86f11b8be5bcb12a411a8b424ee7af8906b0700f582b1150c726"
+ },
+ "env_mpe_y": {
+  "frames": 88200,
+  "peak": 171936256,
+  "rms_db": -27.24,
+  "sha256": "f8b6634c236230c75d0e7b3a43c021c9317b740a96fba0ba5712b923edf15da5"
+ },
  "env_shape": {
   "frames": 132300,
   "peak": 173291776,

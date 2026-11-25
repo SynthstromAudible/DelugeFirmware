@@ -134,6 +134,10 @@ synth::LfoState lfo(const SoundState& state, size_t index) noexcept {
 	return pair[index / 2];
 }
 
+synth::EnvelopeState envelope(const SoundState& state, size_t index) noexcept {
+	return state.plays.envelopes[index];
+}
+
 SoundState with_ranges(SoundState state, SourceId id, std::vector<synth::SourceRange> ranges) {
 	synth::SlotState* kind = slot_kind_of(state, slot_index(id));
 	if (auto* wavetable = kind != nullptr ? std::get_if<synth::WavetableState>(kind) : nullptr) {

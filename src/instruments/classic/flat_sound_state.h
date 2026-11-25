@@ -24,6 +24,7 @@
 #include "plugin/types/interpolation_mode.h"
 #include "plugin/types/sync.h"
 #include "plugin/types/voice_priority.h"
+#include "synth/modulation/envelope_state.h"
 #include "synth/sources/source_state.h"
 
 #include <array>
@@ -106,7 +107,8 @@ struct FlatSoundState {
 	std::array<LFOType, 4> lfo_wave_type{LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE};
 	std::array<plugin::SyncType, 4> lfo_sync_type{};
 	std::array<plugin::SyncLevel, 4> lfo_sync_level{};
-	deluge::effects::EffectStates effects; ///< the sound's own effects' settings
+	std::array<synth::EnvelopeState, kNumEnvelopes> envelopes{}; ///< each envelope's mode, curve and follow input
+	deluge::effects::EffectStates effects;                       ///< the sound's own effects' settings
 	std::array<SourceState, kSourceCount> sources;
 	bool operator==(const FlatSoundState&) const = default;
 };

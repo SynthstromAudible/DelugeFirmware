@@ -319,6 +319,7 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 	    .engine = synth::SubtractiveState{},
 	    .instrument_lfos = {lfo_from_flat(f, 0), lfo_from_flat(f, 2)},
 	    .voice_lfos = {lfo_from_flat(f, 1), lfo_from_flat(f, 3)},
+	    .envelopes = f.envelopes,
 	    .fx = f.effects,
 	};
 	Recall recall;
@@ -374,6 +375,7 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 	put_lfo(f, 2, state.instrument_lfos[1]);
 	put_lfo(f, 1, state.voice_lfos[0]);
 	put_lfo(f, 3, state.voice_lfos[1]);
+	f.envelopes = state.envelopes;
 	f.effects = state.fx;
 	const auto put_modulators = [&](const std::array<synth::Pitch, 2>& modulators, bool m1_to_m0) {
 		for (size_t m = 0; m < 2; m++) {
