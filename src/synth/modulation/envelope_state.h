@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include "dsp/float/envelope/curve.h"
-
 #include <algorithm>
 #include <cstdint>
 #include <string_view>
@@ -43,11 +41,32 @@ enum class EnvelopeFollow : uint8_t {
 	Y, ///< MPE Y or the mod wheel
 };
 
+/// @brief The least curve control.
+inline constexpr int32_t kMinCurve = -50;
+/// @brief The greatest curve control.
+inline constexpr int32_t kMaxCurve = 50;
+/// @brief The curve control of the Deluge's original shape.
+inline constexpr int32_t kClassicCurve = 32;
+
+/// @brief Each stage's curve, in eighths of an octave.
+struct EnvelopeEighths {
+	int8_t attack;
+	int8_t decay;
+	int8_t release;
+};
+/// @brief The stages' curves at curve control @p curve: decay and release curve / 4 octaves, the attack half that.
+[[nodiscard]] constexpr EnvelopeEighths eighths_of(int8_t curve) {
+	const auto twice = static_cast<int8_t>(2 * curve);
+	return {.attack = curve, .decay = twice, .release = twice};
+}
+/// @brief Audio clips release along a shallower curve, 4 octaves; their other stages are classic.
+inline constexpr EnvelopeEighths kAudioClipEighths{.attack = 32, .decay = 64, .release = 32};
+
 /// @brief An envelope's mode, curve and follow input.
 struct EnvelopeState {
 	EnvelopeMode mode{EnvelopeMode::ADSR};
 	EnvelopeFollow follow{EnvelopeFollow::Z};
-	int8_t curve{static_cast<int8_t>(dsp::fp::kClassicCurve)}; ///< in [kMinCurve, kMaxCurve]
+	int8_t curve{static_cast<int8_t>(kClassicCurve)}; ///< in [kMinCurve, kMaxCurve]
 
 	bool operator==(const EnvelopeState&) const = default;
 
@@ -55,7 +74,7 @@ struct EnvelopeState {
 	[[nodiscard]] constexpr bool is_default() const { return *this == EnvelopeState{}; }
 	/// @brief @p curve clamped to [kMinCurve, kMaxCurve].
 	[[nodiscard]] static constexpr int8_t clamped_curve(int32_t curve) {
-		return static_cast<int8_t>(std::clamp(curve, dsp::fp::kMinCurve, dsp::fp::kMaxCurve));
+		return static_cast<int8_t>(std::clamp(curve, kMinCurve, kMaxCurve));
 	}
 };
 

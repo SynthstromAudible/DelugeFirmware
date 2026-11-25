@@ -336,9 +336,9 @@ constexpr std::array<plugin::SettingDescriptorExtras, 4> kEnvelopeFollowExtras{{
 	SettingInfo{.path = "envelope" #n "Settings/mode", .kind = CHOICE, .choices = kEnvelopeModes},                     \
 	    SettingInfo{.path = "envelope" #n "Settings/curve",                                                            \
 	                .choices = {},                                                                                     \
-	                .min = dsp::fp::kMinCurve,                                                                         \
-	                .max = dsp::fp::kMaxCurve,                                                                         \
-	                .default_value = dsp::fp::kClassicCurve},                                                          \
+	                .min = synth::kMinCurve,                                                                           \
+	                .max = synth::kMaxCurve,                                                                           \
+	                .default_value = synth::kClassicCurve},                                                            \
 	    SettingInfo {                                                                                                  \
 		.path = "envelope" #n "Settings/follow", .kind = CHOICE, .choices = kEnvelopeFollows,                          \
 		.extras = &kEnvelopeFollowExtras[(n) - 1]                                                                      \

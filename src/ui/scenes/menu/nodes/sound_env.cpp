@@ -85,7 +85,7 @@ ValueText release_text(const MenuContext& ctx, size_t e, ValueTextUse use, std::
 void draw_envelope(ui::widgets::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused, size_t e,
                    const Node& attack, const Node& decay, const Node& sustain, const Node& release) {
 	const deluge::synth::EnvelopeState state = envelope_state(ctx, e);
-	const auto shape = deluge::dsp::fp::CurveShape::from_curve(state.curve);
+	const deluge::synth::EnvelopeEighths shape = deluge::synth::eighths_of(state.curve);
 	using Mode = ui::widgets::oled::EnvelopeGraph::Mode;
 	static constexpr std::array<Mode, 4> kModes{Mode::ADSR, Mode::AHD, Mode::AR, Mode::MPE}; // in EnvelopeMode's order
 	ui::widgets::oled::envelope_graph(panel,
@@ -94,9 +94,9 @@ void draw_envelope(ui::widgets::oled::OledFrame& panel, const MenuContext& ctx, 
 	                                   .sustain = bindings::read(sustain, ctx),
 	                                   .release = bindings::read(release, ctx),
 	                                   .mode = kModes[std::to_underlying(state.mode)],
-	                                   .attack_k = shape.attack.k,
-	                                   .decay_k = shape.decay.k,
-	                                   .release_k = shape.release.k},
+	                                   .attack_k = static_cast<float>(shape.attack) / 8.f,
+	                                   .decay_k = static_cast<float>(shape.decay) / 8.f,
+	                                   .release_k = static_cast<float>(shape.release) / 8.f},
 	                                  focused);
 }
 

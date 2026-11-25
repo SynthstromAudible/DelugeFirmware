@@ -33,21 +33,44 @@ namespace deluge::dsp::fixed {
 /// @brief A stage's length in position steps: main's, which a rate is a fraction of per sample.
 inline constexpr uint32_t kEnvelopeStageEnd = 1U << 23;
 
-/// @brief 2^-y for @p octaves_q26, y in octaves (Q26, any value); 1 is full scale.
-/// @details `2^-w` by shift and `2^-f` as `1 - f·P(f)`, P of degree 4, fitted so the whole errs by less than 2^-22.
-/// With no constant term to miss and P(0) = ln 2, an exponent near 0 keeps its slope, which a slew applies thousands of
-/// times.
-[[gnu::always_inline, nodiscard]] inline Q<31> exp2_neg(uint32_t octaves_q26) {
-	const uint32_t whole = std::min<uint32_t>(octaves_q26 >> 26, 31);
-	// Raw: the exponent's fraction as a Q31 word, and the result shifted by its whole octaves
-	const auto f = Q<31>::from_raw(static_cast<int32_t>((octaves_q26 << 5) & 0x7FFF'FFFFU));
+namespace detail {
+
+/// P(f) of `2^-f = 1 - f·P(f)`, f a Q31 fraction of an octave: degree 4, fitted with P(0) = ln 2 to what the curves'
+/// normalising scales, so a curve errs by at most 2^-20.9.
+[[gnu::always_inline, nodiscard]] inline Q<31> octave_loss(Q<31> f) {
 	const auto times_f = [f](Q<31> p) { return scale_shl_wrap<1>(Q<31>::from_raw(mul_r(p, f).raw())); };
 	Q<31> p = q<31>(0.00101239420);
 	p = add_wrap(q<31>(-0.00936339423), times_f(p));
 	p = add_wrap(q<31>(0.05542235030), times_f(p));
 	p = add_wrap(q<31>(-0.24021827523), times_f(p));
 	p = add_wrap(q<31>(std::numbers::ln2), times_f(p));
-	return Q<31>::from_raw(sub_wrap(Q<31>::max(), times_f(p)).raw() >> whole);
+	return p;
+}
+
+/// The fraction of an octave in @p octaves_q26, as Q31.
+[[gnu::always_inline, nodiscard]] inline Q<31> octave_fraction(uint32_t octaves_q26) {
+	return Q<31>::from_raw(static_cast<int32_t>((octaves_q26 << 5) & 0x7FFF'FFFFU)); // Raw: the Q26 fraction's bits
+}
+
+} // namespace detail
+
+/// @brief 2^-y for @p octaves_q26, y in octaves (Q26, any value); 1 is full scale. `2^-w` by shift, the rest by
+/// polynomial.
+[[gnu::always_inline, nodiscard]] inline Q<31> exp2_neg(uint32_t octaves_q26) {
+	const Q<31> f = detail::octave_fraction(octaves_q26);
+	const Q<31> lost = scale_shl_wrap<1>(Q<31>::from_raw(mul_r(detail::octave_loss(f), f).raw()));
+	// Raw: shifted by the whole octaves
+	return Q<31>::from_raw(sub_wrap(Q<31>::max(), lost).raw() >> std::min<uint32_t>(octaves_q26 >> 26, 31));
+}
+
+/// @brief 1 - 2^-y for @p octaves_q26 as a Q62 word, which keeps the low bits of a y near 0: what a slew covers of its
+/// gap in a block of a few samples.
+[[nodiscard]] inline int64_t exp2_loss_q62(uint32_t octaves_q26) {
+	if ((octaves_q26 >> 26) != 0) {
+		return int64_t{sub_wrap(Q<31>::max(), exp2_neg(octaves_q26)).raw()} << 31; // Raw: Q31 to Q62
+	}
+	const Q<31> f = detail::octave_fraction(octaves_q26);
+	return int64_t{detail::octave_loss(f).raw()} * f.raw(); // Raw: Q31 × Q31 is Q62
 }
 
 namespace detail {

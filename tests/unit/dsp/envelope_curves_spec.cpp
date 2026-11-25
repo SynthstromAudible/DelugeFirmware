@@ -219,6 +219,65 @@ describe envelope_curves_spec_body("Envelope", ${
 		expect(env.stage()).to_equal(Stage::OFF);
 	});
 
+	it("is small: a voice holds four, and their bytes are the fast RAM a voice costs", _ {
+		to_be_at_most(expect(sizeof(Envelope)), size_t{40});
+	});
+
+	it("slews a minute as it slews a second, at any block size", _ {
+		for (const double seconds : {10.0, 60.0}) {
+			for (const int32_t curve : {1, 4}) { // k = 0.25 and 1
+				for (const uint32_t n : {1U, 32U, 128U}) {
+					const EnvelopeState s = state(EnvelopeMode::AR, curve);
+					const uint32_t rate = rate_for(static_cast<uint32_t>(seconds * 44100.0));
+					Envelope env;
+					(void)env.note_on(false, q31(0.75), s);
+					const auto blocks = static_cast<uint32_t>(seconds * 44100.0) / n;
+					double worst = 0.0;
+					for (uint32_t b = 0; b < blocks; ++b) {
+						const double y = level_of(env.render(n, rate, kDecay, q31(0.75), kRelease, s, Q<31>{}));
+						if (b % (blocks / 16) == 0 || b + 1 == blocks) {
+							const double octaves = curve * 0.25 * rate * (static_cast<double>(b + 1) * n) / kStageEnd;
+							worst = std::max(worst, std::abs(y - (0.75 * (1.0 - std::exp2(-octaves)))));
+						}
+					}
+					to_be_at_most(expect(worst), 0x1p-13);
+				}
+			}
+		}
+	});
+
+	it("arrives at a sustain a few words away, at any block size", _ {
+		const EnvelopeState s = state(EnvelopeMode::ADSR, 32);
+		for (const uint32_t n : {1U, 32U, 128U}) {
+			for (const int32_t words : {-9, -1, 1, 9}) {
+				Envelope env;
+				(void)env.note_on(true, q31(0.5), s);
+				(void)env.render(n, kAttack, 1U << 23, q31(0.5), kRelease, s, Q<31>{}); // the decay ends: sustain
+				const Q<31> target = Q<31>::from_raw(q31(0.5).raw() + words);
+				for (int32_t b = 0; b < 600; ++b) {
+					(void)env.render(n, kAttack, kDecay, target, kRelease, s, Q<31>{});
+				}
+				expect(env.output_level()).to_equal(target);
+			}
+		}
+	});
+
+	it("resumes an attack from the level it had, whatever the curve and mode", _ {
+		for (EnvelopeMode mode : {EnvelopeMode::ADSR, EnvelopeMode::AHD, EnvelopeMode::AR, EnvelopeMode::MPE}) {
+			for (int32_t curve = -50; curve <= 50; ++curve) {
+				const EnvelopeState s = state(mode, curve);
+				for (const double level : {0.01, 0.37, 0.9}) {
+					Envelope env;
+					(void)env.note_on(false, q31(0.5), s);
+					env.resume_attack(q31(level));
+					// A rate so slow that the block barely moves it: no jump from the level it had
+					const double y = level_of(env.render(1, 1, kDecay, q31(0.5), 1, s, Q<31>{}));
+					expect(y).to_be_within(0x1p-16).of(level);
+				}
+			}
+		}
+	});
+
 	it("keeps a held AR note at level 0 alive, and frees it after release", _ {
 		const EnvelopeState s = state(EnvelopeMode::AR, 32);
 		Envelope env;

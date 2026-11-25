@@ -18,8 +18,7 @@
 #pragma once
 
 #include "dsp/core/fixed_point.h"
-#include "dsp/float/envelope/curve.h"
-#include "dsp/float/envelope/envelope.h"
+#include "dsp/fixed/envelope/stage.h"
 #include "synth/modulation/envelope_state.h"
 
 #include <cstdint>
@@ -27,17 +26,18 @@
 /// @brief The fast release a soft cull runs at, in position steps a sample.
 constexpr uint32_t kSoftCullIncrement = 65536;
 
-/// @brief A synth envelope with main's curve and modes, rendered by the float segment engine (fp::Envelope).
+/// @brief A classic synth voice's envelope: main's curve and modes, in integers.
 ///
-/// Freestanding: the caller gives the params each block, drives the note with plain values and reads
-/// the stage back. The params are main's: attack, decay and release are per-sample position steps of a stage 2^23
-/// long, so a stage lasts `2^23 / rate` samples, and sustain is a level.
+/// Freestanding: the caller gives the params each block, drives the note with plain values and reads the stage back.
+/// The params are main's: attack, decay and release are position steps a sample of a stage 2^23 long, and sustain is a
+/// level.
 ///
-/// Attack, AHD's hold, decay, release and the fast release are timed segments of the engine, re-timed every block from
-/// their params so a modulated rate carries the stage on from where it is; a stage ends at its exact sample within the
-/// block and the next runs on for the rest. The decay runs as main's unit curve, scaled onto the smoothed sustain. AR
-/// and MPE, while held, slew by main's rule once a block. Every level is main's curve (fp::Curve) at the stage's
-/// elapsed fraction, its k from the envelope's one curve control.
+/// A stage is a position (dsp::fixed::EnvelopeStage) whose curve (dsp::fixed::EnvelopeCurve) gives the level. It ends
+/// at its exact sample within the block, and the next runs on for the rest. The decay is a unit curve scaled onto the
+/// smoothed sustain. AR and MPE, while held, slew by main's rule once a block.
+///
+/// The classic instrument's alone: its place is `instruments/classic`, once the voice that holds it is templated over
+/// its backend.
 class Envelope {
 public:
 	/// The stage. Values are deliberate and ordered: @ref deluge::synth::Voice::priority_rating packs the stage into 3
@@ -54,7 +54,7 @@ public:
 	static constexpr int32_t kNumStages = static_cast<int32_t>(Stage::OFF) + 1;
 
 	/// A stage's length in position steps.
-	static constexpr uint32_t kStageEnd = 1U << 23;
+	static constexpr uint32_t kStageEnd = deluge::dsp::fixed::kEnvelopeStageEnd;
 	/// AHD's hold runs this much faster than a decay at the same param (main's kAhdHoldSpeedup).
 	static constexpr uint32_t kAhdHoldSpeedup = 8;
 
@@ -63,7 +63,7 @@ public:
 	deluge::dsp::Q<31> render(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate,
 	                          deluge::dsp::Q<31> sustain_level, uint32_t release_rate,
 	                          const deluge::synth::EnvelopeState& state, deluge::dsp::Q<31> follow_input);
-	/// @brief An audio clip's envelope: classic ADSR with its shallower release (fp::kAudioClipShape).
+	/// @brief An audio clip's envelope: classic ADSR with its shallower release (kAudioClipEighths).
 	deluge::dsp::Q<31> render_audio_clip(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate,
 	                                     deluge::dsp::Q<31> sustain_level, uint32_t release_rate);
 
@@ -89,11 +89,11 @@ public:
 	/// @brief The stage.
 	[[nodiscard]] Stage stage() const { return stage_; }
 	/// @brief The uncentred level, 0 to full scale.
-	[[nodiscard]] deluge::dsp::Q<31> output_level() const;
+	[[nodiscard]] deluge::dsp::Q<31> output_level() const { return level_; }
 	/// @brief The fast release's per-sample step.
 	[[nodiscard]] uint32_t fast_release_rate() const { return fast_release_rate_; }
 	/// @brief Whether the note has just started its attack and not yet moved.
-	[[nodiscard]] bool is_at_attack_start() const { return stage_ == Stage::ATTACK && segment_.elapsed == 0.f; }
+	[[nodiscard]] bool is_at_attack_start() const { return stage_ == Stage::ATTACK && position_.position == 0; }
 	/// @brief True once per stage change; returns and clears.
 	bool take_stage_changed() {
 		const bool changed = stage_changed_;
@@ -102,38 +102,40 @@ public:
 	}
 	/// @brief Seeds the level directly. **Transitional seam:** the voice gives the envelope a value before its own
 	/// params are patched, and snaps it to full when releasing a not-yet-started attack.
-	void set_output_level(deluge::dsp::Q<31> level);
+	void set_output_level(deluge::dsp::Q<31> level) { level_ = level; }
 
 private:
-	/// The program's segments, the same for every mode; the mode sets where each leads.
-	enum class Segment : uint8_t {
-		ATTACK,
-		HOLD,
-		DECAY,
-		SUSTAIN,
-		RELEASE,
-		FAST_RELEASE,
+	/// Each stage's position steps a sample, as this block's params give them.
+	struct Rates {
+		uint32_t attack;
+		uint32_t hold;
+		uint32_t decay;
+		uint32_t release;
 	};
 
-	deluge::dsp::Q<31> render_shaped(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate,
-	                                 deluge::dsp::Q<31> sustain_level, uint32_t release_rate,
-	                                 const deluge::dsp::fp::CurveShape& shape, deluge::dsp::Q<31> follow_input);
-	deluge::dsp::Q<31> follow(uint32_t num_samples, uint32_t attack_rate, deluge::dsp::Q<31> sustain_level,
-	                          uint32_t release_rate, const deluge::dsp::fp::CurveShape& shape,
-	                          deluge::dsp::Q<31> follow_input);
-	void build_program();
-	[[nodiscard]] deluge::dsp::fp::Segment<float>& slot(Segment s) { return program_.segments[static_cast<size_t>(s)]; }
-	void enter(Segment s);
+	deluge::dsp::Q<31> run(uint32_t num_samples, const Rates& rates, deluge::dsp::Q<31> sustain_level,
+	                       deluge::synth::EnvelopeEighths eighths);
+	deluge::dsp::Q<31> run_mode(uint32_t num_samples, Rates rates, deluge::dsp::Q<31> sustain_level,
+	                            deluge::synth::EnvelopeEighths eighths, deluge::dsp::Q<31> follow_input);
+	deluge::dsp::Q<31> follow(uint32_t num_samples, const Rates& rates, deluge::dsp::Q<31> sustain_level,
+	                          int8_t eighths, deluge::dsp::Q<31> follow_input);
+	/// The stage this block runs at, its rate; a stage with none is 0.
+	[[nodiscard]] uint32_t rate_of(Stage stage, const Rates& rates) const;
+	/// The running stage, at @p rate, ran @p over steps past its end: goes on to the stage the block ends in.
+	void go_on(uint64_t over, uint32_t rate, const Rates& rates);
+	void smooth_sustain(uint32_t num_samples, deluge::dsp::Q<31> sustain_level);
 	void set_state(Stage new_stage);
 
-	deluge::dsp::fp::Envelope::Coefficients program_{};
-	deluge::dsp::fp::Envelope::State segment_{};
-	deluge::synth::EnvelopeMode mode_{deluge::synth::EnvelopeMode::ADSR};
-	deluge::dsp::fp::CurveShape shape_{}; ///< the last render's, for a resume
-	float level_{0.f};                    ///< the level, 0 to 1
-	float smoothed_sustain_{0.f};
+	deluge::dsp::fixed::EnvelopeStage position_; ///< in the running stage
+	deluge::dsp::Q<31> level_{};                 ///< 0 to full scale
+	deluge::dsp::Q<31> from_{};                  ///< the level a release started at
+	deluge::dsp::Q<31> smoothed_sustain_{};
+	int32_t level_rest_{
+	    0}; ///< a slew's level below `level_`'s last bit, in 2^-62: a slow one moves less than a bit a block
 	uint32_t fast_release_rate_{1024};
 	Stage stage_{Stage::OFF};
+	deluge::synth::EnvelopeMode mode_{deluge::synth::EnvelopeMode::ADSR};
+	int8_t curve_{static_cast<int8_t>(deluge::synth::kClassicCurve)}; ///< the note's curve control, for a resume
 	bool ignored_note_off_{false};
 	bool stage_changed_{false};
 };
