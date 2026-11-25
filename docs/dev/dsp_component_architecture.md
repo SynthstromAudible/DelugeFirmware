@@ -1762,9 +1762,9 @@ These are the reference blocks that later rewrites compose rather than re-derive
 - **The tables** (`tables/`): `kSineSmall` (one turn of sine, Q15, 257 entries with the wrap) and `kDecaySmall4` /
   `kDecaySmall8` (the decay curves, UQ16), `constexpr` arrays the DSP library owns. The control-rate sine, the real DFT, the
   sine band and the decay lookups read them.
-- **`EnvelopeCurve`, `EnvelopeStage`** (`envelope/`): the classic envelope's curve and stage. A curve is so many eighths of
-  an octave, normalised to run from full scale to 0 whatever its shape, within 2^-20 of its formula; a stage is a 23-bit
-  position whose end hands the next stage the time past it, the fraction of a sample included.
+- **`EnvelopeCurve`, `EnvelopeStage`** (`envelope/`): the classic envelope's curve and stage. A curve is so many eighths
+  of an octave, normalised to run from full scale to 0 whatever its shape, within 2^-20 of its formula; a stage is a
+  23-bit position whose end hands the next stage the time past it, the fraction of a sample included.
 - **`fft::magnitude`** (`fft/magnitude.h`): an FFT bin's magnitude within about 0.15%, from a table of √(1 + q²) at the
   rounded ratio of the smaller part to the larger, formed in 32 bits. The wavetable band builder and pitch detection use
   it.

@@ -882,9 +882,9 @@ how much the image moved the rest, so read the float figures with that margin.
 ## The classic voice's envelope
 
 `synth::Envelope` renders once a block for each envelope a voice uses, in integers (`dsp/fixed/envelope/`). The
-`mod_matrix` list times it per stage, an AHD's hold, an AR's slew, and 64 decaying envelopes, sixteen voices' worth. Beside
-it, the envelope that read the decay tables, through the same case (the rig, 2026-11-25). Cycles a render over blocks of
-32, 64 and 128 samples, which hardly move it:
+`mod_matrix` list times it per stage, an AHD's hold, an AR's slew, and 64 decaying envelopes, sixteen voices' worth.
+Beside it, the oracle of `tests/unit/dsp/envelope_q31_oracle.h`, which reads the decay tables, through the same case (the
+rig, 2026-11-25). Cycles a render over blocks of 32, 64 and 128 samples, which hardly move it:
 
 | case | the envelope | the table envelope |
 |---|---:|---:|
@@ -896,10 +896,9 @@ it, the envelope that read the decay tables, through the same case (the rig, 202
 | envelope_slew | 196 to 198 | |
 | envelope_decay_x64 | 9,372 to 9,382 | 4,586 to 4,588 |
 
-A stage is a 23-bit position and a curve: an exponential by polynomial where the table was, any curve instead of two. Both
-hold 32 bytes. The slew's level keeps 31 bits below its last, two 64-bit multiplies, so that one a minute long is right in
-blocks of one sample. The same shapes with a float level measured 244 to 279 cycles in a moving stage: a float compare's
-flags stall the integer side, and what a block retimes is divisions an integer position does not have.
+A stage is a 23-bit position and a curve: an exponential by polynomial, for any curve, where the tables hold two. Both
+hold 32 bytes. The slew's level keeps 31 bits below its last, two 64-bit multiplies, so that one a minute long is right
+in blocks of one sample. The same shapes with a float level measured 244 to 279 cycles in a moving stage.
 
 ## Float voice slice
 

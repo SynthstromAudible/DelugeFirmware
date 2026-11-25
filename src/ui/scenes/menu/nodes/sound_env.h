@@ -17,11 +17,13 @@
 /// | `env<n>_decay` | `env<n>DecayMenu` | `LOCAL_ENV_<n-1>_DECAY` |
 /// | `env<n>_sustain` | `env<n>SustainMenu` | `LOCAL_ENV_<n-1>_SUSTAIN` |
 /// | `env<n>_release` | `env<n>ReleaseMenu` | `LOCAL_ENV_<n-1>_RELEASE` |
-/// | `env<n>_mode` | `env<n>ModeMenu` | -- (`envelope::Mode`, `origin/main:src/deluge/gui/menu_item/envelope/settings.h`) |
+/// | `env<n>_mode` | `env<n>ModeMenu` | -- (`envelope::Mode`) |
 /// | `env<n>_curve` | `env<n>CurveMenu` | -- (`envelope::Curve`) |
 /// | `env<n>_follow` | `env<n>FollowMenu` | -- (`envelope::Follow`) |
 /// | `env<n>` | `env<n>Menu` | -- (`envelope::EnvelopeMenu`, `origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`) |
 // clang-format on
+///
+/// `envelope::Mode`, `Curve` and `Follow` are in `origin/main:src/deluge/gui/menu_item/envelope/settings.h`.
 ///
 /// The envelope's mode renames and hides segments (`Segment::strings`, `Segment::isRelevant`): an AHD's decay is its
 /// hold and its release its decay, and it has no sustain; an AR's or MPE's sustain is its level, and it has no decay.
