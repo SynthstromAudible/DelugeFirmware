@@ -4,6 +4,7 @@
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/core/style.h"
 #include "ui/widgets/oled/column_drawings.h"
+#include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
 
@@ -13,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
+#include <string>
 
 using namespace deluge::ui;
 using namespace deluge::ui::widgets::oled;
@@ -530,6 +532,24 @@ describe column_drawings_w("ui::widgets::oled::column_drawings", $ {
 					}
 				}
 			}
+		}
+	});
+
+	it("draws the filter curve as it does today, low and high pass, with resonance and morph", _ {
+		struct Case {
+			const char* name;
+			FilterGraph g;
+		};
+		const std::array<Case, 4> cases{{
+		    {"lpf", {.freq_raw = 30, .reso_raw = 0, .morph_raw = 0, .morphable = false, .hpf = false}},
+		    {"lpf_reso", {.freq_raw = 20, .reso_raw = 40, .morph_raw = 0, .morphable = false, .hpf = false}},
+		    {"hpf_morph", {.freq_raw = 25, .reso_raw = 25, .morph_raw = 20, .morphable = true, .hpf = true}},
+		    {"lpf_morph", {.freq_raw = 45, .reso_raw = 50, .morph_raw = 35, .morphable = true, .hpf = false}},
+		}};
+		for (const Case& c : cases) {
+			uitest::Rig48 r;
+			r.frame.region(Rect{0, 9, 64, 28}, false, [&](OledFrame& slot) { filter_graph(slot, slot.bounds(), c.g); });
+			expect_golden(self, std::string("ui/widgets/filter_graph_") + c.name + "_48.pbm", r.pbm());
 		}
 	});
 
