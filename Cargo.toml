@@ -25,6 +25,11 @@
 #     buffering, short-tail handling or C-ABI marshalling shows as a differing header. With the variable unset the
 #     test is skipped. The C++ side is golden_vt_render's audio_header_dump scenario, which the test finds under
 #     build/cargo-harness or at GOLDEN_VT_RENDER_BIN.
+#
+# Gate peaks-loom:
+#     Runs the peak index's fold-then-publish protocol (src/storage/sample/peaks/tests/loom.rs) under loom, over every
+#     interleaving of two children folding into a parent's value and then setting their mask bits, so a reader that
+#     sees the full mask also sees both values folded in. Built with `--cfg loom`; the test is empty without it.
 [workspace]
 resolver = "2"
 members = [
