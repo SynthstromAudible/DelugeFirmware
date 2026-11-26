@@ -1285,9 +1285,9 @@ dependencies = [
 
 [[package]]
 name = "deluge-embedded-fatfs"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3df33cce142c86c147e10f155e9e1ed3259cd56b87998d06da8ab756a2240ea"
+checksum = "a175002b49f55b1672f9d181521ba182da1261deaf8bd97731864b98583f915e"
 dependencies = [
  "bitflags 1.3.2",
  "embedded-io-async 0.7.0",
