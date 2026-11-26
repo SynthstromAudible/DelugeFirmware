@@ -73,6 +73,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/song/song.h"
 #include "model/voice/voice_part.h"
 #include "modulation/automation/auto_param.h"
@@ -700,8 +701,8 @@ void automateVolume() {
 	for (int32_t eighth = 1; eighth < 8; eighth += 2) {
 		(void)deluge::project::setNodeAtPos(*doc, loop * eighth / 8, (eighth - 4) << 27, eighth == 3);
 	}
-	volume->paramCollection->notifyParamModifiedInSomeWay(volume, volume->autoParam->getCurrentValue(), true, false,
-	                                                      true);
+	volume->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*volume, std::nullopt),
+	                                                      volume->autoParam->getCurrentValue(), true, false, true);
 }
 
 /// @return How many automation stores the song's backed params hold for @p owner.
@@ -1082,7 +1083,7 @@ void editLeg() {
 		params->ticksTilNextEvent = 0;
 		ModelStackWithThreeMainThings* three =
 		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
-		g_clip->paramManager.expectEvent(three);
+		g_clip->paramManager.expectEvent(three->getTimelineCounterAllowNull());
 		const uint32_t renderBefore = deluge::renderStructuralEdits(StructuralContainer::PARAM_STORE);
 		renderBlocks(kMaxBlocksBefore);
 		const uint32_t renderEdits = deluge::renderStructuralEdits(StructuralContainer::PARAM_STORE) - renderBefore;

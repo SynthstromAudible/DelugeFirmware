@@ -242,15 +242,16 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 			                                    lane.empty() ? oldValue : lane.base, value);
 		}
 		const bool automatedNow = isAutomated(lane);
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow,
-		                                                          automatedNow);
+		modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+		                                                          oldValue, false, automatedNow, automatedNow);
 		return;
 	}
 	setBase(*modelStack->doc(), value);
 	deluge::modulation::postLaneCommand(*modelStack,
 	                                    {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value}, 0);
 	bool automatedNow = isAutomated(*modelStack->doc());
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+	                                                          oldValue, false, automatedNow, automatedNow);
 }
 
 namespace {
@@ -436,7 +437,8 @@ getOut:
 		                                    {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value}, 0);
 	}
 	bool automatedNow = recorded || isAutomated(*modelStack->doc());
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+	                                                          oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
 }
 
@@ -540,7 +542,7 @@ void AutoParam::projectScalarFromStore(const deluge::bridge::LaneTarget& lane, i
 	}
 	playBase(*modelStack->doc());
 	bool automatedNow = isAutomated(*modelStack->doc());
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(lane, oldValue, false, automatedNow, automatedNow);
 }
 
 void AutoParam::projectRegionFromStore(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automatedBefore,
@@ -563,8 +565,8 @@ void AutoParam::projectRegionFromStore(const deluge::bridge::LaneTarget& lane, i
 	}
 	playBase(*modelStack->doc());
 	bool automatedNow = isAutomated(*modelStack->doc());
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, result.automationChanged,
-	                                                          automatedBefore, automatedNow);
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(lane, oldValue, result.automationChanged, automatedBefore,
+	                                                          automatedNow);
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
@@ -659,7 +661,8 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	cancelOverriding();
 
 	if (shouldNotify && wasAutomated) {
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, getCurrentValue(), true, true, false);
+		modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+		                                                          getCurrentValue(), true, true, false);
 	}
 }
 
@@ -1040,7 +1043,8 @@ adjustNodeJustReached:
 			FREEZE_WITH_ERROR("E372");
 		}
 #endif
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, true, true);
+		modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+		                                                          oldValue, false, true, true);
 	}
 
 	if (mayInterpolate) {
@@ -1369,8 +1373,8 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		deluge::project::deleteNodesWithinRegion(*doc, pos, length, effectiveLength);
 		playBase(*doc);
 	}
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true,
-	                                                          isAutomated(*modelStack->doc()));
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+	                                                          oldValue, true, true, isAutomated(*modelStack->doc()));
 }
 
 int32_t AutoParam::setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value,
@@ -1475,7 +1479,8 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		}
 	}
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+	                                                          oldValue, automationChanged, automatedBefore,
 	                                                          isAutomated(*modelStack->doc()));
 }
 
@@ -1567,7 +1572,8 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 			setupInterpolation(modelStack, nextNodeOurDirection, modelStack->getLoopLength(), pos, reversed);
 		}
 
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, true, true);
+		modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+		                                                          oldValue, false, true, true);
 	}
 }
 
@@ -1888,8 +1894,7 @@ void AutoParam::swapState(AutoParamState* state, const deluge::bridge::LaneTarge
 
 	bool automatedNow = isAutomated(*modelStack->doc());
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValueHere, true, automatedBefore,
-	                                                          automatedNow);
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(lane, oldValueHere, true, automatedBefore, automatedNow);
 }
 
 void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,
@@ -2024,7 +2029,8 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 
 	nodesRef.testSequentiality("E440");
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, played_, true, automatedBefore,
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+	                                                          played_, true, automatedBefore,
 	                                                          isAutomated(*modelStack->doc()));
 }
 
@@ -2284,7 +2290,8 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 		}
 	}
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, played_, true, wasAutomatedBefore,
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStack, std::nullopt),
+	                                                          played_, true, wasAutomatedBefore,
 	                                                          isAutomated(*modelStack->doc()));
 
 	nodesRef.testSequentiality("E423");

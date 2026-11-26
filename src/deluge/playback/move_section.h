@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
-#include "model/model_stack.h"
+#include "model/project_bridge/lane_target.h"
 
 #include <cstdint>
 
@@ -38,7 +38,7 @@ class MoveEffects {
 public:
 	/// A notify of a param its owner's delay reacts to (deluge::model::onDelayParamModified()).
 	struct DelayNotify {
-		ModelStackWithAutoParam stack; ///< copied: the stack's frame is gone when it runs
+		deluge::bridge::LaneTarget lane; ///< the lane's pointers, as its notify had them
 		int32_t oldValue;
 		bool automatedBefore;
 	};

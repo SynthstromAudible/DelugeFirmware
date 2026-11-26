@@ -47,7 +47,7 @@ struct Collected {
 PLACE_SDRAM_BSS Collected g_collected;
 
 void runDelayNotify(const MoveEffects::DelayNotify& notify) {
-	deluge::model::onDelayParamModified(notify.stack, notify.oldValue, notify.automatedBefore);
+	deluge::model::onDelayParamModified(notify.lane, notify.oldValue, notify.automatedBefore);
 }
 
 void (*g_runner)(const MoveEffects::DelayNotify&) = &runDelayNotify;

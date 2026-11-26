@@ -147,8 +147,8 @@ public:
 
 	AutoParam* getParam(int32_t paramId);
 
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automationChanged,
+	                                  bool automatedBefore, bool automatedNow) override;
 	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) override;
 
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;

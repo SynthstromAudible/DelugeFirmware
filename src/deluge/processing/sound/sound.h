@@ -54,6 +54,10 @@ namespace deluge::dsp {
 struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
+namespace deluge::bridge {
+struct LaneTarget;
+} // namespace deluge::bridge
+
 namespace deluge::project {
 struct ArpRecord;
 }
@@ -552,7 +556,7 @@ public:
 	/// each routed cable's depth.
 	deluge::synth::matrix::MatrixBlock matrixBlock(ParamManager& paramManager, PresetGather gather) const;
 
-	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
+	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, const deluge::bridge::LaneTarget& lane,
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
 	void deleteMultiRange(int32_t s, int32_t r);
 	void wontBeRenderedForAWhile();

@@ -39,6 +39,9 @@ class TimelineCounter;
 class Output;
 class Clip;
 class ModelStackWithAutoParam;
+namespace deluge::bridge {
+struct LaneTarget;
+} // namespace deluge::bridge
 class ModelStackWithParamId;
 class ModelStackWithParamCollection;
 class ParamCollectionSummary;
@@ -126,7 +129,7 @@ public:
 	virtual void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                             ModelStackWithParamCollection* modelStack) = 0;
 	virtual void
-	notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged,
+	notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automationChanged,
 	                             bool automatedBefore,
 	                             bool automatedNow); // Watch the heck out! This might delete the AutoParam in question.
 	virtual ModelStackWithAutoParam* getAutoParamFromId(

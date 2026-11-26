@@ -29,6 +29,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -187,18 +188,17 @@ void ParamSet::copyOverridingFrom(ParamSet* otherParamSet) {
 	}
 }
 
-void ParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+void ParamSet::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue,
                                             bool automationChanged, bool automatedBefore, bool automatedNow) {
 	if (automatedBefore != automatedNow) {
 		if (automatedNow) {
-			paramHasAutomationNow(modelStack->summary, modelStack->paramId);
+			paramHasAutomationNow(lane.summary, lane.param_id);
 		}
 		else {
-			paramHasNoAutomationNow(modelStack, modelStack->paramId);
+			paramHasNoAutomationNow(lane.summary, lane.param_id);
 		}
 	}
-	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                              automatedNow);
+	ParamCollection::notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore, automatedNow);
 }
 
 void ParamSet::shiftParamValues(int32_t p, int32_t offset) {
@@ -210,11 +210,10 @@ void ParamSet::paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p)
 	summary->whichParamsAreAutomated[p >> 5] |= ((uint32_t)1 << (p & 31));
 }
 
-void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int32_t p) {
-
+void ParamSet::paramHasNoAutomationNow(ParamCollectionSummary* summary, int32_t p) {
 	uint32_t mask = ~((uint32_t)1 << (p & 31));
-	modelStack->summary->whichParamsAreAutomated[p >> 5] &= mask;
-	modelStack->summary->whichParamsAreInterpolating[p >> 5] &= mask;
+	summary->whichParamsAreAutomated[p >> 5] &= mask;
+	summary->whichParamsAreInterpolating[p >> 5] &= mask;
 }
 
 #define FOR_EACH_FLAGGED_PARAM(whichParams)                                                                            \
@@ -269,7 +268,8 @@ void ParamSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* mo
 	bool shouldNotify = param->tickSamples(numSamples);
 	if (shouldNotify) { // Should always actually be true...
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
-		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+		notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt), oldValue, false,
+		                             true, true);
 	}
 
 	FOR_EACH_PARAM_END
@@ -284,7 +284,8 @@ void ParamSet::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelS
 	bool shouldNotify = param->tickTicks(numTicks);
 	if (shouldNotify) { // Should always actually be true...
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
-		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+		notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt), oldValue, false,
+		                             true, true);
 	}
 
 	FOR_EACH_PARAM_END
@@ -351,7 +352,8 @@ void ParamSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* mo
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 	bool shouldNotify = param->grabValueFromPos(pos, modelStackWithAutoParam);
 	if (shouldNotify) {
-		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+		notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt), oldValue, false,
+		                             true, true);
 	}
 
 	FOR_EACH_PARAM_END
@@ -376,7 +378,7 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 
 	params[p].trimToLength(newLength, action, modelStackWithAutoParam);
 	if (!params[p].isAutomated(*docForParam(p))) {
-		paramHasNoAutomationNow(modelStack, p);
+		paramHasNoAutomationNow(modelStack->summary, p);
 	}
 
 	FOR_EACH_PARAM_END
@@ -386,7 +388,7 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 
 void ParamSet::deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int32_t p) {
 	params[p].deleteAutomationBasicForSetup(*docForParam(p));
-	paramHasNoAutomationNow(modelStack, p);
+	paramHasNoAutomationNow(modelStack->summary, p);
 }
 
 void ParamSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) {
@@ -436,7 +438,7 @@ void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t sta
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, &params[p]);
 	params[p].deleteTime(startPos, lengthToDelete, modelStackWithAutoParam);
 	if (!params[p].isAutomated(*docForParam(p))) {
-		paramHasNoAutomationNow(modelStack, p);
+		paramHasNoAutomationNow(modelStack->summary, p);
 	}
 
 	FOR_EACH_PARAM_END
@@ -454,7 +456,7 @@ void ParamSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int3
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithAutoParam);
 
 	if (!params[p].isAutomated(*docForParam(p))) {
-		paramHasNoAutomationNow(modelStack, p);
+		paramHasNoAutomationNow(modelStack->summary, p);
 	}
 
 	FOR_EACH_PARAM_END
@@ -630,20 +632,20 @@ PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(siz
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
-void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+void PatchedParamSet::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue,
                                                    bool automationChanged, bool automatedBefore, bool automatedNow) {
-	ParamSet::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
+	ParamSet::notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore, automatedNow);
 
 	// If the Clip is active (or there isn't one)...
-	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		int32_t current_value = modelStack->autoParam->getCurrentValue();
+	if (lane.timeline == nullptr || static_cast<Clip*>(lane.timeline)->isActiveOnOutput()) {
+		int32_t current_value = lane.auto_param->getCurrentValue();
 		if (oldValue != current_value) {
-			(&deluge::model::sound_of(modelStack->owner))
-			    ->notifyValueChangeViaLPF(modelStack->paramId, true, modelStack, oldValue, current_value, false);
+			(&deluge::model::sound_of(lane.owner))
+			    ->notifyValueChangeViaLPF(lane.param_id, true, lane, oldValue, current_value, false);
 		}
 
 		if (!automatedNow) {
-			if (modelStack->paramId == params::GLOBAL_REVERB_AMOUNT) {
+			if (lane.param_id == params::GLOBAL_REVERB_AMOUNT) {
 				AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 			}
 		}
@@ -651,7 +653,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 	// Because some patch cables are marked as "unusable" under certain circumstances, see if those circumstances have
 	// changed
-	switch (modelStack->paramId) {
+	switch (lane.param_id) {
 	case params::LOCAL_OSC_A_VOLUME:
 	case params::LOCAL_OSC_B_VOLUME:
 	case params::LOCAL_NOISE_VOLUME:
@@ -661,24 +663,12 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	case params::LOCAL_CARRIER_1_FEEDBACK:
 	case params::LOCAL_MODULATOR_0_FEEDBACK:
 	case params::LOCAL_MODULATOR_1_FEEDBACK:
-		bool containsSomethingNow = modelStack->autoParam->containsSomething(*modelStack->doc(), -2147483648);
+		bool containsSomethingNow = lane.auto_param->containsSomething(*deluge::bridge::doc_of(lane), -2147483648);
 		bool containedSomethingBefore = AutoParam::containedSomethingBefore(automatedBefore, oldValue, -2147483648);
 		if (containedSomethingBefore != containsSomethingNow) {
 
-			ParamManager* paramManager = modelStack->paramManager;
-
-			alignas(ModelStackWithAutoParam) char localModelStackMemory[MODEL_STACK_MAX_SIZE];
-			copyModelStack(localModelStackMemory, modelStack, sizeof(ModelStackWithThreeMainThings));
-
-			ModelStackWithParamCollection* modelStackWithParamCollection =
-			    paramManager->getPatchCableSet((ModelStackWithThreeMainThings*)localModelStackMemory);
-
-			((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-			    ->setupPatching(
-			        deluge::model::sound_of(modelStackWithParamCollection->owner),
-			        *modelStackWithParamCollection
-			             ->paramManager); // Only need to setupPatching on this one ParamManager because this
-			                              // is the only one for which the param preset value has just changed
+			// Only this ParamManager's patching changes: its param preset value is the one that moved.
+			lane.manager->getPatchCableSet()->setupPatching(deluge::model::sound_of(lane.owner), *lane.manager);
 		}
 	}
 }
@@ -699,37 +689,37 @@ ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool for
 	    forDrum ? bendRanges[BEND_RANGE_MAIN] : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 }
 
-void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+void ExpressionParamSet::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue,
                                                       bool automationChanged, bool automatedBefore, bool automatedNow) {
-	ParamSet::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
+	ParamSet::notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore, automatedNow);
 
-	if (!modelStack->timelineCounterIsSet()) {
+	if (lane.timeline == nullptr) {
 		// Expression lanes live only in a clip's or a note row's params.
 		FREEZE_WITH_ERROR("E476");
 		return;
 	}
-	auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
+	auto* clip = static_cast<InstrumentClip*>(lane.timeline);
 	if (!clip->isActiveOnOutput()) {
 		return;
 	}
 
-	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
-	int32_t current_value = modelStack->autoParam->getCurrentValue();
+	NoteRow* noteRow = lane.note_row;
+	int32_t current_value = lane.auto_param->getCurrentValue();
 	deluge::model::ExpressionReceiver receiver = deluge::model::expressionReceiverOf(*clip, noteRow);
 	if (receiver.drum != nullptr) {
 		if (oldValue != current_value) {
-			receiver.drum->polyphonicExpressionEventOnChannelOrNote(current_value, modelStack->paramId, noteRow->y(),
+			receiver.drum->polyphonicExpressionEventOnChannelOrNote(current_value, lane.param_id, noteRow->y(),
 			                                                        MIDICharacteristic::NOTE);
 		}
 	}
 	else if (receiver.melodic != nullptr
-	         && receiver.melodic->expressionChangeMatters(oldValue, current_value, modelStack->paramId)) {
+	         && receiver.melodic->expressionChangeMatters(oldValue, current_value, lane.param_id)) {
 		if (noteRow != nullptr) {
-			receiver.melodic->polyphonicExpressionEventOnChannelOrNote(current_value, modelStack->paramId, noteRow->y(),
+			receiver.melodic->polyphonicExpressionEventOnChannelOrNote(current_value, lane.param_id, noteRow->y(),
 			                                                           MIDICharacteristic::NOTE);
 		}
 		else {
-			receiver.melodic->monophonicExpressionEvent(current_value, modelStack->paramId);
+			receiver.melodic->monophonicExpressionEvent(current_value, lane.param_id);
 		}
 	}
 }

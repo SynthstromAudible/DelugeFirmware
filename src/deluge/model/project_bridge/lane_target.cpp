@@ -44,9 +44,15 @@ LaneTarget target_of(const ::ModelStackWithAutoParam& stack, std::optional<proje
 	    .manager = stack.paramManager,
 	    .collection = stack.paramCollection,
 	    .summary = stack.summary,
+	    .kind = stack.kind,
 	    .param_id = stack.paramId,
 	    .auto_param = stack.autoParam,
 	};
+}
+
+project::DocAutoParam* doc_of(const LaneTarget& target) {
+	alignas(::ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	return stack_of(target, memory)->doc();
 }
 
 } // namespace deluge::bridge

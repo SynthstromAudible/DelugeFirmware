@@ -72,8 +72,8 @@ public:
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	void stripAutomation() override;
 	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automationChanged,
+	                                  bool automatedBefore, bool automatedNow) override;
 	bool mayParamInterpolate(int32_t paramId) override;
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) override;

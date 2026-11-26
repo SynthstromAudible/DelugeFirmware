@@ -119,6 +119,34 @@ describe lane_target("a lane target", ${
 			expect(same_stack(*original, *bridge::stack_of(target, b))).to_be_true();
 			spec::make_current(nullptr);
 		});
+
+		it("carries its collection's param kind", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* owner = setupModelStackWithThreeMainThingsButNoNoteRow(
+			    a, f.song, deluge::model::owner_of(*f.instrument), f.clip, &f.clip->paramManager);
+			ModelStackWithAutoParam* patched = owner->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+			expect(int(bridge::target_of(*patched, std::nullopt).kind)).to_equal(int(params::Kind::PATCHED));
+			ModelStackWithAutoParam* unpatched = owner->getUnpatchedAutoParamFromId(params::UNPATCHED_STUTTER_RATE);
+			expect(int(unpatched->kind)).to_equal(int(params::Kind::UNPATCHED_SOUND), "the stack's own kind");
+			expect(int(bridge::target_of(*unpatched, std::nullopt).kind)).to_equal(int(params::Kind::UNPATCHED_SOUND));
+			spec::make_current(nullptr);
+		});
+
+		it("reads the lane's store where its stack reads it", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack =
+			    setupModelStackWithThreeMainThingsButNoNoteRow(a, f.song, deluge::model::owner_of(*f.instrument),
+			                                                   f.clip, &f.clip->paramManager)
+			        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+			deluge::project::DocAutoParam* expected = stack->doc();
+			expect(expected).not_().to_be_null();
+			expect(bridge::doc_of(bridge::target_of(*stack, std::nullopt))).to_equal(expected);
+			spec::make_current(nullptr);
+		});
 	});
 	context("resolved by address", _ {
 		it("names what paramStackAt names, for a synth's param in its clip", _ {

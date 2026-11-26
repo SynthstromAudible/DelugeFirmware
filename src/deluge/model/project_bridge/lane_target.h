@@ -26,6 +26,7 @@
 /// it without a cast from the engine stack's owner slot.
 
 #include "model/lane_owner.h"
+#include "plugin/types/param_kind.h"
 #include "project/param_address.h"
 
 #include <cstdint>
@@ -40,6 +41,10 @@ class ParamCollectionSummary;
 class ParamManager;
 class Song;
 class TimelineCounter;
+
+namespace deluge::project {
+struct DocAutoParam;
+} // namespace deluge::project
 
 namespace deluge::bridge {
 
@@ -60,6 +65,8 @@ struct LaneTarget {
 	::ParamManager* manager{nullptr};
 	::ParamCollection* collection{nullptr};
 	::ParamCollectionSummary* summary{nullptr};
+	/// The collection's param kind, as the stack carries it.
+	plugin::ParamKind kind{};
 	/// The param's runtime index in @ref collection.
 	int32_t param_id{0};
 	::AutoParam* auto_param{nullptr};
@@ -83,5 +90,12 @@ struct LaneTarget {
 /// @return The target.
 [[nodiscard]] LaneTarget target_of(const ::ModelStackWithAutoParam& stack,
                                    std::optional<project::ParamAddress> address);
+
+/// @brief The store @p target's lane reads, by the engine stack's tier rule: where its collection keeps it on the
+///        render tier or inside a playhead move, the model's own on the interaction tier (which may move the owner's
+///        lanes into the tree).
+/// @param target The lane.
+/// @return The store, or null for a lane nothing holds.
+[[nodiscard]] project::DocAutoParam* doc_of(const LaneTarget& target);
 
 } // namespace deluge::bridge
