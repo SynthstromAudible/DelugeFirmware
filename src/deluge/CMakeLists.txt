@@ -13,6 +13,8 @@ file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
 # app_bench.cpp, is always in, and is empty without the option. The host trees build the runner and the cases for
 # their spec only (tests/unit/deluge/bench); the PMU counters program CP15, which only the device has.
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/bench/.*)
+# The strings are a library of their own (gui/l10n/CMakeLists.txt), which the app links.
+list(FILTER deluge_SOURCES EXCLUDE REGEX "/src/deluge/gui/l10n/")
 list(APPEND deluge_SOURCES ${CMAKE_CURRENT_LIST_DIR}/bench/app_bench.cpp)
 # The streaming benchmark (bench/stream_bench.h) is in the app only on a device build with DELUGE_STREAM_BENCH.
 set(_stream_bench_on FALSE)
@@ -71,11 +73,8 @@ endif()
 # boundary) resolve without static-archive scan-order games.
 add_library(deluge_app OBJECT
   ${deluge_SOURCES}
-  # Strings-sources are generated build artefacts, so list them explicitly: a
-  # clean nukes them and the source glob would not find them.
-  ${deluge_strings_SOURCES}
 )
-add_dependencies(deluge_app deluge_strings deluge_version)
+add_dependencies(deluge_app deluge_version)
 
 # The UI, input, file and project-edit code, and stem export, are built for size: none runs per sample.
 # Excluded: storage's sample streaming, cluster cache and multisample ranges, which voices read while they
@@ -91,7 +90,7 @@ deluge_optimise_sources_for_size(${_deluge_cold_sources})
 # its linker fragment places their code by that archive, so they must reach the link as native
 # objects: under ThinLTO lld would see only its own anonymous backend outputs.
 if(NOT DELUGE_HOST)
-  set(_deluge_gui_sources ${deluge_SOURCES} ${deluge_strings_SOURCES})
+  set(_deluge_gui_sources ${deluge_SOURCES})
   list(FILTER _deluge_gui_sources INCLUDE REGEX "/src/deluge/gui/")
   list(REMOVE_DUPLICATES _deluge_gui_sources)
   set_property(SOURCE ${_deluge_gui_sources} APPEND PROPERTY COMPILE_OPTIONS -fno-lto)
@@ -107,6 +106,7 @@ target_include_directories(deluge_app PUBLIC
 )
 
 target_link_libraries(deluge_app PUBLIC
+    deluge_l10n # the UI's strings and names (gui/l10n)
     eyalroz_printf
     deluge_dsp # the clean L0 library primitives migrate into (synth untangling Phase 1)
     deluge_synth # the synth library: sources and the modulation core

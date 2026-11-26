@@ -152,7 +152,7 @@ fn archive_app_objects(
              deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_base deluge_serialization deluge_music deluge_project deluge_ui_controls deluge_instruments_classic deluge_effects deluge_host_chains deluge_midi \
              deluge_ui_gfx_oled deluge_ui_gfx_grid deluge_ui_widgets_core deluge_ui_widgets_oled \
              deluge_ui_widgets_grid deluge_ui_shell \
-             deluge_base_notify deluge_ui_scenes deluge_ui_scenes_bind",
+             deluge_base_notify deluge_ui_scenes deluge_ui_scenes_bind deluge_l10n",
             app_objs_dir.display(),
             build_dir.display()
         );
@@ -199,7 +199,7 @@ fn archive_app_objects(
 /// Emits the app archive and its static libraries as one `--start-group`, because the references
 /// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
-    let deps: [(&str, &str); 22] = [
+    let deps: [(&str, &str); 23] = [
         ("printf", "libeyalroz_printf.a"),
         ("src/dsp", "libdeluge-dsp-fixed.a"),
         ("src/dsp", "libdeluge-dsp-float.a"),
@@ -222,6 +222,7 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
         ("src/base/notify", "libdeluge_base_notify.a"),
         ("src/ui/scenes", "libdeluge_ui_scenes.a"),
         ("src/ui/scenes/bind", "libdeluge_ui_scenes_bind.a"),
+        ("src/deluge/gui/l10n", "libdeluge_l10n.a"),
     ];
 
     println!("cargo:rustc-link-arg=-Wl,--start-group");
