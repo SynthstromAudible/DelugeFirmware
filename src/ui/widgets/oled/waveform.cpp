@@ -1,5 +1,7 @@
 #include "ui/widgets/oled/waveform.h"
 
+#include "ui/gfx/oled/icons.h"
+
 #include <algorithm>
 
 namespace deluge::ui::widgets::oled {
@@ -29,6 +31,23 @@ void waveform(OledFrame& f, gfx::oled::Rect r, std::span<const core::PeakCol> co
 		}
 		f.vline(x, peak_row(r, centre, half, c.max24), peak_row(r, centre, half, c.min24));
 	}
+}
+
+void loop_marker(OledFrame& f, int32_t line_x, int32_t y0, int32_t y1, int32_t icon_y, bool start) {
+	for (int32_t y = y0; y <= y1; y += 2) {
+		f.pixel(line_x, y);
+	}
+	const gfx::oled::Icon& icon = gfx::oled::icons::loopPoint;
+	const int32_t icon_x = start ? line_x + 4 : line_x - 3 - icon.width;
+	f.icon(icon, icon_x, icon_y, !start);
+}
+
+void looped_waveform(OledFrame& f, gfx::oled::Rect r, std::span<const core::PeakCol> cols, int32_t start_col,
+                     int32_t end_col) {
+	constexpr int32_t kIconBand = 9; // the icon's 8 rows and one clear
+	waveform(f, {r.x, r.y + kIconBand, r.w, r.h - kIconBand}, cols);
+	loop_marker(f, r.x + start_col, r.y, r.y + r.h - 1, r.y, true);
+	loop_marker(f, r.x + end_col, r.y, r.y + r.h - 1, r.y, false);
 }
 
 } // namespace deluge::ui::widgets::oled

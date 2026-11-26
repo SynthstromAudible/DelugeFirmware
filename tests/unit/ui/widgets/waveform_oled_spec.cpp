@@ -94,6 +94,19 @@ describe waveform_oled_w("ui::widgets::oled::waveform", $ {
 		waveform(r64.frame, Rect{0, 13, 128, 49}, cols);
 		expect_golden(self, "ui/widgets/waveform_oled_64.pbm", r64.pbm());
 	});
+
+	it("draws loop markers as the loop-point column does, beside a waveform", _ {
+		const std::vector<PeakCol> cols = burst(128);
+		uitest::Rig48 r48;
+		looped_waveform(r48.frame, Rect{0, 13, 128, 29}, cols, 30, 96);
+		// The start's icon begins 4 right of its line; the end's icon ends 4 left of its line.
+		expect(r48.lit(30, 13 + 5)).to_be_true();  // the start line's first dot
+		expect(r48.lit(30, 14 + 5)).to_be_false(); // dotted every 2
+		expect_golden(self, "ui/widgets/waveform_oled_looped_48.pbm", r48.pbm());
+		uitest::Rig64 r64;
+		looped_waveform(r64.frame, Rect{0, 13, 128, 49}, cols, 30, 96);
+		expect_golden(self, "ui/widgets/waveform_oled_looped_64.pbm", r64.pbm());
+	});
 });
 // clang-format on
 

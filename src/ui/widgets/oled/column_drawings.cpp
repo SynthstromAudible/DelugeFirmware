@@ -5,6 +5,7 @@
 #include "ui/widgets/core/style.h"
 #include "ui/widgets/oled/meters.h"
 #include "ui/widgets/oled/page_drawing.h"
+#include "ui/widgets/oled/waveform.h"
 
 #include <algorithm>
 #include <array>
@@ -425,17 +426,13 @@ void recorder(OledFrame& f, gfx::oled::Rect slot, int32_t source, bool focused) 
 /// `sample::LoopPoint::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`): a dotted
 /// marker line, the loop icon beside it, mirrored for the end.
 void loop_point(OledFrame& f, gfx::oled::Rect slot, bool start) {
-	// The end marker's icon starts two pixels left of its region, as legacy draws it.
-	ClipScope scope{f.canvas, panel_frame(f).clip};
-	gfx::oled::Canvas& image = f.canvas;
-	const int32_t slot_x = f.origin.x + slot.x;
-	const int32_t slot_y = f.origin.y + slot.y;
-	const int32_t line_x = start ? slot_x + 8 : slot_x + slot.w - 12;
-	for (int32_t y = slot_y + core::kHorizontalSlotYOffset - 1; y <= slot_y + slot.h - 5; y += 2) {
-		image.draw_pixel(line_x, y);
-	}
-	const int32_t icon_x = start ? line_x + 4 : slot_x - 2;
-	image.draw_icon(gfx::oled::icons::loopPoint, icon_x, slot_y + core::kHorizontalSlotYOffset, !start);
+	// Drawn through the panel's frame: the end marker's icon starts two pixels left of its region, as legacy draws it.
+	OledFrame panel = panel_frame(f);
+	const int32_t dx = f.origin.x - panel.origin.x;
+	const int32_t dy = f.origin.y - panel.origin.y;
+	const int32_t line_x = dx + (start ? slot.x + 8 : slot.x + slot.w - 12);
+	const int32_t top = dy + slot.y + core::kHorizontalSlotYOffset;
+	loop_marker(panel, line_x, top - 1, dy + slot.y + slot.h - 5, top, start);
 }
 
 /// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu`
