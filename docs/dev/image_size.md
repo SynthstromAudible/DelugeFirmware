@@ -135,7 +135,8 @@ menu, measured on `RelWithDebInfo`:
 - In `.sdram_init`: the scenes' menu node and cell tables (118,795 B, `deluge::ui::scenes::menu`, ASSERTed over 64 KB), the
   scenes' vtables, and the code under `src/deluge/gui/` (`libdeluge_app_gui.a`, the guest's `gui/ui/shell_*` among
   it). In `.sdram_bss`: `shellHostUI` (25.7 KB) and the scenes' statics (13 KB). The UI tier alone reads any of them.
-- What stays in SRAM is the code of `deluge_ui_scenes` (98 KB) and `deluge_ui_shell`.
+- The scenes' and shell's own code now runs from SDRAM too, with the rest of `deluge::ui` (see
+  [Placement by library](#placement-by-library)).
 - Deleting the legacy menu, measured on `RelWithDebInfo` from `c5b0f7e0d`: the SRAM heap 556,784 B -> 584,592 B
   (+27,808 B). By then the GUI's code ran from SDRAM, so most of what left was SDRAM content: `.sdram_init`
   783,096 B -> 581,928 B (its pack 325,348 B -> 230,086 B, in a 273,034 B reserve), the SDRAM text 420,138 B ->
@@ -156,7 +157,7 @@ Read off the linker scripts and the image's symbols. The load-copy item is built
   image ceiling from `0x202E0000` to the RTT reserve at `0x202EB000`. The `code_end` metadata can keep the rounded
   value.
 - **The `.sdram_init` load copy is compressed and returned to the heap.** `.sdram_init` is linked at its SDRAM address
-  only; the build's staging deflates it into `.sdram_init_pack`, reserved at 15/32 of its size in the boot-only
+  only; the build's staging deflates it into `.sdram_init_pack`, reserved at half its size in the boot-only
   tail after `.ARM.exidx`, and `__sram_heap_base` is the pack's start. The boot inflates it into SDRAM
   (`boot_mem.rs`, `sdram_pack.rs`) before the app creates its heaps, so anything placed in SDRAM costs part of its
   size in the image until the boot (code about half, the setting tables about a tenth), and nothing in steady state
@@ -265,6 +266,44 @@ dropped, among them `gic::init`'s report of an interrupt a reset left active. Th
 
 The host test estate passes. The image boots on a device: "going into main loop" at 1.51 s and the job summary at
 11.52 s, the same as before. The startup job's worst run was 26 ms, against 21–23 ms for the `"s"` images.
+
+## Placement by library
+
+The layout this moves towards: SRAM holds the platform's buffers, the hot code and its tables, a fixed render budget
+and a sample pool; everything else runs or lives in SDRAM.
+
+- **Declared per library.** A `[[placement]]` entry in `scripts/layers.toml` names a library by its path. Path is
+  namespace, so `scripts/tasks/placement.py --write` turns the entry into mangled-name patterns in
+  `sdram_sections.x`'s marked blocks: code into the SDRAM text range, read-only and initialised data after it,
+  zero-initialised data into `.sdram_bss`, each range bounded and size-checked at link (`min_text`, `min_data`,
+  `min_bss`). `test_placement` (in `registry-selftest`) fails when the blocks are stale. To place another library, add
+  its entry and run the generator.
+- **What is placed.** `src/ui`: 214 KB of code, 227 KB of data and 13 KB of statics. Legacy `src/deluge` code is in
+  the global namespace and cannot be placed by name; the GUI keeps its own archive, built without LTO
+  (`libdeluge_app_gui.a`). A force-included `#pragma clang section` was tried and rejected: under ThinLTO it moves
+  the prevailing copies of shared header inlines into SDRAM, and 45 hot paths then reached them.
+- **The check.** `tools/check_placement.py` runs in the build's staging. It walks direct calls (and lld's long-branch
+  thunks) from the boot's pre-inflate code, the audio and streaming tiers' tasks and every interrupt handler, and
+  fails when one reaches SDRAM code. It cannot see an indirect call; for those it reports every SRAM vtable with an
+  entry in SDRAM code, against an allowlist of UI-tier classes. Findings present when it landed are listed with their
+  reasons under `[[known]]` in `tools/placement_roots.toml`, and that list only shrinks: an entry that matches nothing
+  fails the build. `--report-hot` prints the size of the code the hot roots reach, by library.
+- **What it found first.** The peak index's write side ran from SDRAM although the streaming fill and the recorder's
+  card routine call it on their deadlines; it is back in SRAM. Three render paths still ask the legacy UI stack
+  whether a screen is open (`getCurrentUI`, `getRootUI`, `samplePreviewUIOpen`): known findings to fix with state the
+  render reads.
+- **The pack's reserve** is half the SDRAM content, since the content is now mostly code, which deflates to about
+  half.
+
+Measured on the shipping image (both benches off), from `next` `09dabc8e3`:
+
+| | Before | Peak write side to SRAM | `src/ui` placed |
+|---|---:|---:|---:|
+| SRAM heap | 505,968 B | 501,104 B | **724,384 B** |
+| `.text` | 1,481,196 B | 1,486,060 B | 1,278,144 B |
+| SDRAM text | 319,146 B | 314,128 B | 521,860 B |
+| Room under the RTT reserve | 151,092 B | 148,656 B | 236,624 B |
+| SDRAM content → pack | 755,676 → 318,512 B | 750,500 → 314,996 B | 974,216 → 470,586 B |
 
 ## Refactor targets
 
