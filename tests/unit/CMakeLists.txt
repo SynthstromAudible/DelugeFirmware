@@ -79,6 +79,8 @@ file(GLOB_RECURSE deluge_SOURCES
         # For note parameter lock tests
         ../../src/deluge/model/note/note_locks.cpp
         ../../src/deluge/model/note/note_lock_playback.cpp
+        # For mic velocity's thump detector
+        ../../src/deluge/dsp/mic_velocity/thump_detector.cpp
 )
 
 add_executable(UnitTests
@@ -109,6 +111,7 @@ add_executable(UnitTests
         tick_interpolation_tests.cpp
         envelope_curve_tests.cpp
         note_locks_tests.cpp
+        mic_velocity_detector_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
@@ -130,6 +133,9 @@ set_target_properties(UnitTests
 )
 
 target_link_libraries(UnitTests CppUTestExt etl::etl)
+
+# Recordings from a Deluge's internal mic, for the mic velocity tests
+target_compile_definitions(UnitTests PRIVATE MIC_VELOCITY_TEST_DATA="${CMAKE_CURRENT_LIST_DIR}/data/mic_velocity")
 
 # strchr is seemingly different in x86
 target_compile_options(UnitTests PUBLIC

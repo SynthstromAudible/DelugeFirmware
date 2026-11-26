@@ -1,0 +1,14 @@
+# Pad presses in taps.wav: the frame each was handled at, the strength asked for (1 soft, 2 normal, 3 hard), the pad
+frame,strength,x,y
+20286,1,7,4
+26901,1,7,4
+33516,2,7,4
+40131,2,7,4
+46746,3,7,4
+53361,3,7,4
+59976,1,0,7
+66591,1,0,7
+73206,2,0,7
+79821,2,0,7
+86436,3,0,7
+93051,3,0,7
