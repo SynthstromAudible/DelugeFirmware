@@ -224,10 +224,6 @@ void SoundInstrument::resyncLFOs(bool reset_state) {
 	resyncGlobalLFOs(reset_state);
 }
 
-ModControllable* SoundInstrument::toModControllable() {
-	return this;
-}
-
 void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();

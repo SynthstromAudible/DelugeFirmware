@@ -79,15 +79,15 @@ void forEachSound(Output& output, const std::function<void(Sound&, const std::st
 }
 
 /// Whether @p owner, which a song holds, keeps its learned knobs in the song's table alone: none outside it.
-bool knobsCoherent(::ModControllable& owner) {
-	return owner.effectsOwner()->knobs->loaded.empty();
+bool knobsCoherent(deluge::model::LaneOwner owner) {
+	return deluge::model::effects_owner_of(owner)->knobs->loaded.empty();
 }
 
 /// The kits', audio tracks' and the song's own learned knobs checked to be the song's table's alone, and the index to
 /// play the table's knobs; each break printed. How many broke.
 int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) {
 	int32_t failures = 0;
-	auto check = [&](::ModControllable& owner, const std::string& name) {
+	auto check = [&](deluge::model::LaneOwner owner, const std::string& name) {
 		const std::optional<deluge::project::ControlsAddress> address = deluge::bridge::controlsAddressOf(owner, song);
 		if (address && !knobsCoherent(owner)) {
 			std::printf("SLOT-COHERENT %s leg=%s %s: controls\n", label, leg, name.c_str());
@@ -96,9 +96,7 @@ int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) 
 	};
 	auto visit = [&](Output& output) {
 		if (output.type == OutputType::KIT || output.type == OutputType::AUDIO) {
-			if (::ModControllable* own = output.toModControllable()) {
-				check(*own, "output " + output.name);
-			}
+			check(deluge::model::owner_of(output), "output " + output.name);
 		}
 	};
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
@@ -108,7 +106,7 @@ int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) 
 	     sleeping = sleeping->next) {
 		visit(*sleeping);
 	}
-	check(song.live.master_channel, "song");
+	check(&song.live.master_channel, "song");
 	if (const std::string what = knobIndexIncoherence(song); !what.empty()) {
 		std::printf("SLOT-COHERENT %s leg=%s %s\n", label, leg, what.c_str());
 		failures++;
@@ -162,7 +160,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		if (controls == nullptr || *controls != deluge::bridge::controlsOf(sound)) {
 			return "controls";
 		}
-		if (!knobsCoherent(sound)) {
+		if (!knobsCoherent(&sound)) {
 			return "learned knobs";
 		}
 	}

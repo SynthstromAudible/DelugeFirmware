@@ -41,8 +41,6 @@ public:
 
 	virtual int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder);
 
-	ModControllable* toModControllable() override { return this; }
-
 	uint8_t lastVelocity{};
 
 	int8_t channelEncoderCurrentOffset = 0;

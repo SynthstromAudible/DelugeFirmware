@@ -540,10 +540,6 @@ deluge::model::LaneOwner sound_menu_owner() {
 	                std::make_index_sequence<std::variant_size_v<deluge::model::LaneOwner>>{});
 }
 
-ModControllable* soundMenuModControllable() {
-	return deluge::bridge::mod_controllable_of(sound_menu_owner());
-}
-
 ParamManagerForTimeline* soundMenuParamManager() {
 	return publishedParams.load(std::memory_order_relaxed);
 }

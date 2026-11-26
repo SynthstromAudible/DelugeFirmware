@@ -91,7 +91,8 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 /// @param owner The effect owner being edited.
 /// @param path  Settings path of the effect setting.
 /// @param value The new value.
-inline void effectSettingFor(ModControllable& owner, std::string_view path, deluge::serialization::Value value) {
+inline void effectSettingFor(deluge::model::LaneOwner owner, std::string_view path,
+                             deluge::serialization::Value value) {
 	deluge::edits::changeEffect(owner, path, std::move(value));
 }
 
@@ -160,8 +161,8 @@ inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instruments::cla
 /// @brief Record @p owner's knobs as a gesture left them (a learn, an unlearn, a knob cycled to its next param): an
 /// Edit on its controller mappings when it is one of the current song's outputs or kit rows; nothing for one outside
 /// it (a MIDI or CV track's, which has no knob mappings) nor for the song, whose mod knobs hold no record.
-/// @param owner The mod-controllable whose knob mappings changed.
-inline void recordControlsOf(::ModControllable& owner) {
+/// @param owner The owner whose knob mappings changed.
+inline void recordControlsOf(const deluge::model::LaneOwner& owner) {
 	const std::optional<deluge::project::ControlsAddress> address =
 	    deluge::bridge::controlsAddressOf(owner, *currentSong);
 	if (!address || address->kind == deluge::project::ControlsAddress::Kind::SONG) {

@@ -127,7 +127,7 @@ static int32_t sweepDoc(Song* song) {
 				InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
 				for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
 					NoteRow& nr = ic->noteRows[n];
-					if (nr.drum == nullptr || nr.drum->toModControllable() == nullptr) {
+					if (nr.drum == nullptr || deluge::model::is_none(deluge::model::owner_of(*nr.drum))) {
 						continue;
 					}
 					alignas(ModelStackWithAutoParam) char dbuf[MODEL_STACK_MAX_SIZE]{};

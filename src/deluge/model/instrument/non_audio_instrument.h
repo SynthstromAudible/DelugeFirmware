@@ -54,7 +54,6 @@ public:
 
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
-	ModControllable* toModControllable() override { return this; }
 	virtual void setChannel(int newChannel);
 	inline int32_t getChannel() const { return channel; }
 

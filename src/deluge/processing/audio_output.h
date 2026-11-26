@@ -60,8 +60,6 @@ public:
 		return false;
 	};
 
-	ModControllable* toModControllable() override { return this; }
-
 	void cutAllSound() override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;

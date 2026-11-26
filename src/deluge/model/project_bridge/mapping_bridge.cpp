@@ -54,8 +54,8 @@ namespace {
 /// The learned knobs @p output holds outside the table: a synth's sound's, a kit's or an audio track's; null for any
 /// other output.
 [[nodiscard]] deluge::model::KnobCarrier* knobsOf(::Output& output) {
-	::ModControllable* own = output.toModControllable();
-	const std::optional<deluge::model::EffectsOwner> effects = own != nullptr ? own->effectsOwner() : std::nullopt;
+	const std::optional<deluge::model::EffectsOwner> effects =
+	    deluge::model::effects_owner_of(deluge::model::owner_of(output));
 	return effects ? effects->knobs : nullptr;
 }
 

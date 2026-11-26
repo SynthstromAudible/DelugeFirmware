@@ -25,7 +25,6 @@
 #include "effects/settings.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
-#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "plugin/types/sync.h"
@@ -141,10 +140,6 @@ deluge::model::LaneOwner chain_owner_at(ChainAddress address, ::Song& song) {
 		}
 	});
 	return found;
-}
-
-::ModControllable* chainSlotAt(ChainAddress address, ::Song& song) {
-	return mod_controllable_of(chain_owner_at(address, song));
 }
 
 std::optional<ChainAddress> chainAddressOf(deluge::model::EffectsOwner owner, ::Song& song) {

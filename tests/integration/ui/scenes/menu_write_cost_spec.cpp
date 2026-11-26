@@ -117,7 +117,7 @@ Cost time_requests(Write&& write) {
 }
 
 /// Times @p kWrites gestures on @p owner's chain, as a knob detent makes them (changeEffect), alternating two values.
-Cost time_effect_gestures(Song& song, ModControllable& owner, std::string_view path,
+Cost time_effect_gestures(Song& song, deluge::model::LaneOwner owner, std::string_view path,
                           const deluge::serialization::Value& a, const deluge::serialization::Value& b) {
 	deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
 	const bool audited = audit.enabled;
@@ -259,9 +259,9 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		const Value low = Value::makeNumber(64 << 24);
 		const Value high = Value::makeNumber(96 << 24);
 		report("master", 0, "audioCompressor/ratio",
-		       time_effect_gestures(*f.song, f.song->live.master_channel, "audioCompressor/ratio", low, high));
+		       time_effect_gestures(*f.song, &f.song->live.master_channel, "audioCompressor/ratio", low, high));
 		report("kit-chain", kKitDrums, "audioCompressor/ratio",
-		       time_effect_gestures(*f.song, *static_cast<Kit*>(f.instrument), "audioCompressor/ratio", low, high));
+		       time_effect_gestures(*f.song, static_cast<Kit*>(f.instrument), "audioCompressor/ratio", low, high));
 		expect(f.song->live.master_channel.binding().effects().compressor.ratio).to_satisfy([](auto ratio) {
 			return ratio == (96 << 24) || ratio == (64 << 24);
 		});

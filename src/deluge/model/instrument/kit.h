@@ -117,7 +117,6 @@ public:
 	void resyncLFOs(bool reset_state = false) override;
 	void removeDrumFromKitArpeggiator(int32_t drumIndex);
 	void removeDrum(Drum* drum);
-	ModControllable* toModControllable() override;
 	Drum* getDrumFromName(std::string_view name, bool onlyIfNoNoteRow = false);
 	Error makeDrumNameUnique(std::string* name, int32_t startAtNumber);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;

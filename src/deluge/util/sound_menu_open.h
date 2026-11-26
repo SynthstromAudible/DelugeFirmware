@@ -23,7 +23,6 @@
 #include <cstdint>
 #include <optional>
 
-class ModControllable;
 class ParamManagerForTimeline;
 
 /// @file
@@ -41,9 +40,6 @@ bool soundMenuOpen();
 /// @brief The owner the sound menu edits, as the menu last published it (`publishMenuTarget`). Read only while
 ///        `soundMenuOpen()`. Safe on the audio tier.
 deluge::model::LaneOwner sound_menu_owner();
-
-/// @brief sound_menu_owner(), as the engine stack's untyped owner slot holds it.
-ModControllable* soundMenuModControllable();
 
 /// @brief The params the sound menu edits, as the menu last published them. Safe on the audio tier.
 ParamManagerForTimeline* soundMenuParamManager();

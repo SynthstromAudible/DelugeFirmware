@@ -128,7 +128,7 @@ void forEachChain(Song& song, const std::function<void(EffectsOwner, ParamManage
 	const auto audioOwnerOf = [](Output* output) -> std::optional<EffectsOwner> {
 		const bool hasChain =
 		    output->type == OutputType::SYNTH || output->type == OutputType::KIT || output->type == OutputType::AUDIO;
-		return hasChain ? output->toModControllable()->effectsOwner() : std::nullopt;
+		return hasChain ? deluge::model::effects_owner_of(deluge::model::owner_of(*output)) : std::nullopt;
 	};
 	// A backup's owner by its address, or (not yet adopted) itself.
 	const auto engineOf = [&](deluge::project::OwnerId owner) -> std::optional<EffectsOwner> {

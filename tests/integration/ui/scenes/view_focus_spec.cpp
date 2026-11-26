@@ -117,7 +117,7 @@ void learnAndSendVolume(const spec::SongFixture& f, uint8_t value) {
 	auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 	const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 	if (f.song->project.mappings.params_of({project::ControlsAddress::Kind::OUTPUT, *f.instrument->id()}).empty()) {
-		(void)deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
+		(void)deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 	}
 	activate(f);
 	deluge::midi::refreshMappingIndex();
@@ -853,7 +853,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		static_cast<Kit*>(f.instrument)->selectedDrum = drum;
 		f.clip->affectEntire = false;
 		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
-		(void)deluge::edits::learnKnobFor(*drum, volume, &MIDIDeviceManager::dinMIDIPorts, 75, 1);
+		(void)deluge::edits::learnKnobFor(drum, volume, &MIDIDeviceManager::dinMIDIPorts, 75, 1);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.setModRegion(96, 48, static_cast<int32_t>(*drum->id()));
 		activate(f);

@@ -538,7 +538,7 @@ inline void set_stored(Family family, const MenuContext& ctx, Where where, const
 		deluge::edits::settingFor(*spec::menu_engine(ctx, song_of(where)).sound, row.path, value);
 		return;
 	case Family::EFFECT:
-		deluge::edits::effectSettingFor(*deluge::ui::scenes::spec::menu_engine(ctx, song_of(where)).mod, row.path,
+		deluge::edits::effectSettingFor(deluge::ui::scenes::spec::menu_engine(ctx, song_of(where)).mod, row.path,
 		                                value);
 		return;
 	case Family::ARP:
@@ -587,7 +587,8 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 		break;
 	case Family::EFFECT:
 		value = deluge::effects::effect_setting_value(
-		    deluge::ui::scenes::spec::menu_engine(ctx, song_of(where)).mod->effectsOwner()->effects(), row.path);
+		    deluge::model::effects_owner_of(deluge::ui::scenes::spec::menu_engine(ctx, song_of(where)).mod)->effects(),
+		    row.path);
 		break;
 	case Family::ARP:
 	case Family::ARP_HOST:

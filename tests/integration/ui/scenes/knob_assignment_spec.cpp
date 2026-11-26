@@ -85,7 +85,7 @@ void report(const std::vector<std::string>& found) {
 }
 
 /// @brief Each filter view and mod-FX view of @p ge's chain, each run through @p check.
-std::vector<std::string> over_views(ModControllable& ge,
+std::vector<std::string> over_views(deluge::model::LaneOwner ge,
                                     const std::function<std::vector<std::string>(std::string)>& check) {
 	std::vector<std::string> found;
 	for (const FilterType filter : {FilterType::LPF, FilterType::HPF, FilterType::EQ}) {
@@ -158,7 +158,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		    .owner = bind::ChainOwner::KIT,
 		    .clip = deluge::project::ClipAddress{f.clip->id()}}};
 		size_t next = 0;
-		const auto found = over_views(*kit, [&](const std::string& view) {
+		const auto found = over_views(kit, [&](const std::string& view) {
 			return disagreements(*f.song, focus, deluge::project::TrackAddress{*kit->id()},
 			                     {.owner = deluge::project::OwnerId::instrument(*kit->id()), .clip_id = f.clip->id()},
 			                     "kit chain " + view,
@@ -179,7 +179,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		    .owner = bind::ChainOwner::AUDIO_TRACK,
 		    .clip = deluge::project::ClipAddress{f.clip->id()}}};
 		size_t next = 0;
-		const auto found = over_views(*audio, [&](const std::string& view) {
+		const auto found = over_views(audio, [&](const std::string& view) {
 			return disagreements(*f.song, focus, deluge::project::TrackAddress{*audio->id()},
 			                     {.owner = deluge::project::OwnerId::clip(f.clip->id())}, "audio " + view,
 			                     knob_recorded::kAudioNames, next);
@@ -193,7 +193,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
-		ModControllable& ge = f.song->live.master_channel;
+		deluge::model::LaneOwner ge = &f.song->live.master_channel;
 		std::vector<std::string> found;
 		size_t next = 0;
 		for (const bool editing : {false, true}) {

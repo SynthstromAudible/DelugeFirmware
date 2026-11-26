@@ -34,7 +34,7 @@ namespace {
 const std::string kCard = std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/scenes_spec/browser_scene";
 
 Sound* sound_of(const deluge::ui::scenes::spec::SongFixture& f) {
-	return f.instrument->toModControllable()->effectsOwner()->sound;
+	return deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 }
 
 /// The song's volume stage at the fixture song's volume, as the preview folds it in.

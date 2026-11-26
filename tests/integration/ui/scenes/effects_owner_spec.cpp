@@ -268,8 +268,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 			    .to_equal(&k.channel().core(), "the kit owner's chain core");
 			expect(deluge::bridge::effectsOwnerAt(*kit.song, ofRow)->sound)
 			    .to_equal(static_cast<Sound*>(drum), "the sound row owner's sound");
-			expect(deluge::bridge::controlsSlotAt(*kit.song, ofKit))
-			    .to_equal(static_cast<ModControllable*>(&k), "the kit's controls slot");
+			expect(std::get<Kit*>(deluge::bridge::controlsSlotAt(*kit.song, ofKit))).to_equal(&k, "the kit's controls slot");
 
 			spec::SongFixture synth = spec::make_synth_song();
 			const ControlsAddress ofSynth{ControlsAddress::Kind::OUTPUT, *synth.instrument->id()};

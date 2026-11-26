@@ -17,31 +17,9 @@
 
 #include "model/project_bridge/lane_target.h"
 
-#include "model/drum/non_audio_drum.h"
-#include "model/fx/master_channel.h"
-#include "model/instrument/kit.h"
-#include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
-#include "processing/audio_output.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-
-#include <type_traits>
 
 namespace deluge::bridge {
-
-::ModControllable* mod_controllable_of(const LaneOwner& owner) {
-	return std::visit(
-	    []<typename T>(T held) -> ::ModControllable* {
-		    if constexpr (std::is_same_v<T, std::monostate>) {
-			    return nullptr;
-		    }
-		    else {
-			    return held;
-		    }
-	    },
-	    owner);
-}
 
 ::ModelStackWithThreeMainThings* owner_stack_of(const LaneTarget& target, void* memory) {
 	return setupModelStackWithSong(memory, target.song)

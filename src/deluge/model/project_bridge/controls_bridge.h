@@ -20,6 +20,7 @@
 #include "base/function_ref.h"
 #include "instruments/classic/pages.h"
 #include "model/fx/effects_owner.h"
+#include "model/lane_owner.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
 #include "plugin/types/param.h"
@@ -31,7 +32,6 @@
 #include <vector>
 
 class Drum;
-class ModControllable;
 class Output;
 class Sound;
 class Song;
@@ -123,7 +123,8 @@ void refreshControls(::Song& song);
 /// @param owner The runtime owner.
 /// @param song  The song to look in.
 /// @return The controls address, or nullopt.
-[[nodiscard]] std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllable& owner, ::Song& song);
+[[nodiscard]] std::optional<deluge::project::ControlsAddress> controlsAddressOf(const deluge::model::LaneOwner& owner,
+                                                                                ::Song& song);
 
 /// @brief The output of @p song, playing or hibernating, whose id is @p id.
 /// @param song The song to look in.
@@ -152,12 +153,12 @@ void refreshControls(::Song& song);
 [[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwnerAt(::Song& song,
                                                                         deluge::project::ControlsAddress address);
 
-/// @brief The owner whose controls @p address names in @p song, as a ModelStack's owner slot holds it. A bridge: it
-/// goes with the slot.
+/// @brief The owner whose controls @p address names in @p song: the song's master channel, a synth's sound, a kit, an
+/// audio track or a kit row's sound.
 /// @param song    The song to look in.
 /// @param address Whose controls.
-/// @return The owner, or nullptr.
-[[nodiscard]] ::ModControllable* controlsSlotAt(::Song& song, deluge::project::ControlsAddress address);
+/// @return The owner; none when @p address names none.
+[[nodiscard]] deluge::model::LaneOwner controlsSlotAt(::Song& song, deluge::project::ControlsAddress address);
 
 /// @brief Make a sound's mod knobs what @p controls say. Its learned MIDI knobs are left as they are.
 /// @param sound    The sound whose knobs are set.

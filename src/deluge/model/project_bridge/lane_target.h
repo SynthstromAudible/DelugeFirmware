@@ -32,7 +32,6 @@
 #include <optional>
 
 class AutoParam;
-class ModControllable;
 class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
 class NoteRow;
@@ -65,11 +64,6 @@ struct LaneTarget {
 	int32_t param_id{0};
 	::AutoParam* auto_param{nullptr};
 };
-
-/// @brief @p owner as the engine stack's owner slot holds it.
-/// @param owner The typed owner.
-/// @return The owner slot's value; null for none.
-[[nodiscard]] ::ModControllable* mod_controllable_of(const LaneOwner& owner);
 
 /// @brief The engine stack of @p target's owner (no collection or param), built in @p memory.
 /// @param target The lane.

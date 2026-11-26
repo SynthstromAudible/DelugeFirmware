@@ -156,6 +156,4 @@ public:
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) {}
 	void getCombinedExpressionInputs(int16_t* combined);
-
-	virtual ModControllable* toModControllable() { return nullptr; }
 };

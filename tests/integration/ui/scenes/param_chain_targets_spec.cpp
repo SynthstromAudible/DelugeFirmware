@@ -129,9 +129,9 @@ describe param_chain_targets("a param node a sound and a host chain share", ${
 		kit.song->setCurrentClip(kit.clip);
 		const MenuContext on_fx = spec::ctx_of(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, true);
 		auto& owner = *static_cast<Kit*>(kit.instrument);
-		deluge::edits::changeEffect(*kit.song, owner, "lpfMode", deluge::serialization::Value::makeScalar("Off"));
+		deluge::edits::changeEffect(*kit.song, &owner, "lpfMode", deluge::serialization::Value::makeScalar("Off"));
 		expect(menu::bindings::relevant(nodes::global_lpf_freq, on_fx)).to_be_false();
-		deluge::edits::changeEffect(*kit.song, owner, "lpfMode", deluge::serialization::Value::makeScalar("24dB"));
+		deluge::edits::changeEffect(*kit.song, &owner, "lpfMode", deluge::serialization::Value::makeScalar("24dB"));
 		expect(menu::bindings::relevant(nodes::global_lpf_freq, on_fx)).to_be_true();
 	});
 });

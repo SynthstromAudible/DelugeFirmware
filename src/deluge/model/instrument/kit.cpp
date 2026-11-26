@@ -995,10 +995,6 @@ void Kit::resyncLFOs(bool reset_state) {
 	}
 }
 
-ModControllable* Kit::toModControllable() {
-	return this;
-}
-
 // newName must be allowed to be edited by this function
 Error Kit::makeDrumNameUnique(std::string* name, int32_t startAtNumber) {
 

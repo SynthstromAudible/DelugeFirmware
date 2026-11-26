@@ -60,8 +60,8 @@ void write_notch(const MenuContext& ctx) {
 	write(ctx, "lpfMode", menu_of("lpfMode", "SVF_Notch"));
 }
 
-FilterMode lpf_of(ModControllable& owner) {
-	return owner.effectsOwner()->effects().filter.lpf_mode;
+FilterMode lpf_of(deluge::model::LaneOwner owner) {
+	return deluge::model::effects_owner_of(owner)->effects().filter.lpf_mode;
 }
 
 /// Whether @p chain's owner plays its record's effects.
@@ -84,10 +84,10 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(ctx.addresses.slot.has_value()).to_be_true();
 		expect(ctx.addresses.chain.has_value()).to_be_false();
-		const FilterMode master = lpf_of(f.song->live.master_channel);
+		const FilterMode master = lpf_of(&f.song->live.master_channel);
 		write_notch(ctx);
-		expect(lpf_of(*static_cast<SoundInstrument*>(f.instrument))).to_equal(FilterMode::SVF_NOTCH);
-		expect(lpf_of(f.song->live.master_channel)).to_equal(master);
+		expect(lpf_of(static_cast<SoundInstrument*>(f.instrument))).to_equal(FilterMode::SVF_NOTCH);
+		expect(lpf_of(&f.song->live.master_channel)).to_equal(master);
 	});
 
 	it("writes a kit row's own effects by its slot, and not the kit's chain", _ {
@@ -97,10 +97,10 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(ctx.addresses.slot.has_value()).to_be_true();
 		expect(ctx.addresses.chain.has_value()).to_be_false();
-		const FilterMode chain = lpf_of(*deluge::bridge::chainSlotAt(output_chain(*kit), *f.song));
+		const FilterMode chain = lpf_of(deluge::bridge::chain_owner_at(output_chain(*kit), *f.song));
 		write_notch(ctx);
-		expect(lpf_of(*drum)).to_equal(FilterMode::SVF_NOTCH);
-		expect(lpf_of(*deluge::bridge::chainSlotAt(output_chain(*kit), *f.song))).to_equal(chain);
+		expect(lpf_of(drum)).to_equal(FilterMode::SVF_NOTCH);
+		expect(lpf_of(deluge::bridge::chain_owner_at(output_chain(*kit), *f.song))).to_equal(chain);
 	});
 
 	it("writes the whole kit's chain, and no drum's", _ {
@@ -111,12 +111,12 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(ctx.addresses.chain).to_equal(std::optional{output_chain(*kit)});
 		expect(ctx.addresses.chain_owner).to_equal(ChainOwner::KIT);
-		const FilterMode row = lpf_of(*drum);
+		const FilterMode row = lpf_of(drum);
 		write_notch(ctx);
-		expect(lpf_of(*deluge::bridge::chainSlotAt(output_chain(*kit), *f.song))).to_equal(FilterMode::SVF_NOTCH);
+		expect(lpf_of(deluge::bridge::chain_owner_at(output_chain(*kit), *f.song))).to_equal(FilterMode::SVF_NOTCH);
 		expect(chain_coherent(*f.song, output_chain(*kit))).to_be_true();
-		expect(lpf_of(*drum)).to_equal(row);
-		expect(lpf_of(f.song->live.master_channel)).not_().to_equal(FilterMode::SVF_NOTCH);
+		expect(lpf_of(drum)).to_equal(row);
+		expect(lpf_of(&f.song->live.master_channel)).not_().to_equal(FilterMode::SVF_NOTCH);
 	});
 
 	it("writes an audio track's chain", _ {
@@ -125,9 +125,9 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		expect(ctx.addresses.chain).to_equal(std::optional{output_chain(*f.output)});
 		expect(ctx.addresses.chain_owner).to_equal(ChainOwner::AUDIO_TRACK);
 		write_notch(ctx);
-		expect(lpf_of(*deluge::bridge::chainSlotAt(output_chain(*f.output), *f.song))).to_equal(FilterMode::SVF_NOTCH);
+		expect(lpf_of(deluge::bridge::chain_owner_at(output_chain(*f.output), *f.song))).to_equal(FilterMode::SVF_NOTCH);
 		expect(chain_coherent(*f.song, output_chain(*f.output))).to_be_true();
-		expect(lpf_of(f.song->live.master_channel)).not_().to_equal(FilterMode::SVF_NOTCH);
+		expect(lpf_of(&f.song->live.master_channel)).not_().to_equal(FilterMode::SVF_NOTCH);
 	});
 
 	it("writes the master's chain from the song root", _ {
@@ -135,11 +135,11 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
 		expect(ctx.addresses.chain).to_equal(std::optional{ChainAddress{.kind = ChainAddress::Kind::SONG}});
 		expect(ctx.addresses.chain_owner).to_equal(ChainOwner::SONG);
-		const FilterMode synth = lpf_of(*static_cast<SoundInstrument*>(f.instrument));
+		const FilterMode synth = lpf_of(static_cast<SoundInstrument*>(f.instrument));
 		write_notch(ctx);
-		expect(lpf_of(f.song->live.master_channel)).to_equal(FilterMode::SVF_NOTCH);
+		expect(lpf_of(&f.song->live.master_channel)).to_equal(FilterMode::SVF_NOTCH);
 		expect(chain_coherent(*f.song, ChainAddress{.kind = ChainAddress::Kind::SONG})).to_be_true();
-		expect(lpf_of(*static_cast<SoundInstrument*>(f.instrument))).to_equal(synth);
+		expect(lpf_of(static_cast<SoundInstrument*>(f.instrument))).to_equal(synth);
 	});
 
 	it("edits the master from performance view, entered as production enters it", _ {
@@ -147,11 +147,10 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 		// performance_view.cpp's openMenu: no clip, performance view, not a session or arranger root.
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, true, false, false, false);
 		expect(ctx.root).to_equal(MenuContext::Root::Performance);
-		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod)
-		    .to_equal(static_cast<ModControllable*>(&f.song->live.master_channel));
+		expect(std::get<deluge::model::MasterChannel*>(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod)).to_equal(&f.song->live.master_channel);
 		expect(ctx.addresses.chain).to_equal(std::optional{ChainAddress{.kind = ChainAddress::Kind::SONG}});
 		write_notch(ctx);
-		expect(lpf_of(f.song->live.master_channel)).to_equal(FilterMode::SVF_NOTCH);
+		expect(lpf_of(&f.song->live.master_channel)).to_equal(FilterMode::SVF_NOTCH);
 	});
 
 	it("recomputes the reverb after a sidechain timing write on any owner, and not after a filter write", _ {

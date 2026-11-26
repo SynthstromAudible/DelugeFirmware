@@ -1799,7 +1799,7 @@ void exactAddressTarget(Song* song) {
 	for (ClipArray* clips : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
 		for (int32_t c = 0; c < std::ssize(*clips); c++) {
 			Clip* clip = (*clips)[c];
-			if (clip->output == nullptr || clip->output->toModControllable() == nullptr) {
+			if (clip->output == nullptr || deluge::model::is_none(deluge::model::owner_of(*clip->output))) {
 				continue;
 			}
 			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
@@ -1824,7 +1824,7 @@ void exactAddressTarget(Song* song) {
 			}
 			for (int32_t i = 0; i < std::ssize(ic->noteRows); i++) {
 				NoteRow& row = ic->noteRows[i];
-				if (row.drum == nullptr || row.drum->toModControllable() == nullptr) {
+				if (row.drum == nullptr || deluge::model::is_none(deluge::model::owner_of(*row.drum))) {
 					continue;
 				}
 				alignas(ModelStackWithAutoParam) char rm[MODEL_STACK_MAX_SIZE];
@@ -1836,7 +1836,7 @@ void exactAddressTarget(Song* song) {
 		}
 	}
 	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
-		if (output->toModControllable() == nullptr) {
+		if (deluge::model::is_none(deluge::model::owner_of(*output))) {
 			continue;
 		}
 		if (ParamManager* backed = song->live.param_backup.getForExactClip(*output, nullptr)) {

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Rewrite the ModelStack builders' owner argument to a typed owner. Idempotent. Run from the repo root.
 
-    <x>->toModControllable()   ->  deluge::model::owner_of(*<x>)
+    <x>->toModControllable()   ->  deluge::model::owner_of(*<x>)   (with --all, a chained ->effectsOwner() or
+                                                                     == nullptr becomes effects_owner_of / is_none)
     <x>.toModControllable()    ->  deluge::model::owner_of(<x>)
     toModControllable()        ->  deluge::model::owner_of(*this)
     nullptr                    ->  deluge::model::LaneOwner{}
@@ -29,7 +30,9 @@ CALL = re.compile(r"(?<![\w:])(" + "|".join(BUILDERS) + r")\s*\(")
 ARROW = re.compile(r"^(?P<x>.+?)->toModControllable\(\)$", re.DOTALL)
 DOT = re.compile(r"^(?P<x>.+?)\.toModControllable\(\)$", re.DOTALL)
 ANY_CALL = re.compile(
-    r"(?P<x>(?:[\w\]\)]+(?:->|\.))*[\w\]\)]+)(?P<op>->|\.)toModControllable\(\)|(?<![\w.>])toModControllable\(\)"
+    r"(?P<x>(?:[\w\]\)]+(?:->|\.))*[\w\]\)]+)(?P<op>->|\.)toModControllable\(\)"
+    # A bare call, not a declaration or a definition (`ModControllable* toModControllable()`, `Kit::toModControllable()`).
+    r"|(?<![\w.>:*])(?<!\* )toModControllable\(\)"
 )
 
 
@@ -102,7 +105,25 @@ def rewrite_all(text):
             return "deluge::model::owner_of(*this)"
         return f"deluge::model::owner_of({'*' if m.group('op') == '->' else ''}{m.group('x')})"
 
-    return ANY_CALL.sub(one, text)
+    return typed_reads(ANY_CALL.sub(one, text))
+
+
+OWNER = r"deluge::model::owner_of\((?P<arg>[^()]*(?:\([^()]*\))?[^()]*)\)"
+EFFECTS_READ = re.compile(OWNER + r"->effectsOwner\(\)")
+NULL_TEST = re.compile(OWNER + r" (?P<op>==|!=) nullptr")
+
+
+def typed_reads(text):
+    """The reads a rewritten owner is chained into: its effects, and whether it names none."""
+    text = EFFECTS_READ.sub(
+        r"deluge::model::effects_owner_of(deluge::model::owner_of(\g<arg>))", text
+    )
+    return NULL_TEST.sub(
+        lambda m: (
+            f"{'' if m.group('op') == '==' else '!'}deluge::model::is_none(deluge::model::owner_of({m.group('arg')}))"
+        ),
+        text,
+    )
 
 
 def main(argv):
