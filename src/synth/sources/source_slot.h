@@ -22,6 +22,7 @@
 #include "synth/sources/dx7/dx7_source.h"
 #include "synth/sources/input/input_source.h"
 #include "synth/sources/sample/sample_source.h"
+#include "synth/sources/source_table.h"
 #include "synth/sources/supersaw/supersaw_source.h"
 #include "synth/sources/va/virtual_analog_source.h"
 #include "synth/sources/wavetable/wavetable_source.h"
@@ -29,14 +30,6 @@
 #include <variant>
 
 namespace deluge::synth {
-
-/// @brief The firmware ports a slot's port-backed sources play through; they outlive the slot.
-struct SourcePorts {
-	SamplePlaybackPort* sample{};
-	DxVoicePort* dx{};
-	AudioInputPort* input{};
-	const LiveInputs* live_inputs{}; ///< the oscillator's live histories
-};
 
 /// @brief The phase state of one source slot that every synth mode shares, and the engines and the app read.
 struct SlotPhase {
