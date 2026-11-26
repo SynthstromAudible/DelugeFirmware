@@ -59,6 +59,7 @@ constexpr std::array<std::string_view, N> names_of() {
 }
 
 constexpr auto kPolyphony = names_of<PolyphonyMode, 5>();
+// The mode menu offers the first three; DX7 joins it with its pages.
 constexpr auto kSynthModes = names_of<SynthMode, 3>();
 // INPUT_STEREO is the last type, so the list grows with the enum.
 constexpr auto kOscTypes = names_of<OscType, static_cast<size_t>(OscType::INPUT_STEREO) + 1>();

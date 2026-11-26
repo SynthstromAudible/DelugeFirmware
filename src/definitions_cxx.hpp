@@ -360,7 +360,7 @@ using deluge::effects::kNumModFXTypes;
 using deluge::effects::ModFXType;
 
 using deluge::instruments::classic::SynthMode;
-constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
+constexpr int kNumSynthModes = util::to_underlying(::SynthMode::DX7) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
 constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);
