@@ -67,7 +67,7 @@ rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "89
 # the one whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the block-device crates
 # use 0.6; both versions are in the graph).
 # deluge-sdk's fork, published on crates.io; the import name stays `embedded_fatfs`.
-embedded-fatfs = { package = "deluge-embedded-fatfs", version = "0.2", default-features = false, features = ["lfn", "alloc"] }
+embedded-fatfs = { package = "deluge-embedded-fatfs", version = "0.2.1", default-features = false, features = ["lfn", "alloc"] }
 embedded-io-async = "0.7.0"
 
 # Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually

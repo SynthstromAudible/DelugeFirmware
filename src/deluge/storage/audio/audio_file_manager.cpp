@@ -62,6 +62,7 @@
 #include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
+#include "sync/sd_access.h"
 #include "util/boot.h"
 #include "util/string.h"
 #include "util/try.h"
@@ -1700,6 +1701,20 @@ void AudioFileManager::backgroundWaveformScan() {
 	deluge_peaks_collect();
 	if (backgroundScansEnabled_) {
 		backgroundPeakScan();
+	}
+	// Level 0 kept only around what was drawn in the last second: at most once a second, every loaded sample.
+	if (const uint32_t now = deluge::sample::peaks_clock_ms(); now - lastLevel0Trim_ >= 1000) {
+		lastLevel0Trim_ = now;
+		for (AudioFile* f : audioFiles) {
+			if (AudioFile::isSample(f)) {
+				deluge::sample::trim_level0(*static_cast<Sample*>(f), now);
+			}
+		}
+	}
+	if (sidecarsEnabled_) {
+		const bool cardReady =
+		    !cardEjected && !cardDisabled && !deluge::sync::sd_busy() && !AudioEngine::audioTicksHeld();
+		peakSidecars_.tick(audioFiles, cardReady);
 	}
 }
 

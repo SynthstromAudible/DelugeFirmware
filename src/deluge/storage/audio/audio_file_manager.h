@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_vector.h"
 #include "storage/audio/audio_load_context.h"
+#include "storage/audio/peak_sidecars.h"
 #include "storage/cluster/cluster.h"
 #include "util/c_string.h"
 #include <array>
@@ -127,6 +128,10 @@ public:
 	/// @brief Turn the background scans on or off (they are on). A scenario that must see what the fill alone
 	///        fills turns them off.
 	void setBackgroundScansEnabled(bool enabled) { backgroundScansEnabled_ = enabled; }
+	/// @brief The card's peak sidecars, ticked by the idle job.
+	deluge::storage::PeakSidecars& peakSidecars() { return peakSidecars_; }
+	/// @brief Whether the sidecars are read and written: on unless a scenario holds them off.
+	void setSidecarsEnabled(bool enabled) { sidecarsEnabled_ = enabled; }
 
 	Error setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength, const std::string& oldPath) const;
 	/// @brief Whether the SD card is currently unusable for streaming (ejected, disabled, or not
@@ -331,6 +336,9 @@ private:
 	/// @brief The peak scan: one block of one sample's peak index per call, round-robin.
 	void backgroundPeakScan();
 	bool backgroundScansEnabled_ = true;
+	bool sidecarsEnabled_ = true;
+	uint32_t lastLevel0Trim_ = 0; ///< deluge::sample::peaks_clock_ms() at the last level-0 trim
+	deluge::storage::PeakSidecars peakSidecars_;
 
 	/// @brief Convert @p sample into a WaveTable from memory, if every one of its audio clusters is cached.
 	///

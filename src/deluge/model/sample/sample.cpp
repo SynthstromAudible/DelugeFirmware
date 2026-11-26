@@ -16,6 +16,7 @@
  */
 
 #include "model/sample/sample.h"
+#include "board_config.h" // PLACE_SDRAM_TEXT: thread-mode work
 #include "definitions_cxx.hpp"
 #include "deluge_storage_sample_peaks.h"
 #include "deluge_storage_sample_reader.h"
@@ -251,11 +252,23 @@ void Sample::makePeaks(uint64_t frames, bool growing, uint64_t capacity) {
 	deluge_peaks_release(peaks_);
 	peaks_ = deluge_peaks_create(frames, growing, capacity);
 	peaksScanFrom = 0;
+	sidecar.looked = false;
 	if (peaks_ != nullptr) {
 		audioFileManager.peakScanAllDone = false;
+		if (!growing && identity_) {
+			audioFileManager.peakSidecars().wantLoad(*this);
+		}
 	}
 	if (stream_.resource_asset_id() != DELUGE_RESOURCE_NO_ASSET) {
 		deluge_peaks_bind_asset(stream_.resource_asset_id(), peaks_);
+	}
+}
+
+PLACE_SDRAM_TEXT void Sample::restorePitches(std::span<const uint8_t> ptch) {
+	if (pitchResults_.empty()) {
+		if (std::optional<deluge::sample::PitchResults> r = deluge::sample::PitchResults::decode(ptch)) {
+			pitchResults_ = *r;
+		}
 	}
 }
 
@@ -1498,6 +1511,7 @@ void Sample::finalizeAfterLoad(uint32_t fileSize) {
 	audioDataLengthBytes = lengthInSamples * bytesPerSample; // Make sure it's an exact number of samples
 
 	workOutBitMask();
+	identity_ = stream_.identity();
 	makePeaks(lengthInSamples, false, lengthInSamples);
 }
 

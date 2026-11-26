@@ -182,8 +182,16 @@ PIC and parity with main.
   frame it covers (`sample::waveform_columns`), and the bars scale to the index's range. The overview cache, the
   host's and the clips' peak caches and the samples' running range are gone, and with them the D38 race. Its
   differences from `main` are D188–D191.
-- **Next: the peak index's sidecars** (stage 2): each file's pyramid, levels 1 and up, written to a central directory
-  on the card when idle and keyed by the file's identity on its card, so a file seen before is whole at once.
+- **Done: the peak index's sidecars** (stage 2). What the firmware works out from a sample's audio is kept beside it
+  on the card, in `DELUGE/PEAKS/` (one 8.3 file per sample, keyed by its first cluster and checked against its size,
+  date-time and shape): its peak index's level 1 and its detected pitches, as tagged sections (`PEAK`, `PTCH`), so
+  later data (the time-stretch percussiveness cache, RMS, slice points) is a new section. A sample's sidecar is read
+  when it loads, so a file seen before is whole at once and its pitch known without a detection; it is written from
+  the idle job when its index completes or grows by a quarter, or a pitch is detected. Level-0 peaks are kept only
+  around what was drawn in the last second.
+- **Next: hide `DELUGE/PEAKS/`**: the FAT fork's attribute setter is ready (`deluge-sdk` branch
+  `feat/fatfs-set-attributes`, version 0.2.1); once that version is released, a byte-channel call marks the folder
+  hidden on its first write.
 - **Offer `main` the waveform fixes** that `next` lists as accepted differences
   (`tests/ui-scripts/parity/DIFFERENCES.md`, the sample-view rows):
   - the navigator's 32-bit and rounding faults, and the short-waveform and remembered-zoom clamps;

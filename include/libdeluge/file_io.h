@@ -123,6 +123,13 @@ DelugeStatus deluge_efatfs_file_seek(DelugeHandle handle, uint32_t offset) DELUG
 /// @return `DELUGE_OK` on success.
 DelugeStatus deluge_efatfs_file_size(DelugeHandle handle, uint32_t* out_size) DELUGE_NOEXCEPT;
 
+/// @brief The identity of the file behind `handle`, from its open context: no card access. [task]
+///
+/// @param handle Handle from deluge_efatfs_open or deluge_efatfs_open_at.
+/// @param out    Set to the identity on success.
+/// @return `DELUGE_OK`, or `DELUGE_ERR_PARAM` for a closed handle or one with no directory entry.
+DelugeStatus deluge_efatfs_file_identity(DelugeHandle handle, DelugeFileIdentity* out) DELUGE_NOEXCEPT;
+
 /// @brief Free + total cluster counts of the mounted volume (whole-FS query). [task]
 /// @param out_free_clusters  Set to the free cluster count on success.
 /// @param out_total_clusters Set to the total cluster count on success.
