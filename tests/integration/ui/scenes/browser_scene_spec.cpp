@@ -1052,6 +1052,22 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(differ).to_equal(0);
 	});
 
+	it("Q34: a reversed single row waits for its last source column; main reads column -1 and draws it blank", _ {
+		// Clusters 0-29 scanned: at two clusters a column, source columns 0-14 are answered and 15 is pending.
+		Sample* sample = make_overview_sample(30);
+		RGB row[kDisplayWidth + kSideBarWidth]{};
+		const RGB colour{.r = 255, .g = 255, .b = 255};
+		// `origin/main:src/deluge/gui/waveform/waveform_renderer.cpp` `WaveformRenderer::renderAsSingleRow` asks
+		// about source columns [-1, 15): it draws, column 15 blank.
+		expect(waveformRenderer.renderAsSingleRow(sample, 0, 32768, row, nullptr, colour, true, 0, kDisplayWidth))
+		    .to_be_false();
+		expect(waveformRenderer.renderAsSingleRow(sample, 0, 32768, row, nullptr, colour, false, 0, kDisplayWidth - 1))
+		    .to_be_true();
+		// Reversed, output column 0 draws source column 15: the outputs [1, 16) draw only answered columns.
+		expect(waveformRenderer.renderAsSingleRow(sample, 0, 32768, row, nullptr, colour, true, 1, kDisplayWidth))
+		    .to_be_true();
+	});
+
 	it("Q32: draws a fresh preview's first frame at the scale of its next: the range is the index's, not the reads'", _ {
 		CleanBrowser clean;
 		ScratchCard card;

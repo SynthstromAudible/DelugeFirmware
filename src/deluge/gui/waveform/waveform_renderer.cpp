@@ -75,11 +75,13 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
                                          SampleRecorder* recorder, RGB rgb, bool reversed, int32_t xStart,
                                          int32_t xEnd) {
 
+	// The source columns [xStartSource, xEndSource) the outputs [xStart, xEnd) draw: reversed, output x draws
+	// source kDisplayWidth - 1 - x.
 	int32_t xStartSource = xStart;
 	int32_t xEndSource = xEnd;
 	if (reversed) {
-		xStartSource = kDisplayWidth - 1 - xEnd;
-		xEndSource = kDisplayWidth - 1 - xStart;
+		xStartSource = kDisplayWidth - xEnd;
+		xEndSource = kDisplayWidth - xStart;
 	}
 
 	const deluge::ui::views::waveform::PeakRead read = deluge::sample::waveform_columns(
