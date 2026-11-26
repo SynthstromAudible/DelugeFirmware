@@ -198,23 +198,11 @@ void put_lfo(FlatSoundState& f, size_t i, const synth::LfoState& lfo) {
 } // namespace
 
 const synth::DualSourceState* dual_of(const ComposedState& plays) noexcept {
-	if (const auto* sub = std::get_if<synth::SubtractiveState>(&plays.engine)) {
-		return &sub->oscillators;
-	}
-	if (const auto* ring = std::get_if<synth::RingModState>(&plays.engine)) {
-		return &ring->oscillators;
-	}
-	return nullptr;
+	return synth::oscillators_of(plays.engine);
 }
 
 synth::DualSourceState* dual_of(ComposedState& plays) noexcept {
-	if (auto* sub = std::get_if<synth::SubtractiveState>(&plays.engine)) {
-		return &sub->oscillators;
-	}
-	if (auto* ring = std::get_if<synth::RingModState>(&plays.engine)) {
-		return &ring->oscillators;
-	}
-	return nullptr;
+	return synth::oscillators_of(plays.engine);
 }
 
 OscType osc_type_of(const synth::SlotState& kind) noexcept {
@@ -351,12 +339,7 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 		}
 		recall.modulators = modulators;
 		recall.modulator1_to_modulator0 = f.modulator1_to_modulator0;
-		if (f.synth_mode == SynthMode::RINGMOD) {
-			state.engine = synth::RingModState{.oscillators = dual};
-		}
-		else {
-			state.engine = synth::SubtractiveState{.oscillators = dual};
-		}
+		state.engine = synth::dual_state_for(f.synth_mode, dual);
 	}
 	return {std::move(state), std::move(recall)};
 }
@@ -398,8 +381,7 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 		return f;
 	}
 	const synth::DualSourceState& dual = *dual_of(state);
-	f.synth_mode =
-	    std::holds_alternative<synth::RingModState>(state.engine) ? SynthMode::RINGMOD : SynthMode::SUBTRACTIVE;
+	f.synth_mode = synth::mode_of(state.engine);
 	put_modulators(recall.modulators, recall.modulator1_to_modulator0);
 	for (size_t s = 0; s < 2; s++) {
 		auto [source, phase] = unpack_slot(dual.slots[s], recall.slots[s]);
