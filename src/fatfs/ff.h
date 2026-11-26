@@ -362,6 +362,8 @@ TCHAR* f_gets (TCHAR* buff, int len, FIL* fp);						/* Get a string from the fil
 /* RTC function */
 #if !FF_FS_READONLY && !FF_FS_NORTC
 DWORD get_fattime (void);
+/* Recency clock: seed the synthetic save-time counter from a packed FAT datetime seen on the card. */
+void fatClockSeedFromPacked (DWORD packed);
 #endif
 
 /* LFN support functions */
