@@ -612,8 +612,8 @@ bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* 
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	if (modelStack->paramId == params::UNPATCHED_STUTTER_RATE) {
-		return deluge::model::stutterRateIndicatesMiddle(modelStack->modControllable->effectsOwner()->effects().stutter,
-		                                                 isUIModeActive(UI_MODE_STUTTERING));
+		return deluge::model::stutterRateIndicatesMiddle(
+		    deluge::model::effects_owner_of(modelStack->owner)->effects().stutter, isUIModeActive(UI_MODE_STUTTERING));
 	}
 	return params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }
@@ -638,7 +638,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
 		int32_t current_value = modelStack->autoParam->getCurrentValue();
 		if (oldValue != current_value) {
-			((Sound*)modelStack->modControllable)
+			(&deluge::model::sound_of(modelStack->owner))
 			    ->notifyValueChangeViaLPF(modelStack->paramId, true, modelStack, oldValue, current_value, false);
 		}
 
@@ -675,7 +675,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 			((PatchCableSet*)modelStackWithParamCollection->paramCollection)
 			    ->setupPatching(
-			        *static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+			        deluge::model::sound_of(modelStackWithParamCollection->owner),
 			        *modelStackWithParamCollection
 			             ->paramManager); // Only need to setupPatching on this one ParamManager because this
 			                              // is the only one for which the param preset value has just changed

@@ -254,13 +254,13 @@ bool isParamQuantizedStutter(Kind kind, int32_t paramID, const deluge::model::Ef
 /// Get the short version of a param name, for use in the OLED mod matrix display (maximum 10 characters)
 char const* getPatchedParamShortName(ParamType type);
 /// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them. Falls back to the
-/// mode-agnostic name if modControllable is null.
+/// mode-agnostic name if @p owner is null.
 char const* getPatchedParamShortName(ParamType type, const deluge::model::EffectsOwner* owner);
 /// As above, with the sound's filter modes given rather than read off its owner.
 char const* getPatchedParamShortName(ParamType type, deluge::effects::FilterMode lpf, deluge::effects::FilterMode hpf);
 char const* getParamDisplayName(Kind kind, int32_t p);
 /// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them (the ladder filters
-/// call it drive and FM respectively). Falls back to the mode-agnostic name if modControllable is null.
+/// call it drive and FM respectively). Falls back to the mode-agnostic name if @p owner is null.
 char const* getParamDisplayName(Kind kind, int32_t p, const deluge::model::EffectsOwner* owner);
 /// As above, with the owner's filter modes given rather than read off it.
 char const* getParamDisplayName(Kind kind, int32_t p, deluge::effects::FilterMode lpf, deluge::effects::FilterMode hpf);

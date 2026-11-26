@@ -47,8 +47,8 @@ using deluge::serialization::Value;
 namespace {
 
 /// @brief The settings @p owner plays.
-const deluge::effects::EffectStates& effectsOf(ModControllable& owner) {
-	return owner.effectsOwner()->effects();
+const deluge::effects::EffectStates& effectsOf(deluge::model::LaneOwner owner) {
+	return deluge::model::effects_owner_of(owner)->effects();
 }
 
 /// @brief The song's master stutter set quantized or free, by the Edit its menu makes.
@@ -133,14 +133,14 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 				return setupModelStackWithThreeMainThingsButNoNoteRow(memory, f.song, &kit, f.clip,
 				                                                      &f.clip->paramManager);
 			};
-			deluge::edits::changeEffect(*f.song, kit, "stutter/useSongStutter", Value::makeNumber(0));
-			deluge::edits::changeEffect(*f.song, kit, "stutter/quantized", Value::makeNumber(1));
+			deluge::edits::changeEffect(*f.song, &kit, "stutter/useSongStutter", Value::makeNumber(0));
+			deluge::edits::changeEffect(*f.song, &kit, "stutter/quantized", Value::makeNumber(1));
 			expect(middleShown(stack())).to_be_false();
 			{
 				UiMode stuttering{UI_MODE_STUTTERING};
 				expect(middleShown(stack())).to_be_true();
 			}
-			deluge::edits::changeEffect(*f.song, kit, "stutter/quantized", Value::makeNumber(0));
+			deluge::edits::changeEffect(*f.song, &kit, "stutter/quantized", Value::makeNumber(0));
 			expect(middleShown(stack())).to_be_true();
 			spec::make_current(nullptr);
 		});
@@ -154,8 +154,8 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 				return setupModelStackWithThreeMainThingsButNoNoteRow(memory, f.song, &synth, f.clip,
 				                                                      &f.clip->paramManager);
 			};
-			deluge::edits::changeEffect(*f.song, synth, "stutter/useSongStutter", Value::makeNumber(1));
-			deluge::edits::changeEffect(*f.song, synth, "stutter/quantized", Value::makeNumber(0));
+			deluge::edits::changeEffect(*f.song, &synth, "stutter/useSongStutter", Value::makeNumber(1));
+			deluge::edits::changeEffect(*f.song, &synth, "stutter/quantized", Value::makeNumber(0));
 			setSongStutterQuantized(*f.song, true);
 			expect(middleShown(stack())).to_be_false();
 			setSongStutterQuantized(*f.song, false);
@@ -169,7 +169,7 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			spec::SongFixture f = spec::make_synth_song();
 			spec::make_current(f.song);
 			LooseSynth* loose = makeLooseSynth();
-			deluge::edits::changeEffect(*f.song, *loose->synth, "delay/type",
+			deluge::edits::changeEffect(*f.song, loose->synth, "delay/type",
 			                            Value::makeScalar(std::string(deluge::effects::to_string(
 			                                deluge::effects::DelayType::DIGITAL))));
 			const std::size_t before = loose->synth->core().delay().reserve();
@@ -184,15 +184,15 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			spec::SongFixture f = spec::make_synth_song();
 			spec::make_current(f.song);
 			LooseSynth* loose = makeLooseSynth();
-			deluge::edits::changeEffect(*f.song, *loose->synth, "delay/type",
+			deluge::edits::changeEffect(*f.song, loose->synth, "delay/type",
 			                            Value::makeScalar(std::string(deluge::effects::to_string(
 			                                deluge::effects::DelayType::OFF))));
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* feedback = looseParam(*f.song, *loose, params::GLOBAL_DELAY_FEEDBACK, memory);
 			feedback->autoParam->setCurrentValueInResponseToUserInput(INT32_MIN, feedback);
-			expect(int(effectsOf(*loose->synth).delay.type)).to_equal(int(deluge::effects::DelayType::OFF), "the delay type at no feedback");
+			expect(int(effectsOf(loose->synth).delay.type)).to_equal(int(deluge::effects::DelayType::OFF), "the delay type at no feedback");
 			feedback->autoParam->setCurrentValueInResponseToUserInput(0, feedback);
-			expect(int(effectsOf(*loose->synth).delay.type))
+			expect(int(effectsOf(loose->synth).delay.type))
 			    .not_()
 			    .to_equal(int(deluge::effects::DelayType::OFF), "the delay type with feedback");
 			spec::make_current(nullptr);
@@ -204,7 +204,7 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			spec::SongFixture f = spec::make_synth_song();
 			spec::make_current(f.song);
 			auto& synth = *static_cast<SoundInstrument*>(f.instrument);
-			deluge::edits::changeEffect(*f.song, synth, "delay/type",
+			deluge::edits::changeEffect(*f.song, &synth, "delay/type",
 			                            Value::makeScalar(std::string(deluge::effects::to_string(
 			                                deluge::effects::DelayType::DIGITAL))));
 			const std::size_t before = synth.core().delay().reserve();
@@ -236,8 +236,8 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			spec::SongFixture f = spec::make_kit_song();
 			spec::make_current(f.song);
 			auto& kit = *static_cast<Kit*>(f.instrument);
-			deluge::edits::changeEffect(*f.song, kit, "stutter/useSongStutter", Value::makeNumber(0));
-			deluge::edits::changeEffect(*f.song, kit, "stutter/quantized", Value::makeNumber(1));
+			deluge::edits::changeEffect(*f.song, &kit, "stutter/useSongStutter", Value::makeNumber(0));
+			deluge::edits::changeEffect(*f.song, &kit, "stutter/quantized", Value::makeNumber(1));
 			UnpatchedParamSet* unpatched = f.clip->paramManager.getUnpatchedParamSet();
 			const int32_t began_at = unpatched->knobPosToParamValue(20, nullptr);
 			unpatched->params[params::UNPATCHED_STUTTER_RATE].setPlayed(began_at);
@@ -268,7 +268,7 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			spec::SongFixture f = spec::make_synth_song();
 			spec::make_current(f.song);
 			auto& synth = *static_cast<SoundInstrument*>(f.instrument);
-			deluge::edits::changeEffect(*f.song, synth, "stutter/useSongStutter", Value::makeNumber(0));
+			deluge::edits::changeEffect(*f.song, &synth, "stutter/useSongStutter", Value::makeNumber(0));
 			UiMode pressed{UI_MODE_CLIP_PRESSED_IN_SONG_VIEW};
 			expect(deluge::bridge::stutterAt(*f.song, instrumentAddress(f), true)).to_be_true();
 			expect(f.song->live.stutter.isStuttering(synth.core())).to_be_true();
@@ -307,7 +307,7 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			spec::make_current(f.song);
 			auto* other = spec::detail::place<AudioOutput>();
 			UiMode pressed{UI_MODE_CLIP_PRESSED_IN_SONG_VIEW};
-			expect(int(f.song->live.stutter.begin(other->channel().core(), effectsOf(*other).stutter, 1 << 24)))
+			expect(int(f.song->live.stutter.begin(other->channel().core(), effectsOf(other).stutter, 1 << 24)))
 			    .to_equal(int(Error::NONE), "the stutter's start");
 			enterUIMode(UI_MODE_STUTTERING);
 			other->~AudioOutput();
@@ -323,18 +323,18 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			spec::make_current(f.song);
 			AudioOutput* source = f.output;
 			AudioOutput* clone = f.song->createNewAudioOutput();
-			deluge::edits::changeEffect(*f.song, *source, "lpfMode", Value::makeScalar("SVF_Notch"));
-			deluge::edits::changeEffect(*f.song, *source, "delay/pingPong", Value::makeNumber(0));
-			deluge::edits::changeEffect(*f.song, *source, "stutter/reverse", Value::makeNumber(1));
-			deluge::edits::changeEffect(*f.song, *source, "audioCompressor/ratio", Value::makeNumber(7 << 24));
-			deluge::edits::changeView(*source, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH)); // not the default, so a clone that skips the view shows
+			deluge::edits::changeEffect(*f.song, source, "lpfMode", Value::makeScalar("SVF_Notch"));
+			deluge::edits::changeEffect(*f.song, source, "delay/pingPong", Value::makeNumber(0));
+			deluge::edits::changeEffect(*f.song, source, "stutter/reverse", Value::makeNumber(1));
+			deluge::edits::changeEffect(*f.song, source, "audioCompressor/ratio", Value::makeNumber(7 << 24));
+			deluge::edits::changeView(source, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH)); // not the default, so a clone that skips the view shows
 			source->effectsOwner()->knobs->loaded.emplace_back();
-			const deluge::effects::CompressorState compressor = effectsOf(*clone).compressor;
+			const deluge::effects::CompressorState compressor = effectsOf(clone).compressor;
 
 			clone->cloneFrom(source);
 
-			const deluge::effects::EffectStates& got = effectsOf(*clone);
-			const deluge::effects::EffectStates& from = effectsOf(*source);
+			const deluge::effects::EffectStates& got = effectsOf(clone);
+			const deluge::effects::EffectStates& from = effectsOf(source);
 			expect(got.filter).to_equal(from.filter, "the clone's filter");
 			expect(got.saturation).to_equal(from.saturation, "the clone's saturation");
 			expect(got.mod_fx).to_equal(from.mod_fx, "the clone's mod FX");

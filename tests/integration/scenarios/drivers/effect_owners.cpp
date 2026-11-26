@@ -57,7 +57,7 @@ void check(bool ok, const char* what) {
 
 /// Every effect setting set on @p owner, as a gesture sets it (by its Edit when the owner is in the song), lands in its
 /// state, and the render's copy holds the same.
-void checkOwner(ModControllable& owner, const char* name) {
+void checkOwner(deluge::model::LaneOwner owner, const char* name) {
 	using deluge::serialization::Value;
 	deluge::edits::changeEffect(owner, "delay/pingPong", Value::makeNumber(0));
 	deluge::edits::changeEffect(owner, "delay/syncLevel", Value::makeNumber(static_cast<int32_t>(SyncLevel::EIGHTH)));
@@ -65,18 +65,18 @@ void checkOwner(ModControllable& owner, const char* name) {
 	deluge::edits::changeEffect(owner, "audioCompressor/ratio", Value::makeNumber(7 << 24));
 	deluge::edits::changeEffect(owner, "stutter/reverse", Value::makeNumber(1));
 	deluge::edits::changeEffect(owner, "lpfMode", Value::makeScalar("SVF_Band"));
-	const deluge::effects::EffectStates& record = owner.effectsOwner()->effects();
+	const deluge::effects::EffectStates& record = deluge::model::effects_owner_of(owner)->effects();
 	check(!record.delay.ping_pong && record.delay.sync_level == SyncLevel::EIGHTH && record.sidechain.release == 4242
 	          && record.compressor.ratio == (7 << 24) && record.stutter.reversed
 	          && record.filter.lpf_mode == FilterMode::SVF_BAND,
 	      name);
-	check(owner.effectsOwner()->binding->renderEffects() == record, name);
+	check(deluge::model::effects_owner_of(owner)->binding->renderEffects() == record, name);
 }
 
 /// The chain of @p owner (a kit or the master) in @p song, or null.
-const deluge::project::FxChain* chainOf(ModControllable& owner, Song& song) {
+const deluge::project::FxChain* chainOf(deluge::model::LaneOwner owner, Song& song) {
 	const std::optional<deluge::project::ChainAddress> address =
-	    deluge::bridge::chainAddressOf(*owner.effectsOwner(), song);
+	    deluge::bridge::chainAddressOf(*deluge::model::effects_owner_of(owner), song);
 	return address ? song.project.resolveChain(*address) : nullptr;
 }
 
@@ -102,14 +102,14 @@ struct Expected {
 };
 
 /// @p owner's effects and view now.
-Expected stateOf(ModControllable& owner) {
-	const deluge::effects::EffectStates& state = owner.effectsOwner()->effects();
+Expected stateOf(deluge::model::LaneOwner owner) {
+	const deluge::effects::EffectStates& state = deluge::model::effects_owner_of(owner)->effects();
 	return {state.compressor.threshold,
 	        state.compressor.attack,
 	        static_cast<int32_t>(state.sidechain.sync_level),
 	        static_cast<int32_t>(state.mod_fx.type),
-	        static_cast<int32_t>(owner.effectsOwner()->view->modFXParam()),
-	        static_cast<int32_t>(owner.effectsOwner()->view->filterType())};
+	        static_cast<int32_t>(deluge::model::effects_owner_of(owner)->view->modFXParam()),
+	        static_cast<int32_t>(deluge::model::effects_owner_of(owner)->view->filterType())};
 }
 
 /// @p state as text.
@@ -125,7 +125,7 @@ std::string describe(const Expected& state) {
 /// @param expected The state after each gesture in order: the compressor button's upper knob turn, its lower knob
 ///                 turn, the sidechain sync push (a clip chain's only; the song's has none), the mod-FX type push,
 ///                 the mod-FX param push and the filter type push.
-void checkGestures(ModControllable& owner, Song& song, const deluge::ui::scenes::bind::KnobFocus& focus,
+void checkGestures(deluge::model::LaneOwner owner, Song& song, const deluge::ui::scenes::bind::KnobFocus& focus,
                    const deluge::edits::KnobModeOwner& modeOwner, const char* name, bool clipChain,
                    std::span<const Expected> expected) {
 	const std::string who = name;
@@ -174,14 +174,14 @@ void checkGestures(ModControllable& owner, Song& song, const deluge::ui::scenes:
 	knobs.push(0, true);
 	coherent("the mod-FX param button");
 	check(viewHolds(chainOf(owner, song), "modFXCurrentParam",
-	                modFXParamToString(owner.effectsOwner()->view->modFXParam())),
+	                modFXParamToString(deluge::model::effects_owner_of(owner)->view->modFXParam())),
 	      (who + ": the view holds the mod-FX param").c_str());
 
 	(void)deluge::edits::modKnobModeFor(modeOwner, 1);
 	knobs.push(1, true);
 	coherent("the filter type button");
 	check(viewHolds(chainOf(owner, song), "currentFilterType",
-	                filterTypeToString(owner.effectsOwner()->view->filterType())),
+	                filterTypeToString(deluge::model::effects_owner_of(owner)->view->filterType())),
 	      (who + ": the view holds the filter type").c_str());
 	(void)deluge::edits::modKnobModeFor(modeOwner, 0);
 }
@@ -238,7 +238,7 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		// chain params), so these are what the gold knobs leave, the setting where it was.
 		constexpr Expected kKit[] = {{0, 83886080, 7, 0, 1, 0}, {0, 83886080, 7, 0, 1, 0}, {0, 83886080, 9, 0, 1, 0},
 		                             {0, 83886080, 9, 1, 1, 0}, {0, 83886080, 9, 1, 1, 0}, {0, 83886080, 9, 1, 1, 1}};
-		checkGestures(*static_cast<Kit*>(kit), *song, focus, deluge::project::TrackAddress{*kit->id()}, "a kit", true,
+		checkGestures(static_cast<Kit*>(kit), *song, focus, deluge::project::TrackAddress{*kit->id()}, "a kit", true,
 		              kKit);
 	}
 	{
@@ -250,20 +250,20 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		                              {83886080, 167772160, 7, 1, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 1}};
-		checkGestures(song->live.master_channel, *song, {.owner = deluge::ui::scenes::bind::SongFocus{}},
+		checkGestures(&song->live.master_channel, *song, {.owner = deluge::ui::scenes::bind::SongFocus{}},
 		              deluge::project::SongAddress{}, "the song master", false, kSong);
 	}
 
 	if (synth != nullptr) {
-		checkOwner(*static_cast<SoundInstrument*>(synth), "a synth's sound");
+		checkOwner(static_cast<SoundInstrument*>(synth), "a synth's sound");
 	}
 	if (kit != nullptr) {
-		checkOwner(*static_cast<Kit*>(kit), "a kit's affect-entire");
+		checkOwner(static_cast<Kit*>(kit), "a kit's affect-entire");
 	}
 	if (audio != nullptr) {
-		checkOwner(*audio, "an audio track");
+		checkOwner(audio, "an audio track");
 	}
-	checkOwner(song->live.master_channel, "the song master");
+	checkOwner(&song->live.master_channel, "the song master");
 
 	if (failures == 0) {
 		std::fprintf(io.out, "effect_owners: OK\n");

@@ -472,7 +472,7 @@ deluge::ui::scenes::bind::KnobFocus focus_of(Song& song, TimelineCounter* counte
 		counter->getActiveModControllable(stack);
 	}
 	else {
-		stack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
+		stack->addOtherTwoThingsButNoNoteRow(deluge::model::LaneOwner{}, nullptr);
 	}
 	return deluge::gui::knobFocusFromStack(song, *reinterpret_cast<ModelStackWithThreeMainThings*>(memory));
 }
@@ -485,7 +485,8 @@ ModelStackWithThreeMainThings* view_knob_stack(void* memory) {
 }
 
 /// @brief The knobs' focus on a bare mod controllable, as `View::setActiveModControllableWithoutTimelineCounter`.
-deluge::ui::scenes::bind::KnobFocus focus_without(Song& song, ModControllable* controllable, ParamManager* params) {
+deluge::ui::scenes::bind::KnobFocus focus_without(Song& song, deluge::model::LaneOwner controllable,
+                                                  ParamManager* params) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	(void)setupModelStackWithSong(memory, &song)
 	    ->addTimelineCounter(nullptr)
@@ -510,8 +511,8 @@ struct KnobRig {
 	void set_target_with_timeline(TimelineCounter* counter, bool send_midi_feedback) {
 		knobs.set_focus(focus_of(*song, counter), send_midi_feedback);
 	}
-	/// Point the knobs where legacy's view would point them at a bare mod controllable.
-	void set_target_without_timeline(ModControllable* controllable, ParamManager* params) {
+	/// Point the knobs where legacy's view would point them at a bare owner.
+	void set_target_without_timeline(deluge::model::LaneOwner controllable, ParamManager* params) {
 		knobs.set_focus(focus_without(*song, controllable, params), true);
 	}
 
@@ -932,7 +933,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		KnobRig rig;
 		rig.set_song(f.song);
 		rig.set_target_with_timeline(f.clip, false);
-		// Recorded from `ModControllable::getModKnobMode` on a CV output, which has no mode field: -1.
+		// Recorded from main's `ModControllable::getModKnobMode` on a CV output, which has no mode field: -1.
 		expect(rig.knobs.mode()).to_equal(-1);
 		DirectCtx c{1000};
 		const Result r = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
@@ -1629,7 +1630,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const std::vector<int32_t> before = param_snapshot(clip->paramManager);
 
 		// A `Sound` in mod-knob mode 0 has a real param on both knobs, so the way to reach the
-		// non-existent arm without inventing a `ModControllable` is the target with no controllable
+		// non-existent arm without inventing an owner is the target with no owner
 		// at all. Recorded from `View::modEncoderAction`: it skips the whole body there and writes nothing.
 		KnobRig rig;
 		rig.set_song(f.song);
@@ -1676,10 +1677,9 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		display = &stub;
 
 		spec::SongFixture f = spec::make_synth_song();
-		// A bare `ModControllable` with no timeline: the clip's own `SoundInstrument` (a `Sound`,
-		// which is a `ModControllable`) plus the clip's param manager -- the shape legacy's
-		// audition/arranger callers pass.
-		ModControllable* controllable = static_cast<SoundInstrument*>(f.instrument);
+		// A bare owner with no timeline: the clip's own `SoundInstrument` (its `Sound`) plus the clip's param
+		// manager -- the shape legacy's audition/arranger callers pass.
+		const deluge::model::LaneOwner controllable = deluge::model::owner_of(*f.instrument);
 		ParamManager* params = &f.clip->paramManager;
 
 		view.setActiveModControllableWithoutTimelineCounter(controllable, params);
@@ -2047,8 +2047,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const ModelStackWithThreeMainThings* owner = view_knob_stack(owner_memory);
 		expect(owner).not_().to_be_null("the focus's owner stack");
 		if (owner != nullptr) {
-			expect(owner->modControllable)
-			    .to_equal(static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument)));
+			Sound* const sound = static_cast<SoundInstrument*>(f.instrument);
+			expect(std::get<Sound*>(owner->owner)).to_equal(sound);
 		}
 		expect(view.knobsOnClipContext()).to_be_true();
 		rig.knobs.set_mod_region(96, 48, 3);
@@ -2095,7 +2095,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		ModelStackWithThreeMainThings* knobs = view_knob_stack(knob_memory);
 		expect(knobs).not_().to_be_null("the focus's owner stack");
 		if (knobs != nullptr) {
-			knobs->modControllable = nullptr;
+			knobs->owner = deluge::model::LaneOwner{};
 			const deluge::ui::scenes::bind::KnobFocus no_controllable = deluge::gui::knobFocusFromStack(*f.song, *knobs);
 			expect(deluge::ui::scenes::services::is_clip_context(no_controllable)).to_be_false();
 		}

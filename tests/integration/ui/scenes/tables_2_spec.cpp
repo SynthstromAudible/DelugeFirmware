@@ -1495,14 +1495,14 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 		}
 
 		{ // --- mod_fx_type -------------------------------------------------------------------
-			const ModFXType before = deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
+			const ModFXType before = deluge::model::effects_owner_of(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod)->binding->renderEffects().mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::model::effects_owner_of(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod)->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
+			expect(deluge::model::effects_owner_of(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod)->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::FLANGER);
-			deluge::model::changeEffects(*deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
+			deluge::model::changeEffects(*deluge::model::effects_owner_of(deluge::ui::scenes::spec::menu_engine(f.ctx, *f.song.song).mod), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered++;
 		}
 

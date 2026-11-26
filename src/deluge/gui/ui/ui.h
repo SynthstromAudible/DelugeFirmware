@@ -204,8 +204,8 @@ public:
 	/// \brief What context does UI relate to? e.g. UIType could be AUTOMATION but UIContextType could be
 	///		   ARRANGER, AUDIO CLIP, INSTRUMENT CLIP
 	virtual UIType getUIContextType() { return getUIType(); }
-	/// \brief What mod controllable context is this UI using? E.g. Automation View can use the Song
-	///		   ModControllable when in Arranger but the Clip ModControllable when in a Clip.
+	/// \brief Whose params is this UI's context on? E.g. Automation View can use the song's owner when in
+	///		   Arranger but the clip's owner when in a Clip.
 	virtual UIModControllableContext getUIModControllableContext() { return UIModControllableContext::NONE; }
 	virtual bool canDisplayFavourites() { return false; }
 	virtual bool isFavouritesVisible() { return false; }

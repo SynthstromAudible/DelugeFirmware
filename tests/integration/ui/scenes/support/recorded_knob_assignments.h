@@ -21,7 +21,7 @@ struct NamedParam {
 	int8_t kind;  ///< `plugin::ParamKind`
 };
 
-/// Recorded from `ModControllable::getParamFromModEncoder`
+/// Recorded from main's `ModControllable::getParamFromModEncoder`
 /// (`origin/main:src/deluge/model/mod_controllable/mod_controllable.cpp`) on a synth.
 inline constexpr std::array<NamedParam, 16> kSynthNames = {{
     {0, 23, 1},
@@ -42,7 +42,7 @@ inline constexpr std::array<NamedParam, 16> kSynthNames = {{
     {0, 95, 2},
 }};
 
-/// Recorded from `ModControllable::getParamFromModEncoder`
+/// Recorded from main's `ModControllable::getParamFromModEncoder`
 /// (`origin/main:src/deluge/model/mod_controllable/mod_controllable.cpp`) on a kit row.
 inline constexpr std::array<NamedParam, 16> kKitRowNames = {{
     {0, 23, 1},
@@ -63,7 +63,7 @@ inline constexpr std::array<NamedParam, 16> kKitRowNames = {{
     {0, 95, 2},
 }};
 
-/// Recorded from `ModControllable::getParamFromModEncoder`
+/// Recorded from main's `ModControllable::getParamFromModEncoder`
 /// (`origin/main:src/deluge/model/mod_controllable/mod_controllable.cpp`) on a kit chain.
 inline constexpr std::array<NamedParam, 144> kKitChainNames = {{
     {0, 121, 3}, {0, 129, 3}, {0, 123, 3}, {0, 122, 3}, {-1, 0, 0},  {-1, 0, 0},  {0, 119, 3}, {0, 118, 3}, {0, 128, 3},
@@ -84,7 +84,7 @@ inline constexpr std::array<NamedParam, 144> kKitChainNames = {{
     {0, 118, 3}, {0, 128, 3}, {0, 130, 3}, {0, 97, 3},  {0, 116, 3}, {0, 131, 3}, {0, 90, 3},  {0, 96, 3},  {0, 95, 3},
 }};
 
-/// Recorded from `ModControllable::getParamFromModEncoder`
+/// Recorded from main's `ModControllable::getParamFromModEncoder`
 /// (`origin/main:src/deluge/model/mod_controllable/mod_controllable.cpp`) on an audio track.
 inline constexpr std::array<NamedParam, 144> kAudioNames = {{
     {0, 121, 3}, {0, 129, 3}, {0, 123, 3}, {0, 122, 3}, {-1, 0, 0},  {-1, 0, 0},  {0, 119, 3}, {0, 118, 3}, {0, 128, 3},
@@ -105,7 +105,7 @@ inline constexpr std::array<NamedParam, 144> kAudioNames = {{
     {0, 118, 3}, {0, 128, 3}, {0, 130, 3}, {0, 97, 3},  {0, 116, 3}, {0, 131, 3}, {0, 90, 3},  {0, 96, 3},  {0, 95, 3},
 }};
 
-/// Recorded from `ModControllable::getParamFromModEncoder`
+/// Recorded from main's `ModControllable::getParamFromModEncoder`
 /// (`origin/main:src/deluge/model/mod_controllable/mod_controllable.cpp`) on the song.
 inline constexpr std::array<NamedParam, 864> kSongNames = {{
     {0, 121, 3}, {0, 129, 3}, {0, 123, 3}, {0, 122, 3}, {-1, 0, 0},  {-1, 0, 0},  {0, 119, 3}, {0, 118, 3}, {0, 128, 3},
@@ -206,7 +206,7 @@ inline constexpr std::array<NamedParam, 864> kSongNames = {{
     {0, 118, 3}, {-1, 0, 0},  {-1, 0, 0},  {0, 97, 3},  {0, 116, 3}, {-1, 0, 0},  {0, 90, 3},  {0, 96, 3},  {0, 95, 3},
 }};
 
-/// Recorded from `ModControllable::getParamFromModEncoder`
+/// Recorded from main's `ModControllable::getParamFromModEncoder`
 /// (`origin/main:src/deluge/model/mod_controllable/mod_controllable.cpp`) on a MIDI track with CC, bend, aftertouch and
 /// Y axis assigned.
 inline constexpr std::array<NamedParam, 16> kMidiNames = {{

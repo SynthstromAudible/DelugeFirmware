@@ -207,7 +207,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* both = spec::add_drum<SoundDrum>(f);
 		SoundDrum* lpf_off = spec::add_drum<SoundDrum>(f);
-		deluge::edits::effectSettingFor(*lpf_off, "lpfMode", Value::makeScalar("Off"));
+		deluge::edits::effectSettingFor(lpf_off, "lpfMode", Value::makeScalar("Off"));
 		static_cast<Kit*>(f.instrument)->selectedDrum = both;
 		const MenuContext ctx = whole_kit(f);
 		const auto before = lpf_off->effects().filter.route;

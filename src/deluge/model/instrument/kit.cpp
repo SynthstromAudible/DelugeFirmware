@@ -866,7 +866,8 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStackWithTimelineCounter
 					        ->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
-					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					        ->addOtherTwoThings(deluge::model::owner_of(*thisNoteRow->drum),
+					                            &thisNoteRow->paramManager);
 					thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
 				}
 			}
@@ -881,7 +882,8 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 					// Do row note off
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStackWithTimelineCounter->addNoteRow(kitInstruction.noteCodeOffPostArp[0], thisNoteRow)
-					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					        ->addOtherTwoThings(deluge::model::owner_of(*thisNoteRow->drum),
+					                            &thisNoteRow->paramManager);
 					thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
 				}
 			}
@@ -898,7 +900,8 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStackWithTimelineCounter
 					        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
-					        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+					        ->addOtherTwoThings(deluge::model::owner_of(*thisNoteRow->drum),
+					                            &thisNoteRow->paramManager);
 					thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 					                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn,
 					                          0, 0);
@@ -992,10 +995,6 @@ void Kit::resyncLFOs(bool reset_state) {
 	}
 }
 
-ModControllable* Kit::toModControllable() {
-	return this;
-}
-
 // newName must be allowed to be edited by this function
 Error Kit::makeDrumNameUnique(std::string* name, int32_t startAtNumber) {
 
@@ -1060,7 +1059,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				    modelStackWithThreeMainThings->addParamCollectionSummary(
 				        thisNoteRow->paramManager.getPatchCableSetSummary());
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				    ->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
@@ -1087,7 +1086,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				    modelStackWithThreeMainThings->addParamCollectionSummary(paramManager->getPatchCableSetSummary());
 
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				    ->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
@@ -1198,7 +1197,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				// Do row note off
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStackWithTimelineCounter->addNoteRow(kitInstruction.glideNoteCodeOffPostArp[0], thisNoteRow)
-				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+				        ->addOtherTwoThings(deluge::model::owner_of(*thisNoteRow->drum), &thisNoteRow->paramManager);
 				thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
 			}
 		}
@@ -1213,7 +1212,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				// Do row note off
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStackWithTimelineCounter->addNoteRow(kitInstruction.noteCodeOffPostArp[0], thisNoteRow)
-				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+				        ->addOtherTwoThings(deluge::model::owner_of(*thisNoteRow->drum), &thisNoteRow->paramManager);
 				thisNoteRow->drum->noteOff(modelStackWithThreeMainThings);
 			}
 		}
@@ -1231,7 +1230,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStackWithTimelineCounter
 				        ->addNoteRow(kitInstruction.arpNoteOn->noteCodeOnPostArp[0], thisNoteRow)
-				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+				        ->addOtherTwoThings(deluge::model::owner_of(*thisNoteRow->drum), &thisNoteRow->paramManager);
 				thisNoteRow->drum->noteOn(modelStackWithThreeMainThings, kitInstruction.arpNoteOn->velocity,
 				                          kitInstruction.arpNoteOn->mpeValues, 0, kitInstruction.sampleSyncLengthOn, 0,
 				                          0);
@@ -1999,7 +1998,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	}
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThings(drum->toModControllable(), paramManagerForDrum);
+	    modelStack->addOtherTwoThings(deluge::model::owner_of(*drum), paramManagerForDrum);
 
 	noteOnPreKitArp(modelStackWithThreeMainThings, drum, velocity, mpeValues, fromMIDIChannel);
 
@@ -2044,7 +2043,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 gotParamManager:
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThings(drum->toModControllable(), paramManagerForDrum);
+	    modelStack->addOtherTwoThings(deluge::model::owner_of(*drum), paramManagerForDrum);
 
 	noteOffPreKitArp(modelStackWithThreeMainThings, drum);
 
@@ -2078,11 +2077,11 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelin
 
 	if (useMenuStack) {
 		modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(
-		    deluge::gui::ui::soundMenuModControllable(), deluge::gui::ui::soundMenuParamManager());
+		    deluge::gui::ui::sound_menu_owner(), deluge::gui::ui::soundMenuParamManager());
 	}
 	else {
 		modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*this), &clip->paramManager);
 	}
 
 	if (modelStackWithThreeMainThings) {
@@ -2108,7 +2107,7 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 
 			if (useMenuStack) {
 				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
-				    deluge::gui::ui::soundMenuModControllable(), deluge::gui::ui::soundMenuParamManager());
+				    deluge::gui::ui::sound_menu_owner(), deluge::gui::ui::soundMenuParamManager());
 			}
 			else {
 				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();

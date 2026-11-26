@@ -91,9 +91,9 @@ bool lands(Song& song, const ParamAddress& address) {
 
 /// The stack naming the cable from @p source to @p destination on @p owner, found (or, with @p create, made) the way
 /// main's menu reaches it.
-ModelStackWithAutoParam* legacy_cable(Song& song, Clip* clip, ModControllable* owner, ParamManagerForTimeline* manager,
-                                      int32_t note_row_index, NoteRow* row, PatchSource source, int32_t destination,
-                                      bool create, void* memory) {
+ModelStackWithAutoParam* legacy_cable(Song& song, Clip* clip, deluge::model::LaneOwner owner,
+                                      ParamManagerForTimeline* manager, int32_t note_row_index, NoteRow* row,
+                                      PatchSource source, int32_t destination, bool create, void* memory) {
 	ModelStackWithThreeMainThings* stack =
 	    setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, note_row_index, row, owner, manager);
 	ParamCollectionSummary* summary = manager->getPatchCableSetSummary();

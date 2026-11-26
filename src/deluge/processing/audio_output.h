@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "model/fx/track_channel.h"
-#include "model/mod_controllable/mod_controllable.h"
 #include "model/output.h"
 #include "synth/modulation/envelope.h"
 #include "util/container/enum_to_string_map.hpp"
@@ -35,7 +34,7 @@ constexpr int kNumAudioOutputModes = 3;
 AudioOutputMode stringToAOMode(char const* string);
 char const* aoModeToString(AudioOutputMode mode);
 
-class AudioOutput final : public Output, public ModControllable {
+class AudioOutput final : public Output {
 public:
 	AudioOutput();
 	~AudioOutput() override;
@@ -46,9 +45,7 @@ public:
 	/// @return The channel.
 	[[nodiscard]] deluge::model::TrackChannel& channel() { return channel_; }
 	[[nodiscard]] const deluge::model::TrackChannel& channel() const { return channel_; }
-	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
-		return channel_.asEffectsOwner();
-	}
+	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() { return channel_.asEffectsOwner(); }
 
 	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, deluge::dsp::Q<31>* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
@@ -59,8 +56,6 @@ public:
 	                   char const* dirPath) override {
 		return false;
 	};
-
-	ModControllable* toModControllable() override { return this; }
 
 	void cutAllSound() override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;

@@ -20,12 +20,12 @@
 #include "effects/chain.h"
 #include "effects/state.h"
 #include "model/fx/effects_owner.h"
+#include "model/lane_owner.h"
 #include "project/fx_chain.h"
 
 #include <cstdint>
 #include <optional>
 
-class ModControllable;
 class Output;
 class Song;
 
@@ -41,12 +41,11 @@ namespace deluge::bridge {
 /// @return The chain's effects, or nullopt if @p address names none.
 [[nodiscard]] std::optional<deluge::model::EffectsOwner> chainAt(deluge::project::ChainAddress address, ::Song& song);
 
-/// @brief The owner of the chain @p address names, as a ModelStack's owner slot holds it (a kit, an audio output, or
-/// the song's own owner); null if @p address names none. A bridge: it goes with the slot.
+/// @brief The owner of the chain @p address names: a kit, an audio output, or the song's master channel.
 /// @param address Which chain.
 /// @param song    The song to look in.
-/// @return The owner, or null.
-[[nodiscard]] ::ModControllable* chainSlotAt(deluge::project::ChainAddress address, ::Song& song);
+/// @return The owner; empty if @p address names none.
+[[nodiscard]] deluge::model::LaneOwner chain_owner_at(deluge::project::ChainAddress address, ::Song& song);
 
 /// @brief The address of @p owner's chain in @p song, or nothing (a sound, or an owner not in the song).
 /// @param owner The effects owner.

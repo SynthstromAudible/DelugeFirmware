@@ -226,7 +226,7 @@ void laneAgreementTarget(Song* song) {
 		}
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE]{};
 		ModelStackWithThreeMainThings* owner = setupModelStackWithThreeMainThingsButNoNoteRow(
-		    memory, song, clip->output->toModControllable(), clip, &clip->paramManager);
+		    memory, song, deluge::model::owner_of(*clip->output), clip, &clip->paramManager);
 		walk(owner, clip->paramManager);
 	}
 	// The render's direct reads never create a set's store: an unbound set reads the unheld lane and stays unbound; a
@@ -392,7 +392,7 @@ void cableTarget(Song* song) {
 	}
 	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithThreeMainThings* ms = setupModelStackWithThreeMainThingsButNoNoteRow(
-	    mem, song, clip->output->toModControllable(), clip, &clip->paramManager);
+	    mem, song, deluge::model::owner_of(*clip->output), clip, &clip->paramManager);
 	PatchCableSet& cables = *clip->paramManager.getPatchCableSet();
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	auto freshAction = [] {
@@ -1799,14 +1799,14 @@ void exactAddressTarget(Song* song) {
 	for (ClipArray* clips : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
 		for (int32_t c = 0; c < std::ssize(*clips); c++) {
 			Clip* clip = (*clips)[c];
-			if (clip->output == nullptr || clip->output->toModControllable() == nullptr) {
+			if (clip->output == nullptr || deluge::model::is_none(deluge::model::owner_of(*clip->output))) {
 				continue;
 			}
 			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
 			if (clip->type == ClipType::AUDIO) {
 				sweepCollections(song,
 				                 setupModelStackWithThreeMainThingsButNoNoteRow(
-				                     m, song, clip->output->toModControllable(), clip, &clip->paramManager),
+				                     m, song, deluge::model::owner_of(*clip->output), clip, &clip->paramManager),
 				                 "audio clip");
 				continue;
 			}
@@ -1815,35 +1815,36 @@ void exactAddressTarget(Song* song) {
 			                    : clip->output->type == OutputType::MIDI_OUT ? "midi clip"
 			                                                                 : "instrument clip";
 			sweepCollections(song,
-			                 setupModelStackWithThreeMainThingsIncludingNoteRow(
-			                     m, song, clip, 0, nullptr, clip->output->toModControllable(), &clip->paramManager),
+			                 setupModelStackWithThreeMainThingsIncludingNoteRow(m, song, clip, 0, nullptr,
+			                                                                    deluge::model::owner_of(*clip->output),
+			                                                                    &clip->paramManager),
 			                 shape);
 			if (clip->output->type != OutputType::KIT) {
 				continue;
 			}
 			for (int32_t i = 0; i < std::ssize(ic->noteRows); i++) {
 				NoteRow& row = ic->noteRows[i];
-				if (row.drum == nullptr || row.drum->toModControllable() == nullptr) {
+				if (row.drum == nullptr || deluge::model::is_none(deluge::model::owner_of(*row.drum))) {
 					continue;
 				}
 				alignas(ModelStackWithAutoParam) char rm[MODEL_STACK_MAX_SIZE];
 				sweepCollections(song,
 				                 setupModelStackWithThreeMainThingsIncludingNoteRow(
-				                     rm, song, clip, i, &row, row.drum->toModControllable(), &row.paramManager),
+				                     rm, song, clip, i, &row, deluge::model::owner_of(*row.drum), &row.paramManager),
 				                 row.drum->type == DrumType::SOUND ? "sound row" : "non-sound row");
 			}
 		}
 	}
 	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
-		if (output->toModControllable() == nullptr) {
+		if (deluge::model::is_none(deluge::model::owner_of(*output))) {
 			continue;
 		}
 		if (ParamManager* backed = song->live.param_backup.getForExactClip(*output, nullptr)) {
 			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
-			sweepCollections(
-			    song,
-			    setupModelStackWithThreeMainThingsButNoNoteRow(m, song, output->toModControllable(), nullptr, backed),
-			    "backed output");
+			sweepCollections(song,
+			                 setupModelStackWithThreeMainThingsButNoNoteRow(m, song, deluge::model::owner_of(*output),
+			                                                                nullptr, backed),
+			                 "backed output");
 		}
 		if (output->type != OutputType::KIT) {
 			continue;
@@ -1854,10 +1855,10 @@ void exactAddressTarget(Song* song) {
 			}
 			if (ParamManager* backed = song->live.param_backup.getForExactClip(*drum, nullptr)) {
 				alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
-				sweepCollections(
-				    song,
-				    setupModelStackWithThreeMainThingsButNoNoteRow(m, song, drum->toModControllable(), nullptr, backed),
-				    "backed drum");
+				sweepCollections(song,
+				                 setupModelStackWithThreeMainThingsButNoNoteRow(m, song, deluge::model::owner_of(*drum),
+				                                                                nullptr, backed),
+				                 "backed drum");
 			}
 		}
 	}
@@ -1887,7 +1888,7 @@ void workingCopiesTarget(Song* song) {
 	namespace modulation = deluge::modulation;
 	auto ownerIn = [&](char* memory) {
 		return setupModelStackWithThreeMainThingsIncludingNoteRow(
-		    memory, song, clip, 0, nullptr, clip->output->toModControllable(), &clip->paramManager);
+		    memory, song, clip, 0, nullptr, deluge::model::owner_of(*clip->output), &clip->paramManager);
 	};
 	alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* lane = ownerIn(m)->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
@@ -1990,8 +1991,8 @@ void stagedSnapshotTarget(Song* song) {
 	namespace modulation = deluge::modulation;
 	alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* lane =
-	    setupModelStackWithThreeMainThingsIncludingNoteRow(m, song, clip, 0, nullptr, clip->output->toModControllable(),
-	                                                       &clip->paramManager)
+	    setupModelStackWithThreeMainThingsIncludingNoteRow(m, song, clip, 0, nullptr,
+	                                                       deluge::model::owner_of(*clip->output), &clip->paramManager)
 	        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
 	ParamCollection& collection = *lane->paramCollection;
 	{
@@ -2053,7 +2054,7 @@ void recordExpressionTarget(Song* song) {
 		}
 		alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* owner = setupModelStackWithThreeMainThingsIncludingNoteRow(
-		    m, song, clip, 0, nullptr, clip->output->toModControllable(), &clip->paramManager);
+		    m, song, clip, 0, nullptr, deluge::model::owner_of(*clip->output), &clip->paramManager);
 		ParamCollectionSummary* summary = owner->paramManager->getExpressionParamSetSummary();
 		ModelStackWithAutoParam* lane = summary->paramCollection->getAutoParamFromId(
 		    owner->addParamCollectionAndId(summary->paramCollection, summary, 1), false);
@@ -2096,8 +2097,8 @@ void undoAcrossClipDeleteTarget(Song* song) {
 			const uint32_t clipId = clip->id();
 			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* lane =
-			    setupModelStackWithThreeMainThingsIncludingNoteRow(m, song, clip, 0, nullptr,
-			                                                       output->toModControllable(), &clip->paramManager)
+			    setupModelStackWithThreeMainThingsIncludingNoteRow(
+			        m, song, clip, 0, nullptr, deluge::model::owner_of(*output), &clip->paramManager)
 			        ->getUnpatchedAutoParamFromId(params::UNPATCHED_PORTAMENTO);
 			const std::optional<deluge::project::ParamAddress> address =
 			    lane != nullptr ? deluge::edits::addressFor(*lane) : std::nullopt;
@@ -2171,7 +2172,7 @@ void newShapesTarget(Song* song) {
 			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
 			sweepCollections(song,
 			                 setupModelStackWithThreeMainThingsIncludingNoteRow(
-			                     m, song, clip, i, &row, row.drum->toModControllable(), &row.paramManager),
+			                     m, song, clip, i, &row, deluge::model::owner_of(*row.drum), &row.paramManager),
 			                 "non-sound row");
 		}
 	}
@@ -2193,7 +2194,7 @@ void newShapesTarget(Song* song) {
 			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
 			sweepCollections(song,
 			                 setupModelStackWithThreeMainThingsIncludingNoteRow(
-			                     m, song, clip, 0, nullptr, made->toModControllable(), &clip->paramManager),
+			                     m, song, clip, 0, nullptr, deluge::model::owner_of(*made), &clip->paramManager),
 			                 "cv clip");
 		}
 		break;
@@ -2221,7 +2222,8 @@ void newShapesTarget(Song* song) {
 			}
 			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* owner = setupModelStackWithThreeMainThingsIncludingNoteRow(
-			    m, song, clip, ic->getNoteRowId(&row, i), &row, clip->output->toModControllable(), &row.paramManager);
+			    m, song, clip, ic->getNoteRowId(&row, i), &row, deluge::model::owner_of(*clip->output),
+			    &row.paramManager);
 			sweepCollections(song, owner, "melodic row");
 			if (exactByShape["melodic row written"] > 0) {
 				continue;
@@ -2333,7 +2335,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 			for (int32_t pid = 0; pid < params::kMaxNumUnpatchedParams && chosenPid < 0; pid++) {
 				alignas(ModelStackWithAutoParam) char pm[MODEL_STACK_MAX_SIZE]{};
 				ModelStackWithThreeMainThings* p3 = setupModelStackWithThreeMainThingsButNoNoteRow(
-				    pm, song, instClip->output->toModControllable(), instClip, &instClip->paramManager);
+				    pm, song, deluge::model::owner_of(*instClip->output), instClip, &instClip->paramManager);
 				ModelStackWithAutoParam* pmsap = p3->getUnpatchedAutoParamFromId(pid);
 				if (!pmsap || !pmsap->autoParam) {
 					continue;
@@ -2349,7 +2351,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 			else {
 				alignas(ModelStackWithAutoParam) char instMem[MODEL_STACK_MAX_SIZE]{};
 				ModelStackWithThreeMainThings* i3 = setupModelStackWithThreeMainThingsButNoNoteRow(
-				    instMem, song, instClip->output->toModControllable(), instClip, &instClip->paramManager);
+				    instMem, song, deluge::model::owner_of(*instClip->output), instClip, &instClip->paramManager);
 				scriptEditUndoRedo("instrument-clip", song, i3->getUnpatchedAutoParamFromId(chosenPid));
 			}
 		}

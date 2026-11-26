@@ -367,7 +367,7 @@ struct SongRig {
 	SongRig& operator=(const SongRig&) = delete;
 
 	SongRig() {
-		auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
+		auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*song.instrument))->sound;
 		source = &sound->sourceResources[0];
 		deluge::test::set(*sound->state_, "osc1/type", "sample");
 		deluge::test::set(*sound->state_, "osc1/loopMode", "1"); // ONCE
@@ -720,7 +720,7 @@ void leave_browser(ShellRig& r) {
 /// @brief Give @p model's oscillator 0 three ranges, each on a sample at `kChosenPath`, recorded as a load records
 ///        them: the shape a MULTISAMPLES import of three pitches leaves.
 void give_three_ranges(SongRig& model) {
-	auto* sound = model.song.instrument->toModControllable()->effectsOwner()->sound;
+	auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*model.song.instrument))->sound;
 	model.range->topNote = 59;
 	for (int32_t i = 1; i < 3; i++) {
 		auto* range = static_cast<MultisampleRange*>(model.source->ranges.insertMultiRange(i));
@@ -1005,7 +1005,8 @@ describe browser_choice_claim(
 		        ShellRig r;
 		        r.open_browser();
 		        r.enter();
-		        Sound* const sound = r.model.song.instrument->toModControllable()->effectsOwner()->sound;
+		        Sound* const sound =
+		            deluge::model::effects_owner_of(deluge::model::owner_of(*r.model.song.instrument))->sound;
 		        deluge::gui::ui::pollShellBrowserHost();
 
 		        expect(spy.dispatches).to_equal(1);

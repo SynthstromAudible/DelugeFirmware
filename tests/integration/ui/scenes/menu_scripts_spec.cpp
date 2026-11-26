@@ -427,7 +427,7 @@ Sample* make_sample() {
 /// @param sample The sample to hang on the range, or null to leave the holder empty.
 /// @return The range, so a caller can read the marker positions back.
 MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample) {
-	auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
+	auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*song.instrument))->sound;
 	SourceResources& source = sound->sourceResources[0];
 	deluge::test::set(*sound->state_, "osc1/type", "sample");
 	deluge::test::set(*sound->state_, "osc1/loopMode", "1"); // ONCE
