@@ -30,6 +30,11 @@ public:
 	/// Renders @p block's sources and noise, adding into its buffer, and stores the levels the next block starts from.
 	EngineRenderResult render(const EngineBlock& block) override;
 
+protected:
+	/// @brief The render, each part's slot sources picked by @p pick.
+	/// @return What the block left for the voice.
+	static EngineRenderResult render_with(const EngineBlock& block, SourcePick pick);
+
 private:
 	/// What each source's render in this block shares.
 	struct Pass {
@@ -47,7 +52,7 @@ private:
 	static Pass begin(const EngineBlock& block, const std::array<dsp::Q<31>, kNumSources>& source_amplitudes);
 	/// Renders source @p s into the mono (or, with @p stereo, the stereo) buffer: source 0 takes the osc-sync master's
 	/// increments even when silent, and source 1 syncs to them. @return whether a unison part became inactive.
-	static bool render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo);
+	static bool render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo, SourcePick pick);
 };
 
 } // namespace deluge::synth

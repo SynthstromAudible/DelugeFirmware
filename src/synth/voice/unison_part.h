@@ -28,4 +28,9 @@ struct UnisonPart {
 	std::array<SourceSlot, kNumSources> slots;
 };
 
+/// @brief The DX7 a unison part plays in DX7 mode: slot 0's port-backed DX7.
+[[nodiscard]] inline DX7Source& dx7_source_of(UnisonPart& part) {
+	return part.slots[0].dx7();
+}
+
 } // namespace deluge::synth
