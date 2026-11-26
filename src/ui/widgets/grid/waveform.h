@@ -1,5 +1,6 @@
 #pragma once
 #include "ui/gfx/grid/rgb.h"
+#include "ui/widgets/core/peaks.h"
 #include "ui/widgets/grid/frame.h"
 
 #include <cstdint>
@@ -74,19 +75,8 @@ void waveform_row(GridFrame& f, int32_t y, std::span<const int32_t> brightness, 
 // Full screen
 // ---------------------------------------------------------------------------------------------
 
-/// @brief One column's vertical extent, in 8.24 fixed-point pad units.
-///
-/// The column's minimum and maximum sample values, re-centred on the sample's found value centre
-/// point and scaled so that one whole pad row is `1 << 24`. `valid` marks whether this column has
-/// been investigated by the scan; an uninvestigated column is left black.
-///
-/// @note The "at least 1 pixel's width" widening of a bar is part of the scan that produces
-///       `min24`/`max24`, not the render, and lives with the rest of that scan.
-struct PeakCol {
-	int32_t min24 = 0;
-	int32_t max24 = 0;
-	bool valid = false;
-};
+/// @brief `core::PeakCol`, by its grid name: one pad row is `1 << 24`.
+using core::PeakCol;
 
 /// @brief The two brightnesses a full-screen bar chooses between: coloured bars use
 ///        `kWaveformBarBrightnessColoured`, monochrome bars use `kWaveformBarBrightnessMono`.
