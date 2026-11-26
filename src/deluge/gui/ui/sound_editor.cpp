@@ -2115,6 +2115,7 @@ doMIDIOrCV:
 	ParamManagerForTimeline* const previousParamManager = currentParamManager;
 	ModControllableAudio* const previousModControllable = currentModControllable;
 	currentParamManager = newParamManager;
+	view.setSoundEditorParamManager(currentParamManager);
 	// And we also have to set currentModControllable before focusing on the child item in a horizontal menu
 	currentModControllable = newModControllable;
 
@@ -2134,6 +2135,7 @@ doMIDIOrCV:
 		// The browser won't be opened so forget where maybeGetParentMenu() said to go once a file is chosen
 		sampleBrowser.clearMenuHeadingTo();
 		currentParamManager = previousParamManager;
+		view.setSoundEditorParamManager(currentParamManager);
 		currentModControllable = previousModControllable;
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return false;

@@ -51,6 +51,7 @@ UITimerManager::UITimerManager() {
 }
 
 void UITimerManager::routine() {
+	view.handleParamAutomationNotice();
 
 	int32_t timeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (timeTilNextEvent >= 0) {
