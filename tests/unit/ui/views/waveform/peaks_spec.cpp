@@ -25,7 +25,8 @@ namespace {
 constexpr int32_t kI32Max = std::numeric_limits<int32_t>::max();
 constexpr int32_t kI32Min = std::numeric_limits<int32_t>::min();
 
-static_assert(sizeof(PeakRead) <= 16 * 12);
+// A read stays small enough to return by value: its 16 columns of 12 bytes and its progress count.
+static_assert(sizeof(PeakRead) <= 16 * 12 + sizeof(uint64_t));
 
 const std::vector<int32_t> kValues{kI32Min / 2, -1, 0, 1, (1 << 23) - 1, 1 << 23, 1 << 24, kI32Max / 2};
 
