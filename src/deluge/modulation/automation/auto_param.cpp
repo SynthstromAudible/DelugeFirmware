@@ -176,10 +176,10 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 			return sameAsRender(*paramCollection, paramId, resolved);
 		}
 	}
-	// The owner isn't tree-resident yet: a runtime-created instrument/drum made after load, with no id yet. Mint
-	// durable ids and relocate its store into the project tree so it id-resolves like a saved owner. After this, every
-	// real owner resolves through the project tree; the paramCollection fallback below is dead for them, surviving
-	// only as a non-bricking net for genuinely unclassifiable owners (e.g. non-Sound drums).
+	// The owner's store isn't in the project tree yet (an owner made after load, whose collection is touched for the
+	// first time): relocate it there, as load does, so it id-resolves like a saved owner. After this, every real owner
+	// resolves through the project tree; the paramCollection fallback below is dead for them, surviving only as a
+	// non-bricking net for genuinely unclassifiable owners (e.g. non-Sound drums).
 	if (deluge::project::DocAutoParam* relocated = deluge::edits::relocateAndResolve(*this)) {
 		return sameAsRender(*paramCollection, paramId, relocated);
 	}

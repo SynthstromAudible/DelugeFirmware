@@ -30,12 +30,12 @@ std::optional<deluge::project::ParamAddress> ownerAddressFor(const ModelStackWit
 ///         none.
 std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAutoParam& modelStack);
 
-/// @brief Resolve the param lane for a RUNTIME-created owner, addressing it first if needed.
+/// @brief Resolve the param lane of an owner whose store is not in the project tree yet.
 ///
-/// When addressFor() can't yet address the owner (an instrument / drum made after load has no id yet), mint ids for
-/// the owner chain and relocate the touched collection's engine store into the project tree, as load does but
-/// lazily on first param touch. Afterwards the owner id-resolves like any saved one. The allocation is a one-time
-/// cost per owner, not per touch.
+/// Relocates the touched collection's engine store into the project tree, as load does but on the collection's first
+/// param touch. Afterwards the owner id-resolves like any saved one; the allocation is a one-time cost per collection.
+/// The owner already has its id (a song gives every owner one when it adopts it); an owner without one resolves
+/// nothing here.
 ///
 /// @param modelStack A resolved stack naming the param.
 /// @return The resolved DocAutoParam, or nullptr if the owner still can't be classified (song-global, or a
@@ -49,6 +49,8 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 // TODO: delete the doc() fallback once this is proven 0 across that surface and non-Sound drums are shown not to
 // reach doc().
 extern uint32_t docFallbackHits;
+/// Owners that reached relocateAndResolve with no id: must stay 0 (every owner gets its id when a song adopts it).
+extern uint32_t lazyIdMisses;
 #endif
 
 } // namespace deluge::edits

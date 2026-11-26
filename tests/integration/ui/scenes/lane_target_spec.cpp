@@ -6,6 +6,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/param_address_for.h"
 #include "model/edits/set_cable_polarity.h"
 #include "model/edits/set_patch_cable.h"
 #include "model/fx/master_channel.h"
@@ -249,6 +250,28 @@ describe lane_target("a lane target", ${
 			}
 			actionLogger.deleteAllLogs();
 			nullifyUIs();
+			spec::make_current(nullptr);
+		});
+	});
+	context("an owner made while the song plays", _ {
+		it("has its id before any of its params is touched", _ {
+			spec::SongFixture f = spec::make_kit_song();
+			spec::make_current(f.song);
+			auto* drum = spec::add_drum<SoundDrum>(f);
+			expect(drum->id().has_value()).to_be_true();
+			expect(f.instrument->id().has_value()).to_be_true();
+			const uint32_t misses = deluge::edits::lazyIdMisses;
+			if (drum->id()) {
+				alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+				const project::ParamAddress address = bridge::addressOf(
+				    project::OwnerId::drum(*drum->id()), params::Kind::PATCHED, params::LOCAL_LPF_FREQ, f.clip->id());
+				ModelStackWithAutoParam* stack = bridge::paramStackExact(*f.song, address, memory);
+				expect(stack).not_().to_be_null();
+				if (stack != nullptr) {
+					expect(stack->doc()).not_().to_be_null();
+				}
+			}
+			expect(deluge::edits::lazyIdMisses).to_equal(misses);
 			spec::make_current(nullptr);
 		});
 	});
