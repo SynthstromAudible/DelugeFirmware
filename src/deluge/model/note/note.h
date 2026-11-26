@@ -18,7 +18,8 @@
 #pragma once
 
 #include "model/positionable.h"
-#include "sequence/iterance.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include <cstdint>
 
 class Note : public Positionable {
@@ -41,9 +42,9 @@ public:
 
 	inline int32_t getProbability() { return probability; }
 
-	inline void setIterance(Iterance newIterance) { iterance = newIterance; }
+	inline void setIterance(deluge::project::Iterance newIterance) { iterance = newIterance; }
 
-	inline Iterance getIterance() { return iterance; }
+	inline deluge::project::Iterance getIterance() { return iterance; }
 
 	inline void setFill(int32_t newFill) { fill = newFill; }
 
@@ -55,11 +56,11 @@ public:
 	int32_t length{};
 	uint8_t velocity{};
 	uint8_t probability{};
-	Iterance iterance;
+	deluge::project::Iterance iterance;
 	uint8_t fill{};
 	/// Lift is noteOff velocity.
 	uint8_t lift{};
 
 	// Understanding the probability field: the first bit says whether it's based on a previous one.
-	// So take the rightmost 7 bits. If that's greater than kNumProbabilityValues (20),
+	// So take the rightmost 7 bits. If that's greater than deluge::project::kProbabilityValueCount (20),
 };

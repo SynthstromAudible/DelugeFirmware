@@ -48,6 +48,8 @@
 #include "processing/sound/sound_instrument.h"
 #include "project/doc_note.h"
 #include "project/doc_note_row.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include "sequence/iterance_migration.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
@@ -61,6 +63,9 @@
 #include "util/structural_edit_probe.h"
 #include <new>
 #include <string.h>
+#include <utility>
+
+using deluge::project::Iterance;
 
 NoteRow::NoteRow(int16_t newY) {
 	y_ = newY;
@@ -70,9 +75,9 @@ NoteRow::NoteRow(int16_t newY) {
 	firstOldDrumName = nullptr;
 	sequenced = false;
 	ignoreNoteOnsBefore_ = 0;
-	probabilityValue = kNumProbabilityValues;
-	iteranceValue = kDefaultIteranceValue;
-	fillValue = FillMode::OFF;
+	probabilityValue = deluge::project::kProbabilityValueCount;
+	iteranceValue = deluge::project::kIteranceOff;
+	fillValue = std::to_underlying(deluge::project::FillMode::OFF);
 	loopLengthIfIndependent_ = 0;
 	sequenceDirectionMode_ = SequenceDirection::OBEY_PARENT;
 	exportStem = false;
@@ -265,7 +270,7 @@ void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
 	squareInfo.numNotes = 0;
 	squareInfo.averageVelocity = 0;
 	squareInfo.probability = 0;
-	squareInfo.iterance = kDefaultIteranceValue;
+	squareInfo.iterance = deluge::project::kIteranceOff;
 	squareInfo.fill = 0;
 	squareInfo.isValid = true;
 }
@@ -741,7 +746,7 @@ Iterance NoteRow::getDefaultIterance() {
 
 int32_t NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
 	if (modelStack->song->isFillModeActive()) {
-		return FillMode::FILL;
+		return std::to_underlying(deluge::project::FillMode::FILL);
 	}
 	else {
 		return fillValue;
@@ -1857,7 +1862,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 			} break;
 
 			case CORRESPONDING_NOTES_SET_ITERANCE: {
-				thisNote->setIterance(Iterance::fromInt(changeValue));
+				thisNote->setIterance(deluge::project::Iterance::from_packed(changeValue));
 			} break;
 
 			case CORRESPONDING_NOTES_SET_FILL: {
@@ -2034,18 +2039,19 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			if (pixel != rowBlurColour && pixel != rowTailColour) {
 				// if fill mode is active, identify the notes that are fill or not-fill
 				if (drewNote && currentSong->isFillModeActive()) {
-					if (note->fill == FillMode::FILL) {
+					if (note->fill == std::to_underlying(deluge::project::FillMode::FILL)) {
 						pixel = deluge::gui::colours::blue;
 					}
-					else if (note->fill == FillMode::NOT_FILL) {
+					else if (note->fill == std::to_underlying(deluge::project::FillMode::NOT_FILL)) {
 						pixel = deluge::gui::colours::red;
 					}
 				}
 				// if you're in the note editor, identify the notes that have non-default parameters
 				else if (drewNote && deluge::gui::ui::noteEditorOpen()) {
 					// if note has non-default settings for probability, iterance or fill
-					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
-					    || note->getFill() != FillMode::OFF) {
+					if (note->getProbability() != deluge::project::kProbabilityValueCount
+					    || note->getIterance() != deluge::project::kIteranceOff
+					    || note->getFill() != std::to_underlying(deluge::project::FillMode::OFF)) {
 						pixel = deluge::gui::colours::yellow;
 					}
 				}
@@ -3045,10 +3051,10 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		int32_t pos = note->pos;
 
 		// If it's iteration dependent
-		if (iterance != kDefaultIteranceValue) {
+		if (iterance != deluge::project::kIteranceOff) {
 			int32_t divisor = iterance.divisor;
-			bool first = iterance == kFirstIteranceValue;
-			bool last = iterance == kLastIteranceValue;
+			bool first = iterance == deluge::project::kIteranceFirst;
+			bool last = iterance == deluge::project::kIteranceLast;
 			divisor = std::max<int32_t>(divisor, 1);
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
@@ -3104,7 +3110,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				else {
 					// otherwise check through the divisor for a match
 					for (int32_t iteration = 0; iteration < 8; iteration++) {
-						if (iterance.iteranceStep[iteration]) {
+						if (iterance.steps[iteration]) {
 							int32_t iterationWithinDivisorWithinRepeat =
 							    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
 							if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
@@ -3149,7 +3155,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					}
 					else {
 switchOff:
-						newIterance = kDefaultIteranceValue; // Switch off iteration dependence
+						newIterance = deluge::project::kIteranceOff; // Switch off iteration dependence
 					}
 
 					thisRepeatedNote->setIterance(newIterance);
@@ -3315,9 +3321,9 @@ Error NoteRow::readLegacyNotes(Deserializer& reader) {
 				newNote->setLength(length);
 				newNote->setVelocity(velocity);
 				newNote->setLift(kDefaultLiftValue);
-				newNote->setProbability(kNumProbabilityValues);
-				newNote->setIterance(kDefaultIteranceValue);
-				newNote->setFill(FillMode::OFF);
+				newNote->setProbability(deluge::project::kProbabilityValueCount);
+				newNote->setIterance(deluge::project::kIteranceOff);
+				newNote->setFill(std::to_underlying(deluge::project::FillMode::OFF));
 			}
 
 			reader.exitTag("note");
@@ -3375,7 +3381,7 @@ Error NoteRow::readNoteDataHex(Deserializer& reader, uint16_t noteHexLength) {
 
 		if (noteHexLength == 28) { // if reading custom iterance and fill
 			fill = hexToIntFixedLength(&hexChars[26], 2);
-			iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
+			iterance = deluge::project::Iterance::from_packed(hexToIntFixedLength(&hexChars[22], 4));
 			probability = hexToIntFixedLength(&hexChars[20], 2);
 			lift = hexToIntFixedLength(&hexChars[18], 2);
 		}
@@ -3384,23 +3390,24 @@ Error NoteRow::readNoteDataHex(Deserializer& reader, uint16_t noteHexLength) {
 
 			if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
 				if (probability == kOldFillProbabilityValue) {
-					fill = FillMode::FILL;
+					fill = std::to_underlying(deluge::project::FillMode::FILL);
 				}
 				else {
-					fill = FillMode::NOT_FILL;
+					fill = std::to_underlying(deluge::project::FillMode::NOT_FILL);
 				}
-				iterance = kDefaultIteranceValue;    // iterance off
-				probability = kNumProbabilityValues; // 100% probability
+				iterance = deluge::project::kIteranceOff;              // iterance off
+				probability = deluge::project::kProbabilityValueCount; // 100% probability
 			}
-			else if (probability > kNumProbabilityValues
-			         && probability <= kNumProbabilityValues + kNumIterancePresets) {
-				fill = FillMode::OFF;
+			else if (probability > deluge::project::kProbabilityValueCount
+			         && probability
+			                <= deluge::project::kProbabilityValueCount + deluge::project::kIterancePresetCount) {
+				fill = std::to_underlying(deluge::project::FillMode::OFF);
 				iterance = iteranceFromLegacyProbabilityByte(probability);
-				probability = kNumProbabilityValues; // 100% probability
+				probability = deluge::project::kProbabilityValueCount; // 100% probability
 			}
 			else {
-				fill = FillMode::OFF;
-				iterance = kDefaultIteranceValue; // iterance off
+				fill = std::to_underlying(deluge::project::FillMode::OFF);
+				iterance = deluge::project::kIteranceOff; // iterance off
 			}
 			lift = hexToIntFixedLength(&hexChars[18], 2);
 		}
@@ -3418,11 +3425,13 @@ Error NoteRow::readNoteDataHex(Deserializer& reader, uint16_t noteHexLength) {
 		if (velocity == 0 || velocity > 127) {
 			velocity = 64;
 		}
-		if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
-			probability = kNumProbabilityValues;
+		if ((probability & 127) > deluge::project::kProbabilityValueCount
+		    || probability >= (deluge::project::kProbabilityValueCount | 128)) {
+			probability = deluge::project::kProbabilityValueCount;
 		}
-		if (fill < FillMode::OFF || fill > FillMode::FILL) {
-			fill = FillMode::OFF;
+		if (fill < std::to_underlying(deluge::project::FillMode::OFF)
+		    || fill > std::to_underlying(deluge::project::FillMode::FILL)) {
+			fill = std::to_underlying(deluge::project::FillMode::OFF);
 		}
 
 		minPos = pos + length;
@@ -3592,7 +3601,7 @@ void NoteRow::rebuildDocNotes() {
 		    .length = note.getLength(),
 		    .velocity = static_cast<uint8_t>(note.getVelocity()),
 		    .probability = static_cast<uint8_t>(note.getProbability()),
-		    .iterance = note.getIterance().toInt(),
+		    .iterance = note.getIterance().packed(),
 		    .fill = static_cast<uint8_t>(note.getFill()),
 		    .lift = static_cast<uint8_t>(note.getLift()),
 		});
@@ -3641,7 +3650,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			for (int32_t n = 0; n < std::ssize(notes); n++) {
 				Note& note = notes[n];
 				writeSplitProbRecord(writer, note.pos, note.getLength(), note.getVelocity(), note.getLift(),
-				                     note.getProbability(), note.getIterance().toInt(), note.getFill());
+				                     note.getProbability(), note.getIterance().packed(), note.getFill());
 			}
 		}
 		writer.write("\"");

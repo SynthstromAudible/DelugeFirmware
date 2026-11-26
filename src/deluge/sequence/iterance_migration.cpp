@@ -17,32 +17,36 @@
 
 #include "sequence/iterance_migration.h"
 #include "definitions_cxx.hpp"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include "util/lookuptables/preset_tables.h"
 #include <cstdint>
 
+using deluge::project::Iterance;
+
 Iterance iteranceFromLegacyProbabilityByte(int32_t probability) {
-	// The old preset index (1-based) is encoded as probability - kNumProbabilityValues.
-	// FIRST and LAST were prepended to iterancePresets[], so the old index N now sits at
+	// The old preset index (1-based) is encoded as probability - deluge::project::kProbabilityValueCount.
+	// FIRST and LAST were prepended to deluge::project::kIterancePresets[], so the old index N now sits at
 	// array position N+1 (i.e. +2 for the prepend, -1 for 0-based indexing = net +1).
-	int32_t idx = probability - kNumProbabilityValues + 1;
-	// Defensive guard: idx should be 2..36 for any valid C1.2 file (old kNumIterancePresets=35).
-	if (idx < 2 || idx >= kNumIterancePresets) {
-		return kDefaultIteranceValue;
+	int32_t idx = probability - deluge::project::kProbabilityValueCount + 1;
+	// Defensive guard: idx should be 2..36 for any valid C1.2 file (old deluge::project::kIterancePresetCount=35).
+	if (idx < 2 || idx >= deluge::project::kIterancePresetCount) {
+		return deluge::project::kIteranceOff;
 	}
-	return iterancePresets[idx];
+	return deluge::project::kIterancePresets[idx];
 }
 
 Iterance iteranceFromLegacyPresetIndex(int32_t presetIndex) {
 	// Shift all non-zero indices by +2 to skip the newly prepended FIRST and LAST.
 	if (presetIndex == 0) {
-		return kDefaultIteranceValue;
+		return deluge::project::kIteranceOff;
 	}
 	int32_t newIndex = presetIndex + 2;
-	if (newIndex <= kNumIterancePresets) {
-		return iterancePresets[newIndex - 1];
+	if (newIndex <= deluge::project::kIterancePresetCount) {
+		return deluge::project::kIterancePresets[newIndex - 1];
 	}
-	if (newIndex == kCustomIterancePreset) {
-		return kCustomIteranceValue;
+	if (newIndex == deluge::project::kCustomIterancePreset) {
+		return deluge::project::kIteranceCustom;
 	}
-	return kDefaultIteranceValue;
+	return deluge::project::kIteranceOff;
 }

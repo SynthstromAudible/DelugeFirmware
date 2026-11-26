@@ -44,7 +44,7 @@ constexpr uint8_t kMaxRowCells = gfx::grid::kMaxGridCols;
 /// @return The row's hit-test result; see the @note above.
 core::Response row(GridFrame& f, int32_t y, std::span<const RGB> cells);
 
-/// @brief Mirrors legacy `FillMode`, restated here because this layer may depend only on `ui/**`,
+/// @brief Mirrors `project::FillMode`, restated here because this layer may depend only on `ui/**`,
 ///        `ui/gfx/**` and the standard library. Same three states in the same order.
 enum class NoteFill : uint8_t { Off, NotFill, Fill };
 

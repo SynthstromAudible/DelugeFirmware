@@ -218,6 +218,8 @@ may_include = [
     "serialization/",
     "music/",
     "base/panic.h",
+    # the FPU division helpers: an iterance steps its cycle with no integer divide
+    "base/divide.h",
 ]
 
 [[library]]

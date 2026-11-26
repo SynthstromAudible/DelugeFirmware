@@ -36,6 +36,7 @@
 
 #include "base/notify/dirty_set.h"
 #include "gui/ui/menu_view_of.h"
+#include "project/note_probability.h"
 #include "support/peak_seed.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
@@ -1639,7 +1640,7 @@ describe browser_choice_preview("the browser host and the browser scene's previe
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* stack = model.song.song->setupModelStackWithCurrentClip(memory);
 			ModelStackWithNoteRow* with_row = model.song.clip->getNoteRowForYNote(row->y(), stack);
-			(void)row->attemptNoteAdd(0, 24, 64, kNumProbabilityValues, row->getDefaultIterance(), 0, with_row, nullptr);
+			(void)row->attemptNoteAdd(0, 24, 64, deluge::project::kProbabilityValueCount, row->getDefaultIterance(), 0, with_row, nullptr);
 		}
 		expect(static_cast<int32_t>(row->notes.size())).to_equal(1);
 		model.song.song->persistentView.xScroll[NAVIGATION_CLIP] = 0;

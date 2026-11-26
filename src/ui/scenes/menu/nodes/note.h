@@ -51,21 +51,22 @@
 /// @note **The iterance chain.** `IterancePreset::selectButtonPress()`
 ///       (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`,
 ///       `origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`) opens the matching custom-iterance root
-///       only when the current value is `kCustomIterancePreset`; every other value ascends.
+///       only when the current value is `deluge::project::kCustomIterancePreset`; every other value ascends.
 ///       `chain_note_iterance`/`chain_note_row_iterance` port that, and are the one place in this file a hook is
 ///       defined in the header rather than the `.cpp` -- the same choice `nodes/sound_arp.h` makes for
 ///       `arp_preset_chain`, because the function needs the address of a `Node` declared alongside it.
 ///
 /// @note **The "OFF becomes 1of1" conversion.** `IteranceDivisor::readCurrentValue`/ `writeCurrentValue` and
-///       `IteranceStepToggle::readCurrentValue`/`writeCurrentValue` all convert a note or row's `kDefaultIteranceValue`
-///       ("OFF") to `kCustomIteranceValue` ("1of1") before reading or editing from it, so the custom-iterance page
-///       always has a concrete divisor and step set to work with
+///       `IteranceStepToggle::readCurrentValue`/`writeCurrentValue` all convert a note or row's
+///       `deluge::project::kIteranceOff`
+///       ("OFF") to `deluge::project::kIteranceCustom` ("1of1") before reading or editing from it, so the
+///       custom-iterance page always has a concrete divisor and step set to work with
 ///       (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`,
 ///       `origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`,
 ///       `origin/main:src/deluge/gui/menu_item/note_row/iterance_divisor.h`,
 ///       `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`). `IteranceStepToggle::isRelevant` is
 ///       the one exception in either family: it reads the **unconverted** value, because it tests for
-///       `kDefaultIteranceValue` directly, and returns false outright with no leftmost note (note family,
+///       `deluge::project::kIteranceOff` directly, and returns false outright with no leftmost note (note family,
 ///       `origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`, `isRelevant`'s final `return false`) or no
 ///       note row (row family, `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`, `isRelevant`'s
 ///       final `return false`).
@@ -83,13 +84,14 @@
 ///       `nodes/sound_actions.h`'s existing node, reused here unchanged: its own note-row bridge
 ///       path is not this file's to edit.
 
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/detail.h"
 #include "ui/scenes/menu/nodes/sound_actions.h" // &sequence_direction, note_row_editor_root's first child
 
-#include "definitions_cxx.hpp" // kNumProbabilityValues, kNumIterancePresets, kCustomIterancePreset, FillMode
-
 #include <cstdint>
+#include <utility>
 
 namespace deluge::ui::scenes::menu::nodes {
 
@@ -130,7 +132,7 @@ void adjust_note_probability(const MenuContext& ctx, int32_t offset);
 int32_t get_note_iterance(const MenuContext& ctx);
 void adjust_note_iterance(const MenuContext& ctx, int32_t offset);
 
-/// @brief `get_note_iterance(ctx) == kCustomIterancePreset`, null-bridge-safe -- what
+/// @brief `get_note_iterance(ctx) == deluge::project::kCustomIterancePreset`, null-bridge-safe -- what
 ///        `chain_note_iterance` needs. A thin wrapper rather than inlining the check in
 ///        `chain_note_iterance` itself (see that function's own note on why it is declared in this
 ///        header rather than the `.cpp`): `note_bridge()` is only reachable from the `.cpp`, and it
@@ -149,7 +151,7 @@ int32_t get_note_row_probability(const MenuContext& ctx);
 void adjust_note_row_probability(const MenuContext& ctx, int32_t offset);
 int32_t get_note_row_iterance(const MenuContext& ctx);
 
-/// @brief `get_note_row_iterance(ctx) == kCustomIterancePreset`, null-bridge-safe. See
+/// @brief `get_note_row_iterance(ctx) == deluge::project::kCustomIterancePreset`, null-bridge-safe. See
 ///        `note_iterance_is_custom`'s own doc.
 bool note_row_iterance_is_custom(const MenuContext& ctx);
 void adjust_note_row_iterance(const MenuContext& ctx, int32_t offset);
@@ -225,28 +227,32 @@ inline constexpr Node note_velocity =
                    permitted_note);
 
 inline constexpr Node note_editor_probability = with_leaf_text(
-    with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_PROBABILITY),
-                                                        get_note_probability, nullptr,
-                                                        IntRange{1, kNumProbabilityValues | 127, 1}, Hint::None),
-                                               adjust_note_probability),
-                                   value_text_probability),
-                   permitted_note),
+    with_permitted(
+        with_value_text(
+            with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_PROBABILITY), get_note_probability,
+                                 nullptr, IntRange{1, deluge::project::kProbabilityValueCount | 127, 1}, Hint::None),
+                        adjust_note_probability),
+            value_text_probability),
+        permitted_note),
     leaf_text_probability);
 
 inline constexpr Node note_fill = with_value_names(
     with_leaf_text(
         with_permitted(
-            with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_FILL), get_note_fill,
-                                                 nullptr, IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
-                                        adjust_note_fill),
-                            value_text_fill),
+            with_value_text(
+                with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_FILL), get_note_fill, nullptr,
+                                     IntRange{std::to_underlying(deluge::project::FillMode::OFF),
+                                              std::to_underlying(deluge::project::FillMode::FILL), 1},
+                                     Hint::None),
+                            adjust_note_fill),
+                value_text_fill),
             permitted_note),
         leaf_text_fill),
     fill_names);
 
 /// `IterancePreset::selectButtonPress()` (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`): only
-/// `kCustomIterancePreset` opens anything; every other value ascends. Defined here, not the `.cpp` -- see the
-/// file-level note.
+/// `deluge::project::kCustomIterancePreset` opens anything; every other value ascends. Defined here, not the `.cpp` --
+/// see the file-level note.
 inline constexpr const Node* kNoteIteranceChain[] = {&note_custom_iterance_root};
 inline const Node* chain_note_iterance(const MenuContext& ctx, const MenuState&) {
 	if (!note_iterance_is_custom(ctx)) {
@@ -257,12 +263,13 @@ inline const Node* chain_note_iterance(const MenuContext& ctx, const MenuState&)
 
 inline constexpr Node note_iterance = with_leaf_text(
     with_select_chain(
-        with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_ITERANCE),
-                                                            get_note_iterance, nullptr,
-                                                            IntRange{0, kNumIterancePresets + 1, 1}, Hint::None),
-                                                   adjust_note_iterance),
-                                       value_text_iterance),
-                       permitted_note),
+        with_permitted(
+            with_value_text(
+                with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_ITERANCE), get_note_iterance,
+                                     nullptr, IntRange{0, deluge::project::kIterancePresetCount + 1, 1}, Hint::None),
+                            adjust_note_iterance),
+                value_text_iterance),
+            permitted_note),
         chain_note_iterance, kNoteIteranceChain),
     leaf_text_iterance);
 
@@ -302,7 +309,7 @@ inline constexpr Node note_row_probability = with_leaf_text(
     with_permitted(
         with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY),
                                              get_note_row_probability, nullptr,
-                                             IntRange{1, kNumProbabilityValues | 127, 1}, Hint::None),
+                                             IntRange{1, deluge::project::kProbabilityValueCount | 127, 1}, Hint::None),
                                     adjust_note_row_probability),
                         value_text_probability),
         permitted_row),
@@ -310,12 +317,15 @@ inline constexpr Node note_row_probability = with_leaf_text(
 
 inline constexpr Node note_row_fill = with_value_names(
     with_leaf_text(
-        with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_FILL),
-                                                            get_note_row_fill, nullptr,
-                                                            IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
-                                                   adjust_note_row_fill),
-                                       value_text_fill),
-                       permitted_row),
+        with_permitted(
+            with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_FILL),
+                                                 get_note_row_fill, nullptr,
+                                                 IntRange{std::to_underlying(deluge::project::FillMode::OFF),
+                                                          std::to_underlying(deluge::project::FillMode::FILL), 1},
+                                                 Hint::None),
+                                        adjust_note_row_fill),
+                            value_text_fill),
+            permitted_row),
         leaf_text_fill),
     fill_names);
 
@@ -334,7 +344,7 @@ inline constexpr Node note_row_iterance = with_leaf_text(
         with_permitted(
             with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_ITERANCE),
                                                  get_note_row_iterance, nullptr,
-                                                 IntRange{0, kNumIterancePresets + 1, 1}, Hint::None),
+                                                 IntRange{0, deluge::project::kIterancePresetCount + 1, 1}, Hint::None),
                                         adjust_note_row_iterance),
                             value_text_iterance),
             permitted_row),

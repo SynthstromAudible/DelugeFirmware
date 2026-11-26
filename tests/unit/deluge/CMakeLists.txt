@@ -15,8 +15,7 @@ deluge_specs_driver(app_specs TREES host
     ${DELUGE_REPO_ROOT}/src/deluge/gui/ui/browser/default_name.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/gui/ui/keyboard/chords.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/playback/clock_output_scheduler.cpp
-    ${DELUGE_REPO_ROOT}/src/deluge/sequence/iterance.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/sequence/iterance_migration.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/util/lookuptables/preset_tables.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/storage/DX7Cartridge.cpp
-  LIBRARIES deluge_spec deluge_midi deluge_music)
+  LIBRARIES deluge_spec deluge_midi deluge_music deluge_project)

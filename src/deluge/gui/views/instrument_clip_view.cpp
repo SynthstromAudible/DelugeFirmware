@@ -103,6 +103,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
@@ -118,7 +120,10 @@
 #include <new>
 #include <printf/printf.h>
 #include <string.h>
+#include <utility>
 #include <vector>
+
+using deluge::project::Iterance;
 
 using namespace deluge;
 
@@ -1229,7 +1234,7 @@ ramError:
 						intToHex(newNote->getProbability(), buffer, 2);
 						writer->write(buffer);
 
-						intToHex(newNote->getIterance().toInt(), buffer, 4);
+						intToHex(newNote->getIterance().packed(), buffer, 4);
 						writer->write(buffer);
 
 						intToHex(newNote->getFill(), buffer, 2);
@@ -1636,7 +1641,8 @@ ramError:
 								uint8_t lift, probability, fill;
 								Iterance iterance;
 								fill = hexToIntFixedLength(&hexChars[26], 2);
-								iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
+								iterance =
+								    deluge::project::Iterance::from_packed(hexToIntFixedLength(&hexChars[22], 4));
 								probability = hexToIntFixedLength(&hexChars[20], 2);
 								lift = hexToIntFixedLength(&hexChars[18], 2);
 								if (lift == 0 || lift > 127) {
@@ -2833,20 +2839,23 @@ void InstrumentClipView::popupVelocity(char const* displayString) {
 }
 
 void InstrumentClipView::adjustNoteProbabilityWithOffset(int32_t offset) {
-	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_PROBABILITY, 1, kNumProbabilityValues);
+	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_PROBABILITY, 1,
+	                         deluge::project::kProbabilityValueCount);
 }
 
 void InstrumentClipView::adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom) {
-	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1,
+	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_ITERANCE, 0, deluge::project::kIterancePresetCount + 1,
 	                         allowTogglingBetweenPresetsAndCustom);
 }
 
 void InstrumentClipView::adjustNoteIteranceWithFinalValue(Iterance finalValue) {
-	adjustNoteParameterValue(0, finalValue.toInt(), CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1);
+	adjustNoteParameterValue(0, finalValue.packed(), CORRESPONDING_NOTES_SET_ITERANCE, 0,
+	                         deluge::project::kIterancePresetCount + 1);
 }
 
 void InstrumentClipView::adjustNoteFillWithOffset(int32_t offset) {
-	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, kNumFillValues);
+	adjustNoteParameterValue(offset, -1, CORRESPONDING_NOTES_SET_FILL,
+	                         std::to_underlying(deluge::project::FillMode::OFF), deluge::project::kFillModeCount);
 }
 
 // used with the note probability, iterance and fill note editing menu
@@ -2939,10 +2948,10 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 						prevBase = (originalParameter & 128);
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						originalParameter = edit_targets[i].intendedIterance.toInt();
+						originalParameter = edit_targets[i].intendedIterance.packed();
 						parameterValue = originalParameter; // iterance param is 16 bits
 						// transform into preset index temporarily, to inc/dec offset
-						parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
+						parameterValue = deluge::project::Iterance::from_packed(parameterValue).preset_index();
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 						originalParameter = edit_targets[i].intendedFill;
@@ -2954,7 +2963,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 						originalParameter = edit_targets[i].intendedProbability;
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						originalParameter = edit_targets[i].intendedIterance.toInt();
+						originalParameter = edit_targets[i].intendedIterance.packed();
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 						originalParameter = edit_targets[i].intendedFill;
@@ -2998,7 +3007,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 									}
 								}
 								else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-									bool isLastPreset = parameterValue == kNumIterancePresets;
+									bool isLastPreset = parameterValue == deluge::project::kIterancePresetCount;
 									if (!isLastPreset || allowTogglingBetweenPresetsAndCustom) {
 										parameterValue++;
 										parameterHasBeenEdited = true;
@@ -3036,7 +3045,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 									}
 								}
 								else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-									bool isCustom = parameterValue == kCustomIterancePreset;
+									bool isCustom = parameterValue == deluge::project::kCustomIterancePreset;
 									if (!isCustom || allowTogglingBetweenPresetsAndCustom) {
 										parameterValue--;
 										parameterHasBeenEdited = true;
@@ -3058,13 +3067,13 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 							// transform back from preset to real value (only if not CUSTOM)
 							if (parameterHasBeenEdited) {
-								parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+								parameterValue = deluge::project::Iterance::from_preset_index(parameterValue).packed();
 							}
 							else {
 								// Respect the original iterance (could be a Custom one)
 								parameterValue = originalParameter;
 							}
-							edit_targets[i].intendedIterance = Iterance::fromInt(parameterValue);
+							edit_targets[i].intendedIterance = deluge::project::Iterance::from_packed(parameterValue);
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 							edit_targets[i].intendedFill = parameterValue;
@@ -3079,7 +3088,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 							edit_targets[i].intendedProbability = parameterValue;
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-							edit_targets[i].intendedIterance = Iterance::fromInt(parameterValue);
+							edit_targets[i].intendedIterance = deluge::project::Iterance::from_packed(parameterValue);
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 							edit_targets[i].intendedFill = parameterValue;
@@ -3102,7 +3111,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 					// In the case the operation didn't change anything, we need to transform Iterance back from preset
 					// to real value anyway, for the Popup code at the end of this method
 					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+						parameterValue = deluge::project::Iterance::from_preset_index(parameterValue).packed();
 					}
 				}
 				break;
@@ -3167,10 +3176,10 @@ multiplePresses:
 				prevBase = (originalParameter & 128);
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				originalParameter = edit_targets[leftMostIndex].intendedIterance.toInt();
+				originalParameter = edit_targets[leftMostIndex].intendedIterance.packed();
 				parameterValue = originalParameter; // iterance param is 16 bits
 				// transform into preset index temporarily, to inc/dec offset
-				parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
+				parameterValue = deluge::project::Iterance::from_packed(parameterValue).preset_index();
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				originalParameter = edit_targets[leftMostIndex].intendedFill;
@@ -3182,7 +3191,7 @@ multiplePresses:
 				originalParameter = edit_targets[leftMostIndex].intendedProbability;
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				originalParameter = edit_targets[leftMostIndex].intendedIterance.toInt();
+				originalParameter = edit_targets[leftMostIndex].intendedIterance.packed();
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				originalParameter = edit_targets[leftMostIndex].intendedFill;
@@ -3205,7 +3214,7 @@ multiplePresses:
 					// increment parameter value
 					if (parameterValue < parameterMaxValue) {
 						if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-							bool isLastPreset = parameterValue == kNumIterancePresets;
+							bool isLastPreset = parameterValue == deluge::project::kIterancePresetCount;
 							if (!isLastPreset || allowTogglingBetweenPresetsAndCustom) {
 								parameterValue++;
 								parameterHasBeenEdited = true;
@@ -3233,7 +3242,7 @@ multiplePresses:
 					// decrement parameter value
 					if (parameterValue > parameterMinValue) {
 						if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-							bool isCustom = parameterValue == kCustomIterancePreset;
+							bool isCustom = parameterValue == deluge::project::kCustomIterancePreset;
 							if (!isCustom || allowTogglingBetweenPresetsAndCustom) {
 								parameterValue--;
 								parameterHasBeenEdited = true;
@@ -3262,7 +3271,7 @@ multiplePresses:
 				else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 					// transform back from preset to real value (only if not CUSTOM)
 					if (parameterHasBeenEdited) {
-						parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+						parameterValue = deluge::project::Iterance::from_preset_index(parameterValue).packed();
 					}
 					else {
 						// Respect the original iterance (could be a Custom one)
@@ -3279,7 +3288,8 @@ multiplePresses:
 						edit_targets[i].intendedProbability = parameterValueForMultipleNotes;
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						edit_targets[i].intendedIterance = Iterance::fromInt(parameterValueForMultipleNotes);
+						edit_targets[i].intendedIterance =
+						    deluge::project::Iterance::from_packed(parameterValueForMultipleNotes);
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 						edit_targets[i].intendedFill = parameterValueForMultipleNotes;
@@ -3331,7 +3341,7 @@ multiplePresses:
 			// In the case the operation didn't change anything, we need to transform Iterance back from preset to real
 			// value anyway, for the Popup code at the end of this method
 			if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
+				parameterValue = deluge::project::Iterance::from_preset_index(parameterValue).packed();
 			}
 		}
 	}
@@ -3341,7 +3351,7 @@ multiplePresses:
 			displayProbability(parameterValue, prevBase);
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			displayIterance(Iterance::fromInt(parameterValue));
+			displayIterance(deluge::project::Iterance::from_packed(parameterValue));
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 			displayFill(parameterValue);
@@ -3357,7 +3367,7 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	char buffer[29];
 
 	// if it's a latching probability, remove latching from value
-	if (probability > kNumProbabilityValues) {
+	if (probability > deluge::project::kProbabilityValueCount) {
 		probability &= 127;
 	}
 
@@ -3370,9 +3380,8 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 
 void InstrumentClipView::displayIterance(Iterance iterance) {
 	char buffer[29];
-	iterance.format_display_value(
-	    buffer, sizeof(buffer),
-	    {.step_format = "%d of %d", .prefix = "Iterance: ", .label_type = Iterance::DisplayLabelType::LONG});
+	static_cast<void>(deluge::project::format_preset(iterance.preset_index(), buffer, "Iterance: ", " of ",
+	                                                 deluge::project::Iterance::Label::LONG));
 
 	display->popupText(buffer, PopupType::ITERANCE);
 }
@@ -3387,12 +3396,12 @@ void InstrumentClipView::displayFill(uint8_t mode) {
 
 const char* InstrumentClipView::getFillString(uint8_t fill) {
 	// FILL mode
-	if (fill == FILL) {
+	if (fill == std::to_underlying(deluge::project::FillMode::FILL)) {
 		return "FILL";
 	}
 
 	// NO-FILL mode
-	if (fill == NOT_FILL) {
+	if (fill == std::to_underlying(deluge::project::FillMode::NOT_FILL)) {
 		return "NOT FILL";
 	}
 
@@ -3951,21 +3960,24 @@ ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Bu
 }
 
 int32_t InstrumentClipView::setNoteRowProbabilityWithOffset(int32_t offset) {
-	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_PROBABILITY, 1, kNumProbabilityValues);
+	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_PROBABILITY, 1,
+	                                deluge::project::kProbabilityValueCount);
 }
 
 int32_t InstrumentClipView::setNoteRowIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom) {
-	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1,
-	                                allowTogglingBetweenPresetsAndCustom);
+	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_ITERANCE, 0,
+	                                deluge::project::kIterancePresetCount + 1, allowTogglingBetweenPresetsAndCustom);
 }
 
 int32_t InstrumentClipView::setNoteRowIteranceWithFinalValue(Iterance finalValue) {
-	return setNoteRowParameterValue(0, finalValue.toInt(), CORRESPONDING_NOTES_SET_ITERANCE, 0,
-	                                kNumIterancePresets + 1);
+	return setNoteRowParameterValue(0, finalValue.packed(), CORRESPONDING_NOTES_SET_ITERANCE, 0,
+	                                deluge::project::kIterancePresetCount + 1);
 }
 
 int32_t InstrumentClipView::setNoteRowFillWithOffset(int32_t offset) {
-	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, FillMode::FILL);
+	return setNoteRowParameterValue(offset, -1, CORRESPONDING_NOTES_SET_FILL,
+	                                std::to_underlying(deluge::project::FillMode::OFF),
+	                                std::to_underlying(deluge::project::FillMode::FILL));
 }
 
 // adjusts note probability, iterance, fill for note rows
@@ -4007,10 +4019,10 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			parameter_value = original_parameter & 127; // probability param is 8 bits
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			original_parameter = noteRow->iteranceValue.toInt();
+			original_parameter = noteRow->iteranceValue.packed();
 			parameter_value = original_parameter; // iterance param is 16 bits
 			// transform into preset index temporarily, to inc/dec offset
-			parameter_value = Iterance::fromInt(parameter_value).toPresetIndex();
+			parameter_value = deluge::project::Iterance::from_packed(parameter_value).preset_index();
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 			original_parameter = noteRow->fillValue;
@@ -4022,7 +4034,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			original_parameter = noteRow->probabilityValue;
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			original_parameter = noteRow->iteranceValue.toInt();
+			original_parameter = noteRow->iteranceValue.packed();
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 			original_parameter = noteRow->fillValue;
@@ -4052,7 +4064,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			if (withOffset == 1) {
 				if (parameter_value < parameterMaxValue) {
 					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						bool isLastPreset = parameter_value == kNumIterancePresets;
+						bool isLastPreset = parameter_value == deluge::project::kIterancePresetCount;
 						if (!isLastPreset || allowTogglingBetweenPresetsAndCustom) {
 							parameter_value++;
 							parameter_has_been_edited = true;
@@ -4074,7 +4086,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			else {
 				if (parameter_value > parameterMinValue) {
 					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						bool isCustom = parameter_value == kCustomIterancePreset;
+						bool isCustom = parameter_value == deluge::project::kCustomIterancePreset;
 						if (!isCustom || allowTogglingBetweenPresetsAndCustom) {
 							parameter_value--;
 							parameter_has_been_edited = true;
@@ -4092,13 +4104,13 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 				// transform back from preset to real value (only if not CUSTOM)
 				if (parameter_has_been_edited) {
-					parameter_value = Iterance::fromPresetIndex(parameter_value).toInt();
+					parameter_value = deluge::project::Iterance::from_preset_index(parameter_value).packed();
 				}
 				else {
 					// Respect the original iterance (could be a Custom one)
 					parameter_value = original_parameter;
 				}
-				noteRow->iteranceValue = Iterance::fromInt(parameter_value);
+				noteRow->iteranceValue = deluge::project::Iterance::from_packed(parameter_value);
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				noteRow->fillValue = parameter_value;
@@ -4110,7 +4122,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 				noteRow->probabilityValue = parameter_value;
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				noteRow->iteranceValue = Iterance::fromInt(parameter_value);
+				noteRow->iteranceValue = deluge::project::Iterance::from_packed(parameter_value);
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				noteRow->fillValue = parameter_value;
@@ -4124,7 +4136,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 				note->setProbability(parameter_value);
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				note->setIterance(Iterance::fromInt(parameter_value));
+				note->setIterance(deluge::project::Iterance::from_packed(parameter_value));
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				note->setFill(parameter_value);
@@ -4135,7 +4147,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		// In the case the operation didn't change anything, we need to transform Iterance back from preset
 		// to real value anyway, for the Popup code at the end of this method
 		if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			parameter_value = Iterance::fromPresetIndex(parameter_value).toInt();
+			parameter_value = deluge::project::Iterance::from_preset_index(parameter_value).packed();
 		}
 	}
 
@@ -4144,7 +4156,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			displayProbability(parameter_value, false);
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			displayIterance(Iterance::fromInt(parameter_value));
+			displayIterance(deluge::project::Iterance::from_packed(parameter_value));
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 			displayFill(parameter_value);

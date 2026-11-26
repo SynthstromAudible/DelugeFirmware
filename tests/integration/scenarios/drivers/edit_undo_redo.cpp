@@ -77,11 +77,12 @@
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
 #include "project/doc_audio_clip.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include "project/param_address.h"
 #include "project/param_automation.h"
 #include "project/param_edit.h"
 #include "scenarios/drivers/tree_load.h"
-#include "sequence/iterance.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 #include "util/structural_edit_probe.h"
@@ -97,6 +98,8 @@
 #include <vector>
 
 #include "scenarios/drivers/driver.h"
+
+using deluge::project::Iterance;
 
 namespace {
 /// Collections found publishing stale lanes.
@@ -1464,7 +1467,7 @@ void pasteTarget(Song* song) {
 	copied.notes[0].pos = 0;
 	copied.notes[0].setLength(1);
 	copied.notes[0].setVelocity(64);
-	copied.notes[0].setProbability(kNumProbabilityValues); // full probability
+	copied.notes[0].setProbability(deluge::project::kProbabilityValueCount); // full probability
 	copied.yNote = noteRow->y();
 	copied.yDisplay = 0;
 

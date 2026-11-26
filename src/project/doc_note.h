@@ -23,15 +23,15 @@ namespace deluge::project {
 /// @brief The DOM-owned save representation of one engine Note: a flat mirror of the fields the note serializer
 /// emits.
 ///
-/// `iterance` is the packed `Iterance::toInt()` form (reconstruct via `Iterance::fromInt` on the engine side) so
-/// this header stays portable (no engine includes). Rebuilt from the engine note vector at save; the engine `Note`
+/// `iterance` is `project::Iterance`'s packed form (`Iterance::packed`, read back with `Iterance::from_packed`), the
+/// form a song file stores. Rebuilt from the engine note vector at save; the engine `Note`
 /// stays authoritative at runtime.
 struct DocNote {
 	int32_t pos{0};
 	int32_t length{0};
 	uint8_t velocity{0};
 	uint8_t probability{0};
-	uint16_t iterance{0}; ///< Iterance::toInt() packed form
+	uint16_t iterance{0}; ///< `Iterance::packed()`
 	uint8_t fill{0};
 	uint8_t lift{0}; ///< noteOff velocity
 };

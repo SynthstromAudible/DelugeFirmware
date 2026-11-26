@@ -35,6 +35,7 @@
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
+#include "project/note_probability.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/marker/marker_scene.h"
 #include "ui/scenes/menu/bind_host.h"
@@ -1427,7 +1428,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* stack = r.song.song->setupModelStackWithCurrentClip(memory);
 			ModelStackWithNoteRow* with_row = r.song.clip->getNoteRowForYNote(row->y(), stack);
-			(void)row->attemptNoteAdd(0, 24, 64, kNumProbabilityValues, row->getDefaultIterance(), 0, with_row, nullptr);
+			(void)row->attemptNoteAdd(0, 24, 64, deluge::project::kProbabilityValueCount, row->getDefaultIterance(), 0, with_row, nullptr);
 		}
 		r.song.song->persistentView.xScroll[NAVIGATION_CLIP] = 0;
 		r.song.song->persistentView.xZoom[NAVIGATION_CLIP] = 48;

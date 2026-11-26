@@ -4,7 +4,7 @@
 ///
 /// The note editor and note-row editor (25 leaves) read and write sixteen
 /// `instrumentClipView` members named across `gui/menu_item/note/` and `note_row/`, plus the
-/// iterance preset labels (`iterancePresets` in `util/lookuptables/preset_tables.cpp`) -- all of it behind
+/// iterance preset labels (`project::format_preset`) -- all of it behind
 /// `gui/views/instrument_clip_view.h`, which `src/ui/scenes` may not include. `NoteBridge` is a
 /// struct of function pointers instead: declared here with no legacy include, installed once at
 /// boot from `gui/ui/shell_note_bridge.cpp`, and called synchronously -- legacy calls
@@ -25,9 +25,9 @@
 /// `SelectedNoteRow::getIndividualNoteRow` does (`SelectedNoteRow::getIndividualNoteRow` in
 /// `origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`); the bridge keeps that.
 ///
-/// **Iterance crosses as a raw `int32_t`** (`Iterance::toInt`/`fromInt`,
-/// `origin/main:src/deluge/model/iterance/iterance.h`, which `src/ui/scenes` may include) -- not as a preset index. The
-/// leaves convert with `Iterance::fromInt(...).toPresetIndex()` themselves.
+/// **Iterance crosses as a raw `int32_t`**, its packed form (`project::Iterance::packed`/`from_packed`,
+/// `project/iterance.h`) -- not as a preset index. The leaves convert with
+/// `project::Iterance::from_packed(...).preset_index()` themselves.
 ///
 /// **A read with nothing selected returns 0**, matching legacy's own "no pressed note" case; the
 /// popup and edit guard belong to the leaves' `Binding::permitted` hook, not to this struct.
@@ -48,9 +48,9 @@ struct NoteBridge {
 	void (*adjust_note_velocity)(int32_t offset);    // `adjustVelocity`
 	int32_t (*note_probability)();                   // leftmost pressed note's `getProbability()`
 	void (*adjust_note_probability)(int32_t offset); // `adjustNoteProbabilityWithOffset`
-	int32_t (*note_iterance)();                      // leftmost pressed note's `getIterance().toInt()`
+	int32_t (*note_iterance)();                      // leftmost pressed note's `getIterance().packed()`
 	void (*adjust_note_iterance)(int32_t offset);    // `adjustNoteIteranceWithOffset`
-	void (*set_note_iterance)(int32_t iterance);     // `adjustNoteIteranceWithFinalValue(Iterance::fromInt(...))`
+	void (*set_note_iterance)(int32_t iterance);     // `adjustNoteIteranceWithFinalValue(Iterance::from_packed(...))`
 	int32_t (*note_fill)();                          // leftmost pressed note's `getFill()`
 	void (*adjust_note_fill)(int32_t offset);        // `adjustNoteFillWithOffset`
 
@@ -58,7 +58,7 @@ struct NoteBridge {
 	bool (*row_auditioning)();                      // `isUIModeActive(UI_MODE_AUDITIONING)`
 	int32_t (*row_probability)();                   // `noteRow->probabilityValue`
 	void (*adjust_row_probability)(int32_t offset); // `setNoteRowProbabilityWithOffset`
-	int32_t (*row_iterance)();                      // `noteRow->iteranceValue.toInt()`
+	int32_t (*row_iterance)();                      // `noteRow->iteranceValue.packed()`
 	void (*adjust_row_iterance)(int32_t offset);    // `setNoteRowIteranceWithOffset`
 	void (*set_row_iterance)(int32_t iterance);     // `setNoteRowIteranceWithFinalValue`
 	int32_t (*row_fill)();                          // `noteRow->fillValue`
@@ -67,7 +67,7 @@ struct NoteBridge {
 	void (*set_row_sequence_direction)(int32_t value);
 
 	// Shared.
-	size_t (*iterance_preset_label)(int32_t preset, bool compact, std::span<char> out); // `iterancePresets`
+	size_t (*iterance_preset_label)(int32_t preset, bool compact, std::span<char> out); // `project::format_preset`
 };
 
 /// @brief Install the bridge the application wires at boot, or `nullptr` to clear it (a failing

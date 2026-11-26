@@ -24,7 +24,7 @@
 #include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
-#include "sequence/iterance.h"
+#include "project/iterance.h"
 #include "util/c_string.h"
 #include <span>
 
@@ -55,7 +55,7 @@ struct EditPadPress {
 	bool deleteOnDepress{}; // Can also mean to delete tail
 	uint8_t intendedVelocity{};
 	uint8_t intendedProbability{};
-	Iterance intendedIterance;
+	deluge::project::Iterance intendedIterance;
 	uint8_t intendedFill{};
 	bool deleteOnScroll{};
 	bool isBlurredSquare{};
@@ -362,7 +362,7 @@ public:
 	void handleProbabilityOrIteranceEditing(int8_t offset, bool editNoteRow);
 	void adjustNoteProbabilityWithOffset(int32_t offset);
 	void adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);
-	void adjustNoteIteranceWithFinalValue(Iterance finalValue);
+	void adjustNoteIteranceWithFinalValue(deluge::project::Iterance finalValue);
 	void adjustNoteFillWithOffset(int32_t offset);
 	Note* getLeftMostNotePressed();
 	void adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
@@ -394,7 +394,7 @@ public:
 	// adjust note row parameters
 	int32_t setNoteRowProbabilityWithOffset(int32_t offset);
 	int32_t setNoteRowIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);
-	int32_t setNoteRowIteranceWithFinalValue(Iterance finalValue);
+	int32_t setNoteRowIteranceWithFinalValue(deluge::project::Iterance finalValue);
 	int32_t setNoteRowFillWithOffset(int32_t offset);
 	int32_t setNoteRowParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
 	                                 int32_t parameterMinValue, int32_t parameterMaxValue,
@@ -448,7 +448,7 @@ private:
 	// note functions
 	void nudgeNotes(int32_t offset);
 	void displayProbability(uint8_t probability, bool prevBase);
-	void displayIterance(Iterance iterance);
+	void displayIterance(deluge::project::Iterance iterance);
 	void displayFill(uint8_t mode);
 
 	// note editor functions

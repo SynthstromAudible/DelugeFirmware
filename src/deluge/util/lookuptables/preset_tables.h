@@ -17,15 +17,12 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"              // kNumIterancePresets
 #include "gui/l10n/strings.h"               // deluge::l10n::String
-#include "sequence/iterance.h"              // Iterance
 #include "util/lookuptables/lookuptables.h" // MAX_CHORD_TYPES
 #include <array>
 
-// Preset name / iterance tables, split out of lookuptables.h. These need app-layer types (l10n::String,
-// Iterance) and so would otherwise drag gui/l10n + model/iterance — and, via l10n/strings.h -> midi_device.h,
-// model/model_stack.h — into every lookuptables.h consumer, including the synth DSP core (which needs only
-// the numeric tables). Consumers of these specific tables include this header instead.
-extern const std::array<Iterance, kNumIterancePresets> iterancePresets;
+// The preset name tables, split out of lookuptables.h. They need an app-layer type (l10n::String), and so would
+// otherwise drag gui/l10n -- and, via l10n/strings.h -> midi_device.h, model/model_stack.h -- into every lookuptables.h
+// consumer, including the synth DSP core (which needs only the numeric tables). Consumers of these tables include this
+// header instead. The iterance presets are the project's (project/iterance.h).
 extern const std::array<deluge::l10n::String, MAX_CHORD_TYPES> chordNames;

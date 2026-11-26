@@ -11,13 +11,14 @@
 ///   * each guard (`permitted_note`/`permitted_row`) refuses and raises its literal popup;
 ///   * each step toggle's `relevant` follows the divisor, including the "OFF, index 0" case;
 ///   * `note_iterance`/`note_row_iterance`'s `select_chain` resolves only on
-///     `kCustomIterancePreset`;
+///     `deluge::project::kCustomIterancePreset`;
 ///   * the three `value_text` hooks produce legacy's strings, including
 ///     probability's latching and fill's strike;
 ///   * the shape: each root and custom root has the child count main's note editors have (4, 4, 9, 9);
 ///   * `validate_tree` over `kAllRoots` reports nothing about any node this file declares.
 ///
 #include "gui/ui/menu_view_of.h"
+#include "project/note_probability.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -29,7 +30,7 @@
 #include "base/notify/notice_queue.h"
 
 #include "definitions_cxx.hpp"
-#include "sequence/iterance.h"
+#include "project/iterance.h"
 
 #include "support/fake_note_bridge.h"
 #include "support/song_fixture.h"
@@ -47,9 +48,12 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
+
+using deluge::project::Iterance;
 
 namespace menu = deluge::ui::scenes::menu;
 namespace nodes = deluge::ui::scenes::menu::nodes;
@@ -122,11 +126,11 @@ describe note_nodes_bridge("scenes::menu note editor/note-row editor: bridge wir
 		guard.fake.note_iterance_value = 0; // OFF
 		expect(bindings::read(nodes::note_iterance, ctx)).to_equal(int32_t(0));
 
-		guard.fake.note_iterance_value = Iterance{2, 0b1}.toInt(); // preset 3, "1of2" (after FIRST and LAST)
+		guard.fake.note_iterance_value = Iterance{2, 0b1}.packed(); // preset 3, "1of2" (after FIRST and LAST)
 		expect(bindings::read(nodes::note_iterance, ctx)).to_equal(int32_t(3));
 
-		guard.fake.note_iterance_value = Iterance{1, 1}.toInt(); // "1of1" is not itself a preset row
-		expect(bindings::read(nodes::note_iterance, ctx)).to_equal(int32_t(kCustomIterancePreset));
+		guard.fake.note_iterance_value = Iterance{1, 1}.packed(); // "1of1" is not itself a preset row
+		expect(bindings::read(nodes::note_iterance, ctx)).to_equal(int32_t(deluge::project::kCustomIterancePreset));
 
 		bindings::adjust(nodes::note_iterance, ctx, 4);
 		expect(guard.fake.adjust_note_iterance_calls).to_equal(int32_t(1));
@@ -136,8 +140,8 @@ describe note_nodes_bridge("scenes::menu note editor/note-row editor: bridge wir
 	it("reads and adjusts note_fill through the bridge, offset unchanged", _ {
 		FakeNoteBridgeGuard guard;
 		menu::MenuContext ctx{};
-		guard.fake.note_fill_value = FillMode::NOT_FILL;
-		expect(bindings::read(nodes::note_fill, ctx)).to_equal(int32_t(FillMode::NOT_FILL));
+		guard.fake.note_fill_value = std::to_underlying(deluge::project::FillMode::NOT_FILL);
+		expect(bindings::read(nodes::note_fill, ctx)).to_equal(int32_t(std::to_underlying(deluge::project::FillMode::NOT_FILL)));
 		bindings::adjust(nodes::note_fill, ctx, 1);
 		expect(guard.fake.adjust_note_fill_last_offset).to_equal(int32_t(1));
 	});
@@ -151,13 +155,13 @@ describe note_nodes_bridge("scenes::menu note editor/note-row editor: bridge wir
 		bindings::adjust(nodes::note_row_probability, ctx, 6);
 		expect(guard.fake.adjust_row_probability_last_offset).to_equal(int32_t(6));
 
-		guard.fake.row_iterance_value = Iterance{3, 0b100}.toInt(); // preset 7, "3of3"
+		guard.fake.row_iterance_value = Iterance{3, 0b100}.packed(); // preset 7, "3of3"
 		expect(bindings::read(nodes::note_row_iterance, ctx)).to_equal(int32_t(7));
 		bindings::adjust(nodes::note_row_iterance, ctx, -2);
 		expect(guard.fake.adjust_row_iterance_last_offset).to_equal(int32_t(-2));
 
-		guard.fake.row_fill_value = FillMode::FILL;
-		expect(bindings::read(nodes::note_row_fill, ctx)).to_equal(int32_t(FillMode::FILL));
+		guard.fake.row_fill_value = std::to_underlying(deluge::project::FillMode::FILL);
+		expect(bindings::read(nodes::note_row_fill, ctx)).to_equal(int32_t(std::to_underlying(deluge::project::FillMode::FILL)));
 		bindings::adjust(nodes::note_row_fill, ctx, 1);
 		expect(guard.fake.adjust_row_fill_last_offset).to_equal(int32_t(1));
 	});
@@ -221,11 +225,11 @@ describe note_nodes_value_text("scenes::menu note editor/note-row editor: value_
 		menu::MenuContext ctx{};
 		const auto fn = nodes::note_editor_probability.bind.value_text;
 
-		// 15 <= kNumProbabilityValues (20): not latching, shown = 15 * 5 = 75.
+		// 15 <= deluge::project::kProbabilityValueCount (20): not latching, shown = 15 * 5 = 75.
 		expect(value_text_string(fn, ctx, 15, ValueTextUse::Column)).to_equal(std::string{"75%"});
 		expect(value_text_string(fn, ctx, 15, ValueTextUse::Notification)).to_equal(std::string{"75%"});
 
-		// 25 > kNumProbabilityValues (20): latching, masked to 25 & 127 = 25, shown = 125.
+		// 25 > deluge::project::kProbabilityValueCount (20): latching, masked to 25 & 127 = 25, shown = 125.
 		expect(value_text_string(fn, ctx, 25, ValueTextUse::Column)).to_equal(std::string{"125L"});
 		expect(value_text_string(fn, ctx, 25, ValueTextUse::Notification)).to_equal(std::string{"125% ltch"});
 	});
@@ -236,7 +240,7 @@ describe note_nodes_value_text("scenes::menu note editor/note-row editor: value_
 		const auto fn = nodes::note_iterance.bind.value_text;
 
 		expect(value_text_string(fn, ctx, 0, ValueTextUse::Column)).to_equal(std::string{"OFF"});
-		expect(value_text_string(fn, ctx, kCustomIterancePreset, ValueTextUse::Notification))
+		expect(value_text_string(fn, ctx, deluge::project::kCustomIterancePreset, ValueTextUse::Notification))
 		    .to_equal(std::string{"CUSTOM"});
 
 		guard.fake.iterance_preset_label_text = "2:3";
@@ -255,23 +259,23 @@ describe note_nodes_value_text("scenes::menu note editor/note-row editor: value_
 		const auto fn = nodes::note_fill.bind.value_text;
 		char buffer[32];
 
-		ValueText off_col = fn(ctx, FillMode::OFF, ValueTextUse::Column, std::span<char>(buffer, sizeof(buffer)));
+		ValueText off_col = fn(ctx, std::to_underlying(deluge::project::FillMode::OFF), ValueTextUse::Column, std::span<char>(buffer, sizeof(buffer)));
 		expect(std::string(buffer, off_col.length)).to_equal(std::string{"OFF"});
 		expect(off_col.strikethrough).to_be_false();
 
 		ValueText notfill_col =
-		    fn(ctx, FillMode::NOT_FILL, ValueTextUse::Column, std::span<char>(buffer, sizeof(buffer)));
+		    fn(ctx, std::to_underlying(deluge::project::FillMode::NOT_FILL), ValueTextUse::Column, std::span<char>(buffer, sizeof(buffer)));
 		expect(std::string(buffer, notfill_col.length)).to_equal(std::string{"FILL"});
 		expect(notfill_col.strikethrough).to_be_true();
 
-		ValueText fill_col = fn(ctx, FillMode::FILL, ValueTextUse::Column, std::span<char>(buffer, sizeof(buffer)));
+		ValueText fill_col = fn(ctx, std::to_underlying(deluge::project::FillMode::FILL), ValueTextUse::Column, std::span<char>(buffer, sizeof(buffer)));
 		expect(std::string(buffer, fill_col.length)).to_equal(std::string{"FILL"});
 		expect(fill_col.strikethrough).to_be_false();
 
-		expect(value_text_string(fn, ctx, FillMode::OFF, ValueTextUse::Notification)).to_equal(std::string{"OFF"});
-		expect(value_text_string(fn, ctx, FillMode::NOT_FILL, ValueTextUse::Notification))
+		expect(value_text_string(fn, ctx, std::to_underlying(deluge::project::FillMode::OFF), ValueTextUse::Notification)).to_equal(std::string{"OFF"});
+		expect(value_text_string(fn, ctx, std::to_underlying(deluge::project::FillMode::NOT_FILL), ValueTextUse::Notification))
 		    .to_equal(std::string{"NOT FILL"});
-		expect(value_text_string(fn, ctx, FillMode::FILL, ValueTextUse::Notification)).to_equal(std::string{"FILL"});
+		expect(value_text_string(fn, ctx, std::to_underlying(deluge::project::FillMode::FILL), ValueTextUse::Notification)).to_equal(std::string{"FILL"});
 	});
 
 	it("gives note_row's probability/iterance/fill the identical value_text hooks", _ {
@@ -288,7 +292,7 @@ describe note_nodes_custom_iterance("scenes::menu note editor/note-row editor: c
 		FakeNoteBridgeGuard guard;
 		menu::MenuContext ctx{};
 
-		guard.fake.note_iterance_value = Iterance{5, 0b10101}.toInt();
+		guard.fake.note_iterance_value = Iterance{5, 0b10101}.packed();
 		expect(bindings::read(nodes::note_iterance_divisor, ctx)).to_equal(int32_t(5));
 
 		guard.fake.note_iterance_value = 0; // OFF -> 1of1 -> divisor 1
@@ -300,22 +304,22 @@ describe note_nodes_custom_iterance("scenes::menu note editor/note-row editor: c
 		menu::MenuContext ctx{};
 
 		// divisor 5, steps 0b10101 (bits 0, 2, 4). Narrowing to divisor 3 masks to bits 0..2: 0b101.
-		guard.fake.note_iterance_value = Iterance{5, 0b10101}.toInt();
+		guard.fake.note_iterance_value = Iterance{5, 0b10101}.packed();
 		bindings::write(nodes::note_iterance_divisor, ctx, 3);
 		expect(guard.fake.set_note_iterance_calls).to_equal(int32_t(1));
-		expect(guard.fake.set_note_iterance_last_value).to_equal(int32_t(Iterance{3, 0b101}.toInt()));
+		expect(guard.fake.set_note_iterance_last_value).to_equal(int32_t(Iterance{3, 0b101}.packed()));
 
 		// OFF -> 1of1 (divisor 1, steps 0b1) before the mask is computed.
 		guard.fake.note_iterance_value = 0;
 		bindings::write(nodes::note_iterance_divisor, ctx, 1);
-		expect(guard.fake.set_note_iterance_last_value).to_equal(int32_t(Iterance{1, 0b1}.toInt()));
+		expect(guard.fake.set_note_iterance_last_value).to_equal(int32_t(Iterance{1, 0b1}.packed()));
 	});
 
 	it("reads each step's bit, converting OFF to 1of1 first", _ {
 		FakeNoteBridgeGuard guard;
 		menu::MenuContext ctx{};
 
-		guard.fake.note_iterance_value = Iterance{5, 0b10101}.toInt(); // bits 0, 2, 4 set
+		guard.fake.note_iterance_value = Iterance{5, 0b10101}.packed(); // bits 0, 2, 4 set
 		expect(bindings::read(nodes::note_iterance_step_1, ctx)).to_equal(int32_t(1)); // index 0
 		expect(bindings::read(nodes::note_iterance_step_2, ctx)).to_equal(int32_t(0)); // index 1
 		expect(bindings::read(nodes::note_iterance_step_3, ctx)).to_equal(int32_t(1)); // index 2
@@ -329,21 +333,21 @@ describe note_nodes_custom_iterance("scenes::menu note editor/note-row editor: c
 		menu::MenuContext ctx{};
 
 		// divisor 5, steps 0b10101; index 1 (bit 2) is currently clear -- set it.
-		guard.fake.note_iterance_value = Iterance{5, 0b10101}.toInt();
+		guard.fake.note_iterance_value = Iterance{5, 0b10101}.packed();
 		bindings::write(nodes::note_iterance_step_2, ctx, 1);
-		expect(guard.fake.set_note_iterance_last_value).to_equal(int32_t(Iterance{5, 0b10111}.toInt()));
+		expect(guard.fake.set_note_iterance_last_value).to_equal(int32_t(Iterance{5, 0b10111}.packed()));
 
 		// Same starting value; index 0 (bit 1) is currently set -- clear it.
-		guard.fake.note_iterance_value = Iterance{5, 0b10101}.toInt();
+		guard.fake.note_iterance_value = Iterance{5, 0b10101}.packed();
 		bindings::write(nodes::note_iterance_step_1, ctx, 0);
-		expect(guard.fake.set_note_iterance_last_value).to_equal(int32_t(Iterance{5, 0b10100}.toInt()));
+		expect(guard.fake.set_note_iterance_last_value).to_equal(int32_t(Iterance{5, 0b10100}.packed()));
 	});
 
 	it("shows a step relevant only under the divisor, or index 0 while iterance is off", _ {
 		FakeNoteBridgeGuard guard;
 		menu::MenuContext ctx{};
 
-		guard.fake.note_iterance_value = Iterance{3, 0b101}.toInt(); // divisor 3
+		guard.fake.note_iterance_value = Iterance{3, 0b101}.packed(); // divisor 3
 		expect(nodes::note_iterance_step_1.relevant(ctx)).to_be_true();  // index 0: 3 > 0
 		expect(nodes::note_iterance_step_2.relevant(ctx)).to_be_true();  // index 1: 3 > 1
 		expect(nodes::note_iterance_step_3.relevant(ctx)).to_be_true();  // index 2: 3 > 2
@@ -359,19 +363,19 @@ describe note_nodes_custom_iterance("scenes::menu note editor/note-row editor: c
 		guard.fake.row_auditioning_value = true; // "a row is selected" -- see the OFF-only example below
 		menu::MenuContext ctx{};
 
-		guard.fake.row_iterance_value = Iterance{4, 0b1010}.toInt();
+		guard.fake.row_iterance_value = Iterance{4, 0b1010}.packed();
 		expect(bindings::read(nodes::note_row_iterance_divisor, ctx)).to_equal(int32_t(4));
 		expect(bindings::read(nodes::note_row_iterance_step_2, ctx)).to_equal(int32_t(1)); // bit 1 set
 		expect(bindings::read(nodes::note_row_iterance_step_1, ctx)).to_equal(int32_t(0)); // bit 0 clear
 
 		bindings::write(nodes::note_row_iterance_divisor, ctx, 2);
-		expect(guard.fake.set_row_iterance_last_value).to_equal(int32_t(Iterance{2, 0b10}.toInt()));
+		expect(guard.fake.set_row_iterance_last_value).to_equal(int32_t(Iterance{2, 0b10}.packed()));
 
 		bindings::write(nodes::note_row_iterance_step_1, ctx, 1);
-		expect(guard.fake.set_row_iterance_last_value).to_equal(int32_t(Iterance{4, 0b1011}.toInt()));
+		expect(guard.fake.set_row_iterance_last_value).to_equal(int32_t(Iterance{4, 0b1011}.packed()));
 
 		// Beyond the OFF case: an ordinary divisor, same as the note family's own check above.
-		guard.fake.row_iterance_value = Iterance{3, 0b101}.toInt(); // divisor 3
+		guard.fake.row_iterance_value = Iterance{3, 0b101}.packed(); // divisor 3
 		expect(nodes::note_row_iterance_step_1.relevant(ctx)).to_be_true();  // index 0: 3 > 0
 		expect(nodes::note_row_iterance_step_3.relevant(ctx)).to_be_true();  // index 2: 3 > 2
 		expect(nodes::note_row_iterance_step_4.relevant(ctx)).to_be_false(); // index 3: 3 > 3 is false
@@ -498,21 +502,21 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 });
 
 describe note_nodes_select_chain("scenes::menu note editor/note-row editor: the iterance chain", $ {
-	it("chains to the custom-iterance root only on kCustomIterancePreset", _ {
+	it("chains to the custom-iterance root only on deluge::project::kCustomIterancePreset", _ {
 		FakeNoteBridgeGuard guard;
 		menu::MenuContext ctx{};
 		menu::MenuState state{};
 
-		guard.fake.note_iterance_value = Iterance{2, 0b1}.toInt(); // preset 1, not CUSTOM
+		guard.fake.note_iterance_value = Iterance{2, 0b1}.packed(); // preset 1, not CUSTOM
 		expect(nodes::note_iterance.select_chain(ctx, state)).to_be_null();
 
-		guard.fake.note_iterance_value = Iterance{1, 1}.toInt(); // maps to CUSTOM (36)
+		guard.fake.note_iterance_value = Iterance{1, 1}.packed(); // maps to CUSTOM (36)
 		expect(nodes::note_iterance.select_chain(ctx, state)).to_equal(&nodes::note_custom_iterance_root);
 
-		guard.fake.row_iterance_value = Iterance{2, 0b1}.toInt();
+		guard.fake.row_iterance_value = Iterance{2, 0b1}.packed();
 		expect(nodes::note_row_iterance.select_chain(ctx, state)).to_be_null();
 
-		guard.fake.row_iterance_value = Iterance{1, 1}.toInt();
+		guard.fake.row_iterance_value = Iterance{1, 1}.packed();
 		expect(nodes::note_row_iterance.select_chain(ctx, state)).to_equal(&nodes::note_row_custom_iterance_root);
 	});
 

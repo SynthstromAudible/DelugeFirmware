@@ -24,9 +24,8 @@
 #include <array>
 #include <cstdint>
 
-// NOTE: the preset *name* / iterance tables (chordNames, iterancePresets) that need
-// gui/l10n + model/iterance live in util/lookuptables/preset_tables.h, so this header stays a leaf of
-// numeric DSP tables (no gui/ or model/ reach). Include preset_tables.h if you need those.
+// NOTE: the preset name table (chordNames), which needs gui/l10n, lives in util/lookuptables/preset_tables.h, so
+// this header stays a leaf of numeric DSP tables (no gui/ or model/ reach). Include preset_tables.h for it.
 
 // ALIGNMENT: every table DEFINITION below carries `alignas(16)` (see the .cpp files). The
 // oscillator render path reads these through NEON/argon lane loads, which require aligned memory,
@@ -73,8 +72,6 @@ inline constexpr std::array<bool, 12> noteCodeIsSharp = [] {
 	}
 	return black;
 }();
-
-// iterancePresets -> util/lookuptables/preset_tables.h (needs Iterance)
 
 #define MAX_CHORD_TYPES 9
 #define MAX_CHORD_NOTES 4

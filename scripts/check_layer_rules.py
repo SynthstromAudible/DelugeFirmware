@@ -266,11 +266,9 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/menu_entry.cpp",
     # The note bridge's installer. `src/ui/scenes` may include `model/**`
     # (`src/ui/scenes/CMakeLists.txt`), so `Note`/`NoteRow` are not what earns this file its place
-    # here -- it is `gui/views/instrument_clip_view.h`, which `src/ui/scenes` may NOT include, and the
-    # iterance preset table, `iterancePresets` (`util/lookuptables/lookuptables.cpp`), which
-    # `src/ui/scenes` may not reach either (it lives in a `.cpp`, not the model header the table's
-    # declaration sits in). This is the side of the wall that gets to name `instrumentClipView`
-    # itself and that table, the same reason `shell_pad_forward.cpp` above gets to name
+    # here -- it is `gui/views/instrument_clip_view.h`, which `src/ui/scenes` may NOT include. This is the
+    # side of the wall that gets to name `instrumentClipView` itself, the same reason `shell_pad_forward.cpp`
+    # above gets to name
     # `instrumentClipView`/`keyboardScreen`/`performanceView`. It names
     # `deluge::ui::scenes::menu::NoteBridge` and `deluge::ui::scenes::menu::set_note_bridge`
     # (`ui/scenes/menu/note_bridge.h`) to install the function pointers those legacy names sit behind.

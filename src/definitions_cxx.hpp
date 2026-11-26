@@ -28,7 +28,6 @@
 #include "project/launch_style.h"
 #include "project/midi_command.h"
 #include "project/sequence_direction.h"
-#include "sequence/iterance.h"
 #include "synth/modulation/patch_source.h"
 #include "ui/gfx/oled/font.h"
 #include "ui/gfx/oled/glyphs.h"
@@ -591,31 +590,11 @@ enum class ArmState {
 	ON_TO_RECORD,
 };
 
-constexpr int32_t kNumProbabilityValues = 20;
-constexpr int32_t kNumIterancePresets = 37; // first, last, then 1of2 through 8of8 (indexes 3 through 37)
-constexpr int32_t kCustomIterancePreset = kNumIterancePresets + 1; // The "CUSTOM" iterance value is right after "8of8"
-constexpr Iterance kCustomIteranceValue = Iterance{1, 1};          // "1of1"
-constexpr Iterance kDefaultIteranceValue = Iterance{0, 0};         // 0, 0 means OFF
-
-constexpr int32_t kFirstIterancePreset = 1;
-constexpr int32_t kLastIterancePreset = 2;
-constexpr Iterance kFirstIteranceValue = Iterance{0, 1}; // 0, 1 means first time only
-constexpr Iterance kLastIteranceValue = Iterance{0, 2};  // 0, 2 means last time only
-
-constexpr int32_t kDefaultIterancePreset = 0; // 0 means OFF
 // these are  only used for reading old songs
 constexpr int32_t kOldFillProbabilityValue = 0;
 constexpr int32_t kOldNotFillProbabilityValue = 128; // This is like the "latched" state of Fill (zero ORed with 128)
 
 constexpr int32_t kDefaultLiftValue = 64;
-
-enum FillMode : uint8_t {
-	OFF,
-	NOT_FILL,
-	FILL,
-};
-
-constexpr int32_t kNumFillValues = FillMode::FILL;
 
 enum Navigation {
 	NAVIGATION_CLIP,
