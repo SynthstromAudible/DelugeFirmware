@@ -6,8 +6,8 @@
 ///        that parks the listing op, and one side's answer (the navigation numbers, the text and the panel).
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/browser/browser_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/profile.h"
 #include "ui/scenes/registry.h"
@@ -170,7 +170,7 @@ struct CleanBrowser {
 		// Drop whatever ports the last example opened the scene with -- a fake on its stack among them -- for the
 		// host's, which live as long as the program.
 		MenuContext host{};
-		host.ports = deluge::ui::scenes::menu::host_ports();
+		host.ports = deluge::gui::shell_host::host_ports();
 		browser_scene().open(host);
 	}
 	CleanBrowser(const CleanBrowser&) = delete;

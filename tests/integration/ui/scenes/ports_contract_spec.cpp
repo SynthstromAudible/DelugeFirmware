@@ -1,6 +1,6 @@
+#include "gui/ui/shell_host/host_ports.h"
 #include "port_contracts.h"
 #include "support/peak_seed.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/nodes/settings.h"
@@ -180,14 +180,14 @@ struct PreviewSound {
 
 /// @brief The app's waveforms port, as the app's ports hold it.
 const bind::Waveforms& app_waveforms() {
-	return *menu::host_ports().waveforms;
+	return *deluge::gui::shell_host::host_ports().waveforms;
 }
 } // namespace
 
 // clang-format off
 describe ports_contract_host("the app's ports keep the contract their fakes keep", ${
 	it("holds every contract case on the app's ports", _ {
-		const bind::Ports& p = menu::host_ports();
+		const bind::Ports& p = deluge::gui::shell_host::host_ports();
 		expect(p.audio).not_().to_be_null();
 		expect(p.card).not_().to_be_null();
 		expect(p.ui).not_().to_be_null();
@@ -356,7 +356,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		}
 	});
 	it("holds the catalogue contract on the app's catalogue, over a listing of the card's SETTINGS folder", _ {
-		bind::Catalogue* catalogue = menu::host_ports().catalogue;
+		bind::Catalogue* catalogue = deluge::gui::shell_host::host_ports().catalogue;
 		expect(catalogue).not_().to_be_null();
 		if (catalogue == nullptr) {
 			return;
@@ -376,7 +376,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 	});
 
 	it("answers the song's clip navigation, the arrangement's mode, and a tempo grab off an audio clip as nothing", _ {
-		const bind::Ports& p = menu::host_ports();
+		const bind::Ports& p = deluge::gui::shell_host::host_ports();
 		Song* const saved_song = currentSong;
 		PlaybackMode* const saved_mode = currentPlaybackMode;
 		spec::SongFixture synth = spec::make_synth_song(); // made current
@@ -410,7 +410,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		spec::make_current(saved_song);
 	});
 	it("keeps the device's settings where the device keeps them, and puts back what it wrote", _ {
-		const bind::Ports& p = menu::host_ports();
+		const bind::Ports& p = deluge::gui::shell_host::host_ports();
 		expect(p.device).not_().to_be_null();
 		if (p.device == nullptr) {
 			return;
@@ -476,7 +476,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		PadLEDs::flashCursor = 5;
 		expect(p.device->read(device_path::kPlayCursor).value_or(-1)).to_equal(2);
 		menu::MenuContext on_device{};
-		on_device.ports = menu::host_ports();
+		on_device.ports = deluge::gui::shell_host::host_ports();
 		const int32_t shown = menu::bindings::read(menu::nodes::flash_status, on_device);
 		expect(shown).to_equal(2);
 		std::array<std::string_view, menu::kMaxDynamicNames> names{};
@@ -522,7 +522,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 	});
 
 	it("does what each defaults write implies, as the defaults page's own items do", _ {
-		const bind::Ports& p = menu::host_ports();
+		const bind::Ports& p = deluge::gui::shell_host::host_ports();
 		expect(p.device).not_().to_be_null();
 		if (p.device == nullptr) {
 			return;
@@ -631,7 +631,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 	});
 
 	it("does what each pads-and-screen write implies, as the settings pages' own items do", _ {
-		const bind::Ports& p = menu::host_ports();
+		const bind::Ports& p = deluge::gui::shell_host::host_ports();
 		expect(p.device).not_().to_be_null();
 		if (p.device == nullptr) {
 			return;
@@ -716,7 +716,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 	});
 
 	it("does what each audio, clock and stem-export write implies, as the settings pages' own items do", _ {
-		const bind::Ports& p = menu::host_ports();
+		const bind::Ports& p = deluge::gui::shell_host::host_ports();
 		expect(p.device).not_().to_be_null();
 		if (p.device == nullptr) {
 			return;
@@ -816,7 +816,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 	});
 
 	it("does what each CV and gate write implies, as the CV and gate pages' own items do", _ {
-		const bind::Ports& p = menu::host_ports();
+		const bind::Ports& p = deluge::gui::shell_host::host_ports();
 		expect(p.device).not_().to_be_null();
 		if (p.device == nullptr) {
 			return;
@@ -876,7 +876,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.device->read(first).value_or(-1)).to_equal(int32_t{std::to_underlying(GateType::S_TRIG)});
 		{
 			menu::MenuContext on_device{};
-			on_device.ports = menu::host_ports();
+			on_device.ports = deluge::gui::shell_host::host_ports();
 			on_device.source_index = 0;
 			const int32_t shown = menu::bindings::read(menu::nodes::gate_mode, on_device);
 			std::array<std::string_view, menu::kMaxDynamicNames> names{};
@@ -904,7 +904,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 	});
 
 	it("keeps the MIDI settings where the MIDI engine keeps them, each write one plain store", _ {
-		const bind::Ports& p = menu::host_ports();
+		const bind::Ports& p = deluge::gui::shell_host::host_ports();
 		expect(p.device).not_().to_be_null();
 		if (p.device == nullptr) {
 			return;
@@ -953,7 +953,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.device->read(device_path::kMidiTranspose).value_or(-1)).to_equal(1);
 		{
 			menu::MenuContext on_device{};
-			on_device.ports = menu::host_ports();
+			on_device.ports = deluge::gui::shell_host::host_ports();
 			const int32_t shown = menu::bindings::read(menu::nodes::midi_transpose_method, on_device);
 			std::array<std::string_view, menu::kMaxDynamicNames> names{};
 			std::array<deluge::ui::shell::TextScratch, menu::kMaxDynamicNames> scratch{};
@@ -1282,7 +1282,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 	});
 
 	it("holds the waveforms contract on the app's port: a loaded range, and a range at a slot no sound holds", _ {
-		const bind::Ports& p = menu::host_ports();
+		const bind::Ports& p = deluge::gui::shell_host::host_ports();
 		expect(p.waveforms).not_().to_be_null();
 		if (p.waveforms == nullptr) {
 			return;

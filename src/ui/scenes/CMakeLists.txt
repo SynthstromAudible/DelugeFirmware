@@ -1,23 +1,11 @@
-# deluge_ui_scenes -- the first UI layer allowed to include the model.
-# May include ui/**, base/**, libdeluge/**, midi/** (the MIDI protocol library), the standard library, and
-# -- being the first model-aware layer -- the model and its words and values. The exact list is
-# scripts/layers.toml's `scenes-includes-outside`; never gui/ otherwise, never hid/.
+# deluge_ui_scenes -- the scenes a Shell stacks: the menu interpreter, the browser, the editors and the overlays.
+# May include ui/**, base/**, libdeluge/**, midi/** (the MIDI protocol library), gui/l10n/**, the standard library, and
+# the model's words and values; scripts/layers.toml's `scenes-includes-outside` is the exact list, and
+# `scenes-reads-outside-bind` keeps every read of the model's records in ui/scenes/bind. Never gui/ otherwise, never
+# hid/, and no root-level header (`scenes-includes-root-header`).
 #
-# Plus exactly one ROOT-LEVEL app header, named individually because it sits in no allowed
-# subdirectory:
-#   definitions_cxx.hpp  -- the shared enums/constants every layer below already reads.
-#
-# THIS LIST IS THE AUTHORITY FOR IT, and it is enforced by hand. `scripts/layers.toml`'s
-# `scenes-includes-outside` rule only matches include paths that contain a `/`, so a root-level
-# header -- allowed or not -- is invisible to it; closing that hole needs a stdlib-vs-project
-# discriminator (`<cstdint>` and `<stdint.h>` are both slash-less) that the checker does not have.
-# A second root-level include added here must be justified in this comment or it is a violation
-# nothing will catch.
-# (io/** is for the settings root: `midiEngine` and the MIDI device registry -- the follow
-# channels' and the MIDI commands' state -- live there, and the model-includes-ui rule in scripts/layers.toml already counts src/deluge/io/ as non-UI.)
-# (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions.)
-#
-# Link direction: deluge_ui_scenes links deluge_app (compile-only; see below), never the reverse.
+# Link direction: deluge_ui_scenes links no part of the app (`scenes-link-app`); tests/unit/ui/scenes/fakes links it
+# whole, over the ports' fakes, with no app.
 add_library(deluge_ui_scenes STATIC
     l10n_bridge.cpp
     profile.cpp
@@ -141,32 +129,16 @@ add_library(deluge_ui_scenes STATIC
 target_include_directories(deluge_ui_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../../include
-    ${CMAKE_CURRENT_LIST_DIR}/../../deluge
 )
 # deluge_ui_shell already brings deluge_ui_widgets_core/deluge_ui_widgets_oled/deluge_ui_widgets_grid/
-# deluge_base_notify PUBLIC (the `target_link_libraries(deluge_ui_shell PUBLIC ...)` in src/ui/shell/CMakeLists.txt);
-# deluge_app is the portable application (an OBJECT library) this layer is allowed to read
-# model/modulation/playback/storage from.
-#
-# $<COMPILE_ONLY:deluge_app> (CMake >= 3.27 -- both cmake_minimum_required floors that build this
-# file were raised to 3.27 for exactly this, see CMakeLists.txt and src/platform/host/CMakeLists.txt): deluge_app
-# is an OBJECT library, and a real (non-COMPILE_ONLY) PUBLIC link of an OBJECT library into a
-# STATIC library archives its ENTIRE object closure into the consumer: a real link here makes
-# libdeluge_ui_scenes.a a full second copy of deluge_app (~70 MB device, ~146 MB sim).
-# COMPILE_ONLY forwards deluge_app's usage requirements (include dirs, compile definitions) without
-# archiving its objects -- exactly what deluge_ui_scenes needs to compile against model/**,
-# modulation/**, playback/**, storage/** headers, and nothing more.
-#
-# Consequence: deluge_ui_scenes does not provide deluge_app's actual symbols to whatever links it.
-# EVERY CONSUMER OF deluge_ui_scenes MUST ALSO LINK deluge_app ITSELF to get those symbols --
-# deluge_ui_scenes_spec already does this (tests/integration/ui/scenes/CMakeLists.txt: `deluge_app deluge_ui_scenes
-# ...`), and so do deluge_host's and the firmware device build's link lines --
-# a fact about those link lines, not a guarantee `COMPILE_ONLY` provides.
+# deluge_base_notify PUBLIC (src/ui/shell/CMakeLists.txt). deluge_base: the number formatting the menu pages use.
+# deluge_l10n: the strings, the names and the error texts, and src/deluge as the root its headers resolve from.
 # deluge_ui_scenes_bind: what a menu node edits, bound to the model's records and the engines' descriptors.
 if(NOT TARGET deluge_ui_scenes_bind)
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/bind ${CMAKE_CURRENT_BINARY_DIR}/bind)
 endif()
-target_link_libraries(deluge_ui_scenes PUBLIC deluge_ui_shell deluge_ui_scenes_bind deluge_ui_views_waveform $<COMPILE_ONLY:deluge_app>)
+target_link_libraries(deluge_ui_scenes PUBLIC deluge_ui_shell deluge_ui_scenes_bind deluge_ui_views_waveform deluge_base
+                                              deluge_l10n)
 target_compile_options(deluge_ui_scenes PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 set_target_properties(deluge_ui_scenes PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
 # UI code, run at menu and input rate: built for size, as deluge_ui_scenes_bind is.

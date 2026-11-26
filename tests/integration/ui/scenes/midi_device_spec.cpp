@@ -25,11 +25,11 @@
 ///     rule.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -591,7 +591,7 @@ describe midi_device_host_writes("scenes::menu: the host's MIDI devices port app
 	it("sends an output zone change to the device as its MCM, and an input zone change not at all", _ {
 		select_language();
 		Fixture& f = fixture();
-		bind::MidiDevices& midi = *menu::host_ports().midi;
+		bind::MidiDevices& midi = *deluge::gui::shell_host::host_ports().midi;
 		const deluge::midi::DeviceId a = deluge::midi::id_of(*f.a);
 
 		baseline(*f.a, *f.b);
@@ -622,7 +622,7 @@ describe midi_device_host_writes("scenes::menu: the host's MIDI devices port app
 
 	it("recounts the smallest zones on any zone change, and marks the devices on any change", _ {
 		select_language();
-		bind::MidiDevices& midi = *menu::host_ports().midi;
+		bind::MidiDevices& midi = *deluge::gui::shell_host::host_ports().midi;
 		MIDICable& din = MIDIDeviceManager::dinMIDIPorts;
 		const uint8_t saved_flags = din.connectionFlags;
 		const MIDIPort saved_out = din.ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE];

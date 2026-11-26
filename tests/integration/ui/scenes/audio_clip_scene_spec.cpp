@@ -59,10 +59,10 @@
 ///       library may not. Same rule `marker_scene_spec.cpp` and `slicer_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "support/peak_seed.h"
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/bind/ports/write_sink.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/relevance.h"
 #include "ui/scenes/profile.h"
@@ -357,7 +357,7 @@ struct Rig {
 		playbackHandler.playbackState = 0;
 		currentPlaybackMode = &session;
 		// The app's ports, which act on the current song: the fixture's.
-		audio_clip_scene().set_ports(&menu::host_ports());
+		audio_clip_scene().set_ports(&deluge::gui::shell_host::host_ports());
 	}
 
 	/// @brief Tear the stack down, so `AudioClipScene` -- a process singleton -- never carries state
@@ -1782,7 +1782,7 @@ describe audio_clip_scene_spec_body(
 		        Rig r;
 		        r.reseed(Sentinel{});
 		        const ModelSnapshot seeded = model_snapshot(r);
-		        bind::ClipWrites& clip_writes = *deluge::ui::scenes::menu::host_ports().clip_writes;
+		        bind::ClipWrites& clip_writes = *deluge::gui::shell_host::host_ports().clip_writes;
 		        expect(clip_writes.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH, 0, 768)).to_be_false();
 		        expect(model_snapshot(r)).to_equal(seeded);
 		        expect(clip_writes.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH,
@@ -1830,7 +1830,7 @@ describe audio_clip_scene_spec_body(
 		        bind::test::RecordingWrites recording;
 		        bind::test::RecordingClipWrites clip_writes;
 		        // The app's ports with the two recorders in place of its sinks, kept alive for the case.
-		        bind::Ports held = menu::host_ports();
+		        bind::Ports held = deluge::gui::shell_host::host_ports();
 		        held.writes = &recording;
 		        held.clip_writes = &clip_writes;
 		        audio_clip_scene().set_ports(&held);
@@ -1905,7 +1905,7 @@ describe audio_clip_scene_spec_body(
 		        }
 		        // Only requests: nothing else wrote.
 		        expect(model_snapshot(r)).to_equal(seeded);
-		        audio_clip_scene().set_ports(&menu::host_ports()); // before `held` goes
+		        audio_clip_scene().set_ports(&deluge::gui::shell_host::host_ports()); // before `held` goes
 	        });
 
 	    it(

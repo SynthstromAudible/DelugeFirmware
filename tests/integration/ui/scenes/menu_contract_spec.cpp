@@ -4,9 +4,9 @@
 ///        from defaults.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/ports/learn_sink.h"
 #include "ui/scenes/menu/action.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -474,7 +474,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		r.shell.tick(0);
 		const std::optional<deluge::project::OwnerParamTarget> target = menu_scene().learn_target();
 		const MenuContext ctx = r.menu_context();
-		deluge::ui::scenes::bind::LearnSink* const learns = deluge::ui::scenes::menu::host_ports().learn;
+		deluge::ui::scenes::bind::LearnSink* const learns = deluge::gui::shell_host::host_ports().learn;
 		expect(target.has_value()).to_be_true();
 		expect(learns).not_().to_be_null();
 		if (!target || learns == nullptr) {

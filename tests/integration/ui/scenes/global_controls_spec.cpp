@@ -62,10 +62,10 @@
 /// (`gui/views/timeline_view.cpp`), which every root view inherits.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "project/device_settings.h"
 #include "project/features.h"
 #include "project/song.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/registry.h"
 #include "ui/scenes/services/global_controls.h"
@@ -307,7 +307,7 @@ struct GcRig {
 	/// returned and inspected, never applied, because this rig drives `handle()` directly rather
 	/// than through a `Router`.
 	GcRig() {
-		gc.set_ports(&menu::host_ports());
+		gc.set_ports(&deluge::gui::shell_host::host_ports());
 		table[16] = &root;
 		reg.by_kind = std::span<Scene* const>{table};
 		(void)stack.push({SceneKind::FirstApp});

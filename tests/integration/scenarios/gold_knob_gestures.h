@@ -22,7 +22,7 @@
 ///        the song as the app's knobs do, and the scenario reads the song.
 
 #include "board_controls.hpp"
-#include "ui/scenes/menu/bind_host.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/overlay/param_popup_scene.h"
 #include "ui/scenes/registry.h"
 #include "ui/scenes/services/knob_presentation.h"
@@ -67,7 +67,7 @@ public:
 	GoldKnobGestures(Song& song, const deluge::ui::controls::KnobFocus& focus)
 	    : stack_(registry_),
 	      knobs_(deluge::ui::scenes::overlay::param_popup_scene(), stack_, lowering_, kDelugeControls) {
-		knobs_.set_ports(&deluge::ui::scenes::menu::host_ports());
+		knobs_.set_ports(&deluge::gui::shell_host::host_ports());
 		knobs_.set_model(&song.project);
 		knobs_.set_focus(focus, false);
 	}

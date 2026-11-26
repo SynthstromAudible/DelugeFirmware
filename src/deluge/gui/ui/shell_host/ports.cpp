@@ -1,19 +1,19 @@
 #include "gui/ui/shell_host/shell_host.h"
 
 #include "board_config.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "model/edits/edit.h"
 #include "model/song/song.h"
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/overlay/count_in_scene.h"
 #include "ui/scenes/overlay/screensaver_scene.h"
 #include "ui/scenes/slicing/slicer_scene.h"
 
-namespace deluge::ui::scenes::menu {
+namespace deluge::gui::shell_host {
 
-const bind::Ports& host_ports() {
+const ui::scenes::bind::Ports& host_ports() {
 	// Only the UI tier reads it, so it sits in SDRAM, off the audio tier's SRAM budget.
-	PLACE_SDRAM_BSS static const bind::Ports ports{
+	PLACE_SDRAM_BSS static const ui::scenes::bind::Ports ports{
 	    .audio = &gui::shell_host::audio_facts(),
 	    .card = &gui::shell_host::card_facts(),
 	    .ui = &gui::shell_host::ui_facts(),
@@ -43,12 +43,8 @@ const bind::Ports& host_ports() {
 	return ports;
 }
 
-} // namespace deluge::ui::scenes::menu
-
-namespace deluge::gui::shell_host {
-
 void install_scene_ports() {
-	const deluge::ui::scenes::bind::Ports& ports = deluge::ui::scenes::menu::host_ports();
+	const deluge::ui::scenes::bind::Ports& ports = deluge::gui::shell_host::host_ports();
 	deluge::ui::scenes::overlay::count_in_scene().set_transport(ports.transport);
 	deluge::ui::scenes::overlay::screensaver_scene().set_device(ports.device);
 	deluge::ui::scenes::slicing::slicer_scene().set_ports(&ports);

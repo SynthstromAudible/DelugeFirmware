@@ -27,7 +27,7 @@
 ///
 /// The five verbs are root-UI behaviour, filed by writing `MenuWalkState::pending_action` and
 /// tabulated in `ui/scenes/menu/action.h`. A settings write's side effect is not one of them: its
-/// setter calls the host at the write (`ui/scenes/menu/bind_host.h`).
+/// setter calls the host at the write, through a port (`ui/scenes/bind/ports/`).
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///

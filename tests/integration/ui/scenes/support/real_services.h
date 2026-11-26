@@ -10,7 +10,7 @@
 /// "install exactly what the application installs" is the shape that lets the two drift.
 
 #include "board_controls.hpp"
-#include "ui/scenes/menu/bind_host.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/overlay/param_popup_scene.h"
 #include "ui/scenes/services/global_controls.h"
 #include "ui/scenes/services/midi_learn.h"
@@ -63,11 +63,11 @@ struct RealServices {
 			learn.emplace(shell.stack());
 			knobs.emplace(overlay::param_popup_scene(), shell.stack(), shell.lowering(), kDelugeControls);
 			controls.emplace(shell.stack(), shell.lowering(), *learn);
-			learn->set_ports(&menu::host_ports());
+			learn->set_ports(&deluge::gui::shell_host::host_ports());
 			learn->set_model(song != nullptr ? &song->project : nullptr);
-			knobs->set_ports(&menu::host_ports());
+			knobs->set_ports(&deluge::gui::shell_host::host_ports());
 			knobs->set_model(song != nullptr ? &song->project : nullptr);
-			controls->set_ports(&menu::host_ports());
+			controls->set_ports(&deluge::gui::shell_host::host_ports());
 			controls->set_model(song != nullptr ? &song->project : nullptr);
 			if (mod_target != nullptr && song != nullptr) {
 				// Where legacy's view points the knobs at the clip, as the guest seeds them.

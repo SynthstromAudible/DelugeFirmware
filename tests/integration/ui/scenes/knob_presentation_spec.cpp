@@ -8,7 +8,7 @@
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
 #include "board_controls.hpp"
-#include "ui/scenes/menu/bind_host.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/overlay/param_popup_scene.h"
 #include "ui/scenes/registry.h"
@@ -144,7 +144,7 @@ struct Rig {
 	Rig() {
 		display = &stub;
 		currentSong = f.song;
-		knobs.set_ports(&deluge::ui::scenes::menu::host_ports());
+		knobs.set_ports(&deluge::gui::shell_host::host_ports());
 		knobs.set_model(&f.song->project);
 		knobs.set_focus(focus_of(*f.song, f.clip), false);
 		knobs.set_mod_region();

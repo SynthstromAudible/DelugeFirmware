@@ -114,11 +114,11 @@
 #include "gui/l10n/setting_names.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "model/clip/clip.h"
 #include "model/song/song.h"
 #include "ui/scenes/bind/dispatch.h"
 #include "ui/scenes/bind/target.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/node_id.h"
@@ -330,7 +330,7 @@ void build_names_contexts() {
 			continue;
 		}
 		// The song the app plays, which the app's ports act on.
-		menu::MenuContext ctx = menu::context_for(currentSong->project, &menu::host_ports(),
+		menu::MenuContext ctx = menu::context_for(currentSong->project, &deluge::gui::shell_host::host_ports(),
 		                                          deluge::gui::menuViewOf(clip), 0, false, false, false,
 		                                          /*kit_global_fx=*/false);
 		ctx.root = menu::MenuContext::Root::NoteRowEditor;

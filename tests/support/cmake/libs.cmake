@@ -49,6 +49,8 @@ if(DELUGE_TEST_TREE STREQUAL "host")
   add_subdirectory(${_deluge_src}/ui/scenes/bind ${_deluge_libs}/ui-scenes-bind EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/deluge/gui/l10n ${_deluge_libs}/l10n EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/ui ${_deluge_libs}/ui EXCLUDE_FROM_ALL)
+  # The compressor's menu page and the knob push reach argon through effects/.
+  deluge_test_neon(deluge_ui_scenes)
   add_subdirectory(${DELUGE_REPO_ROOT}/tests/harness/level3 ${_deluge_libs}/level3 EXCLUDE_FROM_ALL)
 endif()
 

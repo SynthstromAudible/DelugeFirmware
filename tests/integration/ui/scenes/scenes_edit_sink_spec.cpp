@@ -4,10 +4,10 @@
 
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/dispatch.h"
 #include "ui/scenes/bind/knob_focus.h"
 #include "ui/scenes/bind/ports/write_sink.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/node.h"
@@ -107,7 +107,8 @@ int32_t menu_of(std::string_view path, int32_t stored) {
 
 /// Writes @p node's target = descriptor menu value @p menu through the app's sink at @p ctx.
 void sink_write(const Node& node, const MenuContext& ctx, int32_t menu) {
-	menu::host_ports().writes->write({.target = node.bind.target, .where = ctx.addresses, .menu_value = menu});
+	deluge::gui::shell_host::host_ports().writes->write(
+	    {.target = node.bind.target, .where = ctx.addresses, .menu_value = menu});
 }
 
 } // namespace
@@ -214,7 +215,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		const auto& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "filterRoute");
 		const bind::Target route{.kind = bind::Target::Kind::EFFECT, .path = "filterRoute",
 		                         .fan_out_when = menu::fan_out::kBothFilters};
-		menu::host_ports().writes->write({.target = route, .where = ctx.addresses,
+		deluge::gui::shell_host::host_ports().writes->write({.target = route, .where = ctx.addresses,
 		                               .menu_value = deluge::plugin::to_menu(row, 2)}); // parallel
 		expect(both->effects().filter.route).to_equal(deluge::effects::FilterRoute::PARALLEL);
 		expect(lpf_off->effects().filter.route).to_equal(before);
@@ -259,7 +260,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		kit->arpeggiator.noteOn(&f.clip->arpSettings, index, 64, &instruction, MIDI_CHANNEL_NONE, mpe);
 		// Main sends the note-off from inside its loop over the kit's sound drums (`Repeat::writeCurrentValue` in
 		// `origin/main:src/deluge/gui/menu_item/sample/repeat.h`).
-		menu::host_ports().writes->write(
+		deluge::gui::shell_host::host_ports().writes->write(
 		    {.target = menu::nodes::sample0_repeat.bind.target,
 		     .where = bind::Addresses{.kit_output = kit->id(), .affect_entire = true},
 		     .menu_value = menu_of("osc1/loopMode", std::to_underlying(deluge::instruments::classic::SampleRepeatMode::ONCE))});
@@ -277,7 +278,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		expect(ctx.addresses.affect_entire).to_be_false();
 		const auto row_before = drum->effects().filter.lpf_mode;
 		const auto& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "lpfMode");
-		menu::host_ports().writes->write({.target = {.kind = bind::Target::Kind::EFFECT, .path = "lpfMode"},
+		deluge::gui::shell_host::host_ports().writes->write({.target = {.kind = bind::Target::Kind::EFFECT, .path = "lpfMode"},
 		                               .where = ctx.addresses,
 		                               .menu_value = deluge::plugin::to_menu(row, 4)}); // SVF_Notch
 		const auto chain = deluge::project::ChainAddress{.id = kit->id().value_or(0)};
@@ -302,7 +303,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 
 	it("each knob request reaches its Edit or command, and the recording sink keeps it", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		deluge::ui::controls::Sink& sink = *menu::host_ports().controls_sink;
+		deluge::ui::controls::Sink& sink = *deluge::gui::shell_host::host_ports().controls_sink;
 		const uint32_t id = *f.instrument->id();
 		deluge::project::Song& model = f.song->project;
 
@@ -401,7 +402,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		const int before = deluge::instruments::classic::voicing(spec::menu_engine(ctx, *f.song).sound->state()).max_voices;
 		const uint32_t refused = deluge::gui::shell_host::edit_refusals();
-		menu::host_ports().writes->write(bind::WriteRequest{
+		deluge::gui::shell_host::host_ports().writes->write(bind::WriteRequest{
 		    .target = kMaxVoices.bind.target,
 		    .where = bind::Addresses{.slot = deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::DRUM, 9999}},
 		    .menu_value = 2});

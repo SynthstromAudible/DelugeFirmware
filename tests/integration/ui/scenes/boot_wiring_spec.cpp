@@ -285,7 +285,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 
 		// The global controls take the app's ports and the song's record.
 		const auto* const controls = static_cast<services::GlobalControls*>(shellHostUI.shell().services().global_controls);
-		expect(controls->ports()).to_equal(&deluge::ui::scenes::menu::host_ports());
+		expect(controls->ports()).to_equal(&deluge::gui::shell_host::host_ports());
 		expect(controls->model()).to_equal(static_cast<const deluge::project::Song*>(&f.song->project));
 
 		// Vary it: with no timeline counter, legacy's view points at nothing, and so does the focus.

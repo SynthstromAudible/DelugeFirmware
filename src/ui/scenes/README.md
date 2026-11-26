@@ -758,7 +758,7 @@ which the host's registry (`io/midi/device_registry.h`) maps to its cable.
   has no such port); each service takes `set_ports` and `set_model` (the song's record); and each overlay the one
   port it reads (`set_transport` for the count-in, `set_device` for the screensaver). `wireShellGuestServices`
   installs the services at boot and on every guest open; `gui::shell_host::install_scene_ports()` installs the
-  overlays', the slicer's and the audio clip scene's. A specification installs `&menu::host_ports()` or a set over
+  overlays', the slicer's and the audio clip scene's. A specification installs `&deluge::gui::shell_host::host_ports()` or a set over
   fakes and keeps it alive while the scene or service runs. No scene or service calls `host_ports()`.
 * **A port that is not installed reads its default and does nothing when called.** `Transport` reads not playing, no
   recording, no clocks, metronome off, count 0, undo not allowed, no overdubs and not the arrangement; `AudioFacts`
@@ -769,11 +769,11 @@ which the host's registry (`io/midi/device_registry.h`) maps to its cable.
   clocks; neither scene's `next_timer` reads live.
 * **A menu context binds exactly the ports it is given.** A caller that wants the device port passes it.
 
-* **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
+* **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `deluge::gui::shell_host::host_ports()` by
   `ports.cpp`. It is the only code that names legacy objects for the scenes.
 * **Every scene reads and writes only through the ports.** No scene file outside `bind/` includes a legacy runtime
-  header: the `scenes-reads-outside-bind` rule has no rows, and its baseline may not grow. `menu/bind_host.h`
-  declares only `host_ports()`, which the app builds the ports through; no scene calls a hook.
+  header: the `scenes-reads-outside-bind` rule has no rows, and its baseline may not grow. No scene declares anything
+  the app defines; no scene calls a hook.
 
 ### The DEVICE setting group
 

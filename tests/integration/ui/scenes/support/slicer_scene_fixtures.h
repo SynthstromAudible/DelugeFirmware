@@ -9,8 +9,8 @@
 /// The sample never touches the card: its peak index is seeded (`peak_seed.h`), so every column on block boundaries is
 /// answered from the index and the waveform the fixture asked for is drawn with no reader opened.
 
+#include "gui/ui/shell_host/host_ports.h"
 #include "peak_seed.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/profile.h"
 #include "ui/scenes/registry.h"
 #include "ui/scenes/slicing/slicer_scene.h"
@@ -140,7 +140,7 @@ struct Rig {
 		// The app's boot wires the host's ops; an example starts unwired and installs its own.
 		slicer_scene().set_ops(nullptr);
 		// The app's ports, as its boot installs them; an example that needs a fake copies them and replaces one.
-		slicer_scene().set_ports(&deluge::ui::scenes::menu::host_ports());
+		slicer_scene().set_ports(&deluge::gui::shell_host::host_ports());
 	}
 
 	/// @brief Put the fixture's sample in the preview drum and open the slicer's host on it, as the browser's SLICE

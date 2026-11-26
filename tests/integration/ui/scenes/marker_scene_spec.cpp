@@ -35,11 +35,11 @@
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "project/note_probability.h"
 #include "project/sample_marker.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/marker/marker_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_core.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -291,7 +291,7 @@ void expect_pads_match(Self& self, Rig& r, std::string_view name) {
 ///        inside its length, so under a remembered view it stands in for the host's info alone.
 /// @param length The length the fake answers in place of the host's, when given.
 bind::test::FakeWaveforms host_fake(const bind::WaveformAddress& at, std::optional<uint64_t> length = std::nullopt) {
-	const bind::Waveforms& host = *menu::host_ports().waveforms;
+	const bind::Waveforms& host = *deluge::gui::shell_host::host_ports().waveforms;
 	const int64_t whole =
 	    deluge::base::ceil_div(static_cast<int64_t>(host.info(at).value_or(bind::WaveformInfo{}).length_samples),
 	                           deluge::ui::views::waveform::kColumns);
@@ -314,12 +314,12 @@ bind::test::FakeWaveforms host_fake(const bind::WaveformAddress& at, std::option
 struct Counted final : bind::Waveforms {
 	mutable int32_t reads = 0;
 	[[nodiscard]] std::optional<bind::WaveformInfo> info(const bind::WaveformAddress& a) const override {
-		return menu::host_ports().waveforms->info(a);
+		return deluge::gui::shell_host::host_ports().waveforms->info(a);
 	}
 	[[nodiscard]] deluge::ui::views::waveform::PeakRead peaks(const bind::WaveformAddress& a,
 	                                                          deluge::ui::views::waveform::Window at) const override {
 		reads++;
-		return menu::host_ports().waveforms->peaks(a, at);
+		return deluge::gui::shell_host::host_ports().waveforms->peaks(a, at);
 	}
 	[[nodiscard]] std::optional<int64_t> play_position(const bind::WaveformAddress&) const override {
 		return std::nullopt;
@@ -864,7 +864,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		}
 
 		// A range below it: the locked range is now the source's second, and the new first holds the same file.
-		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		auto* inserted = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
 		auto* moved = static_cast<MultisampleRange*>(r.source->ranges.getElement(1));
 		r.range = moved; // the source's vector moved it
@@ -900,7 +900,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
 		deluge::edits::recordRanges(*r.sound, 0); // the range set up here is the record's
 		// A range below the edited one, so the edited one is the source's second.
-		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		auto* below = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
 		below->sampleHolder.filePath = "SAMPLES/A.WAV";
 		below->sampleHolder.audioFile = r.sample;
@@ -913,7 +913,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const uint64_t identity = r.range->identity();
 
 		// Deleting the range below moves the edited one down into its slot, by move-assignment.
-		expect(menu::host_ports().sound_writes->delete_range(r.slot(), 0, 0, std::nullopt)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->delete_range(r.slot(), 0, 0, std::nullopt)).to_be_true();
 		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
 		expect(r.range->identity()).to_equal(identity);
 

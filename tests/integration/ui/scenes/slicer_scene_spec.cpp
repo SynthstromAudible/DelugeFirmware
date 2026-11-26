@@ -50,11 +50,11 @@
 ///
 /// @note The spec may include `gui/`; the library may not. Same rule `marker_scene_spec.cpp` runs under.
 
+#include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/profile.h"
 #include "ui/scenes/registry.h"
 #include "ui/scenes/slicing/slicer_scene.h"
@@ -544,7 +544,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Sample* const sample = sf::make_sample();
 		deluge::ui::scenes::spec::SliceHeld held{sample, sf::kSlicePath};
-		slicer_scene().set_ports(&menu::host_ports());
+		slicer_scene().set_ports(&deluge::gui::shell_host::host_ports());
 		bfx::Rig r;
 		menu::MenuContext ctx = bfx::context_of(f);
 		(void)menu::ensure_first_range(ctx);
@@ -598,11 +598,11 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.open();
 		r.tick(0);
 		const bind::WaveformAddress slice{.kind = bind::WaveformAddress::Kind::SLICE};
-		expect(menu::host_ports().waveforms->info(slice).has_value()).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().waveforms->info(slice).has_value()).to_be_true();
 		r.back(true, 10);
 		r.settle(10);
 		expect(r.on_stack()).to_be_false();
-		expect(menu::host_ports().waveforms->info(slice).has_value()).to_be_false();
+		expect(deluge::gui::shell_host::host_ports().waveforms->info(slice).has_value()).to_be_false();
 		expect(slicer_scene().has_sample()).to_be_true();
 	});
 
@@ -950,7 +950,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.tick(0);
 		r.pad(kDisplayWidth, 3, 64, 10);
 		r.settle(10);
-		slicer_scene().set_ports(&menu::host_ports());
+		slicer_scene().set_ports(&deluge::gui::shell_host::host_ports());
 		expect(r.on_stack()).to_be_true();
 		expect(ops.stop_previewing_calls).to_equal(0);
 	});

@@ -26,6 +26,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_mode.h"
@@ -50,7 +51,6 @@
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/marker/marker_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/menu/nodes/midi_device.h"
 #include "ui/scenes/menu/nodes/multi_range.h"
@@ -170,7 +170,7 @@ deluge::ui::scenes::services::ModKnobs& sharedModKnobs() {
 
 void refreshKnobsForRoot() {
 	GuestServices& services = guestServices();
-	services.knobs.set_ports(&deluge::ui::scenes::menu::host_ports());
+	services.knobs.set_ports(&deluge::gui::shell_host::host_ports());
 	services.knobs.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	setKnobViewState(services);
 }
@@ -464,11 +464,11 @@ void wireShellGuestServices() {
 
 	// The app's ports and the record of the song it plays, which the learn, the global controls and the knobs act
 	// through and read.
-	services.learn.set_ports(&deluge::ui::scenes::menu::host_ports());
+	services.learn.set_ports(&deluge::gui::shell_host::host_ports());
 	services.learn.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
-	services.controls.set_ports(&deluge::ui::scenes::menu::host_ports());
+	services.controls.set_ports(&deluge::gui::shell_host::host_ports());
 	services.controls.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
-	services.knobs.set_ports(&deluge::ui::scenes::menu::host_ports());
+	services.knobs.set_ports(&deluge::gui::shell_host::host_ports());
 	services.knobs.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	// The clip the views have open, which the global buttons and MIDI learn ask about.
 	deluge::ui::scenes::services::view_state().set_current_view(
