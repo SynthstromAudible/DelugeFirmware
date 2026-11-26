@@ -439,6 +439,10 @@
       ]
     },
     {
+      "head": "Mic velocity",
+      "match": ["mic velocity"]
+    },
+    {
       "head": "MIDI",
       "match": [
         "midi",

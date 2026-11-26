@@ -1,0 +1,85 @@
+---
+title: Mic Velocity
+---
+
+import { Badge, Steps } from "@astrojs/starlight/components"
+
+<Badge text="c1.4 Feature" variant="tip" />
+
+Mic velocity makes the pads velocity sensitive. The Deluge listens to the tap each press makes through its built-in
+microphone, and plays the note louder or softer to match how hard you hit the pad.
+
+It works on:
+
+- the pads in keyboard view, in every layout. In the velocity drums layout, drums wider than one pad keep taking their
+  velocity from where you press them; drums one pad wide use mic velocity.
+- the audition pads (the right-hand sidebar column) in clip view and automation view.
+
+Presses that place notes on the grid in clip view aren't affected: new notes still take the default velocity.
+
+The velocity is used everywhere a velocity-sensitive keyboard's would be: by the sound itself, on MIDI and CV out, in
+recordings, and by the arpeggiator.
+
+## Before you start
+
+- Nothing can be plugged into the `MIC` or `LINE IN` sockets. Either one switches the built-in microphone off, and
+  presses play at the default velocity until it's unplugged again.
+- It works whether you're listening on headphones, through the line outputs, or on the built-in speaker. The Deluge
+  takes most of its own sound back out of what the microphone hears, but with the speaker loud, very soft taps can
+  be drowned out. They then play at `MIN VELOCITY`.
+- Calibrate with the Deluge where you usually play it. If velocities ever feel off, for example after moving it
+  somewhere new, calibrate again.
+
+## Calibrating
+
+`SETTINGS > PADS > MIC VELOCITY > CALIBRATE` takes 20 taps.
+
+<Steps>
+
+1. The centre pad lights up blue. Tap it twice, as softly as you'll ever play.
+
+2. It turns red. Tap it twice, as hard as you'll ever play.
+
+3. Do the same on each corner pad as it lights up. Finished pads turn green, and the left sidebar column fills up as
+   you go.
+
+   If the two taps of one strength came out too different, or your soft and hard taps too alike, the display says
+   so and the same pad lights up again.
+
+4. Now tap any pad to try it out. It lights up as brightly as it played, and the display shows its velocity.
+
+5. Press `SELECT` to save the calibration. This also turns mic velocity on.
+
+</Steps>
+
+`BACK` leaves at any point without saving, keeping the calibration you had before.
+
+## Settings
+
+All in `SETTINGS > PADS > MIC VELOCITY`. They're saved when you leave the settings menu.
+
+| Setting        | What it does                                                                                             | Range     | Default |
+| -------------- | -------------------------------------------------------------------------------------------------------- | --------- | ------- |
+| `CALIBRATE`    | Teaches the Deluge how your taps sound (see above).                                                      |           |         |
+| `ENABLED`      | Turns mic velocity on or off. Only shown once you've calibrated.                                         | ON / OFF  |         |
+| `MIN VELOCITY` | The velocity your softest calibrated taps, and anything softer, play at.                                 | 1 to 127  | 20      |
+| `MAX VELOCITY` | The velocity your hardest calibrated taps, and anything harder, play at.                                 | 1 to 127  | 127     |
+| `CURVE`        | How quickly velocity rises from soft to hard. Higher makes lighter taps louder; lower needs harder taps. | -50 to 50 | 25      |
+
+`CURVE` doesn't move the two ends: soft taps always play at `MIN VELOCITY` and hard ones at `MAX VELOCITY`. It changes
+what happens in between. For a tap halfway between your soft and hard ones, with `MIN VELOCITY` 1 and
+`MAX VELOCITY` 127:
+
+| `CURVE`  | -50 | -25 | 0   | 25  | 50  |
+| -------- | --- | --- | --- | --- | --- |
+| Velocity | 9   | 32  | 64  | 90  | 107 |
+
+`MIN VELOCITY`, `MAX VELOCITY` and `CURVE` can be changed at any time without calibrating again.
+
+## Good to know
+
+- A press can be held back by up to a few milliseconds while the Deluge waits for the sound of the tap.
+- Pads pressed together usually play at the same velocity.
+- A press the microphone can't pick out (a very gentle tap, or one in a noisy room or under a loud song on the
+  speaker) plays at `MIN VELOCITY`.
+- The calibration and settings are kept on the SD card, in `SETTINGS/MicVelocity.XML`.
