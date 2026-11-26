@@ -76,9 +76,6 @@ uint32_t PlaybackHandler::getTimePerInternalTickInverse(bool /*unused*/) {
 bool Clip::isActiveOnOutput() {
 	unexpectedService();
 }
-void View::notifyParamAutomationOccurred(ParamManager* /*unused*/, bool /*unused*/) {
-	unexpectedService();
-}
 PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource /*unused*/, uint8_t /*unused*/,
                                                   ParamManager* /*unused*/) {
 	unexpectedService();
