@@ -21,7 +21,7 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           cache-name: clang-tidy
-          packages: clang-19 clang-tidy-19
+          packages: clang-19 clang-tidy-19 gcc-14 g++-14 gcc-14-multilib g++-14-multilib
 
   clang-tidy-review:
     runs-on: ubuntu-latest
@@ -41,7 +41,7 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           cache-name: clang-tidy
-          packages: clang-19 clang-tidy-19
+          packages: clang-19 clang-tidy-19 gcc-14 g++-14 gcc-14-multilib g++-14-multilib
 
       - name: Select clang-tidy 19
         run: |
@@ -72,7 +72,6 @@ jobs:
           mv build/compile_commands.merged.json build/compile_commands.json
 
       - name: Extract system includes from GCC
-        id: extract_system_includes
         run: |
           "$GITHUB_WORKSPACE"/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1           \
             | sed -n '/^#include <...> search starts here:$/,/^End of search list.$/p' \
@@ -81,9 +80,26 @@ jobs:
             | sed 's/^\s*//g' \
             | sed 's/^\(.*\)$/--extra-arg-before=-isystem\1/g' \
             | tr '\n' ' ' > system_includes.txt
-          echo "system_includes=$(cat system_includes.txt)" >> "$GITHUB_OUTPUT"
           echo "Extracted system includes:"
           cat system_includes.txt
+          # Keep ARM headers on firmware commands only. Native tests need the
+          # host standard library and must not inherit --no-standard-includes.
+          python3 - <<'PYTHON'
+          import json
+          import shlex
+          from pathlib import Path
+
+          database = Path("build/compile_commands.json")
+          commands = json.loads(database.read_text())
+          includes = [arg.removeprefix("--extra-arg-before=")
+                      for arg in shlex.split(Path("system_includes.txt").read_text())]
+          for command in commands:
+              arguments = command.get("arguments") or shlex.split(command["command"])
+              if "arm-none-eabi" in arguments[0]:
+                  command["arguments"] = arguments + includes + ["--no-standard-includes"]
+                  command.pop("command", None)
+          database.write_text(json.dumps(commands))
+          PYTHON
 
       - name: Check clang-tidy version
         run: clang-tidy --version
@@ -100,6 +116,15 @@ jobs:
           jq -s '.[0] + [.[1][] | select(.file | contains("/tests/section_reorder/"))]' build/compile_commands.json build/tidy-section-reorder/compile_commands.json > build/compile_commands.merged.json
           mv build/compile_commands.merged.json build/compile_commands.json
 
+      - name: Add native parameter test commands
+        run: |
+          cmake -S tests -B build/tidy-parameters \
+            -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          # Keep firmware sources on their ARM commands; add only the test adapters.
+          jq -s '.[0] + [.[1][] | select(.file | contains("/tests/unit/parameters/"))]' build/compile_commands.json build/tidy-parameters/compile_commands.json > build/compile_commands.merged.json
+          mv build/compile_commands.merged.json build/compile_commands.json
+
       - uses: ZehMatt/clang-tidy-annotations@v1.1.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -107,6 +132,5 @@ jobs:
           source_dir: ${{ github.workspace }}
           only_affected_lines: true
           fail_on_problems: false
-          clang_tidy_args: ${{ steps.extract_system_includes.outputs.system_includes }} --extra-arg-before=--no-standard-includes
           clang_tidy_file: ${{ github.workspace }}/.clang-tidy
 
