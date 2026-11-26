@@ -26,6 +26,7 @@
 #include "synth/sources/va/va_shapes.h"
 #include "synth/sources/va/virtual_analog_source.h"
 #include "synth/sources/wavetable/wavetable_source.h"
+#include "synth/table_rows.h"
 #include <tuple>
 #include <type_traits>
 #include <variant>
@@ -266,30 +267,12 @@ using PortedKinds = detail::PortedKindsOf<SourceKinds>::type;
 /// @brief The held rows, in the table's order.
 using HeldKinds = detail::HeldKindsOf<SourceKinds>::type;
 
-/// @brief Calls @p fn with each row of @p Kinds (a tuple of rows) as a value of that type, in order, until @p fn
-/// returns true.
-/// @param fn Called as `fn(Kind{})`; true stops the walk.
-/// @return Whether some call returned true.
-template <class Kinds, class Fn>
-bool find_kind(Fn fn) {
-	return [&]<class... Kind>(std::type_identity<std::tuple<Kind...>>) {
-		return (fn(Kind{}) || ...);
-	}(std::type_identity<Kinds>{});
-}
-
-/// @brief Calls @p fn with each row of @p Kinds, in order.
-/// @param fn Called as `fn(Kind{})` for each row.
-template <class Kinds, class Fn>
-void for_each_kind(Fn fn) {
-	[&]<class... Kind>(std::type_identity<std::tuple<Kind...>>) { (fn(Kind{}), ...); }(std::type_identity<Kinds>{});
-}
-
 /// @brief Whether a source of @p type plays at its own rate in @p mode, so its neutral increment is the root note's: a
 /// ported row with kOwnRate, outside FM.
 /// @return True for a sample or a live input outside FM.
 [[nodiscard]] inline bool plays_at_own_rate(OscType type, SynthMode mode) {
 	return ported_mode(mode)
-	       && find_kind<PortedKinds>([&]<class Kind>(Kind) { return Kind::kOwnRate && Kind::plays(type); });
+	       && find_row<PortedKinds>([&]<class Kind>(Kind) { return Kind::kOwnRate && Kind::plays(type); });
 }
 
 } // namespace deluge::synth

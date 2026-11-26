@@ -96,11 +96,11 @@ std::string chosen_by_table(OscType type, SynthMode mode) {
 		chosen = name(Kind{});
 		return true;
 	};
-	if (ported_mode(mode) && find_kind<PortedKinds>(pick)) {
+	if (ported_mode(mode) && find_row<PortedKinds>(pick)) {
 		return chosen;
 	}
 	if (held_mode(mode)) {
-		find_kind<HeldKinds>(pick);
+		find_row<HeldKinds>(pick);
 	}
 	return chosen;
 }
@@ -108,7 +108,7 @@ std::string chosen_by_table(OscType type, SynthMode mode) {
 /// How many rows play @p type.
 int32_t rows_playing(OscType type) {
 	int32_t rows = 0;
-	for_each_kind<SourceKinds>([&]<class Kind>(Kind) { rows += Kind::plays(type) ? 1 : 0; });
+	for_each_row<SourceKinds>([&]<class Kind>(Kind) { rows += Kind::plays(type) ? 1 : 0; });
 	return rows;
 }
 

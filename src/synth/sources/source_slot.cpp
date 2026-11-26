@@ -27,12 +27,12 @@ SourceSlot::~SourceSlot() {
 }
 
 void SourceSlot::bind(const SourcePorts& ports) {
-	for_each_kind<PortedKinds>([&]<class Kind>(Kind) { Kind::bind(std::get<typename Kind::Source>(ported_), ports); });
+	for_each_row<PortedKinds>([&]<class Kind>(Kind) { Kind::bind(std::get<typename Kind::Source>(ported_), ports); });
 }
 
 template <class Fn>
 bool SourceSlot::with_ported(OscType type, Fn fn) {
-	return find_kind<PortedKinds>([&]<class Kind>(Kind) {
+	return find_row<PortedKinds>([&]<class Kind>(Kind) {
 		if (!Kind::plays(type)) {
 			return false;
 		}
@@ -90,7 +90,7 @@ void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t o
 	                      .reset_everything = reset_everything,
 	                      .osc_pos = osc_pos,
 	                      .noise = &noise};
-	const bool held = engine_mode && find_kind<HeldKinds>([&]<class Kind>(Kind) {
+	const bool held = engine_mode && find_row<HeldKinds>([&]<class Kind>(Kind) {
 		                  if (!Kind::plays(osc_type)) {
 			                  return false;
 		                  }
@@ -107,7 +107,7 @@ void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t o
 
 void SourceSlot::unassign(bool deleting_song) {
 	active = false;
-	for_each_kind<PortedKinds>(
+	for_each_row<PortedKinds>(
 	    [&]<class Kind>(Kind) { std::get<typename Kind::Source>(ported_).unassign(deleting_song); });
 }
 
