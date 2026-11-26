@@ -123,13 +123,27 @@ longer than one block after its previous wake it woke, `max_wake_late_us`: how l
 the drive's own overrun count (`drive_overruns`: blocks the codec reached unwritten, a stall that lapped the ring
 included). The drive renders fixed 128-frame blocks, three queued.
 
-A `USB-AUDIO-TIMING` line follows it, with how late the USB interrupt serviced each audio stream (`in` to the host,
-`out` from it): packets and frames, services more than 250 µs after the one before (`late`: both hardware buffers had
-gone), the microframes those left with no packet (`missed`, an estimate, at high speed) and the longest gap. It reads
-zero until a host streams: run `arecord` and `aplay` on the device from the probe host. The report's `lost frames`, the
-frames sent less the frames received, is loss only while that host follows our implicit feedback. `interrupt_us` is the
-USB interrupt's whole time, audio and MIDI alike; the voices' measured costs leave it out
-(`deluge_work_cycle_count`).
+A `USB-AUDIO-TIMING` line follows it, with what the USB audio streams did: the packets and frames queued for the host
+(`in_packets`, `in_frames`), how often the DMA to the host ran dry and was started again (`in_stops`), the fewest and
+most packets queued when one was added (`in_ahead_min`, `in_ahead_max`), the frames that came from the host
+(`out_frames`), and `interrupt_us`, the USB interrupt's whole time (control requests and MIDI; the voices' measured
+costs leave it out, `deluge_work_cycle_count`). It reads zero until a host streams: run `arecord` and `aplay` on the
+device from the probe host. The report's `lost frames`, the frames sent less the frames received, is loss only while
+that host follows our implicit feedback. Captures from images that moved the streams in the USB interrupt carry
+`late`, `missed` and the longest gap instead, which the report still reads.
+
+What moving the streams from the interrupt to DMA gives the render, on the stream bench's steady phase (3 interleaved
+rounds each, both 24-bit streams running from the probe host):
+
+| Song | Streams | USB irq | Voice blocks | Stolen | Culled | Overruns |
+|---|---|---:|---:|---:|---:|---:|
+| Glitchy_2 | interrupt | 19.4% | 17,163 | 139 | 151 | 10.7 |
+| Glitchy_2 | DMA | 0.0% | 25,821 | 105 | 128 | 2.7 |
+| Cordae | interrupt | 19.3% | 22,464 | 1 | 8.3 | 0.7 |
+| Cordae | DMA | 0.0% | 27,113 | 1 | 7.3 | 0 |
+
+The rings in SDRAM (the `usb-rings-sdram` feature) do no better than in SRAM. The queue to the host is as deep as the
+codec's three blocks: a render late enough to empty it has left the codec short as well.
 
 Build the feature into a stream-bench image:
 
