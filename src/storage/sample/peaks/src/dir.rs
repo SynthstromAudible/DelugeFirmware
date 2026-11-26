@@ -21,7 +21,6 @@ pub(crate) struct Directory<T> {
 
 impl<T> Directory<T> {
     /// A directory with room for `entries` entries and no chunks allocated. Thread mode.
-    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub(crate) fn new(entries: u64) -> Option<Self> {
         let len = usize::try_from(entries.div_ceil(CHUNK as u64)).ok()?.max(1);
         Some(Self {
@@ -86,7 +85,6 @@ impl<T> Directory<T> {
     }
 
     /// Frees every retired chunk. Thread mode, once no fold that could have loaded one is in flight.
-    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub(crate) fn reap(&self) {
         for c in 0..self.len {
             if let Some(p) = self
@@ -110,7 +108,6 @@ impl<T> Directory<T> {
 
     /// Allocates the chunks holding entries `[first, end)`. Thread mode. False on allocation failure or an entry
     /// past the directory.
-    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub(crate) fn ensure(&self, first: u64, end: u64) -> bool {
         if end <= first {
             return true;
@@ -130,7 +127,6 @@ impl<T> Directory<T> {
     }
 
     /// Frees every chunk and the directory. Thread mode, once no fold or read can reach it.
-    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub(crate) fn free_all(&self) {
         for c in 0..self.len {
             if let Some(p) = self

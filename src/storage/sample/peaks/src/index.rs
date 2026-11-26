@@ -80,7 +80,6 @@ impl PeakIndex {
     /// `capacity_frames`, and grows its chunks through [`PeakIndex::reserve`]. Thread mode. `None` on allocation
     /// failure.
     #[must_use]
-    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn create(frames: u64, growing: bool, capacity_frames: u64) -> Option<NonNull<PeakIndex>> {
         let capacity = capacity_frames.max(frames).max(1);
         let mut levels = 2;
@@ -135,7 +134,6 @@ impl PeakIndex {
     }
 
     /// Allocates the level-1-and-up chunks covering `[0, frames)`. Thread mode.
-    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     fn reserve_upto(&self, frames: u64) -> bool {
         let mut ok = true;
         for k in 1..self.levels {
@@ -158,7 +156,6 @@ impl PeakIndex {
     }
 
     /// Keeps level-0 values for frames `[first, end)` from now on. Thread mode.
-    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn ensure_level0(&self, first: u64, end: u64) {
         if let Some(d) = &self.values[0] {
             let _ = d.ensure(first >> BLOCK_FRAMES_LOG2, entries(0, end));
@@ -336,7 +333,6 @@ impl PeakIndex {
 
     /// Sets a take's frame count; `is_final` once its length is known, after which the entries at its end complete
     /// with fewer children. Thread mode.
-    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn set_frames(&self, frames: u64, is_final: bool) {
         self.frames.store(frames, Ordering::Release);
         if !is_final {
@@ -587,7 +583,6 @@ impl PeakIndex {
         }
     }
 
-    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     fn free_storage(&self) {
         for d in self.values.iter().flatten() {
             d.free_all();

@@ -1968,7 +1968,7 @@ name = "registry-selftest"
 template = "unittest"
 path = "scripts/tasks"
 gates = "this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams"
-run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names", "test_cargo_workspace", "test_run_scratch", "test_check_abi_surface", "test_stretcher_coverage"]
+run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names", "test_cargo_workspace", "test_run_scratch", "test_check_abi_surface", "test_stretcher_coverage", "test_placement"]
 
 [[harness]]
 name = "render-preset-selftest"
@@ -1998,6 +1998,13 @@ path = "tools"
 gates = "the machine-code comparison of two images names what an address points at instead of its value"
 run = ["python3", "-m", "unittest", "test_compare_codegen"]
 requires = ["llvm-cxxfilt", "llvm-objcopy", "llvm-readelf"]
+
+[[harness]]
+name = "placement-selftest"
+template = "unittest"
+path = "tools"
+gates = "the post-link placement gate's parse, call walk, boot prefix cuts, late-statics loads, vtable entries, known findings and hot report"
+run = ["python3", "-m", "unittest", "test_check_placement"]
 
 [[harness]]
 name = "relocate-selftest"
