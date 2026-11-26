@@ -35,6 +35,7 @@
 #include "model/instrument/kit.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/working_copies.h"
@@ -4449,7 +4450,8 @@ needToDoIt:
 				param->deleteNodesWithinRegion(modelStackWithAutoParam, pos, length);
 			}
 			else {
-				param->setValueForRegion(pos, length, 0, modelStackWithAutoParam);
+				param->setValueForRegion(pos, length, 0,
+				                         deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt));
 			}
 		}
 

@@ -18,6 +18,7 @@
 #include "model/project_bridge/lane_target.h"
 
 #include "model/clip/clip.h"
+#include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_collection.h"
@@ -57,6 +58,14 @@ LaneTarget target_of(const ::ModelStackWithAutoParam& stack, std::optional<proje
 project::DocAutoParam* doc_of(const LaneTarget& target) {
 	alignas(::ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	return stack_of(target, memory)->doc();
+}
+
+std::optional<project::ParamAddress> address_of(const LaneTarget& lane) {
+	if (lane.address) {
+		return lane.address;
+	}
+	alignas(::ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	return edits::addressFor(*stack_of(lane, memory));
 }
 
 LaneTiming lane_timing(const LaneTarget& lane) {

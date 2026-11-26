@@ -76,7 +76,7 @@ void reserveForRecordedWrite(project::ParamNodeVector& nodes);
 /// @param lane    The lane, on the interaction tier.
 /// @param command The change, held until the render has made it.
 /// @param room    Nodes the change can add.
-void postLaneCommand(ModelStackWithAutoParam const& lane, LaneCommand command, size_t room);
+void postLaneCommand(const bridge::LaneTarget& lane, LaneCommand command, size_t room);
 
 /// @brief [task] Queue @p event for the render.
 /// @return false when the queue is full: the caller, with the render excluded, writes the queue and then its event.

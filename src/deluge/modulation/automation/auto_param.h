@@ -77,7 +77,7 @@ public:
 	AutoParam& operator=(AutoParam&& other) noexcept;
 	void init(deluge::project::DocAutoParam& doc);
 
-	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
+	void setCurrentValueInResponseToUserInput(int32_t value, const deluge::bridge::LaneTarget& lane,
 	                                          bool shouldLogAction = true, int32_t livePos = -1,
 	                                          bool mayDeleteNodesInLinearRun = true, bool isMPE = false);
 	/// @brief Model-first projection half of the scalar poke.
@@ -105,10 +105,10 @@ public:
 	                            deluge::project::RegionWriteResult result);
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
-	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,
+	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, const deluge::bridge::LaneTarget& lane,
 	                       ActionType actionType = ActionType::NOTE_EDIT);
-	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
-	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
+	void setValuePossiblyForRegion(int32_t value, const deluge::bridge::LaneTarget& lane, int32_t pos, int32_t length,
+	                               bool mayDeleteNodesInLinearRun = true);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	/// tick the interolator by a number of samples - used for internal synths
 	bool tickSamples(int32_t numSamples);
@@ -173,7 +173,7 @@ public:
 	///
 	/// @return the index in to \ref nodes of the modified node.
 	int32_t setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, bool shouldInterpolate);
-	int32_t homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length,
+	int32_t homogenizeRegion(const deluge::bridge::LaneTarget& lane, int32_t startPos, int32_t length,
 	                         int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
 	                         int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut = 2147483647);
 	int32_t getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed);
@@ -207,7 +207,7 @@ public:
 	///        moment before following the lane again. The render's cursor state: see stopInterpolating(). While
 	///        recording, the latch may write the lane as it drifts back, so its working copy is made.
 	/// @param lane This param's lane.
-	void overrideFromNow(ModelStackWithAutoParam const& lane);
+	void overrideFromNow(const deluge::bridge::LaneTarget& lane);
 	/// @brief Stop interpolating. The render's cursor state, which it writes as it plays: the interaction tier writes
 	///        it with the render held off, so no block sees it half made.
 	void stopInterpolating();

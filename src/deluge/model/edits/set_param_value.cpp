@@ -163,7 +163,7 @@ Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelSt
 		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, address_, newValue_, 0, 0, std::nullopt);
 		stack->autoParam->projectScalarFromStore(lane, oldValue, isPlaying);
 		deluge::modulation::postLaneCommand(
-		    *stack, {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = newValue_}, 0);
+		    lane, {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = newValue_}, 0);
 		settleCableDepth(lane);
 		return Error::NONE;
 	}
@@ -191,7 +191,7 @@ Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelSt
 		if (result.has_value()) {
 			stack->autoParam->projectRegionFromStore(lane, oldValue, automatedBefore, *result);
 		}
-		deluge::modulation::postLaneCommand(*stack,
+		deluge::modulation::postLaneCommand(lane,
 		                                    {.kind = deluge::modulation::LaneCommand::Kind::REGION,
 		                                     .value = newValue_,
 		                                     .pos = pos_,
@@ -203,7 +203,7 @@ Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelSt
 	}
 
 	// A scalar write while recording automation, and a lane not yet in the project tree: the engine's own setter.
-	stack->autoParam->setValuePossiblyForRegion(newValue_, stack, pos_, length_, mayDeleteNodesInLinearRun_);
+	stack->autoParam->setValuePossiblyForRegion(newValue_, lane, pos_, length_, mayDeleteNodesInLinearRun_);
 	// The setter may have moved the stack to the lane it wrote; settle that one.
 	settleCableDepth(bridge::target_of(*stack, lane.address));
 	return Error::NONE;

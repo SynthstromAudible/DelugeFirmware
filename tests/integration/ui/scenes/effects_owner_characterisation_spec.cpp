@@ -16,6 +16,7 @@
 #include "model/edits/set_effect_setting.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -175,7 +176,7 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			const std::size_t before = loose->synth->core().delay().reserve();
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* rate = looseParam(*f.song, *loose, params::GLOBAL_DELAY_RATE, memory);
-			rate->autoParam->setCurrentValueInResponseToUserInput(INT32_MIN, rate);
+			rate->autoParam->setCurrentValueInResponseToUserInput(INT32_MIN, deluge::bridge::target_of(*rate, std::nullopt));
 			expect(loose->synth->core().delay().reserve()).to_equal(before);
 			spec::make_current(nullptr);
 		});
@@ -189,9 +190,9 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			                                deluge::effects::DelayType::OFF))));
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* feedback = looseParam(*f.song, *loose, params::GLOBAL_DELAY_FEEDBACK, memory);
-			feedback->autoParam->setCurrentValueInResponseToUserInput(INT32_MIN, feedback);
+			feedback->autoParam->setCurrentValueInResponseToUserInput(INT32_MIN, deluge::bridge::target_of(*feedback, std::nullopt));
 			expect(int(effectsOf(loose->synth).delay.type)).to_equal(int(deluge::effects::DelayType::OFF), "the delay type at no feedback");
-			feedback->autoParam->setCurrentValueInResponseToUserInput(0, feedback);
+			feedback->autoParam->setCurrentValueInResponseToUserInput(0, deluge::bridge::target_of(*feedback, std::nullopt));
 			expect(int(effectsOf(loose->synth).delay.type))
 			    .not_()
 			    .to_equal(int(deluge::effects::DelayType::OFF), "the delay type with feedback");
@@ -212,7 +213,7 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			ModelStackWithAutoParam* rate =
 			    setupModelStackWithThreeMainThingsButNoNoteRow(memory, f.song, &synth, f.clip, &f.clip->paramManager)
 			        ->getPatchedAutoParamFromId(params::GLOBAL_DELAY_RATE);
-			rate->autoParam->setCurrentValueInResponseToUserInput(INT32_MIN, rate);
+			rate->autoParam->setCurrentValueInResponseToUserInput(INT32_MIN, deluge::bridge::target_of(*rate, std::nullopt));
 			expect(synth.core().delay().reserve()).to_be_greater_than(before);
 			spec::make_current(nullptr);
 		});

@@ -40,6 +40,7 @@
 #include "model/note/note.h"
 #include "model/output.h"
 #include "model/project_bridge/arp_bridge.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
@@ -4779,8 +4780,9 @@ doHomogenize:
 			             // trying to work out where that came from. March 2022.
 #endif
 
-			param->homogenizeRegion(modelStackWithAutoParam, quantizedPos, distanceToNextNote, value, reversed,
-			                        reversed, effectiveLength, reversed, posAtWhichClipWillCut);
+			param->homogenizeRegion(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt), quantizedPos,
+			                        distanceToNextNote, value, reversed, reversed, effectiveLength, reversed,
+			                        posAtWhichClipWillCut);
 		}
 
 		else {

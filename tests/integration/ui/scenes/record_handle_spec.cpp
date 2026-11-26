@@ -9,6 +9,7 @@
 #include "modulation/automation/record_events.h"
 #include "modulation/automation/working_copies.h"
 #include "modulation/params/param.h"
+#include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
 
 #include <optional>
@@ -71,6 +72,43 @@ describe record_handle("a working copy's handle", ${
 			expect(wc::copy_at(first.handle).first).to_be_null();
 			expect(wc::copy_at(second.handle).first).to_equal(second.copy);
 			wc::releaseWorkingCopies();
+		}
+		spec::make_current(nullptr);
+	});
+
+	it("carries a value recorded through the setter into its lane's copy", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		spec::make_current(f.song);
+		const std::optional<bridge::LaneTarget> lane = filter_lane(f);
+		expect(lane.has_value()).to_be_true();
+		if (lane) {
+			const uint8_t savedState = playbackHandler.playbackState;
+			const RecordingMode savedRecording = playbackHandler.recording;
+			const bool savedActive = f.clip->activeIfNoSolo;
+			const bool savedArmed = f.clip->armedForRecording;
+			playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+			playbackHandler.recording = RecordingMode::NORMAL;
+			f.clip->activeIfNoSolo = true;
+			f.clip->armedForRecording = true;
+			constexpr int32_t kValue = 500000000;
+			const int32_t livePos = f.clip->loopLength() / 4;
+			lane->auto_param->setCurrentValueInResponseToUserInput(kValue, *lane, true, livePos, true, false);
+			wc::applyRecordEvents(*f.song);
+			const wc::WorkingCopy copy = wc::find_working_copy(*lane->collection, lane->param_id);
+			expect(copy.copy).not_().to_be_null();
+			bool found = false;
+			if (copy.copy != nullptr) {
+				for (const auto& node : copy.copy->nodes) {
+					found = found || (node.pos == livePos && node.value == kValue);
+				}
+			}
+			expect(found).to_be_true();
+			playbackHandler.recording = RecordingMode::OFF;
+			wc::releaseWorkingCopies();
+			f.clip->activeIfNoSolo = savedActive;
+			f.clip->armedForRecording = savedArmed;
+			playbackHandler.recording = savedRecording;
+			playbackHandler.playbackState = savedState;
 		}
 		spec::make_current(nullptr);
 	});

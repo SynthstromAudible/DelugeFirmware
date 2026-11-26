@@ -29,7 +29,7 @@ Error SetPatchCable::apply(Context& ctx) {
 		else {
 			stack->autoParam->setBase(*stack->doc(), value_);
 		}
-		deluge::modulation::postLaneCommand(*stack,
+		deluge::modulation::postLaneCommand(*lane,
 		                                    {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value_}, 0);
 		return Error::NONE;
 	}

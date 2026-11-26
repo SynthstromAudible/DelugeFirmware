@@ -20,6 +20,7 @@
 #include "libdeluge/system.h"
 #include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -92,21 +93,20 @@ bool postRecordEvent(const RecordEvent& event) {
 	return g_recordEvents.try_push(event);
 }
 
-void postLaneCommand(ModelStackWithAutoParam const& lane, LaneCommand command, size_t room) {
-	const WorkingCopy found = find_working_copy(*lane.paramCollection, lane.paramId);
+void postLaneCommand(const bridge::LaneTarget& lane, LaneCommand command, size_t room) {
+	const WorkingCopy found = find_working_copy(*lane.collection, lane.param_id);
 	project::DocAutoParam* copy = found.copy;
 	if (copy == nullptr) {
 		return;
 	}
 	g_commands.push_back(std::make_unique<LaneCommand>(std::move(command)));
-	RecordEvent event{.song = lane.song, .command = g_commands.back().get()};
-	const std::optional<project::ParamAddress> address = edits::addressFor(lane);
+	RecordEvent event{.song = lane.song, .copy = found.handle, .command = g_commands.back().get()};
+	const std::optional<project::ParamAddress> address = bridge::address_of(lane);
 	AudioExcludedSection section;
 	reserveForRecordedWrite(copy->nodes);
 	if (copy->nodes.capacity() < copy->nodes.size() + room) {
 		(void)copy->nodes.reserveExtra(static_cast<int32_t>(room));
 	}
-	event.copy = found.handle;
 	if (!address || !postRecordEvent(event)) {
 		// The render is excluded: make what it has queued, then this, so the changes land in order
 		applyRecordEvents(*lane.song);
