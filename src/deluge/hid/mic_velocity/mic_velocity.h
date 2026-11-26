@@ -31,9 +31,18 @@
 /// (and its release, if that's arrived too) waits for it, for up to 4 ms.
 namespace deluge::mic_velocity {
 
-/// Whether presses are being measured: enabled, calibrated, the internal mic live (nothing in the mic or line-in
-/// jacks), and not exporting stems
+/// Whether presses are being measured: enabled and calibrated (or calibrating), the internal mic live (nothing in the
+/// mic or line-in jacks), and not exporting stems
 [[nodiscard]] bool active();
+
+/// Whether the internal mic can be used: nothing in the mic or line-in jacks (either switches it off)
+[[nodiscard]] bool micAvailable();
+
+/// The calibration screen is open: presses are measured whatever the settings, for their levels
+void setCalibrating(bool calibrating);
+
+/// The level (dB of full scale) the last press measured was at: its thump's, or the noise's if it had none
+[[nodiscard]] float lastPressLevelDb();
 
 /// Starts or stops measuring to match active(). Called every 100 ms with the jack detection, and when the settings
 /// change.

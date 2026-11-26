@@ -25,6 +25,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/mic_velocity_calibration.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -299,6 +300,9 @@ bool padUsesVelocity(int32_t x, int32_t y) {
 	UI* ui = getCurrentUI();
 	if (ui == &keyboardScreen) {
 		return keyboardScreen.padUsesVelocity(x, y);
+	}
+	if (ui == &micVelocityCalibration) {
+		return micVelocityCalibration.measuresPad(x, y);
 	}
 	if (x == kDisplayWidth + 1) {
 		return ui == &instrumentClipView

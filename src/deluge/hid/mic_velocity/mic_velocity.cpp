@@ -60,6 +60,8 @@ Decimator sentDecimator;
 EchoCanceller canceller;
 ThumpDetector detector;
 bool running = false;
+bool calibratingNow = false;
+float lastLevelDb = -200.f;
 Frame freezeUntil = 0;
 
 Frame retryAt = 0;
@@ -106,6 +108,19 @@ bool calibrated() {
 	return haveCalibration;
 }
 
+bool micAvailable() {
+	return !AudioEngine::micPluggedIn && !AudioEngine::lineInPluggedIn;
+}
+
+void setCalibrating(bool calibrating) {
+	calibratingNow = calibrating;
+	update();
+}
+
+float lastPressLevelDb() {
+	return lastLevelDb;
+}
+
 dsp::mic_velocity::Calibration const& calibration() {
 	return currentCalibration;
 }
@@ -118,8 +133,8 @@ void setCalibration(dsp::mic_velocity::Calibration const& newCalibration) {
 }
 
 void update() {
-	bool const shouldRun = enabled && calibrated() && !AudioEngine::micPluggedIn && !AudioEngine::lineInPluggedIn
-	                       && !stemExport.processStarted;
+	bool const shouldRun =
+	    ((enabled && calibrated()) || calibratingNow) && micAvailable() && !stemExport.processStarted;
 	if (shouldRun == running) {
 		return;
 	}
@@ -178,6 +193,10 @@ PressVelocity velocityForPress(int32_t x, int32_t y, uint32_t arrived) {
 		}
 		// No thump over the noise: the press was no louder than the noise
 		level = detector.noiseFloor();
+	}
+	lastLevelDb = 20.f * std::log10(std::max(level, 1e-9f));
+	if (!haveCalibration) { // Calibrating: only the level matters
+		return {.wait = false, .velocity = USE_DEFAULT_VELOCITY};
 	}
 	return {.wait = false, .velocity = velocityFromLevel(x, y, level)};
 }

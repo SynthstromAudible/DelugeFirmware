@@ -488,6 +488,7 @@ EnumStringMap<UIType, util::to_underlying(UIType::UI_TYPE_COUNT)> uiTypeMap = {
       {UIType::LOAD_MIDI_DEVICE_DEFINITION, "load_midi_device_definition"},
       {UIType::LOAD_PATTERN, "load_pattern"},
       {UIType::LOAD_SONG, "load_song"},
+      {UIType::MIC_VELOCITY, "mic_velocity"},
       {UIType::PERFORMANCE, "performance"},
       {UIType::RENAME, "rename"},
       {UIType::SAMPLE_BROWSER, "sample_browser"},

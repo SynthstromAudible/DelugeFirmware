@@ -92,6 +92,7 @@
 #include "gui/menu_item/lfo/type.h"
 #include "gui/menu_item/master_transpose.h"
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/mic_velocity/mic_velocity.h"
 #include "gui/menu_item/midi/after_touch_to_mono.h"
 #include "gui/menu_item/midi/bank.h"
 #include "gui/menu_item/midi/command.h"
@@ -1008,12 +1009,30 @@ PLACE_SDRAM_BSS Submenu coloursSubmenu{
     },
 };
 
+// Mic velocity
+PLACE_SDRAM_BSS menu_item::mic_velocity::Calibrate micVelocityCalibrateMenu{STRING_FOR_CALIBRATE};
+PLACE_SDRAM_BSS menu_item::mic_velocity::Enabled micVelocityEnabledMenu{STRING_FOR_ENABLED, STRING_FOR_MIC_VELOCITY};
+PLACE_SDRAM_BSS menu_item::mic_velocity::MinVelocity micVelocityMinMenu{STRING_FOR_MIN_VELOCITY};
+PLACE_SDRAM_BSS menu_item::mic_velocity::MaxVelocity micVelocityMaxMenu{STRING_FOR_MAX_VELOCITY};
+PLACE_SDRAM_BSS menu_item::mic_velocity::Curve micVelocityCurveMenu{STRING_FOR_CURVE};
+PLACE_SDRAM_BSS Submenu micVelocitySubmenu{
+    STRING_FOR_MIC_VELOCITY,
+    {
+        &micVelocityCalibrateMenu,
+        &micVelocityEnabledMenu,
+        &micVelocityMinMenu,
+        &micVelocityMaxMenu,
+        &micVelocityCurveMenu,
+    },
+};
+
 PLACE_SDRAM_BSS Submenu padsSubmenu{
     STRING_FOR_PADS,
     {
         &shortcutsVersionMenu,
         &keyboardLayoutMenu,
         &coloursSubmenu,
+        &micVelocitySubmenu,
     },
 };
 
