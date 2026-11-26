@@ -111,6 +111,30 @@ class NoModControllable(unittest.TestCase):
         self.assertNotIn("no-mod-controllable", counts)
 
 
+class NoNewModelStackInParams(unittest.TestCase):
+    counts = ScenesRows.counts
+
+    def test_each_stack_name_in_the_param_path_is_counted(self):
+        counts = self.counts(
+            "src/deluge/modulation/params/planted.cpp",
+            "void f(ModelStackWithAutoParam const* a, ModelStackWithParamCollection* b);\nModelStack* c;\n",
+        )
+        self.assertEqual(counts.get("no-new-model-stack-in-params"), 2)
+
+    def test_outside_the_param_path_they_are_not(self):
+        counts = self.counts(
+            "src/deluge/model/planted.cpp", "ModelStackWithAutoParam const* a;\n"
+        )
+        self.assertNotIn("no-new-model-stack-in-params", counts)
+
+    def test_its_include_is_not(self):
+        counts = self.counts(
+            "src/deluge/modulation/params/planted.cpp",
+            '#include "model/model_stack.h"\n',
+        )
+        self.assertNotIn("no-new-model-stack-in-params", counts)
+
+
 class LegacyEffectsOwnerRows(unittest.TestCase):
     counts = ScenesRows.counts
 

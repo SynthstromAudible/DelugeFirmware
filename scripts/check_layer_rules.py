@@ -443,6 +443,16 @@ RULES = [
         "2026-11-25-modelstack-stage1-design.md",
     ),
     (
+        # The param path's engine side names no engine stack: each function takes a lane (bridge::LaneTarget) or the
+        # facts it reads. Playback threads stacks through it until ModelStack stage 2, so this is a count that may
+        # only fall, and modulation/ moves out of src/deluge once it reaches zero.
+        "no-new-model-stack-in-params",
+        "src/deluge/modulation/**",
+        "symbol",
+        r"\bModelStack\w*\b",
+        "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
         # The host chain's param table and pages are the deluge_host_chains library (host/chains), named for
         # what they serve. One row per tree: the checker matches one glob per row.
         "no-global-effectable-table",
