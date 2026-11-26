@@ -960,6 +960,30 @@ def audit_service_scope() -> int:
     return 1 if bad else 0
 
 
+def audit_scenes_link() -> int:
+    """`scenes-link-app`: fail if a CMake file under src/ui/scenes names the app's target, `deluge_app`.
+
+    The scenes library links no part of the app, and `tests/unit/ui/scenes/fakes` links it whole to prove it. This
+    keeps the link line from growing back: a `deluge_app` there, even `$<COMPILE_ONLY:deluge_app>`, would hand the
+    scenes the app's include roots and definitions again. A `#` comment may name it.
+    """
+    bad = 0
+    pattern = re.compile(r"(?<![A-Za-z0-9_])deluge_app(?![A-Za-z0-9_])")
+    for p in sorted((REPO / "src/ui/scenes").rglob("*")):
+        if not p.is_file() or not (p.name == "CMakeLists.txt" or p.suffix == ".cmake"):
+            continue
+        for number, line in enumerate(
+            p.read_text(encoding="utf-8", errors="replace").splitlines(), start=1
+        ):
+            code = line.split("#", 1)[0]
+            if pattern.search(code):
+                print(
+                    f"{p.relative_to(REPO)}:{number}: scenes-link-app: the scenes link no part of the app"
+                )
+                bad += 1
+    return 1 if bad else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--update", action="store_true")
@@ -967,8 +991,8 @@ def main() -> int:
     ap.add_argument("--audit-symbols", action="store_true")
     a = ap.parse_args()
     if a.audit_symbols:
-        return audit_symbols() or audit_service_scope()
-    if not a.list and audit_service_scope() != 0:
+        return audit_symbols() or audit_service_scope() or audit_scenes_link()
+    if not a.list and (audit_service_scope() != 0 or audit_scenes_link() != 0):
         return 1
     cur = current()
     if a.list:

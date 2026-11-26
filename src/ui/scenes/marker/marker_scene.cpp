@@ -3,7 +3,6 @@
 
 #include "ui/scenes/marker/marker_scene.h"
 
-#include "board_config.h" // PLACE_SDRAM_TEXT
 #include "instruments/classic/words.h"
 #include "project/sample_marker.h"
 #include "ui/widgets/core/metrics.h"
@@ -306,7 +305,7 @@ void MarkerScene::forget_modes() {
 // Marker positions
 
 // UI-tier code, run per input and per frame, never by the audio tier: it runs from SDRAM, as the GUI's code does.
-PLACE_SDRAM_TEXT std::array<views::waveform::MarkerPin, kSampleMarkerCount> MarkerScene::pins() const {
+std::array<views::waveform::MarkerPin, kSampleMarkerCount> MarkerScene::pins() const {
 	// `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), with its two
 	// column mappings inlined: `getStartColOnScreen` floors `(pos - xScroll) / xZoom`, and `getEndColOnScreen` floors
 	// `(pos - 1 - xScroll) / xZoom` -- an end marker names the column its LAST sample is in, which is why the two are

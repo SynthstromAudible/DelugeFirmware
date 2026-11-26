@@ -20,8 +20,6 @@
 
 #include "ui/scenes/registry.h"
 
-#include "board_config.h"
-
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
@@ -54,9 +52,9 @@ uint16_t assigned_node_ids() {
 }
 
 menu::MenuScene& menu_scene() {
-	// Menu-time state, in SDRAM with the scenes' other statics (`linker/sdram_sections.x`): its remembered-row table
+	// Menu-time state, in SDRAM with the rest of `src/ui` (`scripts/layers.toml`'s placement): its remembered-row table
 	// alone is 1.5 KB of on-chip SRAM otherwise.
-	PLACE_SDRAM_DATA static menu::MenuScene scene;
+	static menu::MenuScene scene;
 	(void)assigned_node_ids();
 	return scene;
 }

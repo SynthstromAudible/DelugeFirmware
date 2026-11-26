@@ -207,6 +207,7 @@ class Rule:
     allow: tuple[str, ...] = ()
     transitive: bool = False
     shrink_only: bool = False
+    root_level: bool = False
     reason: str = ""
 
 
@@ -255,6 +256,7 @@ def load_config(path: Path) -> Config:
             allow=tuple(entry.get("allow", ())),
             transitive=entry.get("transitive", False),
             shrink_only=entry.get("shrink_only", False),
+            root_level=entry.get("root_level", False),
             reason=entry.get("reason", ""),
         )
         for entry in raw.get("rule", [])
@@ -458,9 +460,29 @@ def reaches(
     return found
 
 
+def root_level_count(
+    config: Config, repo: Path, rule: Rule, pattern: re.Pattern[str], path: Path
+) -> int:
+    """The quoted includes in @p path that name a file at the top of an include root, a root-level header.
+
+    The include checker sees only quoted includes, so `<cstdint>` is never one; a slash-less name that is not a file at
+    the top of a root (a header beside the including file) is not one either.
+    """
+    return sum(
+        1
+        for quoted in quoted_includes(path)
+        if "/" not in quoted
+        and pattern.search(quoted)
+        and quoted not in rule.allow
+        and any((repo / root / quoted).is_file() for root in config.tree.include_roots)
+    )
+
+
 def rule_count(
     config: Config, repo: Path, rule: Rule, pattern: re.Pattern[str], path: Path
 ) -> int:
+    if rule.root_level:
+        return root_level_count(config, repo, rule, pattern, path)
     if rule.transitive:
         return len(reaches(config, repo, rule, path))
     return direct_count(rule, pattern, path)

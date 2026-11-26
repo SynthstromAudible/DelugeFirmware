@@ -51,11 +51,9 @@ nothing.
 
 * **Includes.** `ui/scenes/`, `ui/shell/`, `ui/`, `ui/gfx/`, `base/`, `libdeluge/`, the standard library,
   and — as the model-aware layer — `model/`, `modulation/`, `playback/`, `processing/`, `storage/`,
-  `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin/`, `serialization/`,
-  `sequence/`, `project/`, …) and one root-level header named in that comment (`definitions_cxx.hpp`,
-  included by its bare name). Never the rest of `gui/`, never `hid/` (`scenes-includes-outside`,
-  `scenes-includes-gui`). The checker cannot see a slash-less include, so a second root-level header must be
-  justified in that comment by hand.
+  `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin/`, `serialization/`, `project/`, …).
+  Never the rest of `gui/`, never `hid/` (`scenes-includes-outside`, `scenes-includes-gui`), and no root-level
+  header (`scenes-includes-root-header`, which counts a quoted include naming a file at the top of an include root).
 * **No model stack, no Edits, no engine pointers.** `model/model_stack.h` and
   `modulation/automation/auto_param.h` are not included anywhere in the layer
   (`scenes-model-stack`); a node edits through `bind::Target` and its write leaves as a request a
@@ -85,16 +83,15 @@ nothing.
 
 ## Building and testing
 
-`src/CMakeLists.txt` and `src/platform/host/CMakeLists.txt` add this directory after `deluge_app`, because
-`deluge_ui_scenes` compiles against it. The link is `$<COMPILE_ONLY:deluge_app>` (a real link of an
-OBJECT library would archive all of `deluge_app` into this one), so **every consumer of
-`deluge_ui_scenes` must link `deluge_app` itself**. The Rust BSP's build archives both into the
-firmware.
+`deluge_ui_scenes` links no part of the app (`scenes-link-app`): it links the shell, its binding to the model, the
+waveform view, `deluge_base` and the strings (`deluge_l10n`). Every tree builds it; the firmware and the host app
+archive it beside `deluge_app` (the Rust BSP's build scripts).
 
 | tree | what it holds |
 |---|---|
 | `tests/unit/ui/scenes/menu/`, `tests/unit/ui/scenes/services/` | the parts that need no model: the `Node` builders, the id registry, the validator over fake trees, view state |
 | `tests/unit/ui/scenes/bind/` | `deluge_ui_scenes_bind` against a `project::Song` with no engine runtime |
+| `tests/unit/ui/scenes/fakes/` | `deluge_scenes_fake`: the whole library, linked `WHOLE_ARCHIVE` over the ports' fakes with no app, so a symbol only the app defines fails the link; the menu's sources, the services, the overlays and every scene over the fakes |
 | `tests/integration/ui/scenes/` | the model-backed specs, linked into the host app and run one file per process by the `ui-scenes-spec` harness (`tests/registry.toml`); the table cross-checks against legacy, every scene, every service, the level-2 scripts |
 | `tests/integration/scenarios/menu_dump.cpp` | the `ui-menu-dump` gate: the app dumps every root as JSON, which must equal `website/src/data/generated/menu-tree.json`; `./dbt test --update ui-menu-dump` regenerates it |
 
