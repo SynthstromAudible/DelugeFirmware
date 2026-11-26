@@ -30,6 +30,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "hid/mic_velocity/mic_velocity.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -984,6 +985,7 @@ ActionResult SoundEditor::exitCompletely() {
 		MIDIDeviceManager::writeDevicesToFile();
 		runtimeFeatureSettings.writeSettingsToFile();
 		midiFollow.writeDefaultsToFile();
+		deluge::mic_velocity::writeSettingsIfChanged();
 		display->removeWorkingAnimation();
 	}
 	else if (inNoteEditor()) {

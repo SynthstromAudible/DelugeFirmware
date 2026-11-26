@@ -113,6 +113,7 @@ dsp::mic_velocity::Calibration const& calibration() {
 void setCalibration(dsp::mic_velocity::Calibration const& newCalibration) {
 	currentCalibration = newCalibration;
 	haveCalibration = true;
+	settingsChanged();
 	update();
 }
 

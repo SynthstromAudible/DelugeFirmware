@@ -67,4 +67,11 @@ extern dsp::mic_velocity::VelocityCurve curve;
 [[nodiscard]] dsp::mic_velocity::Calibration const& calibration();
 void setCalibration(dsp::mic_velocity::Calibration const& newCalibration);
 
+/// The settings (enabled, curve, calibration), in SETTINGS/MicVelocity.XML: read at boot, and written when they've
+/// changed, from places the card can be written from (leaving the settings menu, finishing a calibration)
+void readSettings();
+void writeSettingsIfChanged();
+/// enabled or curve was changed (setCalibration notes it itself)
+void settingsChanged();
+
 } // namespace deluge::mic_velocity
