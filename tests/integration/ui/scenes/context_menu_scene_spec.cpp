@@ -21,6 +21,7 @@
 #include "gui/ui/shell_host_ui.h"
 #include "hid/display/screensaver.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/profile.h"
@@ -43,6 +44,8 @@
 #include "support/oracle_table.h"
 #include "support/reset_witness.h"
 #include "support/song_fixture.h"
+
+#include "fakes.h"
 
 #include "support/mocks/fake_surfaces.h"
 #include "support/printers/context_menu_printer.h"
@@ -225,6 +228,13 @@ bool has_action(const Result& r, ShellAction::Kind k) {
 	return find_action(r, k) != nullptr;
 }
 
+/// @brief A menu context with the host's ports and nothing else: what a reset needs to reach the app.
+MenuContext host_context() {
+	MenuContext ctx{};
+	ctx.ports = deluge::ui::scenes::menu::host_ports();
+	return ctx;
+}
+
 MenuContext context_of(spec::SongFixture& f) {
 	return spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
 	                    /*kit_global_fx=*/false);
@@ -356,6 +366,29 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 			expect(d.options_now).to_be_null();
 			expect(d.pad).to_be_null();
 			expect(d.busy).to_be_null();
+		}
+	});
+
+	it("runs each reset through the device actions port and closes", _ {
+		using Kind = deluge::ui::scenes::bind::test::RecordingDeviceActions::Kind;
+		const std::array<Kind, 5> kinds{Kind::RESET_SETTINGS, Kind::RESET_COMMUNITY_FEATURES, Kind::RESET_MIDI_FOLLOW,
+		                                Kind::RESET_MIDI_DEVICES, Kind::FACTORY_RESET};
+		for (int i = 0; i <= static_cast<int>(DescriptorId::ResetAll); i++) {
+			deluge::ui::scenes::bind::test::RecordingDeviceActions actions;
+			MenuContext ctx{};
+			ctx.ports.device_actions = &actions;
+			const Descriptor& d = context_menu::descriptor(static_cast<DescriptorId>(i));
+			expect(d.accept(ctx, 0)).to_be_false();
+			expect(actions.calls.size()).to_equal(std::size_t{1});
+			if (!actions.calls.empty()) {
+				expect(static_cast<int>(actions.calls.front())).to_equal(static_cast<int>(kinds.at(i)));
+			}
+		}
+	});
+
+	it("runs no reset with no device actions port, and still closes", _ {
+		for (int i = 0; i <= static_cast<int>(DescriptorId::ResetAll); i++) {
+			expect(context_menu::descriptor(static_cast<DescriptorId>(i)).accept(MenuContext{}, 0)).to_be_false();
 		}
 	});
 
@@ -936,7 +969,7 @@ describe cm_live_settings("scenes::context_menu resets re-apply on the guest wha
 		const ResetWitness entry = witness();
 		const uint32_t sticky = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
 		const uint32_t horizontal = runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus);
-		const MenuContext ctx{};
+		const MenuContext ctx = host_context(); // the app's menu context carries the host's ports
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		shellHostUI.shell().lowering().set_shift_is_sticky(true);
 		// A SHIFT latched under the old setting: main's `shiftCurrentlyStuck`, which the reset leaves set.
@@ -963,7 +996,7 @@ describe cm_live_settings("scenes::context_menu resets re-apply on the guest wha
 		reset_globals();
 		const ResetWitness entry = witness();
 		const uint32_t rounded = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
-		const MenuContext ctx{};
+		const MenuContext ctx = host_context(); // the app's menu context carries the host's ports
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, RuntimeFeatureStateToggle::Off);
 		deluge::gui::ui::pushShellRoundedCorners();
 
@@ -985,7 +1018,7 @@ describe cm_live_settings("scenes::context_menu resets re-apply on the guest wha
 		const MenuHighlighting highlighting = FlashStorage::accessibilityMenuHighlighting;
 		const ScreensaverMode mode = FlashStorage::screensaverMode;
 		const uint8_t minutes = FlashStorage::screensaverTimeoutMinutes;
-		const MenuContext ctx{};
+		const MenuContext ctx = host_context(); // the app's menu context carries the host's ports
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
 		deluge::gui::ui::pushShellHighlighting();
 		FlashStorage::screensaverMode = ScreensaverMode::OFF;

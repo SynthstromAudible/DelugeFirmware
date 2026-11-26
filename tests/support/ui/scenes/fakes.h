@@ -319,12 +319,22 @@ struct FakeMidiDevices final : MidiDevices {
 struct RecordingDeviceActions final : DeviceActions {
 	/// @brief Which action it was.
 	enum class Kind : uint8_t {
-		SAVE_SETTINGS,   ///< save_settings
-		DELETE_ALL_LOGS, ///< delete_all_logs
+		SAVE_SETTINGS,            ///< save_settings
+		DELETE_ALL_LOGS,          ///< delete_all_logs
+		RESET_SETTINGS,           ///< reset_settings
+		RESET_COMMUNITY_FEATURES, ///< reset_community_features
+		RESET_MIDI_FOLLOW,        ///< reset_midi_follow
+		RESET_MIDI_DEVICES,       ///< reset_midi_devices
+		FACTORY_RESET,            ///< factory_reset
 	};
 	std::vector<Kind> calls;                       ///< every action taken, in order
 	std::vector<std::string_view>* order{nullptr}; ///< when set, delete_all_logs appends "wipe" to it
 	void save_settings() override { calls.push_back(Kind::SAVE_SETTINGS); }
+	void reset_settings() override { calls.push_back(Kind::RESET_SETTINGS); }
+	void reset_community_features() override { calls.push_back(Kind::RESET_COMMUNITY_FEATURES); }
+	void reset_midi_follow() override { calls.push_back(Kind::RESET_MIDI_FOLLOW); }
+	void reset_midi_devices() override { calls.push_back(Kind::RESET_MIDI_DEVICES); }
+	void factory_reset() override { calls.push_back(Kind::FACTORY_RESET); }
 	void delete_all_logs() override {
 		calls.push_back(Kind::DELETE_ALL_LOGS);
 		if (order != nullptr) {
