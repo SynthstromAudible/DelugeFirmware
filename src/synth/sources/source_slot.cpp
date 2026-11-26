@@ -17,7 +17,7 @@
 
 #include "synth/sources/source_slot.h"
 #include "dsp/core/phasor.h"
-#include "synth/sources/va/va_shapes.h" // va_shape::is_virtual_analog / wave_for / initial_phase_for_zero
+#include "synth/sources/va/va_shapes.h" // va_shape::initial_phase_for_zero
 #include <type_traits>
 
 namespace deluge::synth {
@@ -27,9 +27,18 @@ SourceSlot::~SourceSlot() {
 }
 
 void SourceSlot::bind(const SourcePorts& ports) {
-	sample_.bind_port(ports.sample);
-	dx7_.bind_port(ports.dx);
-	input_.bind_port(ports.input, ports.live_inputs);
+	for_each_kind<PortedKinds>([&]<class Kind>(Kind) { Kind::bind(std::get<typename Kind::Source>(ported_), ports); });
+}
+
+template <class Fn>
+bool SourceSlot::with_ported(OscType type, Fn fn) {
+	return find_kind<PortedKinds>([&]<class Kind>(Kind) {
+		if (!Kind::plays(type)) {
+			return false;
+		}
+		fn(Kind{}, std::get<typename Kind::Source>(ported_));
+		return true;
+	});
 }
 
 bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint32_t osc_retrigger_phase,
@@ -44,23 +53,18 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 	    .osc_type = source.osc_type,
 	};
 
-	if (synth_mode != SynthMode::FM && source.osc_type == OscType::SAMPLE) {
-		return sample_.note_on(note);
+	// A port-backed source outside FM starts through its port; a sample's note-on is the whole of the slot's
+	bool started = true;
+	bool owned = false;
+	const bool ported = ported_mode(synth_mode) && with_ported(source.osc_type, [&]<class Kind>(Kind, auto& src) {
+		                    started = Kind::note_on(src, note);
+		                    owned = Kind::kOwnsNote;
+	                    });
+	if (ported && (!started || owned)) {
+		return started;
 	}
-
-	if (synth_mode != SynthMode::FM
-	    && (source.osc_type == OscType::INPUT_L || source.osc_type == OscType::INPUT_R
-	        || source.osc_type == OscType::INPUT_STEREO)) {
-		input_.note_on(note); // latches the live-input channel
-	}
-	else if (synth_mode != SynthMode::FM && source.osc_type == OscType::DX7) [[unlikely]] {
-		if (!dx7_.note_on(note)) {
-			return false;
-		}
-	}
-	else {
-		const bool engine_mode = (synth_mode == SynthMode::SUBTRACTIVE || synth_mode == SynthMode::RINGMOD);
-		build_oscillator(source.osc_type, engine_mode, osc_retrigger_phase, reset_everything, noise);
+	if (!ported) {
+		build_oscillator(source.osc_type, held_mode(synth_mode), osc_retrigger_phase, reset_everything, noise);
 	}
 
 	if (reset_everything) {
@@ -80,41 +84,20 @@ void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t o
 	// The retrigger phase's word is the phase it adds; kFreeRunningPhase marks none
 	const auto seed_phase = dsp::UQ<32>::from_raw(va_shape::initial_phase_for_zero(osc_type) + osc_retrigger_phase);
 	const bool retrigger = osc_retrigger_phase != kFreeRunningPhase;
-	if (engine_mode && va_shape::is_virtual_analog(osc_type)) {
-		const va_shape::Wave wave = va_shape::wave_for(osc_type);
-		if (retrigger) {
-			oscillator_.emplace<VirtualAnalogSource>(wave, dsp::Phasor{seed_phase, dsp::UQ<32>{}});
-		}
-		else if (reset_everything || !std::holds_alternative<VirtualAnalogSource>(oscillator_)) {
-			oscillator_.emplace<VirtualAnalogSource>(wave, dsp::Phasor{osc_pos, dsp::UQ<32>{}});
-		}
-	}
-	else if (engine_mode && osc_type == OscType::WAVETABLE) {
-		if (retrigger) {
-			oscillator_.emplace<WavetableSource>(dsp::Phasor{seed_phase, dsp::UQ<32>{}});
-		}
-		else if (reset_everything || !std::holds_alternative<WavetableSource>(oscillator_)) {
-			oscillator_.emplace<WavetableSource>(dsp::Phasor{osc_pos, dsp::UQ<32>{}});
-		}
-	}
-	else if (engine_mode && osc_type == OscType::SUPERSAW) {
-		using dsp::fixed::Supersaw;
-		if (retrigger) {
-			// The side saws start at fixed offsets from the centre one, so every note starts the same way (the supersaw
-			// keeps its phases as words)
-			oscillator_.emplace<SupersawSource>(seed_phase, Supersaw::side_phases_from(seed_phase.raw()));
-		}
-		else if (reset_everything || !std::holds_alternative<SupersawSource>(oscillator_)) {
-			// Free-running on a new voice: random side saws like the centre one, otherwise every note's side saws
-			// would start from the same place and sweep the same way
-			Supersaw::SidePhases side_phases;
-			for (uint32_t& phase : side_phases) {
-				phase = noise.next();
-			}
-			oscillator_.emplace<SupersawSource>(osc_pos, side_phases);
-		}
-	}
-	else {
+	const HeldBuild build{.type = osc_type,
+	                      .seed = seed_phase,
+	                      .retrigger = retrigger,
+	                      .reset_everything = reset_everything,
+	                      .osc_pos = osc_pos,
+	                      .noise = &noise};
+	const bool held = engine_mode && find_kind<HeldKinds>([&]<class Kind>(Kind) {
+		                  if (!Kind::plays(osc_type)) {
+			                  return false;
+		                  }
+		                  Kind::build(oscillator_, build);
+		                  return true;
+	                  });
+	if (!held) {
 		oscillator_.emplace<std::monostate>(); // FM, noise and the rest keep osc_pos
 		if (retrigger) {
 			osc_pos = seed_phase;
@@ -124,33 +107,33 @@ void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t o
 
 void SourceSlot::unassign(bool deleting_song) {
 	active = false;
-	sample_.unassign(deleting_song);
-	dx7_.unassign(deleting_song);
-	input_.unassign(deleting_song);
+	for_each_kind<PortedKinds>(
+	    [&]<class Kind>(Kind) { std::get<typename Kind::Source>(ported_).unassign(deleting_song); });
+}
+
+void SourceSlot::release(OscType type, const SourceRelease& release) {
+	bool keeps = true;
+	(void)with_ported(type, [&]<class Kind>(Kind, auto& src) { keeps = Kind::release(src, release, active); });
+	if (!keeps) {
+		unassign(false);
+	}
 }
 
 Source* SourceSlot::source_for(OscType type) {
-	switch (type) {
-	case OscType::SAMPLE:
-		return &sample_;
-	case OscType::DX7:
-		return &dx7_;
-	case OscType::INPUT_L:
-	case OscType::INPUT_R:
-	case OscType::INPUT_STEREO:
-		return &input_;
-	default:
-		return std::visit(
-		    []<class Held>(Held& held) -> Source* {
-			    if constexpr (std::is_same_v<Held, std::monostate>) {
-				    return nullptr;
-			    }
-			    else {
-				    return &held;
-			    }
-		    },
-		    oscillator_);
+	Source* ported = nullptr;
+	if (with_ported(type, [&]<class Kind>(Kind, auto& src) { ported = &src; })) {
+		return ported;
 	}
+	return std::visit(
+	    []<class Held>(Held& held) -> Source* {
+		    if constexpr (std::is_same_v<Held, std::monostate>) {
+			    return nullptr;
+		    }
+		    else {
+			    return &held;
+		    }
+	    },
+	    oscillator_);
 }
 
 dsp::UQ<32> SourceSlot::current_osc_phase() const {
