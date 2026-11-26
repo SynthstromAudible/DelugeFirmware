@@ -16,6 +16,8 @@ guidebook:
 ---
 
 import Figure from "../../../../components/guidebook/Figure.astro"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Badge, Steps } from "@astrojs/starlight/components"
 import fig_fig_16_2_1 from "../../../../assets/guidebook/figs/16-audio__02-getting-audio-into-deluge--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
@@ -30,3 +32,38 @@ There are three main ways to get audio into Deluge. Audio can be used in an osci
   }
   page={197}
 />
+
+<StepFocus />
+
+## Audio over USB <Badge text="C1.4" variant="tip" />
+
+Connected to a computer with a USB cable, Deluge also works as an audio interface, with no driver needed. The computer's audio can be played through Deluge's outputs or recorded into an audio clip, and Deluge's output can be recorded into the computer. USB MIDI keeps working as before. The settings are in SETTINGS &gt; USB AUDIO.
+
+<Steps>
+
+1. Connect Deluge to the computer with a USB cable.
+2. Choose Deluge as the audio input and/or output in the computer's sound settings or your DAW.
+3. The computer's audio plays through Deluge's outputs and headphones unless it is monitored by an audio clip or sampler. To stop this, set SETTINGS &gt; USB AUDIO &gt; SMART MONITORING to off.
+4. The computer receives Deluge's main mix. To send it the line input (or mic) as it arrives instead, set SETTINGS &gt; USB AUDIO &gt; OUTPUT to LINE IN.
+
+</Steps>
+
+The computer's own volume and mute controls set the level of its audio on Deluge, including when it's recorded. For recordings at full level, turn the computer's volume for Deluge all the way up.
+
+### Recording the computer in an audio clip
+
+<Steps>
+
+1. In an audio clip, open the audio clip sound menu with :key[Shift + Select].
+2. Go to AUDIO SOURCE and select USB INPUT.
+3. Record as with any other source. SAMPLER and LOOPER clips monitor the computer's audio, PLAYER clips don't.
+
+</Steps>
+
+If a clip is monitoring the USB input while the DAW is also playing Deluge's input back to it, the sound feeds back. Turn off input monitoring in the DAW, or use a PLAYER clip.
+
+### Multitrack
+
+Set SETTINGS &gt; USB AUDIO &gt; MODE to MULTITRACK to send the computer the main mix plus three more stereo pairs (channels 3/4, 5/6 and 7/8), and receive two stereo inputs back. Each track can be sent to its own pair with the USB BUS setting at the end of its sound menu (for a kit, the kit menu with affect entire on). A track sent to a USB pair is taken out of Deluge's main mix, so it isn't heard from Deluge's own outputs. The second input from the computer is available as USB INPUT 3/4 in an audio clip's AUDIO SOURCE menu. MODE can also be set to OFF, so that Deluge connects as a USB MIDI device only. A change to MODE takes effect the next time Deluge is turned on.
+
+See [USB Audio](/features/usb_audio) for the full details.

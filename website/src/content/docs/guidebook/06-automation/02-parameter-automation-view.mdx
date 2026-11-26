@@ -132,6 +132,15 @@ Press pads to assign a value to a step column. i.e ‘A’
 
 Hold :key[Pad]’s ‘X’ Start and Press ‘Y’ End to select a multi-step automation curve. Press :key[Select] to interpolate between steps ON for a smooth step change or OFF to create stepped changes between column steps.
 
+## Automation overview in MIDI clips <Badge text="C1.4" variant="tip" />
+
+In MIDI clips the automation overview shows every MIDI CC that can be automated in number order.
+
+- CC 0–119 run from left to right and bottom to top. The bottom row holds CC 0–14, the next row CC 15–30, and so on, each row continuing from the last.
+- Z (aftertouch) is the last pad of the bottom row. X (pitch bend) and Y (mod wheel) come straight after CC 119 on the top row.
+- CCs that are automated are lit white.
+- Tap a :key[Pad] to edit that CC's automation.
+
 ## Automation View Editing Quick Reference
 
 | Context    | Action                              | Command                                                                                                                                            |
