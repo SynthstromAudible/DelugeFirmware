@@ -159,8 +159,7 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 			bool shouldNotify = param->tickTicks(numTicks);
 			if (shouldNotify) { // Should always actually be true...
 				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
-				notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt),
-				                             oldValue, false, true, true);
+				deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 			}
 		}
 	}
@@ -347,8 +346,7 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 			bool shouldSend = param->grabValueFromPos(pos, modelStackWithAutoParam);
 
 			if (shouldSend) {
-				notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt),
-				                             oldValue, false, true, true);
+				deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 			}
 		}
 	}

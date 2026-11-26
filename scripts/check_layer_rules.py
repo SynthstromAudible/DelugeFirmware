@@ -443,11 +443,26 @@ RULES = [
         "2026-11-25-modelstack-stage1-design.md",
     ),
     (
-        # The param path's engine side names no engine stack: each function takes a lane (bridge::LaneTarget) or the
-        # facts it reads. Playback threads stacks through it until ModelStack stage 2, so this is a count that may
-        # only fall, and modulation/ moves out of src/deluge once it reaches zero.
+        # The engine stack names left in the param path, counted per file: the count may only fall. modulation/ still
+        # threads stacks through playback and recording (ModelStack stage 2); it moves out of src/deluge once its
+        # count is zero. The delay hook and the playhead move's deferred notify take a lane (bridge::LaneTarget) and
+        # stay at zero. One row per glob: the checker matches one glob per row.
         "no-new-model-stack-in-params",
         "src/deluge/modulation/**",
+        "symbol",
+        r"\bModelStack\w*\b",
+        "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
+        "no-new-model-stack-in-params",
+        "src/deluge/model/mod_controllable/delay_type.*",
+        "symbol",
+        r"\bModelStack\w*\b",
+        "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
+        "no-new-model-stack-in-params",
+        "src/deluge/playback/move_section.*",
         "symbol",
         r"\bModelStack\w*\b",
         "2026-11-25-modelstack-stage1-design.md",

@@ -268,8 +268,7 @@ void ParamSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* mo
 	bool shouldNotify = param->tickSamples(numSamples);
 	if (shouldNotify) { // Should always actually be true...
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
-		notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt), oldValue, false,
-		                             true, true);
+		deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 	}
 
 	FOR_EACH_PARAM_END
@@ -284,8 +283,7 @@ void ParamSet::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelS
 	bool shouldNotify = param->tickTicks(numTicks);
 	if (shouldNotify) { // Should always actually be true...
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
-		notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt), oldValue, false,
-		                             true, true);
+		deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 	}
 
 	FOR_EACH_PARAM_END
@@ -352,8 +350,7 @@ void ParamSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* mo
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 	bool shouldNotify = param->grabValueFromPos(pos, modelStackWithAutoParam);
 	if (shouldNotify) {
-		notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt), oldValue, false,
-		                             true, true);
+		deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 	}
 
 	FOR_EACH_PARAM_END

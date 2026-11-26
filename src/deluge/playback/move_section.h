@@ -39,8 +39,8 @@ public:
 	/// A notify of a param its owner's delay reacts to (deluge::model::onDelayParamModified()).
 	struct DelayNotify {
 		deluge::bridge::LaneTarget lane; ///< the lane's pointers, as its notify had them
-		int32_t oldValue;
-		bool automatedBefore;
+		int32_t oldValue{0};
+		bool automatedBefore{false};
 	};
 
 	/// @brief [render] or [interaction] Whether a section on the interaction tier is collecting now.

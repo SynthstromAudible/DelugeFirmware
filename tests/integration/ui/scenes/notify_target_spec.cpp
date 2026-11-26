@@ -15,6 +15,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/structural_edit_probe.h"
 
 #include <limits>
 #include <optional>
@@ -96,6 +97,29 @@ describe notify_target("a param notify through a lane target", ${
 			spec::make_current(nullptr);
 		});
 
+		it("is told through the lane's own clip, when that clip plays automation", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack = patched_param(f, a, params::LOCAL_LPF_FREQ);
+			auto* manager = static_cast<ParamManagerForTimeline*>(stack->paramManager);
+			const bridge::LaneTarget lane = bridge::target_of(*stack, std::nullopt);
+			expect(lane.timeline).to_equal(static_cast<TimelineCounter*>(f.clip));
+			const uint8_t saved = playbackHandler.playbackState;
+			const bool savedActive = f.clip->activeIfNoSolo;
+			playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+			f.clip->activeIfNoSolo = false;
+			manager->ticksTilNextEvent = 1000;
+			manager->notifyParamModifiedInSomeWay(lane, 0, true, true);
+			expect(manager->ticksTilNextEvent).to_equal(1000, "a clip not playing is not told");
+			f.clip->activeIfNoSolo = true;
+			manager->notifyParamModifiedInSomeWay(lane, 0, true, true);
+			expect(manager->ticksTilNextEvent).to_equal(0, "a playing clip is told");
+			f.clip->activeIfNoSolo = savedActive;
+			playbackHandler.playbackState = saved;
+			spec::make_current(nullptr);
+		});
+
 		it("is left alone while the clock is stopped", _ {
 			spec::SongFixture f = spec::make_synth_song();
 			spec::make_current(f.song);
@@ -144,6 +168,54 @@ describe notify_target("a param notify through a lane target", ${
 				expect(AudioEngine::mustUpdateReverbParamsBeforeNextRender).to_be_true();
 				AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 			}
+			spec::make_current(nullptr);
+		});
+	});
+
+	context("a sound's smoothing", _ {
+		it("hands its smoothing to the param that changed last", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			Sound& sound = static_cast<SoundInstrument&>(*f.instrument); // the synth fixture's instrument
+			expect(params::paramNeedsLPF(params::LOCAL_MODULATOR_0_VOLUME, false)).to_be_true();
+			expect(params::paramNeedsLPF(params::LOCAL_MODULATOR_1_VOLUME, false)).to_be_true();
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char b[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* first = patched_param(f, a, params::LOCAL_MODULATOR_0_VOLUME);
+			ModelStackWithAutoParam* second = patched_param(f, b, params::LOCAL_MODULATOR_1_VOLUME);
+			const bool savedSkipping = sound.skippingRendering;
+			sound.skippingRendering = false;
+			sound.paramLPF.p = PARAM_LPF_OFF;
+			sound.notifyValueChangeViaLPF(params::LOCAL_MODULATOR_0_VOLUME, true,
+			                              bridge::target_of(*first, std::nullopt), 5, 100, false);
+			expect(sound.paramLPF.p).to_equal(static_cast<int32_t>(params::LOCAL_MODULATOR_0_VOLUME));
+			sound.notifyValueChangeViaLPF(params::LOCAL_MODULATOR_1_VOLUME, true,
+			                              bridge::target_of(*second, std::nullopt), 7, 100, false);
+			expect(sound.paramLPF.p).to_equal(static_cast<int32_t>(params::LOCAL_MODULATOR_1_VOLUME), "the second param has it");
+			expect(sound.paramLPF.currentValue).to_equal(7, "from the second param's old value");
+			sound.paramLPF.p = PARAM_LPF_OFF;
+			sound.skippingRendering = savedSkipping;
+			spec::make_current(nullptr);
+		});
+	});
+
+	context("an oscillator's volume", _ {
+		it("re-patches its sound when it starts or stops sounding, and only then", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			make_clip_active(f);
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack = patched_param(f, a, params::LOCAL_OSC_A_VOLUME);
+			stack->autoParam->setCurrentValueWithNoReversionOrRecording(stack, std::numeric_limits<int32_t>::max());
+			const bridge::LaneTarget lane = bridge::target_of(*stack, std::nullopt);
+			const uint32_t before = deluge::notedStructuralEdits(deluge::StructuralContainer::PATCH_CABLES);
+			stack->paramCollection->notifyParamModifiedInSomeWay(lane, 0, false, false, false);
+			expect(deluge::notedStructuralEdits(deluge::StructuralContainer::PATCH_CABLES))
+			    .to_equal(before, "sounding before and after: no re-patch");
+			stack->paramCollection->notifyParamModifiedInSomeWay(lane, std::numeric_limits<int32_t>::min(), false,
+			                                                     false, false);
+			expect(deluge::notedStructuralEdits(deluge::StructuralContainer::PATCH_CABLES))
+			    .to_equal(before + 1, "silent before, sounding now: one re-patch");
 			spec::make_current(nullptr);
 		});
 	});

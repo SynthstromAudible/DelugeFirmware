@@ -619,8 +619,7 @@ void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollectio
 	int32_t oldValue = param->getCurrentValue();
 	bool shouldNotify = param->tickSamples(numSamples);
 	if (shouldNotify) { // Should always actually be true...
-		notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt), oldValue, false,
-		                             true, true);
+		deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 	}
 
 	FOR_EACH_PARAM_END
@@ -663,8 +662,7 @@ void PatchCableSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollectio
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 	bool shouldNotify = param->grabValueFromPos(pos, modelStackWithAutoParam);
 	if (shouldNotify) {
-		notifyParamModifiedInSomeWay(deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt), oldValue, false,
-		                             true, true);
+		deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 	}
 
 	FOR_EACH_PARAM_END

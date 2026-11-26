@@ -701,8 +701,7 @@ void automateVolume() {
 	for (int32_t eighth = 1; eighth < 8; eighth += 2) {
 		(void)deluge::project::setNodeAtPos(*doc, loop * eighth / 8, (eighth - 4) << 27, eighth == 3);
 	}
-	volume->paramCollection->notifyParamModifiedInSomeWay(deluge::bridge::target_of(*volume, std::nullopt),
-	                                                      volume->autoParam->getCurrentValue(), true, false, true);
+	deluge::bridge::notify_modified(*volume, volume->autoParam->getCurrentValue(), true, false, true);
 }
 
 /// @return How many automation stores the song's backed params hold for @p owner.

@@ -127,6 +127,15 @@ class NoNewModelStackInParams(unittest.TestCase):
         )
         self.assertNotIn("no-new-model-stack-in-params", counts)
 
+    def test_the_delay_hook_and_the_move_queue_are_counted(self):
+        for rel in (
+            "src/deluge/model/mod_controllable/delay_type.cpp",
+            "src/deluge/playback/move_section.h",
+        ):
+            with self.subTest(rel=rel):
+                counts = self.counts(rel, "ModelStackWithAutoParam stack;\n")
+                self.assertEqual(counts.get("no-new-model-stack-in-params"), 1)
+
     def test_its_include_is_not(self):
         counts = self.counts(
             "src/deluge/modulation/params/planted.cpp",
