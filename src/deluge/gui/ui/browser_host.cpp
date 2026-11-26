@@ -38,8 +38,8 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/packed_owner.h"
 #include "model/project_bridge/chain_bridge.h"
-#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/last_file_path_loaded.h"
 #include "model/song/song.h"
@@ -61,9 +61,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 namespace deluge::gui::ui {
@@ -484,44 +482,6 @@ void setShellBrowserFromDrumCreator(bool fromCreator) {
 }
 
 namespace {
-/// Where a packed owner keeps its alternative's index: above any pointer the device (32-bit) or the host (47-bit user
-/// addresses) hands out.
-constexpr unsigned kOwnerIndexShift = 56;
-
-/// @brief @p owner as one word: its pointer, with its alternative's index above it.
-uint64_t packed(const deluge::model::LaneOwner& owner) {
-	return std::visit(
-	    [&]<typename T>(T held) -> uint64_t {
-		    if constexpr (std::is_same_v<T, std::monostate>) {
-			    return 0;
-		    }
-		    else {
-			    return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(held))
-			           | (static_cast<uint64_t>(owner.index()) << kOwnerIndexShift);
-		    }
-	    },
-	    owner);
-}
-
-/// @brief The owner @p bits packs (packed's inverse).
-template <size_t... Index>
-deluge::model::LaneOwner unpacked(uint64_t bits, std::index_sequence<Index...> /*alternatives*/) {
-	const size_t index = bits >> kOwnerIndexShift;
-	const auto pointer = static_cast<uintptr_t>(bits & ((uint64_t{1} << kOwnerIndexShift) - 1));
-	deluge::model::LaneOwner owner;
-	(
-	    [&] {
-		    using T = std::variant_alternative_t<Index, deluge::model::LaneOwner>;
-		    if constexpr (!std::is_same_v<T, std::monostate>) {
-			    if (index == Index) {
-				    owner = reinterpret_cast<T>(pointer);
-			    }
-		    }
-	    }(),
-	    ...);
-	return owner;
-}
-
 /// What `publishMenuTarget` last published. Playback automation reads it on the audio tier, so it is one lock-free
 /// word: an owner is its pointer and its alternative's index.
 std::atomic<uint64_t> publishedOwner{0};
@@ -531,13 +491,12 @@ std::atomic<ParamManagerForTimeline*> publishedParams{nullptr};
 
 void publishMenuTarget() {
 	const deluge::gui::SoundTarget target = menuTarget();
-	publishedOwner.store(packed(target.mod), std::memory_order_relaxed);
+	publishedOwner.store(deluge::model::pack_owner(target.mod), std::memory_order_relaxed);
 	publishedParams.store(target.params, std::memory_order_relaxed);
 }
 
 deluge::model::LaneOwner sound_menu_owner() {
-	return unpacked(publishedOwner.load(std::memory_order_relaxed),
-	                std::make_index_sequence<std::variant_size_v<deluge::model::LaneOwner>>{});
+	return deluge::model::unpack_owner(publishedOwner.load(std::memory_order_relaxed));
 }
 
 ParamManagerForTimeline* soundMenuParamManager() {

@@ -135,7 +135,7 @@ deluge::model::LaneOwner chain_owner_at(ChainAddress address, ::Song& song) {
 	}
 	deluge::model::LaneOwner found;
 	forEachOutput(song, [&](::Output& output) {
-		if (std::holds_alternative<std::monostate>(found) && output.id() == address.id && ownerOf(output)) {
+		if (deluge::model::is_none(found) && output.id() == address.id && ownerOf(output)) {
 			found = deluge::model::owner_of(output);
 		}
 	});

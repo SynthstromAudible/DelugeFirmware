@@ -427,8 +427,8 @@ RULES = [
         "2026-11-13-controls-layer-design.md",
     ),
     (
-        # An owner's params are named by its typed owner (model::LaneOwner): there is no untyped owner class, nor
-        # its retired comparison. One row per tree: the checker matches one glob per row.
+        # An owner's params are named by its typed owner (model::LaneOwner): no untyped owner class, its conversion,
+        # or valueChangedEnoughToMatter. One row per tree: the checker matches one glob per row.
         "no-mod-controllable",
         "src/**",
         "symbol",

@@ -17,7 +17,7 @@ std::optional<project::ClipAddress> clipAddressOf(const ::Clip* clip) {
 	return clip != nullptr ? std::optional{project::ClipAddress{clip->id()}} : std::nullopt;
 }
 
-/// The focus on @p output's own mod controllable, in @p clip (none for an arranger row).
+/// The focus on @p output's own params, in @p clip (none for an arranger row).
 deluge::ui::controls::KnobFocus outputFocus(::Output& output, const ::Clip* clip) {
 	if (!output.id()) {
 		return {};

@@ -180,7 +180,7 @@ OwnerStack owner_stack_at_untyped(::Song& song, const project::ParamAddress& add
 	}
 	if (address.owner.kind == Kind::DRUM && output->type == OutputType::KIT) {
 		::Drum* drum = song.drumForId(address.owner.id);
-		if (drum == nullptr || deluge::model::is_none(deluge::model::owner_of(*drum))) {
+		if (drum == nullptr) {
 			return {};
 		}
 		int32_t noteRowIndex = 0;

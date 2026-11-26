@@ -95,7 +95,7 @@ class NoModControllable(unittest.TestCase):
                 )
                 self.assertEqual(counts.get("no-mod-controllable"), 1)
 
-    def test_its_conversion_and_retired_comparison_are_counted(self):
+    def test_its_conversion_and_value_comparison_are_counted(self):
         counts = self.counts(
             "src/deluge/model/planted.cpp",
             "auto* o = output->toModControllable();\nbool b = o->valueChangedEnoughToMatter(1, 2, k, 3);\n",
