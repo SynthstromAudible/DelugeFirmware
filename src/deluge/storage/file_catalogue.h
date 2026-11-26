@@ -156,8 +156,8 @@ public:
 	///
 	/// - `Browser::beginListing` (`gui/ui/browser/browser.cpp:97`), which previously guarded with
 	///   its own static `listingInProgress_` (`browser.h:170`), and
-	/// - `deluge::ui::scenes::browser::Listing::request` (`src/ui/scenes/browser/listing.cpp`), the
-	///   tick-driven seam the scenes layer uses.
+	/// - the scenes layer's tick-driven seam, `deluge::ui::scenes::browser::Listing::request`, which
+	///   claims through the catalogue port the host answers here (`gui/ui/shell_host/catalogue.cpp`).
 	///
 	/// Before this, the two were mutually invisible: a legacy browser listing and a scenes listing
 	/// could both believe they were the only one, over one shared vector. That is a live hazard for

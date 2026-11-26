@@ -440,8 +440,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		const browser::Descriptor& syx = browser::descriptor(BrowserId::DxSyx);
 		// `DxSyxBrowser::DxSyxBrowser` and `opened` (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`).
 		expect(std::string{syx.title}).to_equal(std::string{"DX7 syx files"});
-		expect(std::string{syx.extensions[0]}).to_equal(std::string{"SYX"});
-		expect(syx.extensions[1]).to_be_null();
+		expect(static_cast<int>(syx.kinds)).to_equal(static_cast<int>(deluge::ui::scenes::bind::FileKinds::SYX));
 		expect(std::string{syx.default_dir}).to_equal(std::string{"DX7"});
 		expect(syx.interpret_note_names).to_be_false();
 		expect(syx.allow_folders_sharing_name_with_file).to_be_true();
@@ -461,12 +460,9 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		const browser::Descriptor& midi = browser::descriptor(BrowserId::MidiDeviceDefinition);
 
 		// `allowedFileExtensionsAudio` (`SampleBrowser`'s constructor) vs the base's
-		// `allowedFileExtensionsXML` (`Browser::opened`).
-		expect(std::string{sample.extensions[0]}).to_equal(std::string{"WAV"});
-		expect(std::string{sample.extensions[1]}).to_equal(std::string{"AIFF"});
-		expect(std::string{sample.extensions[2]}).to_equal(std::string{"AIF"});
-		expect(sample.extensions[3]).to_be_null();
-		expect(std::string{midi.extensions[0]}).to_equal(std::string{"XML"});
+		// `allowedFileExtensionsXML` (`Browser::opened`), as the catalogue port's file kinds.
+		expect(static_cast<int>(sample.kinds)).to_equal(static_cast<int>(deluge::ui::scenes::bind::FileKinds::AUDIO));
+		expect(static_cast<int>(midi.kinds)).to_equal(static_cast<int>(deluge::ui::scenes::bind::FileKinds::XML));
 
 		expect(std::string{sample.default_dir}).to_equal(std::string{"SAMPLES"});
 		expect(std::string{midi.default_dir}).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});

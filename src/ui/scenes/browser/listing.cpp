@@ -18,51 +18,26 @@
 #include "ui/scenes/browser/listing.h"
 
 #include "base/notify/notice_queue.h"
-#include "definitions_cxx.hpp" // Availability, Error
-#include "storage/storage_manager.h"
 
 #include <cassert>
-#include <cctype>
 #include <utility>
 
 namespace deluge::ui::scenes::browser {
 
-using deluge::storage::FileCatalogue;
-
 namespace {
 
-/// @brief Legacy's `deluge::string::caselessEquals` (`util/string.h`), re-spelled locally.
-///
-/// `util/**` is not on the list of directories `src/ui/scenes` may include
-/// (`src/ui/scenes/CMakeLists.txt`), and this is the only thing from it the seam wanted, so it is
-/// four lines here rather than a hole in the layer rule.
-/// @param a First string.
-/// @param b Second string.
-/// @return True if they match ignoring ASCII case.
-bool caseless_equals(std::string_view a, std::string_view b) {
-	if (a.size() != b.size()) {
-		return false;
-	}
-	for (size_t i = 0; i < a.size(); i++) {
-		if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i]))) {
-			return false;
-		}
-	}
-	return true;
-}
-
-/// @brief Should a failure of \p action be announced as a popup?
+/// @brief Should a failure of \p step be announced as a popup?
 ///
 /// Every action but `Reload`: legacy's `runPendingListing` routes a failure to `onListingFailed`
 /// (`Browser::onListingFailed`), which calls `display->displayError` -- except `reloadImpl`, which swallows
-/// its read failure entirely and returns `Error::NONE` so the browser neither pops up nor closes
+/// its read failure entirely and returns no error so the browser neither pops up nor closes
 /// (`Browser::reloadImpl`, "Reload failure stays silent"). The seam keeps that distinction, but
 /// unlike legacy it still reports the error in `ListingResult::error`, so a caller that *wants* to
 /// announce a reload failure has the fact and can raise its own notice.
-/// @param action The action that failed.
+/// @param step The step that failed.
 /// @return True to raise `notice_error_code`.
-bool announces_errors(ListingAction action) {
-	return action != ListingAction::Reload;
+bool announces_errors(bind::ListingStep step) {
+	return step != bind::ListingStep::RELOAD;
 }
 
 } // namespace
@@ -78,32 +53,36 @@ Listing::~Listing() {
 	       && "a Listing was destroyed with a listing in flight -- the dispatched owner op still "
 	          "holds `this`; own a Listing as a scene member, never on a stack frame");
 
-	if (state != State::InFlight) {
+	if (state != State::InFlight && catalogue_ != nullptr) {
 		// Not in flight: if this instance was holding the catalogue (an uncollected `Ready`),
 		// hand it back, or every later listing -- this layer's or legacy's -- is refused forever.
 		// `release` is a no-op for a non-claimant, so this needs no state test of its own.
-		FileCatalogue::release(this);
+		catalogue_->release(this);
 	}
 	// In flight and past the assert (a release build): the owner is deliberately NOT released. A
 	// jammed browser is a better outcome than letting a second listing race a fiber that is still
 	// writing through a freed `this`.
 }
 
-RequestOutcome Listing::request(ListingRequest req) {
+RequestOutcome Listing::request(bind::ListingSpec req) {
 	// This instance's own state first: an uncollected result is a more specific answer than "the
 	// catalogue is busy", and it is the one the caller can actually act on.
 	if (state_.load(std::memory_order_acquire) == State::Ready) {
 		return RequestOutcome::ResultPending;
 	}
+	// No catalogue: nothing to list into, and nothing was claimed or announced.
+	if (catalogue_ == nullptr) {
+		return RequestOutcome::Dropped;
+	}
 
-	// Then the guard, which lives on the resource rather than here: `FileCatalogue::claim`. That
+	// Then the guard, which lives on the resource rather than here: the catalogue's `claim`. That
 	// is what makes single flight a property of the shared catalogue rather than of this object --
 	// the browser, marker editor and recorder scenes put three of these seams in the same process, AND legacy's
 	// `Browser::beginListing` claims through the very same call,
 	// so a legacy browser listing and a scenes listing cannot both believe they are alone
-	// over one `fileItems`. A claim held by anyone -- this instance already in flight, another
+	// over one catalogue. A claim held by anyone -- this instance already in flight, another
 	// seam, or a legacy browser -- is `Busy`.
-	if (!FileCatalogue::claim(this)) {
+	if (!catalogue_->claim(this)) {
 		return RequestOutcome::Busy;
 	}
 
@@ -121,7 +100,7 @@ RequestOutcome Listing::request(ListingRequest req) {
 		// The owner dropped it, so the op will never run. Undo everything the dispatch attempt
 		// did: clear the in-flight state, release the claim and drop the working notice.
 		state_.store(State::Idle, std::memory_order_release);
-		FileCatalogue::release(this);
+		catalogue_->release(this);
 		base::notify::notice_kind(base::notify::Notice::Kind::ClearWorking);
 		return RequestOutcome::Dropped;
 	}
@@ -136,12 +115,12 @@ std::optional<ListingResult> Listing::take_result() {
 	result_ = {};
 	state_.store(State::Idle, std::memory_order_release);
 	// The catalogue is released HERE, not when the op finished. `ListingResult` counts the entries
-	// rather than copying them -- they are still in `FileCatalogue::fileItems`, and this caller has
+	// rather than copying them -- they are still in the catalogue, and this caller has
 	// not read them yet. Anything allowed to dispatch in that window -- another seam, or a legacy
 	// browser -- would replace the vector underneath a caller that had just been told its listing
 	// had landed. Legacy releases at the end of its op instead, and that is the same contract, not
-	// a looser one: its consumer reads inside the op. See `FileCatalogue::claim`.
-	FileCatalogue::release(this);
+	// a looser one: its consumer reads inside the op. See `bind::Catalogue::claim`.
+	catalogue_->release(this);
 	return out;
 }
 
@@ -154,181 +133,38 @@ void Listing::set_dispatch(Dispatch dispatch) {
 	dispatch_ = dispatch;
 }
 
+void Listing::set_catalogue(bind::Catalogue* catalogue) {
+	if (catalogue_ == catalogue) {
+		return; // a scene re-opened over the same ports, whatever its listing is doing
+	}
+	assert(state_.load(std::memory_order_acquire) == State::Idle
+	       && "Listing::set_catalogue on a seam that is not Idle -- the pending op belongs to the old catalogue");
+	if (catalogue_ != nullptr) {
+		catalogue_->release(this);
+	}
+	catalogue_ = catalogue;
+}
+
 void Listing::trampoline(void* self) {
 	static_cast<Listing*>(self)->perform();
 }
 
 void Listing::perform() {
+	bind::ListingOutcome outcome = catalogue_->list(request_);
 	ListingResult out{};
-	out.action = request_.action;
-	out.error = run_action(out);
-	out.dir = FileCatalogue::currentDir;
-	out.count = FileCatalogue::fileItems.size();
+	out.step = request_.step;
+	out.error = outcome.error;
+	out.entered_text = std::move(outcome.entered_text);
+	out.dir = std::string{catalogue_->dir()};
+	out.count = catalogue_->count();
 	result_ = std::move(out);
 
-	// Raised from the op, which the shipped dispatcher (`run_inline`) runs on the caller's tier. Legacy's
-	// `Browser::runPendingListing` (`gui/ui/browser/browser.cpp`) removes the loading animation and reports a
-	// failure (`onListingFailed`) itself; here the notices carry both. `NoticeQueue` documents itself as
-	// single-logical-producer, serialised by cooperative scheduling (`base/notify/notice_queue.h`, COOP-WRITE), so a
-	// dispatcher that moved the op to another context would have to keep that.
 	base::notify::notice_kind(base::notify::Notice::Kind::ClearWorking);
-	if (result_.error != Error::NONE && announces_errors(result_.action)) {
-		base::notify::notice_error_code(static_cast<int16_t>(result_.error));
+	if (result_.error.has_value() && announces_errors(result_.step)) {
+		base::notify::notice_error_code(*result_.error);
 	}
 
-	// Last, and with release: a poller that sees `Ready` must see `result_` and the catalogue the
-	// op left behind. See the honesty note in listing.h -- nothing has ever exercised this.
 	state_.store(State::Ready, std::memory_order_release);
-}
-
-Error Listing::run_action(ListingResult& out) {
-	switch (request_.action) {
-
-	case ListingAction::Open: {
-		// `openListingImpl` lists whatever `currentDir` already holds; the seam
-		// lets a caller set it in the same request rather than reaching into the catalogue first.
-		if (!request_.path.empty()) {
-			FileCatalogue::currentDir = request_.path;
-		}
-		return list_current_dir(request_.filename_to_start_at.empty() ? nullptr
-		                                                              : request_.filename_to_start_at.c_str());
-	}
-
-	case ListingAction::IntoFolder: {
-		// `goIntoFolderImpl`: append the name, separator only when there is
-		// something to separate from.
-		// A malformed request, not a card condition: appending nothing would silently re-list the
-		// directory the caller thought it was leaving.
-		if (request_.path.empty()) {
-			return Error::BUG;
-		}
-		if (!FileCatalogue::currentDir.empty()) {
-			FileCatalogue::currentDir.append("/");
-		}
-		FileCatalogue::currentDir.append(request_.path);
-		return list_current_dir(nullptr);
-	}
-
-	case ListingAction::UpLevel: {
-		// `goUpOneDirectoryLevelImpl`. The refusal at a single-segment
-		// directory is legacy's, and it is a *level* test, not an emptiness test: legacy takes
-		// `strrchr(currentDir, '/')` and refuses both when there is no slash and when the slash is
-		// the first character, so "SETTINGS" cannot be ascended out of but "SAMPLES/KICKS" can.
-		const size_t slash = FileCatalogue::currentDir.rfind('/');
-		if (slash == std::string::npos || slash == 0) {
-			return Error::NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP;
-		}
-		// Legacy assigns the dropped segment to `enteredText` and then lists starting at it, so the
-		// folder just left is the one selected on arrival.
-		out.entered_text = FileCatalogue::currentDir.substr(slash + 1);
-		FileCatalogue::currentDir.resize(slash);
-		return list_current_dir(out.entered_text.c_str());
-	}
-
-	case ListingAction::ByPath: {
-		// `setFileByFullPathImpl`.
-		// TODO(conflation-batch-4): an unknown `fileExists` is treated as absent here, the same conflation
-		// `AudioFileManager` marks with `TODO(conflation-batch-5)` (`storage/audio/audio_file_manager.cpp`);
-		// whatever the load/browse/favourites sites decide, this port inherits.
-		if (!StorageManager::fileExists(request_.path.c_str()).value_or(false)) {
-			return Error::FILE_NOT_FOUND;
-		}
-		const size_t slash = request_.path.rfind('/');
-		if (slash == std::string::npos) {
-			out.entered_text = request_.path;
-			FileCatalogue::currentDir.clear();
-		}
-		else {
-			out.entered_text = request_.path.substr(slash + 1);
-			// Assigned from a substring of the request's own string, not from a `char const*` into
-			// a temporary -- legacy has a comment here about exactly that dangling pointer
-			// (`Browser::setFileByFullPathImpl` in `browser.cpp`).
-			FileCatalogue::currentDir = request_.path.substr(0, slash);
-		}
-
-		const Error error = list_current_dir(out.entered_text.c_str());
-		if (error != Error::NONE) {
-			return error;
-		}
-
-		// `searchFileItems` reads the name comparator's globals, which `sortFileItems` has just
-		// pinned for this listing (`file_catalogue.cpp`'s `FileCatalogue::sortFileItems`). When the catalogue came
-		// back empty the sort did not run, but the search then has nothing to compare against and
-		// returns 0 regardless -- which is why this file never touches `util/name_compare`'s flags.
-		out.file_index = FileCatalogue::searchFileItems(out.entered_text.c_str(), &out.found_exact);
-		// `>` and not `>=`, copied from main's `Browser::setFileByFullPath`
-		// (`origin/main:src/deluge/gui/ui/browser/browser.cpp`) rather than corrected. The consequence is real and is
-		// NOT a divergence hidden by omission: `searchFileItems` returns the match index *or the insertion point*, and
-		// an insertion point may be exactly `fileItems.size()`, one past the end -- which this check lets through with
-		// `Error::NONE`. Main survives it because `clampFileSelectionAndScroll` reins `fileIndexSelected` in before
-		// anything dereferences it. This port does not silently re-decide legacy's comparisons, so the check stays and
-		// the hazard is pushed to the caller, spelled out on `ListingResult::file_index`: index the catalogue with it
-		// only after checking `found_exact`.
-		if (out.file_index > static_cast<int32_t>(FileCatalogue::fileItems.size())) {
-			return Error::FILE_NOT_FOUND;
-		}
-		return Error::NONE;
-	}
-
-	case ListingAction::Reload: {
-		// `reloadImpl`, both arms: with a name to centre on it re-reads around
-		// that name (legacy's `CATALOG_SEARCH_BOTH` on `enteredText`), and without one it re-reads
-		// from whichever end `search_direction` names -- legacy's `Browser::ReloadTail`
-		// (`gui/ui/browser/browser.h`). Choosing the new selection index from the reloaded list is the
-		// caller's (`finishSelectEncoderAction`, `browser.cpp`), not the seam's.
-		return list_current_dir(request_.filename_to_start_at.empty() ? nullptr
-		                                                              : request_.filename_to_start_at.c_str());
-	}
-	}
-	return Error::BUG;
-}
-
-Error Listing::list_current_dir(char const* filename_to_start_at) {
-	// `arrivedInNewFolder`'s own rule (`browser.cpp`): a name to start at means a two-sided
-	// cull around it, no name means keep the start of the folder. `search_direction` overrides it
-	// only where legacy has its own override -- Reload's search-from-end arm.
-	const int32_t direction = request_.search_direction != kDeriveSearchDirection ? request_.search_direction
-	                          : (filename_to_start_at != nullptr && *filename_to_start_at != '\0')
-	                              ? CATALOG_SEARCH_BOTH
-	                              : CATALOG_SEARCH_RIGHT;
-
-	Error error = FileCatalogue::readFileItemsForFolder(nullptr, request_.allow_folders, request_.allowed_extensions,
-	                                                    filename_to_start_at, request_.max_num_file_items, direction,
-	                                                    request_.interpret_note_names);
-
-	// `readFileItemsFromFolderAndMemory`'s missing-folder arms, each taken once. A missing folder gives way to the
-	// default folder, read from its start; a missing default folder is created and read, empty, so the browser opens
-	// on it instead of failing. The create is a card write in the same op as the reads around it.
-	if (error == Error::FOLDER_DOESNT_EXIST && !request_.default_dir.empty()
-	    && !caseless_equals(FileCatalogue::currentDir, request_.default_dir)) {
-		FileCatalogue::currentDir = request_.default_dir;
-		error = FileCatalogue::readFileItemsForFolder(nullptr, request_.allow_folders, request_.allowed_extensions,
-		                                              nullptr, request_.max_num_file_items, CATALOG_SEARCH_RIGHT,
-		                                              request_.interpret_note_names);
-	}
-	if (error == Error::FOLDER_DOESNT_EXIST && !request_.default_dir.empty()
-	    && caseless_equals(FileCatalogue::currentDir, request_.default_dir)) {
-		error = FileCatalogue::makeFolder(request_.default_dir);
-		if (error == Error::NONE) {
-			error = FileCatalogue::readFileItemsForFolder(nullptr, request_.allow_folders, request_.allowed_extensions,
-			                                              nullptr, request_.max_num_file_items, CATALOG_SEARCH_RIGHT,
-			                                              request_.interpret_note_names);
-		}
-	}
-
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	// The tail of `readFileItemsFromFolderAndMemory` (`origin/main:src/deluge/gui/ui/browser/browser.cpp`), minus the
-	// in-memory instrument merge that needs a `Song` -- see listing.h.
-	if (!FileCatalogue::fileItems.empty()) {
-		FileCatalogue::sortFileItems(request_.interpret_note_names);
-		if (!request_.allow_folders_sharing_name_with_file) {
-			FileCatalogue::deleteFolderAndDuplicateItems(Availability::ANY);
-		}
-	}
-	return Error::NONE;
 }
 
 } // namespace deluge::ui::scenes::browser

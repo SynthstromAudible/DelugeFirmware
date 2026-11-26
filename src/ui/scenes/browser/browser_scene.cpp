@@ -143,10 +143,6 @@ std::string_view row_label(std::string_view name, bool is_folder) {
 // ---------------------------------------------------------------------------------------------
 // The three descriptors. Each block is one legacy `Browser` subclass, virtual for virtual.
 
-/// @brief `allowedFileExtensionsAudio`, the namespace-scope array in
-/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`.
-char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
-
 // --- Sample: `SampleBrowser` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) ---
 
 /// @brief The file `SoundEditor::getCurrentAudioFileHolder` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) holds,
@@ -214,11 +210,11 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 }
 
 /// The way a listing came into its folder, as `arrivedInNewFolder`'s direction: into a folder 1, up one -1, else 0.
-int8_t entry_direction(ListingAction action) {
-	switch (action) {
-	case ListingAction::IntoFolder:
+int8_t entry_direction(bind::ListingStep step) {
+	switch (step) {
+	case bind::ListingStep::INTO_FOLDER:
 		return 1;
-	case ListingAction::UpLevel:
+	case bind::ListingStep::UP_LEVEL:
 		return -1;
 	default:
 		return 0;
@@ -307,8 +303,6 @@ AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view 
 
 // --- DX7 `.syx` banks: `DxSyxBrowser` (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`) ---
 
-char const* kSyxExtensions[] = {"SYX", nullptr};
-
 bool dx_syx_can(const menu::MenuContext& ctx) {
 	// `DxSyxBrowser::opened` refuses nothing of its own: only "DX7 source" lists the row that opens it. A bank loads
 	// into the sound the menu edits, so there has to be one.
@@ -333,7 +327,7 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
     // note names interpreted, and folders allowed to share a name with a file.
     {
         .title = "Audio files",
-        .extensions = kAudioExtensions,
+        .kinds = bind::FileKinds::AUDIO,
         .default_dir = "SAMPLES",
         .file_icon = &ui::gfx::oled::icons::browserWave,
         .file_icon_pt2 = nullptr,
@@ -350,7 +344,7 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
     // disallowed.
     {
         .title = "Load midi device",
-        .extensions = allowedFileExtensionsXML,
+        .kinds = bind::FileKinds::XML,
         .default_dir = kMidiDeviceDir,
         .file_icon = &ui::gfx::oled::icons::browserMidi,
         .file_icon_pt2 = &ui::gfx::oled::icons::browserMidiEdge,
@@ -365,7 +359,7 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
     // folders allowed to share a name with a file.
     {
         .title = "DX7 syx files",
-        .extensions = kSyxExtensions,
+        .kinds = bind::FileKinds::SYX,
         .default_dir = "DX7",
         .file_icon = &ui::gfx::oled::icons::browserWave,
         .file_icon_pt2 = nullptr,
@@ -421,6 +415,7 @@ BrowserHost& null_browser_host() {
 
 void BrowserScene::open(const menu::MenuContext& ctx) {
 	ctx_ = ctx;
+	listing_.set_catalogue(ctx_.ports.catalogue);
 }
 
 bool BrowserScene::on_enter(const SceneId& id) {
@@ -727,7 +722,7 @@ Result BrowserScene::favourite_press(uint8_t position) {
 	entered_len_ = 0;
 	edit_ = deluge::ui::widgets::oled::TextEditState{};
 	arrive_in_new_folder();
-	ListingRequest req = make_request(ListingAction::ByPath);
+	bind::ListingSpec req = make_request(bind::ListingStep::BY_PATH);
 	req.path = path;
 	file_request(std::move(req));
 	(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
@@ -771,11 +766,11 @@ void BrowserScene::render_favourites(deluge::ui::widgets::grid::GridFrame& f) {
 // ---------------------------------------------------------------------------------------------
 // Listings
 
-ListingRequest BrowserScene::make_request(ListingAction action) const {
+bind::ListingSpec BrowserScene::make_request(bind::ListingStep step) const {
 	const Descriptor& d = descriptor(id_);
-	ListingRequest req;
-	req.action = action;
-	req.allowed_extensions = d.extensions;
+	bind::ListingSpec req;
+	req.step = step;
+	req.kinds = d.kinds;
 	req.allow_folders = true; // `Browser::arrivedInNewFolder` passes `allowFolders = true`
 	req.allow_folders_sharing_name_with_file = d.allow_folders_sharing_name_with_file;
 	req.interpret_note_names = d.interpret_note_names;
@@ -790,17 +785,17 @@ void BrowserScene::request_open() {
 	if (dir.empty()) {
 		dir = d.default_dir;
 	}
-	ListingRequest req = make_request(ListingAction::Open);
+	bind::ListingSpec req = make_request(bind::ListingStep::OPEN);
 	// Only the opening listing has a default folder to fall back to and create, as main's `opened()`: entering,
 	// leaving and reloading a folder that has gone is the card's error.
 	req.default_dir = d.default_dir;
 	req.path = std::move(dir);
-	req.filename_to_start_at = name;
+	req.start_at = name;
 	select_after_listing_ = std::move(name);
 	file_request(std::move(req));
 }
 
-void BrowserScene::file_request(ListingRequest req) {
+void BrowserScene::file_request(bind::ListingSpec req) {
 	if (listing_.request(req) != RequestOutcome::Accepted) {
 		// `Busy` (something else holds the catalogue), `ResultPending` (this seam owes a collect) or
 		// `Dropped` (the owner's queue was full). None of the three loses the request: it is kept and
@@ -816,8 +811,8 @@ Result BrowserScene::apply(const ListingResult& out) {
 	// `displayError` (already raised by the seam, which is why nothing is announced here) then
 	// `close()`. Reload is legacy's one silent exception (`browser.cpp`): it empties the
 	// catalogue and leaves the browser standing.
-	if (out.error != Error::NONE) {
-		if (out.action != ListingAction::Reload) {
+	if (out.error.has_value()) {
+		if (out.step != bind::ListingStep::RELOAD) {
 			return close();
 		}
 		entered_len_ = 0;
@@ -847,12 +842,12 @@ Result BrowserScene::apply(const ListingResult& out) {
 		return repaint_all();
 	}
 
-	if (out.action == ListingAction::Reload) {
+	if (out.step == bind::ListingStep::RELOAD) {
 		// `reloadImpl`'s tail (`browser.cpp`).
 		const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
 		int32_t index;
 		if (reload_from_end_) {
-			index = (reload_direction_ == CATALOG_SEARCH_LEFT) ? count - 1 : 0;
+			index = (reload_direction_ == bind::SearchFrom::LEFT) ? count - 1 : 0;
 		}
 		else {
 			FileCatalogue::repinComparator();
@@ -881,7 +876,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 		entered_len_ = 0;
 		file_index_ = -1;
 		scroll_ = 0;
-		file_preview(entry_direction(out.action));
+		file_preview(entry_direction(out.step));
 		return repaint_all();
 	}
 
@@ -897,7 +892,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 			// `noExactFileFound`'s re-read (`Browser::applyListingSelection` in `browser.cpp`): the search string
 			// culled entries off the start of the folder and we are about to fall back to "the first one", so the
 			// window has to be read again without it. Legacy `goto`s; here it is another listing.
-			ListingRequest req = make_request(ListingAction::Open);
+			bind::ListingSpec req = make_request(bind::ListingStep::OPEN);
 			file_request(std::move(req));
 			return repaint_all();
 		}
@@ -909,7 +904,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 	// possible" (`Browser::useFoundFile` in `browser.cpp`).
 	clamp(visible_rows_);
 	// `folderContentsReady(direction)`, which previews the entry the listing landed on.
-	file_preview(entry_direction(out.action));
+	file_preview(entry_direction(out.step));
 	return repaint_all();
 }
 
@@ -1041,7 +1036,7 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 		break;
 	case SearchOutcome::NeedsRead: {
 		// Legacy loops synchronously (`doNewRead` in `Browser::continuePrediction`); the seam cannot, so the read is
-		// dispatched and the search runs again when it lands. `CATALOG_SEARCH_BOTH` around the search string is
+		// dispatched and the search runs again when it lands. A window either side of the search string is
 		// legacy's own direction for this read.
 		//
 		// The cursor to fall back to travels with the request. Legacy decrements
@@ -1052,9 +1047,9 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 		// legacy's: the prediction highlight starts a column late and the NEXT keystroke truncates
 		// at the wrong index.
 		search_revert_cursor_ = revert_cursor_to;
-		ListingRequest req = make_request(ListingAction::Reload);
-		req.filename_to_start_at = std::string{entered_, entered_len_};
-		req.search_direction = CATALOG_SEARCH_BOTH;
+		bind::ListingSpec req = make_request(bind::ListingStep::RELOAD);
+		req.start_at = std::string{entered_, entered_len_};
+		req.search = bind::SearchFrom::BOTH;
 		searching_ = true;
 		file_request(std::move(req));
 		break;
@@ -1169,12 +1164,12 @@ void BrowserScene::step_selection(int32_t offset) {
 	if (index < 0) {
 		if (FileCatalogue::numFileItemsDeletedAtStart != 0) {
 			scroll_ = 9999;
-			request_reload(/*from_end=*/false, 0, offset);
+			request_reload(/*from_end=*/false, bind::SearchFrom::BOTH, offset);
 			return;
 		}
 		scroll_ = 0;
 		if (FileCatalogue::numFileItemsDeletedAtEnd != 0) {
-			request_reload(/*from_end=*/true, CATALOG_SEARCH_LEFT, offset);
+			request_reload(/*from_end=*/true, bind::SearchFrom::LEFT, offset);
 			return;
 		}
 		index = count - 1;
@@ -1182,12 +1177,12 @@ void BrowserScene::step_selection(int32_t offset) {
 	else if (index >= count) {
 		if (FileCatalogue::numFileItemsDeletedAtEnd != 0) {
 			scroll_ = 0;
-			request_reload(/*from_end=*/false, 0, offset);
+			request_reload(/*from_end=*/false, bind::SearchFrom::BOTH, offset);
 			return;
 		}
 		scroll_ = 9999;
 		if (FileCatalogue::numFileItemsDeletedAtStart != 0) {
-			request_reload(/*from_end=*/true, CATALOG_SEARCH_RIGHT, offset);
+			request_reload(/*from_end=*/true, bind::SearchFrom::RIGHT, offset);
 			return;
 		}
 		index = 0;
@@ -1195,19 +1190,19 @@ void BrowserScene::step_selection(int32_t offset) {
 	finish_select(index, offset);
 }
 
-void BrowserScene::request_reload(bool from_end, int32_t direction, int32_t offset) {
+void BrowserScene::request_reload(bool from_end, bind::SearchFrom direction, int32_t offset) {
 	// Legacy's `Browser::ReloadTail` (`gui/ui/browser/browser.h`) carries the same two facts: the two facts
-	// `reloadImpl` needs and `ListingRequest`'s generic fields do not carry.
+	// `reloadImpl` needs and `bind::ListingSpec`'s generic fields do not carry.
 	reload_from_end_ = from_end;
 	reload_direction_ = direction;
 	reload_offset_ = offset;
-	ListingRequest req = make_request(ListingAction::Reload);
+	bind::ListingSpec req = make_request(bind::ListingStep::RELOAD);
 	if (from_end) {
-		req.search_direction = direction;
+		req.search = direction;
 	}
 	else {
-		req.filename_to_start_at = std::string{entered_text()};
-		req.search_direction = CATALOG_SEARCH_BOTH;
+		req.start_at = std::string{entered_text()};
+		req.search = bind::SearchFrom::BOTH;
 	}
 	file_request(std::move(req));
 }
@@ -1242,7 +1237,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 		entered_len_ = 0;
 		edit_ = deluge::ui::widgets::oled::TextEditState{};
 		arrive_in_new_folder();
-		ListingRequest req = make_request(ListingAction::IntoFolder);
+		bind::ListingSpec req = make_request(bind::ListingStep::INTO_FOLDER);
 		req.path = item->filename;
 		file_request(std::move(req));
 		return repaint_all();
@@ -1314,7 +1309,7 @@ Result BrowserScene::back() {
 	entered_len_ = 0;
 	edit_ = deluge::ui::widgets::oled::TextEditState{};
 	arrive_in_new_folder();
-	file_request(make_request(ListingAction::UpLevel));
+	file_request(make_request(bind::ListingStep::UP_LEVEL));
 	return repaint_all();
 }
 
@@ -1700,7 +1695,7 @@ Result BrowserScene::after_render() {
 	// 3. Retry a request the seam refused. `Busy` can clear at any tick (a legacy browser or
 	//    another seam finishing), and `Dropped` clears as soon as the owner's queue drains.
 	if (pending_.has_value() && !listing_.in_flight()) {
-		ListingRequest req = std::move(*pending_);
+		bind::ListingSpec req = std::move(*pending_);
 		pending_.reset();
 		file_request(std::move(req));
 		if (!pending_.has_value()) {

@@ -155,9 +155,8 @@ struct Descriptor {
 	/// data rather than a port of the browser.
 	std::string_view title;
 
-	/// @brief `Browser::allowedFileExtensions`, NULL-terminated as
-	///        `FileCatalogue::readFileItemsForFolder` takes it.
-	char const** extensions;
+	/// @brief `Browser::allowedFileExtensions`: which files the browser lists, besides folders.
+	bind::FileKinds kinds;
 
 	/// @brief `arrivedInNewFolder`'s `defaultDirToAlsoTry`, and where the
 	///        browser opens when it has no remembered path.
@@ -192,7 +191,7 @@ struct Descriptor {
 	/// The port of each subclass's own dissection -- `SampleBrowser::opened`'s `currentPath`/`searchFilename` split
 	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) and
 	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` (`load_midi_device_definition_ui.cpp`). Both
-	/// end in "a folder plus a filename to select", which is exactly what a `ListingRequest` takes.
+	/// end in "a folder plus a filename to select", which is exactly what a `bind::ListingSpec` takes.
 	///
 	/// @param ctx  What the browser was opened over.
 	/// @param dir  Out: the directory to list. Left empty to use `Descriptor::default_dir`.
@@ -360,7 +359,7 @@ BrowserHost& null_browser_host();
 ///
 /// @note **This scene is not allocation-free, unlike `RenameScene` and `ContextMenuScene`, and the
 ///       buffer should not be read as claiming otherwise** It sits on
-///       `browser::Listing`, whose `ListingRequest` carries three owning `std::string`s by
+///       `browser::Listing`, whose `bind::ListingSpec` carries three owning `std::string`s by
 ///       construction (`listing.h`: on Embassy the caller's buffers are gone by the time the op
 ///       runs), and over `FileCatalogue`, whose `currentDir` and `FileItem::filename` are
 ///       `std::string`s. `step_selection`, `request_reload` and `search_for_entered_text` each
@@ -621,16 +620,16 @@ private:
 		NeedsRead,
 	};
 
-	/// @brief Build and file the request that opens the browser (`ListingAction::Open`).
+	/// @brief Build and file the request that opens the browser (`bind::ListingStep::OPEN`).
 	void request_open();
 	/// @brief Fill in the fields every request of this scene's shares (extensions, flags). The
 	///        opening listing adds the default directory itself (`request_open`).
 	/// @param action Which listing.
 	/// @return The request, ready for `file_request`.
-	ListingRequest make_request(ListingAction action) const;
+	bind::ListingSpec make_request(bind::ListingStep step) const;
 	/// @brief Try to dispatch @p req now; keep it for the next tick if the seam refuses.
 	/// @param req The request.
-	void file_request(ListingRequest req);
+	void file_request(bind::ListingSpec req);
 	/// @brief Apply a landed listing: selection, entered text, scroll.
 	/// @param out The collected result.
 	/// @return What the shell should do about it.
@@ -709,7 +708,7 @@ private:
 	/// @param direction  Legacy's `Browser::ReloadTail::searchDirection`; read only when
 	///                   @p from_end.
 	/// @param offset     The turn that provoked it, applied to the search on landing.
-	void request_reload(bool from_end, int32_t direction, int32_t offset);
+	void request_reload(bool from_end, bind::SearchFrom direction, int32_t offset);
 	/// @brief `Browser::mainButtonAction`'s release arm -> `enterKeyPress`.
 	/// @param shift Whether SHIFT is held: on a file in a kit's sample browser, `SlicerScene`'s door
 	///              (`SampleBrowser::enterKeyPress`, `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
@@ -771,15 +770,15 @@ private:
 	/// The SD half. **A member, and the lifetime rule says it must stay one** -- see `listing.h`.
 	Listing listing_{};
 	/// A request the seam refused (`Busy`/`Dropped`), retried on the next `after_render`.
-	std::optional<ListingRequest> pending_{};
+	std::optional<bind::ListingSpec> pending_{};
 	/// The entry to select once the pending listing lands -- legacy's `filenameToStartAt`, kept on
-	/// this side because `ListingAction::Open` performs no selection search of its own
+	/// this side because `bind::ListingStep::OPEN` performs no selection search of its own
 	/// (`listing.h`: the seam carries no selection state).
 	std::string select_after_listing_{};
 	/// Legacy's `Browser::ReloadTail` (`gui/ui/browser/browser.h`) and the turn that provoked the reload.
 	/// @{
 	bool reload_from_end_ = false;
-	int32_t reload_direction_ = 0;
+	bind::SearchFrom reload_direction_ = bind::SearchFrom::RIGHT;
 	int32_t reload_offset_ = 0;
 	/// @}
 	/// True while a listing was dispatched to widen the search window: `search_for_entered_text`

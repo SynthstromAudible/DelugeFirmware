@@ -14,10 +14,9 @@
 /// **The shape.** Request / poll / collect. A scene calls `request()` once, renders whatever it
 /// wants while `in_flight()` is true, and calls `take_result()` on a later tick. The listing runs
 /// where the seam's dispatcher puts it -- the shipped one, `deluge::ui::scenes::run_inline`, runs it on
-/// the interaction tier's own stack, where legacy runs it too -- and writes into
-/// `deluge::storage::FileCatalogue`
-/// (`storage/file_catalogue.h`), which is where the scene reads
-/// its entries from afterwards.
+/// the interaction tier's own stack, where legacy runs it too -- and writes into the card's one
+/// catalogue through the catalogue port (`bind::Catalogue`), which is where the scene reads its
+/// entries from afterwards.
 ///
 /// **The busy indicator is not invented here.** `request()` raises a `notify::Notice::Kind::Working`
 /// and completion raises `Kind::ClearWorking`; the shell's `Notices` (`ui/shell/notices.cpp`)
@@ -42,7 +41,7 @@
 /// This is **not** the one-slot mailbox with a silent overwrite that `MenuScene::take_action()`
 /// (`ui/scenes/menu/menu_scene.h`) is, and the difference is deliberate. That mailbox carries a
 /// *request the caller may repeat*; this one guards a *process-global resource*. There is exactly
-/// one `FileCatalogue` -- one `fileItems` vector, one `currentDir`, one cull window -- so two
+/// one catalogue -- one list of entries, one folder, one cull window -- so two
 /// listings running over it would not merely lose a request, they would interleave two directory
 /// reads into one vector. Legacy says the same thing with `listingInProgress_` and the comment at
 /// `browser.h` ("One active listing at a time (browser state is already static/shared, e.g.
@@ -92,9 +91,9 @@
 ///
 /// @par What this seam does NOT do
 ///
-/// It performs the **SD half** of legacy's `Browser::arrivedInNewFolder` --
-/// `FileCatalogue::readFileItemsForFolder`, the default-directory retry, creating a missing default
-/// directory, `sortFileItems`, `deleteFolderAndDuplicateItems` -- and stops there. Two things legacy
+/// It asks the catalogue port for the **SD half** of legacy's `Browser::arrivedInNewFolder` -- the
+/// read, the default-directory retry, creating a missing default directory, the sort and the
+/// de-duplication -- and stops there. Two things legacy
 /// does around it are deliberately absent:
 ///
 /// 1. **The in-memory instrument merge.** `readFileItemsFromFolderAndMemory` calls
@@ -120,8 +119,7 @@
 /// race-free under a dispatcher that runs the op in another context.** The `std::atomic` state
 /// below is written for that case regardless; nothing has put it under load.
 
-#include "definitions_cxx.hpp" // Error
-#include "storage/file_catalogue.h"
+#include "ui/scenes/bind/ports/catalogue.h"
 #include "ui/scenes/run_inline.h"
 
 #include <atomic>
@@ -132,110 +130,19 @@
 
 namespace deluge::ui::scenes::browser {
 
-/// @brief The five listings a scene can ask for -- legacy's `Browser::ListingAction`
-///        (`gui/ui/browser/browser.h`), one for one.
-enum class ListingAction : uint8_t {
-	/// Legacy `openListingImpl`: list `path` (or the current directory when
-	/// `path` is empty), optionally starting at `filename_to_start_at`.
-	Open,
-	/// Legacy `goIntoFolderImpl`: append `path` as one folder name.
-	IntoFolder,
-	/// Legacy `goUpOneDirectoryLevelImpl`: drop the last segment.
-	UpLevel,
-	/// Legacy `setFileByFullPathImpl`: split `path`, list its directory, and
-	/// find the file in the result.
-	ByPath,
-	/// Legacy `reloadImpl`: re-read the current directory in place.
-	Reload,
-};
-
-/// @brief "Work the search direction out from the request", the default for
-///        `ListingRequest::search_direction`.
+/// @brief One completed listing: what the catalogue port answered, and the folder and count it left.
 ///
-/// Legacy derives it per listing rather than storing it: `arrivedInNewFolder` uses
-/// `CATALOG_SEARCH_BOTH` when there is a name to start at and `CATALOG_SEARCH_RIGHT` when there is
-/// not (`browser.cpp`). Only `Reload`'s search-from-end arm overrides it, which is exactly what
-/// legacy's `Browser::ReloadTail::searchDirection` (`gui/ui/browser/browser.h`) is for.
-inline constexpr int32_t kDeriveSearchDirection = -1;
-
-/// @brief One listing to run, copied whole because a deferred op reads it after `request()` returns.
-///
-/// The `std::string`s are owning copies for the same reason legacy's `Browser::ListingRequest`
-/// makes them owning copies (`browser.h`): the caller's buffers may be gone by the time a
-/// deferred op runs.
-struct ListingRequest {
-	ListingAction action = ListingAction::Open;
-
-	/// `Open`: the directory to list, or empty to keep `FileCatalogue::currentDir`.
-	/// `IntoFolder`: the single folder name to descend into.
-	/// `ByPath`: the full path of a file.
-	/// `UpLevel`/`Reload`: unused.
-	std::string path;
-
-	/// The name a `CATALOG_SEARCH_BOTH` cull centres on -- legacy's `filenameToStartAt`. For
-	/// `UpLevel` and `ByPath` the seam fills this in itself (the segment left behind, the file
-	/// named by the path), so a caller need not.
-	std::string filename_to_start_at;
-
-	/// Main's `defaultDirToAlsoTry`: where to look when `path` does not exist, tried at most once,
-	/// and created (with any missing folders above it) when it does not exist either. Empty for
-	/// none.
-	std::string default_dir;
-
-	/// NULL-terminated extension list, as `FileCatalogue::readFileItemsForFolder` takes it.
-	char const** allowed_extensions = allowedFileExtensionsXML;
-
-	/// Whether directory entries are listed at all (legacy's `allowFolders` argument).
-	bool allow_folders = true;
-
-	/// Legacy's `Browser::allowFoldersSharingNameWithFile` (`browser.cpp`): when false, a
-	/// folder shadowed by a same-named file is dropped after the sort.
-	bool allow_folders_sharing_name_with_file = false;
-
-	/// Legacy's `shouldInterpretNoteNamesForThisBrowser` (`browser.h`), threaded explicitly --
-	/// see `FileCatalogue`'s own note on why these are parameters now.
-	bool interpret_note_names = false;
-
-	/// The cap at which the listing starts culling (legacy passes `FILE_ITEMS_MAX_NUM_ELEMENTS`).
-	int32_t max_num_file_items = FILE_ITEMS_MAX_NUM_ELEMENTS;
-
-	/// One of the `CATALOG_SEARCH_*` values, or `kDeriveSearchDirection` to let the seam pick.
-	int32_t search_direction = kDeriveSearchDirection;
-};
-
-/// @brief What one completed listing produced.
-///
-/// Everything here is a fact about the listing that the caller cannot cheaply re-derive from
-/// `FileCatalogue` afterwards. The entries themselves are **not** copied: they are in
-/// `FileCatalogue::fileItems`, exactly where legacy leaves them, and `count` is only how many were
-/// there when the op finished.
+/// The entries themselves are **not** copied: they stay in the catalogue port (`bind::Catalogue`), and `count` is
+/// only how many it held when the op finished.
 struct ListingResult {
-	/// Which request produced this, so a caller draining one slot can tell what landed.
-	ListingAction action = ListingAction::Open;
-	/// `Error::NONE`, or what the listing failed with.
-	Error error = Error::NONE;
-	/// `FileCatalogue::currentDir` as the listing left it.
+	/// Which step produced this, so a caller draining one slot can tell what landed.
+	bind::ListingStep step = bind::ListingStep::OPEN;
+	/// The error the listing failed with, as `base::notify::notice_error_code` takes it; empty on success.
+	std::optional<int16_t> error;
+	/// The catalogue's folder as the listing left it.
 	std::string dir;
-	/// `UpLevel`: the segment that was dropped -- legacy assigns it to `enteredText`
-	/// (`Browser::goUpOneDirectoryLevelImpl` in `browser.cpp`). `ByPath`: the filename part of the path
-	/// (`Browser::setFileByFullPathImpl` in `browser.cpp`). Empty otherwise.
+	/// `UP_LEVEL`: the folder left, which the caller selects. `BY_PATH`: the file's name. Empty otherwise.
 	std::string entered_text;
-	/// `ByPath`: `searchFileItems`' answer for `entered_text`; -1 for every other action.
-	///
-	/// @warning **In range only when `found_exact` is true.** `searchFileItems` returns the match
-	///          index *or the insertion point*, and an insertion point may equal `count` -- one
-	///          past the last entry. The bound check on the `ByPath` path is main's, and main's
-	///          `Browser::setFileByFullPath` (`origin/main:src/deluge/gui/ui/browser/browser.cpp`)
-	///          uses `>` rather than `>=`, so an index of exactly `count` comes
-	///          back with `Error::NONE`. Kept as legacy has it (this port does not silently
-	///          re-decide legacy's comparisons), and recorded here because the consequence lands on
-	///          the caller: **index `FileCatalogue::fileItems` with this only after checking
-	///          `found_exact`.** Main gets away with it because `clampFileSelectionAndScroll`
-	///          reins `fileIndexSelected` in before
-	///          anything dereferences it; a scene that skips that step has no such net.
-	int32_t file_index = -1;
-	/// `ByPath`: whether that search matched exactly rather than returning an insertion point.
-	bool found_exact = false;
 	/// How many entries the catalogue held when the op finished.
 	size_t count = 0;
 };
@@ -245,7 +152,7 @@ enum class RequestOutcome : uint8_t {
 	/// Dispatched. Exactly one `ListingResult` will follow.
 	Accepted,
 	/// Refused: a listing is already in flight -- **this seam's or another `Listing`'s**, since the
-	/// guard is on the shared `FileCatalogue` rather than on the object. The running one is
+	/// guard is on the shared catalogue rather than on the object. The running one is
 	/// untouched; retry later.
 	Busy,
 	/// Refused: a completed result has not been collected. Call `take_result()` first.
@@ -260,7 +167,7 @@ enum class RequestOutcome : uint8_t {
 ///
 /// @par Single flight lives on the RESOURCE, not on this class
 ///
-/// The guard is `FileCatalogue::claim`/`release` (`storage/file_catalogue.h`), not a member and not
+/// The guard is the catalogue port's `claim`/`release` (`bind::Catalogue`), not a member and not
 /// even a static of this class. Two reasons, and the second is the one that made it move:
 ///
 /// 1. The file browser, the sample marker editor and the audio recorder each own one of these,
@@ -277,10 +184,10 @@ enum class RequestOutcome : uint8_t {
 /// seam, or a legacy browser mid-listing.
 ///
 /// The claim is released when the result is **collected**, not when the op finishes. That is deliberate:
-/// `ListingResult` does not copy the entries, it counts them -- the entries are in `FileCatalogue::fileItems`, and the
+/// `ListingResult` does not copy the entries, it counts them -- the entries are in the catalogue port, and the
 /// collector still has to read them. Anything allowed to dispatch in that window would replace the vector under a
 /// caller that had just been told its listing had landed. Holding it until the collect is the *same* contract as a
-/// consumer that reads inside the op: the claim lasts until the consumer has read. `FileCatalogue::claim` states the
+/// consumer that reads inside the op: the claim lasts until the consumer has read. `bind::Catalogue::claim` states the
 /// shared contract in one place.
 ///
 /// @par Lifetime -- READ THIS BEFORE PUTTING ONE ANYWHERE BUT A SCENE MEMBER
@@ -343,7 +250,7 @@ public:
 	/// @brief Ask for a listing.
 	/// @param req What to list; copied.
 	/// @return What happened -- see `RequestOutcome`. Only `Accepted` promises a result.
-	RequestOutcome request(ListingRequest req);
+	RequestOutcome request(bind::ListingSpec req);
 
 	/// @brief Is a dispatched listing still running?
 	/// @return True between an accepted `request()` and the op finishing.
@@ -374,25 +281,23 @@ public:
 	/// @param dispatch The new dispatcher; same contract as the constructor's.
 	void set_dispatch(Dispatch dispatch);
 
+	/// @brief Point the seam at the catalogue it lists into. With none, every `request()` is `Dropped`.
+	/// @warning Changing the catalogue asserts the seam is `Idle`, as `set_dispatch` does: a pending op or an
+	/// uncollected
+	///          result belongs to the catalogue it was made on. Setting the one already set changes nothing.
+	/// @param catalogue The catalogue, or null; it must outlive the seam's use of it.
+	void set_catalogue(bind::Catalogue* catalogue);
+
 private:
 	/// @brief The op handed to the dispatcher; `self` is the `Listing`.
 	static void trampoline(void* self);
 	/// @brief Runs where the dispatcher runs the op: perform the request, fill `result_`, raise the
 	///        completion notices, and publish `Ready`.
 	void perform();
-	/// @brief The action switch -- legacy's `runPendingListing` without the UI
-	///        callbacks.
-	/// @param out The result being filled in; the per-action fields are written here.
-	/// @return The listing's error.
-	Error run_action(ListingResult& out);
-	/// @brief The SD half of `arrivedInNewFolder`: read, retry in `default_dir`, create
-	///        `default_dir` when it is missing too, sort, de-duplicate.
-	/// @param filename_to_start_at The name a `CATALOG_SEARCH_BOTH` cull centres on; may be null.
-	/// @return The listing's error.
-	Error list_current_dir(char const* filename_to_start_at);
 
 	Dispatch dispatch_ = &deluge::ui::scenes::run_inline;
-	ListingRequest request_{};
+	bind::Catalogue* catalogue_ = nullptr;
+	bind::ListingSpec request_{};
 	ListingResult result_{};
 	/// The seam's whole synchronisation. Written with release by the op, read with acquire by the
 	/// poller, so a caller that sees `Ready` sees `result_` and the catalogue the op left behind.

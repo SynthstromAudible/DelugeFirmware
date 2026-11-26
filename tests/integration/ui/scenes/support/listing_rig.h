@@ -9,6 +9,8 @@
 
 #include "ui/scenes/browser/listing.h"
 
+#include "gui/ui/shell_host/shell_host.h"
+
 #include "base/notify/notice_queue.h"
 #include "definitions_cxx.hpp"
 #include "storage/file_catalogue.h"
@@ -24,10 +26,24 @@
 namespace deluge::ui::scenes::spec::listing {
 
 using deluge::storage::FileCatalogue;
-using deluge::ui::scenes::browser::Listing;
-using deluge::ui::scenes::browser::ListingAction;
-using deluge::ui::scenes::browser::ListingRequest;
+using ListingAction = deluge::ui::scenes::bind::ListingStep;
+using ListingRequest = deluge::ui::scenes::bind::ListingSpec;
 using deluge::ui::scenes::browser::ListingResult;
+
+/// @brief A listing seam bound to the host's catalogue, which lists the card these specs mount.
+class Listing : public deluge::ui::scenes::browser::Listing {
+public:
+	Listing() { set_catalogue(&deluge::gui::shell_host::catalogue()); }
+	/// @param dispatch The dispatcher, as `browser::Listing`'s constructor takes it.
+	explicit Listing(Dispatch dispatch) : deluge::ui::scenes::browser::Listing(dispatch) {
+		set_catalogue(&deluge::gui::shell_host::catalogue());
+	}
+};
+
+/// @return A listing result's error as an `Error` value: `Error::NONE` when it has none.
+inline int error_of(const ListingResult& result) {
+	return result.error.value_or(static_cast<int16_t>(Error::NONE));
+}
 using deluge::ui::scenes::browser::RequestOutcome;
 using deluge::ui::scenes::spec::QuietAudio;
 
@@ -164,7 +180,7 @@ inline constexpr int kDropped = static_cast<int>(RequestOutcome::Dropped);
 /// @brief An `Open` request for the current directory, with the defaults every example shares.
 inline ListingRequest open_request(std::string path = {}) {
 	ListingRequest req;
-	req.action = ListingAction::Open;
+	req.step = ListingAction::OPEN;
 	req.path = std::move(path);
 	return req;
 }

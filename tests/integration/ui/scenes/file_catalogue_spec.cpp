@@ -19,6 +19,7 @@
 #include "ui/scenes/browser/listing.h"
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/shell_host/shell_host.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/file_item.h"
 #include "util/name_compare.h"
@@ -681,12 +682,13 @@ describe file_catalogue("the browser's file catalogue", $ {
 		expect(deluge::storage::FileCatalogue::claim(&other)).to_be_true();
 
 		deluge::ui::scenes::browser::Listing seam;
-		expect(static_cast<int>(seam.request({.action = deluge::ui::scenes::browser::ListingAction::Open})))
+		seam.set_catalogue(&deluge::gui::shell_host::catalogue());
+		expect(static_cast<int>(seam.request({.step = deluge::ui::scenes::bind::ListingStep::OPEN})))
 		    .to_equal(static_cast<int>(deluge::ui::scenes::browser::RequestOutcome::Busy));
 		expect(seam.has_result()).to_be_false();
 
 		deluge::storage::FileCatalogue::release(&other);
-		expect(static_cast<int>(seam.request({.action = deluge::ui::scenes::browser::ListingAction::Open})))
+		expect(static_cast<int>(seam.request({.step = deluge::ui::scenes::bind::ListingStep::OPEN})))
 		    .to_equal(static_cast<int>(deluge::ui::scenes::browser::RequestOutcome::Accepted));
 		expect(seam.take_result().has_value()).to_be_true();
 	});
