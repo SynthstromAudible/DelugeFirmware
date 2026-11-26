@@ -525,13 +525,31 @@ describe column_drawings_w("ui::widgets::oled::column_drawings", $ {
 					}
 					for (const int32_t focus : {0, 1, 2, 3}) {
 						uitest::Rig48 r;
-						OledFrame panel = panel_frame(r.frame);
-						eq_graph(panel, knobs[0], knobs[1], knobs[2], knobs[3], focus);
+						eq_graph(r.frame, knobs[0], knobs[1], knobs[2], knobs[3], focus);
 						LegacyEq{.image = r.reference}.draw(knobs[0], knobs[1], knobs[2], knobs[3], focus);
 						expect(r.pbm()).to_equal(r.reference_pbm());
 					}
 				}
 			}
+		}
+	});
+
+	it("draws the EQ on both panels", _ {
+		struct Case {
+			const char* name;
+			std::array<float, 4> knobs;
+			int32_t focus;
+		};
+		const std::array<Case, 3> cases{{{"flat", {0.5f, 0.5f, 0.5f, 0.5f}, 0},
+		                                 {"boost", {1.f, 0.2f, 0.3f, 0.75f}, 1},
+		                                 {"cross", {0.f, 1.f, 1.f, 0.f}, 2}}};
+		for (const Case& c : cases) {
+			uitest::Rig48 r48;
+			eq_graph(r48.frame, c.knobs[0], c.knobs[1], c.knobs[2], c.knobs[3], c.focus);
+			expect_golden(self, std::string("ui/widgets/eq_graph_") + c.name + "_48.pbm", r48.pbm());
+			uitest::Rig64 r64;
+			eq_graph(r64.frame, c.knobs[0], c.knobs[1], c.knobs[2], c.knobs[3], c.focus);
+			expect_golden(self, std::string("ui/widgets/eq_graph_") + c.name + "_64.pbm", r64.pbm());
 		}
 	});
 

@@ -99,12 +99,12 @@ void envelope_graph(OledFrame& panel, const EnvelopeGraph& envelope, int32_t sel
 /// @brief `eq::EqMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`): the shelving curve with
 ///        reference lines and a handle on each of bass, bass frequency, treble frequency and treble, the focused one
 ///        inverted.
-/// @param panel       A whole-panel frame (`panel_frame`).
+/// @param f           The frame the menu hands a page drawing: the visible panel, in frame-local coordinates.
 /// @param bass        Bass gain, 0..1 (value / 50).
 /// @param treble      Treble gain, 0..1.
 /// @param bass_freq   Bass frequency, 0..1.
 /// @param treble_freq Treble frequency, 0..1 (value clamped to 0..32, / 32).
 /// @param selected    The focused handle, 0..3 in that order.
-void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float treble_freq, int32_t selected);
+void eq_graph(OledFrame& f, float bass, float treble, float bass_freq, float treble_freq, int32_t selected);
 
 } // namespace deluge::ui::widgets::oled

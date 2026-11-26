@@ -260,9 +260,10 @@ using ColumnArtFn = std::optional<deluge::ui::widgets::oled::ArtColumn> (*)(cons
 ///        overrides that read `paging.visiblePageNumber`. A fallback answer keeps the static title.
 using PageTitleFn = ValueText (*)(const MenuContext& ctx, uint8_t page, std::span<char> out);
 
-/// @brief A horizontal page drawn whole, in panel coordinates, in place of its columns -- legacy's
-///        `renderMenuItems` overrides. @p focused is the focused column's index among the page's own.
-using PageDrawFn = void (*)(deluge::ui::widgets::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);
+/// @brief A horizontal page drawn whole, in place of its columns -- legacy's `renderMenuItems` overrides. @p frame is
+///        the menu's frame (the visible panel, frame-local coordinates); @p focused is the focused column's index among
+///        the page's own.
+using PageDrawFn = void (*)(deluge::ui::widgets::oled::OledFrame& frame, const MenuContext& ctx, int32_t focused);
 
 /// @brief Legacy's drawing for one value that is neither a meter, a word nor an icon -- `Binding::column_draw`.
 /// @param ctx   What is being edited.

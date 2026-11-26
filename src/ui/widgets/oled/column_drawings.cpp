@@ -7,6 +7,7 @@
 #include "ui/widgets/oled/page_drawing.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace deluge::ui::widgets::oled {
@@ -246,34 +247,26 @@ void envelope_graph(OledFrame& panel, const EnvelopeGraph& envelope, int32_t sel
 	}
 }
 
-void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float treble_freq, int32_t selected) {
-	const gfx::oled::Geometry g = panel.canvas.geometry();
-	ClipScope scope{panel.canvas, panel.clip};
-	gfx::oled::Canvas& image = panel.canvas;
-
-	const auto start_y = static_cast<uint8_t>(g.visible_top + gfx::oled::kTextTitleSizeY + 5);
-	const auto end_y = static_cast<uint8_t>(g.height - 6);
-	const auto center_y = static_cast<uint8_t>(start_y + (end_y - start_y) / 2);
-	const auto height = static_cast<uint8_t>(end_y - start_y);
-
-	constexpr uint8_t padding_x = 4;
-	constexpr uint8_t start_x = padding_x - 1;
-	const auto end_x = static_cast<uint8_t>(g.width - padding_x);
+void eq_graph(OledFrame& f, float bass, float treble, float bass_freq, float treble_freq, int32_t selected) {
+	const PageBody b = page_body(f);
+	const int32_t center_y = b.center_y();
+	const auto start_x = static_cast<uint8_t>(b.left);
+	const auto end_x = static_cast<uint8_t>(b.right);
 	constexpr uint8_t slope_width = 12;
 	const auto bass_band_travel_width = static_cast<uint8_t>((end_x - start_x) / 2 - slope_width);
 	const auto treble_band_travel_width = static_cast<uint8_t>((end_x - start_x) * 0.75f);
 
-	constexpr uint8_t bass_x0 = start_x;
+	const uint8_t bass_x0 = start_x;
 	auto bass_x1 = static_cast<uint8_t>(std::lerp(bass_x0, bass_x0 + bass_band_travel_width, bass_freq));
 	auto bass_x2 = static_cast<uint8_t>(bass_x1 + slope_width);
-	const auto bass_y1 = static_cast<uint8_t>(std::lerp(end_y, end_y - height, bass));
-	auto bass_y2 = center_y;
+	const int32_t bass_y1 = b.y_at(bass);
+	int32_t bass_y2 = center_y;
 
 	const uint8_t treble_x0 = end_x;
 	const auto treble_x1 = static_cast<uint8_t>(std::lerp(end_x - treble_band_travel_width, end_x, treble_freq));
 	const auto treble_x2 = static_cast<uint8_t>(treble_x1 - slope_width);
-	const auto treble_y1 = static_cast<uint8_t>(std::lerp(end_y, end_y - height, treble));
-	auto treble_y2 = center_y;
+	const int32_t treble_y1 = b.y_at(treble);
+	int32_t treble_y2 = center_y;
 
 	// The treble band may push into the bass's territory (`EqMenu::renderMenuItems` in
 	// `origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`).
@@ -283,42 +276,33 @@ void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float
 		bass_x1 = static_cast<uint8_t>(bass_x1 - diff);
 	}
 
-	const auto center_between = [](uint8_t a, uint8_t b) {
-		return static_cast<uint8_t>(std::min(a, b) + std::abs(b - a) / 2);
-	};
+	const auto center_between = [](int32_t p, int32_t q) { return std::min(p, q) + std::abs(q - p) / 2; };
 	const float morph = 1.0f - static_cast<float>(treble_x2 - bass_x2) / 14.f;
 	if (morph > 0.f) {
-		const uint8_t target_y = center_between(bass_y1, treble_y1);
-		bass_y2 = static_cast<uint8_t>(std::lerp(bass_y2, target_y, morph));
-		treble_y2 = static_cast<uint8_t>(std::lerp(treble_y2, target_y, morph));
+		const int32_t target_y = center_between(bass_y1, treble_y1);
+		bass_y2 = static_cast<int32_t>(std::lerp(bass_y2, target_y, morph));
+		treble_y2 = static_cast<int32_t>(std::lerp(treble_y2, target_y, morph));
 	}
 
-	image.draw_line(bass_x0, bass_y1, bass_x1, bass_y1);
-	image.draw_line(bass_x1, bass_y1, bass_x2, bass_y2);
-	image.draw_line(bass_x2, bass_y2, treble_x2, treble_y2);
-	image.draw_line(treble_x2, treble_y2, treble_x1, treble_y1);
-	image.draw_line(treble_x1, treble_y1, treble_x0, treble_y1);
+	const std::array<gfx::oled::Point, 6> shape{{{bass_x0, bass_y1},
+	                                             {bass_x1, bass_y1},
+	                                             {bass_x2, bass_y2},
+	                                             {treble_x2, treble_y2},
+	                                             {treble_x1, treble_y1},
+	                                             {treble_x0, treble_y1}}};
+	polyline(f, shape);
 
+	const std::array<int32_t, 2> band_edges{bass_x2, treble_x2};
 	if (std::abs(center_y - bass_y1) > 1) {
-		for (uint8_t x = 0; x <= bass_x2; x++) {
-			if (x % 6 == 3 && std::abs(x - bass_x2) > 1 && std::abs(x - treble_x2) > 1) {
-				image.draw_pixel(x, center_y);
-			}
-		}
+		guide_h(f, center_y, 0, bass_x2, band_edges);
 	}
 	if (std::abs(center_y - treble_y1) > 1) {
-		for (uint8_t x = 0; x <= end_x; x++) {
-			if (x % 6 == 3 && std::abs(x - bass_x2) > 1 && std::abs(x - treble_x2) > 1) {
-				image.draw_pixel(x, center_y);
-			}
-		}
+		guide_h(f, center_y, 0, end_x, band_edges);
 	}
-	for (auto y = static_cast<uint8_t>(start_y - 1); y <= end_y + 1; y += 4) {
-		image.draw_pixel(bass_x2, y);
-		image.draw_pixel(treble_x2, y);
-	}
+	guide_v(f, b, bass_x2, b.top);
+	guide_v(f, b, treble_x2, b.top);
 
-	Indicators marks{image};
+	Handles marks{f};
 	marks.draw(center_between(bass_x0, bass_x1), bass_y1, selected == 0);
 	marks.draw(bass_x2, bass_y2, selected == 1);
 	marks.draw(treble_x2, treble_y2, selected == 2);

@@ -297,9 +297,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::widgets::oled::OledF
 			page_render = {.draw =
 			                   [](deluge::ui::widgets::oled::OledFrame& frame, int32_t, void* ctx) {
 				                   const auto& c = *static_cast<const PageDrawCall*>(ctx);
-				                   deluge::ui::widgets::oled::OledFrame panel =
-				                       deluge::ui::widgets::oled::panel_frame(frame);
-				                   c.member->page_draw(panel, *c.ctx, c.focus);
+				                   c.member->page_draw(frame, *c.ctx, c.focus);
 			                   },
 			               .ctx = &call};
 		}
