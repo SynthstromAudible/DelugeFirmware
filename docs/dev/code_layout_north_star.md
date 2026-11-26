@@ -61,7 +61,8 @@ src/                      directories and CMakeLists.txt only
     files/                browse, load and save, the settings store
     stream/               sample streaming (crate)
     resource/             the resource manager (crate)
-    sample/               convert/, fill/, reader/, source/ (crates) and the sample-owned waveform peak index
+    sample/               convert/, fill/, peaks/, reader/, source/ (crates); peaks/ is the sample-owned waveform
+                          peak index
   ui/                     deluge::ui
     gfx/                  oled/, grid/, seg7/: pure drawing
     widgets/              core/, oled/, grid/: the immediate-mode toolkit, namespaces
@@ -149,13 +150,13 @@ paths in the left column are the pre-relocation ones.
 | `sim/scenes_spec` | `tests/integration/ui/scenes/` |
 | `src/*.h`, `src/*.hpp` (board config and layout, `definitions*`, the NEON shim, `mem_functions.h`) | dissolved into their owners: `ui/shell/` profiles, `platform/`, `third_party/`, `base/` |
 
-`sample-view` is three things and sits in three places:
+`sample-view` was three things and sits in two places; the third is gone:
 
 | file | target | why |
 |---|---|---|
 | `divide.h` | `base/divide.h`, beside `dsp/core/divide.h`'s reciprocal divide | the A9 has no integer divide; every layer needs the workaround |
 | `peaks.h`, `view.h` | `ui/views/waveform/` | what the screen shows of a waveform: UI value types, owned by the consumer |
-| `peak_cache.h` | `app/ports/waveforms/` | the host's cache behind the waveforms port, until the sample-owned peak index in `storage/sample/` replaces it |
+| `peak_cache.h` | deleted | the sample-owned peak index (`storage/sample/peaks/`) replaced the host's cache |
 
 The legacy tree's destinations:
 
