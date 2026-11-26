@@ -23,6 +23,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_drum_creator.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_pad_forward.h"
 #include "gui/ui/ui.h"
@@ -40,7 +41,6 @@
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/menu/node_id.h"
@@ -122,9 +122,9 @@ bool kitGlobalFxLatch = false;
 menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                                  bool sessionViewRoot, bool kitGlobalFx) {
 	// The menu opens in the song the app plays, which the app's ports act on.
-	menu::MenuContext ctx = menu::context_for(currentSong->project, &menu::host_ports(), deluge::gui::menuViewOf(clip),
-	                                          static_cast<int8_t>(sourceIndex), performanceView, sessionOrArrangerRoot,
-	                                          sessionViewRoot, kitGlobalFx);
+	menu::MenuContext ctx = menu::context_for(currentSong->project, &deluge::gui::shell_host::host_ports(),
+	                                          deluge::gui::menuViewOf(clip), static_cast<int8_t>(sourceIndex),
+	                                          performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
 	ctx.root_greyout = deluge::gui::menuRootGreyout();
 	ctx.root_is_keyboard = getRootUI() == &keyboardScreen;
 	ctx.root_is_automation = getRootUI() == &automationView;

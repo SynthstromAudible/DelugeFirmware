@@ -47,7 +47,7 @@
 /// between a sentinel change and the render it expects to see, exactly as
 /// `recorder_scene_spec.cpp`'s own quiet-tick examples advance by `kRecorderPollMs`.
 
-#include "ui/scenes/menu/bind_host.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/overlay/count_in_scene.h"
 #include "ui/scenes/registry.h"
 
@@ -131,7 +131,7 @@ struct Rig {
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p) {
-		count_in_scene().set_transport(menu::host_ports().transport);
+		count_in_scene().set_transport(deluge::gui::shell_host::host_ports().transport);
 	}
 
 	void open() { shell.init(SceneId{kCountInSceneKind, 0}); }

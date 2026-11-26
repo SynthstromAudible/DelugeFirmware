@@ -252,7 +252,7 @@ public:
 		kCount,
 	};
 
-	/// @brief `kFastFlashTime` (`definitions_cxx.hpp`) -- the MIDI-learn flash's half-period.
+	/// @brief `kFastFlashTime` (`ui/widgets/core/metrics.h`) -- the MIDI-learn flash's half-period.
 	///
 	/// `View::midiLearnFlash` re-arms `TimerName::MIDI_LEARN_FLASH` with it (`gui/views/view.cpp`), and
 	/// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn`) picks the same number by

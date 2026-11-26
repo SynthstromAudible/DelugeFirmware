@@ -3,10 +3,10 @@
 // write through the app's sound port.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "support/sound_fixtures.h"
 #include "ui/scenes/l10n_bridge.h"
 #include "ui/scenes/menu/action.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/menu/node_id.h"
@@ -184,7 +184,7 @@ describe dx_pages("the DX7 menu pages", ${
 		want.params[0] = 3;
 		want.engine_mode = 2;
 		want.random_detune = 42;
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, want)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, want)).to_be_true();
 		expect(deluge::bridge::dxPatchOf(r.sound->sourceResources[0])).to_equal(std::optional{want});
 		expect(static_cast<int32_t>(r.patch().engineMode)).to_equal(2);
 		expect(r.patch().random_detune).to_equal(42);
@@ -200,18 +200,18 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(r.patch().engine).to_equal(deluge::dsp::fixed::dx7::Engine::MODERN);
 		want.params[134] = 3; // algorithm 4
 		want.params[135] = 5; // with feedback
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, want)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, want)).to_be_true();
 		expect(r.patch().engine).to_equal(deluge::dsp::fixed::dx7::Engine::MKI);
 	});
 
 	it("refuses a source that is not a DX7 one", _ {
 		DxRig r;
 		const deluge::instruments::classic::DxPatchState want = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 1, want)).to_be_false();
-	expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 2, want)).to_be_false(); // past the two sources
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 1, want)).to_be_false();
+	expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 2, want)).to_be_false(); // past the two sources
 	deluge::project::SlotAddress nowhere = r.slot();
 	nowhere.id += 1000;
-	expect(menu::host_ports().sound_writes->write_dx_patch(nowhere, 0, want)).to_be_false();
+	expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(nowhere, 0, want)).to_be_false();
 	});
 
 	it("enters DX7 source on SELECT from oscillator 1's type set to DX7, on its page and on the source page", _ {
@@ -245,7 +245,7 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(static_cast<int32_t>(r.cursor())).to_equal(0);
 		deluge::instruments::classic::DxPatchState vintage = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 		vintage.engine_mode = 2;
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, vintage)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, vintage)).to_be_true();
 		menu_scene().read_value_again();
 		expect(static_cast<int32_t>(r.cursor())).to_equal(2);
 	});
@@ -273,7 +273,7 @@ describe dx_pages("the DX7 menu pages", ${
 		MenuRig r;
 		deluge::instruments::classic::DxPatchState modern = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 		modern.engine_mode = 1;
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, modern)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, modern)).to_be_true();
 		bind::test::RecordingSoundWrites writes;
 		r.open(nodes::dx_engine_select, &writes);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(1);
@@ -320,7 +320,7 @@ describe dx_pages("the DX7 menu pages", ${
 		MenuRig r;
 		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 		patch.params[134] = 3;
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
 		bind::test::RecordingSoundWrites writes;
 		menu_scene().land_dx(menu::DxState{.param = 134});
 		r.open(nodes::dx_param, &writes);
@@ -366,7 +366,7 @@ describe dx_pages("the DX7 menu pages", ${
 		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 		for_each_layout(
 		    patch,
-		    [&] { expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true(); },
+		    [&] { expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true(); },
 		    shot);
 	});
 
@@ -398,7 +398,7 @@ describe dx_pages("the DX7 menu pages", ${
 		for (uint8_t mode = 0; mode < 3; mode++) {
 			deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 			patch.engine_mode = mode;
-			expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+			expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
 			expect(port_panel(nodes::dx_engine_select)).to_equal(frozen_page("engine_" + std::to_string(mode)));
 		}
 	});
@@ -408,7 +408,7 @@ describe dx_pages("the DX7 menu pages", ${
 		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 		patch.params[134] = 29;
 		patch.random_detune = 3;
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
 		bind::test::RecordingSoundWrites writes;
 		menu_scene().land_dx(menu::DxState{.param = 134});
 		r.open(nodes::dx_param, &writes);
@@ -435,7 +435,7 @@ describe dx_pages("the DX7 menu pages", ${
 
 		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 		patch.params[dx::kOperatorSwitch] = 0b100101; // operators 0, 2 and 5 on
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
 		menu_scene().land_dx(menu::DxState{.param = 0 * 21 + 18});
 		r.open(nodes::dx_param);
 		r.button(kShiftX, kShiftY, true);
@@ -447,7 +447,7 @@ describe dx_pages("the DX7 menu pages", ${
 		r.button(kShiftX, kShiftY, false);
 
 		patch.params[dx::kOperatorSwitch] = 0;
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
 		menu_scene().land_dx(menu::DxState{.param = dx::kFirstGlobal});
 		r.open(nodes::dx_param);
 		r.button(kShiftX, kShiftY, true);
@@ -746,7 +746,7 @@ describe dx_pages("the DX7 menu pages", ${
 		r.song.clip->keyboardState.isomorphic.rowInterval = 5;
 		r.patch().params[1 * 21 + 8] = 45;
 		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
-		expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
 		menu_scene().land_dx(menu::DxState{.param = 1 * 21 + 10});
 		r.open(nodes::dx_param);
 		const std::optional<menu::ItemBlink> blink = nodes::kDxParam.own_blink(r.menu_context(), r.state());

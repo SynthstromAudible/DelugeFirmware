@@ -243,6 +243,55 @@ RULES = textwrap.dedent(
 )
 
 
+ROOT_LEVEL_RULE = textwrap.dedent(
+    """
+    [[directory]]
+    path = "ui"
+    target = "src/ui"
+
+    [[rule]]
+    name = "scenes-includes-root-header"
+    files = ["src/ui/scenes/**"]
+    pattern = '^[^/]+$'
+    root_level = true
+    reason = "no root-level header"
+    """
+)
+
+
+class RootLevelRule(unittest.TestCase):
+    """A root-level rule counts a slash-less quoted include only when it names a file at the top of an include root."""
+
+    def setUp(self):
+        self.repo = Repo(TABLE + ROOT_LEVEL_RULE)
+        self.repo.plant("src/definitions_cxx.hpp", "")
+        self.repo.plant("src/deluge/deluge.h", "")
+
+    def tearDown(self):
+        self.repo.close()
+
+    def counts(self) -> dict[tuple[str, str], int]:
+        return cl.rule_counts(self.repo.config(), self.repo.root)
+
+    def test_a_header_at_the_top_of_either_root_is_counted(self):
+        self.repo.plant(
+            "src/ui/scenes/menu/planted.cpp",
+            '#include "definitions_cxx.hpp"\n#include "deluge.h"\n',
+        )
+        self.assertEqual(
+            self.counts(),
+            {("src/ui/scenes/menu/planted.cpp", "scenes-includes-root-header"): 2},
+        )
+
+    def test_a_sibling_a_system_header_and_a_path_are_not(self):
+        self.repo.plant("src/ui/scenes/menu/sibling.h", "")
+        self.repo.plant(
+            "src/ui/scenes/menu/planted.cpp",
+            '#include "sibling.h"\n#include <cstdint>\n#include "ui/scenes/menu/sibling.h"\n',
+        )
+        self.assertEqual(self.counts(), {})
+
+
 class CountedRules(unittest.TestCase):
     def setUp(self):
         self.repo = Repo(TABLE + RULES)

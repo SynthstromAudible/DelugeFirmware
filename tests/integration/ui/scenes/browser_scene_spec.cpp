@@ -1101,7 +1101,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 			expect(shown->view).to_equal(browser_scene().waveform_view());
 		}
 		// The columns the preview read are the waveforms port's, kept by file.
-		const deluge::ui::views::waveform::PeakRead read = menu::host_ports().waveforms->peaks(
+		const deluge::ui::views::waveform::PeakRead read = deluge::gui::shell_host::host_ports().waveforms->peaks(
 		    {.kind = deluge::ui::scenes::bind::WaveformAddress::Kind::PREVIEW}, browser_scene().waveform_view().window());
 		expect(read.column(0).state()).to_equal(deluge::ui::views::waveform::ColumnState::PEAK);
 		Sample* other = make_overview_sample();

@@ -39,9 +39,9 @@
 /// assertion can say on its own.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/l10n_bridge.h"
 #include "ui/scenes/menu/action.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -840,7 +840,8 @@ void enter_perform_view(bool default_mode, bool editing_param) {
 /// what they agree on, and stays green with `VALUE` and `PARAM` swapped on both sides. A free function rather than two
 /// `expect` calls in a helper, because `expect` is `ItBase::expect` and only exists inside an example.
 std::array<int, 2> fact_and_view() {
-	return {static_cast<int>(menu::host_ports().ui->performance_editing_mode()), static_cast<int>(mode_from_view())};
+	return {static_cast<int>(deluge::gui::shell_host::host_ports().ui->performance_editing_mode()),
+	        static_cast<int>(mode_from_view())};
 }
 
 /// @brief `fact_and_view()`'s answer when both halves are @p mode -- the expected value.
@@ -1275,7 +1276,7 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		UiStackGuard ui_guard;
 		// The audition ends through the context's view actions port, the app's here.
 		menu::MenuContext ctx{};
-		ctx.ports = menu::host_ports();
+		ctx.ports = deluge::gui::shell_host::host_ports();
 
 		setRootUILowLevel(&keyboardScreen);
 		currentUIMode = UI_MODE_AUDITIONING;
@@ -2383,7 +2384,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 	// device port does it at the write, as main's `writeCurrentValue` does.
 	it("each write applies its side effect at the write, and only on main's own condition", _ {
 		menu::MenuContext on_device{};
-		on_device.ports = menu::host_ports();
+		on_device.ports = deluge::gui::shell_host::host_ports();
 		const uint8_t saved_brightness = FlashStorage::defaultPadBrightness;
 		const MenuHighlighting saved_highlighting = FlashStorage::accessibilityMenuHighlighting;
 		const uint8_t saved_flash = PadLEDs::flashCursor;
@@ -2496,7 +2497,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		(void)r.open(nodes::root_settings);
 		r.shell.tick(5);
 		menu::MenuContext ctx{};
-		ctx.ports = menu::host_ports(); // a DEVICE row is written through the device port
+		ctx.ports = deluge::gui::shell_host::host_ports(); // a DEVICE row is written through the device port
 		menu::bindings::write(nodes::feature_rounded_corners, ctx, 0);
 		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
@@ -2545,7 +2546,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		(void)r.open(nodes::root_settings);
 		r.shell.tick(5);
 		menu::MenuContext ctx{};
-		ctx.ports = menu::host_ports(); // a DEVICE row is written through the device port
+		ctx.ports = deluge::gui::shell_host::host_ports(); // a DEVICE row is written through the device port
 		shellHostUI.shell().lowering().set_shift_is_sticky(false);
 
 		menu::bindings::write(nodes::feature_sticky_shift, ctx, 1);

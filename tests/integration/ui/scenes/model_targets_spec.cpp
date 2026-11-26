@@ -3,9 +3,9 @@
 // addresses and the instrument the target resolves against. The host's facts answer as the engine does.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/dispatch.h"
 #include "ui/scenes/bind/ports/write_sink.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 
@@ -50,7 +50,8 @@ Target model(SettingGroupId group, std::string_view path) {
 
 /// Writes menu value @p menu of @p group's row @p path through the app's sink at @p ctx's addresses.
 void write(const MenuContext& ctx, SettingGroupId group, std::string_view path, int32_t menu) {
-	menu::host_ports().writes->write({.target = model(group, path), .where = ctx.addresses, .menu_value = menu});
+	deluge::gui::shell_host::host_ports().writes->write(
+	    {.target = model(group, path), .where = ctx.addresses, .menu_value = menu});
 }
 
 /// The record's value at @p path, as text, or "none".
@@ -152,7 +153,7 @@ describe model_targets("a model target's write reaches the record its menu names
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		const MenuContext ctx = clip_root(*f.song, f.clip);
 		const Target priority{.kind = Target::Kind::SOUND, .path = "voicePriority", .audio_clip_path = "priority"};
-		menu::host_ports().writes->write({.target = priority, .where = ctx.addresses, .menu_value = 2});
+		deluge::gui::shell_host::host_ports().writes->write({.target = priority, .where = ctx.addresses, .menu_value = 2});
 		expect(recorded(*f.song, {SettingGroupId::AUDIO_CLIP, *ctx.addresses.clip}, "priority"))
 		    .to_equal(stored_text(SettingGroupId::AUDIO_CLIP, "priority", 2));
 	});
@@ -216,7 +217,7 @@ describe model_targets("a model target's write reaches the record its menu names
 	});
 
 	it("answers a clip's played bend ranges, a kit row's note tails and an arp's preset as the engine holds them", _ {
-		const bind::Ports& ports = menu::host_ports();
+		const bind::Ports& ports = deluge::gui::shell_host::host_ports();
 		spec::SongFixture midi = spec::make_midi_song();
 		const MenuContext on_midi = clip_root(*midi.song, midi.clip);
 		const SettingAddress values{SettingGroupId::CLIP_VALUES, *on_midi.addresses.clip};
@@ -251,7 +252,7 @@ describe model_targets("a model target's write reaches the record its menu names
 	});
 
 	it("answers whether a kit would take a whole folder as main's sample browser asks it", _ {
-		const bind::SoundFacts& sound = *menu::host_ports().sound;
+		const bind::SoundFacts& sound = *deluge::gui::shell_host::host_ports().sound;
 		spec::SongFixture kit = spec::make_kit_song();
 		auto* first = spec::add_drum<SoundDrum>(kit);
 		const deluge::project::SlotAddress first_slot{deluge::project::SlotAddress::Kind::DRUM, *first->id()};
@@ -265,7 +266,7 @@ describe model_targets("a model target's write reaches the record its menu names
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::OUTPUT,
 		                                              *synth.instrument->id()};
 		expect(sound.kit_takes_whole_folder(synth_slot)).to_be_false();
-		expect(menu::host_ports().card->sample_load_in_flight()).to_be_false();
+		expect(deluge::gui::shell_host::host_ports().card->sample_load_in_flight()).to_be_false();
 	});
 });
 

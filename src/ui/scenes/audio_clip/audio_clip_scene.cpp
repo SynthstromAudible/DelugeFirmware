@@ -22,7 +22,7 @@
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
 
 #include "base/notify/notice_queue.h"
-#include "definitions_cxx.hpp" // kMaxSequenceLength
+#include "project/timeline_limits.h"
 #include "ui/gfx/grid/palette.h"
 #include "ui/widgets/grid/columns.h"
 #include "ui/widgets/grid/sidebar.h"
@@ -880,7 +880,7 @@ uint32_t AudioClipScene::change_clip_length(int32_t offset, uint32_t old_length,
 		                             : static_cast<uint32_t>(timeline_.pos_from_square(end_square));
 	}
 	// Only a length a clip may have is asked for (`ClipView::changeClipLength`'s two arms).
-	const bool changes = lengthens ? new_length <= static_cast<uint32_t>(kMaxSequenceLength) : new_length > 0;
+	const bool changes = lengthens ? new_length <= static_cast<uint32_t>(project::kMaxSequenceLength) : new_length > 0;
 	if (deluge::ui::scenes::bind::ClipWrites* edits = clip_writes(); changes && edits != nullptr) {
 		(void)edits->resize_audio_clip(*clip_, kind, static_cast<int32_t>(new_length),
 		                               static_cast<int32_t>(old_length));

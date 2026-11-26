@@ -23,6 +23,7 @@
 #include "storage/cluster/cluster.h"
 #include "util/c_string.h"
 #include <array>
+#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <optional>

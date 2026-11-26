@@ -9,9 +9,9 @@
 /// | node | legacy item | legacy `beginSession` opens | scene |
 /// |---|---|---|---|
 /// | `file0_selector` / `file1_selector` | `menu_item::FileSelector` (`origin/main:src/deluge/gui/menu_item/file_selector.h`) | `sampleBrowser` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp` `beginSession`) | `browser::BrowserScene`, `BrowserId::Sample` |
-/// | `sample0_start` / `sample1_start` | `sample::Start` (`origin/main:src/deluge/gui/menu_item/sample/start.h`) | `sampleMarkerEditor`, `markerType = START` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp` `beginSession`) | `marker::MarkerScene`, `MarkerType::START` |
-/// | `sample0_end` / `sample1_end` | `sample::End` (`origin/main:src/deluge/gui/menu_item/sample/end.h`) | `sampleMarkerEditor`, `markerType = END` (set in its constructor) | `marker::MarkerScene`, `MarkerType::END` |
-/// | `audio_clip_waveform` | `audio_clip::SampleMarkerEditor` (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.h`) | `sampleMarkerEditor`, `markerType = whichMarker` (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`, `beginSession`) | `marker::MarkerScene`, `MarkerType::END` |
+/// | `sample0_start` / `sample1_start` | `sample::Start` (`origin/main:src/deluge/gui/menu_item/sample/start.h`) | `sampleMarkerEditor`, `markerType = START` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp` `beginSession`) | `marker::MarkerScene`, `project::SampleMarker::START` |
+/// | `sample0_end` / `sample1_end` | `sample::End` (`origin/main:src/deluge/gui/menu_item/sample/end.h`) | `sampleMarkerEditor`, `markerType = END` (set in its constructor) | `marker::MarkerScene`, `project::SampleMarker::END` |
+/// | `audio_clip_waveform` | `audio_clip::SampleMarkerEditor` (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.h`) | `sampleMarkerEditor`, `markerType = whichMarker` (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`, `beginSession`) | `marker::MarkerScene`, `project::SampleMarker::END` |
 /// | `sample0_recorder` / `sample1_recorder` | `osc::AudioRecorder` (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) | `audioRecorder` (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h` `beginSession`) | `recorder::RecorderScene` |
 // clang-format on
 ///
@@ -114,9 +114,9 @@ class MarkerItem final : public SampleSceneItem {
 public:
 	/// @param source_index Which source, or **negative** for the audio-clip opener, which selects
 	///                     none.
-	/// @param marker       The `MarkerType` to open on, as the plain `uint16_t` a `SceneId` carries.
-	///                     Spelled as a number rather than the enum so this header does not have to
-	///                     pull `definitions_cxx.hpp`'s enum into every table that names an item --
+	/// @param marker       The `project::SampleMarker` to open on, as the plain `uint16_t` a `SceneId` carries.
+	///                     Spelled as a number rather than the enum so the marker word stays out of
+	///                     every table that names an item --
 	///                     the same trade `EditNameItem::target_` and `ContextMenuItem::
 	///                     descriptor_id_` make, and pinned by `static_assert` in `nodes/sample.cpp`.
 	MarkerItem(int8_t source_index, uint16_t marker) : SampleSceneItem{source_index}, marker_{marker} {}
@@ -149,10 +149,10 @@ public:
 inline const FileBrowserItem kFile0Selector{0};
 inline const FileBrowserItem kFile1Selector{1};
 
-inline const MarkerItem kSample0Start{0, 0}; ///< `MarkerType::START`
-inline const MarkerItem kSample1Start{1, 0}; ///< `MarkerType::START`
-inline const MarkerItem kSample0End{0, 3};   ///< `MarkerType::END`
-inline const MarkerItem kSample1End{1, 3};   ///< `MarkerType::END`
+inline const MarkerItem kSample0Start{0, 0}; ///< `project::SampleMarker::START`
+inline const MarkerItem kSample1Start{1, 0}; ///< `project::SampleMarker::START`
+inline const MarkerItem kSample0End{0, 3};   ///< `project::SampleMarker::END`
+inline const MarkerItem kSample1End{1, 3};   ///< `project::SampleMarker::END`
 /// `audioClipSampleMarkerEditorMenuEnd` -- the **END** marker, and the only one of the pair the audio-clip root shows
 /// (`audioClipSampleMenu` in `origin/main:src/deluge/gui/ui/menus.cpp`). Its sibling
 /// `audioClipSampleMarkerEditorMenuStart` is reachable only from the V1 grid shortcut table (`setShortcutsVersion` in

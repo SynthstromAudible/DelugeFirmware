@@ -4,8 +4,8 @@
 ///        and the position of the selected one on the OLED.
 ///
 /// The port of `SampleMarkerEditor` (`origin/main:src/deluge/gui/ui/sample_marker_editor.h`), which the sample menu's
-/// start/end items and the audio clip's waveform item open. `SceneId::arg` is the `MarkerType` to start on --
-/// `MarkerType::START` or `MarkerType::END`, which are the only two legacy ever opens with
+/// start/end items and the audio clip's waveform item open. `SceneId::arg` is the `project::SampleMarker` to start on
+/// -- `project::SampleMarker::START` or `project::SampleMarker::END`, which are the only two legacy ever opens with
 /// (`origin/main:src/deluge/gui/menu_item/sample/start.h`, `origin/main:src/deluge/gui/menu_item/sample/end.h`,
 /// `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.h`); the loop markers are reached from
 /// *inside*, by holding a marker and tapping another column.
@@ -82,13 +82,14 @@
 ///          (`SampleMarkerEditor::padAction`, `SampleMarkerEditor::horizontalEncoderAction`), which defers and retries;
 ///          its port is `InputLowering::set_sd_busy`, which is not an `Action` and is not this scene's to file.
 
-#include "definitions_cxx.hpp" // MarkerType, kSampleMarkerBlinkTime
+#include "project/sample_marker.h"
 #include "ui/scenes/bind/ports/waveforms.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/services/peak_retry.h"
 #include "ui/scenes/services/view_state.h"
 #include "ui/shell/scene.h"
 #include "ui/views/waveform/view.h"
+#include "ui/widgets/core/metrics.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/grid/effects.h"
 #include "ui/widgets/grid/markers.h"
@@ -121,16 +122,34 @@ namespace deluge::ui::scenes::marker {
 inline constexpr deluge::ui::shell::SceneKind kMarkerSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 4);
 
-/// @brief How long one blink phase lasts. Legacy's `kSampleMarkerBlinkTime` (`definitions_cxx.hpp`).
-inline constexpr uint32_t kBlinkPhaseMs = static_cast<uint32_t>(kSampleMarkerBlinkTime);
+/// @brief How long one blink phase lasts: `widgets::core::kSampleMarkerBlinkTime`, legacy's blink half-period.
+inline constexpr uint32_t kBlinkPhaseMs = static_cast<uint32_t>(widgets::core::kSampleMarkerBlinkTime);
 
-/// @brief The four marker colours, in `MarkerType` order.
+/// @brief The four marker colours, in `project::SampleMarker` order.
 ///
 /// `SampleMarkerEditor::renderMarkerInCol`'s switch (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), lifted
-/// out because `ui::widgets::grid::marker_column` takes colours rather than marker types -- it may not
-/// include `definitions_cxx.hpp` and so cannot know what a `MarkerType` is.
-/// @return A span of `kNumMarkerTypes` colours: green, cyan, magenta, red.
+/// out because `ui::widgets::grid::marker_column` takes colours rather than markers -- the widgets include only
+/// `ui/**`, so they cannot know what a `project::SampleMarker` is.
+/// @return A span of `project::kSampleMarkerCount` colours: green, cyan, magenta, red.
 std::span<const RGB> marker_colours();
+
+/// @brief The marker a reversed sample's marker plays as: its start is the sample's end, and its loop runs the other
+///        way.
+/// @param marker A marker of the sample as stored.
+/// @return The marker in its place when the sample plays reversed.
+[[nodiscard]] constexpr project::SampleMarker mirrored(project::SampleMarker marker) {
+	switch (marker) {
+	case project::SampleMarker::START:
+		return project::SampleMarker::END;
+	case project::SampleMarker::LOOP_START:
+		return project::SampleMarker::LOOP_END;
+	case project::SampleMarker::LOOP_END:
+		return project::SampleMarker::LOOP_START;
+	case project::SampleMarker::END:
+		return project::SampleMarker::START;
+	}
+	return marker;
+}
 
 /// @brief The sample marker editor. One instance for the whole application (`registry.h`).
 class MarkerScene final : public deluge::ui::shell::Scene {
@@ -139,7 +158,7 @@ public:
 	///
 	/// The entry point for whoever opens the editor, exactly as `RenameScene::open` and
 	/// `BrowserScene::open` are: `SceneId` carries one `uint16_t` and a context is not one, so the
-	/// context arrives here and `SceneId::arg` (the `MarkerType`) arrives at `on_enter`.
+	/// context arrives here and `SceneId::arg` (the `project::SampleMarker`) arrives at `on_enter`.
 	/// @param ctx What the markers are read from and written to.
 	void open(const menu::MenuContext& ctx);
 
@@ -191,7 +210,7 @@ public:
 	/// For specs, and for whoever wires the menu items up.
 	/// @{
 	/// @return Which marker the encoder and an untargeted pad press move.
-	MarkerType marker_type() const { return marker_type_; }
+	project::SampleMarker marker_type() const { return marker_type_; }
 	/// @return The left edge of the view, in samples.
 	int64_t x_scroll() const { return view_.scroll(); }
 	/// @return Samples per column.
@@ -212,15 +231,15 @@ public:
 	///        `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) maps
 	///        them: a start marker by its first frame, an end marker by its last.
 	/// @return The pins; an unset loop marker has no column.
-	[[nodiscard]] std::array<views::waveform::MarkerPin, kNumMarkerTypes> pins() const;
+	[[nodiscard]] std::array<views::waveform::MarkerPin, project::kSampleMarkerCount> pins() const;
 	/// @}
 
 private:
 	/// @brief `SampleMarkerEditor::writeValue`.
 	/// @param value The new position, in samples, at least 0. A record that stores less than 64 bits takes it
 	///              clamped to what it stores.
-	/// @param which Which marker to write, or `NOT_AVAILABLE` for the selected one.
-	void write_value(int64_t value, MarkerType which = MarkerType::NOT_AVAILABLE);
+	/// @param which Which marker to write; nullopt for the selected one.
+	void write_value(int64_t value, std::optional<project::SampleMarker> which = std::nullopt);
 	/// @brief `SampleMarkerEditor::selectEncoderAction`.
 	/// @param offset Signed detents.
 	void select_encoder(int32_t offset);
@@ -253,7 +272,7 @@ private:
 	/// @brief `SampleMarkerEditor::reverseRemap`.
 	/// @param type The marker to remap.
 	/// @return Its mirror when the sample is reversed, else @p type unchanged.
-	MarkerType reverse_remap(MarkerType type) const;
+	project::SampleMarker reverse_remap(project::SampleMarker type) const;
 	/// @brief `isLoopLocked()`.
 	bool loop_locked() const;
 	/// @brief `SampleMarkerEditor::loopUnlock` / `loopLock` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`):
@@ -312,7 +331,7 @@ private:
 	/// The redraws of a frame whose read left columns pending.
 	services::PeakRetry retry_{};
 
-	MarkerType marker_type_ = MarkerType::START;
+	project::SampleMarker marker_type_ = project::SampleMarker::START;
 	int8_t blink_phase_ = 0;
 	uint32_t blink_accum_ms_ = 0;
 
@@ -359,8 +378,8 @@ private:
 	/// @note **Two different widths decide "on screen" in this scene, and they can disagree.**
 	///       This one is `render_grid`'s `main.bounds().w` -- the frame it was actually given. The
 	///       *scroll* and *hit-test* arms (`select_encoder`'s `old_col >= 0 && old_col <
-	///       kDisplayWidth`, `pad_action`'s column tests, and `pins()`' unset markers)
-	///       use `kDisplayWidth`, because they are transcriptions of legacy, which has
+	///       kMainCols`, `pad_action`'s column tests, and `pins()`' unset markers)
+	///       use `kMainCols`, the Deluge grid's main width, because they are transcriptions of legacy, which has
 	///       only that constant. On every shipped board the two are both 16 and the question does
 	///       not arise; on a wider grid the blink would follow the frame while scrolling followed
 	///       the constant. Deliberately not unified here: making the scroll arms read a width the

@@ -190,7 +190,7 @@
 /// render. The only time-driven thing in legacy that *does* set `IndicatorLED::PLAY` is
 /// `View::midiLearnFlash`, which is `services::MidiLearn`'s
 /// (`services/midi_learn.h`). So what this service owns is the
-/// clip-arm phase and its 60 ms (`kFastFlashTime`, `definitions_cxx.hpp`) deadline;
+/// clip-arm phase and its 60 ms (`widgets::core::kFastFlashTime`, `ui/widgets/core/metrics.h`) deadline;
 /// `clip_arm_flash_on()` is the fact, and the scenes that paint armed clips (the unported `SessionScene`)
 /// are its consumers.
 ///
@@ -433,7 +433,7 @@ public:
 	/// SAVE and LOAD arms measure against their own press clock (`View::buttonAction`) rather
 	/// than through `InputLowering::was_short_press`, which only knows the button's own press.
 	static constexpr uint32_t kShortPressMs = 500;
-	/// @brief `kFastFlashTime` (`definitions_cxx.hpp`) -- the clip-arm flash's half-period.
+	/// @brief `kFastFlashTime` (`ui/widgets/core/metrics.h`) -- the clip-arm flash's half-period.
 	static constexpr uint32_t kClipArmFlashMs = 60;
 	/// @brief How long `indicator_leds::indicateAlertOnLed` blinks for.
 	///

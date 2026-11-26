@@ -5,8 +5,8 @@
 ///        spec holds in its own hand, for an example that needs a state the host cannot be put into on demand (a
 ///        sample load running, a popup up, a note auditioned, a sound with chosen cables).
 
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/ports/ports.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 
 #include "fakes.h"
@@ -31,7 +31,7 @@ struct HeldPorts {
 	explicit HeldPorts(deluge::ui::scenes::menu::MenuContext& ctx) { install(ctx); }
 	/// @brief The host's ports with the fakes in place of its UI and card facts.
 	[[nodiscard]] deluge::ui::scenes::bind::Ports ports() const {
-		deluge::ui::scenes::bind::Ports held = deluge::ui::scenes::menu::host_ports();
+		deluge::ui::scenes::bind::Ports held = deluge::gui::shell_host::host_ports();
 		held.ui = &ui;
 		held.card = &card;
 		return held;

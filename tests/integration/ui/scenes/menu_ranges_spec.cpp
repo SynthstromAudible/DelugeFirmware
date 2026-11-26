@@ -8,8 +8,8 @@
 /// next.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/l10n_bridge.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -84,7 +84,7 @@ constexpr const Node* kRoots[] = {&nodes::root_settings};
 /// @brief A context over the host's ports alone: what the range nodes read their DEVICE rows through.
 MenuContext host_context() {
 	MenuContext ctx{};
-	ctx.ports = menu::host_ports();
+	ctx.ports = deluge::gui::shell_host::host_ports();
 	return ctx;
 }
 

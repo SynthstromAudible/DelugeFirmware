@@ -3,8 +3,8 @@
 // `instruments::classic::cable_allowed` over the sound's typed state agrees with `Sound::maySourcePatchToParam`
 // refusing the cable or not.
 
+#include "gui/ui/shell_host/host_ports.h"
 #include "instruments/classic/cable_acceptance.h"
-#include "ui/scenes/menu/bind_host.h"
 
 #include "instruments/classic/settings.h"
 #include "instruments/classic/words.h"
@@ -41,7 +41,8 @@ namespace {
 /// @p first.
 int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::SlotAddress slot, bool is_drum,
                       std::string& first) {
-	const deluge::instruments::classic::SoundState* state = menu::host_ports().sound->sound_state(slot);
+	const deluge::instruments::classic::SoundState* state =
+	    deluge::gui::shell_host::host_ports().sound->sound_state(slot);
 	if (state == nullptr) {
 		first = "no sound state";
 		return 1;

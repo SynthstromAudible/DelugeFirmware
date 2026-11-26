@@ -98,13 +98,12 @@ void report(Error* out, Error value) noexcept {
 	}
 }
 
-// Every Error code crossing libdeluge/audio_load.h (DelugeAudioLoadResult::error, which the Rust
-// loader writes from its own copies of these numbers) is matched by NUMBER (errorFromAbiByte below), never
-// `static_cast<Error>(byte)` -- `enum class Error` has no fixed underlying type, so its valid range is whatever `int`
-// gives it and casting an out-of-range byte is undefined behaviour. These static_asserts pin the numeric identity
-// errorFromAbiByte depends on: inserting a new Error enumerator upstream (definitions_cxx.hpp) shifts every later
-// value, and without this, that shift would be silent -- every gate staying green while a caller across this boundary
-// mismatches every code from the insertion point on.
+// Every Error code crossing libdeluge/audio_load.h (DelugeAudioLoadResult::error, which the Rust loader writes from
+// its own copies of these numbers) is matched by NUMBER (errorFromAbiByte below), so a byte no enumerator names becomes
+// Error::UNSPECIFIED rather than a value no switch handles. These static_asserts pin the numeric identity
+// errorFromAbiByte depends on: an Error enumerator inserted in base/error.h shifts every later value, and without them
+// that shift would be silent, every gate staying green while a caller across this boundary mismatches every code from
+// the insertion point on.
 static_assert(util::to_underlying(Error::NONE) == 0);
 static_assert(util::to_underlying(Error::INSUFFICIENT_RAM) == 1);
 static_assert(util::to_underlying(Error::UNSPECIFIED) == 2);

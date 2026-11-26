@@ -4,9 +4,9 @@
 
 #include "fakes.h"
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/browser/browser_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -149,7 +149,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		std::string dir;
 		std::string name;
 		browser::descriptor(browser::BrowserId::Sample).start_at(ctx, dir, name);
-		const deluge::instruments::classic::SoundState* state = menu::host_ports().sound->sound_state(*ctx.addresses.slot);
+		const deluge::instruments::classic::SoundState* state = deluge::gui::shell_host::host_ports().sound->sound_state(*ctx.addresses.slot);
 		const std::vector<deluge::synth::SourceRange> ranges =
 		    state != nullptr ? deluge::instruments::classic::source_ranges(*state, deluge::instruments::classic::SourceId::A)
 		                     : std::vector<deluge::synth::SourceRange>{};

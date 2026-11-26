@@ -5,11 +5,11 @@
 // The spec may include `gui/`; the library may not (`scripts/check_layer_rules.py`).
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "support/sound_fixtures.h"
 #include "ui/scenes/bind/ports/sound_facts.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 
 #include "ui/shell/notices.h"
@@ -251,12 +251,12 @@ void shift_save(MenuRig& r) {
 // clang-format off
 describe dx_cartridge("the DX7 cartridge", ${
 	it("is no bank before a read has loaded one", _ {
-		expect(menu::host_ports().sound->dx_cartridge().has_value()).to_be_false();
+		expect(deluge::gui::shell_host::host_ports().sound->dx_cartridge().has_value()).to_be_false();
 	});
 
 	it("names the loaded bank's programs as main's cartridge page does", _ {
 		load_bank();
-		const std::optional<bind::DxCartridgeNames> names = menu::host_ports().sound->dx_cartridge();
+		const std::optional<bind::DxCartridgeNames> names = deluge::gui::shell_host::host_ports().sound->dx_cartridge();
 		expect(names.has_value()).to_be_true();
 		const std::vector<std::string>* want = table().find("bank", "names");
 		expect(want).not_().to_be_null();
@@ -280,7 +280,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		for (size_t i = 0; params != nullptr && i < params->size() && i < want.params.size(); i++) {
 			want.params[i] = static_cast<uint8_t>(std::stoi((*params)[i]));
 		}
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 5)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->load_dx_program(s.slot(), 0, 5)).to_be_true();
 		expect(s.patch()).to_equal(want);
 		expect(s.song.instrument->name).to_equal(std::string{"PROG 5"});
 	});
@@ -290,7 +290,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		load_bank();
 		s.song.instrument->mightExistOnCard = true;
 		s.song.instrument->name = "KEEP";
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 3)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->load_dx_program(s.slot(), 0, 3)).to_be_true();
 		expect(s.song.instrument->name).to_equal(std::string{"KEEP"});
 	});
 
@@ -298,15 +298,15 @@ describe dx_cartridge("the DX7 cartridge", ${
 		DxSong s;
 		load_bank();
 		const deluge::instruments::classic::DxPatchState before = s.patch();
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, -1)).to_be_false();
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 32)).to_be_false();
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 1, 0)).to_be_false();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->load_dx_program(s.slot(), 0, -1)).to_be_false();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->load_dx_program(s.slot(), 0, 32)).to_be_false();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->load_dx_program(s.slot(), 1, 0)).to_be_false();
 		deluge::project::SlotAddress nowhere = s.slot();
 		nowhere.id += 1000;
-		expect(menu::host_ports().sound_writes->load_dx_program(nowhere, 0, 0)).to_be_false();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->load_dx_program(nowhere, 0, 0)).to_be_false();
 		DX7Cartridge* const held = bank();
 		bank() = nullptr;
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 0)).to_be_false();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->load_dx_program(s.slot(), 0, 0)).to_be_false();
 		bank() = held;
 		expect(s.patch()).to_equal(before);
 	});

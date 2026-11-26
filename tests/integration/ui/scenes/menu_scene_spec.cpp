@@ -12,10 +12,10 @@
 ///       `bindings_spec.cpp` runs under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "project/device_settings.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/l10n_bridge.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -2634,7 +2634,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			(void)r.open(nodes::lpf_freq);
 			r.shell.tick(0);
 			const auto lpf = lpf_of(r.song);
-			expect(menu::host_ports().controls_sink->write_param(lpf, 0x20000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
+			expect(deluge::gui::shell_host::host_ports().controls_sink->write_param(lpf, 0x20000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
 			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 			changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 			actionLogger.deleteAllLogs();
@@ -2668,7 +2668,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.shell.tick(215);
 			expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 			const auto lpf = lpf_of(r.song);
-			expect(menu::host_ports().controls_sink->write_param(lpf, 0x20000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
+			expect(deluge::gui::shell_host::host_ports().controls_sink->write_param(lpf, 0x20000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
 			r.button(kShiftX, kShiftY, true, 230);
 			r.enter(240);
 			r.shell.tick(250);

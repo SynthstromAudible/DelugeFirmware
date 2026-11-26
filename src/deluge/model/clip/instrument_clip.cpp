@@ -60,7 +60,8 @@
 #include "processing/sound/sound_instrument.h"
 #include "project/doc_note_row.h"
 #include "project/edit_guard.h"
-#include "sequence/iterance.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
@@ -76,8 +77,11 @@
 #include <new>
 #include <optional>
 #include <ranges>
+#include <utility>
 
 #include "playback/mode/playback_mode.h"
+
+using deluge::project::Iterance;
 
 namespace params = deluge::modulation::params;
 
@@ -854,7 +858,7 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		noteRowsNumTicksBehindClip = 0;
 
 		// Count up how many of each probability there are
-		uint8_t probabilityCount[kNumProbabilityValues];
+		uint8_t probabilityCount[deluge::project::kProbabilityValueCount];
 		memset(probabilityCount, 0, sizeof(probabilityCount));
 
 		// Check whether special case where all probability adds up to 100%
@@ -866,7 +870,7 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		for (int32_t i = 0; i < pendingNoteOnList.count; i++) {
 
 			// If we found a 100%, we know we're not doing sum-to-100
-			if (pendingNoteOnList.pendingNoteOns[i].probability == kNumProbabilityValues) {
+			if (pendingNoteOnList.pendingNoteOns[i].probability == deluge::project::kProbabilityValueCount) {
 				goto skipDoingSumTo100;
 			}
 
@@ -883,10 +887,11 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			probabilityCount[pendingNoteOnList.pendingNoteOns[i].probability - 1]++;
 		}
 
-		doingSumTo100 = (probabilitySum == kNumProbabilityValues);
+		doingSumTo100 = (probabilitySum == deluge::project::kProbabilityValueCount);
 
 		if (doingSumTo100) {
-			int32_t probabilityValueForSummers = ((uint32_t)getRandom255() * kNumProbabilityValues) >> 8;
+			int32_t probabilityValueForSummers =
+			    ((uint32_t)getRandom255() * deluge::project::kProbabilityValueCount) >> 8;
 
 			int32_t probabilitySumSecondPass = 0;
 
@@ -927,7 +932,7 @@ skipDoingSumTo100:
 			bool conditionPassed;
 
 			// If it's a 100%, which usually will be the case...
-			if (pendingNoteOnList.pendingNoteOns[i].probability == kNumProbabilityValues) {
+			if (pendingNoteOnList.pendingNoteOns[i].probability == deluge::project::kProbabilityValueCount) {
 				conditionPassed = true;
 			}
 
@@ -966,11 +971,12 @@ doNewProbability:
 
 						// Otherwise, decide it now
 						else {
-							int32_t probabilityValue = ((uint32_t)getRandom255() * kNumProbabilityValues) >> 8;
+							int32_t probabilityValue =
+							    ((uint32_t)getRandom255() * deluge::project::kProbabilityValueCount) >> 8;
 							conditionPassed = (probabilityValue < probability);
 
-							lastProbabilities[kNumProbabilityValues - probability] = !conditionPassed;
-							lastProbabiltyPos[kNumProbabilityValues - probability] = lastProcessedPos;
+							lastProbabilities[deluge::project::kProbabilityValueCount - probability] = !conditionPassed;
+							lastProbabiltyPos[deluge::project::kProbabilityValueCount - probability] = lastProcessedPos;
 
 							lastProbabilities[probability] = conditionPassed;
 							lastProbabiltyPos[probability] = lastProcessedPos;
@@ -988,23 +994,25 @@ doNewProbability:
 				Iterance iterance = pendingNoteOnList.pendingNoteOns[i].iterance;
 
 				// If it's an iteration dependence...
-				if (iterance != kDefaultIteranceValue) [[unlikely]] {
+				if (iterance != deluge::project::kIteranceOff) [[unlikely]] {
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
 					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
 
-					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount(), ending);
+					conditionPassed =
+					    iterance.passes(static_cast<uint32_t>(modelStackWithNoteRow->getRepeatCount()), ending);
 				}
 
 				// lastly, if after checking iteration we still have a note on
 				// we'll check if that note should be sounded based on fill state
 				if (conditionPassed) {
 					// check if it's a FILL note and SYNC_SCALING is *not* pressed
-					if (pendingNoteOnList.pendingNoteOns[i].fill == FillMode::FILL
+					if (pendingNoteOnList.pendingNoteOns[i].fill == std::to_underlying(deluge::project::FillMode::FILL)
 					    && !currentSong->isFillModeActive()) {
 						conditionPassed = false;
 					}
 					// check if it's a NOT FILL note and SYNC_SCALING is pressed
-					else if (pendingNoteOnList.pendingNoteOns[i].fill == FillMode::NOT_FILL
+					else if (pendingNoteOnList.pendingNoteOns[i].fill
+					             == std::to_underlying(deluge::project::FillMode::NOT_FILL)
 					         && currentSong->isFillModeActive()) {
 						conditionPassed = false;
 					}

@@ -43,7 +43,7 @@
 /// (`Screensaver::consumeFrameDirty` in `hid/display/screensaver.h`, `OLED::sendMainImage` in `hid/display/oled.cpp`,
 /// whose port is the shell's `RepaintGate`). Counted as uncovered.
 
-#include "ui/scenes/menu/bind_host.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/overlay/screensaver_scene.h"
 #include "ui/scenes/registry.h"
 
@@ -257,7 +257,7 @@ void set_mode(::ScreensaverMode mode) {
 	LegacyScreensaver::noteActivity(); // `Screensaver::noteActivity` (`hid/display/screensaver.cpp`): deactivate if
 	                                   // showing.
 	FlashStorage::screensaverMode = mode;
-	screensaver_scene().set_device(deluge::ui::scenes::menu::host_ports().device);
+	screensaver_scene().set_device(deluge::gui::shell_host::host_ports().device);
 }
 
 } // namespace

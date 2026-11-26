@@ -35,6 +35,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/notify_drain.h"
 #include "gui/ui/shell_drum_creator.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/fx/chain_params.h"
@@ -42,7 +43,6 @@
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/bind/target.h"
 #include "ui/scenes/browser/browser_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/menu/node_id.h"
@@ -598,7 +598,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const Take take{*rec, "SAMPLES/RECORD/REC003.WAV"};
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
-		const deluge::instruments::classic::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
+		const deluge::instruments::classic::SoundState* state = deluge::gui::shell_host::host_ports().sound->sound_state(r.slot());
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			const std::vector<deluge::synth::SourceRange> ranges =
@@ -615,10 +615,10 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		Rig r;
 		deluge::bridge::recordLoadedSound(*r.sound, *r.song.song);
-		expect(menu::host_ports().sound_writes->attach_recording(r.slot(), 0, 0, "SAMPLES/RECORD/NOWHERE.WAV")).to_be_false();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->attach_recording(r.slot(), 0, 0, "SAMPLES/RECORD/NOWHERE.WAV")).to_be_false();
 		expect(static_cast<int32_t>(r.sound->oscType(0))).to_equal(static_cast<int32_t>(OscType::SQUARE));
 		expect(r.range->getAudioFileHolder()->audioFile).to_be_null();
-		const deluge::instruments::classic::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
+		const deluge::instruments::classic::SoundState* state = deluge::gui::shell_host::host_ports().sound->sound_state(r.slot());
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			expect(deluge::instruments::classic::source_type(*state, deluge::instruments::classic::SourceId::A)).to_equal(OscType::SQUARE);
@@ -1161,7 +1161,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		SampleRecorder* rec = deluge::gui::shell_host::input_take();
 		const Take take{*rec, "SAMPLES/RECORD/REC020.WAV"};
 		// A range below the one the take is for: that range is now the source's second.
-		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
 		expect(r.on_stack()).to_be_false();
@@ -1178,8 +1178,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(0);
 		SampleRecorder* rec = deluge::gui::shell_host::input_take();
 		const Take take{*rec, "SAMPLES/RECORD/REC021.WAV"};
-		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
-		expect(menu::host_ports().sound_writes->delete_range(r.slot(), 0, 1, std::nullopt)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->delete_range(r.slot(), 0, 1, std::nullopt)).to_be_true();
 		(void)drained_notice(deluge::base::notify::Notice::Kind::Error);
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);

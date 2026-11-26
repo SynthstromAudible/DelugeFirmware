@@ -3,9 +3,9 @@
 // recomputes the reverb's, wherever it lands.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/dispatch.h"
 #include "ui/scenes/bind/ports/write_sink.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 
@@ -52,7 +52,8 @@ int32_t menu_of(std::string_view path, std::string_view word) {
 
 /// Writes @p path = @p menu through the app's sink at @p ctx's addresses.
 void write(const MenuContext& ctx, std::string_view path, int32_t menu) {
-	menu::host_ports().writes->write({.target = effect(path), .where = ctx.addresses, .menu_value = menu});
+	deluge::gui::shell_host::host_ports().writes->write(
+	    {.target = effect(path), .where = ctx.addresses, .menu_value = menu});
 }
 
 /// Writes the low-pass mode SVF_Notch at @p ctx.

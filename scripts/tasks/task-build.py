@@ -57,6 +57,7 @@ CPP_TARGETS = [
     "deluge_base_notify",
     "deluge_ui_scenes",
     "deluge_ui_scenes_bind",
+    "deluge_l10n",
 ]
 
 RUST_BSP_DIR = Path("src/platform/device")

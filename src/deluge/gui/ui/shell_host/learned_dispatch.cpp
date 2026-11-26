@@ -1,4 +1,5 @@
 #include "io/midi/learned_dispatch.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/views/knob_focus_from_stack.h"
 #include "io/midi/follow_host.h"
@@ -7,7 +8,6 @@
 #include "model/output.h"
 #include "model/song/song.h"
 #include "ui/controls/learned.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "util/containers.h"
 
 #include <cstddef>
@@ -86,7 +86,7 @@ void learnedCcToSong(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t valu
 	}
 	ui::controls::dispatch_song_cc(
 	    knob_hits(cable, channel, cc), gui::shell_host::control_facts(),
-	    *deluge::ui::scenes::menu::host_ports().controls_sink, takeoverStore(),
+	    *deluge::gui::shell_host::host_ports().controls_sink, takeoverStore(),
 	    {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
 }
 
@@ -96,7 +96,7 @@ void learnedCcToOutput(const Output& output, MIDICable& cable, uint8_t channel, 
 	}
 	ui::controls::dispatch_output_cc(
 	    *output.id(), knob_hits(cable, channel, cc), gui::shell_host::control_facts(),
-	    *ui::scenes::menu::host_ports().controls_sink, takeoverStore(),
+	    *deluge::gui::shell_host::host_ports().controls_sink, takeoverStore(),
 	    {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
 }
 
@@ -106,7 +106,7 @@ bool learnedPitchBendToOutput(const Output& output, MIDICable& cable, uint8_t ch
 	}
 	return ui::controls::dispatch_output_bend(
 	    *output.id(), knob_hits(cable, channel, kPitchBend), gui::shell_host::control_facts(),
-	    *ui::scenes::menu::host_ports().controls_sink,
+	    *deluge::gui::shell_host::host_ports().controls_sink,
 	    {.channel = channel, .number = kPitchBend, .value = value14, .cable_relative = cable.is_relative});
 }
 
@@ -119,7 +119,7 @@ ui::controls::KnobFocus followFocus(Clip& clip) {
 }
 
 ui::controls::Sink& followSink() {
-	return *deluge::ui::scenes::menu::host_ports().controls_sink;
+	return *deluge::gui::shell_host::host_ports().controls_sink;
 }
 
 } // namespace deluge::midi

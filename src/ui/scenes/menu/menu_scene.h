@@ -393,7 +393,7 @@ public:
 	/// @note **Every one of these actions is performed.** The consumer polls once per guest tick and
 	///       has a body for each: `OpenPerformanceView`, `StartStemExport` and the three one-line verbs
 	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`). A settings write's
-	///       side effect is no action: its setter calls the host (`ui/scenes/menu/bind_host.h`).
+	///       side effect is no action: its setter calls the host through a port (`ui/scenes/bind/ports/`).
 	///
 	/// @warning **This is a one-slot mailbox with a silent overwrite, not an exactly-once queue.**
 	///          Two requests filed between two polls lose the first, and a request nobody polls for

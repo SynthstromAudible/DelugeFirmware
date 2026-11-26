@@ -1,6 +1,7 @@
 # Localization
 
-This folder contains the list of strings that can be localized for the OLED display.
+This folder contains the list of strings that can be localized for the OLED display, and the names and error texts
+the UI shows through them. It builds as `deluge_l10n`, a library the app and the scenes (`src/ui/scenes`) both link.
 
 For developers looking to add additional strings for use in the codebase, you will need to update the following two files:
 
