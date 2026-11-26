@@ -487,6 +487,13 @@ Here is a list of general improvements that have been made, ordered from newest 
     - Enter the Song menu while in Song or Arranger View by pressing :key[Select] and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
   - Note: `THRESHOLD RECORDING` only applies to audio recorded to kit rows and to the first “tempoless” audio clip.
     - For the first "tempoless" audio clip, the tempo will be set from the time the recorded audio first exceeds the threshold to the time the recording is ended.
+  - (#5229) <Badge text="c1.4" variant="tip" /> On OLED, recording with a threshold shows a level meter for the left
+    and right inputs, so you can see how close the signal is to triggering:
+    - While waiting, the screen shows `WAITING...` and a blinking dotted line on the meter marks the threshold level.
+    - Once the threshold is reached, the screen shows `RECORDING` with a blinking record dot, and the meter stays up
+      for the rest of the take.
+    - A dotted line near the right of the meter marks where the input gets loud. If either input goes past it, a `!`
+      warns that the input may be too hot.
 
 ### 3.34 - Polyphony / Voice Count
 
@@ -1276,6 +1283,52 @@ For a detailed description of this feature, please refer to the feature document
   - `PULSE WIDTH` (the `PW` shortcut pad) sets how many saws play. At 0 all seven play, and turning it up removes
     them one at a time, down to a single saw at the top.
   - `RETRIGGER PHASE` affects every saw in the stack so it can be used to make very percussive attacks
+
+### 4.5.14 - Per-Note Parameter Locks <Badge text="c1.4" variant="tip" />
+
+- (#5346) Individual notes in synth clips and kit sound rows can now have their own sound settings ("parameter
+  locks"), for example a brighter filter, a longer release or a different oscillator level on just one step.
+  - To set a lock, hold one or more note :key[Pad]s in `CLIP VIEW` and turn a gold knob (or a MIDI-learned or MIDI
+    Follow knob). The change is heard right away and applies only to the held notes. OLED shows `LOCK <param>` in the
+    value popup, and 7SEG lights the dot after the value.
+  - Releasing the pads saves the change as one undo step. With `CROSS SCREEN` editing on every copy of the note
+    gets the lock.
+  - Each note can lock up to 8 parameters. Patch cables (LFOs, envelopes, velocity...) modulate a locked
+    parameter starting from the locked value.
+  - Settings that each note plays with can be locked: oscillator and FM levels and pitch, pulse width, etc. Settings shared by
+    the whole sound (e.g. reverb, delay, mod FX, LFO 1 / LFO 3 rate, the arpeggiator rate, EQ, bitcrush), patch cable
+    depths and MIDI CCs can't be locked. Turning one of those while holding notes adds step automation instead. The first
+    time this happens on a press, OLED shows `NOT LOCKABLE: AUTO`, then `AUTO <param>`.
+  - Notes with locks are drawn white in the grid so they're easy to spot.
+  - To see, change or remove a note's locks, open the note editor menu (hold the note and press :key[Select]) and go
+    to `PARAM LOCKS` (on OLED, on the menu's second page). It lists every lock on the note with its value. Press :key[Select] on a lock to
+    change its value, press :key[Shift + Save] on a lock to delete it, or choose `CLEAR ALL` to remove them all. See
+    [Note Editor Menu](/features/note_noterow_editor#param-locks).
+  - Locks stay with their notes when you copy and paste notes, duplicate clips or move notes, and notes played through
+    the arpeggiator keep the locks of the note that started them.
+  - Locks are saved with the song. Older firmware plays the notes without their locks.
+
+### 4.5.15 - Envelope Modes and Curve <Badge text="c1.4" variant="tip" />
+
+- (#5296) Each envelope (`ENVELOPE 1` to `ENVELOPE 4`) has new `MODE` and `CURVE` settings, after the attack, decay,
+  sustain and release settings (on OLED, on the envelope menu's second page). The names of the other settings and the
+  envelope graph change to match the mode, and on the gold knobs too.
+  - `MODE`:
+    - `ADSR`: attack, decay, sustain and release, as before. This is the default.
+    - `AHD`: attack, then hold at full level, then decay to zero. It plays through once and ignores note-offs, which
+      makes it good for drums and plucks. The decay setting becomes `HOLD` and the release setting becomes `DECAY`,
+      so the release gold knob still sets how long the sound lasts.
+    - `AR`: while the note is held, the envelope rises to its `LEVEL` (the sustain setting) at the attack rate, and
+      releases to zero at note-off. With `LEVEL` at maximum it's a simple attack/release envelope. Automating
+      `LEVEL`, or patching something to it, makes the envelope glide smoothly to each new level, rising at the attack
+      rate and falling at the release rate.
+    - `MPE`: like `AR`, but the envelope also follows an expression input, chosen with the new `FOLLOW` setting:
+      `PRESSURE (Z)` (MPE pressure or aftertouch) or `MOD WHEEL (Y)` (the mod wheel or MPE Y). With no expression it
+      rests at `LEVEL`. With full expression it rises to the maximum.
+  - `CURVE` (-50 to 50) sets the shape of the attack, decay and release. 0 is a straight line. Positive values move
+    fastest at the start of each stage, like an analog envelope. Negative values start slowly and speed up. The
+    default of 32 is the classic Deluge shape.
+  - In a kit hold :key[AffectEntire] while changing `MODE`, `CURVE` or `FOLLOW` to change it for every sound row.
 
 ## 4.6 - Instrument Clip View - Kit Clip Features
 
