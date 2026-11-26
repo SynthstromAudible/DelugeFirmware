@@ -176,7 +176,8 @@ src/synth/sources/sample/sample_stretcher.cpp raw=0 boundary=2
 src/synth/sources/sample/stretch_leases.h raw=0 boundary=3
 src/synth/sources/sample/stretch_mix.h raw=0 boundary=18
 src/synth/sources/sample/stretch_position.h raw=0 boundary=5
-src/synth/sources/source_slot.cpp raw=0 boundary=2
+src/synth/sources/source_slot.cpp raw=0 boundary=1
+src/synth/sources/source_table.h raw=0 boundary=1
 src/synth/sources/supersaw/supersaw_source.cpp raw=0 boundary=2
 src/synth/sources/supersaw/supersaw_source.h raw=0 boundary=4
 src/synth/sources/va/va_shapes.cpp raw=0 boundary=15

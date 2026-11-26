@@ -22,6 +22,7 @@
 #include "synth/sources/dx7/dx7_source.h"
 #include "synth/sources/input/input_source.h"
 #include "synth/sources/sample/sample_source.h"
+#include "synth/sources/source_table.h"
 #include "synth/sources/supersaw/supersaw_source.h"
 #include "synth/sources/va/virtual_analog_source.h"
 #include "synth/sources/wavetable/wavetable_source.h"
@@ -29,14 +30,6 @@
 #include <variant>
 
 namespace deluge::synth {
-
-/// @brief The firmware ports a slot's port-backed sources play through; they outlive the slot.
-struct SourcePorts {
-	SamplePlaybackPort* sample{};
-	DxVoicePort* dx{};
-	AudioInputPort* input{};
-	const LiveInputs* live_inputs{}; ///< the oscillator's live histories
-};
 
 /// @brief The phase state of one source slot that every synth mode shares, and the engines and the app read.
 struct SlotPhase {
@@ -51,12 +44,13 @@ struct SlotPhase {
 /// bound for the voice's life, and the phase state every synth mode shares.
 ///
 /// The oscillator is built at note-on by @ref note_on and kept across notes while its class is unchanged, so a
-/// free-running oscillator keeps its phase from note to note. A new port-free source (one that needs no firmware
-/// port) is an alternative of @ref Oscillator and a case in the note-on factory; the voice is unchanged.
+/// free-running oscillator keeps its phase from note to note. The kinds of source a slot plays are the rows of
+/// `source_table.h`: a new source is a row there; the voice is unchanged.
 class SourceSlot : public SlotPhase {
 public:
-	/// The port-free sources a slot can hold; monostate when the note built none (FM, noise, a port-backed type).
-	using Oscillator = std::variant<std::monostate, VirtualAnalogSource, WavetableSource, SupersawSource>;
+	/// The port-free sources a slot can hold (the table's held rows); monostate when the note built none (FM, noise, a
+	/// port-backed type).
+	using Oscillator = HeldOscillator;
 
 	SourceSlot() = default;
 	SourceSlot(const SourceSlot&) = delete;
@@ -74,6 +68,11 @@ public:
 	             dsp::fixed::Cong& noise);
 	/// Lets go of the note: the slot goes inactive and its port-backed sources release what they hold.
 	void unassign(bool deleting_song);
+	/// @brief The note-off for a source of @p type: its ported row's release, which may end the note and unassign the
+	/// slot; a held wave has nothing to release.
+	/// @param type The slot's type as set.
+	/// @param release The voice's cull rating, which a sample's loop-end release ranks its loads by.
+	void release(OscType type, const SourceRelease& release);
 
 	/// The source that renders a source of @p type now: a port-backed one by type, else the held oscillator, whatever
 	/// its class (a VA wave changed on a re-triggered voice keeps the wave it built). Null when the slot holds none (a
@@ -86,18 +85,32 @@ public:
 	/// Advances the held oscillator's phase by @p delta, else @ref osc_pos (a skipped osc-sync master still runs).
 	void advance_osc_phase(dsp::UQ<32> delta);
 
-	[[nodiscard]] SampleSource& sample() { return sample_; }
-	[[nodiscard]] DX7Source& dx7() { return dx7_; }
+	[[nodiscard]] SampleSource& sample() { return std::get<SampleSource>(ported_); }
+	[[nodiscard]] DX7Source& dx7() { return std::get<DX7Source>(ported_); }
 
 private:
 	/// Builds or keeps the oscillator for a SUBTRACTIVE or RINGMOD note of @p osc_type; else holds none.
 	void build_oscillator(OscType osc_type, bool engine_mode, uint32_t osc_retrigger_phase, bool reset_everything,
 	                      dsp::fixed::Cong& noise);
 
+	/// @brief Calls @p fn with the ported row playing @p type and its source.
+	/// @param type The slot's type as set.
+	/// @param fn Called as `fn(Kind{}, source)` for that row.
+	/// @return False when no ported row plays it.
+	template <class Fn>
+	bool with_ported(OscType type, Fn fn);
+
 	Oscillator oscillator_;
-	SampleSource sample_{nullptr}; ///< the SAMPLE source (drives the reader through its port)
-	DX7Source dx7_{nullptr};       ///< the DX7 source (forwards FM to its port)
-	InputSource input_{nullptr};   ///< the INPUT_L/R/STEREO source (reads input through its port)
+	/// The port-backed sources (the table's ported rows), each bound to its port by @ref bind
+	PortedSources ported_{unbound_ported()};
+
+	/// @brief Each ported source with no port yet.
+	/// @return The tuple.
+	[[nodiscard]] static PortedSources unbound_ported() {
+		return []<class... Source>(std::type_identity<std::tuple<Source...>>) {
+			return PortedSources{Source{nullptr}...};
+		}(std::type_identity<PortedSources>{});
+	}
 };
 
 } // namespace deluge::synth
