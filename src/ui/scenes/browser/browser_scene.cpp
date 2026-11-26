@@ -21,7 +21,7 @@
 #include "ui/scenes/browser/browser_scene.h"
 
 #include "base/notify/notice_queue.h"
-#include "definitions_cxx.hpp" // AudioInputChannel, Error, kNumSources
+#include "definitions_cxx.hpp" // Error, kNumSources
 #include "ui/widgets/core/blink.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/favourites.h"
@@ -35,11 +35,11 @@
 #include "gui/l10n/strings.h"
 
 #include "instruments/classic/state_access.h"
-#include "processing/engines/audio_engine.h"
+#include "project/device_settings.h"
 #include "project/setting_group.h"
 #include "project/song.h"
-#include "storage/flash_storage.h"
 #include "ui/gfx/grid/pad_grid.h"
+#include "ui/scenes/bind/device_reader.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/recorder/recorder_scene.h"
@@ -440,9 +440,13 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	}
 	if (id_ == BrowserId::Sample) {
 		// `SampleBrowser::opened`: a held audition ends as the browser opens.
-		menu::host_end_audition(bind::AuditionEnd::ClipViewWhenAuditioning);
+		if (ctx_.ports.view_actions != nullptr) {
+			ctx_.ports.view_actions->end_audition(bind::AuditionEnd::ClipViewWhenAuditioning);
+		}
 		// `SampleBrowser::opened`: undo history ends at the browser.
-		menu::host_forget_undo();
+		if (ctx_.ports.device_actions != nullptr) {
+			ctx_.ports.device_actions->delete_all_logs();
+		}
 	}
 
 	entered_len_ = 0;
@@ -479,10 +483,10 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	blink_fired_step_ = UINT32_MAX;
 	first_preview_ = true;
 	spare_blink_from_preview_ = false;
-	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI`'s `keyboardChars`).
-	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
-	layout_ =
-	    static_cast<deluge::ui::widgets::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
+	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI`'s `keyboardChars`): the text
+	// keyboard's DEVICE row, whose choices are `KeyboardLayoutKind`'s values (`keyboard.h`).
+	layout_ = bind::read_device<deluge::ui::widgets::grid::KeyboardLayoutKind>(
+	    ctx_.ports.device, project::device_path::kTextKeyboardLayout);
 	cursor_blink_ = deluge::ui::widgets::core::Blink{};
 
 	favourite_resp_ = {};
@@ -684,20 +688,28 @@ services::Favourites& BrowserScene::favourites() {
 	return favourites_override_ != nullptr ? *favourites_override_ : menu::host_favourites();
 }
 
+project::FavouritesLayout BrowserScene::favourites_layout() const {
+	return bind::read_device<project::FavouritesLayout>(ctx_.ports.device, project::device_path::kFavouritesLayout);
+}
+
+bool BrowserScene::foreground_recording_chosen() const {
+	// `AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE`: unset counts, as legacy's unset value is
+	// not NONE either.
+	return ctx_.ports.audio != nullptr && ctx_.ports.audio->foreground_recording() != bind::ForegroundRecording::NONE;
+}
+
 bool BrowserScene::favourites_visible() const {
-	return id_ == BrowserId::Sample && keyboard_visible_
-	       && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff;
+	return id_ == BrowserId::Sample && keyboard_visible_ && favourites_layout() != project::FavouritesLayout::OFF;
 }
 
 bool BrowserScene::banks_visible() const {
 	return id_ == BrowserId::Sample && keyboard_visible_
-	       && FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks;
+	       && favourites_layout() == project::FavouritesLayout::FAVOURITES_AND_BANKS;
 }
 
 int32_t BrowserScene::favourite_row() const {
 	// `QwertyUI::opened`: row 7, or 6 with the bank row beneath it.
-	return FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks ? kFavouriteRow - 1
-	                                                                                         : kFavouriteRow;
+	return favourites_layout() == project::FavouritesLayout::FAVOURITES_AND_BANKS ? kFavouriteRow - 1 : kFavouriteRow;
 }
 
 void BrowserScene::favourites_changed() {
@@ -761,7 +773,7 @@ void BrowserScene::render_favourites(deluge::ui::widgets::grid::GridFrame& f) {
 	const std::array<RGB, deluge::ui::widgets::grid::kFavourites> row =
 	    deluge::ui::widgets::grid::favourite_row_colours(colours);
 	favourite_resp_ = deluge::ui::widgets::grid::row(f, favourite_row(), row);
-	if (FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks) {
+	if (favourites_layout() == project::FavouritesLayout::FAVOURITES_AND_BANKS) {
 		const std::array<RGB, deluge::ui::widgets::grid::kFavourites> banks =
 		    deluge::ui::widgets::grid::favourite_bank_colours();
 		bank_resp_ = deluge::ui::widgets::grid::row(f, kFavouriteRow, banks);
@@ -1483,7 +1495,7 @@ void BrowserScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 		}
 		// The rows stay drawn with the keys once the keyboard is hidden, as `main`'s pads keep them; only the
 		// flash and the presses need the keyboard visible.
-		if (id_ == BrowserId::Sample && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff) {
+		if (id_ == BrowserId::Sample && favourites_layout() != project::FavouritesLayout::OFF) {
 			render_favourites(f);
 		}
 		break;
@@ -1518,7 +1530,9 @@ void BrowserScene::render_waveform(deluge::ui::widgets::grid::GridFrame& f) {
 	// `waveformRenderer.renderFullScreen` of the preview drum's sample, opened zoomed out on each new sample as
 	// `waveformBasicNavigator.opened()` does.
 	const bind::WaveformAddress preview{.kind = bind::WaveformAddress::Kind::PREVIEW};
-	const std::optional<bind::WaveformInfo> info = menu::host_waveforms().info(preview);
+	const bind::Waveforms* const waveforms = ctx_.ports.waveforms;
+	const std::optional<bind::WaveformInfo> info =
+	    waveforms != nullptr ? waveforms->info(preview) : std::optional<bind::WaveformInfo>{};
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kMainCols);
 	const int32_t rows = std::min<int32_t>(f.bounds().h, kRows);
 	if (!info) {
@@ -1542,8 +1556,7 @@ void BrowserScene::render_waveform(deluge::ui::widgets::grid::GridFrame& f) {
 		view_ = views::waveform::WaveformView::open(info->length_samples, std::nullopt);
 		retry_.restart();
 	}
-	const std::optional<services::WaveformFrame> wf =
-	    services::read_waveform(menu::host_waveforms(), preview, view_.window());
+	const std::optional<services::WaveformFrame> wf = services::read_waveform(*waveforms, preview, view_.window());
 	f.region(deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h},
 	         [&](deluge::ui::widgets::grid::GridFrame& main) {
 		         if (wf) {
@@ -2093,7 +2106,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		// The recorder replaces the browser with no UI mode up -- a held audition pad is `main`'s
 		// `UI_MODE_AUDITIONING`, which legacy holds because the view beneath takes that pad -- and never for an audio
 		// clip, whose RECORD goes on to the base browser and then to the global RECORD.
-		if (ctx_.is_audio_clip || AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE) {
+		if (ctx_.is_audio_clip || foreground_recording_chosen()) {
 			return std::nullopt;
 		}
 		if (on && !mode_up()) {

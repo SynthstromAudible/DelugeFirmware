@@ -3364,6 +3364,52 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		expect(released.actions.empty()).to_be_true();
 	});
 
+	it("leaves RECORD to the views while a foreground source is chosen, unset included, as the audio port answers", _ {
+		// `AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE`: legacy's unset value is not NONE.
+		deluge::ui::scenes::bind::test::FakeAudioFacts audio; // declared first: it outlives the cleanup
+		audio.foreground = deluge::ui::scenes::bind::ForegroundRecording::UNSET;
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		ctx.ports.audio = &audio;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		DirectCtx d;
+		const Result pressed = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		expect(find_action(pressed, ShellAction::Kind::Push)).to_be_null();
+		audio.foreground = deluge::ui::scenes::bind::ForegroundRecording::NONE;
+		const Result again = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		expect(find_action(again, ShellAction::Kind::Push)).not_().to_be_null();
+	});
+
+	it("ends a held audition and forgets undo through the view and device action ports as it opens", _ {
+		// `SampleBrowser::opened`. Declared first: the recorders outlive the cleanup.
+		deluge::ui::scenes::bind::test::RecordingViewActions views;
+		deluge::ui::scenes::bind::test::RecordingDeviceActions device;
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		ctx.ports.view_actions = &views;
+		ctx.ports.device_actions = &device;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		expect(views.ends.size()).to_equal(std::size_t{1});
+		if (!views.ends.empty()) {
+			expect(static_cast<int>(views.ends.front()))
+			    .to_equal(static_cast<int>(deluge::ui::scenes::bind::AuditionEnd::ClipViewWhenAuditioning));
+		}
+		expect(device.calls.size()).to_equal(std::size_t{1});
+		if (!device.calls.empty()) {
+			expect(static_cast<int>(device.calls.front()))
+			    .to_equal(
+			        static_cast<int>(deluge::ui::scenes::bind::test::RecordingDeviceActions::Kind::DELETE_ALL_LOGS));
+		}
+	});
+
 	it("takes RECORD and does nothing while an audition pad is held", _ {
 		// `SampleBrowser::buttonAction`'s RECORD arm returns at once under any UI mode, and a held audition pad is
 		// `UI_MODE_AUDITIONING`: the browser stays and no take starts. The audition column is the view's, so the mode

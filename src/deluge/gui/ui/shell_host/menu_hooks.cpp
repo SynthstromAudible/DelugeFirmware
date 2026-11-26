@@ -1,6 +1,5 @@
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
-#include "model/action/action_logger.h"
 #include "model/favourite/favourite_manager.h"
 #include "model/sample/last_file_path_loaded.h"
 #include "processing/engines/audio_engine.h"
@@ -68,14 +67,6 @@ services::Favourites& host_favourites() {
 bool host_release_sample_file(std::string_view path) {
 	AudioEngine::stopAnyPreviewing();
 	return audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(std::string{path}.c_str());
-}
-
-void host_forget_undo() {
-	actionLogger.deleteAllLogs();
-}
-
-void host_end_audition(bind::AuditionEnd how) {
-	gui::shell_host::view_actions().end_audition(how);
 }
 
 } // namespace deluge::ui::scenes::menu

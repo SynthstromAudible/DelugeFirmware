@@ -167,11 +167,3 @@ const deluge::ui::scenes::bind::Waveforms& waveforms() {
 }
 
 } // namespace deluge::gui::shell_host
-
-namespace deluge::ui::scenes::menu {
-
-const bind::Waveforms& host_waveforms() {
-	return gui::shell_host::waveforms();
-}
-
-} // namespace deluge::ui::scenes::menu

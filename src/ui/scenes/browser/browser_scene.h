@@ -73,6 +73,7 @@
 ///          makes that satisfiable.
 
 #include "definitions_cxx.hpp" // Error
+#include "project/device_settings.h"
 #include "ui/scenes/browser/browser_kind.h"
 #include "ui/scenes/browser/listing.h"
 #include "ui/scenes/menu/context.h"
@@ -672,6 +673,10 @@ private:
 	/// @brief `Browser::isFavouritesVisible` / `isBanksVisible`: the sample browser's keyboard is up and the layout
 	///        shows them.
 	bool favourites_visible() const;
+	/// @return The DEVICE row's favourites layout, read through the device port.
+	project::FavouritesLayout favourites_layout() const;
+	/// @return Whether a foreground recording source is chosen (any but NONE), which keeps RECORD off the recorder.
+	bool foreground_recording_chosen() const;
 	bool banks_visible() const;
 	/// @brief `Browser::padAction`'s favourites-row arm: recall the favourite, or with SHIFT set or unset it.
 	deluge::ui::shell::Result favourite_press(uint8_t position);
