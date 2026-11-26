@@ -52,11 +52,10 @@ nothing.
 * **Includes.** `ui/scenes/`, `ui/shell/`, `ui/`, `ui/gfx/`, `base/`, `libdeluge/`, the standard library,
   and — as the model-aware layer — `model/`, `modulation/`, `playback/`, `processing/`, `storage/`,
   `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin/`, `serialization/`,
-  `sequence/`, `project/`, …) and three root-level headers named in that comment
-  (`definitions_cxx.hpp`, `src/deluge/deluge.h` and the generated `version.h`, each included by its bare
-  name). Never the rest of `gui/`, never `hid/` (`scenes-includes-outside`, `scenes-includes-gui`). The
-  checker cannot see a slash-less include, so a fourth root-level header must be justified in that
-  comment by hand.
+  `sequence/`, `project/`, …) and one root-level header named in that comment (`definitions_cxx.hpp`,
+  included by its bare name). Never the rest of `gui/`, never `hid/` (`scenes-includes-outside`,
+  `scenes-includes-gui`). The checker cannot see a slash-less include, so a second root-level header must be
+  justified in that comment by hand.
 * **No model stack, no Edits, no engine pointers.** `model/model_stack.h` and
   `modulation/automation/auto_param.h` are not included anywhere in the layer
   (`scenes-model-stack`); a node edits through `bind::Target` and its write leaves as a request a
@@ -75,9 +74,9 @@ nothing.
 * **No wall clock** (`shell-no-clock`): the frame's `now_ms()` and `tick(dt)` are the only time a
   scene knows, and `next_timer()` is how it asks to be woken.
 * **No input lock** (`scenes-no-input-lock`): no scene files `Action::Kind::LockInput`.
-* **The file catalogue is dispatched only through the listing seam**
-  (`scenes-listing-through-the-seam`): `FileCatalogue`'s six dispatching entry points are named only
-  in `browser/listing.{h,cpp}`.
+* **The file catalogue is dispatched only through the catalogue port**
+  (`scenes-listing-through-the-seam`): no scene names `FileCatalogue`'s six dispatching entry points; the host's
+  catalogue port (`gui/ui/shell_host/catalogue.cpp`) does.
 * **A service never claims the OLED from its timer** (`services-no-oled-timer-claim`).
 * **No heap in library code.** Static footprint is the thing to watch instead: the node-id registry
   is two arrays sized by `kMaxNodes` (1024), 8 KB on the device.
@@ -470,10 +469,10 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
   the shared `gui::ui::SamplePreviewer` (the legacy browser's own load and sound) and answers through
   `preview_settled` from its poll after the tick; `next_timer` polls while the answer is owed. Each load's path
   becomes `deluge::model::lastFilePathLoaded`, which the browser opens beside when its holder names no
-  file in SAMPLES/ (`menu::host_last_sample_path`).
+  file in SAMPLES/ (`CardFacts::last_sample_path`).
 * **The pads.** `BrowserPads` is what the main pads show: `Root` (the root view greyed), `Waveform` (the preview's,
-  zoomed and scrolled with X_ENC) or `Keyboard`. The preview's waveform is read at the PREVIEW address through
-  `menu::host_waveforms()`, the one scene that still reaches the port by its hook ("The waveform views" below), and
+  zoomed and scrolled with X_ENC) or `Keyboard`. The preview's waveform is read at the PREVIEW address through the
+  context's waveforms port ("The waveform views" below), and
   `shown_waveform` hands the slicer the view it shows of a file. Beside it the scene keeps legacy's own flags
   (`qwertyVisible`, the keys drawn, the preview showing, KEYBOARD's always-visible), because legacy's image does not
   always follow them. The keyboard appears on the first main-pad press (typing only below the favourites row) or a
@@ -491,29 +490,32 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
 * **The buttons.** LOAD's release toggles auto-load (not for an audio clip): each landed preview is claimed with
   `BrowserChoice::keep_open`, which neither closes the browser nor re-roots the menu. RECORD opens the recorder in
   the browser's place when no UI mode is up (a held audition pad is one), and the host answers it `DEALT_WITH` so the global RECORD stays out. Shift+SAVE on a file asks
-  the host to free it (`menu::host_release_sample_file`), refusing with `main`'s popup when the song uses it, and
+  the card actions port to free it (`CardActions::release_sample_file`), refusing with `main`'s popup when the song
+  uses it, and
   otherwise opens the DELETE? menu, whose OK the browser host performs before the file leaves the list
   (`BrowserScene::file_deleted`). The vertical encoder goes to the instrument clip view beneath
   (`forwardBrowserVertical`), or recolours the current favourite with SHIFT.
 * **The favourites.** While the keyboard shows, row 7 (row 6 with banks, which take row 7) draws the "SAMPLES"
-  favourites through `services::Favourites` (`menu::host_favourites`, over `favouritesManager`): a press recalls
+  favourites through the favourites port (`bind::Favourites`, over `favouritesManager` on the host): a press recalls
   one, Shift+press sets or unsets it, the current one flashes every 500 ms.
 
 #### The listing seam and the catalogue claim
 
-A scene may not block a tick, so a directory read is a seam: `storage::FileCatalogue` is legacy's
-listing code (legacy `Browser` delegates into it), and `browser::Listing` is a request/poll object
-over it — `request()`, `poll()` on later ticks, `take_result()`.
+A scene may not block a tick, so a directory read is a seam: the catalogue port (`bind::Catalogue`) is the card's
+one file listing, which the host answers from legacy's listing code (`storage::FileCatalogue`, which legacy
+`Browser` delegates into too), and `browser::Listing` is a request/poll object over it — `request()`, `poll()` on
+later ticks, `take_result()`. A browser reads the listed entries, searches them and drops a deleted one through the
+same port; a listing with no catalogue is dropped.
 
 * **A request is refused, never overwritten:** `Busy` while anyone holds the catalogue claim,
-  `ResultPending` while a landed result is uncollected. There is one `fileItems` vector, so an
+  `ResultPending` while a landed result is uncollected. There is one list of entries, so an
   overwrite would interleave two reads over one buffer — a jam, not a loss, mitigated by polling
   every tick. There is no cancel, and `~Listing` asserts it is not in flight: own one as a scene
   member and nothing else.
-* **The single-flight guard is on the resource.** `FileCatalogue::claim(owner)`/`release(owner)` is a
-  CAS from `nullptr`, taken by both dispatch paths (`Listing::request` and legacy
-  `Browser::beginListing`). Hold it until the consumer has finished reading `fileItems`: legacy
-  releases on completion, the seam on `take_result()`.
+* **The single-flight guard is on the resource.** The catalogue's `claim(owner)`/`release(owner)` (on the host,
+  `FileCatalogue::claim`/`release`, a CAS from `nullptr`) is taken by both dispatch paths (`Listing::request` and
+  legacy `Browser::beginListing`). Hold it until the consumer has finished reading the entries: legacy releases on
+  completion, the seam on `take_result()`.
 * The claim binds the two dispatch paths only: `emptyFileItems` and friends do not check it, and the
   leaf calls (`predictExtendedText`, `getUnusedSlot`, the save UIs' name search) do not claim.
 
@@ -768,11 +770,9 @@ which the host's registry (`io/midi/device_registry.h`) maps to its cable.
 
 * **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
   `ports.cpp`. It is the only code that names legacy objects for the scenes.
-* **The menu reads and writes only through the ports.** No file under `menu/` includes a legacy runtime header (the
-  `scenes-reads-outside-bind` rule counts none there), and the menu calls none of the `menu::host_*` hooks left in
-  `menu/bind_host.h`: those are the browser's and the context menu's. The services, the overlays, the recorder, the
-  marker editor, the slicer, the audio clip scene and the timeline count none either; the rule's remaining rows are
-  the browser's, the context menu's and the rename scene's.
+* **Every scene reads and writes only through the ports.** No scene file outside `bind/` includes a legacy runtime
+  header: the `scenes-reads-outside-bind` rule has no rows, and its baseline may not grow. `menu/bind_host.h`
+  declares only `host_ports()`, which the app builds the ports through; no scene calls a hook.
 
 ### The DEVICE setting group
 

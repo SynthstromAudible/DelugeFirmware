@@ -79,8 +79,3 @@ src/deluge/util/algorithm/quick_sorter.cpp	model-includes-ui	1
 src/deluge/util/container/list/bidirectional_linked_list.cpp	model-includes-ui	1
 src/deluge/util/functions.cpp	model-includes-ui	2
 src/deluge/util/string.cpp	model-includes-ui	1
-src/ui/scenes/browser/browser_scene.cpp	scenes-reads-outside-bind	5
-src/ui/scenes/browser/listing.cpp	scenes-reads-outside-bind	1
-src/ui/scenes/browser/listing.h	scenes-reads-outside-bind	1
-src/ui/scenes/context_menu/context_menu_scene.cpp	scenes-reads-outside-bind	5
-src/ui/scenes/rename/rename_scene.cpp	scenes-reads-outside-bind	1
