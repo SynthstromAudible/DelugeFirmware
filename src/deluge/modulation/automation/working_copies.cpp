@@ -146,11 +146,16 @@ void forEachOwner(Song& song, deluge::base::function_ref<void(ModelStackWithThre
 	}
 }
 
-/// The lane @p paramId of @p summary's collection, as a stack on @p owner.
-ModelStackWithAutoParam* laneStack(ModelStackWithThreeMainThings& owner, ParamCollectionSummary& summary,
-                                   int32_t paramId) {
+/// The lane @p paramId of @p summary's collection, owned by @p owner; none where the collection holds no such param.
+std::optional<bridge::LaneTarget> laneIn(ModelStackWithThreeMainThings& owner, ParamCollectionSummary& summary,
+                                         int32_t paramId) {
 	ParamCollection& collection = *summary.paramCollection;
-	return collection.getAutoParamFromId(owner.addParamCollectionAndId(&collection, &summary, paramId));
+	const ModelStackWithAutoParam* stack =
+	    collection.getAutoParamFromId(owner.addParamCollectionAndId(&collection, &summary, paramId));
+	if (stack == nullptr || stack->autoParam == nullptr) {
+		return std::nullopt;
+	}
+	return bridge::target_of(*stack, std::nullopt);
 }
 
 /// Empty @p entry, with the render held off.
@@ -451,18 +456,16 @@ void copyOverriddenLanes(Song& song) {
 					break;
 				}
 				summary.paramCollection->forEachLane([&](int32_t paramId, const project::DocAutoParam&) {
-					ModelStackWithAutoParam* lane = laneStack(owner, summary, paramId);
-					if (lane != nullptr && lane->autoParam != nullptr
-					    && lane->autoParam->renewedOverridingAtTime != 0) {
+					const std::optional<bridge::LaneTarget> lane = laneIn(owner, summary, paramId);
+					if (lane && lane->auto_param->renewedOverridingAtTime != 0) {
 						overridden.push_back({&summary, paramId});
 					}
 				});
 			}
 		}
 		for (const Overridden& lane : overridden) {
-			if (ModelStackWithAutoParam* stack = laneStack(owner, *lane.summary, lane.paramId);
-			    stack != nullptr && stack->autoParam != nullptr) {
-				(void)makeWorkingCopy(bridge::target_of(*stack, std::nullopt), kNodesPerRecordedWrite);
+			if (const std::optional<bridge::LaneTarget> found = laneIn(owner, *lane.summary, lane.paramId)) {
+				(void)makeWorkingCopy(*found, kNodesPerRecordedWrite);
 			}
 		}
 	});

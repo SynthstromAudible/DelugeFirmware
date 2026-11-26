@@ -23,7 +23,7 @@ src/deluge/modulation/automation/auto_param.cpp	model-calls-ui	1
 src/deluge/modulation/automation/auto_param.cpp	no-new-model-stack-in-params	32
 src/deluge/modulation/automation/auto_param.h	no-new-model-stack-in-params	20
 src/deluge/modulation/automation/record_events.h	no-new-model-stack-in-params	1
-src/deluge/modulation/automation/working_copies.cpp	no-new-model-stack-in-params	7
+src/deluge/modulation/automation/working_copies.cpp	no-new-model-stack-in-params	6
 src/deluge/modulation/midi/midi_param_collection.cpp	no-new-model-stack-in-params	19
 src/deluge/modulation/midi/midi_param_collection.h	no-new-model-stack-in-params	16
 src/deluge/modulation/params/param_collection.cpp	no-new-model-stack-in-params	4
