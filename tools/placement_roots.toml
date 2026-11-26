@@ -1,0 +1,90 @@
+# Roots of the post-link placement gate (tools/check_placement.py). Each regex must match at least one function,
+# and each prefix's cut must be found in its function, or the gate fails: a rename must never turn a rule off.
+# Patterns are matched against demangled names (GNU c++filt) with Rust's `[hash]` disambiguators removed.
+
+[pre_inflate]
+# Code that runs before the boot has inflated .sdram_init, when SDRAM holds no code.
+# Whole functions, with everything they call:
+roots = ['^rza1_cpu_fault_report$', '^_fault_report$']
+# Functions that go on past the inflate: only their calls and constants before the cut count, and their own body
+# must be in SRAM. The cut is a call (`until`, a demangled-name regex) or an instruction (`until_insn`).
+prefix = [
+  { function = '^_reset_handler$', until = '^main$' },
+  { function = '^main$', until = '^deluge_platform_device::runtime::device::start$' },
+  # boot_mem::init_sdram_memory, the pack's unpack and miniz's inflate are inlined into start; the inflate ends with
+  # its branch-predictor invalidate (BPIALL), and only C++ constructors and the executors follow.
+  { function = '^deluge_platform_device::runtime::device::start$', until_insn = 'mcr\s+p15, #0x0, r\d+, c7, c5, #0x6' },
+]
+# The inflate itself, when it is a function of its own: walked for the SDRAM rule only. Empty while LTO inlines it
+# into start, above.
+code_only = []
+
+[hot]
+# Code on a deadline: the audio and streaming tiers' tasks, the interrupt entry and every bound interrupt handler.
+# An SDRAM fetch there competes with sample streaming for the one 16-bit SDRAM bus.
+roots = [
+  '^_irq_handler$',
+  '^rza1_hal::interrupt::dispatch_to::<',
+  '^<embassy_executor::platform::interrupt::InterruptExecutor>::on_interrupt$',
+  'TaskStorage<deluge_platform_device::audio::render::__render_task_task::.*>>::poll$',
+  'TaskStorage<deluge_platform_device::storage::streaming_loader::__streaming_fill_task_task::.*>>::poll$',
+]
+
+[vtables]
+# Classes whose vtables sit in SRAM with entries in SDRAM code, accepted because only the UI tier calls through them:
+# the legacy GUI (src/deluge/gui, whose code runs from SDRAM) — its namespaced classes, and its global-namespace UIs,
+# views, browsers and automation-editor layouts, named one by one so a new global class is never admitted unseen.
+allow = [
+  '^deluge::gui::',
+  '^\(anonymous namespace\)::EmptyStackUI$',
+  '^(UI|RootUI|QwertyUI|Browser|SlotBrowser)$',
+  '^(TimelineView|ClipNavigationTimelineView|ClipView|InstrumentClipView|AudioClipView|ArrangerView|SessionView|PerformanceView|AutomationView)$',
+  '^AutomationEditorLayout(ModControllable|Note|NoteVelocity)$',
+  '^(Load|LoadInstrumentPreset|LoadMidiDeviceDefinition|LoadPattern|LoadSong)UI$',
+  '^(Save|SaveInstrumentPreset|SaveKitRow|SaveMidiDeviceDefinition|SavePattern|SaveSong)UI$',
+  '^(Rename|RenameClip|RenameMidiCC|RenameOutput)UI$',
+]
+
+# Findings on next when the gate landed, each with its reason. The list only shrinks: an entry that matches no finding
+# fails the gate, so a fixed finding's entry is deleted.
+
+# The render asks the legacy UI stack whether the sample preview or the recorder's screen is up; that code is the
+# GUI's, in SDRAM. The fix is state the render reads (base/notify), not a pin.
+[[known]]
+rule = "hot"
+function = '^getCurrentUI\(\)$'
+reason = "AudioEngine::renderSamplePreview asks the legacy UI stack which UI is open"
+
+[[known]]
+rule = "hot"
+function = '^getRootUI\(\)$'
+reason = "SampleRecorder::feedAudio asks the legacy UI stack for its root UI"
+
+[[known]]
+rule = "hot"
+function = '^deluge::gui::ui::samplePreviewUIOpen\(\)$'
+reason = "AudioEngine::renderSamplePreview asks whether the sample preview UI is open"
+
+# Interaction-tier objects whose methods the GUI's translation units define, so they run from SDRAM.
+[[known]]
+rule = "vtable"
+function = '^deluge::midi::\(anonymous namespace\)::KnobHitsOf$'
+reason = "MIDI learn's knob-hit query (any, of, the destructors), asked while handling MIDI input on the interaction tier"
+
+[[known]]
+rule = "vtable"
+function = '^deluge::storage::AsyncSampleLoad$'
+reason = "only its destructor is in SDRAM; the load object is released off the audio tier"
+
+# The modern shell's services, whose vtables stay in SRAM while their methods' copies are the GUI's. The UI's own
+# placement (scripts/layers.toml [[placement]] src/ui) moves these vtables to SDRAM.
+[[known]]
+rule = "vtable"
+function = '^deluge::ui::shell::(Notices|NullService|Screensaver|SurfaceSet)$'
+reason = "UI-tier services; their vtables move to SDRAM with the UI's placement"
+
+# Edit records whose destructors are folded onto the GUI's identical copy; edits run on the interaction tier.
+[[known]]
+rule = "vtable"
+function = '^deluge::edits::SetKit(Lane)?Setting$'
+reason = "destructors only, run when an edit record is released off the audio tier"

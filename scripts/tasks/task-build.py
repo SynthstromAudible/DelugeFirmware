@@ -296,6 +296,44 @@ def stage_artifacts(root: Path, config: str) -> int:
         f"(of {packed.reserve} B reserved)"
     )
 
+    # Code the boot runs before the inflate, or the audio, streaming and interrupt tiers run, must stay in SRAM
+    # (tools/check_placement.py). llvm-tools has no readelf or c++filt; the gcc toolchain's read the same ELF and
+    # demangle Rust's v0 names.
+    llvm_bin = next(
+        toolchain_dir(root).glob(
+            "rust/rustup/toolchains/*/lib/rustlib/*/bin/llvm-objdump"
+        ),
+        None,
+    )
+    if llvm_bin is None:
+        print(
+            "stage: no llvm-tools in the toolchain for the placement check",
+            file=sys.stderr,
+        )
+        return 1
+    tools = {
+        "objdump": llvm_bin,
+        "nm": llvm_bin.with_name("llvm-nm"),
+        "objcopy": llvm_bin.with_name("llvm-objcopy"),
+        "readelf": gcc_bin / "arm-none-eabi-readelf",
+        "cxxfilt": gcc_bin / "arm-none-eabi-c++filt",
+    }
+    placement = subprocess.run(
+        [
+            sys.executable,
+            str(root / "tools/check_placement.py"),
+            str(elf),
+            *(f"--{k}={v}" for k, v in tools.items()),
+        ],
+        check=False,
+    )
+    if placement.returncode != 0:
+        print(
+            f"stage: the placement check failed (exit {placement.returncode})",
+            file=sys.stderr,
+        )
+        return 1
+
     for fmt, suffix in (("binary", ".bin"), ("ihex", ".hex")):
         result = util.run(
             [str(objcopy), "-O", fmt, "-S", str(elf), str(out_dir / f"deluge{suffix}")]

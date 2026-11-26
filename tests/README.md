@@ -210,6 +210,7 @@ builds only `golden-vt-render`.
 | make-sample-selftest | unit | script | unit | gate | the sample golden cases' synthetic sources are what their cases assume, and the committed WAVs are their generator's output | pr | tooling | ~1s |
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
+| placement-selftest | unit | script | unit | gate | the post-link placement gate's parse, call walk, boot prefix cuts, late-statics loads, vtable entries, known findings and hot report | pr | tooling | ~1s |
 | relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | pr | tooling | ~1s |
 | compare-strings-selftest | unit | script | unit | gate | the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change | pr | tooling | ~1s |
 | stream-bench-parser | unit | script | unit | gate | the streaming benchmark host script's parsing of device captures | pr | tooling | ~1s |

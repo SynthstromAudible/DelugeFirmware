@@ -1987,6 +1987,13 @@ run = ["python3", "-m", "unittest", "test_compare_codegen"]
 requires = ["llvm-cxxfilt", "llvm-objcopy", "llvm-readelf"]
 
 [[harness]]
+name = "placement-selftest"
+template = "unittest"
+path = "tools"
+gates = "the post-link placement gate's parse, call walk, boot prefix cuts, late-statics loads, vtable entries, known findings and hot report"
+run = ["python3", "-m", "unittest", "test_check_placement"]
+
+[[harness]]
 name = "relocate-selftest"
 template = "unittest"
 path = "tools"

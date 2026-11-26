@@ -33,7 +33,7 @@ namespace {
 
 /// Read the 256-frame block at frame @p from and fold it into @p peaks. False if a cluster under it is not resident:
 /// the read has requested its fill, and the tap folds the whole cluster when it lands.
-PLACE_SDRAM_TEXT bool fold_block_from_frames(Sample& sample, DelugePeakIndex* peaks, uint64_t from) {
+bool fold_block_from_frames(Sample& sample, DelugePeakIndex* peaks, uint64_t from) {
 	constexpr uint64_t kBlockFrames = uint64_t{1} << 8;
 	const uint64_t end = std::min(from + kBlockFrames, sample.lengthInSamples);
 	const uint32_t frameBytes = sample.numChannels * sample.byteDepth;
@@ -183,7 +183,7 @@ PLACE_SDRAM_TEXT ui::views::waveform::PeakRead waveform_columns(Sample& sample, 
 	return read;
 }
 
-PLACE_SDRAM_TEXT bool advance_peak_scan(Sample& sample) {
+bool advance_peak_scan(Sample& sample) {
 	if (!sample.isLengthKnown()) {
 		return false;
 	}
