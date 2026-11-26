@@ -31,7 +31,7 @@ void KeyboardLayoutPiano::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 		if (pressed.active && pressed.x < kDisplayWidth) {
 			auto noteInterval = intervalFromCoords(pressed.x, pressed.y);
 			if (noteInterval != 0) {
-				enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
+				enableNote(noteFromCoords(pressed.x, pressed.y), velocityFor(pressed));
 			}
 		}
 	}

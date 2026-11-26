@@ -29,7 +29,7 @@ void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
 		if (pressed.active && pressed.x < kDisplayWidth) {
-			enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
+			enableNote(noteFromCoords(pressed.x, pressed.y), velocityFor(pressed));
 		}
 	}
 

@@ -26,8 +26,9 @@ void KeyboardLayoutNorns::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active) {
+			uint8_t const measured = presses[idxPress].velocity;
 			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
-			                             getDefaultVelocity());
+			                             measured != USE_DEFAULT_VELOCITY ? measured : getDefaultVelocity());
 		}
 	}
 }

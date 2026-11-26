@@ -150,6 +150,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			pressedPads[freeSlotIdx].dead = false;
 			pressedPads[freeSlotIdx].padPressHeld = false;
 			pressedPads[freeSlotIdx].timeLastPadPress = AudioEngine::audioSampleTimer;
+			pressedPads[freeSlotIdx].velocity = static_cast<uint8_t>(velocity);
 		}
 	}
 

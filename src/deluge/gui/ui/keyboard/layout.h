@@ -129,6 +129,11 @@ protected:
 public:
 	uint8_t velocity = 64;
 
+	/// The velocity a press plays at: what it was measured at (mic velocity), else the layout's
+	[[nodiscard]] uint8_t velocityFor(PressedPad const& pressed) const {
+		return pressed.velocity != USE_DEFAULT_VELOCITY ? pressed.velocity : velocity;
+	}
+
 protected:
 	NotesState currentNotesState;
 };

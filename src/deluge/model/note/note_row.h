@@ -198,7 +198,8 @@ public:
 	void calculateSquareAverages(SquareInfo& squareInfo);
 	uint8_t getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
 	                      ModelStackWithNoteRow* modelStack, bool allowNoteTails, int32_t desiredNoteLength,
-	                      Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible);
+	                      Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible,
+	                      int32_t newNoteVelocity = USE_DEFAULT_VELOCITY);
 	Error clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
 	                uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea = false);
 	void trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
