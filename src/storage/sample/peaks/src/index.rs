@@ -69,24 +69,18 @@ impl PeakIndex {
         while levels < MAX_LEVELS && capacity > 1 << shift(levels - 1) {
             levels += 1;
         }
-        let p = mem::alloc_zeroed::<PeakIndex>(1)?;
-        // SAFETY: `p` is zeroed memory for one `PeakIndex`, which `write` initialises without reading.
-        unsafe {
-            p.as_ptr().write(PeakIndex {
-                refs: AtomicU32::new(1),
-                frames: AtomicU64::new(frames),
-                is_final: AtomicBool::new(!growing),
-                levels,
-                values: [const { None }; MAX_LEVELS as usize],
-                masks: [const { None }; MAX_LEVELS as usize],
-                range: AtomicU32::new(0),
-                next_free: AtomicPtr::new(core::ptr::null_mut()),
-                #[cfg(feature = "test_support")]
-                uniform: AtomicU32::new(0),
-            });
-        }
-        // SAFETY: just initialised, and not shared yet.
-        let index = unsafe { &mut *p.as_ptr() };
+        let mut index = PeakIndex {
+            refs: AtomicU32::new(1),
+            frames: AtomicU64::new(frames),
+            is_final: AtomicBool::new(!growing),
+            levels,
+            values: [const { None }; MAX_LEVELS as usize],
+            masks: [const { None }; MAX_LEVELS as usize],
+            range: AtomicU32::new(0),
+            next_free: AtomicPtr::new(core::ptr::null_mut()),
+            #[cfg(feature = "test_support")]
+            uniform: AtomicU32::new(0),
+        };
         let mut ok = true;
         for k in 0..levels {
             let n = entries(k, capacity);
@@ -102,10 +96,12 @@ impl PeakIndex {
         }
         if !ok {
             index.free_storage();
-            mem::free(p);
             return None;
         }
-        Some(p)
+        // Moved into place only once whole: nothing reaches it before it is returned.
+        mem::alloc_init(index)
+            .map_err(|index| index.free_storage())
+            .ok()
     }
 
     /// Allocates the level-1-and-up chunks covering `[0, frames)`. Thread mode.
@@ -145,8 +141,10 @@ impl PeakIndex {
         self.frames.load(Ordering::Acquire)
     }
 
+    /// SeqCst, against `set_frames`' store: a fold that sets an end entry's last bit and a `set_frames` that makes the
+    /// entry need fewer bits each see the other's write, so one of them propagates it.
     fn final_frames(&self) -> Option<u64> {
-        self.is_final.load(Ordering::Acquire).then(|| self.frames())
+        self.is_final.load(Ordering::SeqCst).then(|| self.frames())
     }
 
     /// The bits of `(level, entry)`'s mask that make it complete: all 16 while the index grows; once it is final, the
@@ -179,16 +177,21 @@ impl PeakIndex {
         None
     }
 
+    /// Whether level-0 block `block`'s bit is set in its parent's mask.
+    fn complete_bit(&self, block: u64) -> bool {
+        self.masks[1]
+            .as_ref()
+            .and_then(|d| d.get(block >> FAN_LOG2))
+            .is_some_and(|m| m.load(Ordering::Acquire) & (1 << (block & 15)) != 0)
+    }
+
     /// Whether `(level, entry)` is complete.
     pub(crate) fn complete(&self, level: u32, entry: u64) -> bool {
         if self.uniform().is_some() {
             return true;
         }
         if level == 0 {
-            return self.masks[1]
-                .as_ref()
-                .and_then(|d| d.get(entry >> FAN_LOG2))
-                .is_some_and(|m| m.load(Ordering::Acquire) & (1 << (entry & 15)) != 0);
+            return self.complete_bit(entry);
         }
         self.masks[level as usize]
             .as_ref()
@@ -210,14 +213,24 @@ impl PeakIndex {
     }
 
     /// Completes level-0 block `block` with `peak`: keeps the value if its chunk exists, folds it into the range and
-    /// into its parent, and sets its bit. Never allocates. A block already complete is unchanged.
+    /// into its parent, and sets its bit. Never allocates. A block already complete only fills its kept value (a
+    /// column read's frames, kept for the next read); the range and the levels above have it already. A block past a
+    /// final index's end is dropped.
     pub fn fold_block(&self, block: u64, peak: Peak) {
         if peak.is_empty() {
+            return;
+        }
+        if let Some(f) = self.final_frames()
+            && block >= entries(0, f)
+        {
             return;
         }
         let e = peak.encode();
         if let Some(v) = self.values[0].as_ref().and_then(|d| d.get(block)) {
             fold_into(v, e);
+        }
+        if self.complete_bit(block) {
+            return;
         }
         fold_into(&self.range, e);
         self.complete_child(1, block >> FAN_LOG2, (block & 15) as u32, e);
@@ -237,7 +250,7 @@ impl PeakIndex {
         };
         fold_into(value, e);
         let b = 1u16 << bit;
-        let old = mask.fetch_or(b, Ordering::AcqRel);
+        let old = mask.fetch_or(b, Ordering::SeqCst); // SeqCst: see `final_frames`
         let full = self.full_mask(level, entry);
         if old != full && (old | b) == full && level + 1 < self.levels {
             let v = value.load(Ordering::Acquire);
@@ -288,7 +301,7 @@ impl PeakIndex {
         if !is_final {
             return;
         }
-        self.is_final.store(true, Ordering::Release);
+        self.is_final.store(true, Ordering::SeqCst); // SeqCst: see `final_frames`
         // The last entry of each level may now need fewer children; complete it, bottom-up, if it has them all.
         for level in 1..self.levels {
             let n = entries(level, frames);
@@ -302,7 +315,7 @@ impl PeakIndex {
             else {
                 continue;
             };
-            if mask.load(Ordering::Acquire) == self.full_mask(level, last)
+            if mask.load(Ordering::SeqCst) == self.full_mask(level, last)
                 && level + 1 < self.levels
                 && let Some(v) = self.values[level as usize]
                     .as_ref()
@@ -321,8 +334,8 @@ impl PeakIndex {
         (!p.is_empty()).then_some(p)
     }
 
-    /// The first frame of the first incomplete level-0 block at or after frame `from`, or `None` if every block from
-    /// there to the index's frames is complete.
+    /// The first frame of the first incomplete level-0 block that ends after frame `from` (so it may start up to 255
+    /// frames before it), or `None` if every block from there to the index's frames is complete.
     #[must_use]
     #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn next_unscanned(&self, from: u64) -> Option<u64> {

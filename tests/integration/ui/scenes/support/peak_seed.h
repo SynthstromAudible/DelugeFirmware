@@ -30,8 +30,8 @@
 namespace peak_seed {
 
 /// @brief Fold a fixture sample's peaks into its index: each 256-frame block whose frames all lie in clusters below
-///        `upto` holds the fold of `peak_of(c)` over the clusters `c` its frames lie in. Blocks already complete are
-///        unchanged.
+///        `upto` holds the fold of `peak_of(c)` over the clusters `c` its frames lie in. A block already complete keeps
+///        its place in the pyramid (only a kept level-0 value is filled).
 /// @param s       The sample, its index made.
 /// @param peak_of Cluster index → {min, max} at 8-bit scale.
 /// @param upto    The first cluster not folded.

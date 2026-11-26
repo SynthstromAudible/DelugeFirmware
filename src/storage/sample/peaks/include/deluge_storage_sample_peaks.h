@@ -120,7 +120,8 @@ void deluge_peaks_ensure_level0(DelugePeakIndex* index, uint64_t first, uint64_t
 void deluge_peaks_fold_frames(DelugePeakIndex* index, uint64_t first_frame, const uint8_t* bytes, uint32_t length,
                               uint8_t byte_depth, uint8_t channels) DELUGE_NOEXCEPT;
 
-/// @brief [task] [audio] Complete 256-frame block `block` with `peak`. Never allocates.
+/// @brief [task] [audio] Complete 256-frame block `block` with `peak`. Never allocates. A block already complete only
+///        fills its kept level-0 value; one past a final index's end is dropped.
 /// @param index The index; null is ignored.
 /// @param block The block: frames `[block * 256, block * 256 + 256)`, clipped to the index's end.
 /// @param peak  The block's peak.
@@ -156,7 +157,8 @@ DelugeMaybePeak deluge_peaks_range(const DelugePeakIndex* index) DELUGE_NOEXCEPT
 /// @return The frames.
 uint64_t deluge_peaks_frames(const DelugePeakIndex* index) DELUGE_NOEXCEPT;
 
-/// @brief [task] The first frame of the first incomplete block at or after `from`.
+/// @brief [task] The first frame of the first incomplete block that ends after `from` (it may start up to 255 frames
+///        before it).
 /// @param index The index; null answers UINT64_MAX.
 /// @param from  The frame to look from.
 /// @return That block's first frame, or UINT64_MAX if every block from there is complete.

@@ -35,7 +35,17 @@ pub(crate) fn alloc_zeroed<T>(n: usize) -> Option<NonNull<T>> {
     Some(p)
 }
 
-/// Frees memory from [`alloc_zeroed`].
+/// `value`, moved into memory from the installed allocator; `None` (and `value` handed back) if it fails.
+pub(crate) fn alloc_init<T>(value: T) -> Result<NonNull<T>, T> {
+    let Some(p) = alloc_zeroed::<T>(1) else {
+        return Err(value);
+    };
+    // SAFETY: `p` is writable memory for one `T`, which `write` initialises without reading.
+    unsafe { p.as_ptr().write(value) };
+    Ok(p)
+}
+
+/// Frees memory from [`alloc_zeroed`] or [`alloc_init`].
 pub(crate) fn free<T>(p: NonNull<T>) {
     let f = FREE.load(Ordering::Acquire);
     if f.is_null() {

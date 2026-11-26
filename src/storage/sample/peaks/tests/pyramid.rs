@@ -213,3 +213,45 @@ fn divides_exactly_where_a_double_quotient_rounds() {
         }
     }
 }
+
+#[test]
+fn a_complete_block_folded_again_fills_only_its_kept_value() {
+    let n = 1u64 << 16; // one level-2 entry's frames
+    let idx = make(n, false, n);
+    idx.fold_frames(0, &bytes_of(&vec![5; n as usize]), 2, 1);
+    idx.ensure_level0(0, 256);
+    // Another peak for block 0: the levels above and the range have block 0 already, and keep it.
+    idx.fold_block(
+        0,
+        Peak {
+            min: -100,
+            max: 100,
+        },
+    );
+    assert_eq!(idx.range(), Some(Peak { min: 5, max: 5 }));
+    for (a, b) in [(0u64, 4096u64), (0, n)] {
+        let got = resolve(idx.column(a, b), |_, _| Some(Peak { min: 5, max: 5 }));
+        assert_eq!(got, Some(Peak { min: 5, max: 5 }), "column [{a}, {b})");
+    }
+    // The kept value is filled from the fold.
+    assert_eq!(
+        idx.block_peak(0),
+        Some(Peak {
+            min: -100,
+            max: 100
+        })
+    );
+    done(idx);
+}
+
+#[test]
+fn a_fold_past_a_final_index_end_is_dropped() {
+    let n = 3 * 256 + 10;
+    let idx = make(n, false, n);
+    idx.fold_block(20, Peak { min: -9, max: 9 }); // past the end, inside the last level-1 entry's children
+    idx.fold_frames(0, &bytes_of(&vec![3; n as usize]), 2, 1);
+    assert_eq!(idx.next_unscanned(0), None);
+    assert_eq!(idx.range(), Some(Peak { min: 3, max: 3 }));
+    assert!(matches!(idx.column(0, n), ColumnPlan::Ready { .. }));
+    done(idx);
+}

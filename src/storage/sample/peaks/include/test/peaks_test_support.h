@@ -28,13 +28,13 @@ extern "C" {
 /// @brief Make every block of `index` complete with `peak`, for a fixture whose sample has no frames behind it.
 /// @param index The index; null is ignored.
 /// @param peak  The peak every block and the range hold.
-void deluge_peaks_fill_uniform(DelugePeakIndex* index, DelugePeak peak);
+void deluge_peaks_fill_uniform(DelugePeakIndex* index, DelugePeak peak) DELUGE_NOEXCEPT;
 
 /// @brief Widen the range by `peak` without completing any block, for a fixture drawn at a scale its peaks do not
 ///        reach.
 /// @param index The index; null is ignored.
 /// @param peak  The peak to widen the range by.
-void deluge_peaks_widen_range(DelugePeakIndex* index, DelugePeak peak);
+void deluge_peaks_widen_range(DelugePeakIndex* index, DelugePeak peak) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }
