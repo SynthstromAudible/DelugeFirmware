@@ -69,6 +69,14 @@ PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_librar
 PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
+bool KeyboardScreen::padUsesVelocity(int32_t x, int32_t y) const {
+	if (x >= kDisplayWidth) {
+		return false; // The sidebar's columns
+	}
+	KeyboardLayout* layout = layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout];
+	return layout != nullptr && layout->usesPadVelocity(x, y);
+}
+
 void KeyboardScreen::onScaleChanged() {
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering();

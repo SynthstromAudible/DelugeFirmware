@@ -155,8 +155,7 @@ public:
 
 	/// OTHER uncategorized (yet)
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
-	/// velocity: 0 for a release, else the press's velocity (USE_DEFAULT_VELOCITY: the instrument's default)
-	void editPadAction(int32_t velocity, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
+	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
 	void mutePadPress(uint8_t yDisplay);
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);
 	void recalculateColours();

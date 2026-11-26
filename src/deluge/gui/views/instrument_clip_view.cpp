@@ -2308,8 +2308,7 @@ uint8_t InstrumentClipView::getEditPadPressXDisplayOnScreen(uint8_t yDisplay) {
 	return 0; // Presumably impossible case
 }
 
-void InstrumentClipView::editPadAction(int32_t velocity, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom) {
-	bool const state = velocity != 0;
+void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom) {
 	RootUI* rootUI = getRootUI();
 
 	uint32_t squareStart = getPosFromSquare(xDisplay);
@@ -2630,7 +2629,7 @@ void InstrumentClipView::editPadAction(int32_t velocity, uint8_t yDisplay, uint8
 				    noteRow->getSquareType(squareStart, squareWidth, &firstNote, &lastNote, modelStackWithNoteRow,
 				                           clip->allowNoteTails(modelStackWithNoteRow), desiredNoteLength, action,
 				                           playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip),
-				                           isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON), velocity);
+				                           isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON));
 
 				// If error (no ram left), get out
 				if (!squareType) {

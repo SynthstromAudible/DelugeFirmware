@@ -159,9 +159,8 @@ void AutomationEditorLayoutNote::noteEditPadAction(ModelStackWithNoteRow* modelS
 
 // call instrument clip view edit pad action function to process pad press actions
 void AutomationEditorLayoutNote::recordNoteEditPadAction(int32_t x, int32_t velocity) {
-	// The velocity editor sets new notes' velocity through the default (from the pad's height), not the press's
-	instrumentClipView.editPadAction(velocity != 0 ? USE_DEFAULT_VELOCITY : 0,
-	                                 instrumentClipView.lastAuditionedYDisplay, x, currentSong->xZoom[NAVIGATION_CLIP]);
+	instrumentClipView.editPadAction(velocity, instrumentClipView.lastAuditionedYDisplay, x,
+	                                 currentSong->xZoom[NAVIGATION_CLIP]);
 }
 
 // }; // namespace deluge::gui::views::automation::editor_layout

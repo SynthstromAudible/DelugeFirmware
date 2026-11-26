@@ -395,8 +395,7 @@ void NoteRow::calculateSquareAverages(SquareInfo& squareInfo) {
 
 uint8_t NoteRow::getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
                                ModelStackWithNoteRow* modelStack, bool allowNoteTails, int32_t desiredNoteLength,
-                               Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible,
-                               int32_t newNoteVelocity) {
+                               Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible) {
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
@@ -414,9 +413,7 @@ addNewNote:
 
 		Note* newNote = notes.getElement(i);
 
-		newNote->setVelocity(newNoteVelocity != USE_DEFAULT_VELOCITY
-		                         ? newNoteVelocity
-		                         : ((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
+		newNote->setVelocity(((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
 		newNote->setLift(kDefaultLiftValue);
 
 		newNote->setProbability(getDefaultProbability());

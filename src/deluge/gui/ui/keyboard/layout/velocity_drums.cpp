@@ -52,8 +52,11 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 			continue; // save calculation time if press was on an unlit pad. Is there a way to prevent
 			          // re-rendering?
 		}
-		uint32_t velocity =
-		    (velocityFromCoords(x, y, edge_size_x, edge_size_y) >> 1); // uses bitshift to divide by two, to get 0-127
+		// velocityFromCoords is 0-255, halved to 0-127. A drum one pad wide has no room for velocities across it, so it
+		// plays at the velocity it was pressed with (mic velocity), when that was measured.
+		uint32_t velocity = (edge_size_x == 1 && presses[idx_press].velocity != USE_DEFAULT_VELOCITY)
+		                        ? presses[idx_press].velocity
+		                        : velocityFromCoords(x, y, edge_size_x, edge_size_y) >> 1;
 		// D_PRINTLN("note, velocity: %d, %d", note, velocity);
 		auto note_on_idx = currentNotesState.enableNote(note, velocity);
 		// enableNote returns `count` (>= the number of tracked notes) when the note could not be added - either
