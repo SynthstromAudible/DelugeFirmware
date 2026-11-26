@@ -268,8 +268,7 @@ LEGACY_PORT_SEAMS = (
     # (`src/ui/scenes/CMakeLists.txt`), so `Note`/`NoteRow` are not what earns this file its place
     # here -- it is `gui/views/instrument_clip_view.h`, which `src/ui/scenes` may NOT include. This is the
     # side of the wall that gets to name `instrumentClipView` itself, the same reason `shell_pad_forward.cpp`
-    # above gets to name
-    # `instrumentClipView`/`keyboardScreen`/`performanceView`. It names
+    # above gets to name `instrumentClipView`/`keyboardScreen`/`performanceView`. It names
     # `deluge::ui::scenes::menu::NoteBridge` and `deluge::ui::scenes::menu::set_note_bridge`
     # (`ui/scenes/menu/note_bridge.h`) to install the function pointers those legacy names sit behind.
     # Its HEADER (`shell_note_bridge.h`) is deliberately NOT listed: it names no `ui/scenes/` type,

@@ -36,6 +36,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
 #include "project/note_probability.h"
+#include "project/sample_marker.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/marker/marker_scene.h"
 #include "ui/scenes/menu/bind_host.h"
@@ -124,6 +125,7 @@ namespace Buttons {
 extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
 } // namespace Buttons
 
+using deluge::project::SampleMarker;
 using namespace deluge::ui::scenes;
 using deluge::ui::scenes::marker::kMarkerSceneKind;
 using deluge::ui::scenes::marker::marker_scene;
@@ -339,7 +341,7 @@ int32_t main_pads_differ(const deluge::ui::gfx::grid::PadGrid& a, const deluge::
 }
 
 /// @brief The pin of marker @p m.
-deluge::ui::views::waveform::MarkerPin pin_of(MarkerType m) {
+deluge::ui::views::waveform::MarkerPin pin_of(SampleMarker m) {
 	return marker_scene().pins()[static_cast<size_t>(m)];
 }
 
@@ -395,7 +397,7 @@ struct FakeMarkerRig {
 		return ctx;
 	}
 	/// @brief Open the editor over @p ctx on @p marker.
-	void open(const MenuContext& ctx, MarkerType marker) {
+	void open(const MenuContext& ctx, SampleMarker marker) {
 		marker_scene().open(ctx);
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
 	}
@@ -446,7 +448,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		it("writes a sound's start moved by the select encoder to the sound port, as a marker's move", _ {
 			FakeMarkerRig r;
-			r.open(r.range_context(), MarkerType::START);
+			r.open(r.range_context(), SampleMarker::START);
 			r.tick(0);
 			r.turn_select(1, 10);
 			r.tick(10);
@@ -455,7 +457,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 				const bind::test::RecordingSoundWrites::Call& call = r.fakes.host.sound_writes.calls[0];
 				expect(call.slot).to_equal(spec::FakeHostRig::kSynthSlot);
 				expect(call.cause).to_equal(bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
-				                                              .marker = static_cast<int8_t>(MarkerType::START)});
+				                                              .marker = static_cast<int8_t>(SampleMarker::START)});
 				expect(call.ranges.size()).to_equal(size_t{1});
 				if (!call.ranges.empty()) {
 					expect(call.ranges[0].zone.start).to_be_greater_than(uint64_t{0});
@@ -465,7 +467,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		it("asks the clip port to move an audio clip's start", _ {
 			FakeMarkerRig r;
-			r.open(r.clip_context(), MarkerType::START);
+			r.open(r.clip_context(), SampleMarker::START);
 			r.tick(0);
 			r.turn_select(1, 10);
 			r.tick(10);
@@ -485,7 +487,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			const deluge::project::DevicePath cursor = deluge::project::device_path::kPlayCursor;
 			expect(static_cast<int>(r.fakes.host.device.write(cursor, std::to_underlying(deluge::project::FlashCursor::OFF))))
 			    .to_equal(static_cast<int>(bind::DeviceWrite::STORED));
-			r.open(r.range_context(), MarkerType::END);
+			r.open(r.range_context(), SampleMarker::END);
 			r.tick(0);
 			r.fakes.host.waveforms.waveforms[0].position = 500;
 			expect(marker_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{15});
@@ -496,7 +498,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		it("refuses the mute column's exit while the UI port says a note auditions, and exits on it otherwise", _ {
 			FakeMarkerRig r;
-			r.open(r.range_context(), MarkerType::START);
+			r.open(r.range_context(), SampleMarker::START);
 			r.tick(0);
 			r.fakes.host.ui.auditioning_now = true;
 			r.pad(kDisplayWidth, 0, true, 10);
@@ -511,7 +513,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		it("reads the waveform once a frame, at the view's window", _ {
 			FakeMarkerRig r;
-			r.open(r.range_context(), MarkerType::START);
+			r.open(r.range_context(), SampleMarker::START);
 			r.tick(0);
 			const deluge::ui::views::waveform::Window window{.scroll = marker_scene().x_scroll(), .zoom = marker_scene().x_zoom()};
 			expect(window.zoom).to_equal(deluge::base::ceil_div(1000, deluge::ui::views::waveform::kColumns));
@@ -530,7 +532,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		it("Q13: reopens its view clamped into a shorter file swapped in under the range", _ {
 			FakeMarkerRig r;
-			r.open(r.range_context(), MarkerType::START);
+			r.open(r.range_context(), SampleMarker::START);
 			r.tick(0);
 			expect(marker_scene().x_zoom()).to_equal(deluge::base::ceil_div(1000, deluge::ui::views::waveform::kColumns));
 			bind::WaveformInfo& info = r.fakes.host.waveforms.waveforms[0].info;
@@ -566,9 +568,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("opens zoomed all the way out, on the marker SceneId::arg names", _ {
 		Rig r;
-		r.open(MarkerType::END);
+		r.open(SampleMarker::END);
 		r.tick(0);
-		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(MarkerType::END));
+		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(SampleMarker::END));
 		// Opened with no remembered view: scroll 0, zoom = max_zoom().
 		expect(static_cast<int32_t>(marker_scene().x_scroll())).to_equal(0);
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax);
@@ -577,7 +579,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("adopts the holder's remembered scroll and zoom when it has one", _ {
 		Rig r;
 		r.remembered = {.scroll = kZoomMax * 2, .zoom = kZoomMax / 2};
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax / 2);
 		expect(static_cast<int32_t>(marker_scene().x_scroll())).to_equal(kZoomMax * 2);
@@ -587,7 +589,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.audioFile = nullptr;
 		expect(MarkerScene::can(r.ctx())).to_be_false();
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		bool on_stack = false;
 		for (const deluge::ui::shell::Scene* s : r.shell.stack().scenes()) {
@@ -601,7 +603,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("moves the START marker one column per detent and writes it through", _ {
 		Rig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0);
 
@@ -617,7 +619,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("writes the same position main's selectEncoderAction writes, for the same turns", _ {
 		Rig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
@@ -632,7 +634,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
 		const uint64_t start_before = r.range->sampleHolder.startPos;
 
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
@@ -643,7 +645,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("keeps an audio clip's moved marker in its descriptor record, which a save writes, where main's moves it", _ {
 		AudioRig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
@@ -661,7 +663,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.f.clip->resumePlayback(setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip), true);
 		expect(r.f.clip->voiceSample).not_().to_be_null(); // playing before the turn
 
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
@@ -674,7 +676,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			r.shell.stack().pop(SceneKind::Null);
 		}
 		const uint64_t before = r.played().first;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(20);
 		r.turn_select(1, 30);
 		r.tick(30);
@@ -691,7 +693,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("hands a moved marker to the sound port as its source's ranges, naming the marker", _ {
 		Rig r;
 		bind::test::RecordingSoundWrites recording;
-		r.open(MarkerType::START, &recording);
+		r.open(SampleMarker::START, &recording);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
@@ -706,14 +708,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(g.ranges.size()).to_equal(size_t{1});
 		expect(static_cast<int32_t>(g.ranges[0].zone.start)).to_equal(kZoomMax);
 		expect(g.cause).to_equal(bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
-		                                           .marker = static_cast<int8_t>(MarkerType::START)});
+		                                           .marker = static_cast<int8_t>(SampleMarker::START)});
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0); // nothing but the port wrote
 	});
 
 	it("hands an audio clip's moved marker to the clip port by the clip's address", _ {
 		AudioRig r;
 		bind::test::RecordingClipWrites clip_writes;
-		r.open(MarkerType::END, &clip_writes);
+		r.open(SampleMarker::END, &clip_writes);
 		r.tick(0);
 		r.turn_select(-1, 10);
 		r.tick(10);
@@ -732,7 +734,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("counts a moved marker as editing the instrument", _ {
 		Rig r;
 		r.song.instrument->editedByUser = false;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
@@ -741,7 +743,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("remembers its view in the view-state store, not on the holder", _ {
 		Rig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.x_enc_button(true, 10);
 		r.tick(10);
@@ -803,7 +805,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		r.pad(4, 3, true, 10); // hold LOOP_START
 		r.tick(10);
@@ -811,7 +813,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(20);
 
 		(void)r.load_into(*r.range, "SAMPLES/B.WAV");
-		r.reopen(MarkerType::LOOP_START, 0);
+		r.reopen(SampleMarker::LOOP_START, 0);
 		r.tick(30);
 		expect(deluge::ui::scenes::spec::first_ranges(r.slot())[0].file_path)
 		    .to_equal(std::string{"SAMPLES/B.WAV"});
@@ -826,7 +828,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.sample->filePath = "SAMPLES/A.WAV";
 		r.range->sampleHolder.filePath = "SAMPLES/A.WAV";
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.x_enc_button(true, 10);
 		r.tick(10);
@@ -836,7 +838,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax / 2);
 
 		(void)r.load_into(*r.range, "SAMPLES/B.WAV");
-		r.reopen(MarkerType::START, 0);
+		r.reopen(SampleMarker::START, 0);
 		r.tick(300);
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax / 2);
 		expect(marker_scene().x_scroll()).to_equal(scroll);
@@ -850,7 +852,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		r.pad(4, 3, true, 10); // hold LOOP_START
 		r.tick(10);
@@ -873,14 +875,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		inserted->sampleHolder.loopStartPos = 4 * kZoomMax;
 		inserted->sampleHolder.loopEndPos = 8 * kZoomMax;
 
-		r.reopen(MarkerType::LOOP_START, 1);
+		r.reopen(SampleMarker::LOOP_START, 1);
 		r.tick(30);
 		r.turn_select(1, 40);
 		r.tick(40);
 		expect(static_cast<int32_t>(moved->sampleHolder.loopStartPos)).to_equal(5 * kZoomMax);
 		expect(static_cast<int32_t>(moved->sampleHolder.loopEndPos)).to_equal(9 * kZoomMax);
 
-		r.reopen(MarkerType::LOOP_START, 0);
+		r.reopen(SampleMarker::LOOP_START, 0);
 		r.tick(50);
 		r.turn_select(1, 60);
 		r.tick(60);
@@ -915,7 +917,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
 		expect(r.range->identity()).to_equal(identity);
 
-		r.reopen(MarkerType::LOOP_START, 0);
+		r.reopen(SampleMarker::LOOP_START, 0);
 		r.tick(30);
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax / 2);
 		r.turn_select(1, 40);
@@ -952,7 +954,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("reads the waveform's length again when the range's sample changes under it", _ {
 		Rig r;
-		r.open(MarkerType::END);
+		r.open(SampleMarker::END);
 		r.tick(0);
 		Sample* half = make_sample();
 		half->lengthInSamples = kSampleLength / 2;
@@ -996,7 +998,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// (`SampleMarkerEditor::selectEncoderAction`) refuses it outright.
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 6 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
@@ -1010,7 +1012,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 8 * kZoomMax; // END now at column 7
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
@@ -1021,7 +1023,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("clamps the END marker at the sample's length", _ {
 		Rig r;
 		r.range->sampleHolder.endPos = kSampleLength;
-		r.open(MarkerType::END);
+		r.open(SampleMarker::END);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
@@ -1034,7 +1036,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("moves the selected marker to a tapped empty column", _ {
 		Rig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.pad(6, 3, true, 10);
 		r.tick(10);
@@ -1045,12 +1047,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 10 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		// Column 9 is END's (endPos - 1 floors there).
 		r.pad(9, 3, true, 10);
 		r.tick(10);
-		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(MarkerType::END));
+		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(SampleMarker::END));
 		expect(marker_scene().holding_marker()).to_be_true();
 		// Nothing moved.
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(2 * kZoomMax);
@@ -1075,7 +1077,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		{
 			Rig r;
 			r.range->sampleHolder.startPos = 2 * kZoomMax;
-			r.open(MarkerType::START);
+			r.open(SampleMarker::START);
 			r.tick(0);
 			r.pad(2, 3, true, 10); // hold START
 			r.tick(10);
@@ -1100,7 +1102,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		}
 		{
 			Rig r;
-			r.open(MarkerType::START);
+			r.open(SampleMarker::START);
 			r.tick(0);
 			r.pad(kDisplayWidth, 0, true, 10);
 			r.tick(10);
@@ -1113,7 +1115,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.pad(2, 3, true, 10); // hold START
 		r.tick(10);
@@ -1181,7 +1183,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		const deluge::ui::gfx::grid::PadGrid old = r.fake.grid().grid();
 		r.x_enc_button(true, 10);
@@ -1252,7 +1254,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// input of the next visit, or of this one with nothing left to draw.
 		{
 		Rig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.x_enc_button(true, 10);
 		r.turn_horizontal(1, 20);
@@ -1268,7 +1270,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig q;
 		bind::test::FakeWaveforms gone = host_fake(q.address());
 		q.waveforms = &gone;
-		q.open(MarkerType::START);
+		q.open(SampleMarker::START);
 		q.tick(0);
 		q.x_enc_button(true, 10);
 		q.turn_horizontal(1, 20);
@@ -1358,7 +1360,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(110);
 		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
-		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(MarkerType::START));
+		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(SampleMarker::START));
 	});
 
 	it("jumps from SHIFT + (0,6) to its item when the root is not the automation view", _ {
@@ -1463,7 +1465,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		bind::test::FakeWaveforms playing = host_fake(r.address());
 		r.waveforms = &playing;
-		r.open(MarkerType::END);
+		r.open(SampleMarker::END);
 		r.tick(0);
 		if (marker_scene().next_timer().has_value()) {
 			expect(*marker_scene().next_timer()).to_be_greater_than(15);
@@ -1520,7 +1522,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.pad(2, 3, true, 10); // hold START (its column)
 		r.tick(10);
@@ -1529,7 +1531,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(20);
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(6 * kZoomMax);
 		expect(static_cast<int32_t>(marker_scene().marker_type()))
-		    .to_equal(static_cast<int32_t>(MarkerType::LOOP_START));
+		    .to_equal(static_cast<int32_t>(SampleMarker::LOOP_START));
 	});
 
 	it("refuses a tap and the held pad's release once a note auditions under the hold", _ {
@@ -1540,7 +1542,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.pad(2, 3, true, 10); // hold START
 		r.tick(10);
@@ -1558,7 +1560,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig q;
 		q.range->sampleHolder.startPos = 2 * kZoomMax;
 		q.range->sampleHolder.endPos = 12 * kZoomMax;
-		q.open(MarkerType::START);
+		q.open(SampleMarker::START);
 		q.tick(0);
 		currentUIMode = UI_MODE_AUDITIONING; // already sounding when START goes down
 		q.pad(2, 3, true, 10);
@@ -1580,7 +1582,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		DirectEvents d;
 		(void)d.pad(4, 3, true); // hold LOOP_START
@@ -1598,7 +1600,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		DirectEvents d;
 		(void)d.pad(2, 3, true); // hold START
@@ -1613,7 +1615,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		r.open(MarkerType::END);
+		r.open(SampleMarker::END);
 		r.tick(0);
 		DirectEvents d;
 		(void)d.pad(11, 3, true); // hold END
@@ -1627,7 +1629,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		DirectEvents d;
 		(void)d.pad(4, 3, true); // hold LOOP_START
@@ -1642,7 +1644,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		r.open(MarkerType::LOOP_END);
+		r.open(SampleMarker::LOOP_END);
 		r.tick(0);
 		DirectEvents d;
 		(void)d.pad(7, 3, true); // hold LOOP_END
@@ -1659,7 +1661,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
 		r.range->sampleHolder.loopLocked = true;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		DirectEvents d;
 		const std::vector<uint16_t> halved = popups_of(d.horizontal(-1, /*shift=*/true));
@@ -1679,7 +1681,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		DirectEvents d;
 		(void)d.pad(2, 3, true); // hold START
@@ -1695,7 +1697,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("greys at once over the keyboard screen and fades in elsewhere", _ {
 		// `SampleMarkerEditor::opened`: `if (getRootUI() == &keyboardScreen) PadLEDs::skipGreyoutFade()`.
 		Rig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		expect(marker_scene().greyout_changes_instantly()).to_be_false();
 		MenuContext c = r.ctx();
 		c.root_is_keyboard = true;
@@ -1708,21 +1710,21 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		r.pad(6, 3, true, 10); // hold LOOP_START
 		r.tick(10);
 		r.pad(2, 3, true, 20); // tap START
 		r.tick(20);
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
-		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(MarkerType::START));
+		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(SampleMarker::START));
 	});
 
 	// --- the blink ----------------------------------------------------------------------------
 
 	it("asks for a tick every blink period while the selected marker is on screen", _ {
 		Rig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		expect(marker_scene().next_timer().has_value()).to_be_true();
 		expect(static_cast<int32_t>(marker_scene().next_timer().value_or(0)))
@@ -1747,7 +1749,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// A remembered view zoomed right in, a long way to the right of the START marker: at zoom
 		// 1024 and scroll 100000, START (sample 0) is at column -98.
 		r.remembered = {.scroll = 100000, .zoom = 1024};
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		expect(static_cast<int32_t>(marker_scene().x_scroll())).to_equal(100000);
 		expect(marker_scene().next_timer().has_value()).to_be_false();
@@ -1764,7 +1766,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		const std::string phase0 = r.fake.state();
 
@@ -1803,28 +1805,38 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("draws the marker's own title, and the loop-lock badge only when the loop is locked", _ {
 		Rig r;
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		const std::string unlocked = r.oled();
 
 		r.range->sampleHolder.loopStartPos = 5 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
 		r.range->sampleHolder.loopLocked = true;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(10);
 		const std::string locked = r.oled();
 		expect(unlocked).not_().to_equal(locked);
 	});
 
+	it("mirrors each marker of a reversed sample onto its partner", _ {
+		using deluge::ui::scenes::marker::mirrored;
+		expect(std::to_underlying(mirrored(SampleMarker::START))).to_equal(std::to_underlying(SampleMarker::END));
+		expect(std::to_underlying(mirrored(SampleMarker::END))).to_equal(std::to_underlying(SampleMarker::START));
+		expect(std::to_underlying(mirrored(SampleMarker::LOOP_START)))
+		    .to_equal(std::to_underlying(SampleMarker::LOOP_END));
+		expect(std::to_underlying(mirrored(SampleMarker::LOOP_END)))
+		    .to_equal(std::to_underlying(SampleMarker::LOOP_START));
+	});
+
 	it("labels a reversed sample's START marker 'End point', as reverseRemap does", _ {
 		Rig r;
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		const std::string forwards = r.oled();
 
 		deluge::test::set(*r.sound->state_, "osc1/reversed", "1");
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(10);
 		const std::string reversed = r.oled();
 		expect(forwards).not_().to_equal(reversed);
@@ -1832,7 +1844,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// ...and it is the same picture the END marker draws forwards, which is the actual claim.
 		deluge::test::set(*r.sound->state_, "osc1/reversed", "0");
 		r.range->sampleHolder.endPos = 3 * kZoomMax;
-		r.open(MarkerType::END);
+		r.open(SampleMarker::END);
 		r.tick(20);
 		expect(reversed).to_equal(r.oled());
 	});
@@ -1854,7 +1866,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 10 * kZoomMax;
 		r.range->sampleHolder.endPos = 14 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		// Main's `renderMainPads` draws the waveform underneath its `renderColumn` and `renderMarkerInCol`, so this
 		// compares the blend rather than the overlay on black.
@@ -1871,7 +1883,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
 		r.range->sampleHolder.loopEndPos = 4 * kZoomMax + 2;
 		r.range->sampleHolder.endPos = 4 * kZoomMax + 3;
-		r.open(MarkerType::LOOP_END);
+		r.open(SampleMarker::LOOP_END);
 		r.tick(0);
 		expect_pads_match(self, r, "marker_shared_column_0");
 	});
@@ -1885,7 +1897,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
 		r.range->sampleHolder.loopEndPos = 4 * kZoomMax + 2;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		expect_pads_match(self, r, "marker_three_share_0");
 	});
@@ -1900,7 +1912,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
 		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
 		r.range->sampleHolder.endPos = 13 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		for (int32_t phase = 0; phase < 4; phase++) {
 			r.tick(static_cast<uint32_t>(phase) * marker::kBlinkPhaseMs);
 			expect(static_cast<int32_t>(marker_scene().blink_phase())).to_equal(phase);
@@ -1921,7 +1933,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("moves the marker to the column main's padAction moves it to", _ {
 		Rig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.pad(6, 3, true, 10);
 		r.tick(10);
@@ -1933,14 +1945,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 10 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.pad(9, 3, true, 10); // column 9 is END's
 		r.tick(10);
-		const MarkerType ported = marker_scene().marker_type();
+		const SampleMarker ported = marker_scene().marker_type();
 		const bool ported_holding = marker_scene().holding_marker();
 		expect(static_cast<int64_t>(ported)).to_equal(frozen_number("pad_select", "marker"));
-		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(MarkerType::END));
+		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(SampleMarker::END));
 		// Main's `UI_MODE_HOLDING_SAMPLE_MARKER` is what the scene's `holding_marker()` replaces.
 		expect(int64_t{ported_holding ? 1 : 0}).to_equal(frozen_number("pad_select", "holding"));
 		expect(ported_holding).to_be_true();
@@ -1950,16 +1962,16 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.pad(2, 3, true, 10); // hold START's own column
 		r.tick(10);
 		r.pad(6, 3, true, 20); // tap column 6
 		r.tick(20);
-		const MarkerType ported_marker = marker_scene().marker_type();
+		const SampleMarker ported_marker = marker_scene().marker_type();
 		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("add_loop_start", "markers"));
 		expect(static_cast<int64_t>(ported_marker)).to_equal(frozen_number("add_loop_start", "marker"));
-		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(MarkerType::LOOP_START));
+		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(SampleMarker::LOOP_START));
 	});
 
 	it("removes the loop start where main's hold-and-tap removes it", _ {
@@ -1967,17 +1979,17 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		r.pad(6, 3, true, 10); // hold LOOP_START
 		r.tick(10);
 		r.pad(2, 3, true, 20); // tap START
 		r.tick(20);
-		const MarkerType ported_marker = marker_scene().marker_type();
+		const SampleMarker ported_marker = marker_scene().marker_type();
 		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("remove_loop_start", "markers"));
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
 		expect(static_cast<int64_t>(ported_marker)).to_equal(frozen_number("remove_loop_start", "marker"));
-		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(MarkerType::START));
+		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(SampleMarker::START));
 	});
 
 	it("removes the loop end where main's hold-and-tap removes it", _ {
@@ -1988,17 +2000,17 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		r.open(MarkerType::LOOP_END);
+		r.open(SampleMarker::LOOP_END);
 		r.tick(0);
 		r.pad(7, 3, true, 10); // hold LOOP_END (`(pos - 1) / zoom` floors to 7)
 		r.tick(10);
 		r.pad(11, 3, true, 20); // tap END's own column
 		r.tick(20);
-		const MarkerType ported_marker = marker_scene().marker_type();
+		const SampleMarker ported_marker = marker_scene().marker_type();
 		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("remove_loop_end", "markers"));
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopEndPos)).to_equal(0);
 		expect(static_cast<int64_t>(ported_marker)).to_equal(frozen_number("remove_loop_end", "marker"));
-		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(MarkerType::END));
+		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(SampleMarker::END));
 	});
 
 	it("toggles the loop lock where main's hold-and-tap toggles it", _ {
@@ -2008,7 +2020,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		r.pad(4, 3, true, 10); // hold LOOP_START
 		r.tick(10);
@@ -2028,7 +2040,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.x_enc_button(true, 10);
 		r.tick(10);
@@ -2091,7 +2103,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.startPos = 0;
 		r.range->sampleHolder.endPos = kSampleLength;
 		r.remembered = {.scroll = 8 * (kZoomMax / 4), .zoom = kZoomMax / 4};
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		r.turn_horizontal(1, 10);
 		r.tick(10);
@@ -2104,7 +2116,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		// The full 128x48 panel, title rows included: `OLED_MAIN_TOPMOST_PIXEL` is 5 and main offsets its own drawing
 		// by it, so the faceplate rows are blank on both sides and there is nothing to normalise away.
@@ -2120,7 +2132,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 5 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
 		r.range->sampleHolder.loopLocked = true;
-		r.open(MarkerType::LOOP_END);
+		r.open(SampleMarker::LOOP_END);
 		r.tick(0);
 		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_loop_locked"));
 	});
@@ -2132,7 +2144,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		deluge::test::set(*r.sound->state_, "osc1/reversed", "1");
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_reversed"));
 		deluge::test::set(*r.sound->state_, "osc1/reversed", "0");
@@ -2147,13 +2159,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
 		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
 		r.remembered = {.scroll = int64_t{1} << 31, .zoom = int64_t{1} << 20};
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		expect(marker_scene().x_scroll()).to_equal(int64_t{1} << 31);
 		expect(marker_scene().x_zoom()).to_equal(int64_t{1} << 20);
-		expect(pin_of(MarkerType::START).column).to_equal(std::optional<int64_t>{0});            // floor(7 / 2^20)
-		expect(pin_of(MarkerType::END).column).to_equal(std::optional<int64_t>{2048});           // floor((2^31 + 4) / 2^20)
-		expect(pin_of(MarkerType::START).position).to_equal(static_cast<int64_t>((uint64_t{1} << 31) + 7));
+		expect(pin_of(SampleMarker::START).column).to_equal(std::optional<int64_t>{0});            // floor(7 / 2^20)
+		expect(pin_of(SampleMarker::END).column).to_equal(std::optional<int64_t>{2048});           // floor((2^31 + 4) / 2^20)
+		expect(pin_of(SampleMarker::START).position).to_equal(static_cast<int64_t>((uint64_t{1} << 31) + 7));
 	});
 
 	it("Q23: writes an end marker pressed past 2^31 frames at its own position", _ {
@@ -2164,7 +2176,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
 		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
 		r.remembered = {.scroll = int64_t{1} << 31, .zoom = int64_t{1} << 20};
-		r.open(MarkerType::END, &recording);
+		r.open(SampleMarker::END, &recording);
 		r.tick(0);
 		r.pad(15, 3, true, 10);
 		r.pad(15, 3, false, 12);
@@ -2186,9 +2198,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
 		r.range->sampleHolder.loopEndPos = static_cast<uint32_t>(kScroll + 3 * kZoom); // column 2
 		r.remembered = {.scroll = kScroll, .zoom = kZoom};
-		r.open(MarkerType::LOOP_END, &recording);
+		r.open(SampleMarker::LOOP_END, &recording);
 		r.tick(0);
-		expect(pin_of(MarkerType::LOOP_END).column).to_equal(std::optional<int64_t>{2});
+		expect(pin_of(SampleMarker::LOOP_END).column).to_equal(std::optional<int64_t>{2});
 		r.turn_select(1, 10);
 		r.tick(10);
 		expect(recording.calls.size()).to_equal(size_t{1});
@@ -2208,7 +2220,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		services::view_state().set_sample_view(
 		    {.kind = services::ViewKey::Kind::AUDIO_CLIP, .id = deluge::project::ClipAddress{r.f.clip->id()}.clip_id},
 		    {.scroll = 9, .zoom = kZoom});
-		r.open(MarkerType::START, &clip_writes);
+		r.open(SampleMarker::START, &clip_writes);
 		r.tick(0);
 		expect(marker_scene().x_scroll()).to_equal(int64_t{9});
 		expect(marker_scene().x_zoom()).to_equal(kZoom);
@@ -2228,7 +2240,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
 		r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
 		r.remembered = {.scroll = int64_t{1} << 31, .zoom = int64_t{1} << 20};
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		deluge::ui::test::Rig48 reference;
 		deluge::ui::widgets::oled::title(reference.frame, "Start point");
@@ -2254,10 +2266,10 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopLocked = true;
 		// 64 frames a column, the loop start 40 frames into column 0 and its end in column 2.
 		r.remembered = {.scroll = int64_t{kLoopStart} - 40, .zoom = 64};
-		r.open(MarkerType::LOOP_START, &recording);
+		r.open(SampleMarker::LOOP_START, &recording);
 		r.tick(0);
-		expect(pin_of(MarkerType::LOOP_START).column).to_equal(std::optional<int64_t>{0});
-		expect(pin_of(MarkerType::LOOP_END).column).to_equal(std::optional<int64_t>{2});
+		expect(pin_of(SampleMarker::LOOP_START).column).to_equal(std::optional<int64_t>{0});
+		expect(pin_of(SampleMarker::LOOP_END).column).to_equal(std::optional<int64_t>{2});
 		r.turn_select(1, 10); // to 2^32 - 76, whose locked end would be 2^32 + 14
 		r.tick(10);
 		expect(recording.calls.size()).to_equal(size_t{1});
@@ -2280,7 +2292,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			r.range->sampleHolder.startPos = (uint64_t{1} << 31) + 7;
 			r.range->sampleHolder.endPos = (uint64_t{1} << 32) + 5;
 			r.remembered = {.scroll = scroll, .zoom = zoom};
-			r.open(MarkerType::START);
+			r.open(SampleMarker::START);
 			r.tick(0);
 			r.x_enc_button(true, 10);
 			r.tick(10);
@@ -2305,7 +2317,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Counted counted;
 		Rig r;
 		r.waveforms = &counted;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		const deluge::ui::gfx::grid::PadGrid first = r.fake.grid().grid();
 		r.tick(200); // the blink's next phase draws again
@@ -2319,7 +2331,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		pending.waveforms[0].pending.set(3);
 		pending.waveforms[0].pending_reads = 1;
 		r.waveforms = &pending;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		expect(pending.reads.size()).to_equal(size_t{1});
 		for (uint8_t y = 0; y < kDisplayHeight; y++) {
@@ -2341,10 +2353,10 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("Q29: draws a re-entry's first frame from the peaks the sample's index keeps", _ {
 		Rig r;
-		r.open(MarkerType::START);
+		r.open(SampleMarker::START);
 		r.tick(0);
 		const deluge::ui::gfx::grid::PadGrid last = r.fake.grid().grid();
-		r.reopen(MarkerType::START, 0);
+		r.reopen(SampleMarker::START, 0);
 		r.tick(300);
 		expect(main_pads_differ(last, r.fake.grid().grid())).to_equal(0);
 	});
@@ -2354,14 +2366,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("draws the start point on a 48-row panel", _ {
 			Rig r;
 			r.range->sampleHolder.startPos = 3 * kZoomMax;
-			r.open(MarkerType::START);
+			r.open(SampleMarker::START);
 			r.tick(0);
 			expect_golden(self, "ui/scenes/marker_start_48.pbm", r.fake.pbm(0));
 		});
 	it("draws the start point on a 64-row panel", _ {
 			Rig r64{board_64(), profile_64()};
 			r64.range->sampleHolder.startPos = 3 * kZoomMax;
-			r64.open(MarkerType::START);
+			r64.open(SampleMarker::START);
 			r64.tick(0);
 			expect_golden(self, "ui/scenes/marker_start_64.pbm", r64.fake.pbm(0));
 		});
@@ -2371,7 +2383,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			r.range->sampleHolder.loopStartPos = 5 * kZoomMax;
 			r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
 			r.range->sampleHolder.loopLocked = true;
-			r.open(MarkerType::LOOP_END);
+			r.open(SampleMarker::LOOP_END);
 			r.tick(0);
 			expect_golden(self, "ui/scenes/marker_loop_locked_48.pbm", r.fake.pbm(0));
 		});
@@ -2381,7 +2393,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			r64.range->sampleHolder.loopStartPos = 5 * kZoomMax;
 			r64.range->sampleHolder.loopEndPos = 9 * kZoomMax;
 			r64.range->sampleHolder.loopLocked = true;
-			r64.open(MarkerType::LOOP_END);
+			r64.open(SampleMarker::LOOP_END);
 			r64.tick(0);
 			expect_golden(self, "ui/scenes/marker_loop_locked_64.pbm", r64.fake.pbm(0));
 		});
@@ -2392,7 +2404,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 10 * kZoomMax;
 		r.range->sampleHolder.endPos = 14 * kZoomMax;
-		r.open(MarkerType::LOOP_START);
+		r.open(SampleMarker::LOOP_START);
 		r.tick(0);
 		expect_golden(self, "ui/scenes/marker_pads.state", r.fake.state());
 	});

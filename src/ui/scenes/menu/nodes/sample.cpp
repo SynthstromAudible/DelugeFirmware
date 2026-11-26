@@ -29,22 +29,23 @@
 #include "ui/scenes/profile.h"
 #include "ui/scenes/recorder/recorder_scene.h" // AudioRecorderItem::on_focus opens this
 
-#include "definitions_cxx.hpp" // MarkerType
+#include "project/sample_marker.h"
+
 #include "ui/shell/profile.h"
 #include "ui/widgets/oled/text.h"
+#include <utility>
 
 namespace deluge::ui::scenes::menu::nodes {
 
 namespace {
 
-// `nodes/sample.h` builds the five `MarkerItem`s from raw `uint16_t` literals, because including
-// `definitions_cxx.hpp`'s `MarkerType` there would put it in the include closure of every table
-// that names one of these items. Those literals are only correct while `MarkerType` keeps its
-// current numbering, so the numbering is pinned here, in the translation unit that already sees
-// both -- exactly what `context_menu_items.cpp` does for `DescriptorId`. Renumber the enum and this
-// fires, instead of five menu items silently opening on the wrong marker.
-static_assert(static_cast<int16_t>(MarkerType::START) == 0);
-static_assert(static_cast<int16_t>(MarkerType::END) == 3);
+// `nodes/sample.h` builds the five `MarkerItem`s from raw `uint16_t` literals: the `Node` tables are
+// `inline constexpr` in headers every table includes, and a literal keeps the marker word out of all of them. Those
+// literals are only correct while `project::SampleMarker` keeps its numbering, so the numbering is pinned here --
+// exactly what `context_menu_items.cpp` does for `DescriptorId`. Renumber the enum and this fires, instead of five menu
+// items silently opening on the wrong marker.
+static_assert(std::to_underlying(deluge::project::SampleMarker::START) == 0);
+static_assert(std::to_underlying(deluge::project::SampleMarker::END) == 3);
 
 /// @brief The `BrowserId` the two file selectors open, as the `uint16_t` a `SceneId::arg` carries.
 constexpr uint16_t kSampleBrowserArg = static_cast<uint16_t>(browser::BrowserId::Sample);
