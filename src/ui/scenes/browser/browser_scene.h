@@ -636,7 +636,7 @@ private:
 	void request_open();
 	/// @brief Fill in the fields every request of this scene's shares (extensions, flags). The
 	///        opening listing adds the default directory itself (`request_open`).
-	/// @param action Which listing.
+	/// @param step Which listing.
 	/// @return The request, ready for `file_request`.
 	bind::ListingSpec make_request(bind::ListingStep step) const;
 	/// @brief Try to dispatch @p req now; keep it for the next tick if the seam refuses.

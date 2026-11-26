@@ -4,6 +4,8 @@
 #include "storage/storage_manager.h"
 #include "util/string.h"
 
+#include <cstddef>
+#include <new>
 #include <string>
 
 namespace deluge::gui::shell_host {
@@ -18,7 +20,9 @@ using deluge::ui::scenes::bind::ListingStep;
 using deluge::ui::scenes::bind::SearchFrom;
 using deluge::ui::scenes::bind::SearchHit;
 
+/// @brief `FileKinds::AUDIO`'s extensions, NULL-terminated as `readFileItemsForFolder` takes them.
 char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
+/// @brief `FileKinds::SYX`'s extension, NULL-terminated as `readFileItemsForFolder` takes it.
 char const* kSyxExtensions[] = {"SYX", nullptr};
 
 /// @return The extension list `readFileItemsForFolder` takes for @p kinds.
@@ -188,8 +192,11 @@ private:
 } // namespace
 
 deluge::ui::scenes::bind::Catalogue& catalogue() {
-	static HostCatalogue catalogue;
-	return catalogue;
+	// Never destroyed: a scene's listing seam, itself a static, may hand its claim back from a destructor that runs
+	// after this function's statics are gone.
+	alignas(HostCatalogue) static std::byte storage[sizeof(HostCatalogue)];
+	static HostCatalogue* const catalogue = new (storage) HostCatalogue;
+	return *catalogue;
 }
 
 } // namespace deluge::gui::shell_host

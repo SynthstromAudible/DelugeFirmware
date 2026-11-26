@@ -103,8 +103,8 @@
 ///    itself between `take_result()` and its next render; the seam takes no `Song` so it cannot be
 ///    the place that quietly reintroduces the global.
 /// 2. **Selection, scroll and text state.** `fileIndexSelected`, `scrollPosVertical`, `enteredText`
-///    and the `renderUIsForOled()` calls stay with the scene. `ListingResult` carries the two facts
-///    a caller cannot re-derive (`entered_text`, `file_index`) and nothing else.
+///    and the `renderUIsForOled()` calls stay with the scene. `ListingResult` carries the one fact
+///    a caller cannot re-derive (`entered_text`) and nothing else.
 ///
 /// @par Honesty about what a host spec can prove
 ///
@@ -281,10 +281,11 @@ public:
 	/// @param dispatch The new dispatcher; same contract as the constructor's.
 	void set_dispatch(Dispatch dispatch);
 
-	/// @brief Point the seam at the catalogue it lists into. With none, every `request()` is `Dropped`.
+	/// @brief Point the seam at the catalogue it lists into. With none, every `request()` is `Dropped` and announces
+	///        nothing: a browser opened with no catalogue keeps its request and shows an empty folder.
 	/// @warning Changing the catalogue asserts the seam is `Idle`, as `set_dispatch` does: a pending op or an
-	/// uncollected
-	///          result belongs to the catalogue it was made on. Setting the one already set changes nothing.
+	///          uncollected result belongs to the catalogue it was made on. Setting the one already set changes
+	///          nothing.
 	/// @param catalogue The catalogue, or null; it must outlive the seam's use of it.
 	void set_catalogue(bind::Catalogue* catalogue);
 

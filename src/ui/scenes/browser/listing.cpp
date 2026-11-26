@@ -53,10 +53,9 @@ Listing::~Listing() {
 	       && "a Listing was destroyed with a listing in flight -- the dispatched owner op still "
 	          "holds `this`; own a Listing as a scene member, never on a stack frame");
 
-	if (state != State::InFlight && catalogue_ != nullptr) {
-		// Not in flight: if this instance was holding the catalogue (an uncollected `Ready`),
-		// hand it back, or every later listing -- this layer's or legacy's -- is refused forever.
-		// `release` is a no-op for a non-claimant, so this needs no state test of its own.
+	if (state == State::Ready && catalogue_ != nullptr) {
+		// An uncollected result still holds the catalogue: hand it back, or every later listing -- this layer's
+		// or legacy's -- is refused forever. An idle seam holds no claim, so it calls nothing.
 		catalogue_->release(this);
 	}
 	// In flight and past the assert (a release build): the owner is deliberately NOT released. A
