@@ -239,7 +239,8 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		std::vector<deluge::synth::SourceRange> ranges =
 		    deluge::ui::scenes::spec::first_ranges(slot);
 		ranges[0].zone.end = 100000;
-		const bind::RangesCause marker{.kind = bind::RangesCause::Kind::MARKER, .marker = 0};
+		const bind::RangesCause marker{.kind = bind::RangesCause::Kind::MARKER,
+		                               .marker = deluge::project::SampleMarker::START};
 		report("synth", 0, "marker", time_requests([&](int32_t i) {
 			       ranges[0].zone.start = (i % 2) != 0 ? 1000 : 2000;
 			       (void)deluge::gui::shell_host::host_ports().sound_writes->write_ranges(slot, 0, ranges, marker);

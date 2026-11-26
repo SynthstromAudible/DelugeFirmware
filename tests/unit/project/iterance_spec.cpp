@@ -82,7 +82,8 @@ describe iterance_spec_body("project::Iterance", ${
 		}
 	});
 
-	it("plays the first repeat, the last, or each repeat whose step plays", _ {
+	it("plays every repeat for OFF, the first, the last, or each repeat whose step plays", _ {
+		expect(deluge::project::kIteranceOff.passes(5, false)).to_equal(true);
 		expect(deluge::project::kIteranceFirst.passes(0, false)).to_equal(true);
 		expect(deluge::project::kIteranceFirst.passes(1, true)).to_equal(false);
 		expect(deluge::project::kIteranceLast.passes(5, true)).to_equal(true);

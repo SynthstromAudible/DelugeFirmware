@@ -37,7 +37,7 @@ describe scenes_l10n_bridge("scenes::l10n_bridge", $ {
 	});
 
 	it("every Error value yields a non-empty string, the one l10n::error_message gives", _ {
-		for (int16_t code = 0; code <= static_cast<int16_t>(Error::LISTING_DEFERRED); code++) {
+		for (int16_t code = 0; code < static_cast<int16_t>(deluge::kErrorCount); code++) {
 			const std::string ported(ui::scenes::error_lookup(code));
 			const std::string mapped(l10n::error_message(static_cast<Error>(code)));
 			expect(ported.empty()).to_be_false();

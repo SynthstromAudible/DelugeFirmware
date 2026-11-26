@@ -6,9 +6,6 @@
 # product, built into build/host-app). Nothing links here: the harnesses' build
 # scripts archive these objects.
 
-# 3.27: src/ui/scenes/CMakeLists.txt (added through src/ui) links deluge_app via
-# $<COMPILE_ONLY:...> to take its usage requirements without archiving its objects into
-# libdeluge_ui_scenes.a -- that generator expression needs CMake >= 3.27.
 cmake_minimum_required(VERSION 3.27)
 
 # ---------------------------------------------------------------------------

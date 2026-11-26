@@ -16,20 +16,18 @@
  */
 
 #include "sequence/iterance_migration.h"
-#include "definitions_cxx.hpp"
 #include "project/iterance.h"
 #include "project/note_probability.h"
-#include "util/lookuptables/preset_tables.h"
 #include <cstdint>
 
 using deluge::project::Iterance;
 
 Iterance iteranceFromLegacyProbabilityByte(int32_t probability) {
 	// The old preset index (1-based) is encoded as probability - deluge::project::kProbabilityValueCount.
-	// FIRST and LAST were prepended to deluge::project::kIterancePresets[], so the old index N now sits at
-	// array position N+1 (i.e. +2 for the prepend, -1 for 0-based indexing = net +1).
+	// deluge::project::kIterancePresets[] opens with FIRST and LAST, so the old index N sits at array position N+1
+	// (+2 for FIRST and LAST, -1 for 0-based indexing).
 	int32_t idx = probability - deluge::project::kProbabilityValueCount + 1;
-	// Defensive guard: idx should be 2..36 for any valid C1.2 file (old deluge::project::kIterancePresetCount=35).
+	// Defensive guard: idx is 2..36 for any valid C1.2 file, whose presets numbered 35.
 	if (idx < 2 || idx >= deluge::project::kIterancePresetCount) {
 		return deluge::project::kIteranceOff;
 	}

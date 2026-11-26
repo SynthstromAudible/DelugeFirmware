@@ -27,8 +27,8 @@
 // the probability field as (deluge::project::kProbabilityValueCount + legacyPresetIndex) where
 // legacyPresetIndex ran from 1 ("1 of 2") to 35 ("8 of 8").
 //
-// Commit 3ce3d41d prepended FIRST and LAST to deluge::project::kIterancePresets[], shifting every
-// subsequent preset's array index by +2.  This function applies that correction.
+// deluge::project::kIterancePresets[] opens with FIRST and LAST, so each legacy preset sits two entries later than its
+// legacy index. This function applies that correction.
 deluge::project::Iterance iteranceFromLegacyProbabilityByte(int32_t probability);
 
 // Decodes an iterance value from the old early-1.3-nightly preset-index encoding.

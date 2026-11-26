@@ -238,7 +238,7 @@ private:
 	/// @brief `SampleMarkerEditor::writeValue`.
 	/// @param value The new position, in samples, at least 0. A record that stores less than 64 bits takes it
 	///              clamped to what it stores.
-	/// @param which Which marker to write, or `NOT_AVAILABLE` for the selected one.
+	/// @param which Which marker to write; nullopt for the selected one.
 	void write_value(int64_t value, std::optional<project::SampleMarker> which = std::nullopt);
 	/// @brief `SampleMarkerEditor::selectEncoderAction`.
 	/// @param offset Signed detents.
@@ -378,8 +378,8 @@ private:
 	/// @note **Two different widths decide "on screen" in this scene, and they can disagree.**
 	///       This one is `render_grid`'s `main.bounds().w` -- the frame it was actually given. The
 	///       *scroll* and *hit-test* arms (`select_encoder`'s `old_col >= 0 && old_col <
-	///       kDisplayWidth`, `pad_action`'s column tests, and `pins()`' unset markers)
-	///       use `kDisplayWidth`, because they are transcriptions of legacy, which has
+	///       kMainCols`, `pad_action`'s column tests, and `pins()`' unset markers)
+	///       use `kMainCols`, the Deluge grid's main width, because they are transcriptions of legacy, which has
 	///       only that constant. On every shipped board the two are both 16 and the question does
 	///       not arise; on a wider grid the blink would follow the frame while scrolling followed
 	///       the constant. Deliberately not unified here: making the scroll arms read a width the

@@ -25,9 +25,9 @@ describe scenes_link("the scenes library with no app", ${
 			++registered;
 			expect(static_cast<std::size_t>(scene->kind())).to_equal(i);
 		}
-		// The menu, the browser, the context menu, rename, the marker editor, the recorder, the slicer, the audio clip
-		// and the three overlays.
-		expect(registered).to_be_greater_than(std::size_t{10});
+		// The menu, rename, the context menu, the browser, the marker editor, the recorder, the slicer, the audio clip
+		// and the three overlays (the param popup, the count-in and the screensaver).
+		expect(registered).to_equal(std::size_t{11});
 	});
 });
 // clang-format on

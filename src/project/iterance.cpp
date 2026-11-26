@@ -8,6 +8,9 @@ namespace deluge::project {
 
 bool Iterance::passes(uint32_t repeat, bool ending) const {
 	if (divisor == 0) {
+		if (steps.none()) {
+			return true; // OFF: every repeat
+		}
 		return steps == kIteranceFirst.steps ? repeat == 0 : ending;
 	}
 	const auto step = base::divide(int64_t{repeat}, int64_t{divisor}).remainder;

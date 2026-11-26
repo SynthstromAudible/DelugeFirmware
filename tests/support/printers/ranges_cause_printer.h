@@ -37,7 +37,7 @@ namespace deluge::ui::scenes::bind {
 /// @param c The cause.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const RangesCause& c) {
-	return os << std::format("{{kind {}, marker {}}}", std::to_underlying(c.kind), c.marker);
+	return os << std::format("{{kind {}, marker {}}}", std::to_underlying(c.kind), std::to_underlying(c.marker));
 }
 
 } // namespace deluge::ui::scenes::bind

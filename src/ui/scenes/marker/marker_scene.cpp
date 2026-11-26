@@ -452,9 +452,8 @@ void MarkerScene::write_value(int64_t value, std::optional<SampleMarker> marker)
 	else if (which == SampleMarker::END) {
 		range.zone.end = static_cast<uint64_t>(value);
 	}
-	(void)ctx_.ports.sound_writes->write_ranges(
-	    where_.slot, where_.source, ranges,
-	    {.kind = bind::RangesCause::Kind::MARKER, .marker = static_cast<int8_t>(which)});
+	(void)ctx_.ports.sound_writes->write_ranges(where_.slot, where_.source, ranges,
+	                                            {.kind = bind::RangesCause::Kind::MARKER, .marker = which});
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -474,7 +473,7 @@ void MarkerScene::select_encoder(int32_t offset) {
 	int64_t new_col = set ? old_col + offset : old_col;
 
 	// Make sure we don't drive one marker into the other
-	for (int32_t c = 0; c < kSampleMarkerCount; c++) {
+	for (int32_t c = 0; c < static_cast<int32_t>(kSampleMarkerCount); c++) {
 		if (c == idx(marker_type_)) {
 			continue;
 		}

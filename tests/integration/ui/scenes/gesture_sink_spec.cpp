@@ -4,6 +4,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/host_ports.h"
+#include "project/sample_marker.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/bind/target.h"
 #include "ui/scenes/menu/context.h"
@@ -191,7 +192,7 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		synth.instrument->editedByUser = false;
 		expect(deluge::gui::shell_host::host_ports().sound_writes->write_ranges(slot, 0, ranges,
 		                                            {.kind = bind::RangesCause::Kind::MARKER,
-		                                             .marker = static_cast<int8_t>(MarkerType::START)}))
+		                                             .marker = deluge::project::SampleMarker::START}))
 		    .to_be_true();
 		expect(synth.instrument->editedByUser).to_be_true();
 		expect(deluge::ui::scenes::spec::first_ranges(slot)[0].zone.start).to_equal(uint64_t{100});

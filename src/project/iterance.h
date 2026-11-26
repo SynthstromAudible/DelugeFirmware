@@ -31,8 +31,8 @@ struct Iterance {
 	/// @brief Whether a note with this iterance plays on a repeat.
 	/// @param repeat Which repeat of the clip this is, counting from 0.
 	/// @param ending Whether this repeat is the clip's last.
-	/// @return For a first or last iterance, whether @p repeat is the first or the repeat is @p ending; otherwise
-	///         whether the cycle's step for @p repeat plays.
+	/// @return True for OFF; for a first or last iterance, whether @p repeat is the first or the repeat is @p ending;
+	///         otherwise whether the cycle's step for @p repeat plays.
 	[[nodiscard]] bool passes(uint32_t repeat, bool ending) const;
 
 	/// @brief The packed form a song stores.
@@ -56,7 +56,8 @@ struct Iterance {
 	[[nodiscard]] static constexpr Iterance from_preset_index(int32_t index);
 };
 
-// Notes and note rows hold an Iterance by value, so its layout is part of theirs.
+// Notes and note rows hold an Iterance by value, so its layout is part of theirs: a divisor byte and a bitset<8>, which
+// the standard library stores in one unsigned long. A change here is a change to every note's size.
 static_assert(sizeof(Iterance) == 2 * sizeof(unsigned long), "Iterance is a divisor byte and a bitset<8>, padded");
 
 /// Plays every repeat: no iterance.

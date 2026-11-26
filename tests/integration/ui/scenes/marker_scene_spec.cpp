@@ -457,7 +457,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 				const bind::test::RecordingSoundWrites::Call& call = r.fakes.host.sound_writes.calls[0];
 				expect(call.slot).to_equal(spec::FakeHostRig::kSynthSlot);
 				expect(call.cause).to_equal(bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
-				                                              .marker = static_cast<int8_t>(SampleMarker::START)});
+				                                              .marker = SampleMarker::START});
 				expect(call.ranges.size()).to_equal(size_t{1});
 				if (!call.ranges.empty()) {
 					expect(call.ranges[0].zone.start).to_be_greater_than(uint64_t{0});
@@ -708,7 +708,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(g.ranges.size()).to_equal(size_t{1});
 		expect(static_cast<int32_t>(g.ranges[0].zone.start)).to_equal(kZoomMax);
 		expect(g.cause).to_equal(bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
-		                                           .marker = static_cast<int8_t>(SampleMarker::START)});
+		                                           .marker = SampleMarker::START});
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0); // nothing but the port wrote
 	});
 
