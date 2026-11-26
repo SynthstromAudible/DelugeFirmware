@@ -17,6 +17,7 @@
 #pragma once
 
 #include "model/edits/edit.h"
+#include "model/project_bridge/lane_target.h"
 #include "processing/sound/mod_matrix_host.h"
 
 #include <cstddef>
@@ -38,7 +39,8 @@ ModelStackWithAutoParam* cableDepthForEdit(ModelStackWithThreeMainThings* modelS
 
 /// @brief Delete-at-zero, after a write to a cable's depth: the cable goes, recorded into the open Action, when its
 /// depth is 0 with no automation and the clip is its output's active one. Does nothing for any other param.
-void settleCableDepth(ModelStackWithAutoParam const* modelStack);
+/// @param lane The lane just written, resolved for this call.
+void settleCableDepth(const bridge::LaneTarget& lane);
 
 /// @brief One cable topology op on one clip, as an Edit.
 class EditCable final : public Edit {

@@ -1,19 +1,28 @@
 /// @file
 /// @brief A lane's resolution as one flat value: its owner typed, and the engine stack it stands for.
 
+#include "gui/ui/ui.h"
+#include "gui/views/session_view.h"
+#include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/set_cable_polarity.h"
+#include "model/edits/set_patch_cable.h"
 #include "model/fx/master_channel.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_stack.h"
+#include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/patch/patch_cable.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -205,6 +214,41 @@ describe lane_target("a lane target", ${
 				lane->auto_param->swapState(&state, *lane);
 				expect(lane->auto_param->getCurrentValue()).to_equal(before);
 			}
+			spec::make_current(nullptr);
+		});
+	});
+	context("a cable's polarity", _ {
+		it("flips on a sound drum's cable by address, and undo flips it back", _ {
+			spec::SongFixture f = spec::make_kit_song();
+			spec::make_current(f.song);
+			auto* drum = spec::add_drum<SoundDrum>(f);
+			const deluge::synth::CableTarget pitch =
+			    deluge::synth::CableTarget::param(static_cast<uint8_t>(params::LOCAL_PITCH_ADJUST));
+			const project::ParamAddress address{.owner = project::OwnerId::drum(*drum->id()),
+			                                    .space = project::ParamSpace::ENGINE,
+			                                    .id = bridge::cable_depth(PatchSource::LFO_GLOBAL_1, pitch),
+			                                    .clip_id = f.clip->id()};
+			deluge::edits::Context ctx{*f.song, f.song->project};
+			deluge::edits::SetPatchCable made{address, 0x01000000, Polarity::BIPOLAR};
+			expect(deluge::edits::apply(ctx, made)).to_equal(Error::NONE);
+			changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
+			actionLogger.deleteAllLogs();
+			deluge::edits::SetCablePolarity flip{address, Polarity::UNIPOLAR};
+			expect(deluge::edits::apply(ctx, flip)).to_equal(Error::NONE);
+			PatchCableSet& set = *f.clip->getNoteRowForDrum(drum)->paramManager.getPatchCableSet();
+			const uint8_t index = set.getPatchCableIndex(PatchSource::LFO_GLOBAL_1, pitch);
+			expect(index).not_().to_equal(uint8_t{255});
+			if (index != 255) {
+				expect(set.patchCables[index].polarity).to_equal(Polarity::UNIPOLAR);
+				expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
+				const uint8_t after = set.getPatchCableIndex(PatchSource::LFO_GLOBAL_1, pitch);
+				expect(after).not_().to_equal(uint8_t{255});
+				if (after != 255) {
+					expect(set.patchCables[after].polarity).to_equal(Polarity::BIPOLAR);
+				}
+			}
+			actionLogger.deleteAllLogs();
+			nullifyUIs();
 			spec::make_current(nullptr);
 		});
 	});

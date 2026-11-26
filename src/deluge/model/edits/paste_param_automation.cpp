@@ -41,7 +41,7 @@ Error PasteParamAutomation::apply(Context& ctx) {
 		                .nodes = std::vector<ParamNode>(copied_->nodes, copied_->nodes + copied_->numNodes)}},
 		    static_cast<size_t>(copied_->numNodes) + 2);
 	}
-	settleCableDepth(stack);
+	settleCableDepth(*lane);
 	return Error::NONE;
 }
 

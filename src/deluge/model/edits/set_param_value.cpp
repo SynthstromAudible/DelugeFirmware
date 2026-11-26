@@ -168,7 +168,7 @@ Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelSt
 		stack->autoParam->projectScalarFromStore(lane, oldValue, isPlaying);
 		deluge::modulation::postLaneCommand(
 		    *stack, {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = newValue_}, 0);
-		settleCableDepth(stack);
+		settleCableDepth(lane);
 		return Error::NONE;
 	}
 
@@ -202,13 +202,14 @@ Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelSt
 		                                     .length = length_,
 		                                     .region = region},
 		                                    deluge::modulation::kNodesPerRecordedWrite);
-		settleCableDepth(stack);
+		settleCableDepth(lane);
 		return Error::NONE;
 	}
 
 	// A scalar write while recording automation, and a lane not yet in the project tree: the engine's own setter.
 	stack->autoParam->setValuePossiblyForRegion(newValue_, stack, pos_, length_, mayDeleteNodesInLinearRun_);
-	settleCableDepth(stack);
+	// The setter may have moved the stack to the lane it wrote; settle that one.
+	settleCableDepth(bridge::target_of(*stack, lane.owner, lane.address));
 	return Error::NONE;
 }
 

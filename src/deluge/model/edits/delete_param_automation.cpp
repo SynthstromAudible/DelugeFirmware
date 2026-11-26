@@ -20,7 +20,7 @@ Error DeleteParamAutomation::apply(Context& ctx) {
 	// (recordParamChangeIfNotAlreadySnapshotted, stealData=true).
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, addition_);
 	stack->autoParam->deleteAutomation(action, stack);
-	settleCableDepth(stack);
+	settleCableDepth(*lane);
 	return Error::NONE;
 }
 
