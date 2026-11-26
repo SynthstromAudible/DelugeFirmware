@@ -63,15 +63,24 @@ TEST(MicVelocityMap, linearShapeIsLinearInDb) {
 
 TEST(MicVelocityMap, shapeBendsTheMiddle) {
 	Calibration const c = measuredLike();
-	VelocityCurve linear{.shape = 0};
-	VelocityCurve sensitive{.shape = 50};
-	VelocityCurve firm{.shape = -50};
+	VelocityCurve linear{.minVelocity = 1, .shape = 0};
+	VelocityCurve sensitive{.minVelocity = 1, .shape = 50};
+	VelocityCurve firm{.minVelocity = 1, .shape = -50};
 	uint8_t const mid = velocityFor(c, linear, 7, 4, -46.5f);
 	CHECK(velocityFor(c, sensitive, 7, 4, -46.5f) > mid + 20);
 	CHECK(velocityFor(c, firm, 7, 4, -46.5f) < mid - 20);
 	// The ends don't move
 	LONGS_EQUAL(1, velocityFor(c, sensitive, 7, 4, -55.f));
 	LONGS_EQUAL(127, velocityFor(c, firm, 7, 4, -38.f));
+}
+
+TEST(MicVelocityMap, defaultsStartAt20AndLeanSensitive) {
+	Calibration const c = measuredLike();
+	VelocityCurve const curve{};
+	LONGS_EQUAL(20, velocityFor(c, curve, 7, 4, -55.f));
+	LONGS_EQUAL(127, velocityFor(c, curve, 7, 4, -38.f));
+	// Halfway in dB: 20 + 107 * 0.5^0.5
+	LONGS_EQUAL(96, velocityFor(c, curve, 7, 4, -46.5f));
 }
 
 TEST(MicVelocityMap, velocityRisesWithLevel) {

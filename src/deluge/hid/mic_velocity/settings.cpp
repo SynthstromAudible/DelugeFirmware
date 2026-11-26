@@ -19,9 +19,9 @@
 //
 // <micVelocity firmwareVersion=".." earliestCompatibleFirmware="..">
 //   <enabled>1</enabled>
-//   <minVelocity>1</minVelocity>
+//   <minVelocity>20</minVelocity>
 //   <maxVelocity>127</maxVelocity>
-//   <shape>0</shape>
+//   <shape>25</shape>
 //   <calibration>
 //     <point><x>7</x><y>4</y><soft>-5500</soft><hard>-3800</hard></point>   (levels in hundredths of a dB)
 //     ...

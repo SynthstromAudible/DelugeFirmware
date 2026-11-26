@@ -73,11 +73,11 @@ struct VelocityCurve {
 	static constexpr int32_t kMinShape = -50;
 	static constexpr int32_t kMaxShape = 50;
 
-	uint8_t minVelocity = 1;   ///< What the softest calibrated tap (and anything softer) plays at
+	uint8_t minVelocity = 20;  ///< What the softest calibrated tap (and anything softer) plays at
 	uint8_t maxVelocity = 127; ///< What the hardest (and anything harder) plays at
 	/// 0: velocity follows the tap's level in dB. Positive: lighter taps play louder (more sensitive); negative: it
 	/// takes harder taps to get high.
-	int8_t shape = 0;
+	int8_t shape = 25;
 };
 
 /// The velocity (1-127) a thump of levelDb plays at on pad (x, y)
