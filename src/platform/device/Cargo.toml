@@ -36,7 +36,7 @@ miniz_oxide = { version = "0.8.9", default-features = false }
 
 # The header decoder the audio loader walks headers through, and whose C ABI the app calls.
 # deluge-sdk's `deluge-audio-format`, at the pin below; `c-abi` exports what the app calls.
-deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = ["c-abi"] }
+deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "89303a3632391a122baded3ff12199942c046b5a", features = ["c-abi"] }
 deluge_storage_sample_fill = { path = "../../storage/sample/fill", features = ["native_fill"] }
 
 # deluge-sdk, pinned by revision. `dbt build` and `dbt sim` pass `src/platform/device/local-sdk.toml`
@@ -46,17 +46,17 @@ deluge_storage_sample_fill = { path = "../../storage/sample/fill", features = ["
 # and its own C `rza1_cpu_fault_report` (every CPU fault vector calls it), not the BSP's
 # `fault-blink` handler. `zero-init-below-image` puts `.bss` and the MMU table below the image, so the
 # `__sram_heap_base` in linker/sdram_sections.x can hand the image's boot-only tail to the heap.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", default-features = false, features = [
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "89303a3632391a122baded3ff12199942c046b5a", default-features = false, features = [
     "flash",
     "zero-init-below-image",
 ] }
 # The USB-MIDI and USB Audio Class 2.0 device classes.
-usb-classes = { package = "deluge-usb-classes", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = [
+usb-classes = { package = "deluge-usb-classes", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "89303a3632391a122baded3ff12199942c046b5a", features = [
     "device-audio",
     "device-midi",
 ] }
 # The chip HAL. `unstable-driver-steal`: the fault path stops the PIC TX DMA through `Dma::steal`.
-rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = [
+rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "89303a3632391a122baded3ff12199942c046b5a", features = [
     "rza1l",
     "unstable-driver-steal",
 ] }
@@ -122,7 +122,7 @@ block-device-adapters = { package = "deluge-block-device-adapters", version = "0
 aligned = { version = "0.4", optional = true }
 # The desktop simulator window for `sim`, and its panel/audio link (`deluge_simulator::link`), which
 # `sim_panel` plugs into deluge-bsp's host-panel hook.
-deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", optional = true }
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "89303a3632391a122baded3ff12199942c046b5a", optional = true }
 
 [features]
 default = ["host-runtime"]
