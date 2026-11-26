@@ -19,6 +19,7 @@ pub trait PacketSink {
 }
 
 /// What was queued since the last [`take_counts`](ToHostSender::take_counts).
+#[cfg(any(test, feature = "audio-timing"))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SendCounts {
     pub packets: u32,
@@ -27,8 +28,11 @@ pub struct SendCounts {
     pub ahead: Option<(u32, u32)>,
 }
 
-/// Frames that may wait for a packet while the host takes none, before the oldest are dropped.
+/// Frames that may wait for a packet while the host takes none, before all of them are dropped.
 const MAX_WAITING: u32 = 256;
+/// The longest piece written at once: the render's block. The ring holds what the DMA may read (256 descriptors of up
+/// to 6 frames), what waits ([`MAX_WAITING`]) and one piece: 1920 frames, within the 2048 of the firmware's ring.
+pub const MAX_BLOCK: usize = 128;
 
 /// The render's side of the stream to the host: packs each block and queues its packets.
 pub struct ToHostSender<S> {
@@ -42,6 +46,7 @@ pub struct ToHostSender<S> {
     /// Frames packed, and queued, since the stream started.
     written: u32,
     sent: u32,
+    #[cfg(any(test, feature = "audio-timing"))]
     counts: SendCounts,
 }
 
@@ -62,6 +67,7 @@ impl<S: PacketSink> ToHostSender<S> {
             generation: 0,
             written: 0,
             sent: 0,
+            #[cfg(any(test, feature = "audio-timing"))]
             counts: SendCounts::default(),
         }
     }
@@ -79,8 +85,15 @@ impl<S: PacketSink> ToHostSender<S> {
     }
 
     /// Queues `block` for the host. `depth` is the alternate's, or `None` when the host collects nothing; `epoch` changes
-    /// whenever the class is told of another alternate, so the stream starts over with this block.
+    /// whenever the class is told of another alternate, so the stream starts over with this block. A block longer than
+    /// [`MAX_BLOCK`] goes in pieces of it, so what is written never reaches a packet the DMA may still be reading.
     pub fn write(&mut self, epoch: u32, depth: Option<Depth>, block: &[Frame]) {
+        for piece in block.chunks(MAX_BLOCK) {
+            self.write_piece(epoch, depth, piece);
+        }
+    }
+
+    fn write_piece(&mut self, epoch: u32, depth: Option<Depth>, block: &[Frame]) {
         let Some(depth) = depth else { return };
         if epoch != self.epoch || self.ring.is_none() {
             self.epoch = epoch;
@@ -108,13 +121,16 @@ impl<S: PacketSink> ToHostSender<S> {
                 break;
             }
             self.sent = self.sent.wrapping_add(n as u32);
-            let ahead = ahead as u32;
-            self.counts.packets += 1;
-            self.counts.frames += n as u32;
-            self.counts.ahead = Some(match self.counts.ahead {
-                None => (ahead, ahead),
-                Some((low, high)) => (low.min(ahead), high.max(ahead)),
-            });
+            #[cfg(any(test, feature = "audio-timing"))]
+            {
+                let ahead = ahead as u32;
+                self.counts.packets = self.counts.packets.wrapping_add(1);
+                self.counts.frames = self.counts.frames.wrapping_add(n as u32);
+                self.counts.ahead = Some(match self.counts.ahead {
+                    None => (ahead, ahead),
+                    Some((low, high)) => (low.min(ahead), high.max(ahead)),
+                });
+            }
         }
     }
 }
@@ -447,6 +463,44 @@ mod tests {
             !sink.0.borrow().pushed.is_empty(),
             "pushed for generation 3"
         );
+        // The endpoint is enabled again under the same alternate count: nothing goes until the class says what it is.
+        on(&sink, 4);
+        sink.0.borrow_mut().pushed.clear();
+        s.write(1, Some(Depth::Sixteen), &block(128));
+        assert!(
+            sink.0.borrow().pushed.is_empty(),
+            "refused for generation 4"
+        );
+        s.write(2, Some(Depth::Sixteen), &block(256));
+        assert!(!sink.0.borrow().pushed.is_empty(), "the new stream's");
+        assert!(
+            sent(&sink, Depth::Sixteen)
+                .iter()
+                .all(|v| (256..384).contains(v))
+        );
+    }
+
+    /// A block longer than the render's: the ring is never written over a packet the DMA may still read, and every
+    /// frame goes out once, in order.
+    #[test]
+    fn a_long_block_is_sent_whole_without_lapping_the_ring() {
+        for frames in [129, 1000, 5000] {
+            let sink = Sink::default();
+            on(&sink, 1);
+            let mut s = sender(&sink);
+            let long: Vec<Frame> = (0..frames).map(|v| [v << 16, -(v << 16)]).collect();
+            s.write(1, Some(Depth::Sixteen), &long);
+            let got = sent(&sink, Depth::Sixteen);
+            assert!(
+                got.len() > frames as usize - PACKET_FRAMES,
+                "{frames}: {}",
+                got.len()
+            );
+            assert!(
+                got.iter().enumerate().all(|(i, v)| *v == i as i32),
+                "{frames}: in order, none lapped"
+            );
+        }
     }
 
     // ── The host's stream ───────────────────────────────────────────────────

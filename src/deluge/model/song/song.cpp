@@ -2614,7 +2614,7 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		if (output->shouldRenderInSong()) {
 			// Masks nothing on the device's audio tier, where an output can take a millisecond and the USB interrupt
-			// must run every other microframe (250 us) or lose audio. Offline export renders on the interaction tier,
+			// (control requests and MIDI) must not wait that long. Offline export renders on the interaction tier,
 			// where this is what keeps the other tiers out.
 			AudioExcludedSection renderSection;
 			output->renderOutput(modelStack, outputBuffer, reverbBuffer, reverbAmountAdjust, sideChainHitPending,

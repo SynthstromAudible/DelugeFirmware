@@ -1,7 +1,7 @@
 //! The CPU cycles spent on the work at hand: the cycle counter less the time metered interrupts took.
 //!
-//! The USB interrupt moves audio packets thousands of times a second and runs inside whatever it
-//! interrupts, so a span timed with the bare counter is charged for it. The USB handler is the one
+//! The USB interrupt carries control requests and MIDI and runs inside whatever it interrupts, so a span
+//! timed with the bare counter is charged for it. The USB handler is the one
 //! that is metered (`peripherals::usb`); the cycles of entering and leaving it are not.
 //!
 //! Pure but for the meter, so the host tests cover it.

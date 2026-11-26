@@ -125,7 +125,8 @@ pub async fn usb_task(
     let mut config = Config::new(USB_VID, USB_PID);
     config.manufacturer = Some("Synthstrom Audible");
     config.product = Some("Deluge");
-    config.device_release = 0x0020; // the configuration's descriptors: hosts cache them by this
+    // The configuration's descriptors, which hosts cache by this: the MIDI-only device's differ from the audio one's.
+    config.device_release = if with_audio { 0x0020 } else { 0x0021 };
     config.self_powered = false;
     config.max_power = 250; // 500 mA
 

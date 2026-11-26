@@ -6,7 +6,7 @@
 //! carries one isochronous packet per 125 µs microframe, about 5.5 frames at 44.1 kHz.
 //!
 //! - **To the host** (the capture stream, ISO IN): the render packs each block it makes and queues its packets, 5 or 6
-//!   frames each, two blocks ahead ([`ToHostSender`]). The DMA sends them as the host asks. Every frame is sent, so the
+//!   frames each, as far ahead as the codec's three blocks ([`ToHostSender`]). The DMA sends them as the host asks. Every frame is sent, so the
 //!   stream's rate is exactly the codec's, and it is the implicit feedback for the other stream: a host that honours it
 //!   sends us as many frames as we send it. The sizes of the packets hold the queue at its target.
 //! - **From the host** (the speaker stream, ISO OUT): the DMA writes each packet's frames into a ring the render drains
@@ -102,14 +102,25 @@ static mut RECEIVE_DESCS: DmaMem<[RingDesc; RECEIVE_PARTS]> =
     DmaMem([RingDesc::NEW; RECEIVE_PARTS]);
 
 /// A static through its uncached mirror, its cached lines cleaned and invalidated first so none is written back over what
-/// the DMA has moved.
+/// the DMA has moved: in the L1, then in the L2 (the boot zeroes SDRAM statics with the caches on, so their lines can
+/// sit dirty in the L2), then in the L1 again, so a line the first pass let go can't come back from the L2.
 ///
 /// # Safety
 /// `p` is a static used only through the mirror from here on.
 unsafe fn uncached<T>(p: *mut T) -> *mut T {
-    let start = p as usize;
-    // SAFETY: the static's own lines, which no other alias of the memory has used yet.
-    unsafe { rza1_hal::cache::dma_clean_inv_range(start, start + size_of::<T>()) };
+    let (start, end) = (p as usize, p as usize + size_of::<T>());
+    // SAFETY: the static's own lines, which no other alias of the memory has used yet; its cached address is its
+    // physical one (the RAM is mapped one to one).
+    unsafe {
+        rza1_hal::cache::dma_clean_inv_range(start, end);
+        let l2 = rza1_hal::pac::L2C;
+        for line in (start & !31..end).step_by(32) {
+            l2.reg7_clean_inv_pa().write_value(line as u32);
+        }
+        l2.reg7_cache_sync().write_value(0);
+        while l2.reg7_cache_sync().read() & 1 != 0 {}
+        rza1_hal::cache::dma_inv_range(start, end);
+    }
     (start + rza1_hal::UNCACHED_MIRROR_OFFSET) as *mut T
 }
 
@@ -184,6 +195,11 @@ fn poll_from_host() -> (u32, Option<Depth>, Option<u32>) {
 pub(crate) fn take_service_stats() -> crate::audio::usb_service_probe::UsbDmaStats {
     static TAKEN_CYCLES: AtomicU32 = AtomicU32::new(0);
     static TAKEN_STOPS: AtomicU32 = AtomicU32::new(0);
+    // The USB task builds the streams after the render starts: until it has, there is nothing to read (and SENDER may
+    // be mid-write). PRESENT is stored after them.
+    if !PRESENT.load(Ordering::Acquire) {
+        return crate::audio::usb_service_probe::UsbDmaStats::EMPTY;
+    }
     let now = crate::work_cycles::interrupt_cycles();
     let cycles = now.wrapping_sub(TAKEN_CYCLES.swap(now, Ordering::Relaxed));
     let interrupt_us =
@@ -287,9 +303,10 @@ impl Handler for AudioHandler {
     }
 
     fn configured(&mut self, configured: bool) {
-        if !configured {
-            Self::idle_all();
-        }
+        // Configured or not, every interface is at alternate 0 again (USB 2.0 §9.4.7): a host that sets the
+        // configuration again selects its streams' alternates afresh.
+        let _ = configured;
+        Self::idle_all();
     }
 
     fn enabled(&mut self, enabled: bool) {
