@@ -42,3 +42,23 @@ void dmaChannelStart(const uint32_t dma_channel) {
 	DMACn(dma_channel).CHCTRL_n |= DMAC_CHCTRL_0S_SWRST; // Status clear
 	DMACn(dma_channel).CHCTRL_n |= DMAC_CHCTRL_0S_SETEN; // Enable DMA transfer
 }
+
+#define NUM_DMA_CHANNELS 16
+// How many status reads to wait for each channel to stop, so a wedged channel can't hang the load
+#define DMA_STOP_POLL_LIMIT 100000
+
+void dmaStopAllChannels(void) {
+	const uint32_t active = DMAC0_CHSTAT_n_EN | DMAC0_CHSTAT_n_TACT;
+	// CLREN: no new transfer and no further descriptor load. A transfer unit in flight still completes.
+	for (int32_t ch = 0; ch < NUM_DMA_CHANNELS; ch++) {
+		DMACn(ch).CHCTRL_n = DMAC0_CHCTRL_n_CLREN;
+	}
+	for (int32_t ch = 0; ch < NUM_DMA_CHANNELS; ch++) {
+		for (int32_t i = 0; i < DMA_STOP_POLL_LIMIT; i++) {
+			if (!(DMACn(ch).CHSTAT_n & active)) {
+				DMACn(ch).CHCTRL_n = DMAC0_CHCTRL_n_SWRST; // Clear END, ER etc., only once the channel has stopped
+				break;
+			}
+		}
+	}
+}
