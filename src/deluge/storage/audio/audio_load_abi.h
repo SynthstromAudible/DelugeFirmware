@@ -31,10 +31,10 @@ namespace deluge::storage {
 /// @brief Map a Deluge `Error` code as it crosses libdeluge/audio_load.h (a `uint8_t`) back to
 ///        `Error`, by number.
 ///
-/// Never `static_cast<Error>(byte)`: `enum class Error` has no fixed underlying type, so casting an
-/// out-of-range byte into it is undefined behaviour. The numeric identity this depends on is pinned
-/// by static_asserts beside the definition (sample_build.cpp), so an `Error` enumerator inserted
-/// upstream breaks the build rather than silently shifting every later code.
+/// Matched by number rather than `static_cast<Error>(byte)`, so a byte no enumerator names becomes
+/// `Error::UNSPECIFIED` instead of a value no switch handles. The numeric identity this depends on is
+/// pinned by static_asserts in sample_build.cpp, so an `Error` enumerator inserted in base/error.h
+/// breaks the build rather than silently shifting every later code.
 ///
 /// @param v A byte received through audio_load.h (`DelugeAudioLoadResult::error`).
 /// @return The matching `Error`; `Error::UNSPECIFIED` for a byte that is not one of `Error`'s values

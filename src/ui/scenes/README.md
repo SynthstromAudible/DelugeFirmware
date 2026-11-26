@@ -104,8 +104,8 @@ Nothing under `src/ui/scenes` depends on a spec tree existing.
 
 `src/ui/shell` may not include `gui/l10n/`, so `ui::shell::deluge_profile()` leaves
 `BoardProfile::text`/`error_text` null. This layer may, and supplies them: `text_lookup` is
-`l10n::getView`, and `error_lookup` is a hand-kept copy of `getErrorMessage(Error)`'s switch
-(`hid/` cannot be called from here). `scenes::deluge_profile()` is the shell's profile copied
+`l10n::getView`, and `error_lookup` is `l10n::error_message`, the one map from an `Error` to its text, which the
+legacy display uses too. `scenes::deluge_profile()` is the shell's profile copied
 field-for-field with those two filled in. **The application and every scenes spec pass
 `scenes::deluge_profile()`**, never the shell's; `tests/integration/ui/scenes/profile_spec.cpp` asserts every
 other field stays identical to the shell's copy.

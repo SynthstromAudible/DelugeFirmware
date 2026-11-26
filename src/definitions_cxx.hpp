@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "base/error.h"
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
 #include "effects/words.h"
@@ -380,69 +381,7 @@ using deluge::project::kMaxNumSections;
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
-enum class Error {
-	NONE,
-	INSUFFICIENT_RAM,
-	UNSPECIFIED,
-	SD_CARD,
-	NO_FURTHER_PRESETS,
-	FILE_CORRUPTED,
-	FILE_UNREADABLE, // Or not found, I think?
-	FILE_UNSUPPORTED,
-	FILE_FIRMWARE_VERSION_TOO_NEW,
-	RESULT_TAG_UNUSED,
-	FOLDER_DOESNT_EXIST,
-	WRITE_PROTECTED,
-	BUG,
-	WRITE_FAIL,
-	FILE_TOO_BIG,
-	PRESET_IN_USE,
-	NO_FURTHER_FILES_THIS_DIRECTION,
-	FILE_ALREADY_EXISTS,
-	FILE_NOT_FOUND,
-	/// Nothing returns it. Kept so every value after it, which crosses the libdeluge ABI as a byte, keeps its number.
-	ABORTED_BY_USER,
-	MAX_FILE_SIZE_REACHED,
-	SD_CARD_FULL,
-	FILE_NOT_LOADABLE_AS_WAVETABLE,
-	FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO,
-	NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP,
-	NO_ERROR_BUT_GET_OUT,
-	INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE,
-	SD_CARD_NOT_PRESENT,
-	SD_CARD_NO_FILESYSTEM,
-	INVALID_PATTERN_VERSION,
-	OUT_OF_BUFFER_SPACE,
-	INVALID_SYSEX_FORMAT,
-	POS_PAST_STRING,
-	FILE_NOT_SAVED,
-	TOO_MANY_OPEN_STREAMS,
-	/// @brief Not a failure: the async sample loader has been asked for this file and has not
-	///        finished yet.
-	///
-	/// A caller that gets this got no AudioFile *this* time and should ask again on a later
-	/// tick. Only produced by AudioFileManager::getAudioFileFromFilename's opt-in async path
-	/// (see libdeluge/audio_load.h); the synchronous path never returns it.
-	///
-	/// @warning Must NOT re-request, report a load failure, or write anything on the strength
-	///          of this result.
-	LOAD_IN_PROGRESS,
-	/// @brief Not a failure: a folder listing needs a directory the async directory channel has
-	///        not opened yet.
-	///
-	/// The caller got no listing *this* time and should let the browser's per-tick surface run
-	/// the attempt again. Only produced after boot, where every directory open goes through
-	/// libdeluge/file_directory.h; the synchronous path never returns it.
-	///
-	/// Deliberately NOT LOAD_IN_PROGRESS, even though the contract is word for word the same:
-	/// `addInstrumentsToFileItems` runs INSIDE a listing and can itself reach the sample loader,
-	/// so one shared enumerator would make "which of the two deferred?" unanswerable at the
-	/// catch site.
-	///
-	/// @warning Must NOT re-request, report a failure, or commit anything on the strength of
-	///          this result.
-	LISTING_DEFERRED,
-};
+using Error = deluge::Error;
 
 using deluge::instruments::classic::SampleRepeatMode;
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;

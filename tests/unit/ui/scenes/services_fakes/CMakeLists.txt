@@ -18,6 +18,7 @@ deluge_specs_driver(services_fakes_specs TREES host NEON
           ${_scenes}/l10n_bridge.cpp
           ${_l10n}/l10n.cpp
           ${_l10n}/g_english.cpp
+          ${_l10n}/error_messages.cpp
           ${_l10n}/effect_names.cpp
           ${_l10n}/param_names.cpp
           ${DELUGE_REPO_ROOT}/tests/support/mocks/model_hooks_for_tests.cpp

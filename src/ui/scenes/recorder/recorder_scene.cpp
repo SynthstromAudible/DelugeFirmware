@@ -3,7 +3,8 @@
 
 #include "ui/scenes/recorder/recorder_scene.h"
 
-#include "definitions_cxx.hpp" // Error, kSampleRate
+#include "base/error.h"
+#include "definitions_cxx.hpp" // kSampleRate
 #include "ui/widgets/oled/frame.h"
 #include "ui/widgets/oled/text.h"
 

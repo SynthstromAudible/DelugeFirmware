@@ -1,10 +1,8 @@
 #include "ui/scenes/l10n_bridge.h"
 
-#include "definitions_cxx.hpp"
+#include "base/error.h"
+#include "gui/l10n/error_messages.h"
 #include "gui/l10n/l10n.h"
-// The legacy switch this file transcribes (`getErrorMessage` in src/deluge/hid/display/display.cpp). The scenes
-// LIBRARY may not include hid/ -- this SPEC may, to compare the port against the original.
-#include "hid/display/display.h"
 
 #include "cppspec.hpp"
 
@@ -13,13 +11,6 @@
 #include <string_view>
 
 #include "support/spec_main.h"
-
-// getErrorMessage has external linkage (hid/display/display.cpp) but no header declares it -- oled.cpp
-// (hid/display/oled.cpp, ahead of `OLED::displayError`) forward-declares it the same way, in the same namespace, to
-// call it.
-namespace deluge::hid::display {
-extern std::string_view getErrorMessage(Error error);
-}
 
 using namespace deluge;
 
@@ -36,17 +27,21 @@ describe scenes_l10n_bridge("scenes::l10n_bridge", $ {
 		    .to_equal(std::string(l10n::getView(l10n::String::STRING_FOR_LPF)));
 	});
 
-	it("error_lookup matches the legacy getErrorMessage for a representative code", _ {
+	it("error_lookup shows the chosen language's text for a code, and the generic text for one with none", _ {
 		expect(std::string(ui::scenes::error_lookup(static_cast<int16_t>(Error::SD_CARD_FULL))))
-		    .to_equal(std::string(hid::display::getErrorMessage(Error::SD_CARD_FULL)));
+		    .to_equal(std::string("SD card full"));
+		expect(std::string(ui::scenes::error_lookup(static_cast<int16_t>(Error::FILE_NOT_FOUND))))
+		    .to_equal(std::string("File not found"));
+		expect(std::string(ui::scenes::error_lookup(static_cast<int16_t>(Error::INVALID_SYSEX_FORMAT))))
+		    .to_equal(std::string("You've encountered an unspecified error. Please report this bug."));
 	});
 
-	it("every Error value 0..32 yields a non-empty string, matching the legacy switch exactly", _ {
-		for (int16_t code = 0; code <= 32; code++) {
+	it("every Error value yields a non-empty string, the one l10n::error_message gives", _ {
+		for (int16_t code = 0; code <= static_cast<int16_t>(Error::LISTING_DEFERRED); code++) {
 			const std::string ported(ui::scenes::error_lookup(code));
-			const std::string legacy(hid::display::getErrorMessage(static_cast<Error>(code)));
+			const std::string mapped(l10n::error_message(static_cast<Error>(code)));
 			expect(ported.empty()).to_be_false();
-			expect(ported).to_equal(legacy);
+			expect(ported).to_equal(mapped);
 		}
 	});
 });

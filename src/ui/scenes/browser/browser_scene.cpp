@@ -20,8 +20,9 @@
 
 #include "ui/scenes/browser/browser_scene.h"
 
+#include "base/error.h"
 #include "base/notify/notice_queue.h"
-#include "definitions_cxx.hpp" // Error, kNumSources
+#include "definitions_cxx.hpp" // kNumSources
 #include "ui/widgets/core/blink.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/favourites.h"
