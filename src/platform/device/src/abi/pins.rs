@@ -44,7 +44,10 @@ abi_pin!(in deluge_storage_sample_peaks::abi: deluge_peaks_init, deluge_peaks_cr
     deluge_peaks_release, deluge_peaks_collect, deluge_peaks_bind_asset, deluge_peaks_unbind_asset, deluge_peaks_reserve,
     deluge_peaks_ensure_level0, deluge_peaks_fold_frames, deluge_peaks_fold_block, deluge_peaks_set_frames,
     deluge_peaks_column, deluge_peaks_of_frames, deluge_peaks_range, deluge_peaks_frames, deluge_peaks_next_unscanned, deluge_peaks_take_create,
-    deluge_peaks_take_drop, deluge_peaks_take_feed, deluge_peaks_take_finish, deluge_peaks_take_frames);
+    deluge_peaks_take_drop, deluge_peaks_take_feed, deluge_peaks_take_finish, deluge_peaks_take_frames,
+    deluge_peaks_sidecar_len, deluge_peaks_sidecar_write, deluge_peaks_sidecar_check, deluge_peaks_sidecar_restore,
+    deluge_peaks_sidecar_section, deluge_peaks_complete_level1, deluge_peaks_level1_entries, deluge_peaks_keep_level0,
+    deluge_peaks_trim_level0, deluge_peaks_level0_chunks);
 
 abi_pin!(in deluge_storage_sample_reader::abi: deluge_sample_reader_open, deluge_sample_reader_seek,
     deluge_sample_reader_close, deluge_sample_reader_window, deluge_sample_reader_advance, deluge_sample_reader_ok,
@@ -108,6 +111,9 @@ abi_layout!(deluge_storage_sample_peaks::abi::DelugeMaybePeak => DelugeMaybePeak
 abi_layout!(deluge_storage_sample_peaks::abi::DelugePeaksColumn => DelugePeaksColumn { pending, has_interior,
     interior as DelugePeak,
     read_count, read_lo, read_hi });
+abi_layout!(deluge_storage_sample_peaks::abi::DelugePeakKey => DelugePeakKey { first_cluster, file_size, fat_datetime,
+    sample_rate, frames, channels, byte_depth, reserved });
+abi_layout!(deluge_storage_sample_peaks::abi::DelugeSidecarSection => DelugeSidecarSection { tag, bytes, len });
 
 abi_layout!(deluge_storage_sample_reader::abi::DelugeFrameWindow => DelugeFrameWindow { frames, frame_count });
 abi_layout!(enum deluge_storage_sample_reader::reader::ReadHint => DelugeReadHint {

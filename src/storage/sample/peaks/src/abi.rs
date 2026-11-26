@@ -1,7 +1,7 @@
 //! The C ABI (`deluge_storage_sample_peaks.h`): thin, null-checked wrappers over [`PeakIndex`].
 
 use crate::column::ColumnPlan;
-use crate::{PeakIndex, mem, peak, tap};
+use crate::{PeakIndex, mem, peak, sidecar, tap};
 use core::ptr::NonNull;
 
 /// The C name of a [`PeakIndex`]: opaque.
@@ -423,4 +423,260 @@ pub extern "C" fn deluge_peaks_widen_range(index_ptr: *mut DelugePeakIndex, peak
     if let Some(i) = index(index_ptr) {
         i.widen_range(peak.into());
     }
+}
+
+/// `DelugePeakKey`: [`sidecar::Key`] as C sees it.
+pub type DelugePeakKey = sidecar::Key;
+// The header's layout is checked field by field by the device build's `abi_layout!`.
+
+/// `DelugeSidecarSection`: a section other than the peaks, carried byte for byte.
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct DelugeSidecarSection {
+    /// Four ASCII bytes, little-endian.
+    pub tag: u32,
+    /// Its bytes; null only when `len` is 0.
+    pub bytes: *const u8,
+    /// Their count.
+    pub len: u32,
+}
+
+/// The caller's `extras` as sections, or `None` if there are too many or one is malformed.
+///
+/// # Safety
+///
+/// `extras` points at `count` readable sections whose `bytes` point at `len` readable bytes each, or is null with
+/// `count` 0.
+unsafe fn sections<'a>(
+    extras: *const DelugeSidecarSection,
+    count: u32,
+) -> Option<([sidecar::Section<'a>; sidecar::MAX_SECTIONS - 1], usize)> {
+    let n = usize::try_from(count).ok()?;
+    let mut out = [sidecar::Section { tag: 0, bytes: &[] }; sidecar::MAX_SECTIONS - 1];
+    if n == 0 {
+        return Some((out, 0));
+    }
+    if extras.is_null() || n > out.len() {
+        return None;
+    }
+    // SAFETY: the caller's contract.
+    let given = unsafe { core::slice::from_raw_parts(extras, n) };
+    for (slot, s) in out.iter_mut().zip(given) {
+        if s.tag == sidecar::TAG_PEAK || (s.bytes.is_null() && s.len != 0) {
+            return None;
+        }
+        let bytes = if s.len == 0 {
+            &[][..]
+        } else {
+            // SAFETY: the caller's contract.
+            unsafe { core::slice::from_raw_parts(s.bytes, s.len as usize) }
+        };
+        *slot = sidecar::Section { tag: s.tag, bytes };
+    }
+    Some((out, n))
+}
+
+/// `bytes` as a slice, or `None` if null.
+///
+/// # Safety
+///
+/// `bytes` points at `len` readable bytes, or is null.
+unsafe fn byte_slice<'a>(bytes: *const u8, len: u32) -> Option<&'a [u8]> {
+    // SAFETY: the caller's contract.
+    (!bytes.is_null()).then(|| unsafe { core::slice::from_raw_parts(bytes, len as usize) })
+}
+
+/// The sidecar `bytes` checked against `key`.
+///
+/// # Safety
+///
+/// As [`byte_slice`]; `key` is null or points at a readable key.
+unsafe fn checked<'a>(
+    bytes: *const u8,
+    len: u32,
+    key: *const DelugePeakKey,
+) -> Result<sidecar::Sidecar<'a>, i32> {
+    // SAFETY: the caller's contract.
+    let (Some(b), Some(k)) = (unsafe { byte_slice(bytes, len) }, unsafe { key.as_ref() }) else {
+        return Err(-(sidecar::Reject::Short as i32));
+    };
+    sidecar::open(b, k).map_err(|r| -(r as i32))
+}
+
+/// `deluge_peaks_sidecar_len`.
+///
+/// # Safety
+///
+/// As [`sections`].
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+pub unsafe extern "C" fn deluge_peaks_sidecar_len(
+    index_ptr: *const DelugePeakIndex,
+    extras: *const DelugeSidecarSection,
+    extra_count: u32,
+) -> u32 {
+    // SAFETY: the caller's contract.
+    let Some((s, n)) = (unsafe { sections(extras, extra_count) }) else {
+        return 0;
+    };
+    index(index_ptr)
+        .and_then(|i| sidecar::len(i, s.get(..n)?))
+        .and_then(|l| u32::try_from(l).ok())
+        .unwrap_or(0)
+}
+
+/// `deluge_peaks_sidecar_write`.
+///
+/// # Safety
+///
+/// As [`sections`]; `key` is null or readable; `out` is null or points at `cap` writable bytes.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+pub unsafe extern "C" fn deluge_peaks_sidecar_write(
+    index_ptr: *const DelugePeakIndex,
+    key: *const DelugePeakKey,
+    extras: *const DelugeSidecarSection,
+    extra_count: u32,
+    out: *mut u8,
+    cap: u32,
+) -> u32 {
+    // SAFETY: the caller's contract.
+    let Some((s, n)) = (unsafe { sections(extras, extra_count) }) else {
+        return 0;
+    };
+    // SAFETY: the caller's contract.
+    let (Some(i), Some(k)) = (index(index_ptr), unsafe { key.as_ref() }) else {
+        return 0;
+    };
+    if out.is_null() {
+        return 0;
+    }
+    // SAFETY: the caller's contract.
+    let buf = unsafe { core::slice::from_raw_parts_mut(out, cap as usize) };
+    s.get(..n)
+        .and_then(|s| sidecar::write(i, k, s, buf))
+        .and_then(|l| u32::try_from(l).ok())
+        .unwrap_or(0)
+}
+
+/// `deluge_peaks_sidecar_check`.
+///
+/// # Safety
+///
+/// As [`checked`].
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+pub unsafe extern "C" fn deluge_peaks_sidecar_check(
+    bytes: *const u8,
+    len: u32,
+    key: *const DelugePeakKey,
+) -> i32 {
+    // SAFETY: the caller's contract.
+    match unsafe { checked(bytes, len, key) } {
+        Ok(_) => 0,
+        Err(r) => r,
+    }
+}
+
+/// `deluge_peaks_sidecar_restore`.
+///
+/// # Safety
+///
+/// As [`checked`].
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+pub unsafe extern "C" fn deluge_peaks_sidecar_restore(
+    index_ptr: *mut DelugePeakIndex,
+    key: *const DelugePeakKey,
+    bytes: *const u8,
+    len: u32,
+) -> i32 {
+    let Some(i) = index(index_ptr) else {
+        return -(sidecar::Reject::Short as i32);
+    };
+    // SAFETY: the caller's contract.
+    match unsafe { checked(bytes, len, key) }
+        .and_then(|s| sidecar::restore_peaks(i, &s).map_err(|r| -(r as i32)))
+    {
+        Ok(n) => i32::try_from(n).unwrap_or(i32::MAX),
+        Err(r) => r,
+    }
+}
+
+/// `deluge_peaks_sidecar_section`.
+///
+/// # Safety
+///
+/// As [`checked`]; `out_bytes` and `out_len` are null or writable.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+pub unsafe extern "C" fn deluge_peaks_sidecar_section(
+    bytes: *const u8,
+    len: u32,
+    key: *const DelugePeakKey,
+    tag: u32,
+    out_bytes: *mut *const u8,
+    out_len: *mut u32,
+) -> bool {
+    // SAFETY: the caller's contract.
+    let Some(section) = (unsafe { checked(bytes, len, key) })
+        .ok()
+        .and_then(|s| s.section(tag))
+    else {
+        return false;
+    };
+    let Ok(n) = u32::try_from(section.len()) else {
+        return false;
+    };
+    if out_bytes.is_null() || out_len.is_null() {
+        return false;
+    }
+    // SAFETY: both are non-null and writable (the caller's contract).
+    unsafe {
+        out_bytes.write(section.as_ptr());
+        out_len.write(n);
+    }
+    true
+}
+
+/// `deluge_peaks_complete_level1`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_peaks_complete_level1(index_ptr: *const DelugePeakIndex) -> u32 {
+    index(index_ptr).map_or(0, |i| {
+        u32::try_from(i.complete_level1()).unwrap_or(u32::MAX)
+    })
+}
+
+/// `deluge_peaks_level1_entries`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_peaks_level1_entries(index_ptr: *const DelugePeakIndex) -> u32 {
+    index(index_ptr).map_or(0, |i| u32::try_from(i.level1_entries()).unwrap_or(u32::MAX))
+}
+
+/// `deluge_peaks_keep_level0`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+pub extern "C" fn deluge_peaks_keep_level0(
+    index_ptr: *mut DelugePeakIndex,
+    first: u64,
+    end: u64,
+    now_ms: u32,
+) {
+    if let Some(i) = index(index_ptr) {
+        i.keep_level0(first, end, now_ms);
+    }
+}
+
+/// `deluge_peaks_trim_level0`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+pub extern "C" fn deluge_peaks_trim_level0(index_ptr: *mut DelugePeakIndex, now_ms: u32) -> u32 {
+    index(index_ptr).map_or(0, |i| i.trim_level0(now_ms))
+}
+
+/// `deluge_peaks_level0_chunks`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+pub extern "C" fn deluge_peaks_level0_chunks(index_ptr: *const DelugePeakIndex) -> u32 {
+    index(index_ptr).map_or(0, PeakIndex::level0_chunks)
 }

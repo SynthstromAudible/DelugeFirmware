@@ -21,6 +21,8 @@ const STRUCTS: &[(&str, &str)] = &[
     ("DelugePeak", "deluge_storage_sample_peaks::abi::DelugePeak"),
     ("DelugeMaybePeak", "deluge_storage_sample_peaks::abi::DelugeMaybePeak"),
     ("DelugePeaksColumn", "deluge_storage_sample_peaks::abi::DelugePeaksColumn"),
+    ("DelugePeakKey", "deluge_storage_sample_peaks::abi::DelugePeakKey"),
+    ("DelugeSidecarSection", "deluge_storage_sample_peaks::abi::DelugeSidecarSection"),
     ("DelugeSampleGeometry", "deluge_storage_sample_source::geometry::Geometry"),
     ("DelugeSampleRegion", "deluge_storage_sample_source::abi::DelugeSampleRegion"),
     ("DelugeSampleStreamGeometry", "deluge_storage_stream::DelugeSampleStreamGeometry"),
