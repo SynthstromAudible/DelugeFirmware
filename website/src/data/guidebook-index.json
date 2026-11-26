@@ -912,6 +912,10 @@
       "match": ["subtractive"]
     },
     {
+      "head": "Supersaw",
+      "match": ["supersaw"]
+    },
+    {
       "head": "Swing",
       "match": ["swing"]
     },
@@ -922,6 +926,7 @@
         "FM synthesis",
         "Oscillator",
         "Subtractive synthesis",
+        "Supersaw",
         "Wavetable"
       ]
     },
