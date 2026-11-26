@@ -4,6 +4,7 @@
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/core/style.h"
 #include "ui/widgets/oled/column_drawings.h"
+#include "ui/widgets/oled/page_drawing.h"
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -201,131 +202,6 @@ void legacy_clip_end(Canvas& image) {
 	image.draw_icon(deluge::ui::gfx::oled::icons::loopPoint, kStartX + 5, kStartY + kSlotYOffset, true);
 }
 
-/// `EnvelopeMenu::renderMenuItems` with its helpers (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`)
-/// and `EnvelopeCurve::rising`, on the reference canvas.
-struct LegacyEnvelope {
-	Canvas& image;
-	EnvelopeGraph g;
-	int32_t selected_pos;
-	int32_t selected_x = -1;
-	int32_t selected_y = -1;
-	static constexpr int32_t kTopY = 5 + deluge::ui::gfx::oled::kTextTitleSizeY + 7; // OLED_MAIN_TOPMOST_PIXEL is 5
-	static constexpr int32_t kBaseY = 48 - 6;
-
-	static float curve_rising(float k, float x) {
-		return k == 0.f ? x : 1.f - ((std::exp2(-k * x) - std::exp2(-k)) / (1.f - std::exp2(-k)));
-	}
-	static int32_t y_of(float level) { return static_cast<int32_t>(std::round(kBaseY - level * (kBaseY - kTopY))); }
-	void segment(float x0, float from, float x1, float to, float k) {
-		auto last_x = static_cast<int32_t>(x0);
-		int32_t last_y = y_of(from);
-		for (int32_t i = 1; i <= 12; i++) {
-			const float t = static_cast<float>(i) / 12;
-			const auto this_x = static_cast<int32_t>(std::round(x0 + (x1 - x0) * t));
-			const int32_t this_y = y_of(from + (to - from) * curve_rising(k, t));
-			image.draw_line(last_x, last_y, this_x, this_y);
-			last_x = this_x;
-			last_y = this_y;
-		}
-	}
-	void dotted(float x, bool draw, int32_t top_y) {
-		if (!draw) {
-			return;
-		}
-		for (int32_t y = 43 + 1; y >= top_y - 2; y -= 4) { // OLED_MAIN_VISIBLE_HEIGHT is 43
-			image.draw_pixel(static_cast<int32_t>(x), y);
-		}
-	}
-	void indicator(float center_x, float center_y, bool is_selected) {
-		const auto ix = static_cast<int32_t>(center_x);
-		const auto iy = static_cast<int32_t>(center_y);
-		if (!is_selected && ix == selected_x && iy == selected_y) {
-			return;
-		}
-		for (int32_t x = ix - 1; x <= ix + 1; x++) {
-			for (int32_t y = iy - 1; y <= iy + 1; y++) {
-				image.clear_pixel(x, y);
-			}
-		}
-		if (is_selected) {
-			selected_x = ix;
-			selected_y = iy;
-			image.invert_area(ix - 1, 3, iy - 1, iy + 1);
-		}
-		image.draw_rectangle(ix - 2, iy - 2, ix + 2, iy + 2);
-	}
-	void line(float x0, int32_t y0, float x1, int32_t y1) {
-		image.draw_line(static_cast<int32_t>(x0), y0, static_cast<int32_t>(x1), y1);
-	}
-
-	void draw() {
-		constexpr float start_x = 4;
-		constexpr float end_x = 4 + 120;
-		constexpr float max_segment_width = 30;
-		const float attack_x = std::round(start_x + g.attack / 50.0f * max_segment_width);
-		// `sigmoidLikeCurve(decay, 50, 8)` (`origin/main:src/deluge/util/functions.cpp`)
-		const auto decay = static_cast<float>(g.decay);
-		const float decay_width = (decay / (decay + 8.0f)) / (50.0f / (50.0f + 8.0f)) * max_segment_width;
-		const float sustain_level = g.mode == EnvelopeGraph::Mode::AHD ? 0.f : g.sustain / 50.0f;
-		const int32_t sustain_y = y_of(sustain_level);
-		const float attack_level = g.mode == EnvelopeGraph::Mode::AR ? sustain_level : 1.f;
-		constexpr float sustain_x = start_x + max_segment_width * 3;
-		const float release_x = std::round(sustain_x + g.release / 50.0f * (end_x - sustain_x));
-		segment(start_x, 0.f, attack_x, attack_level, g.attack_k);
-		switch (g.mode) {
-		case EnvelopeGraph::Mode::AHD: {
-			const float hold_x = std::round(attack_x + decay_width);
-			const float decay_end_x = std::round(hold_x + g.release / 50.0f * (end_x - hold_x));
-			line(attack_x, kTopY, hold_x, kTopY);
-			segment(hold_x, 1.f, decay_end_x, 0.f, g.decay_k);
-			line(decay_end_x, kBaseY, end_x, kBaseY);
-			dotted(attack_x, attack_x > start_x + 3, kTopY);
-			dotted(hold_x, hold_x - attack_x > 4, kTopY);
-			indicator(attack_x, kTopY, selected_pos == 0);
-			indicator(hold_x, kTopY, selected_pos == 1);
-			indicator(decay_end_x, kBaseY, selected_pos == 3);
-			break;
-		}
-		case EnvelopeGraph::Mode::AR:
-			line(attack_x, sustain_y, sustain_x, sustain_y);
-			segment(sustain_x, sustain_level, release_x, 0.f, g.release_k);
-			line(release_x, kBaseY, end_x, kBaseY);
-			dotted(sustain_x, true, sustain_y);
-			indicator(attack_x, y_of(attack_level), selected_pos == 0);
-			indicator(attack_x + (sustain_x - attack_x) / 2, sustain_y, selected_pos == 2);
-			indicator(release_x, kBaseY, selected_pos == 3);
-			break;
-		case EnvelopeGraph::Mode::MPE:
-			line(attack_x, kTopY, sustain_x, kTopY);
-			segment(sustain_x, 1.f, release_x, 0.f, g.release_k);
-			line(release_x, kBaseY, end_x, kBaseY);
-			for (int32_t x = 4; x <= sustain_x; x += 3) {
-				image.draw_pixel(x, sustain_y);
-			}
-			dotted(sustain_x, true, kTopY);
-			indicator(attack_x, kTopY, selected_pos == 0);
-			indicator(start_x + (sustain_x - start_x) / 2, sustain_y, selected_pos == 2);
-			indicator(release_x, kBaseY, selected_pos == 3);
-			break;
-		default: {
-			const float decay_x = std::round(attack_x + decay_width);
-			segment(attack_x, 1.f, decay_x, sustain_level, g.decay_k);
-			line(decay_x, sustain_y, sustain_x, sustain_y);
-			segment(sustain_x, sustain_level, release_x, 0.f, g.release_k);
-			line(release_x, kBaseY, end_x, kBaseY);
-			dotted(attack_x, attack_x > start_x + 3, kTopY);
-			dotted(decay_x, decay_x - attack_x > 4, kTopY);
-			dotted(sustain_x, true, sustain_y > kTopY ? kTopY : sustain_y);
-			indicator(attack_x, kTopY, selected_pos == 0);
-			indicator(decay_x, sustain_y, selected_pos == 1);
-			indicator(decay_x + (sustain_x - decay_x) / 2, sustain_y, selected_pos == 2);
-			indicator(release_x, kBaseY, selected_pos == 3);
-			break;
-		}
-		}
-	}
-};
-
 /// `EqMenu::renderMenuItems` with `drawControlIndicator` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`), on the
 /// reference canvas of the 48-row panel; its `uint8_t`s and integer `std::lerp`s kept.
 struct LegacyEq {
@@ -485,19 +361,52 @@ describe column_drawings_w("ui::widgets::oled::column_drawings", $ {
 		}
 	});
 
-	it("draws the envelope as legacy's page does, in every mode, curve and focus", _ {
+	it("draws each envelope mode on both panels", _ {
+		using Mode = EnvelopeGraph::Mode;
+		struct Case {
+			const char* name;
+			Mode mode;
+			float k;
+			int32_t focus;
+		};
+		const std::array<Case, 6> cases{{{"adsr", Mode::ADSR, 4.f, 1},
+		                                 {"ahd", Mode::AHD, 4.f, 0},
+		                                 {"ar", Mode::AR, 4.f, 2},
+		                                 {"mpe", Mode::MPE, 4.f, 3},
+		                                 {"adsr_steep", Mode::ADSR, 12.5f, 2},
+		                                 {"adsr_concave", Mode::ADSR, -12.5f, 3}}};
+		for (const Case& c : cases) {
+			const EnvelopeGraph g{.attack = 7, .decay = 25, .sustain = 25, .release = 15, .mode = c.mode,
+			                      .attack_k = c.k / 2, .decay_k = c.k, .release_k = c.k};
+			uitest::Rig48 r48;
+			envelope_graph(r48.frame, g, c.focus);
+			expect_golden(self, std::string("ui/widgets/envelope_") + c.name + "_48.pbm", r48.pbm());
+			uitest::Rig64 r64;
+			envelope_graph(r64.frame, g, c.focus);
+			expect_golden(self, std::string("ui/widgets/envelope_") + c.name + "_64.pbm", r64.pbm());
+		}
+	});
+
+	it("keeps every envelope pixel within two of the page body, in every mode, curve, value and focus", _ {
 		using Mode = EnvelopeGraph::Mode;
 		for (const Mode mode : {Mode::ADSR, Mode::AHD, Mode::AR, Mode::MPE}) {
 			for (const float curve : {-12.5f, 0.f, 8.f, 12.5f}) {
 				for (const int32_t value : {0, 7, 25, 50}) {
 					for (const int32_t focus : {0, 1, 2, 3}) {
-						const EnvelopeGraph g{.attack = value, .decay = 50 - value, .sustain = value, .release = 50 - value,
-						                      .mode = mode, .attack_k = curve / 2, .decay_k = curve, .release_k = curve};
+						const EnvelopeGraph g{.attack = value, .decay = 50 - value, .sustain = value,
+						                      .release = 50 - value, .mode = mode, .attack_k = curve / 2,
+						                      .decay_k = curve, .release_k = curve};
 						uitest::Rig48 r;
-						OledFrame panel = panel_frame(r.frame);
-						envelope_graph(panel, g, focus);
-						LegacyEnvelope{.image = r.reference, .g = g, .selected_pos = focus}.draw();
-						expect(r.pbm()).to_equal(r.reference_pbm());
+						envelope_graph(r.frame, g, focus);
+						const PageBody b = page_body(r.frame);
+						int32_t outside = 0;
+						for (int32_t y = 0; y < 43; y++) {
+							for (int32_t x = 0; x < 128; x++) {
+								const bool in = x >= b.left - 2 && x <= b.right + 2 && y >= b.top - 2 && y <= b.bottom + 2;
+								outside += (!in && r.lit(x, y + 5)) ? 1 : 0;
+							}
+						}
+						expect(outside).to_equal(0);
 					}
 				}
 			}

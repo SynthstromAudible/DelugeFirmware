@@ -88,13 +88,14 @@ struct EnvelopeGraph {
 	float release_k = 8.f; ///< The release's.
 };
 
-/// @brief `envelope::EnvelopeMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`):
-///        the envelope's shape for its mode, its stages bent as its curve bends them, with dotted stage lines and a
-///        square on each segment's point, the focused one inverted.
-/// @param panel    A whole-panel frame (`panel_frame`): legacy draws in canvas coordinates.
+/// @brief The envelope in the page kit's style (the body, guides and handles of `page_drawing.h`): what
+///        `envelope::EnvelopeMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`)
+///        shows, the envelope's shape for its mode, its stages bent as its curve bends them, with dotted stage lines
+///        and a handle on each segment's point, the focused one inverted.
+/// @param f        The frame the menu hands a page drawing: the visible panel, in frame-local coordinates.
 /// @param envelope The envelope.
 /// @param selected The focused segment, 0..3.
-void envelope_graph(OledFrame& panel, const EnvelopeGraph& envelope, int32_t selected);
+void envelope_graph(OledFrame& f, const EnvelopeGraph& envelope, int32_t selected);
 
 /// @brief `eq::EqMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`): the shelving curve with
 ///        reference lines and a handle on each of bass, bass frequency, treble frequency and treble, the focused one

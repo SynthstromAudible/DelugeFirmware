@@ -84,12 +84,11 @@ ValueText release_text(const MenuContext& ctx, size_t e, ValueTextUse use, std::
 /// envelope @p e's four segments.
 void draw_envelope(ui::widgets::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused, size_t e,
                    const Node& attack, const Node& decay, const Node& sustain, const Node& release) {
-	ui::widgets::oled::OledFrame canvas_panel = ui::widgets::oled::panel_frame(panel);
 	const deluge::synth::EnvelopeState state = envelope_state(ctx, e);
 	const deluge::synth::EnvelopeEighths shape = deluge::synth::eighths_of(state.curve);
 	using Mode = ui::widgets::oled::EnvelopeGraph::Mode;
 	static constexpr std::array<Mode, 4> kModes{Mode::ADSR, Mode::AHD, Mode::AR, Mode::MPE}; // in EnvelopeMode's order
-	ui::widgets::oled::envelope_graph(canvas_panel,
+	ui::widgets::oled::envelope_graph(panel,
 	                                  {.attack = bindings::read(attack, ctx),
 	                                   .decay = bindings::read(decay, ctx),
 	                                   .sustain = bindings::read(sustain, ctx),

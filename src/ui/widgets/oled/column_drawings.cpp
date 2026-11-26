@@ -89,40 +89,6 @@ void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g) {
 
 namespace {
 
-/// @brief `drawTransitionIndicator`/`drawControlIndicator`
-/// (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`,
-/// `origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`).
-struct Indicators {
-	gfx::oled::Canvas& canvas;
-	int32_t selected_x = -1;
-	int32_t selected_y = -1;
-
-	void draw(float center_x, float center_y, bool is_selected) {
-		const auto ix = static_cast<int32_t>(center_x);
-		const auto iy = static_cast<int32_t>(center_y);
-		if (!is_selected && ix == selected_x && iy == selected_y) {
-			return; // overlap: the selected one stays on top
-		}
-		constexpr int32_t square_size = 2;
-		constexpr int32_t inner = square_size - 1;
-		for (int32_t x = ix - inner; x <= ix + inner; x++) {
-			for (int32_t y = iy - inner; y <= iy + inner; y++) {
-				canvas.clear_pixel(x, y);
-			}
-		}
-		if (is_selected) {
-			selected_x = ix;
-			selected_y = iy;
-			canvas.invert_area(ix - inner, square_size * 2 - 1, iy - inner, iy + inner);
-		}
-		canvas.draw_rectangle(ix - square_size, iy - square_size, ix + square_size, iy + square_size);
-	}
-};
-
-} // namespace
-
-namespace {
-
 /// @brief `EnvelopeCurve::rising`: 0 at @p x = 0, 1 at 1, bent by @p k octaves; 0 is a straight line.
 float rising(float k, float x) {
 	if (k == 0.f) {
@@ -132,59 +98,46 @@ float rising(float k, float x) {
 	return 1.f - ((std::exp2(-k * x) - floor) / (1.f - floor));
 }
 
+/// @brief One stage of the envelope: from one level to another, bent by `k` octaves.
+struct Stage {
+	float from;
+	float to;
+	float k;
+};
+
+float stage_level(float t, const void* ctx) {
+	const auto& s = *static_cast<const Stage*>(ctx);
+	return s.from + (s.to - s.from) * rising(s.k, t);
+}
+
 } // namespace
 
-void envelope_graph(OledFrame& panel, const EnvelopeGraph& envelope, int32_t selected) {
-	const gfx::oled::Geometry g = panel.canvas.geometry();
-	ClipScope scope{panel.canvas, panel.clip};
-	gfx::oled::Canvas& image = panel.canvas;
-
-	constexpr int32_t padding_x = 4;
-	constexpr int32_t start_x = padding_x;
-	const auto start_y = static_cast<uint8_t>(g.visible_top + gfx::oled::kTextTitleSizeY + 7);
-	const auto end_y = static_cast<uint8_t>(g.height - 6);
-	const int32_t draw_width = g.width - 2 * padding_x;
-	const auto draw_height = static_cast<uint8_t>(end_y - start_y);
-	const auto max_segment_width = static_cast<float>(draw_width / 4);
-	const int32_t base_y = start_y + draw_height;
-	const auto end_x = static_cast<float>(start_x + draw_width);
+void envelope_graph(OledFrame& f, const EnvelopeGraph& envelope, int32_t selected) {
+	const PageBody b = page_body(f);
+	const auto start_x = static_cast<float>(b.left);
+	const auto end_x = static_cast<float>(b.right);
+	const auto max_segment_width = static_cast<float>((b.right - b.left) / 4);
 
 	const auto ix = [](float v) { return static_cast<int32_t>(v); };
-	const auto level_y = [&](float level) {
-		return static_cast<int32_t>(std::round(static_cast<float>(base_y) - level * static_cast<float>(draw_height)));
-	};
 	const auto fraction = [](int32_t value) { return static_cast<float>(value) / 50.0f; };
-	// A stage from one level to another, bent like the envelope's curve
 	const auto stage = [&](float x0, float from, float x1, float to, float k) {
-		constexpr int32_t kSteps = 12;
-		int32_t last_x = ix(x0);
-		int32_t last_y = level_y(from);
-		for (int32_t i = 1; i <= kSteps; i++) {
-			const float t = static_cast<float>(i) / kSteps;
-			const auto this_x = static_cast<int32_t>(std::round(x0 + (x1 - x0) * t));
-			const int32_t this_y = level_y(from + (to - from) * rising(k, t));
-			image.draw_line(last_x, last_y, this_x, this_y);
-			last_x = this_x;
-			last_y = this_y;
-		}
+		const Stage s{.from = from, .to = to, .k = k};
+		curve(f, b, x0, x1, stage_level, &s);
 	};
-	// The vertical dotted line marking a stage transition, from the bottom of the screen up to top_y
-	const int32_t visible_height = g.height - g.visible_top;
+	// Lines close to each other look messy: a caller leaves the nearer out
 	const auto dotted = [&](float x, bool draw, int32_t top_y) {
-		for (int32_t y = visible_height + 1; draw && y >= top_y - 2; y -= 4) {
-			image.draw_pixel(ix(x), y);
+		if (draw) {
+			guide_v(f, b, ix(x), top_y);
 		}
 	};
-	Indicators marks{image};
-	const auto mark = [&](float x, int32_t y, int32_t segment) {
-		marks.draw(x, static_cast<float>(y), selected == segment);
-	};
+	Handles marks{f};
+	const auto mark = [&](float x, int32_t y, int32_t segment) { marks.draw(ix(x), y, selected == segment); };
 
 	using Mode = EnvelopeGraph::Mode;
 	const float attack_x = std::round(start_x + fraction(envelope.attack) * max_segment_width);
 	const float decay_width = sigmoid_like_curve(static_cast<float>(envelope.decay), 50.0f, 8.0f) * max_segment_width;
 	const float sustain_level = envelope.mode == Mode::AHD ? 0.f : fraction(envelope.sustain);
-	const int32_t sustain_y = level_y(sustain_level);
+	const int32_t sustain_y = b.y_at(sustain_level);
 	const float sustain_x = start_x + max_segment_width * 3;
 	const float release_x = std::round(sustain_x + fraction(envelope.release) * (end_x - sustain_x));
 
@@ -197,51 +150,48 @@ void envelope_graph(OledFrame& panel, const EnvelopeGraph& envelope, int32_t sel
 		const float hold_x = std::round(attack_x + decay_width);
 		// The decay gets the room the release would have had, so the line ends where the release knob says
 		const float decay_end_x = std::round(hold_x + fraction(envelope.release) * (end_x - hold_x));
-		image.draw_line(ix(attack_x), start_y, ix(hold_x), start_y);
+		f.line(ix(attack_x), b.top, ix(hold_x), b.top);
 		stage(hold_x, 1.f, decay_end_x, 0.f, envelope.decay_k);
-		image.draw_line(ix(decay_end_x), base_y, ix(end_x), base_y);
-		dotted(attack_x, attack_x > start_x + 3, start_y);
-		dotted(hold_x, hold_x - attack_x > 4, start_y);
-		mark(attack_x, start_y, 0);
-		mark(hold_x, start_y, 1);
-		mark(decay_end_x, base_y, 3);
+		f.line(ix(decay_end_x), b.bottom, ix(end_x), b.bottom);
+		dotted(attack_x, attack_x > start_x + 3, b.top);
+		dotted(hold_x, hold_x - attack_x > 4, b.top);
+		mark(attack_x, b.top, 0);
+		mark(hold_x, b.top, 1);
+		mark(decay_end_x, b.bottom, 3);
 		break;
 	}
 	case Mode::AR: // up to the level while held, down on release
-		image.draw_line(ix(attack_x), sustain_y, ix(sustain_x), sustain_y);
+		f.line(ix(attack_x), sustain_y, ix(sustain_x), sustain_y);
 		stage(sustain_x, sustain_level, release_x, 0.f, envelope.release_k);
-		image.draw_line(ix(release_x), base_y, ix(end_x), base_y);
+		f.line(ix(release_x), b.bottom, ix(end_x), b.bottom);
 		dotted(sustain_x, true, sustain_y);
-		mark(attack_x, level_y(attack_level), 0);
+		mark(attack_x, b.y_at(attack_level), 0);
 		mark(attack_x + (sustain_x - attack_x) / 2, sustain_y, 2);
-		mark(release_x, base_y, 3);
+		mark(release_x, b.bottom, 3);
 		break;
 	case Mode::MPE: // up to full with the input fully on, resting at the level with it off, down on release
-		image.draw_line(ix(attack_x), start_y, ix(sustain_x), start_y);
+		f.line(ix(attack_x), b.top, ix(sustain_x), b.top);
 		stage(sustain_x, 1.f, release_x, 0.f, envelope.release_k);
-		image.draw_line(ix(release_x), base_y, ix(end_x), base_y);
-		for (int32_t x = start_x; x <= ix(sustain_x); x += 3) {
-			image.draw_pixel(x, sustain_y);
-		}
-		dotted(sustain_x, true, start_y);
-		mark(attack_x, start_y, 0);
+		f.line(ix(release_x), b.bottom, ix(end_x), b.bottom);
+		guide_h(f, sustain_y, b.left, ix(sustain_x));
+		dotted(sustain_x, true, b.top);
+		mark(attack_x, b.top, 0);
 		mark(start_x + (sustain_x - start_x) / 2, sustain_y, 2);
-		mark(release_x, base_y, 3);
+		mark(release_x, b.bottom, 3);
 		break;
 	case Mode::ADSR: {
 		const float decay_x = std::round(attack_x + decay_width);
 		stage(attack_x, 1.f, decay_x, sustain_level, envelope.decay_k);
-		image.draw_line(ix(decay_x), sustain_y, ix(sustain_x), sustain_y);
+		f.line(ix(decay_x), sustain_y, ix(sustain_x), sustain_y);
 		stage(sustain_x, sustain_level, release_x, 0.f, envelope.release_k);
-		image.draw_line(ix(release_x), base_y, ix(end_x), base_y);
-		// Lines close to each other look messy: the nearer is left out
-		dotted(attack_x, attack_x > start_x + 3, start_y);
-		dotted(decay_x, decay_x - attack_x > 4, start_y);
-		dotted(sustain_x, true, sustain_y > start_y ? start_y : sustain_y);
-		mark(attack_x, start_y, 0);
+		f.line(ix(release_x), b.bottom, ix(end_x), b.bottom);
+		dotted(attack_x, attack_x > start_x + 3, b.top);
+		dotted(decay_x, decay_x - attack_x > 4, b.top);
+		dotted(sustain_x, true, sustain_y > b.top ? b.top : sustain_y);
+		mark(attack_x, b.top, 0);
 		mark(decay_x, sustain_y, 1);
 		mark(decay_x + (sustain_x - decay_x) / 2, sustain_y, 2);
-		mark(release_x, base_y, 3);
+		mark(release_x, b.bottom, 3);
 		break;
 	}
 	}
