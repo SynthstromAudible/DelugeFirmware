@@ -124,7 +124,7 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
                                      dsp::Q<31> source_amplitude, dsp::Q<31> amplitude_increment, bool do_osc_sync,
                                      const dsp::UQ<32>* sync_pos, const dsp::UQ<32>* sync_increments,
                                      std::span<dsp::UQ<32>> increments_out, bool advance_only,
-                                     int32_t wave_index_increment, SourcePick pick) {
+                                     int32_t wave_index_increment) {
 	bool unison_part_became_inactive = false;
 
 	for (int32_t u = 0; u < block.config->voicing.unison.count; u++) {
@@ -164,7 +164,7 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
 		const SourceRenderResult result =
 		    render_part(block, u, s, stereo_buffer, source_amplitude, amplitude_increment, phase_increment, do_osc_sync,
 		                sync_pos, sync_increments, wave_index_increment, stereo_unison, unison_pan_amplitudes.left,
-		                unison_pan_amplitudes.right, pick);
+		                unison_pan_amplitudes.right);
 		if (result == SourceRenderResult::UNASSIGN) {
 			unison_part_became_inactive = true;
 			slot.unassign(false);
@@ -178,7 +178,7 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
                                                  dsp::UQ<32> phase_increment, bool do_osc_sync,
                                                  const dsp::UQ<32>* sync_pos, const dsp::UQ<32>* sync_increments,
                                                  int32_t wave_index_increment, bool stereo_unison,
-                                                 dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r, SourcePick pick) {
+                                                 dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r) {
 	const BlockValues& cfg = *block.values;
 	const DualSourceControls& c = block.dual;
 	SourceSlot& slot = block.parts[u].slots[s];
@@ -238,15 +238,9 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	        },
 	};
 
-	// The part's DX7 on slot 0 in DX7 mode (nothing on slot 1); else a port-backed source by the sound's current type,
-	// or the oscillator the note built. A slot holding none (a mode change under a live voice) renders nothing.
-	Source* component = nullptr;
-	if (pick == SourcePick::DX7) {
-		component = s == 0 ? &dx7_source_of(block.parts[u]) : nullptr;
-	}
-	else {
-		component = slot.source_for(block.config->sources[s].osc_type);
-	}
+	// A port-backed source by the sound's current type, else the oscillator the note built. A slot holding none (a
+	// mode change under a live voice) renders nothing this block.
+	Source* component = slot.source_for(block.config->sources[s].osc_type);
 	if (component == nullptr) [[unlikely]] {
 		return SourceRenderResult::SKIP;
 	}
