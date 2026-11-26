@@ -38,6 +38,29 @@ rza1_hal::bind_interrupts!(struct UsbIrqs {
     USB0 => rza1_hal::usb::DeviceInterruptHandler<rza1_hal::peripherals::USB0>;
 });
 
+/// USB0's device interrupt, with its time metered: it carries control requests and MIDI, inside whatever it
+/// interrupts.
+struct MeteredDeviceInterrupt;
+
+impl rza1_hal::interrupt::Handler<rza1_hal::interrupt::typelevel::USB0> for MeteredDeviceInterrupt {
+    unsafe fn on_interrupt() {
+        let began = crate::services::deluge_cycle_count();
+        // SAFETY: the caller's contract: this is USB0's interrupt.
+        unsafe {
+            <rza1_hal::usb::DeviceInterruptHandler<rza1_hal::peripherals::USB0> as rza1_hal::interrupt::Handler<
+                rza1_hal::interrupt::typelevel::USB0,
+            >>::on_interrupt()
+        };
+        crate::work_cycles::add_interrupt(
+            crate::services::deluge_cycle_count().wrapping_sub(began),
+        );
+    }
+}
+
+rza1_hal::bind_interrupts!(struct MeteredUsbIrqs {
+    USB0 => MeteredDeviceInterrupt;
+});
+
 /// [`STARTED`]'s states: not started, started with USB-MIDI only, started with audio as well.
 const NOT_STARTED: u8 = 0;
 const STARTED_MIDI: u8 = 1;
@@ -63,6 +86,10 @@ pub unsafe fn init(
     // init_device_mode binds the device-mode handler (host mode is not implemented), ungates the
     // USB module clock and yields the driver.
     let (_port, driver) = init_device_mode(usb0, UsbIrqs);
+    // The driver takes only its own handler; this replaces it with one that calls it.
+    rza1_hal::interrupt::bind::<rza1_hal::interrupt::typelevel::USB0, MeteredDeviceInterrupt>(
+        MeteredUsbIrqs,
+    );
     driver
 }
 
@@ -85,15 +112,21 @@ abi_pin!(deluge_usb_device_start);
 
 /// Background task: waits for [`deluge_usb_device_start`], builds the device it asked for, then
 /// runs the embassy-usb device state machine (enumeration, control requests) and the two MIDI 1.0
-/// endpoint pumps. The audio streams need no task: their packets move in the USB0 interrupt.
+/// endpoint pumps. The audio streams need no task: a DMA channel each moves their packets.
 #[embassy_executor::task]
-pub async fn usb_task(driver: Rusb1Driver<'static>) {
+pub async fn usb_task(
+    driver: Rusb1Driver<'static>,
+    to_host_dma: rza1_hal::dmac::Dma<'static>,
+    from_host_dma: rza1_hal::dmac::Dma<'static>,
+) {
     START.wait().await;
     let with_audio = STARTED.load(Ordering::Acquire) == STARTED_WITH_AUDIO;
 
     let mut config = Config::new(USB_VID, USB_PID);
     config.manufacturer = Some("Synthstrom Audible");
     config.product = Some("Deluge");
+    // The configuration's descriptors, which hosts cache by this: the MIDI-only device's differ from the audio one's.
+    config.device_release = if with_audio { 0x0020 } else { 0x0021 };
     config.self_powered = false;
     config.max_power = 250; // 500 mA
 
@@ -111,7 +144,7 @@ pub async fn usb_task(driver: Rusb1Driver<'static>) {
 
     // The audio function goes first: its interface numbers are fixed from 0.
     if with_audio {
-        let handler = usb_audio::build(&mut builder);
+        let handler = usb_audio::build(&mut builder, to_host_dma, from_host_dma);
         // SAFETY: written once, here; the builder holds the only reference from now on.
         let handler_ref = unsafe { (*addr_of_mut!(AUDIO_HANDLER)).write(handler) };
         builder.handler(handler_ref);
@@ -120,8 +153,9 @@ pub async fn usb_task(driver: Rusb1Driver<'static>) {
     // The app speaks whole USB-MIDI event packets (SysEx included), so the class passes them
     // through instead of decoding them; selected before the endpoint pumps run.
     midi::use_packets();
-    // RUSB1 runs the bus at high speed, so the MIDI 2.0 alternate takes 512-byte bulk packets.
-    let (handler, eps) = midi::build(&mut builder, midi::BusSpeed::High);
+    // MIDI 1.0 alone: only its endpoints are served, and a host that supports MIDI 2.0 (Linux) would otherwise pick the
+    // MIDI 2.0 alternate and get nothing. RUSB1 runs the bus at high speed: 512-byte bulk packets.
+    let (handler, eps) = midi::build_midi1(&mut builder, midi::BusSpeed::High);
     // SAFETY: as above.
     let handler_ref = unsafe { (*addr_of_mut!(MIDI_HANDLER)).write(handler) };
     builder.handler(handler_ref);

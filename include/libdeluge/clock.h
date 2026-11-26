@@ -41,6 +41,12 @@ uint64_t deluge_clock_now(void) DELUGE_NOEXCEPT;
 /// the board has no cycle counter (see deluge_cycle_hz). [task] [audio] [isr]
 uint32_t deluge_cycle_count(void) DELUGE_NOEXCEPT;
 
+/// The CPU cycles spent on the caller's work: deluge_cycle_count less the time the USB interrupt has taken, which
+/// otherwise counts in whatever it interrupts. 32 bits, wrapping; difference two readings. For the cost of a piece of
+/// work, such as a Sound's voices; a span's share of real time is deluge_cycle_count's. Reads 0 where the board has no
+/// cycle counter. Not for an interrupt handler. [task] [audio]
+uint32_t deluge_work_cycle_count(void) DELUGE_NOEXCEPT;
+
 /// The rate deluge_cycle_count counts at, in Hz; 0 where there is no cycle counter (the host), which callers read
 /// as "nothing measured". [task] [audio] [isr]
 uint32_t deluge_cycle_hz(void) DELUGE_NOEXCEPT;

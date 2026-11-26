@@ -39,8 +39,8 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
      MIDI, CV and gate output happen there too. The goal for an `[audio]` function is that it never blocks,
      allocates or locks. Today some do: the mod-FX buffer is set up and released inside the render through
      `deluge_alloc`/`deluge_free`, a region acquire can take and release slab slots
-     (`deluge_slab_acquire`/`deluge_slab_release`), the render takes `ENTER_CRITICAL_SECTION`, and a freeze in the
-     render blocks in `deluge_fault_pad_flush`. The tags record these hazards; they do not fix them.
+     (`deluge_slab_acquire`/`deluge_slab_release`), MIDI, CV and gate output take short `ENTER_CRITICAL_SECTION`s, and
+     a freeze in the render blocks in `deluge_fault_pad_flush`. The tags record these hazards; they do not fix them.
    - `[task]`: may be called from the non-audio tiers: the interaction tier (the cooperative executor's tasks, boot
      and the UI) and the storage tier. On the device the storage tier runs on `STREAM_EXEC`, an interrupt executor
      (IRQ mode), so `[task]` does not mean thread mode.

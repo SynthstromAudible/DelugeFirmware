@@ -9,4 +9,4 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [dev-dependencies]
-deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = ["c-abi"] }
+deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "89303a3632391a122baded3ff12199942c046b5a", features = ["c-abi"] }
