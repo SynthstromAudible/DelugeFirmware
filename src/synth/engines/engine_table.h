@@ -35,6 +35,7 @@ namespace deluge::synth {
 class SubtractiveEngine;
 class RingModEngine;
 class FMEngine;
+class Dx7Engine;
 
 /// @brief Subtractive: the two slots' sources mixed into the filters.
 struct SubtractiveRow {
@@ -60,8 +61,16 @@ struct FmRow {
 	static constexpr bool kHoldsOscillators = false; ///< its carriers keep only the slots' pitch
 };
 
+/// @brief DX7: one DX7 voice per unison part on the subtractive chain; its state is the patch and the DX7's pitch.
+struct Dx7Row {
+	using Engine = Dx7Engine;
+	using State = Dx7State;
+	static constexpr SynthMode kMode = SynthMode::DX7;
+	static constexpr bool kHoldsOscillators = false; ///< it plays no oscillator slot's source
+};
+
 /// @brief The engines, in the saved variant's order. The first is the fallback for a mode no row names.
-using EngineRows = std::tuple<SubtractiveRow, RingModRow, FmRow>;
+using EngineRows = std::tuple<SubtractiveRow, RingModRow, FmRow, Dx7Row>;
 
 namespace detail {
 

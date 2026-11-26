@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // SynthMode
+#include "synth/engines/dx7_engine.h"
 #include "synth/engines/engine.h"
 #include "synth/engines/engine_table.h"
 #include "synth/engines/fm_engine.h"

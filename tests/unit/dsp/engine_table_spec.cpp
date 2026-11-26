@@ -33,7 +33,7 @@ using deluge::instruments::classic::to_string;
 
 namespace {
 
-constexpr std::array kModes{SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD};
+constexpr std::array kModes{SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD, SynthMode::DX7};
 /// A value no row names.
 constexpr auto kUnnamedMode = static_cast<SynthMode>(200);
 
@@ -51,7 +51,7 @@ DualSourceState a_dual() {
 
 } // namespace
 
-static_assert(std::is_same_v<EngineState, std::variant<SubtractiveState, RingModState, FmState>>,
+static_assert(std::is_same_v<EngineState, std::variant<SubtractiveState, RingModState, FmState, Dx7State>>,
               "the saved engine state is the rows' states, in today's order");
 
 // clang-format off
@@ -67,12 +67,14 @@ describe engine_table_spec_body("the engine table", ${
 		expect(mode_of(SubtractiveState{})).to_equal(SynthMode::SUBTRACTIVE);
 		expect(mode_of(RingModState{})).to_equal(SynthMode::RINGMOD);
 		expect(mode_of(FmState{})).to_equal(SynthMode::FM);
+		expect(mode_of(Dx7State{})).to_equal(SynthMode::DX7);
 	});
 
 	it("plays the oscillator slots in subtractive and ring-mod only", _{
 		expect(holds_oscillators(SynthMode::SUBTRACTIVE)).to_equal(true);
 		expect(holds_oscillators(SynthMode::RINGMOD)).to_equal(true);
 		expect(holds_oscillators(SynthMode::FM)).to_equal(false);
+		expect(holds_oscillators(SynthMode::DX7)).to_equal(false);
 		expect(holds_oscillators(kUnnamedMode)).to_equal(false);
 	});
 
@@ -97,6 +99,8 @@ describe engine_table_spec_body("the engine table", ${
 		    .to_equal(true);
 		expect(dual_state_for(SynthMode::FM, a_dual()) == EngineState{SubtractiveState{.oscillators = a_dual()}})
 		    .to_equal(true);
+		expect(dual_state_for(SynthMode::DX7, a_dual()) == EngineState{SubtractiveState{.oscillators = a_dual()}})
+		    .to_equal(true);
 		expect(dual_state_for(kUnnamedMode, a_dual()) == EngineState{SubtractiveState{.oscillators = a_dual()}})
 		    .to_equal(true);
 	});
@@ -106,10 +110,11 @@ describe engine_table_spec_body("the engine table", ${
 		for_each_row<EngineRows>([&]<class Row>(Row) {
 			expect(&set.for_mode(Row::kMode) == static_cast<Engine*>(&set.of<Row>())).to_equal(true);
 		});
-		expect(&set.for_mode(SynthMode::SUBTRACTIVE) != &set.for_mode(SynthMode::RINGMOD)
-		       && &set.for_mode(SynthMode::RINGMOD) != &set.for_mode(SynthMode::FM)
-		       && &set.for_mode(SynthMode::SUBTRACTIVE) != &set.for_mode(SynthMode::FM))
-		    .to_equal(true);
+		for (size_t a = 0; a < kModes.size(); a++) {
+			for (size_t b = a + 1; b < kModes.size(); b++) {
+				expect(&set.for_mode(kModes[a]) != &set.for_mode(kModes[b])).to_equal(true);
+			}
+		}
 		expect(&set.for_mode(SynthMode::FM) == static_cast<Engine*>(&set.fm())).to_equal(true);
 		expect(&set.for_mode(kUnnamedMode) == static_cast<Engine*>(&set.of<SubtractiveRow>())).to_equal(true);
 	});
@@ -121,7 +126,11 @@ describe engine_table_spec_body("the engine table", ${
 			words[i++] = to_string(Row::kMode);
 			expect(parse_synth_mode(to_string(Row::kMode))).to_equal(Row::kMode);
 		});
-		expect(words[0] != words[1] && words[1] != words[2] && words[0] != words[2]).to_equal(true);
+		for (size_t a = 0; a < words.size(); a++) {
+			for (size_t b = a + 1; b < words.size(); b++) {
+				expect(words[a] != words[b]).to_equal(true);
+			}
+		}
 	});
 });
 // clang-format on

@@ -26,11 +26,12 @@ namespace deluge::instruments::classic {
 /// @brief The oscillator sources a sound has.
 inline constexpr size_t kSourceCount = 2;
 
-/// @brief How the two sources make sound: subtractive, FM, or ring-modulated.
+/// @brief How the sound makes its sound: its two sources subtractive, FM or ring-modulated, or a DX7.
 enum class SynthMode : uint8_t {
 	SUBTRACTIVE,
 	FM,
 	RINGMOD,
+	DX7, ///< The DX7 on the subtractive chain: one DX7 voice per unison part in place of the oscillators
 };
 
 /// @brief A source's oscillator. Saved by name (see to_string).
@@ -87,6 +88,8 @@ enum class SampleRepeatMode {
 		return "fm";
 	case SynthMode::RINGMOD:
 		return "ringmod";
+	case SynthMode::DX7:
+		return "dx7";
 	case SynthMode::SUBTRACTIVE:
 		break;
 	}
@@ -102,6 +105,9 @@ enum class SampleRepeatMode {
 	}
 	if (text == "ringmod") {
 		return SynthMode::RINGMOD;
+	}
+	if (text == "dx7") {
+		return SynthMode::DX7;
 	}
 	return SynthMode::SUBTRACTIVE;
 }
