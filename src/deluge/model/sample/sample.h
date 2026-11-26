@@ -136,6 +136,11 @@ public:
 	///        audio on the card may have changed.
 	void resetPeaks();
 
+	/// @brief Make the index again if it could not be made (memory may have come free since), at most once a second of
+	///        audio time, so a view polling a waveform with no index does not try an allocation on every frame. Thread
+	///        mode.
+	void retryPeaks();
+
 	/// @brief The frame the background peak scan looks from next.
 	uint64_t peaksScanFrom{0};
 
@@ -239,6 +244,10 @@ public:
 	///       definition.
 	deluge::audio::stream::SampleStream stream_{*this};
 
+	/// @brief `AudioEngine::audioSampleTimer` at `retryPeaks`' last try.
+	uint32_t peaksTriedAt_{0};
+	/// @brief Whether `retryPeaks` has tried before.
+	bool peaksTried_{false};
 	/// @brief The waveform peak index: one reference, dropped in the destructor or by `makePeaks`.
 	DelugePeakIndex* peaks_{nullptr};
 

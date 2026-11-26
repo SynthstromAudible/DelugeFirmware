@@ -139,9 +139,7 @@ PLACE_SDRAM_TEXT ui::views::waveform::PeakRead waveform_columns(Sample& sample, 
 	if (at.zoom < 1) {
 		return ui::views::waveform::PeakRead::all_past_end();
 	}
-	if (sample.peaks() == nullptr) {
-		sample.resetPeaks(); // its index could not be made when it loaded: memory may have come free since
-	}
+	sample.retryPeaks();
 	DelugePeakIndex* peaks = sample.peaks();
 	const auto valid = static_cast<int64_t>(captured.value_or(sample.lengthInSamples));
 	// What the index holds: a take's may lag its recorder by a tick.
@@ -181,9 +179,7 @@ PLACE_SDRAM_TEXT bool advance_peak_scan(Sample& sample) {
 	if (!sample.isLengthKnown()) {
 		return false;
 	}
-	if (sample.peaks() == nullptr) {
-		sample.resetPeaks(); // its index could not be made when it loaded: memory may have come free since
-	}
+	sample.retryPeaks();
 	DelugePeakIndex* peaks = sample.peaks();
 	if (peaks == nullptr) {
 		return false;

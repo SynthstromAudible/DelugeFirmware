@@ -121,7 +121,8 @@ void deluge_peaks_fold_frames(DelugePeakIndex* index, uint64_t first_frame, cons
                               uint8_t byte_depth, uint8_t channels) DELUGE_NOEXCEPT;
 
 /// @brief [task] [audio] Complete 256-frame block `block` with `peak`. Never allocates. A block already complete only
-///        fills its kept level-0 value; one past a final index's end is dropped.
+///        fills its kept level-0 value (the levels above keep its first fold, so fold one block's own frames only);
+///        one past a final index's end is dropped.
 /// @param index The index; null is ignored.
 /// @param block The block: frames `[block * 256, block * 256 + 256)`, clipped to the index's end.
 /// @param peak  The block's peak.

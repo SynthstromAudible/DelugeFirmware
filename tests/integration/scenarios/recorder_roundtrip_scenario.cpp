@@ -394,7 +394,8 @@ bool beginCase(const Case& c) {
 bool verifyScanRearm() {
 	Sample* sample = g_case.rec->sample;
 	if (sample == nullptr) {
-		return true;
+		g_rtReport.fail("the finished recorder holds no sample to check the peak scan's restart with");
+		return false;
 	}
 	sample->addReason(); // keep the take past its recorder
 	sample->resetPeaks();
@@ -420,6 +421,7 @@ bool verifyCase() {
 	}
 	const bool ok = verifyRecordedFile(g_case.path, c.channels, c.frames, c.extraMargins,
 	                                   rec.sample != nullptr ? rec.sample->peaks() : nullptr);
+	// The last use of `rec`: the check below lets the recorder go.
 	return verifyScanRearm() && ok;
 }
 

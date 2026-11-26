@@ -259,6 +259,19 @@ void Sample::makePeaks(uint64_t frames, bool growing, uint64_t capacity) {
 	}
 }
 
+void Sample::retryPeaks() {
+	if (peaks_ != nullptr || !isLengthKnown()) {
+		return;
+	}
+	const uint32_t now = AudioEngine::audioSampleTimer;
+	if (peaksTried_ && now - peaksTriedAt_ < static_cast<uint32_t>(kSampleRate)) {
+		return;
+	}
+	peaksTried_ = true;
+	peaksTriedAt_ = now;
+	resetPeaks();
+}
+
 void Sample::resetPeaks() {
 	if (!isLengthKnown()) {
 		return; // a take still recording: its recorder keeps its index

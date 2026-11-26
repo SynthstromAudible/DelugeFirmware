@@ -214,7 +214,9 @@ impl PeakIndex {
 
     /// Completes level-0 block `block` with `peak`: keeps the value if its chunk exists, folds it into the range and
     /// into its parent, and sets its bit. Never allocates. A block already complete only fills its kept value (a
-    /// column read's frames, kept for the next read); the range and the levels above have it already. A block past a
+    /// column read's frames, kept for the next read); the range and the levels above keep what its first fold gave
+    /// them. Every producer folds the same converted frames, so the two agree; a block folded with different peaks
+    /// would leave its kept value wider than its parent's. A block past a
     /// final index's end is dropped.
     pub fn fold_block(&self, block: u64, peak: Peak) {
         if peak.is_empty() {
