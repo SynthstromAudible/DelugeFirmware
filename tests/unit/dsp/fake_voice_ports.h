@@ -21,7 +21,7 @@
 namespace deluge::synth::test {
 
 /// @brief A mono 16-bit sample of @p frames frames, read at the rate the voice asks for, with no loop.
-class FakeSamplePort final : public SamplePlaybackPort {
+class FakeSamplePort : public SamplePlaybackPort {
 public:
 	FakeSamplePort() = default;
 	explicit FakeSamplePort(int32_t frames) : frames_{frames} {}

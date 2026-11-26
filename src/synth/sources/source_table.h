@@ -42,9 +42,9 @@ namespace deluge::synth {
 
 /// @brief The firmware ports a slot's port-backed sources play through; they outlive the slot.
 struct SourcePorts {
-	SamplePlaybackPort* sample{};
-	DxVoicePort* dx{};
-	AudioInputPort* input{};
+	SamplePlaybackPort* sample{};    ///< the sample reader and its pool
+	DxVoicePort* dx{};               ///< the pooled DX7 voice
+	AudioInputPort* input{};         ///< the engine's live input
 	const LiveInputs* live_inputs{}; ///< the oscillator's live histories
 };
 
@@ -76,9 +76,14 @@ struct SampleKind {
 	static constexpr bool kHeld = false;
 	static constexpr bool kOwnsNote = true;
 	static constexpr bool kOwnRate = true;
+	/// @brief Whether this row plays @p type.
 	[[nodiscard]] static constexpr bool plays(OscType type) noexcept { return type == OscType::SAMPLE; }
+	/// @brief Binds @p source to its port in @p ports.
 	static void bind(Source& source, const SourcePorts& ports) { source.bind_port(ports.sample); }
+	/// @brief Starts @p note on @p source.
+	/// @return False when the note cannot play.
 	[[nodiscard]] static bool note_on(Source& source, const SourceNote& note) { return source.note_on(note); }
+	/// @brief The note-off for @p source, while the slot is @p active.
 	/// @return False when the release ends the note at once and the slot unassigns.
 	[[nodiscard]] static bool release(Source& source, const SourceRelease& release, bool active) {
 		return !active || source.release(release);
@@ -91,9 +96,14 @@ struct Dx7Kind {
 	static constexpr bool kHeld = false;
 	static constexpr bool kOwnsNote = false;
 	static constexpr bool kOwnRate = false;
+	/// @brief Whether this row plays @p type.
 	[[nodiscard]] static constexpr bool plays(OscType type) noexcept { return type == OscType::DX7; }
+	/// @brief Binds @p source to its port in @p ports.
 	static void bind(Source& source, const SourcePorts& ports) { source.bind_port(ports.dx); }
+	/// @brief Starts @p note on @p source.
+	/// @return False when the note cannot play.
 	[[nodiscard]] static bool note_on(Source& source, const SourceNote& note) { return source.note_on(note); }
+	/// @brief The note-off for @p source.
 	/// @return True: the DX7 releases on its own envelopes, whatever the slot's state, and never ends the note here.
 	[[nodiscard]] static bool release(Source& source, const SourceRelease& /*release*/, bool /*active*/) {
 		(void)source.release({});
@@ -107,15 +117,19 @@ struct InputKind {
 	static constexpr bool kHeld = false;
 	static constexpr bool kOwnsNote = false;
 	static constexpr bool kOwnRate = true;
+	/// @brief Whether this row plays @p type.
 	[[nodiscard]] static constexpr bool plays(OscType type) noexcept {
 		return type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO;
 	}
+	/// @brief Binds @p source to its port in @p ports.
 	static void bind(Source& source, const SourcePorts& ports) { source.bind_port(ports.input, ports.live_inputs); }
+	/// @brief Starts @p note on @p source, latching its input channel.
 	/// @return True: the note-on only latches the input channel.
 	[[nodiscard]] static bool note_on(Source& source, const SourceNote& note) {
 		(void)source.note_on(note);
 		return true;
 	}
+	/// @brief The note-off for a live input.
 	/// @return True: a live input has nothing to release.
 	[[nodiscard]] static bool release(Source& /*source*/, const SourceRelease& /*release*/, bool /*active*/) {
 		return true;
@@ -127,9 +141,12 @@ struct VirtualAnalogKind {
 	using Source = VirtualAnalogSource;
 	static constexpr bool kHeld = true;
 	static constexpr bool kOwnRate = false;
+	/// @brief Whether this row plays @p type: the virtual-analog waves.
 	[[nodiscard]] static bool plays(OscType type) { return va_shape::is_virtual_analog(type); }
 	/// @brief A retrigger seeds the wave at its zero crossing; a free-running wave keeps a held one's phase and wave,
 	/// and a new voice starts it at the random phase.
+	/// @param held The slot's held oscillator.
+	/// @param build What the note's build reads.
 	template <class Holder>
 	static void build(Holder& held, const HeldBuild& build) {
 		const va_shape::Wave wave = va_shape::wave_for(build.type);
@@ -147,8 +164,11 @@ struct WavetableKind {
 	using Source = WavetableSource;
 	static constexpr bool kHeld = true;
 	static constexpr bool kOwnRate = false;
+	/// @brief Whether this row plays @p type.
 	[[nodiscard]] static constexpr bool plays(OscType type) noexcept { return type == OscType::WAVETABLE; }
 	/// @brief As the virtual-analog waves, with no wave to choose.
+	/// @param held The slot's held oscillator.
+	/// @param build What the note's build reads.
 	template <class Holder>
 	static void build(Holder& held, const HeldBuild& build) {
 		if (build.retrigger) {
@@ -165,10 +185,13 @@ struct SupersawKind {
 	using Source = SupersawSource;
 	static constexpr bool kHeld = true;
 	static constexpr bool kOwnRate = false;
+	/// @brief Whether this row plays @p type.
 	[[nodiscard]] static constexpr bool plays(OscType type) noexcept { return type == OscType::SUPERSAW; }
 	/// @brief A retrigger starts the side saws at fixed offsets from the centre one, so every note starts the same way;
 	/// a free-running one on a new voice draws random side saws like the centre one, else every note's side saws would
 	/// start from the same place and sweep the same way.
+	/// @param held The slot's held oscillator.
+	/// @param build What the note's build reads.
 	template <class Holder>
 	static void build(Holder& held, const HeldBuild& build) {
 		using dsp::fixed::Supersaw;
@@ -245,6 +268,7 @@ using HeldKinds = detail::HeldKindsOf<SourceKinds>::type;
 
 /// @brief Calls @p fn with each row of @p Kinds (a tuple of rows) as a value of that type, in order, until @p fn
 /// returns true.
+/// @param fn Called as `fn(Kind{})`; true stops the walk.
 /// @return Whether some call returned true.
 template <class Kinds, class Fn>
 bool find_kind(Fn fn) {
@@ -254,6 +278,7 @@ bool find_kind(Fn fn) {
 }
 
 /// @brief Calls @p fn with each row of @p Kinds, in order.
+/// @param fn Called as `fn(Kind{})` for each row.
 template <class Kinds, class Fn>
 void for_each_kind(Fn fn) {
 	[&]<class... Kind>(std::type_identity<std::tuple<Kind...>>) { (fn(Kind{}), ...); }(std::type_identity<Kinds>{});

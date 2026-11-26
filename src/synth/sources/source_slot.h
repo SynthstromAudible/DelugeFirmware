@@ -94,6 +94,8 @@ private:
 	                      dsp::fixed::Cong& noise);
 
 	/// @brief Calls @p fn with the ported row playing @p type and its source.
+	/// @param type The slot's type as set.
+	/// @param fn Called as `fn(Kind{}, source)` for that row.
 	/// @return False when no ported row plays it.
 	template <class Fn>
 	bool with_ported(OscType type, Fn fn);
