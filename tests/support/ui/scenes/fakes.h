@@ -60,8 +60,10 @@ struct FakeAudioFacts final : AudioFacts {
 struct FakeCardFacts final : CardFacts {
 	bool sample_loading{false}; ///< what `sample_load_in_flight` answers
 	bool replacing{false};      ///< what `output_may_be_replaced` answers
+	std::string last_path;      ///< what `last_sample_path` answers
 	[[nodiscard]] bool sample_load_in_flight() const override { return sample_loading; }
 	[[nodiscard]] bool output_may_be_replaced() const override { return replacing; }
+	[[nodiscard]] std::string last_sample_path() const override { return last_path; }
 };
 
 /// @brief UiFacts a spec sets directly.
@@ -626,6 +628,55 @@ struct RecordingViewActions final : ViewActions {
 	}
 };
 
+/// @brief CardActions that records every release asked of it, and refuses the paths a spec lists as in use.
+struct RecordingCardActions final : CardActions {
+	std::vector<std::string> released;         ///< every path asked, in order
+	std::set<std::string, std::less<>> in_use; ///< the paths it refuses, as a song using them
+	[[nodiscard]] bool release_sample_file(std::string_view path) override {
+		released.emplace_back(path);
+		return !in_use.contains(path);
+	}
+};
+
+/// @brief A favourites bank in memory, recording what the browser asks of it.
+struct FakeFavourites final : Favourites {
+	std::array<std::optional<uint8_t>, 16> slots{}; ///< each slot's colour, or nothing when empty
+	std::array<std::string, 16> paths{};            ///< each slot's file
+	std::optional<uint8_t> current{};               ///< the slot last recalled, set or unset
+	uint8_t bank = 0;                               ///< the bank on show
+	FavouritesBank state = FavouritesBank::Loaded;  ///< what `bank_state` answers
+	std::string category;                           ///< the category last shown
+	int closes = 0;                                 ///< how many times the bank was left
+
+	void set_category(std::string_view c) override { category = c; }
+	void close() override { closes++; }
+	[[nodiscard]] FavouritesBank bank_state() const override { return state; }
+	[[nodiscard]] std::array<std::optional<uint8_t>, 16> colours() const override { return slots; }
+	[[nodiscard]] std::optional<uint8_t> current_favourite() const override { return current; }
+	[[nodiscard]] uint8_t current_bank() const override { return bank; }
+	[[nodiscard]] bool is_empty(uint8_t p) const override { return !slots[p].has_value(); }
+	std::string recall(uint8_t p) override {
+		current = p;
+		return slots[p].has_value() ? paths[p] : std::string{};
+	}
+	void set(uint8_t p, std::string_view path) override {
+		current = p;
+		slots[p] = 4;
+		paths[p] = path;
+	}
+	void unset(uint8_t p) override {
+		current = p;
+		slots[p].reset();
+		paths[p].clear();
+	}
+	void select_bank(uint8_t b) override { bank = b; }
+	void change_colour(uint8_t p, int32_t offset) override {
+		if (slots[p].has_value()) {
+			slots[p] = static_cast<uint8_t>(((*slots[p] + offset) % 16 + 16) % 16);
+		}
+	}
+};
+
 /// @brief A Catalogue a spec fills directly: its entries, its folder, the next listing's outcome, and every listing
 ///        asked of it, in order.
 struct FakeCatalogue final : Catalogue {
@@ -702,6 +753,8 @@ struct FakeHost {
 	RecordingIndicators indicators;              ///< the indicators' recorder
 	RecordingViewActions view_actions;           ///< the view actions' recorder
 	FakeCatalogue catalogue;                     ///< the card catalogue's fake
+	RecordingCardActions card_actions;           ///< the card actions' recorder
+	FakeFavourites favourites;                   ///< the favourites bank's fake
 	/// The wipe, the drum's name, the tick clear, the take's begin and the audition end, in the order they came.
 	std::vector<std::string_view> order;
 	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
@@ -738,7 +791,9 @@ struct FakeHost {
 		        .take_actions = &take_actions,
 		        .indicators = &indicators,
 		        .view_actions = &view_actions,
-		        .catalogue = &catalogue};
+		        .catalogue = &catalogue,
+		        .card_actions = &card_actions,
+		        .favourites = &favourites};
 	}
 };
 

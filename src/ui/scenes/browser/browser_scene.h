@@ -78,7 +78,6 @@
 #include "ui/scenes/browser/listing.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/shortcut_blink.h"
-#include "ui/scenes/services/favourites.h"
 #include "ui/shell/scene.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/core/state.h"
@@ -557,7 +556,7 @@ public:
 	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
 	int32_t favourite_row() const;
 	/// @brief Use @p favourites in place of the host's, or null to put the host's back. For specs.
-	void set_favourites(services::Favourites* favourites) { favourites_override_ = favourites; }
+	void set_favourites(bind::Favourites* favourites) { favourites_override_ = favourites; }
 	/// @brief Hand every request to @p host, or to `null_browser_host()` for null. The application installs its own
 	///        (`gui::ui::wireShellBrowserHost`); a spec installs a recording one.
 	void set_host(BrowserHost* host) { host_ = host; }
@@ -668,8 +667,9 @@ private:
 	/// @brief `SampleBrowser::buttonAction`'s X_ENC, LOAD, RECORD and Shift+SAVE arms.
 	/// @return The answer, or nullopt for a button those arms do not take.
 	std::optional<deluge::ui::shell::Result> sample_button(deluge::ui::shell::ButtonId button, bool on);
-	/// @brief The favourites the browser shows: the host's, unless a spec gave its own.
-	services::Favourites& favourites();
+	/// @brief The favourites the browser shows: its port's, unless a spec gave its own; with neither, a bank that is
+	///        never available.
+	bind::Favourites& favourites();
 	/// @brief `Browser::isFavouritesVisible` / `isBanksVisible`: the sample browser's keyboard is up and the layout
 	///        shows them.
 	bool favourites_visible() const;
@@ -844,7 +844,7 @@ private:
 	/// The browser that opened blinks LOAD (`take_load_blink`): set by a successful `on_enter`.
 	bool load_blink_pending_ = false;
 	/// A spec's favourites, in place of the host's.
-	services::Favourites* favourites_override_ = nullptr;
+	bind::Favourites* favourites_override_ = nullptr;
 	/// The application's half of the browser (`set_host`); null until one is installed.
 	BrowserHost* host_ = nullptr;
 	/// What this tick's favourites and bank rows reported, for `after_render`.

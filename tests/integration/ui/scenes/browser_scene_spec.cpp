@@ -365,44 +365,7 @@ void select_folder(Rig& r, bool folder) {
 	}
 }
 
-/// @brief A favourites bank in memory, recording what the browser asks of it.
-struct FakeFavourites final : deluge::ui::scenes::services::Favourites {
-	std::array<std::optional<uint8_t>, 16> slots{};
-	std::array<std::string, 16> paths{};
-	std::optional<uint8_t> current{};
-	uint8_t bank = 0;
-	deluge::ui::scenes::services::FavouritesBank state = deluge::ui::scenes::services::FavouritesBank::Loaded;
-	std::string category;
-	int closes = 0;
-
-	void set_category(std::string_view c) override { category = c; }
-	void close() override { closes++; }
-	[[nodiscard]] deluge::ui::scenes::services::FavouritesBank bank_state() const override { return state; }
-	[[nodiscard]] std::array<std::optional<uint8_t>, 16> colours() const override { return slots; }
-	[[nodiscard]] std::optional<uint8_t> current_favourite() const override { return current; }
-	[[nodiscard]] uint8_t current_bank() const override { return bank; }
-	[[nodiscard]] bool is_empty(uint8_t p) const override { return !slots[p].has_value(); }
-	std::string recall(uint8_t p) override {
-		current = p;
-		return slots[p].has_value() ? paths[p] : std::string{};
-	}
-	void set(uint8_t p, std::string_view path) override {
-		current = p;
-		slots[p] = 4;
-		paths[p] = path;
-	}
-	void unset(uint8_t p) override {
-		current = p;
-		slots[p].reset();
-		paths[p].clear();
-	}
-	void select_bank(uint8_t b) override { bank = b; }
-	void change_colour(uint8_t p, int32_t offset) override {
-		if (slots[p].has_value()) {
-			slots[p] = static_cast<uint8_t>(((*slots[p] + offset) % 16 + 16) % 16);
-		}
-	}
-};
+using deluge::ui::scenes::bind::test::FakeFavourites;
 
 /// @brief Install @p fake as the browser's favourites for an example, in the default layout, and put the host's back.
 struct UseFavourites {
@@ -3649,6 +3612,37 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		r.step();
 	});
 
+	it("asks the card actions port to release the file before its delete menu, and refuses one the song holds", _ {
+		// `SampleBrowser::buttonAction`'s Shift+SAVE. Declared first: the recorder outlives the cleanup.
+		deluge::ui::scenes::bind::test::RecordingCardActions actions;
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		MenuContext ctx = context_of(f);
+		ctx.ports.card_actions = &actions;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const auto shift_save = [&r] {
+			r.button(kShiftX, kShiftY, true, r.clock + 5);
+			r.button(kSaveX, kSaveY, true, r.clock + 10);
+			r.step();
+			r.button(kSaveX, kSaveY, false, r.clock + 10);
+			r.button(kShiftX, kShiftY, false, r.clock + 10);
+			r.step();
+			r.step();
+		};
+		shift_save();
+		expect(actions.released.size()).to_equal(std::size_t{1});
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
+		r.shell.stack().pop(context_menu::kContextMenuSceneKind);
+		if (!actions.released.empty()) {
+			actions.in_use.insert(actions.released.front());
+		}
+		shift_save();
+		expect(actions.released.size()).to_equal(std::size_t{2});
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
+	});
+
 	it("Shift+SAVE on a file the song uses refuses with main's popup", _ {
 		CleanBrowser clean;
 		ScratchCard card;
@@ -3828,7 +3822,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		FakeFavourites fake;
 		fake.slots[3] = 1;
 		fake.paths[3] = "SAMPLES/TOM.WAV";
-		fake.state = deluge::ui::scenes::services::FavouritesBank::Loading;
+		fake.state = deluge::ui::scenes::bind::FavouritesBank::Loading;
 		UseFavourites use(fake);
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
@@ -3836,7 +3830,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		tap(r, 9, 7);
 		tap(r, 3, 7);
 		expect(fake.current.has_value()).to_be_false();
-		fake.state = deluge::ui::scenes::services::FavouritesBank::Unavailable;
+		fake.state = deluge::ui::scenes::bind::FavouritesBank::Unavailable;
 		tap(r, 3, 7);
 		r.step();
 		expect(popup_text(r)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_SD_CARD_ERROR)});

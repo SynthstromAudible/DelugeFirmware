@@ -38,7 +38,8 @@ namespace deluge::ui::scenes::bind::contract {
 ///        sets it loading and expects true).
 [[nodiscard]] inline bool card_facts_are_stable(const CardFacts& card) {
 	return card.sample_load_in_flight() == card.sample_load_in_flight()
-	       && card.output_may_be_replaced() == card.output_may_be_replaced();
+	       && card.output_may_be_replaced() == card.output_may_be_replaced()
+	       && card.last_sample_path() == card.last_sample_path();
 }
 
 /// @brief The voice count is never negative.

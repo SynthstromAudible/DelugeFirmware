@@ -31,6 +31,10 @@ namespace deluge::gui::shell_host {
 [[nodiscard]] const deluge::ui::scenes::bind::CardFacts& card_facts();
 /// @brief The host's Catalogue: the card's one file catalogue, `storage::FileCatalogue`.
 [[nodiscard]] deluge::ui::scenes::bind::Catalogue& catalogue();
+/// @brief The host's CardActions: the card's file actions, each the legacy step it names.
+[[nodiscard]] deluge::ui::scenes::bind::CardActions& card_actions();
+/// @brief The host's Favourites: the bank `favouritesManager` holds, which the legacy browsers show too.
+[[nodiscard]] deluge::ui::scenes::bind::Favourites& favourites();
 /// @brief The host's UiFacts.
 [[nodiscard]] const deluge::ui::scenes::bind::UiFacts& ui_facts();
 

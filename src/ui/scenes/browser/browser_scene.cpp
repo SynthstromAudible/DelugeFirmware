@@ -41,7 +41,6 @@
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/scenes/bind/device_reader.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/recorder/recorder_scene.h"
 #include "ui/scenes/services/waveform_paint.h"
 #include "ui/scenes/slicing/slicer_scene.h"
@@ -189,7 +188,7 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 	std::string last;
 	std::string_view path = held ? std::string_view{*held} : std::string_view{};
 	if (path.empty() || !case_prefix_equal(path, "SAMPLES/", 8)) {
-		last = menu::host_last_sample_path();
+		last = ctx.ports.card != nullptr ? ctx.ports.card->last_sample_path() : std::string{};
 		path = last;
 		if (path.empty()) {
 			return; // dir stays empty -> `Descriptor::default_dir`
@@ -684,8 +683,42 @@ void BrowserScene::reveal_keyboard() {
 	favourite_flash_anchor_ms_.reset(); // `drawKeys` draws the favourites afresh
 }
 
-services::Favourites& BrowserScene::favourites() {
-	return favourites_override_ != nullptr ? *favourites_override_ : menu::host_favourites();
+namespace {
+
+static_assert(bind::kFavouriteSlots == deluge::ui::widgets::grid::kFavourites,
+              "the favourites port's bank is the favourites row the grid draws");
+
+/// @brief The favourites a browser opened with no favourites port shows: a bank whose read never answers.
+class NoFavourites final : public bind::Favourites {
+public:
+	void set_category(std::string_view) override {}
+	void close() override {}
+	[[nodiscard]] bind::FavouritesBank bank_state() const override { return bind::FavouritesBank::Unavailable; }
+	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::scenes::bind::kFavouriteSlots>
+	colours() const override {
+		return {};
+	}
+	[[nodiscard]] std::optional<uint8_t> current_favourite() const override { return std::nullopt; }
+	[[nodiscard]] uint8_t current_bank() const override { return 0; }
+	[[nodiscard]] bool is_empty(uint8_t) const override { return true; }
+	std::string recall(uint8_t) override { return {}; }
+	void set(uint8_t, std::string_view) override {}
+	void unset(uint8_t) override {}
+	void select_bank(uint8_t) override {}
+	void change_colour(uint8_t, int32_t) override {}
+};
+
+} // namespace
+
+bind::Favourites& BrowserScene::favourites() {
+	if (favourites_override_ != nullptr) {
+		return *favourites_override_;
+	}
+	if (ctx_.ports.favourites != nullptr) {
+		return *ctx_.ports.favourites;
+	}
+	static NoFavourites none;
+	return none;
 }
 
 project::FavouritesLayout BrowserScene::favourites_layout() const {
@@ -726,12 +759,12 @@ Result BrowserScene::favourite_press(uint8_t position) {
 	};
 	// A bank still arriving, or one that could not be read, may be neither edited nor recalled from.
 	switch (favourites().bank_state()) {
-	case services::FavouritesBank::Loading:
+	case bind::FavouritesBank::Loading:
 		return r;
-	case services::FavouritesBank::Unavailable:
+	case bind::FavouritesBank::Unavailable:
 		popup(String::STRING_FOR_SD_CARD_ERROR);
 		return r;
-	case services::FavouritesBank::Loaded:
+	case bind::FavouritesBank::Loaded:
 		break;
 	}
 	if (shift_) {
@@ -2010,7 +2043,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// `Browser::verticalEncoderAction`: SHIFT recolours the current favourite.
 			Result r;
 			r.handled = true;
-			if (favourites().bank_state() == services::FavouritesBank::Unavailable) {
+			if (favourites().bank_state() == bind::FavouritesBank::Unavailable) {
 				(void)r.actions.push_back(
 				    Action{.kind = Action::Kind::Popup,
 				           .surface = SurfaceRole::Main,
@@ -2131,7 +2164,8 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		}
 		const std::string_view dir = current_dir();
 		const std::string path = join_path(dir, item->name);
-		if (!menu::host_release_sample_file(path)) {
+		// With no card actions the file counts as in use: nothing frees it, so it may not be deleted.
+		if (ctx_.ports.card_actions == nullptr || !ctx_.ports.card_actions->release_sample_file(path)) {
 			(void)r.actions.push_back(
 			    Action{.kind = Action::Kind::Popup,
 			           .surface = SurfaceRole::Main,

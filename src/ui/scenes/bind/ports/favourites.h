@@ -1,17 +1,19 @@
 #pragma once
 
 /// @file
-/// @brief The browser's favourites bank, as a scene reads and edits it: what the host's favourites manager holds.
-
-#include "ui/widgets/grid/favourites.h"
+/// @brief The browsers' favourites bank, as a scene reads and edits it: what the host's favourites manager holds.
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 
-namespace deluge::ui::scenes::services {
+namespace deluge::ui::scenes::bind {
+
+/// @brief The slots in one bank.
+inline constexpr std::size_t kFavouriteSlots = 16;
 
 /// @brief Whether the bank on show can be read and edited yet.
 enum class FavouritesBank : uint8_t {
@@ -31,7 +33,7 @@ public:
 	/// @brief Whether the bank on show has loaded.
 	[[nodiscard]] virtual FavouritesBank bank_state() const = 0;
 	/// @brief Each slot's colour (0-15), or nothing for an empty slot.
-	[[nodiscard]] virtual std::array<std::optional<uint8_t>, ui::widgets::grid::kFavourites> colours() const = 0;
+	[[nodiscard]] virtual std::array<std::optional<uint8_t>, kFavouriteSlots> colours() const = 0;
 	/// @brief The slot last recalled, set or unset, which flashes and which SHIFT + vertical recolours.
 	[[nodiscard]] virtual std::optional<uint8_t> current_favourite() const = 0;
 	/// @brief The bank on show.
@@ -51,4 +53,4 @@ public:
 	virtual void change_colour(uint8_t position, int32_t offset) = 0;
 };
 
-} // namespace deluge::ui::scenes::services
+} // namespace deluge::ui::scenes::bind

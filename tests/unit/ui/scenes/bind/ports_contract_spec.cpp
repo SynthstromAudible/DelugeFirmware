@@ -834,6 +834,22 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(read_device_flag(nullptr, battery)).to_be_true();
 		expect(read_device_flag(nullptr, device_path::feature(Feature::ENABLE_DX7_ENGINE))).to_be_false();
 	});
+	it("records each sample release, refuses the files in use, and answers the last sample path as the spec set", _ {
+		test::FakeHost host;
+		const Ports ports = host.ports();
+		host.card_actions.in_use.insert("SAMPLES/USED.WAV");
+		expect(ports.card_actions->release_sample_file("SAMPLES/FREE.WAV")).to_be_true();
+		expect(ports.card_actions->release_sample_file("SAMPLES/USED.WAV")).to_be_false();
+		expect(host.card_actions.released.size()).to_equal(std::size_t{2});
+		expect(host.card_actions.released.front()).to_equal(std::string{"SAMPLES/FREE.WAV"});
+		host.card.last_path = "SAMPLES/LAST.WAV";
+		expect(ports.card->last_sample_path()).to_equal(std::string{"SAMPLES/LAST.WAV"});
+		expect(contract::card_facts_are_stable(*ports.card)).to_be_true();
+		ports.favourites->set(3, "SAMPLES/FAV.WAV");
+		expect(ports.favourites->is_empty(3)).to_be_false();
+		expect(ports.favourites->recall(3)).to_equal(std::string{"SAMPLES/FAV.WAV"});
+	});
+
 	it("lists through the catalogue fake, records each listing, and holds the catalogue contract", _ {
 		test::FakeCatalogue catalogue;
 		catalogue.entries = {{"a.wav", false}, {"B", true}, {"c.wav", false}};
