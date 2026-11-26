@@ -292,7 +292,7 @@ template = "scenario"
 kind = "differential"
 gates = "the async Rust audio loader must load every file the SAME way the synchronous C++ card path does, loaded in the same process as the reference"
 scenario = "audio_load_ab"
-markers = ["AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB-PREVIEW-DRAW", "AB-PREVIEW-DRAW-STALL", "AB-PREVIEW-DRAW-RELEASE", "AB-PRESCAN-RANGE", "AB-EJECT", "AB-EJECT-SUMMARY", "AB-DEFER", "AB-SUMMARY"]
+markers = ["AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB-PREVIEW-DRAW", "AB-PREVIEW-DRAW-STALL", "AB-PREVIEW-DRAW-RELEASE", "AB-READ-PROGRESS", "AB-PRESCAN-RANGE", "AB-EJECT", "AB-EJECT-SUMMARY", "AB-DEFER", "AB-SUMMARY"]
 result = "AB-RESULT failures=0"
 check = "tests/integration/checks/audio_load_ab.py"
 tier = "pr"
@@ -1451,13 +1451,28 @@ runner = "cargo"
 kind = "unit"
 status = "gate"
 gates = "every #[test] in the core libraries: the allocator, the resource manager and the sample crates"
-run = ["cargo", "nextest", "run", "--profile", "ci", "-p", "deluge_base_alloc", "-p", "deluge_storage_resource", "-p", "deluge_test_rust", "-p", "deluge_storage_sample_source", "-p", "deluge_storage_sample_fill", "-p", "deluge_storage_sample_reader", "-p", "deluge_storage_stream"]
+run = ["cargo", "nextest", "run", "--profile", "ci", "-p", "deluge_base_alloc", "-p", "deluge_storage_resource", "-p", "deluge_test_rust", "-p", "deluge_storage_sample_source", "-p", "deluge_storage_sample_fill", "-p", "deluge_storage_sample_reader", "-p", "deluge_storage_sample_peaks", "-p", "deluge_storage_stream"]
 junit = "${CARGO_TARGET_DIR}/nextest/ci/junit.xml"
 requires = ["cargo", "cargo-nextest"]
 tier = "pr"
 job = "unit"
 # Its first run, building its tree from cold, takes ~3m.
 runtime_s = 20
+
+[[harness]]
+name = "peaks-loom"
+path = "."
+level = "unit"
+runner = "cargo"
+kind = "property"
+status = "gate"
+gates = "the peak index's fold-then-publish protocol under loom: a full mask implies every child's value is folded"
+run = ["cargo", "test", "-p", "deluge_storage_sample_peaks", "--test", "loom", "--release"]
+env = { RUSTFLAGS = "--cfg loom" }
+requires = ["cargo"]
+tier = "nightly"
+job = "unit"
+runtime_s = 30
 
 [[harness]]
 name = "bsp-host"

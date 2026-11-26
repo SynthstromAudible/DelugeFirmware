@@ -76,11 +76,8 @@ uint8_t deluge_harness_recorder_probe_settle_tick();
 ///        call even if no probe is open.
 void deluge_harness_recorder_probe_end();
 
-/// @brief Regression probe: a per-cluster structure `finalizeRecordedFile()` grows must reach the
-///        real cluster count once a normal recording finishes (see `finalizeRecordedFile()`'s
-///        finalize-grow comment in sample_recorder.cpp). The finalize-time grow-only guard sizes
-///        `Sample::overviewCache_`, which this probe measures (see its `_table_clusters()` accessor
-///        below).
+/// @brief Regression probe: once a normal recording finishes, the take's peak index must cover every cluster of the
+///        finished file (see its `_table_clusters()` accessor below).
 ///
 /// Builds a real `SampleRecorder`, feeds it `numFrames` of deterministic mono ramp audio spanning
 /// several `Cluster::size` clusters, and drives it through `endSyncedRecording()` +
@@ -126,15 +123,14 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe_tick();
 ///         @ref deluge_harness_recorder_finalized_multicluster_probe_poll.
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t regionIndex);
 
-/// @return The waveform overview cache's physical entry count (`Sample::overviewCacheSize()`)
-///         captured immediately after finalize (before any acquire) -- the direct assertion for "was
-///         the finalize-time grow left under-sized". 0 if no probe has run (harness-error state, not
-///         a valid measurement).
+/// @return The clusters the take's peak index spans, captured immediately after finalize (before any acquire): the
+///         direct assertion that finalize left the index covering the file. 0 if no probe has run (harness-error state,
+///         not a valid measurement).
 uint32_t deluge_harness_recorder_finalized_multicluster_probe_table_clusters();
 
 /// @return The finalized recording's true required cluster count for the same geometry
 ///         (`ceil((audioDataStartPosBytes + audioDataLengthBytes) / Cluster::size)`, the exact
-///         formula finalizeRecordedFile()'s hoisted resize uses) -- what
+///         formula) -- what
 ///         deluge_harness_recorder_finalized_multicluster_probe_table_clusters() must be >= for
 ///         the invariant to hold. 0 if no probe has run.
 uint32_t deluge_harness_recorder_finalized_multicluster_probe_expected_clusters();

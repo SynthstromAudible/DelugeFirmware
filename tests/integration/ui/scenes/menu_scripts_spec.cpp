@@ -111,6 +111,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/shell_host.h"
+#include "support/peak_seed.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/marker/marker_scene.h"
@@ -382,11 +383,8 @@ void install_display() {
 
 /// @name The sample fixture, lifted from `marker_scene_spec.cpp` for its reason.
 ///
-/// `deluge::sample::find_peaks_per_col` reads clusters, and a spec process has no mounted card
-/// holding the file this `Sample` claims to be. It does not have to: the scan's whole-cluster arm
-/// reuses the sample's own overview cache when a column spans two or more clusters
-/// (`waveform_scan.cpp`), so the fixture is exactly `kDisplayWidth` clusters' worth of frames with
-/// every overview entry pre-marked investigated. Halving the length turns the whole waveform black.
+/// A spec process has no mounted card holding the file this `Sample` claims to be. It does not have to: the
+/// fixture seeds the sample's peak index (`support/peak_seed.h`), so every column is answered from the index.
 /// @{
 constexpr size_t kClusterSize = 32768;
 constexpr int32_t kBytesPerFrame = 2; // 16-bit mono
@@ -410,15 +408,10 @@ Sample* make_sample() {
 	s->audioDataStartPosBytes = 0;
 	s->audioDataLengthBytes = kSampleLength * kBytesPerFrame;
 	s->lengthInSamples = kSampleLength;
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-	s->resizeOverviewCache(kNumClusters);
-	for (int32_t i = 0; i < kNumClusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-cluster_peak(i));
-		e.max = cluster_peak(i);
-		e.investigated = true;
-	}
+	peak_seed::seed_peaks(*s, [&](int32_t i) {
+		return std::pair<int8_t, int8_t>{static_cast<int8_t>(static_cast<int8_t>(-cluster_peak(i))),
+		                                 static_cast<int8_t>(cluster_peak(i))};
+	});
 	return s;
 }
 /// @}

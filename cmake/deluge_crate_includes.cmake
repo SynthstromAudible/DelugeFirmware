@@ -5,6 +5,7 @@ set(DELUGE_CRATE_INCLUDE_DIRS
     ${DELUGE_REPO_ROOT}/src/base/alloc/include
     ${DELUGE_REPO_ROOT}/src/storage/resource/include
     ${DELUGE_REPO_ROOT}/src/storage/sample/source/include
+    ${DELUGE_REPO_ROOT}/src/storage/sample/peaks/include
     ${DELUGE_REPO_ROOT}/src/storage/sample/reader/include
     ${DELUGE_REPO_ROOT}/src/storage/sample/fill/include
     ${DELUGE_REPO_ROOT}/src/storage/stream/include

@@ -19,11 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "io/debug/log.h"
-#include "model/sample/overview_cache_entry.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_reader_bridge.h"
 #include "model/sample/sample_recorder.h"
-#include "model/sample/waveform_peak_math.h"
 #include "model/sample/waveform_scan.h"
 #include "model/voice/voice_sample.h"
 #include "processing/engines/audio_engine.h"
@@ -39,17 +37,23 @@
 
 WaveformRenderer waveformRenderer{};
 
+namespace {
+/// The frames a recorder has captured, or nothing for a finished file.
+std::optional<uint64_t> captured(const SampleRecorder* recorder) {
+	return recorder != nullptr ? std::optional<uint64_t>{recorder->numSamplesCaptured} : std::nullopt;
+}
+} // namespace
+
 WaveformRenderer::WaveformRenderer() {
 }
 
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
 bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
-                                        RGB thisImage[][kDisplayWidth + kSideBarWidth],
-                                        deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder,
+                                        RGB thisImage[][kDisplayWidth + kSideBarWidth], SampleRecorder* recorder,
                                         std::optional<RGB> rgb, bool reversed, int32_t xEnd) {
 
-	const deluge::ui::views::waveform::PeakRead read = deluge::sample::find_peaks_per_col(
-	    *sample, {.scroll = static_cast<int64_t>(xScroll), .zoom = static_cast<int64_t>(xZoom)}, cache, recorder);
+	const deluge::ui::views::waveform::PeakRead read = deluge::sample::waveform_columns(
+	    *sample, captured(recorder), {.scroll = static_cast<int64_t>(xScroll), .zoom = static_cast<int64_t>(xZoom)});
 	if (read.pending()) {
 		return false;
 	}
@@ -68,18 +72,20 @@ bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64
 
 // Returns false if had trouble loading some (will often not be all) Clusters
 bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage,
-                                         deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder,
-                                         RGB rgb, bool reversed, int32_t xStart, int32_t xEnd) {
+                                         SampleRecorder* recorder, RGB rgb, bool reversed, int32_t xStart,
+                                         int32_t xEnd) {
 
+	// The source columns [xStartSource, xEndSource) the outputs [xStart, xEnd) draw: reversed, output x draws
+	// source kDisplayWidth - 1 - x.
 	int32_t xStartSource = xStart;
 	int32_t xEndSource = xEnd;
 	if (reversed) {
-		xStartSource = kDisplayWidth - 1 - xEnd;
-		xEndSource = kDisplayWidth - 1 - xStart;
+		xStartSource = kDisplayWidth - xEnd;
+		xEndSource = kDisplayWidth - xStart;
 	}
 
-	const deluge::ui::views::waveform::PeakRead read = deluge::sample::find_peaks_per_col(
-	    *sample, {.scroll = xScroll, .zoom = static_cast<int64_t>(xZoom)}, cache, recorder, xStartSource, xEndSource);
+	const deluge::ui::views::waveform::PeakRead read = deluge::sample::waveform_columns(
+	    *sample, captured(recorder), {.scroll = xScroll, .zoom = static_cast<int64_t>(xZoom)});
 	if (read.pending(xStartSource, xEndSource)) {
 		return false;
 	}

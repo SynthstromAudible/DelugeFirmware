@@ -61,6 +61,9 @@ struct RecorderConfig {
 	bool neverUseThreshold = false;
 };
 
+/// A take's peaks between clusters (`deluge_storage_sample_peaks.h`).
+struct DelugePeaksTake;
+
 class SampleRecorder {
 public:
 	SampleRecorder() = default;
@@ -182,9 +185,6 @@ public:
 	uint64_t recordSumR{};
 	uint64_t recordSumLPlusR{};  // L and R are halved before these two are calculated
 	uint64_t recordSumLMinusR{}; // --------
-
-	int32_t recordMax{};
-	int32_t recordMin{};
 
 	uint32_t audioDataLengthBytesAsWrittenToFile{};
 	uint32_t loopEndSampleAsWrittenToFile{};
@@ -488,6 +488,9 @@ private:
 	///       never reallocates the segment-pointer index concurrently with the card routine's `operator[]`
 	///       reads -- same B2 discipline the shared table used to require.
 	deluge::SegmentedVector<std::byte*, 256, deluge::memory::fast_allocator> bufferTable_{};
+
+	/// The take's peaks, folded from each cluster as it is written.
+	DelugePeaksTake* takePeaks_{nullptr};
 
 	/// @brief Recycles a flushed buffer's memory back for reuse: the card routine pushes after a successful
 	///        write_at, the audio thread pops when it needs a fresh buffer.

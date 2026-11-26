@@ -36,6 +36,7 @@
 
 #include "base/notify/dirty_set.h"
 #include "gui/ui/menu_view_of.h"
+#include "support/peak_seed.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/menu/bindings.h"
@@ -331,7 +332,7 @@ Pad pad_for(char c) {
 // ---------------------------------------------------------------------------------------------
 // The song: one oscillator with a sample source, so `file0_selector` has a holder to open on
 
-/// @brief A `Sample` with an investigated overview cache, so nothing reads the card for it.
+/// @brief A `Sample` with its peak index seeded, so nothing reads the card for it.
 ///        `sample_items_spec.cpp`'s `make_sample`, at one size.
 Sample* make_sample() {
 	constexpr size_t kClusterSize = 32768;
@@ -348,15 +349,10 @@ Sample* make_sample() {
 	s->audioDataStartPosBytes = 0;
 	s->audioDataLengthBytes = length * 2;
 	s->lengthInSamples = length;
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-	s->resizeOverviewCache(kNumClusters);
-	for (int32_t i = 0; i < kNumClusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-(16 + i));
-		e.max = static_cast<int8_t>(16 + i);
-		e.investigated = true;
-	}
+	peak_seed::seed_peaks(*s, [&](int32_t i) {
+		return std::pair<int8_t, int8_t>{static_cast<int8_t>(static_cast<int8_t>(-(16 + i))),
+		                                 static_cast<int8_t>(static_cast<int8_t>(16 + i))};
+	});
 	return s;
 }
 

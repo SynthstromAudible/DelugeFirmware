@@ -37,12 +37,15 @@
 #include "libdeluge/stream_io.h"
 #include "libdeluge/system.h" // deluge_in_interrupt
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
 #include "model/sample/waveform_scan.h"
 #include "storage/audio/card_reinsert.h"
 #include "util/notify.h"
 
 #include "deluge_storage_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
+#include "deluge_storage_sample_peaks.h"
 #include "deluge_storage_sample_reader.h"
 #include "deluge_storage_sample_source.h"
 #include "model/sample/sample_cache.h"
@@ -130,6 +133,9 @@ void AudioFileManager::firstCardRead() {
 }
 
 void AudioFileManager::init() {
+	// The samples' peak indexes allocate from external SDRAM, in thread mode only.
+	deluge_peaks_init([](size_t size, size_t align) { return deluge::memory::alloc_external(size, align); },
+	                  [](void* p) { deluge::memory::dealloc(p); });
 
 	Error error = StorageManager::initSD();
 	if (error == Error::NONE) {
@@ -1456,8 +1462,6 @@ Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const
 		return nullptr;
 	}
 
-	const uint32_t numClusters = ((sizeBytes - 1) >> Cluster::size_magnitude) + 1;
-
 	void* audioFileMemory = deluge::memory::alloc_external(sizeof(Sample), 16);
 	if (audioFileMemory == nullptr) {
 		*error = Error::INSUFFICIENT_RAM;
@@ -1467,7 +1471,7 @@ Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const
 	Sample* sampleFile = new (audioFileMemory) Sample;
 	adoptAudioFileObject(sampleFile); // resource-manager evictable object (before addReason)
 	sampleFile->addReason();          // So it's protected while setting up. Must precede initialize().
-	*error = sampleFile->initialize(numClusters);
+	*error = sampleFile->initialize();
 	if (*error != Error::NONE) { // Very rare, only if not enough RAM
 		destroyAudioFileObject(*sampleFile);
 		return nullptr;
@@ -1484,11 +1488,11 @@ Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const
 /// the header parse's define_asset) ran while the geometry was still zero, and a zero frame stride
 /// makes every fill-context consumer resolve nothing for this sample.
 ///
-/// Finalizes and publishes fully -- geometry clamp, pre-scan re-arm, and dropping the protect-during-
-/// setup reason -- so a direct caller (the C ABI among them) can't land a half-finished Sample in
-/// audioFiles: one that's inserted but still holds its setup reason forever (unevictable) and never had
-/// its geometry clamped/quantized by finalizeAfterLoad. @p sizeBytes must be the same value passed to
-/// the matching beginSampleFromCard.
+/// Finalizes and publishes fully -- geometry clamp and a fresh peak index (finalizeAfterLoad), and
+/// dropping the protect-during-setup reason -- so a direct caller (the C ABI among them) can't land a half-finished
+/// Sample in audioFiles: one that's inserted but still holds its setup reason forever (unevictable) and never had its
+/// geometry clamped/quantized by finalizeAfterLoad. @p sizeBytes must be the same value passed to the matching
+/// beginSampleFromCard.
 AudioFile* AudioFileManager::finishSampleFromCard(Sample* sampleFile, uint64_t sizeBytes, Error* error) {
 	if (sampleFile == nullptr) {
 		return nullptr;
@@ -1507,7 +1511,6 @@ AudioFile* AudioFileManager::finishSampleFromCard(Sample* sampleFile, uint64_t s
 	}
 
 	sampleFile->finalizeAfterLoad(sizeBytes);
-	overviewScanAllDone = false;      // A newly loaded audio file may need pre-scanning (#4460)
 	sampleFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
 	return sampleFile;
 }
@@ -1607,7 +1610,6 @@ AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
 		waveTablesBuiltFromCard_++;
 
 		audioFile->finalizeAfterLoad(sizeBytes);
-		overviewScanAllDone = false; // A newly loaded audio file may need pre-scanning (#4460)
 
 		audioFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
 		return audioFile;
@@ -1684,63 +1686,59 @@ void AudioFileManager::slowRoutine() {
 	// The load trace records the load path. This scan belongs to no load: where its calls fall against a load's
 	// trace depends only on when this routine happens to run, so it runs untraced.
 	const auto loadTraceSink = deluge::storage::load_trace::setSink(nullptr);
-	backgroundWaveformOverviewScan();
+	backgroundWaveformScan();
 	(void)deluge::storage::load_trace::setSink(loadTraceSink);
 #else
-	backgroundWaveformOverviewScan();
+	backgroundWaveformScan();
 #endif
 }
 
-// Background "waveform overview" pre-scan (issue #4460). Walks loaded Samples a little at a time, off the
-// render path, caching each cluster's min/max so zoomed-out single-row rendering (song row view) never has
-// to load clusters synchronously while the user scrolls. Heavily throttled and round-robined to stay out of
-// the way of playback streaming.
-void AudioFileManager::backgroundWaveformOverviewScan() {
-
-	// Everything already pre-scanned: stay idle until a load/reset re-arms us, instead of re-walking all
-	// files every tick (#4460).
-	if (overviewScanAllDone) {
-		return;
+// The background scans: each take's index grown ahead of its capture, released indexes freed, and one block of one
+// sample's peak index read per call, round-robin, off the render path and throttled to stay out of playback's way.
+void AudioFileManager::backgroundWaveformScan() {
+	growTakePeaks();
+	deluge_peaks_collect();
+	if (backgroundScansEnabled_) {
+		backgroundPeakScan();
 	}
+}
 
-	// Can we scan at all right now? (The finer-grained "is card I/O safe this instant?" busy-check lives in
-	// advance_overview_scan, which guards each individual cluster load - see model/sample/waveform_scan.cpp.)
-	if (cardEjected || cardDisabled) {
-		return;
-	}
-
-	int32_t numFiles = static_cast<int32_t>(audioFiles.size());
-	if (numFiles == 0) {
-		return;
-	}
-
-	// One sample's worth of work per call, round-robined so no single sample starves the others.
-	for (int32_t tried = 0; tried < numFiles; tried++) {
-		if (overviewScanFileIndex >= numFiles) {
-			overviewScanFileIndex = 0;
+void AudioFileManager::growTakePeaks() {
+	// Ten seconds of room past the capture: the card routine folds behind it, and a fold past the room is dropped.
+	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder != nullptr; recorder = recorder->next) {
+		Sample* sample = recorder->sample;
+		if (sample == nullptr || sample->peaks() == nullptr || sample->isLengthKnown()) {
+			continue;
 		}
-		AudioFile* audioFile = audioFiles[overviewScanFileIndex];
-		overviewScanFileIndex++;
+		const uint64_t captured = recorder->numSamplesCaptured;
+		deluge_peaks_reserve(sample->peaks(), captured + uint64_t{10} * sample->sampleRate);
+		deluge_peaks_set_frames(sample->peaks(), captured, false);
+	}
+}
 
+void AudioFileManager::backgroundPeakScan() {
+	if (peakScanAllDone || cardEjected || cardDisabled) {
+		return;
+	}
+	const auto numFiles = static_cast<int32_t>(audioFiles.size());
+	for (int32_t tried = 0; tried < numFiles; tried++) {
+		if (peakScanFileIndex >= numFiles) {
+			peakScanFileIndex = 0;
+		}
+		AudioFile* audioFile = audioFiles[peakScanFileIndex];
+		peakScanFileIndex++;
 		if (!AudioFile::isSample(audioFile)) {
 			continue;
 		}
-
-		// Skip samples whose clusters can never load - re-scanning them would spin forever and prevent us
-		// from ever going idle. They re-arm the scan if they become loadable again (#4460).
-		Sample* sample = (Sample*)audioFile;
+		auto* sample = static_cast<Sample*>(audioFile);
 		if (sample->unloadable) {
 			continue;
 		}
-
-		// Advance this sample by a small budget. If there was real work to do, stop here for this call.
-		if (deluge::sample::advance_overview_scan(sample, kOverviewScanClustersPerCall)) {
+		if (deluge::sample::advance_peak_scan(*sample)) {
 			return;
 		}
 	}
-
-	// A full pass found nothing left to scan: go idle until something re-arms us.
-	overviewScanAllDone = true;
+	peakScanAllDone = true;
 }
 
 bool AudioFileManager::cardUnavailableForStreaming() const {

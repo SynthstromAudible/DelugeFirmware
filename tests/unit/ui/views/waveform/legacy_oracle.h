@@ -34,65 +34,6 @@ struct RenderData {
 	std::array<uint8_t, 16> colStatus{};
 };
 
-/// `shiftRenderCache` (`ba0d31ef8:src/deluge/model/sample/waveform_scan.cpp`).
-inline void shift_render_cache(RenderData& data, int32_t shift) {
-	if (shift == 0) {
-		return;
-	}
-	if (std::abs(shift) >= kDisplayWidth) {
-		std::ranges::fill(data.colStatus, kNotInvestigated);
-		return;
-	}
-
-	auto slide = [shift](auto& array) {
-		if (shift > 0) {
-			std::shift_left(std::begin(array), std::end(array), shift);
-		}
-		else {
-			std::shift_right(std::begin(array), std::end(array), -shift);
-		}
-	};
-	slide(data.colStatus);
-	slide(data.minPerCol);
-	slide(data.maxPerCol);
-
-	if (shift > 0) {
-		std::fill_n(std::end(data.colStatus) - shift, shift, kNotInvestigated);
-	}
-	else {
-		std::fill_n(std::begin(data.colStatus), -shift, kNotInvestigated);
-	}
-}
-
-/// The prelude of `deluge::sample::find_peaks_per_col` (`ba0d31ef8:src/deluge/model/sample/waveform_scan.cpp`), from
-/// `lengthChanged` to the three stores.
-inline void prelude(RenderData& data, int64_t xScrollSamples, uint64_t xZoomSamples, uint64_t numValidSamples,
-                    bool recording) {
-	bool lengthChanged = static_cast<int64_t>(numValidSamples) != data.validLengthSamples;
-	if (recording) {
-		lengthChanged = false;
-	}
-	if (xZoomSamples != static_cast<uint64_t>(data.xZoom) || lengthChanged) {
-		std::ranges::fill(data.colStatus, kNotInvestigated);
-	}
-	else if (xScrollSamples != data.xScroll) {
-		int64_t deltaSamples = xScrollSamples - data.xScroll;
-		int64_t shiftCols = (deltaSamples % static_cast<int64_t>(xZoomSamples) == 0)
-		                        ? deltaSamples / static_cast<int64_t>(xZoomSamples)
-		                        : 0;
-		if (shiftCols != 0 && shiftCols >= -kDisplayWidth && shiftCols <= kDisplayWidth) {
-			shift_render_cache(data, static_cast<int32_t>(shiftCols));
-		}
-		else {
-			std::ranges::fill(data.colStatus, kNotInvestigated);
-		}
-	}
-
-	data.xScroll = xScrollSamples;
-	data.xZoom = static_cast<int64_t>(xZoomSamples);
-	data.validLengthSamples = static_cast<int64_t>(numValidSamples);
-}
-
 /// `deluge::sample::col_bar_positions` (`ba0d31ef8:src/deluge/model/sample/waveform_scan.cpp`).
 inline void col_bar_positions(int32_t xDisplay, const RenderData& data, int32_t& min24, int32_t& max24,
                               int32_t valueCentrePoint, int32_t valueSpan) {

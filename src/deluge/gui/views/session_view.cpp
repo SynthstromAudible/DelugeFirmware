@@ -2212,8 +2212,6 @@ void SessionView::graphicsRoutine() {
 
 			if (clip->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
 				if (clip->type == ClipType::AUDIO) {
-					((AudioClip*)clip)->renderData.forget(); // Make sure values are recalculated
-
 					rowNeedsRenderingDependingOnSubMode(yDisplay);
 				}
 				colours[yDisplay] = 2;
@@ -4788,20 +4786,6 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 		}
 		else {
 			waveformRenderer.collapseAnimationToWhichRow = clipY;
-
-			int64_t xScrollSamples;
-			int64_t xZoomSamples;
-
-			((AudioClip*)clip)
-			    ->getScrollAndZoomInSamples(currentSong->persistentView.xScroll[NAVIGATION_CLIP],
-			                                currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples,
-			                                &xZoomSamples);
-
-			auto* const audio_clip = (AudioClip*)clip;
-			(void)deluge::sample::find_peaks_per_col(
-			    *static_cast<Sample*>(audio_clip->sampleHolder.audioFile),
-			    {.scroll = static_cast<int64_t>(xScrollSamples), .zoom = static_cast<int64_t>(xZoomSamples)},
-			    audio_clip->renderData);
 
 			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
 		}

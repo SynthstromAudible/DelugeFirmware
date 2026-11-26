@@ -118,15 +118,15 @@ public:
 
 	void slowRoutine();
 
-	// Background "waveform overview" pre-scan (issue #4460): see implementation for details.
-	void backgroundWaveformOverviewScan();
-	// How many clusters to investigate per slowRoutine call. Kept small to avoid card/audio contention.
-	// One cluster per idle tick: each investigate can trigger a synchronous card read, so keep this at 1
-	// to avoid chaining reads against playback streaming (#4460).
-	static constexpr int32_t kOverviewScanClustersPerCall = 1;
-	int32_t overviewScanFileIndex = 0; // Round-robin cursor over audioFiles for the overview pre-scan
-	bool overviewScanAllDone =
-	    false; // Set once every loaded sample is fully pre-scanned; re-armed on load/reset (#4460)
+	/// @brief The background waveform work, once per idle tick: each take's peak index grown ahead of its capture,
+	///        released indexes freed, and one block of one sample's index scanned.
+	void backgroundWaveformScan();
+	int32_t peakScanFileIndex = 0; // Round-robin cursor over audioFiles for the peak scan
+	bool peakScanAllDone = false;  // Set once every loaded sample's peak index is complete; re-armed by a new index
+
+	/// @brief Turn the background scans on or off (they are on). A scenario that must see what the fill alone
+	///        fills turns them off.
+	void setBackgroundScansEnabled(bool enabled) { backgroundScansEnabled_ = enabled; }
 
 	Error setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength, const std::string& oldPath) const;
 	/// @brief Whether the SD card is currently unusable for streaming (ejected, disabled, or not
@@ -326,6 +326,12 @@ public:
 	[[nodiscard]] int32_t conversionPinnedClusters() const { return conversionPinnedClusters_; }
 
 private:
+	/// @brief Grow each recording take's peak index ahead of its capture, and give it the frames captured so far.
+	void growTakePeaks();
+	/// @brief The peak scan: one block of one sample's peak index per call, round-robin.
+	void backgroundPeakScan();
+	bool backgroundScansEnabled_ = true;
+
 	/// @brief Convert @p sample into a WaveTable from memory, if every one of its audio clusters is cached.
 	///
 	/// Peeks every cluster (loading and pinning nothing), then pins them all for the conversion and releases them

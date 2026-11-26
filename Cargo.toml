@@ -25,6 +25,11 @@
 #     buffering, short-tail handling or C-ABI marshalling shows as a differing header. With the variable unset the
 #     test is skipped. The C++ side is golden_vt_render's audio_header_dump scenario, which the test finds under
 #     build/cargo-harness or at GOLDEN_VT_RENDER_BIN.
+#
+# Gate peaks-loom:
+#     Runs the peak index's fold-then-publish protocol (src/storage/sample/peaks/tests/loom.rs) under loom, over every
+#     interleaving of two children folding into a parent's value and then setting their mask bits, so a reader that
+#     sees the full mask also sees both values folded in. Built with `--cfg loom`; the test is empty without it.
 [workspace]
 resolver = "2"
 members = [
@@ -34,6 +39,7 @@ members = [
     "src/storage/sample/convert",
     "src/storage/sample/fill",
     "src/storage/sample/reader",
+    "src/storage/sample/peaks",
     "src/storage/sample/source",
     "src/platform/device",
     "src/platform/host/link",
@@ -76,6 +82,8 @@ panic = "abort"
 opt-level = "s"
 [profile.release.package.deluge_storage_sample_reader]
 opt-level = "s"
+[profile.release.package.deluge_storage_sample_peaks]
+opt-level = "s"
 [profile.release.package.deluge_storage_stream]
 opt-level = "s"
 [profile.release.package.deluge_storage_sample_source]
@@ -109,6 +117,8 @@ opt-level = 0
 opt-level = 0
 [profile.test.package.deluge_storage_sample_reader]
 opt-level = 0
+[profile.test.package.deluge_storage_sample_peaks]
+opt-level = 0
 [profile.test.package.deluge_storage_sample_source]
 opt-level = 0
 [profile.test.package.deluge_test_rust]
@@ -140,6 +150,8 @@ panic = "unwind"
 opt-level = 3
 [profile.harness.package.deluge_storage_sample_reader]
 opt-level = 3
+[profile.harness.package.deluge_storage_sample_peaks]
+opt-level = 3
 [profile.harness.package.deluge_storage_stream]
 opt-level = 3
 [profile.harness.package.deluge_storage_sample_source]
@@ -166,6 +178,8 @@ panic = "abort"
 [profile.host-test.package.deluge_storage_sample_fill]
 opt-level = 3
 [profile.host-test.package.deluge_storage_sample_reader]
+opt-level = 3
+[profile.host-test.package.deluge_storage_sample_peaks]
 opt-level = 3
 [profile.host-test.package.deluge_storage_stream]
 opt-level = 3

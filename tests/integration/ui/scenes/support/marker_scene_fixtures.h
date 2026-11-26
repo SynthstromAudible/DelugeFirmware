@@ -2,15 +2,14 @@
 
 /// @file
 /// @brief The marker editor's fixtures, which `marker_scene_spec` and the menu oracle freezer share: a sample whose
-///        every display column is an overview-cache hit, a synth whose source 0 holds it in one range, an audio clip
-///        that holds it, and the holder's markers as a value to put back.
+///        every display column is answered from its peak index, a synth whose source 0 holds it in one range, an audio
+///        clip that holds it, and the holder's markers as a value to put back.
 ///
-/// The sample never touches the card: `deluge::sample::find_peaks_per_col`'s whole-cluster arm (`waveform_scan.cpp`,
-/// `investigatingAWholeCluster && sampleCluster->investigated`) reuses the sample's own overview cache, so a sample
-/// long enough that every column spans two or more clusters, its every overview entry marked investigated, draws the
-/// waveform the fixture asked for with no reader opened.
+/// The sample never touches the card: its peak index is seeded (`peak_seed.h`), so every column on block boundaries is
+/// answered from the index and the waveform the fixture asked for is drawn with no reader opened.
 
 #include "gui/ui/menu_view_of.h"
+#include "peak_seed.h"
 #include "ui/scenes/marker/marker_scene.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -73,7 +72,7 @@ inline constexpr int32_t kNumClusters = 32;
 /// `WaveformView::max_zoom()` for `kSampleLength`: `ceil(len / 16)`.
 inline constexpr int32_t kZoomMax = static_cast<int32_t>(((kSampleLength - 1) >> 4) + 1);
 
-/// The per-cluster peak the fixture writes into the overview cache: a widening shape, so a golden
+/// The per-cluster peak the fixture seeds the sample's peak index with: a widening shape, so a golden
 /// shows something recognisable rather than a flat band.
 inline int8_t cluster_peak(int32_t i) {
 	return static_cast<int8_t>(16 + 3 * i);
@@ -94,16 +93,9 @@ inline Sample* make_sample() {
 
 	// The normalisation the bar heights are computed against
 	// (`Sample::getFoundValueCentrePoint`/`getValueSpan`).
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-
-	s->resizeOverviewCache(kNumClusters);
-	for (int32_t i = 0; i < kNumClusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-cluster_peak(i));
-		e.max = cluster_peak(i);
-		e.investigated = true;
-	}
+	peak_seed::seed_peaks(*s, [&](int32_t i) {
+		return std::pair<int8_t, int8_t>{static_cast<int8_t>(-cluster_peak(i)), static_cast<int8_t>(cluster_peak(i))};
+	});
 	return s;
 }
 

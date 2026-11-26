@@ -5,7 +5,7 @@
 /// @par The sample fixture, and why it never touches the card
 ///
 /// Identical in shape and reason to `marker_scene_spec.cpp`'s (`support/slicer_scene_fixtures.h`):
-/// every display column of the fixture's sample is an overview-cache hit, so no I/O happens.
+/// every display column of the fixture's sample is answered from its seeded peak index, so no I/O happens.
 ///
 /// @par The reference
 ///
@@ -176,10 +176,13 @@ struct PadDiff {
 };
 
 template <typename AnyRig>
-PadDiff pad_diff(AnyRig& r, const std::optional<spec::OraclePads>& frozen_pads) {
+PadDiff pad_diff_excusing(int32_t excused_column, AnyRig& r, const std::optional<spec::OraclePads>& frozen_pads) {
 	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		if (x == excused_column) {
+			continue;
+		}
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (!frozen_pads || !(g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == (*frozen_pads)[y][x])) {
 				if (d.count == 0) {
@@ -193,15 +196,28 @@ PadDiff pad_diff(AnyRig& r, const std::optional<spec::OraclePads>& frozen_pads) 
 	return d;
 }
 
-/// @brief Assert the port's main pads are `pads/<name>.txt`, pad for pad.
+template <typename AnyRig>
+PadDiff pad_diff(AnyRig& r, const std::optional<spec::OraclePads>& frozen_pads) {
+	return pad_diff_excusing(-1, r, frozen_pads);
+}
+
+/// @brief Q30's column: the fixture's first column starts at frame 0, where main's scan reads only the first whole
+///        cluster (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp` `WaveformRenderer::findPeaksPerCol`'s
+///        initial-transient arm), and ours takes the peak of every frame the column covers.
+constexpr int32_t kQ30Column = 0;
+
+/// @brief Assert the port's main pads are `pads/<name>.txt`, pad for pad, but for Q30's column, which must differ.
 /// @param self The enclosing `it(...)` block's lambda parameter -- `expect` expands to `self.expect`.
 template <typename Self, typename AnyRig>
 void expect_pads_match(Self& self, AnyRig& r, std::string_view name) {
-	const PadDiff d = pad_diff(r, spec::OracleFiles::pads(name));
+	const std::optional<spec::OraclePads> main_pads = spec::OracleFiles::pads(name);
+	const PadDiff d = pad_diff_excusing(kQ30Column, r, main_pads);
 	// The coordinates first, so a failure names a pad rather than only a count.
 	expect(d.first_x).to_equal(-1);
 	expect(d.first_y).to_equal(-1);
 	expect(d.count).to_equal(0);
+	// The excused column differs from main's: a port that matched it there would have lost Q30.
+	expect(pad_diff(r, main_pads).count).to_be_greater_than(0);
 }
 
 /// @brief Assert the port's slice table is main's, as `slicer/<path>`'s `num_slices`, `current`, `starts` and
@@ -496,18 +512,12 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 	it("keeps its waveform when reopened on the same sample, as legacy's navigator does", _ {
 		// Legacy's slicer reads `waveformBasicNavigator`, which nothing resets between two opens on the same file, so
-		// the second open draws the first open's peaks. A navigator re-opened here would scan again, and on the device
-		// that scan reads the overview cache's coarse peaks instead (`find_peaks_per_col`'s whole-cluster arm).
+		// the second open draws the first open's peaks. Ours reads the sample's peak index, which outlives both opens.
 		Rig r;
 		r.open();
 		r.tick(0);
 		const deluge::ui::gfx::grid::PadGrid first = r.fake.grid().grid();
 
-		for (int32_t i = 0; i < kNumClusters; i++) {
-			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
-			e.min = 0;
-			e.max = 0;
-		}
 		r.shell.stack().pop(SceneKind::Null);
 		r.open();
 		r.tick(10);
@@ -528,8 +538,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		// `Slicer::renderMainPads` renders through `waveformBasicNavigator`, which `SampleBrowser::previewIfPossible`
 		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) opened and scanned for this sample: the columns
 		// are already read, so the slicer draws the preview's peaks. The browser hands the slicer its view, and the
-		// waveforms port keeps a file's columns, so the slicer's first frame is the browser's last; a fresh read would
-		// take the overview cache's peaks, which change under it here.
+		// slicer reads the same sample's peak index, so the slicer's first frame is the browser's last.
 		namespace bfx = deluge::ui::scenes::spec::browser_fx;
 		bfx::CleanBrowser clean;
 		spec::SongFixture f = spec::make_synth_song();
@@ -546,11 +555,6 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		}
 		const deluge::ui::views::waveform::WaveformView view = browser::browser_scene().waveform_view();
 		const deluge::ui::gfx::grid::PadGrid preview = r.fake.grid().grid();
-		for (int32_t i = 0; i < kNumClusters; i++) {
-			OverviewCacheEntry& e = sample->overviewCacheEntry(static_cast<uint32_t>(i));
-			e.min = 0;
-			e.max = 0;
-		}
 		held.open();
 		expect(r.shell.stack().push(SceneId{kSlicerSceneKind, 0})).to_be_true();
 		r.step();

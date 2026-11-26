@@ -14,6 +14,7 @@ name = "deluge_storage_sample_fill"
 crate-type = ["rlib"]
 
 [dependencies]
+deluge_storage_sample_peaks = { path = "../peaks" }
 deluge_storage_sample_convert = { path = "../convert" }
 # Blocking `Mutex` for the fill-context table only; no executor.
 embassy-sync = "0.8.0"

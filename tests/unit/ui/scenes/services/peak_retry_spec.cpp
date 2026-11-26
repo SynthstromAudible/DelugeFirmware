@@ -1,6 +1,6 @@
-// A waveform view whose read left columns pending draws again every poll while columns keep being answered, stops
-// after the give-up time with none newly answered, and starts again when a read answers one more or reads another
-// window. A view with no give-up asks again for as long as a column is pending.
+// A waveform view whose read left columns pending draws again every poll while columns keep being answered or their
+// index keeps growing, stops after the give-up time with neither, and starts again when a read answers one more or
+// reads another window. A view with no give-up asks again for as long as a column is pending.
 #include "ui/scenes/services/peak_retry.h"
 
 #include "cppspec.hpp"
@@ -27,6 +27,13 @@ PeakRead answering(int32_t answered) {
 	for (int32_t c = 0; c < answered; c++) {
 		read.set(c, ColumnRead::of({.min = -c, .max = c}));
 	}
+	return read;
+}
+
+/// @brief A read with no column answered whose pending columns' index holds @p known frames.
+PeakRead filling(uint64_t known) {
+	PeakRead read;
+	read.add_progress(known);
 	return read;
 }
 
@@ -115,6 +122,33 @@ describe scenes_peak_retry("a view's redraws of a pending waveform", ${
 		expect(retry.retrying()).to_be_true();
 		expect(retry.after(answering(16), kAt, 100 + 100 * kPeakRetryGiveUpMs + 10)).to_equal(PeakRetry::Next::DONE);
 		expect(retry.retrying()).to_be_false();
+	});
+	it("keeps asking while the pending columns' index grows, with no column newly answered", _ {
+		PeakRetry retry;
+		(void)retry.after(filling(0), kAt, 100);
+		for (uint32_t step = 1; step <= 10; step++) {
+			expect(retry.after(filling(step * 22'000), kAt, 100 + step * (kPeakRetryGiveUpMs - 1)))
+			    .to_equal(PeakRetry::Next::ASK_AGAIN);
+		}
+		expect(retry.gave_up()).to_be_false();
+	});
+	it("gives up when the pending columns' index stops growing", _ {
+		PeakRetry retry;
+		(void)retry.after(filling(0), kAt, 100);
+		expect(retry.after(filling(22'000), kAt, 200)).to_equal(PeakRetry::Next::ASK_AGAIN);
+		expect(retry.after(filling(22'000), kAt, 200 + kPeakRetryGiveUpMs - 1)).to_equal(PeakRetry::Next::ASK_AGAIN);
+		expect(retry.after(filling(22'000), kAt, 200 + kPeakRetryGiveUpMs)).to_equal(PeakRetry::Next::GIVE_UP);
+	});
+	it("counts a column newly answered as progress even when the pending columns then hold fewer folded frames", _ {
+		PeakRetry retry;
+		PeakRead before = filling(50'000);
+		(void)retry.after(before, kAt, 100);
+		PeakRead after = answering(1);
+		after.add_progress(10'000); // the answered column's 50,000 frames left the sum
+		expect(retry.after(after, kAt, 100 + kPeakRetryGiveUpMs - 1)).to_equal(PeakRetry::Next::ASK_AGAIN);
+		after.add_progress(1'000);
+		expect(retry.after(after, kAt, 100 + 2 * kPeakRetryGiveUpMs - 2)).to_equal(PeakRetry::Next::ASK_AGAIN);
+		expect(retry.after(after, kAt, 100 + 3 * kPeakRetryGiveUpMs - 2)).to_equal(PeakRetry::Next::GIVE_UP);
 	});
 	it("measures across the millisecond clock's wrap", _ {
 		PeakRetry retry;

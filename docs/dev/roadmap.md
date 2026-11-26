@@ -173,23 +173,25 @@ PIC and parity with main.
   reach the registry or the menu's node tables (the marker editor's shortcut jump, the recorder's shortcut blink).
   Once R2c-3 clears them, R2d links the whole menu into the fakes driver.
 
-**The waveforms after R2c-2:**
+**The waveforms:**
 
-- **The sample-owned peak index is the next stage**, with its own spec. One int16 peak per cluster, owned by the
-  sample, with "not scanned" for clusters the overview has not reached. The renderer is a pure function of it, a
-  sub-cluster column reads its frames directly, and the overview pre-scan only pre-fills it. It replaces only the
-  host's implementation of the waveforms port: `PeakCacheSet`, `read_columns` and the D38 race between the overview
-  and the direct read. The legacy views' `AudioClip::renderData` moves onto it with them. The scenes, the port,
-  `FakeWaveforms` and the contracts stay as they are: every column is a peak, pending (a cluster not yet scanned) or
-  past the end. Its identity is the waveform's: the sample's lifetime serial (`Sample::serial`, which
-  `gui::shell_host::waveform_identity` answers), so a sample made in a freed one's memory is another waveform.
+- **Done: the sample-owned peak index** (`src/storage/sample/peaks`, stage 1 of its spec). One lock-free pyramid of
+  16-bit peaks per sample, measured in frames: one peak per 256 frames, and each level up one per 16 below. The cluster
+  fill folds every converted cluster into it, the recorder folds each take as it writes it, and the background scan
+  reads what neither reached. Every column, through the waveforms port and the legacy views alike, is the peak of every
+  frame it covers (`sample::waveform_columns`), and the bars scale to the index's range. The overview cache, the
+  host's and the clips' peak caches and the samples' running range are gone, and with them the D38 race. Its
+  differences from `main` are D188–D191.
+- **Next: the peak index's sidecars** (stage 2): each file's pyramid, levels 1 and up, written to a central directory
+  on the card when idle and keyed by the file's identity on its card, so a file seen before is whole at once.
 - **Offer `main` the waveform fixes** that `next` lists as accepted differences
   (`tests/ui-scripts/parity/DIFFERENCES.md`, the sample-view rows):
   - the navigator's 32-bit and rounding faults, and the short-waveform and remembered-zoom clamps;
   - the bars' and brightness's divisions by zero and wraps;
   - the scan's 64-bit column bounds;
   - the marker editor's 64-bit columns and writes, its loop-lock sums and its range read after the scan;
-  - the ask-again for unreadable columns, and the columns kept per file.
+  - the ask-again for unreadable columns, and the columns kept per file;
+  - the peak index: exact column spans at 16-bit scale, the index's range as the scale, and waveforms filled by use.
 
   Kate decides whether and when. `main` already clears a forgotten view's columns
   (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`, `WaveformRenderer::findPeaksPerCol`), so that fix is

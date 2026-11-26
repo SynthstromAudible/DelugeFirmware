@@ -1905,20 +1905,6 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 		else {
 			waveformRenderer.collapseAnimationToWhichRow = yPressedEffective;
 
-			int64_t xScrollSamples;
-			int64_t xZoomSamples;
-
-			((AudioClip*)clip)
-			    ->getScrollAndZoomInSamples(currentSong->persistentView.xScroll[NAVIGATION_CLIP],
-			                                currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples,
-			                                &xZoomSamples);
-
-			auto* const audio_clip = (AudioClip*)clip;
-			(void)deluge::sample::find_peaks_per_col(
-			    *static_cast<Sample*>(audio_clip->sampleHolder.audioFile),
-			    {.scroll = static_cast<int64_t>(xScrollSamples), .zoom = static_cast<int64_t>(xZoomSamples)},
-			    audio_clip->renderData);
-
 			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
 		}
 	}

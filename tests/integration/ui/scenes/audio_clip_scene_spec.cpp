@@ -37,10 +37,9 @@
 ///
 /// @par The sample fixture, and why it never touches the card
 ///
-/// Identical in shape and reason to `marker_scene_spec.cpp`'s and `slicer_scene_spec.cpp`'s:
-/// `deluge::sample::find_peaks_per_col` reads clusters, and a spec process has no mounted card. The
-/// fixture builds a sample long enough that every display column spans two or more clusters and
-/// pre-marks every overview entry investigated, so every column is a cache hit and no I/O happens.
+/// Identical in shape and reason to `marker_scene_spec.cpp`'s and `slicer_scene_spec.cpp`'s: a spec process has no
+/// mounted card, so the fixture seeds the sample's peak index (`support/peak_seed.h`) with every block complete and
+/// its level-0 value kept. A column on 256-frame block boundaries is answered from the index with no frame read.
 ///
 /// @par What is NOT covered here, and why
 ///
@@ -60,6 +59,7 @@
 ///       library may not. Same rule `marker_scene_spec.cpp` and `slicer_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "support/peak_seed.h"
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/menu/bind_host.h"
@@ -207,16 +207,10 @@ Sample* make_sample() {
 	s->audioDataLengthBytes = kSampleLength * kBytesPerFrame;
 	s->lengthInSamples = kSampleLength;
 
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-
-	s->resizeOverviewCache(kNumClusters);
-	for (int32_t i = 0; i < kNumClusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-cluster_peak(i));
-		e.max = cluster_peak(i);
-		e.investigated = true;
-	}
+	peak_seed::seed_peaks(*s, [&](int32_t i) {
+		return std::pair<int8_t, int8_t>{static_cast<int8_t>(static_cast<int8_t>(-cluster_peak(i))),
+		                                 static_cast<int8_t>(cluster_peak(i))};
+	});
 	return s;
 }
 
@@ -280,18 +274,11 @@ void ensure_display() {
 /// @brief The starting state BOTH sides read, and neither derives from the other.
 ///
 /// @warning **Only some scroll/zoom pairs can be scanned in a spec process, and the ones that
-///          cannot make this whole comparison VACUOUS.** `find_peaks_per_col` takes its cached
-///          whole-cluster arm only when a display column spans two or more clusters
-///          (`model/sample/waveform_scan.cpp`); on the one-cluster and part-cluster arms it
-///          opens a `SampleFrameReader`, which fails with no card, sets `hadAnyTroubleLoading` and
-///          makes the whole scan return **false**. Both sides then draw nothing -- the port because
-///          `render_grid` returns, legacy because `renderMainPads`' `!success` arm returns -- and the
-///          pad comparison passes on two black grids.
-///
-///          It was written that way first: `loop_length = 384` at `x_zoom = 48` puts a column
-///          boundary 16 bytes from the end of cluster 31, which takes the two-cluster arm with
-///          `investigatingAWholeCluster` left false, and the "grey region" example passed with an
-///          entirely black grid.
+///          cannot make this whole comparison VACUOUS.** A column whose ends fall inside a 256-frame
+///          block reads those frames (`deluge::sample::waveform_columns`), which fails with no card and
+///          leaves the column pending. Both sides then draw nothing -- the port because `render_grid`
+///          returns, legacy because `renderMainPads`' `!success` arm returns -- and the pad comparison
+///          passes on two black grids.
 ///
 ///          **`PadExpectation` below is what closes it, and it closes it structurally:**
 ///          `expect_pads_match` takes one as a required argument and applies it before it compares
@@ -361,7 +348,6 @@ struct Rig {
 		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 		f.clip->sampleControls.reversed = false;
 		f.clip->recorder = nullptr;
-		f.clip->renderData.forget();
 		// `Clip::getLivePos()`'s SIGFPE guard -- see the extern's docstring.
 		currentlyActioningSwungTickOrResettingPlayPos = true;
 		// Legacy's `graphicsRoutine` gate and `prepareColour`'s substitution both read this; the
@@ -406,7 +392,6 @@ struct Rig {
 		f.clip->soloingInSessionMode = false;
 		f.clip->armState = ArmState::OFF;
 		// Both caches invalidated, so each side's own scan runs from scratch.
-		f.clip->renderData.forget();
 	}
 
 	/// @brief Put the model back to EXACTLY what @p s describes -- the clip's length, the sample's
@@ -1072,13 +1057,8 @@ describe audio_clip_scene_spec_body(
 		        r.open();
 		        r.tick(0);
 		        Sample* flat = make_sample();
-		        for (int32_t i = 0; i < kNumClusters; i++) {
-			        OverviewCacheEntry& e = flat->overviewCacheEntry(static_cast<uint32_t>(i));
-			        e.min = -100;
-			        e.max = 100;
-		        }
+		        peak_seed::seed_peaks(*flat, [](int32_t) { return std::pair<int8_t, int8_t>{-100, 100}; });
 		        r.f.clip->sampleHolder.audioFile = flat;
-		        r.f.clip->renderData.forget(); // as the clip's own sample changes leave it, for legacy's scan
 		        deluge::base::notify::raise(
 		            deluge::base::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
 		        r.tick(10);

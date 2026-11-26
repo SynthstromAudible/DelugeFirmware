@@ -141,9 +141,9 @@ bool CardReinsert::tick() {
 
 	case Verdict::Present:
 		if (sample.unloadable) {
-			// It just became loadable again: re-arm the background overview pre-scan so its waveform
-			// overview gets rebuilt (the scan skips unloadable samples and may have gone idle) (#4460).
-			audioFileManager.overviewScanAllDone = false;
+			// It just became loadable again: re-arm the peak scan, which skips unloadable samples and may have gone
+			// idle.
+			audioFileManager.peakScanAllDone = false;
 		}
 		sample.unloadable = false;
 		break;

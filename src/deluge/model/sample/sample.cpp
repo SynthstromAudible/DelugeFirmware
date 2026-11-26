@@ -17,6 +17,7 @@
 
 #include "model/sample/sample.h"
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_peaks.h"
 #include "deluge_storage_sample_reader.h"
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/fft/magnitude.h"
@@ -31,7 +32,7 @@
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/fft/fft_config_manager.h"
-#include "storage/audio/audio_file_manager.h" // audioFileManager (overviewScanAllDone)
+#include "storage/audio/audio_file_manager.h" // audioFileManager (peakScanAllDone)
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 #include <atomic>
@@ -44,8 +45,8 @@
 
 namespace {
 // While a Sample's length is still unknown (mid-recording), its cluster count is the number of clusters
-// the recorder has captured so far. Mirrors the unsynchronized walk in
-// WaveformRenderer::investigateWholeCluster (waveform_renderer.cpp).
+// the recorder has captured so far. Mirrors the unsynchronized recorder walk in
+// deluge::sample::advance_peak_scan (waveform_scan.cpp).
 //
 // PRECONDITION: this unsynchronized list walk is safe only because num_clusters() reaches it just for
 // still-recording samples (isLengthKnown() == false), which are never consumed by the preemptive
@@ -110,9 +111,6 @@ Sample::Sample() : AudioFile(AudioFileType::SAMPLE), serial(next_serial()) {
 	midiNote = MIDI_NOTE_UNSET;
 	partOfFolderBeingLoaded = false;
 
-	minValueFound = 2147483647;
-	maxValueFound = -2147483648;
-
 	percCacheMemory[0] = nullptr;
 	percCacheMemory[1] = nullptr;
 
@@ -131,17 +129,11 @@ Sample::Sample() : AudioFile(AudioFileType::SAMPLE), serial(next_serial()) {
 #endif
 }
 
-Error Sample::initialize(int32_t newNumClusters) {
+Error Sample::initialize() {
 	unloadable = false;
 	unplayable = false;
 	waveTableCycleSize = 2048; // Default
 	fileExplicitlySpecifiesSelfAsWaveTable = false;
-
-	try {
-		overviewCache_.resize(overviewCache_.size() + newNumClusters);
-	} catch (deluge::exception&) {
-		return Error::INSUFFICIENT_RAM;
-	}
 	return Error::NONE;
 }
 
@@ -189,6 +181,7 @@ Sample::~Sample() {
 	// (see SampleStream::release_asset()'s doc); ~SampleStream() also calls it, as an idempotent
 	// backstop, once stream_ destructs below.
 	stream_.release_asset();
+	deluge_peaks_release(peaks_);
 
 	deletePercCache(true);
 
@@ -245,23 +238,45 @@ void Sample::workOutBitMask() {
 void Sample::markAsUnloadable() {
 	unloadable = true;
 
-	// The on-disk audio may have changed, so the cached waveform overview can no longer be trusted.
-	resetOverviewScan();
-
 	// Cancel any pending loads and flag resident clusters, so a mid-flight fill won't complete with
-	// stale bytes (the residency lives in the Rust manager now).
+	// stale bytes (the residency lives in the Rust manager).
 	deluge_sample_invalidate(deluge::sample::source_id_for(*this));
+
+	// The on-disk audio may have changed, so the peaks can no longer be trusted. After the invalidation, so no fill
+	// of the old bytes folds into the new index.
+	resetPeaks();
 }
 
-void Sample::resetOverviewScan() {
-	for (int32_t c = 0; c < static_cast<int32_t>(overviewCacheSize()); c++) {
-		OverviewCacheEntry& cacheEntry = overviewCacheEntry(c);
-		cacheEntry.investigated = false;
-		cacheEntry.min = 127;
-		cacheEntry.max = -128;
+void Sample::makePeaks(uint64_t frames, bool growing, uint64_t capacity) {
+	deluge_peaks_release(peaks_);
+	peaks_ = deluge_peaks_create(frames, growing, capacity);
+	peaksScanFrom = 0;
+	if (peaks_ != nullptr) {
+		audioFileManager.peakScanAllDone = false;
 	}
-	overviewScanNextCluster = getFirstClusterIndexWithAudioData();
-	audioFileManager.overviewScanAllDone = false; // This sample now has work to pre-scan again (#4460)
+	if (stream_.resource_asset_id() != DELUGE_RESOURCE_NO_ASSET) {
+		deluge_peaks_bind_asset(stream_.resource_asset_id(), peaks_);
+	}
+}
+
+void Sample::retryPeaks() {
+	if (peaks_ != nullptr || !isLengthKnown()) {
+		return;
+	}
+	const uint32_t now = AudioEngine::audioSampleTimer;
+	if (peaksTried_ && now - peaksTriedAt_ < static_cast<uint32_t>(kSampleRate)) {
+		return;
+	}
+	peaksTried_ = true;
+	peaksTriedAt_ = now;
+	resetPeaks();
+}
+
+void Sample::resetPeaks() {
+	if (!isLengthKnown()) {
+		return; // a take still recording: its recorder keeps its index
+	}
+	makePeaks(lengthInSamples, false, lengthInSamples);
 }
 
 SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio,
@@ -986,12 +1001,10 @@ int32_t Sample::getFirstClusterIndexWithAudioData() {
 
 int32_t Sample::getFirstClusterIndexWithNoAudioData() {
 	// Pure geometric count, unclamped: for a loaded sample finalizeAfterLoad() guarantees
-	// audioDataStartPosBytes + audioDataLengthBytes <= fileSize, so this is <= the overview cache's
-	// physical size. It is also reached for a still-recording sample (via advanceOverviewScan's
-	// background scan), where audioDataLengthBytes is the kUnknownLengthSentinel; the sentinel's
-	// bit-pattern deliberately makes this expression truncate (in the uint32 geometricClusterCount())
-	// to 1 for every realistic cluster-size magnitude, so the scan stays bounded to cluster 0. Keep
-	// that property in mind before changing the sentinel value.
+	// audioDataStartPosBytes + audioDataLengthBytes <= fileSize. For a still-recording sample
+	// audioDataLengthBytes is the kUnknownLengthSentinel, whose bit-pattern makes this expression truncate
+	// (in the uint32 geometricClusterCount()) to 1 for every realistic cluster-size magnitude. Keep that
+	// property in mind before changing the sentinel value.
 	return static_cast<int32_t>(geometricClusterCount());
 }
 
@@ -1444,21 +1457,33 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 	return {PitchVerdict::Kind::Found, freq};
 }
 
+Sample::FoundRange Sample::foundRange() const {
+	// The peak index's range, at the 32-bit scale the drawing works in; nothing scanned yet reads as silence.
+	const DelugeMaybePeak range = deluge_peaks_range(peaks_);
+	if (!range.has) {
+		return {};
+	}
+	return {.min = static_cast<int32_t>(range.peak.min) * 65536, .max = static_cast<int32_t>(range.peak.max) * 65536};
+}
+
 int32_t Sample::getMaxPeakFromZero() {
+	const auto [minValue, maxValue] = foundRange();
 	// Comes out one >> of the value we actually want
-	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValueFound >> 2) - (minValueFound >> 2);
+	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValue >> 2) - (minValue >> 2);
 
 	// Doubled, held to 31 bits first: a clipped recording's peak would otherwise overflow
 	return scale_shl_clamp_then_shift<1>(deluge::dsp::Q<31>::from_raw(halfValue)).raw();
 }
 
 int32_t Sample::getFoundValueCentrePoint() {
-	return (maxValueFound >> 1) + (minValueFound >> 1);
+	const auto [minValue, maxValue] = foundRange();
+	return (maxValue >> 1) + (minValue >> 1);
 }
 
 // Returns the value span divided by display height
 int32_t Sample::getValueSpan() {
-	return (maxValueFound >> kDisplayHeightMagnitude) - (minValueFound >> kDisplayHeightMagnitude);
+	const auto [minValue, maxValue] = foundRange();
+	return (maxValue >> kDisplayHeightMagnitude) - (minValue >> kDisplayHeightMagnitude);
 }
 
 void Sample::finalizeAfterLoad(uint32_t fileSize) {
@@ -1473,6 +1498,7 @@ void Sample::finalizeAfterLoad(uint32_t fileSize) {
 	audioDataLengthBytes = lengthInSamples * bytesPerSample; // Make sure it's an exact number of samples
 
 	workOutBitMask();
+	makePeaks(lengthInSamples, false, lengthInSamples);
 }
 
 // Soft-reference (on) / un-reference (off) every resource asset this sample owns: its cluster asset

@@ -1,7 +1,7 @@
 scene app20
 scene app16/156
-pad 0 3 15 15 15
-pad 0 4 17 17 17
+pad 0 3 21 21 21
+pad 0 4 23 23 23
 pad 1 0 0 191 0
 pad 1 1 0 191 0
 pad 1 2 0 191 0

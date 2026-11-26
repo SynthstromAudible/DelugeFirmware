@@ -11,6 +11,7 @@ const CRATE_INCLUDE_DIRS: &[&str] = &[
     "src/base/alloc/include",
     "src/storage/resource/include",
     "src/storage/sample/source/include",
+    "src/storage/sample/peaks/include",
     "src/storage/sample/reader/include",
     "src/storage/sample/fill/include",
     "src/storage/stream/include",

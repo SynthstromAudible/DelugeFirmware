@@ -696,8 +696,8 @@ struct MidiLearnGuard {
 
 /// @brief A `Sample` with a length and nothing else.
 ///
-/// `audio_clip_scene_spec.cpp`'s `make_sample()` minus everything only the waveform scan reads (the cluster size and
-/// the overview cache): `SampleHolder::getLoopLengthAtSystemSampleRate` asks for
+/// `audio_clip_scene_spec.cpp`'s `make_sample()` minus everything only the waveform reads (the cluster size and
+/// the peak index): `SampleHolder::getLoopLengthAtSystemSampleRate` asks for
 /// `getDurationInSamples(/*forTimeStretching=*/true)`, which is `endPos - startPos` and never touches the `Sample` at
 /// all (`SampleHolder::getEndPos` in `model/sample/sample_holder.cpp`). The object still has to exist, because
 /// `getLoopLengthAtSystemSampleRate`'s `if (audioFile)` is what picks that branch over "return the clip's current

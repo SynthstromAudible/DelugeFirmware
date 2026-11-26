@@ -49,7 +49,7 @@ enum class FinalizePhase : uint8_t {
 	Truncate,
 	/// Close the stream, flushing the deferred directory entry.
 	Close,
-	/// PURE: final channel count, sample length, and the overview-cache grow.
+	/// PURE: final channel count and sample length, and the take's peak index finished.
 	Bookkeeping,
 	/// Terminal, success.
 	Done,

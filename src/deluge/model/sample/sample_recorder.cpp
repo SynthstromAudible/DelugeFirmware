@@ -18,6 +18,7 @@
 #include "model/sample/sample_recorder.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_peaks.h"
 #include "dsp/core/fixed_point.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -68,6 +69,7 @@ void noteRecorderIo() {
 
 SampleRecorder::~SampleRecorder() {
 	D_PRINTLN("~SampleRecorder()");
+	deluge_peaks_take_drop(takePeaks_);
 	if (file) {
 		// The stream's destructor closes it synchronously. A recorder freed with its file still open skipped
 		// its own close.
@@ -93,6 +95,9 @@ void SampleRecorder::detachSample() {
 	// any undrained buffers (an abort mid-recording) plus anything sitting in the recycle ring.
 	releaseCaptureBuffers();
 
+	// The background scan passes over a sample its recorder holds; a take left incomplete (its index reset after an
+	// altering finalize, or a feed that found no room) is the scan's from here.
+	audioFileManager.peakScanAllDone = false;
 	sample->removeReason("E400");
 }
 
@@ -171,7 +176,7 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 
 	audioFileManager.adoptAudioFileObject(sample); // resource-manager evictable object (before addReason)
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
-	Error error = sample->initialize(1);
+	Error error = sample->initialize();
 	if (error != Error::NONE) {
 gotError:
 		audioFileManager.destroyAudioFileObject(*sample); // ~Sample + free (routed through the manager if adopted)
@@ -202,6 +207,9 @@ gotError:
 	                                                               // Sample::kUnknownLengthSentinel and its users
 	sample->sampleRate = kSampleRate;
 	sample->workOutBitMask();
+	// The take's peaks: room for a file of the largest size, in 24-bit frames of this many channels.
+	takePeaks_ = deluge_peaks_take_create();
+	sample->makePeaks(0, true, ((uint64_t{1} << MAX_FILE_SIZE_MAGNITUDE) / 3) >> (newNumChannels == 2 ? 1 : 0));
 
 	pointerHeldElsewhere = true;
 	mode = newMode;
@@ -268,9 +276,6 @@ gotError:
 	recordSumR = 0;
 	recordSumLPlusR = 0;
 	recordSumLMinusR = 0;
-
-	recordMax = -2147483648;
-	recordMin = 2147483647;
 
 	writePos = reinterpret_cast<char*>(currentRecordBuffer);
 	clusterEndPos = reinterpret_cast<char*>(currentRecordBuffer + Cluster::size);
@@ -552,6 +557,12 @@ Error SampleRecorder::writeOneCompletedCluster(bool mayUseChannel) {
 	                              // called, and we need to be counting this cluster as "written", as in too late for it
 	                              // to be modified (by writing a final length to it)
 
+	// The cluster's bytes are final now: fold them into the take's peaks before the write recycles the buffer.
+	if (const std::byte* buffer = bufferTable_[writingClusterIndex]; buffer != nullptr) {
+		deluge_peaks_take_feed(takePeaks_, sample->peaks(), reinterpret_cast<const uint8_t*>(buffer), Cluster::size,
+		                       sample->audioDataStartPosBytes, static_cast<uint8_t>(sample->numChannels));
+	}
+
 	// writeCluster() recycles this buffer's memory back to the free-list once the write succeeds --
 	// no separate "reason" to drop; we privately own it outright.
 	return writeCluster(writingClusterIndex, Cluster::size, mayUseChannel);
@@ -604,6 +615,9 @@ Error SampleRecorder::finalizeWriteFinalPartial() {
 
 		int32_t bytesToWrite = writePos - reinterpret_cast<char*>(currentRecordBuffer);
 		if (bytesToWrite > 0) { // Will always be true
+			deluge_peaks_take_feed(takePeaks_, sample->peaks(), reinterpret_cast<const uint8_t*>(currentRecordBuffer),
+			                       static_cast<uint32_t>(bytesToWrite), sample->audioDataStartPosBytes,
+			                       static_cast<uint8_t>(sample->numChannels));
 			// Through the channel wherever the channel is usable. The header read-back that follows waits for
 			// it: `pumpInFlightWrite()` at the top of cardRoutine() settles this write before finalize runs
 			// again, and a failed one ends the take there.
@@ -718,7 +732,7 @@ void SampleRecorder::finalizeDecide() {
 	}
 }
 
-/// PURE: final geometry and the overview-cache grow.
+/// PURE: final geometry, and the take's peak index finished.
 Error SampleRecorder::finalizeBookkeeping() {
 	const MonitoringAction action = finalizeAction_;
 	const uint64_t dataLengthAfterAction = finalizeDataLenAfter_;
@@ -729,36 +743,14 @@ Error SampleRecorder::finalizeBookkeeping() {
 	    * (sample->byteDepth
 	       * sample->numChannels); // Ensure whole number of samples (surely it already would be though?)
 
-	// Ensure the waveform overview cache (Sample::overviewCache_, one entry per cluster) is sized to
-	// the real, final cluster count once the recording's true length is known, so later zoomed-out
-	// waveform rendering can index every cluster of the finished file. This runs for BOTH finalize
-	// outcomes:
-	//   - the alterFile branch above never touches overviewCache_ -- alterFile() is a positional
-	//     file->file transform over deluge::io::Stream (read_at_via/write_at), with no overview-cache
-	//     involvement whatsoever. So overviewCache_ is still sitting at the single entry
-	//     Sample::initialize(1) set in setup() when we reach here, and this resize is an ACTUAL grow
-	//     (1 -> finalClusterCount), not a no-op.
-	//   - the common, no-alteration else-branch -- the ONLY path AudioClip recording takes -- never
-	//     touches overviewCache_ either, so without this it likewise stays that single entry.
-	//
-	// Grow-only (never shrink here): SegmentedVector::resize() to a SMALLER size destroys the
-	// removed tail, which would be wrong here -- shrinking is truncateFileDownToSize()'s job, not
-	// finalize's.
-	{
-		uint32_t idealFileSizeAfterAction =
-		    sample->audioDataStartPosBytes + static_cast<uint32_t>(sample->audioDataLengthBytes);
-		uint32_t finalClusterCount = ((idealFileSizeAfterAction - 1) >> Cluster::size_magnitude) + 1;
-		// Guard on the PHYSICAL cache size, not num_clusters(): num_clusters() is derived from this
-		// same geometric formula, so guarding on it would be tautologically false and skip this grow,
-		// leaving overviewCache_ at its initialize(1) size while derived num_clusters() reports the
-		// true count -- an OOB when later waveform rendering indexes the cache up to that count.
-		if (finalClusterCount > sample->overviewCacheSize()) {
-			try {
-				sample->resizeOverviewCache(finalClusterCount);
-			} catch (deluge::exception&) {
-				return Error::INSUFFICIENT_RAM;
-			}
-		}
+	// The take's peaks. An alteration rewrote the audio, and an overrun capture was truncated: either way the folded
+	// peaks no longer describe the file, so the index starts over and the background scan reads the finished file.
+	if (finalizeAltering_ || deluge_peaks_take_frames(takePeaks_) != sample->lengthInSamples) {
+		sample->resetPeaks();
+	}
+	else {
+		deluge_peaks_set_frames(sample->peaks(), sample->lengthInSamples, true);
+		deluge_peaks_take_finish(takePeaks_, sample->peaks());
 	}
 
 	if (sample->tempFilePathForRecording.empty()) {
@@ -1865,9 +1857,6 @@ void SampleRecorder::finishCapturing() {
 	// and payload writes before it takes over as producer in finalizeRecordedFile(). See B3.
 	status.store(RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING, std::memory_order_release);
 
-	// A freshly recorded sample now has a final length and needs its waveform overview pre-scanned. Re-arm
-	// the background scan, which may have gone idle after all previously-loaded samples were scanned (#4460).
-	audioFileManager.overviewScanAllDone = false;
 	if (getRootUI()) {
 		deluge::base::notify::raise(deluge::base::notify::Dirty::SampleReady);
 	}
@@ -1991,9 +1980,6 @@ doFinishCapturing:
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<const std::byte*>(&rxL)[1], 3, writePosNow);
 
-					recordMax = std::max(rxL, recordMax);
-					recordMin = std::min(rxL, recordMin);
-
 					int32_t absL = (rxL >= 0) ? rxL : -1 - rxL;
 					recordSumL += absL;
 
@@ -2014,9 +2000,6 @@ doFinishCapturing:
 
 						// Copy the last 24 bits (lower 3 bytes) to writePosNow
 						writePosNow = std::copy_n(&reinterpret_cast<const std::byte*>(&rxR)[1], 3, writePosNow);
-
-						recordMax = std::max(rxR, recordMax);
-						recordMin = std::min(rxR, recordMin);
 
 						recordSumR += (rxR >= 0) ? rxR : -1 - rxR;
 

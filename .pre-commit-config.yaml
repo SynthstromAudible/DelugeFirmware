@@ -30,7 +30,7 @@ repos:
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
         language: system
         pass_filenames: false
-        files: ^(include/libdeluge/|src/platform/device/src/|tests/harness/|src/platform/device/build/|src/platform/device/Cargo\.toml|Cargo\.toml$|tests/trees/host/rust/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|reader|source)|stream)/|scripts/check_abi_surface\.py)
+        files: ^(include/libdeluge/|src/platform/device/src/|tests/harness/|src/platform/device/build/|src/platform/device/Cargo\.toml|Cargo\.toml$|tests/trees/host/rust/|src/base/alloc/|src/storage/(resource|sample/(convert|fill|peaks|reader|source)|stream)/|scripts/check_abi_surface\.py)
       - id: registry-readme
         name: tests/README.md's table matches tests/registry.toml
         entry: python3 scripts/tasks/task-test.py --update-readme

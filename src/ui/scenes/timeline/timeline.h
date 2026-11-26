@@ -69,8 +69,8 @@
 /// @par This state starts from the song's clip navigation, which `adopt` takes
 ///
 /// The authority is the song's clip navigation slot, `Song::xScroll[NAVIGATION_CLIP]` /
-/// `xZoom[NAVIGATION_CLIP]`, which is what gets written to the song file and what `Clip::renderData`
-/// compares against. A scene reads it through its clip-facts port (`bind::ClipFacts::clip_navigation`),
+/// `xZoom[NAVIGATION_CLIP]`, which is what gets written to the song file and what the audio clip view's
+/// columns are read at. A scene reads it through its clip-facts port (`bind::ClipFacts::clip_navigation`),
 /// whose host names the slot, and `adopt` copies what that answers: no scene spells the slot itself.
 // clang-format on
 

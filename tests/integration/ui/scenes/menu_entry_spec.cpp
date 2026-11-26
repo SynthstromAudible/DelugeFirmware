@@ -27,6 +27,7 @@
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
 #include "project/device_settings.h"
+#include "support/peak_seed.h"
 #include "support/sound_fixtures.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/marker/marker_scene.h"
@@ -270,7 +271,7 @@ std::string text(deluge::l10n::String s) {
 
 /// @brief A kit clip with a fresh note row at index 0, and the model stack `enterDrumCreator` takes for it.
 /// @brief A sample the marker editor can open on, without a card: `marker_scene_spec.cpp`'s fixture, cut to what the
-///        editor's open asks of it (a length, and an overview cache every column reads from).
+///        editor's open asks of it (a length, and a peak index every column reads from).
 Sample* make_marker_sample() {
 	constexpr size_t kClusterSize = 32768;
 	constexpr int32_t kBytesPerFrame = 2;
@@ -285,15 +286,8 @@ Sample* make_marker_sample() {
 	s->audioDataStartPosBytes = 0;
 	s->audioDataLengthBytes = kLength * kBytesPerFrame;
 	s->lengthInSamples = kLength;
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-	s->resizeOverviewCache(kClusters);
-	for (int32_t i = 0; i < kClusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = -16;
-		e.max = 16;
-		e.investigated = true;
-	}
+	peak_seed::seed_peaks(
+	    *s, [&](int32_t i) { return std::pair<int8_t, int8_t>{static_cast<int8_t>(-16), static_cast<int8_t>(16)}; });
 	return s;
 }
 

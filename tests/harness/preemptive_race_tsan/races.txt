@@ -104,7 +104,7 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #     bypassCulling): deluge_app_render, AudioEngine::renderAppBlock,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
 #     Sound::renderingVoicesInStereo, deluge::model::hostFxInputs, inputRoutine, deluge::recording::beginOutputRecording, PlaybackHandler::doSongSwap,
-#     deluge::sample::advance_overview_scan
+#     deluge::sample::advance_peak_scan
 #   Reverb (reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender): updateReverbParams, getReverbParamsFromSong, renderReverb
 #     (AudioEngine::reverb's knobs and model reach the render through effects::Reverb::publish and
 #     begin_change/commit, inside AudioExcludedSections; a song swap at a launch rebuilds it on the audio tier, and

@@ -39,6 +39,7 @@
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
 ///       app's sources), so the Embassy host binary, which links `deluge_app`, can reach it. Inert unless called.
 
+#include "deluge_storage_sample_peaks.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 
@@ -55,6 +56,8 @@
 #include "model/output.h"
 #include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_reader_bridge.h"
+#include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
 #include "runtime/app_loop.h"                // nowUs, the stall bounds' clock
 #include "scenarios/guest_drive.h"           // the shell guest: its tick, its browser
@@ -65,10 +68,12 @@
 #include "ui/scenes/browser/browser_scene.h"
 #include "util/menu_entry.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -884,62 +889,222 @@ void finishPreviewStage(bool drawn) {
 	checkTier("preview", g_previewTier);
 }
 
-/// The previewed sample's found range as the preview's draw left it, and how many of its clusters were investigated.
+/// The previewed sample, as the pre-scan stage began.
 struct PrescanMark {
 	Sample* sample = nullptr;
-	int32_t min = 0;
-	int32_t max = 0;
-	int32_t investigated = 0;
 };
 PrescanMark g_prescanBefore{};
+/// The previewed sample's first unscanned frame before any peak scan ran: what the fill alone folded.
+uint64_t g_peaksFilledBefore = 0;
 /// Scan ticks made, the one that ended the stage included.
 int32_t g_prescanTicks = 0;
-/// Bound on the pre-scan stage, in ticks: one cluster per tick, and the preview file holds far fewer.
-constexpr int32_t kMaxPrescanTicks = 4000;
-Wait g_prescanWait{g_report, "the overview pre-scan finishing", kMaxPrescanTicks};
+/// Bound on the pre-scan stage, in ticks: one block per tick at most, and the stage's files hold far fewer.
+constexpr int32_t kMaxPrescanTicks = 8000;
+Wait g_prescanWait{g_report, "the peak scan finishing", kMaxPrescanTicks};
 
-int32_t investigatedClusters(const Sample& sample) {
-	int32_t n = 0;
-	for (size_t i = 0; i < sample.overviewCacheSize(); i++) {
-		n += sample.overviewCacheEntry(static_cast<uint32_t>(i)).investigated ? 1 : 0;
-	}
-	return n;
+/// The varied sample the column check reads: loaded on the card step before the preview stage, and kept.
+Sample* g_peaksSample = nullptr;
+
+/// AB-READ-PROGRESS: a whole-file read of the varied sample's emptied index (its columns many blocks wide) on each
+/// tick of the stage, before that tick's scan. The first finds nothing folded; as the fills land and the tap and the
+/// scan fold them, a later read whose columns are still pending reports more folded frames: the progress a waiting
+/// view counts before a column is answered.
+struct ReadProgress {
+	uint64_t first = 0;
+	uint64_t most_pending = 0; ///< the most folded frames a read reported with a column still pending
+	bool first_pending = false;
+};
+ReadProgress g_readProgress;
+
+/// The varied sample read whole: its folded frames, and whether a column is pending.
+std::pair<uint64_t, bool> readWhole(Sample& sample) {
+	const deluge::ui::views::waveform::Window whole{
+	    .scroll = 0, .zoom = std::max<int64_t>(static_cast<int64_t>(sample.lengthInSamples) / 16, 1)};
+	const deluge::ui::views::waveform::PeakRead read = deluge::sample::waveform_columns(sample, std::nullopt, whole);
+	return {read.progress(), read.pending()};
 }
 
-/// One tick of the pre-scan stage: the background overview scan, as the idle loop runs it.
+/// One tick of the pre-scan stage: the background waveform scan, as the idle loop runs it.
 void runOnePrescanTick() {
 	if (g_prescanTicks == 0) {
 		Sample* sample = drawnSample(kPreviewPath);
-		g_prescanBefore = PrescanMark{.sample = sample,
-		                              .min = sample != nullptr ? sample->minValueFound : 0,
-		                              .max = sample != nullptr ? sample->maxValueFound : 0,
-		                              .investigated = sample != nullptr ? investigatedClusters(*sample) : 0};
-		audioFileManager.overviewScanAllDone = false;
+		g_prescanBefore = PrescanMark{.sample = sample};
+		audioFileManager.peakScanAllDone = false;
+		g_peaksFilledBefore = sample != nullptr ? deluge_peaks_next_unscanned(sample->peaks(), 0) : uint64_t{0};
+		// The scan must build the index on its own: the clusters the preview filled are resident, so no fill
+		// folds them again.
+		if (sample != nullptr) {
+			sample->resetPeaks();
+		}
+		if (g_peaksSample != nullptr) {
+			g_peaksSample->resetPeaks();
+			const auto [known, pending] = readWhole(*g_peaksSample);
+			g_readProgress = {.first = known, .first_pending = pending};
+		}
+	}
+	else if (g_peaksSample != nullptr) {
+		if (const auto [known, pending] = readWhole(*g_peaksSample); pending) {
+			g_readProgress.most_pending = std::max(g_readProgress.most_pending, known);
+		}
 	}
 	g_prescanTicks++;
-	audioFileManager.backgroundWaveformOverviewScan();
+	audioFileManager.backgroundWaveformScan();
 }
 
-/// AB-PRESCAN-RANGE: the background pre-scan fills the overview cache without moving the sample's found range. The
-/// full-screen waveform scales its bars to that range, and main's range holds only what a render scanned: a range
-/// widened by whole-cluster peaks draws the next render's bars smaller than main's.
+/// AB-PRESCAN-RANGE: the background peak scan, from an empty index, runs to completion over the previewed sample.
 void finishPrescanStage() {
 	Sample* sample = g_prescanBefore.sample;
 	const bool sameSample = sample != nullptr && sample == drawnSample(kPreviewPath);
-	const int32_t investigated = sameSample ? investigatedClusters(*sample) : 0;
-	const int32_t min = sameSample ? sample->minValueFound : 0;
-	const int32_t max = sameSample ? sample->maxValueFound : 0;
-	printf("AB-PRESCAN-RANGE done=%d ticks=%d scanned=%d min=%d/%d max=%d/%d\n",
-	       audioFileManager.overviewScanAllDone ? 1 : 0, g_prescanTicks, investigated - g_prescanBefore.investigated,
-	       g_prescanBefore.min, min, g_prescanBefore.max, max);
-	if (!sameSample || !audioFileManager.overviewScanAllDone || investigated <= g_prescanBefore.investigated) {
-		g_report.fail("[audioLoadAB/prescan-range]: the pre-scan must finish and investigate clusters the preview's "
-		              "draw did not, on the previewed sample, or this stage tested nothing");
+	const bool complete = sameSample && deluge_peaks_next_unscanned(sample->peaks(), 0) == UINT64_MAX;
+	printf("AB-READ-PROGRESS first=%llu first_pending=%d most_pending=%llu\n",
+	       static_cast<unsigned long long>(g_readProgress.first), g_readProgress.first_pending ? 1 : 0,
+	       static_cast<unsigned long long>(g_readProgress.most_pending));
+	if (!g_readProgress.first_pending || g_readProgress.most_pending <= g_readProgress.first) {
+		g_report.fail("[audioLoadAB/read-progress]: a read of a filling index must report more folded frames while "
+		              "its columns are pending");
 	}
-	else if (min != g_prescanBefore.min || max != g_prescanBefore.max) {
-		g_report.fail(
-		    "[audioLoadAB/prescan-range]: the pre-scan moved the sample's found range, so the next full-screen "
-		    "render draws its bars smaller than main's");
+	printf("AB-PRESCAN-RANGE done=%d ticks=%d complete=%d\n", audioFileManager.peakScanAllDone ? 1 : 0, g_prescanTicks,
+	       complete ? 1 : 0);
+	if (!sameSample || !audioFileManager.peakScanAllDone || !complete) {
+		g_report.fail("[audioLoadAB/prescan-range]: the peak scan must finish over the previewed sample and leave its "
+		              "index complete");
+	}
+}
+
+/// The peak of every frame of @p sample, read back through the frame reader: the brute force the index must equal.
+DelugeMaybePeak brutePeak(Sample& sample) {
+	std::array<uint8_t, 4096> buf{};
+	const uint32_t frameBytes = sample.numChannels * sample.byteDepth;
+	const uint32_t chunk = static_cast<uint32_t>(buf.size()) / frameBytes;
+	DelugeMaybePeak all{};
+	for (uint64_t at = 0; at < sample.lengthInSamples;) {
+		const auto want = static_cast<uint32_t>(std::min<uint64_t>(chunk, sample.lengthInSamples - at));
+		const uint32_t got = deluge::sample::SampleFrameReader::read(deluge::sample::source_id_for(sample), at, want,
+		                                                             buf.data(), buf.size());
+		if (got == 0) {
+			return DelugeMaybePeak{};
+		}
+		const DelugeMaybePeak p =
+		    deluge_peaks_of_frames(buf.data(), got * frameBytes, static_cast<uint8_t>(sample.byteDepth));
+		if (p.has) {
+			all = all.has ? DelugeMaybePeak{.has = true,
+			                                .peak = {.min = std::min(all.peak.min, p.peak.min),
+			                                         .max = std::max(all.peak.max, p.peak.max)}}
+			              : p;
+		}
+		at += got;
+	}
+	return all;
+}
+
+constexpr const char* kPeaksPath = "SAMPLES/PEAKS.WAV";
+
+/// Load kPeaksPath through the synchronous card path and keep it loaded, for checkColumns. Runs as the card step.
+void loadPeaksSample() {
+	std::string fileName = kPeaksPath;
+	Error error = Error::NONE;
+	deluge::storage::AudioLoadContext context = g_loadContext;
+	AudioFile* file = audioFileManager.getAudioFileFromFilename(
+	    fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+	    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::Blocking, &context);
+	if (file == nullptr || !AudioFile::isSample(file)) {
+		g_report.fail("[audioLoadAB/columns]: %s did not load", kPeaksPath);
+		return;
+	}
+	file->addReason(); // kept loaded through the scans
+	g_peaksSample = static_cast<Sample*>(file);
+}
+
+/// The peak of frames [lo, hi) of @p sample read back through the frame reader, at the drawing's 32-bit scale.
+std::optional<deluge::ui::views::waveform::Peak> brutePeakOf(Sample& sample, uint64_t lo, uint64_t hi) {
+	std::array<uint8_t, 4096> buf{};
+	const uint32_t frameBytes = sample.numChannels * sample.byteDepth;
+	const uint32_t chunk = static_cast<uint32_t>(buf.size()) / frameBytes;
+	DelugeMaybePeak all{};
+	for (uint64_t at = lo; at < hi;) {
+		const auto want = static_cast<uint32_t>(std::min<uint64_t>(chunk, hi - at));
+		const uint32_t got = deluge::sample::SampleFrameReader::read(deluge::sample::source_id_for(sample), at, want,
+		                                                             buf.data(), buf.size());
+		if (got == 0) {
+			return std::nullopt;
+		}
+		const DelugeMaybePeak p =
+		    deluge_peaks_of_frames(buf.data(), got * frameBytes, static_cast<uint8_t>(sample.byteDepth));
+		if (p.has) {
+			all = all.has ? DelugeMaybePeak{.has = true,
+			                                .peak = {.min = std::min(all.peak.min, p.peak.min),
+			                                         .max = std::max(all.peak.max, p.peak.max)}}
+			              : p;
+		}
+		at += got;
+	}
+	if (!all.has) {
+		return std::nullopt;
+	}
+	return deluge::ui::views::waveform::Peak{.min = static_cast<int32_t>(all.peak.min) * 65536,
+	                                         .max = static_cast<int32_t>(all.peak.max) * 65536};
+}
+
+/// AB-COLUMNS: every column of the waveform, across zooms from one frame to a sixteenth of the file and scrolls from
+/// before its start to past its end, is the peak of exactly its frames, read back through the frame reader.
+void checkColumns(Sample& sample) {
+	const auto len = static_cast<int64_t>(sample.lengthInSamples);
+	int32_t compared = 0;
+	int32_t wrong = 0;
+	int32_t pending = 0;
+	for (int64_t zoom : {int64_t{1}, int64_t{7}, int64_t{255}, int64_t{256}, int64_t{4096}, int64_t{65537},
+	                     std::max<int64_t>(len / 16, 1)}) {
+		for (int64_t scroll : {-3 * zoom, int64_t{0}, int64_t{1}, len - 5 * zoom}) {
+			const deluge::ui::views::waveform::PeakRead read =
+			    deluge::sample::waveform_columns(sample, std::nullopt, {.scroll = scroll, .zoom = zoom});
+			for (int32_t col = 0; col < deluge::ui::views::waveform::kColumns; col++) {
+				const int64_t lo = std::max<int64_t>(scroll + col * zoom, 0);
+				const int64_t hi = std::min<int64_t>(scroll + (col + 1) * zoom, len);
+				const auto want = hi > lo ? brutePeakOf(sample, lo, hi) : std::nullopt;
+				const deluge::ui::views::waveform::ColumnRead got = read.column(col);
+				if (got.state() == deluge::ui::views::waveform::ColumnState::PENDING) {
+					pending++;
+					continue;
+				}
+				compared++;
+				if (got.peak() != want) {
+					wrong++;
+				}
+			}
+		}
+	}
+	printf("AB-COLUMNS compared=%d wrong=%d pending=%d\n", compared, wrong, pending);
+	if (wrong != 0 || pending != 0 || compared == 0) {
+		g_report.fail("[audioLoadAB/columns]: a column is not the peak of exactly its frames");
+	}
+}
+
+/// AB-PEAKS: the preview's own fills fold its first blocks into the sample's index before any peak scan runs; the
+/// scan, starting over from an empty index, completes it; and the index's range is the whole file's.
+void checkPeaks() {
+	Sample* sample = g_prescanBefore.sample;
+	if (sample == nullptr || sample != drawnSample(kPreviewPath)) {
+		g_report.fail("[audioLoadAB/peaks]: no previewed sample");
+		return;
+	}
+	const uint64_t unscanned = deluge_peaks_next_unscanned(sample->peaks(), 0);
+	const DelugeMaybePeak range = deluge_peaks_range(sample->peaks());
+	const DelugeMaybePeak brute = brutePeak(*sample);
+	printf("AB-PEAKS filled_before_scan=%llu unscanned_after=%s range=%d/%d brute=%d/%d\n",
+	       static_cast<unsigned long long>(g_peaksFilledBefore), unscanned == UINT64_MAX ? "none" : "some",
+	       range.peak.min, range.peak.max, brute.peak.min, brute.peak.max);
+	if (g_peaksFilledBefore == 0) {
+		g_report.fail("[audioLoadAB/peaks]: the preview's fills folded no peaks before the scan ran");
+	}
+	if (unscanned != UINT64_MAX) {
+		g_report.fail("[audioLoadAB/peaks]: the peak scan finished with blocks unscanned");
+	}
+	if (!range.has || !brute.has || range.peak.min != brute.peak.min || range.peak.max != brute.peak.max) {
+		g_report.fail("[audioLoadAB/peaks]: the index's range is not the file's");
+	}
+	checkColumns(*sample);
+	if (g_peaksSample != nullptr) {
+		checkColumns(*g_peaksSample);
 	}
 }
 
@@ -1418,7 +1583,7 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_dsStallDraws = 0;
 	g_dsStallComplete = 0;
 	g_dsStallTicks = 0;
-	g_prescanWait = Wait{g_report, "the overview pre-scan finishing", kMaxPrescanTicks};
+	g_prescanWait = Wait{g_report, "the peak scan finishing", kMaxPrescanTicks};
 	g_drawStallWait = Wait{g_report, "the stalled preview arming a redraw", kMaxDrawStallTicks};
 	g_ejectStep = EjectStep::Request;
 	g_ejectWait = Wait{g_report, "the witness file loading", kMaxEjectTicks};
@@ -1495,11 +1660,12 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		}
 		else if (g_stage == Stage::PrescanRange) {
 			runOnePrescanTick();
-			switch (g_prescanWait.poll(audioFileManager.overviewScanAllDone)) {
+			switch (g_prescanWait.poll(audioFileManager.peakScanAllDone)) {
 			case WaitState::Pending:
 				break;
 			case WaitState::Met:
 				finishPrescanStage();
+				checkPeaks();
 				g_stage = Stage::Cancel;
 				break;
 			case WaitState::Expired:
@@ -1551,6 +1717,7 @@ bool deluge_scenario_audio_load_ab_step_done(void) {
 			runOneEjectTick();
 			if (g_ejectStep == EjectStep::Finished) {
 				finishEjectStage();
+				loadPeaksSample();
 				g_stage = Stage::Preview;
 			}
 		}
