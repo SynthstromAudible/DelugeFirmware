@@ -75,7 +75,7 @@ void settleCableDepth(const bridge::LaneTarget& lane) {
 	const bool clipActive = lane.timeline == nullptr || static_cast<Clip*>(lane.timeline)->isActiveOnOutput();
 	ModMatrixHost matrix{**sound, *lane.manager};
 	if (std::optional<CableEdit> removed = matrix.settleDepth(*index, clipActive)) {
-		// The undo record is still made from an engine stack.
+		// The undo record is made from an engine stack.
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		recordCableEdit(bridge::owner_stack_of(lane, memory), std::move(*removed));
 	}

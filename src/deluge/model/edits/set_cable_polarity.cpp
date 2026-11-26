@@ -30,7 +30,7 @@ Error SetCablePolarity::apply(Context& ctx) {
 	ModMatrixHost matrix{**sound, *lane->manager};
 	if (std::optional<CableEdit> edit =
 	        matrix.setPolarity(index, static_cast<deluge::synth::CablePolarity>(polarity_))) {
-		// The undo record is still made from an engine stack.
+		// The undo record is made from an engine stack.
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		recordCableEdit(bridge::owner_stack_of(*lane, memory), std::move(*edit));
 	}

@@ -3236,7 +3236,7 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 		int32_t x_zoom = persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 		pos = arrangerView.getPosFromSquare(arrangerView.xPressed, x_scroll, x_zoom);
 		if (const std::optional<deluge::bridge::LaneTarget> tempo = deluge::bridge::lane_at(*this, tempoAddress())) {
-			// The distance query still takes an engine stack.
+			// The distance query takes an engine stack.
 			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* tempoParam = deluge::bridge::stack_of(*tempo, modelStackMemory);
 			length = std::min<int32_t>(tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false),

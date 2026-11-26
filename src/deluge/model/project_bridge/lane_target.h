@@ -102,7 +102,7 @@ struct LaneTarget {
 /// @return The stack.
 [[nodiscard]] ::ModelStackWithThreeMainThings* owner_stack_of(const LaneTarget& target, void* memory);
 
-/// @brief The engine stack @p target stands for, built in @p memory, for engine code that still takes one.
+/// @brief The engine stack @p target stands for, built in @p memory, for engine code that takes one.
 /// @param target The lane.
 /// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
 /// @return The stack.

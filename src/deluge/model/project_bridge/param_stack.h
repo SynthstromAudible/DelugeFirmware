@@ -20,8 +20,8 @@
 /// @file
 /// @brief An address's engine param, as a lane target and as the engine's own stack names it.
 ///
-/// The one place on the param path where a ParamAddress becomes a LaneTarget and, for engine code that still takes
-/// one, a ModelStack. The stack is to be retired: the Edits
+/// The one place on the param path where a ParamAddress becomes a LaneTarget and, for engine code that takes one, a
+/// ModelStack. The stack is to be retired: the Edits
 /// that still need one (undo's pre-log, recording automation, the engine's projection of a write) take it from here,
 /// below the Edit, so nothing above an Edit builds one.
 

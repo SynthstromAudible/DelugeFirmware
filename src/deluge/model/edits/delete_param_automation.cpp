@@ -13,7 +13,7 @@ Error DeleteParamAutomation::apply(Context& ctx) {
 	if (!lane) {
 		return Error::UNSPECIFIED;
 	}
-	// The automation edits still take an engine stack.
+	// The automation edits take an engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = bridge::stack_of(*lane, memory);
 	// Open the AUTOMATION_DELETE Action, then deleteAutomation, which records the undo Consequence into it

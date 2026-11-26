@@ -16,7 +16,7 @@ Error SetPatchCable::apply(Context& ctx) {
 	if (!lane) {
 		return Error::UNSPECIFIED;
 	}
-	// The lane commands still take an engine stack.
+	// The lane commands take an engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = deluge::bridge::stack_of(*lane, memory);
 	if (write_ == Write::SETUP) {

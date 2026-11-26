@@ -525,7 +525,7 @@ skipThat: {}
 }
 
 void AutoParam::projectScalarFromStore(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool isPlaying) {
-	// The notify chain still takes an engine stack.
+	// The notify chain takes an engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam const* modelStack = deluge::bridge::stack_of(lane, memory);
 	// The store's current_value was already written model-first (ParamSnapshot::applyPatch); this derives the
@@ -545,7 +545,7 @@ void AutoParam::projectScalarFromStore(const deluge::bridge::LaneTarget& lane, i
 
 void AutoParam::projectRegionFromStore(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automatedBefore,
                                        deluge::project::RegionWriteResult result) {
-	// The notify chain still takes an engine stack.
+	// The notify chain takes an engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam const* modelStack = deluge::bridge::stack_of(lane, memory);
 	// The store (nodes + current_value) was already written model-first (ParamSnapshot::applyPatch's region
@@ -1870,7 +1870,7 @@ void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t am
 }
 
 void AutoParam::swapState(AutoParamState* state, const deluge::bridge::LaneTarget& lane) {
-	// The notify chain still takes an engine stack.
+	// The notify chain takes an engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam const* modelStack = deluge::bridge::stack_of(lane, memory);
 	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy

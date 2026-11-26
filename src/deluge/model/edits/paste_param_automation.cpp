@@ -18,7 +18,7 @@ Error PasteParamAutomation::apply(Context& ctx) {
 	if (!lane || lane->auto_param == nullptr) {
 		return Error::UNSPECIFIED;
 	}
-	// The automation edits still take an engine stack.
+	// The automation edits take an engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = bridge::stack_of(*lane, memory);
 	const bool isPatchCable = stack->paramCollection->getParamKind() == modulation::params::Kind::PATCH_CABLE;
