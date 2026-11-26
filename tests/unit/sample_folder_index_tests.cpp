@@ -35,3 +35,58 @@ TEST(SampleFolderIndexTests, namesFatFsRefusesAreLeftToIt) {
 		CHECK_FALSE_TEXT(SampleFolderIndex::canLookUp(name), name);
 	}
 }
+
+// A folder's block is as big as a Cluster, which depends on how the card was formatted. Entries fill it from the front
+// and names from the back.
+
+TEST(SampleFolderIndexTests, spaceFillsFromBothEndsUntilTheyMeet) {
+	SampleFolderIndex::Space space{100, 1000};
+	size_t entriesEnd = 100;
+	size_t namesStart = 1000;
+	for (int32_t file = 0; file < 18; file++) { // 900 bytes free, 50 per file
+		auto names = space.take(12, 38);
+		CHECK(names.has_value());
+		entriesEnd += 12;
+		namesStart -= 38;
+		CHECK_EQUAL(1000 - namesStart, static_cast<size_t>(*names)); // Distance back from the end of the block
+		CHECK(entriesEnd <= namesStart);
+	}
+	CHECK_FALSE(space.take(12, 38).has_value());
+	CHECK_FALSE(space.take(1, 0).has_value()); // 900 bytes used exactly
+}
+
+TEST(SampleFolderIndexTests, aLongNameCanStillFitAfterOneThatDidNot) {
+	SampleFolderIndex::Space space{0, 100};
+	CHECK_FALSE(space.take(12, 89).has_value());
+	CHECK(space.take(12, 88).has_value());
+}
+
+TEST(SampleFolderIndexTests, blockTooSmallForTheFolderHasNoSpace) {
+	SampleFolderIndex::Space space{300, 200};
+	CHECK_FALSE(space.take(12, 1).has_value());
+}
+
+TEST(SampleFolderIndexTests, namesStayWithin16BitsOfTheEnd) {
+	// A 64 KiB Cluster plus its header is more than 16 bits can count back
+	SampleFolderIndex::Space space{300, 65536 + 112};
+	size_t files = 0;
+	while (auto names = space.take(12, 35)) {
+		CHECK(*names <= UINT16_MAX);
+		files++;
+	}
+	CHECK(files > 1300); // Barely fewer than the block would hold otherwise
+}
+
+TEST(SampleFolderIndexTests, everyClusterSizeHoldsSomeFiles) {
+	// Typical sample: 12 byte Entry, "Piano C3 v1.wav" and "PIANOC~1.WAV"
+	size_t lastFiles = 0;
+	for (size_t clusterSize = 512; clusterSize <= 65536; clusterSize *= 2) {
+		SampleFolderIndex::Space space{300, clusterSize + 112};
+		size_t files = 0;
+		while (space.take(12, 16 + 13)) {
+			files++;
+		}
+		CHECK(files > lastFiles);
+		lastFiles = files;
+	}
+}

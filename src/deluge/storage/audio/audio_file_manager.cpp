@@ -114,6 +114,8 @@ void AudioFileManager::init() {
 void AudioFileManager::cardReinserted() {
 
 	cardDisabled = false;
+	sampleFolderIndex.clear(); // Its folders were on the old card, in blocks sized for its Clusters
+
 	for (int32_t i = 0; i < kNumAudioRecordingFolders; i++) {
 		highestUsedAudioRecordingNumberNeedsReChecking[i] = true;
 	}

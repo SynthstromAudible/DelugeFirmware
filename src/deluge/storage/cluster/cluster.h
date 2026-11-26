@@ -51,6 +51,8 @@ public:
 	static size_t size;
 	static size_t size_magnitude;
 	static void setSize(size_t size);
+	/// How much memory each Cluster takes, header included
+	static size_t allocationSize();
 
 	/// Warning! do not call this constructor directly! It must be called via placement `new`
 	/// after allocating a region with the General Memory Allocator!

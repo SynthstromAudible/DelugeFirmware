@@ -36,9 +36,12 @@ extern "C" {
 /// find sample files, never for writing. And it forgets everything whenever anything is written to the card or the card
 /// is removed or inserted (sdCardChangeCount, in diskio.c), so it can't point to where a file used to be.
 ///
-/// Nothing ever needs freeing by hand. Each indexed folder lives in stealable memory, sized to fit, and the memory
-/// allocator takes it back whenever it needs the space - like it does with sample data. That's safe at any time
-/// between calls, because nothing outside this class ever points into a folder: find() returns a copy.
+/// Nothing ever needs freeing by hand. An indexed folder's files are listed in a chain of blocks of stealable memory,
+/// and the memory allocator takes any of them back whenever it needs the space - like it does with sample data. Losing
+/// one block loses that folder's index. That's safe at any time between calls, because nothing outside this class ever
+/// points into a block: find() returns a copy. Each block is exactly as big as a Cluster of sample data, so taking one
+/// back makes room for exactly one Cluster - a smaller block wouldn't, and taking it would mean taking its neighbours
+/// too. How big a Cluster is depends on how the card was formatted, so a folder takes as many blocks as it needs.
 class SampleFolderIndex {
 public:
 	/// Where the file at filePath starts and how big it is, if its folder has been indexed. The folder gets indexed
@@ -78,11 +81,12 @@ public:
 
 	static constexpr size_t kMaxFolders = 4;
 	static constexpr size_t kMaxPathLength = 256;
-	static constexpr int32_t kMaxFiles = 512;       ///< A bigger folder is only indexed in part
-	static constexpr size_t kNamesSize = 24 * 1024; ///< Room for long and short file names while indexing
 	/// A folder is read up to this many directory entries (32 bytes each, a long name taking several), however few
 	/// files they hold, and only indexed that far
 	static constexpr uint32_t kMaxEntriesToRead = 4096;
+	/// A folder takes as many blocks as it needs, up to the fewest that make at least this much memory, and is indexed
+	/// as far as that goes. That's over a thousand files with typical sample names, whatever the size of a Cluster.
+	static constexpr size_t kMaxMemoryPerFolder = 64 * 1024;
 
 	/// Reading a whole folder costs about as much as finding two of its files the normal way, so an index has paid for
 	/// itself once it's found two files. Until indexes start getting thrown away before that - because the card keeps
@@ -93,18 +97,45 @@ public:
 	static constexpr uint32_t kMinLookupsBeforeIndexing = 2;
 	static constexpr uint32_t kMaxLookupsBeforeIndexing = 64;
 
+	/// The room left in a block. Its files' Entries fill it from the front and their names from the back, so it holds
+	/// as many files as their names leave room for.
+	class Space {
+	public:
+		/// For a block of blockSize bytes whose first start bytes are taken
+		constexpr Space(size_t start, size_t blockSize)
+		    : entriesEnd_{start}, namesStart_{blockSize < start ? start : blockSize}, blockSize_{namesStart_} {}
+
+		/// Takes room for one more Entry and for namesSize bytes of names, if there's that much left. Returns where the
+		/// names go, as a distance back from the end of the block, which always fits in 16 bits.
+		constexpr std::optional<uint16_t> take(size_t entrySize, size_t namesSize) {
+			if (namesStart_ - entriesEnd_ < entrySize + namesSize
+			    || blockSize_ - namesStart_ + namesSize > UINT16_MAX) {
+				return std::nullopt;
+			}
+			entriesEnd_ += entrySize;
+			namesStart_ -= namesSize;
+			return blockSize_ - namesStart_;
+		}
+
+	private:
+		size_t entriesEnd_;
+		size_t namesStart_;
+		size_t blockSize_;
+	};
+
 private:
 	struct Entry {
 		FilePointer filePointer;
-		uint16_t longName; ///< Offsets into the names
+		uint16_t longName; ///< Distances back from the end of the Entry's block to the names
 		uint16_t shortName;
 	};
-	class Folder;
+	struct Folder;
+	class Block;
 
 	Folder* findFolder(char const* path, size_t pathLength);
 	Folder* indexFolder(char const* path);
 	void forget(size_t slot);
-	void folderStolen(Folder* folder);
+	void blockStolen(Block* block);
 	void folderLost(Folder const& folder);
 	void indexingDidNotPay();
 
