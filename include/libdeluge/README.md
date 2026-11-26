@@ -50,8 +50,8 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    stem export (`StemExport::driveElement`, the default mode) runs it there for as long as the export lasts, so the
    functions `routine()` reaches directly (`deluge_audio_drive`, `deluge_app_render`, `deluge_app_render_skipped`,
    `deluge_heap_check`, and `deluge_audio_frames_until_block_offset`, which times every sub-window's MIDI) also carry
-   `[task]`, and so do the callees of a playing voice and the USB audio stream (`deluge_sample_region_state`,
-   `deluge_usb_audio_read` and `deluge_usb_audio_write`): the export renders every voice. The `[audio]`-only
+   `[task]`, and so do the callees of a playing voice (`deluge_sample_region_state`): the export renders every voice
+   (it leaves the USB port out). The `[audio]`-only
    functions are the ones the export does not reach, such as `deluge_app_audio_tick`, which the BSP's audio tier calls
    and which renders nothing while an export owns rendering.
 

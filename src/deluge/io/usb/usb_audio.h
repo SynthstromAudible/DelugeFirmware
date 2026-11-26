@@ -35,10 +35,10 @@ void startDevice();
 /// Whether this USB session presents audio - the setting as it was when the device started
 bool present();
 
-/// The render block's USB port (libdeluge/audio_ports.h), for the rest of the block: what the host sent, where our
-/// audio for it goes, and whether the host is there each way. A port with no pairs (USB audio off, or an offline
-/// export) reads silence and takes nothing.
-void beginBlock(DelugeAudioPort* port);
+/// The render block's USB port (libdeluge/audio_ports.h) and its `frames`, for the rest of the block: what the host
+/// sent, where our audio for it goes, and whether the host is there each way. A port with no pairs (USB audio off),
+/// none, or an `offline` block (an export, which renders at its own pace) reads silence and takes nothing.
+void beginBlock(DelugeAudioPort* port, size_t frames, bool offline);
 
 /// Whether the host is sending us audio this block
 bool receivingFromHost();
@@ -54,8 +54,8 @@ void fillInputRing(int32_t* at, size_t numSamples);
 int32_t* getInputRingStart();
 int32_t* getInputRingEnd();
 
-/// The block's audio for the host, into the USB port. Does nothing if the port has no output pair; otherwise the pair
-/// is no longer silent.
+/// The block's audio for the host, into the USB port after what this block has sent already (the render may split a
+/// block), up to the block's end. Does nothing if the port has no output pair; otherwise the pair is no longer silent.
 void sendToHost(std::span<const StereoSample> frames);
 
 /// The "USB input" setting: mix audio from the host straight into the Deluge's outputs, after the song's FX, when

@@ -57,8 +57,11 @@ const ZERO: DelugeStereoSample = DelugeStereoSample { l: 0, r: 0 };
 static mut RENDER_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
 #[unsafe(link_section = ".sdram_bss")]
 static mut INPUT_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
-/// The USB port's pair each way: what the host sent for this block, and what the app renders for it.
+/// The USB port's pair each way: what the host sent for this block, and what the app renders for it. In SDRAM, beside the
+/// codec's, to spare internal SRAM.
+#[unsafe(link_section = ".sdram_bss")]
 static mut USB_IN_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
+#[unsafe(link_section = ".sdram_bss")]
 static mut USB_OUT_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
 /// The cycles the drive spent on the last block's USB, which the next block reports to the app's voice budget.
 static mut PLATFORM_CYCLES: u32 = 0;
@@ -221,15 +224,12 @@ unsafe fn render_ports() {
 
     let usb_on = usb_audio::deluge_usb_audio_present();
     let start = crate::services::deluge_cycle_count();
-    // SAFETY: the audio tier's blocks, `BLOCK_FRAMES` samples each, two i32s a sample as a frame is.
-    let (usb_in, usb_out) = unsafe {
-        (
-            core::slice::from_raw_parts_mut(addr_of_mut!(USB_IN_BLOCK) as *mut Frame, BLOCK_FRAMES),
-            core::slice::from_raw_parts(addr_of!(USB_OUT_BLOCK) as *const Frame, BLOCK_FRAMES),
-        )
-    };
     let far = if usb_on {
-        usb_audio::read_block(usb_in);
+        // SAFETY: the audio tier's block, `BLOCK_FRAMES` samples, two i32s a sample as a frame is; this slice is the
+        // only reference to it until the read returns.
+        usb_audio::read_block(unsafe {
+            core::slice::from_raw_parts_mut(addr_of_mut!(USB_IN_BLOCK) as *mut Frame, BLOCK_FRAMES)
+        });
         // The host takes our output when it collects, and sends us input when it streams.
         Far {
             receiving: usb_audio::sending(),
@@ -260,7 +260,10 @@ unsafe fn render_ports() {
     let start = crate::services::deluge_cycle_count();
     if usb_on {
         if block.ports[USB as usize].out_silent & 1 == 0 {
-            usb_audio::send_block(usb_out);
+            // SAFETY: as above; made after the render, which wrote the block through the port's pointer.
+            usb_audio::send_block(unsafe {
+                core::slice::from_raw_parts(addr_of!(USB_OUT_BLOCK) as *const Frame, BLOCK_FRAMES)
+            });
         } else {
             usb_audio::send_block(&[SILENCE; BLOCK_FRAMES]);
         }

@@ -370,7 +370,8 @@ pub(crate) fn sending() -> bool {
 }
 
 /// Reads the host's frames for the block about to render into `out`; frames with nothing from the host behind them are
-/// silence. Returns how many came from the host. Called by the drive, on the audio tier.
+/// silence. Returns how many came from the host. Called by the drive on the audio tier, every block while USB audio is
+/// present, so the reader follows the stream whether or not the app uses it; one read a block, the block's own lead.
 pub(crate) fn read_block(out: &mut [Frame]) -> u32 {
     if out.is_empty() {
         return 0;

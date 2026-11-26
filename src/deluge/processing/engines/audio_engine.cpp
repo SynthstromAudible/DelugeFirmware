@@ -1243,7 +1243,7 @@ extern "C" void deluge_app_render(DelugeAudioBlock* block) noexcept {
 	DelugeStereoSample* out = codec.out_pairs != 0 ? codec.out[0] : nullptr;
 	// An offline export renders at its own pace: the USB port is left out of it, silent both ways.
 	bool const offline = stemExport.processStarted && stemExport.renderOffline;
-	usb_audio::beginBlock(offline ? nullptr : &block->ports[DELUGE_PORT_USB]);
+	usb_audio::beginBlock(&block->ports[DELUGE_PORT_USB], block->frames, offline);
 	if (out != nullptr) {
 		codec.out_silent &= ~1u;
 	}
@@ -1257,7 +1257,7 @@ extern "C" void deluge_app_render(DelugeAudioBlock* block) noexcept {
 		}
 		block->ports[DELUGE_PORT_USB].out_silent = ~0u;
 	}
-	usb_audio::beginBlock(nullptr);
+	usb_audio::beginBlock(nullptr, 0, false);
 }
 
 extern "C" bool deluge_app_audio_tick() noexcept {

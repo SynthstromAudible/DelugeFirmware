@@ -18,9 +18,11 @@
 /// libdeluge/audio_ports.h — the render block as a set of ports.
 ///
 /// Each render block reaches the application as one `DelugeAudioBlock`: for every port, its input pairs and its output
-/// pairs, each a block of `frames` stereo frames, all aligned to the same instant. A port's pairs and properties are
-/// fixed before the first block and stay so until power-off. The application acts on a port's properties, never on
-/// which port it is; rates, clocks, packet formats, latency and volume are all below this line.
+/// pairs, each a block of `frames` stereo frames, all aligned to the same instant. A port's pairs and properties stay
+/// as they are until power-off, but for one change: a port the platform starts after the render has begun (USB, started
+/// once the settings are read) gains its pairs then, before its far end can be there, and never changes again. The
+/// application acts on a port's properties, never on which port it is; rates, clocks, packet formats, latency and
+/// volume are all below this line.
 #ifndef LIBDELUGE_AUDIO_PORTS_H
 #define LIBDELUGE_AUDIO_PORTS_H
 
@@ -63,7 +65,7 @@ typedef struct DelugeAudioPort {
 	/// The far end sends us input: a USB host streams to us.
 	bool far_sending;
 	/// Written by the application: bit n set means output pair n is silent this block, and the platform sends silence
-	/// for it whatever the block holds. The platform sets every bit before the render.
+	/// for it whatever the block holds. The platform sets the bit of every output pair before the render.
 	uint32_t out_silent;
 } DelugeAudioPort;
 

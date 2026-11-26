@@ -40,9 +40,12 @@ PLACE_SDRAM_BSS int32_t inputRing[kRingFrames * NUM_MONO_INPUT_CHANNELS];
 // there's nothing more to clear until the host starts sending again
 size_t inputRingSilentFrames = 0;
 
-/// The block's USB port, and how much of its input the ring has taken.
+/// The block's USB port, its length, how much of its input the ring has taken and how much of its output the render
+/// has sent (a block the render splits sends in pieces).
 DelugeAudioPort* blockPort = nullptr;
+size_t blockFrames = 0;
 size_t blockInputTaken = 0;
+size_t blockOutputSent = 0;
 
 bool portHas(bool DelugeAudioPort::* far, uint8_t DelugeAudioPort::* pairs) {
 	return blockPort != nullptr && blockPort->*pairs != 0 && blockPort->*far;
@@ -50,9 +53,15 @@ bool portHas(bool DelugeAudioPort::* far, uint8_t DelugeAudioPort::* pairs) {
 
 } // namespace
 
-void beginBlock(DelugeAudioPort* port) {
-	blockPort = port;
+void beginBlock(DelugeAudioPort* port, size_t frames, bool offline) {
+	blockPort = offline ? nullptr : port;
+	blockFrames = frames;
 	blockInputTaken = 0;
+	blockOutputSent = 0;
+	if (blockPort != nullptr && blockPort->out_pairs != 0) {
+		// What the render doesn't send of this block goes out as silence, not as the last block's.
+		std::memset(blockPort->out[0], 0, frames * sizeof(DelugeStereoSample));
+	}
 }
 
 void startDevice() {
@@ -107,7 +116,9 @@ void sendToHost(std::span<const StereoSample> frames) {
 	if (blockPort == nullptr || blockPort->out_pairs == 0) {
 		return;
 	}
-	std::memcpy(blockPort->out[0], frames.data(), frames.size_bytes());
+	size_t const n = std::min(frames.size(), blockFrames - blockOutputSent);
+	std::memcpy(blockPort->out[0] + blockOutputSent, frames.data(), n * sizeof(StereoSample));
+	blockOutputSent += n;
 	blockPort->out_silent &= ~1u;
 }
 

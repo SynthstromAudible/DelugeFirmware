@@ -22,7 +22,8 @@ pub(crate) struct Pairs {
     pub usb_out: [*mut DelugeStereoSample; 1],
 }
 
-/// A session's ports: fixed from the first block until power-off.
+/// A session's ports: fixed until power-off, but for USB gaining its pairs once, when the platform starts it (before a
+/// host can be there).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PortTable {
     /// USB's pairs each way: 0 with USB audio off, 1 in STEREO.
