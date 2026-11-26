@@ -22,6 +22,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/song/song.h"
 #include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
@@ -455,8 +456,8 @@ void appendRepeatIntoRowCopies(NoteRow& row, ModelStackWithNoteRow* rowModelStac
 	                         rowWalk(row, rowModelStack, otherRowModelStack));
 }
 
-const TakeRepeats* takeRepeatsOf(const ModelStackWithAutoParam& lane) {
-	TimelineCounter* counter = lane.getTimelineCounterAllowNull();
+const TakeRepeats* takeRepeatsOf(const deluge::bridge::LaneTarget& lane) {
+	TimelineCounter* counter = lane.timeline;
 	if (counter == nullptr || counter == lane.song) {
 		return nullptr; // a lane of the song's own params
 	}
@@ -468,7 +469,7 @@ const TakeRepeats* takeRepeatsOf(const ModelStackWithAutoParam& lane) {
 	if (take.repeats.source.load(std::memory_order_relaxed) == nullptr) {
 		return nullptr;
 	}
-	NoteRow* row = lane.getNoteRowAllowNull();
+	NoteRow* row = lane.note_row;
 	return row != nullptr && row->loopLengthIfIndependent() != 0 ? &row->repeats : &take.repeats;
 }
 

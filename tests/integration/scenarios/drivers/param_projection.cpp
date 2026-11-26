@@ -21,6 +21,7 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_backup.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/copied_param_automation.h" // engine clipboard type for the copy/paste oracle
@@ -548,7 +549,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			nr.setLoopLengthIfIndependent(effLen);
 			ms->setNoteRow(&nr);
 			bindOracle(ms, &ap, &apDoc);
-			return ap.homogenizeRegion(ms, startPos, length, startValue, interpL, interpR, effLen, reversed, cut);
+			return ap.homogenizeRegion(deluge::bridge::target_of(*ms, std::nullopt), startPos, length, startValue,
+			                           interpL, interpR, effLen, reversed, cut);
 		};
 
 		struct N {
@@ -2029,8 +2031,9 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				ap.setPlayed(value);
 				return RegionCurrentValueEffect::Set;
 			}
-			int32_t firstI = ap.homogenizeRegion(ms, static_cast<int32_t>(pos), static_cast<int32_t>(length), value,
-			                                     interpL, interpR, effLen, /*reversed=*/false);
+			int32_t firstI =
+			    ap.homogenizeRegion(deluge::bridge::target_of(*ms, std::nullopt), static_cast<int32_t>(pos),
+			                        static_cast<int32_t>(length), value, interpL, interpR, effLen, /*reversed=*/false);
 			if (firstI == -1) {
 				return std::nullopt;
 			}
@@ -2468,8 +2471,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				leftI = ap.setNodeAtPos(*(&apDoc), livePos, value, interpL);
 			}
 			else {
-				leftI = ap.homogenizeRegion(ms, livePos, ticksToClear, value, interpL, /*interpR=*/true, effLen,
-				                            reversed, cut);
+				leftI = ap.homogenizeRegion(deluge::bridge::target_of(*ms, std::nullopt), livePos, ticksToClear, value,
+				                            interpL, /*interpR=*/true, effLen, reversed, cut);
 				if (reversed && leftI != -1) {
 					int32_t iFurtherRight = leftI + 2;
 					if (iFurtherRight >= static_cast<int32_t>((&apDoc)->nodes.size())) {

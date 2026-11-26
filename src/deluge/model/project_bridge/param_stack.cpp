@@ -463,10 +463,6 @@ ModelStackWithAutoParam* paramStackExact(::Song& song, const project::ParamAddre
 	return lane ? stack_of(*lane, memory) : nullptr;
 }
 
-ModelStackWithAutoParam* paramStackOnRender(::Song& song, const project::ParamAddress& address, void* memory) {
-	return paramInOwner(ownerStackAt(song, address, memory), address, false, false);
-}
-
 ModelStackWithThreeMainThings* soundStackExact(::Song& song, const project::ParamAddress& owner, void* memory) {
 	const std::optional<LaneTarget> lane = sound_lane_exact(song, owner);
 	return lane ? owner_stack_of(*lane, memory) : nullptr;

@@ -15,6 +15,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
@@ -82,7 +83,8 @@ spec::SongFixture active(spec::SongFixture f) {
 
 /// @brief Move a lane as a user edit does, with no undo step.
 void set(ModelStackWithAutoParam* lane, int32_t value) {
-	lane->autoParam->setCurrentValueInResponseToUserInput(value, lane, /*shouldLogAction=*/false);
+	lane->autoParam->setCurrentValueInResponseToUserInput(value, deluge::bridge::target_of(*lane, std::nullopt),
+	                                                      /*shouldLogAction=*/false);
 }
 
 /// @brief Hold @p note on @p f's instrument as an audition does, so per-note events find it.

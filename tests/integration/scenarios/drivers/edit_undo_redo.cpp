@@ -60,6 +60,7 @@
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample.h"
@@ -1897,10 +1898,12 @@ void workingCopiesTarget(Song* song) {
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
 
-	deluge::project::DocAutoParam* copy = modulation::makeWorkingCopy(*lane, 8);
+	deluge::project::DocAutoParam* copy =
+	    modulation::makeWorkingCopy(deluge::bridge::target_of(*lane, std::nullopt), 8).copy;
 	check(copy != nullptr && collection.hasWorkingCopies(), "working-copies: a copy is made");
 	check(modulation::workingCopy(collection, lane->paramId) == copy, "working-copies: it is found");
-	check(modulation::makeWorkingCopy(*lane, 8) == copy, "working-copies: a second make finds it");
+	check(modulation::makeWorkingCopy(deluge::bridge::target_of(*lane, std::nullopt), 8).copy == copy,
+	      "working-copies: a second make finds it");
 	check(modulation::workingCopy(collection, params::LOCAL_LPF_RESONANCE) == nullptr,
 	      "working-copies: another lane has none");
 
@@ -1927,7 +1930,8 @@ void workingCopiesTarget(Song* song) {
 
 	// A copy held while written (an MPE lane's) is kept by a commit after the render wrote it and released by the next
 	// that finds it unwritten; one held for the take stays
-	deluge::project::DocAutoParam* mpe = modulation::makeWorkingCopy(*lane, 8, modulation::Hold::WRITES);
+	deluge::project::DocAutoParam* mpe =
+	    modulation::makeWorkingCopy(deluge::bridge::target_of(*lane, std::nullopt), 8, modulation::Hold::WRITES).copy;
 	{
 		deluge::memory::RenderBlock block;
 		modulation::noteWorkingCopyWritten(*mpe);
@@ -1939,8 +1943,10 @@ void workingCopiesTarget(Song* song) {
 	check(modulation::workingCopy(collection, lane->paramId) == nullptr
 	          && modulation::workingCopiesHeld() == heldBefore,
 	      "working-copies: a copy held while written is released once the render stops writing it");
-	deluge::project::DocAutoParam* take = modulation::makeWorkingCopy(*lane, 8, modulation::Hold::WRITES);
-	(void)modulation::makeWorkingCopy(*lane, 8); // a knob overrides it too: held for the take
+	deluge::project::DocAutoParam* take =
+	    modulation::makeWorkingCopy(deluge::bridge::target_of(*lane, std::nullopt), 8, modulation::Hold::WRITES).copy;
+	(void)modulation::makeWorkingCopy(deluge::bridge::target_of(*lane, std::nullopt), 8)
+	    .copy; // a knob overrides it too: held for the take
 	modulation::commitWorkingCopies();
 	modulation::commitWorkingCopies();
 	check(take != nullptr && modulation::workingCopy(collection, lane->paramId) == take,
@@ -1956,7 +1962,8 @@ void workingCopiesTarget(Song* song) {
 	ModelStackWithThreeMainThings* others = ownerIn(each);
 	for (int32_t p = 0; p < static_cast<int32_t>(modulation::kWorkingCopies) + 1 && !refused; p++) {
 		ModelStackWithAutoParam* other = others->getPatchedAutoParamFromId(p);
-		refused = other != nullptr && other->autoParam != nullptr && modulation::makeWorkingCopy(*other, 0) == nullptr;
+		refused = other != nullptr && other->autoParam != nullptr
+		          && modulation::makeWorkingCopy(deluge::bridge::target_of(*other, std::nullopt), 0).copy == nullptr;
 	}
 	check(refused && modulation::workingCopiesHeld() == modulation::kWorkingCopies,
 	      "working-copies: the table refuses past its size");

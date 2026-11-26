@@ -258,7 +258,8 @@ void recordScript(ModelStackWithAutoParam* msap, int32_t loopLength, bool mpe) {
 	for (const Event& e : script) {
 		AudioEngine::audioSampleTimer += e.timerAdvance;
 		const int32_t livePos = loopLength != 0 ? e.livePos * loopLength / 72 : e.livePos;
-		msap->autoParam->setCurrentValueInResponseToUserInput(e.value, msap, /*shouldLogAction=*/true, livePos,
+		msap->autoParam->setCurrentValueInResponseToUserInput(e.value, deluge::bridge::target_of(*msap, std::nullopt),
+		                                                      /*shouldLogAction=*/true, livePos,
 		                                                      /*mayDeleteNodesInLinearRun=*/!mpe, mpe);
 		renderBlockStart();
 	}
@@ -356,7 +357,8 @@ void burstCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	auto record = [&](bool blockEach) {
 		for (int32_t i = 0; i < kWrites; i++) {
 			AudioEngine::audioSampleTimer += 100;
-			lane->autoParam->setCurrentValueInResponseToUserInput((i % 7) * 300000000 - 900000000, lane, true,
+			lane->autoParam->setCurrentValueInResponseToUserInput((i % 7) * 300000000 - 900000000,
+			                                                      deluge::bridge::target_of(*lane, std::nullopt), true,
 			                                                      i * len / (kWrites + 10), true, false);
 			if (blockEach) {
 				renderBlockStart();
@@ -404,7 +406,8 @@ void burstCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 void queuedUndoCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	const Take before = takeOf(lane);
 	AudioEngine::audioSampleTimer += 100;
-	lane->autoParam->setCurrentValueInResponseToUserInput(700000000, lane, true, clip->loopLength() / 3, true, false);
+	lane->autoParam->setCurrentValueInResponseToUserInput(700000000, deluge::bridge::target_of(*lane, std::nullopt),
+	                                                      true, clip->loopLength() / 3, true, false);
 	actionLogger.closeAction(ActionType::RECORD);
 	actionLogger.revert(BEFORE, false, false);
 	renderBlockStart();
@@ -422,7 +425,8 @@ int32_t valueAt(ModelStackWithAutoParam* lane, int32_t pos, int32_t len) {
 /// A value recorded into @p lane at @p pos, and the render's next block.
 void recordAt(ModelStackWithAutoParam* lane, int32_t value, int32_t pos) {
 	AudioEngine::audioSampleTimer += 100;
-	lane->autoParam->setCurrentValueInResponseToUserInput(value, lane, true, pos, true, false);
+	lane->autoParam->setCurrentValueInResponseToUserInput(value, deluge::bridge::target_of(*lane, std::nullopt), true,
+	                                                      pos, true, false);
 	renderBlockStart();
 }
 
@@ -574,7 +578,8 @@ void overriddenAtRecordStartCase(InstrumentClip* clip, ModelStackWithAutoParam* 
 		(void)deluge::project::setNodeAtPos(*lane->doc(), len / 2, 300000000, true);
 	}
 	AudioEngine::audioSampleTimer += 100;
-	lane->autoParam->setCurrentValueInResponseToUserInput(500000000, lane, true, len / 8, true, false);
+	lane->autoParam->setCurrentValueInResponseToUserInput(500000000, deluge::bridge::target_of(*lane, std::nullopt),
+	                                                      true, len / 8, true, false);
 	const bool overriding = lane->autoParam->renewedOverridingAtTime != 0
 	                        && deluge::modulation::workingCopy(*lane->paramCollection, lane->paramId) == nullptr;
 	const Take beforeTake = takeOf(lane);
@@ -609,8 +614,9 @@ void overriddenAtRecordStartCase(InstrumentClip* clip, ModelStackWithAutoParam* 
 void regionOutsideEditCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	const int32_t len = clip->loopLength();
 	AudioEngine::audioSampleTimer += 100;
-	lane->autoParam->setCurrentValueInResponseToUserInput(300000000, lane, true, len / 8, true, false);
-	lane->autoParam->setValueForRegion(len / 2, len / 8, -400000000, lane);
+	lane->autoParam->setCurrentValueInResponseToUserInput(300000000, deluge::bridge::target_of(*lane, std::nullopt),
+	                                                      true, len / 8, true, false);
+	lane->autoParam->setValueForRegion(len / 2, len / 8, -400000000, deluge::bridge::target_of(*lane, std::nullopt));
 	renderBlockStart();
 	recordAt(lane, 600000000, len * 7 / 8);
 	const bool kept = valueAt(lane, len / 8, len) == 300000000 && valueAt(lane, len / 2 + len / 16, len) == -400000000
@@ -629,7 +635,8 @@ void baseWhileOverridingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane
 	}
 	clip->armedForRecording = false;
 	AudioEngine::audioSampleTimer += 100;
-	lane->autoParam->setCurrentValueInResponseToUserInput(500000000, lane, true, len / 8, true, false);
+	lane->autoParam->setCurrentValueInResponseToUserInput(500000000, deluge::bridge::target_of(*lane, std::nullopt),
+	                                                      true, len / 8, true, false);
 	renderBlockStart();
 	clip->lastProcessedPos = len / 2;
 	AudioEngine::audioSampleTimer += 2000;
@@ -653,7 +660,8 @@ void baseWhileOverridingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane
 void renderTakeEndCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	const int32_t len = clip->loopLength();
 	AudioEngine::audioSampleTimer += 100;
-	lane->autoParam->setCurrentValueInResponseToUserInput(300000000, lane, true, len / 8, true, false);
+	lane->autoParam->setCurrentValueInResponseToUserInput(300000000, deluge::bridge::target_of(*lane, std::nullopt),
+	                                                      true, len / 8, true, false);
 	{
 		deluge::memory::RenderBlock block;
 		deluge::modulation::applyRecordEvents(*currentSong);
@@ -770,7 +778,8 @@ void clipCases(Song* song) {
 		deluge::project::setNodeAtPos(*lane->doc(), len / 2, 700000000, true);
 		deluge::project::setNodeAtPos(*lane->doc(), len * 3 / 4, -200000000, true);
 		AudioEngine::audioSampleTimer += 100;
-		lane->autoParam->setCurrentValueInResponseToUserInput(500000000, lane, true, len / 8, true, false);
+		lane->autoParam->setCurrentValueInResponseToUserInput(500000000, deluge::bridge::target_of(*lane, std::nullopt),
+		                                                      true, len / 8, true, false);
 		renderBlockStart();
 		dumpParam("after-record", lane);
 		const int32_t positions[] = {len / 4, len / 2, len * 5 / 8, len * 3 / 4, len - 1};

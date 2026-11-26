@@ -30,7 +30,7 @@ Error PasteParamAutomation::apply(Context& ctx) {
 	stack->autoParam->paste(startPos_, endPos_, scaleFactor_, stack, copied_, isPatchCable);
 	if (copied_->nodes != nullptr && copied_->numNodes != 0) {
 		deluge::modulation::postLaneCommand(
-		    *stack,
+		    *lane,
 		    {.kind = deluge::modulation::LaneCommand::Kind::PASTE,
 		     .pos = startPos_,
 		     .endPos = endPos_,
