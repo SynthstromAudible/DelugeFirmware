@@ -39,6 +39,9 @@ wav SAMPLES/ALT/SELFDIR.WAV ch=1 bits=16 bytes=1280 fill=0xBB
 # kPreviewPath: asked for by no case above, so it is not resident when the stage begins and its load goes through
 # the loader.
 wav SAMPLES/PREVIEW.WAV ch=1 bits=16 bytes=2816 fill=0xCC
+# kPeaksPath: a sum of slow, middling and fast partials, so every column's peak, at every zoom the column check reads,
+# is its own.
+partials SAMPLES/PEAKS.WAV frames=200000 3:0.5,41:0.3,997:0.2
 # kCancelPath: loadable on purpose, so "nothing loaded or drew it" cannot pass because the file could not load.
 wav SAMPLES/CANCEL.WAV ch=1 bits=16 bytes=3328 fill=0xDD
 # kStallPath: loadable, for the same reason as CANCEL.WAV.

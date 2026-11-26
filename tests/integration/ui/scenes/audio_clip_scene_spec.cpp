@@ -60,6 +60,7 @@
 ///       library may not. Same rule `marker_scene_spec.cpp` and `slicer_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "support/peak_seed.h"
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/menu/bind_host.h"
@@ -207,16 +208,10 @@ Sample* make_sample() {
 	s->audioDataLengthBytes = kSampleLength * kBytesPerFrame;
 	s->lengthInSamples = kSampleLength;
 
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-
-	s->resizeOverviewCache(kNumClusters);
-	for (int32_t i = 0; i < kNumClusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-cluster_peak(i));
-		e.max = cluster_peak(i);
-		e.investigated = true;
-	}
+	peak_seed::seed_peaks(*s, [&](int32_t i) {
+		return std::pair<int8_t, int8_t>{static_cast<int8_t>(static_cast<int8_t>(-cluster_peak(i))),
+		                                 static_cast<int8_t>(cluster_peak(i))};
+	});
 	return s;
 }
 
@@ -1072,13 +1067,8 @@ describe audio_clip_scene_spec_body(
 		        r.open();
 		        r.tick(0);
 		        Sample* flat = make_sample();
-		        for (int32_t i = 0; i < kNumClusters; i++) {
-			        OverviewCacheEntry& e = flat->overviewCacheEntry(static_cast<uint32_t>(i));
-			        e.min = -100;
-			        e.max = 100;
-		        }
+		        peak_seed::seed_peaks(*flat, [](int32_t) { return std::pair<int8_t, int8_t>{-100, 100}; });
 		        r.f.clip->sampleHolder.audioFile = flat;
-		        r.f.clip->renderData.forget(); // as the clip's own sample changes leave it, for legacy's scan
 		        deluge::base::notify::raise(
 		            deluge::base::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
 		        r.tick(10);

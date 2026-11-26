@@ -57,6 +57,7 @@
 #include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_reader_bridge.h"
+#include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
 #include "runtime/app_loop.h"                // nowUs, the stall bounds' clock
 #include "scenarios/guest_drive.h"           // the shell guest: its tick, its browser
@@ -72,6 +73,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -981,6 +983,90 @@ DelugeMaybePeak brutePeak(Sample& sample) {
 	return all;
 }
 
+/// The varied sample the column check reads: loaded on the card step before the preview stage, and kept.
+Sample* g_peaksSample = nullptr;
+constexpr const char* kPeaksPath = "SAMPLES/PEAKS.WAV";
+
+/// Load kPeaksPath through the synchronous card path and keep it loaded, for checkColumns. Runs as the card step.
+void loadPeaksSample() {
+	std::string fileName = kPeaksPath;
+	Error error = Error::NONE;
+	deluge::storage::AudioLoadContext context = g_loadContext;
+	AudioFile* file = audioFileManager.getAudioFileFromFilename(
+	    fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+	    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::Blocking, &context);
+	if (file == nullptr || !AudioFile::isSample(file)) {
+		g_report.fail("[audioLoadAB/columns]: %s did not load", kPeaksPath);
+		return;
+	}
+	file->addReason(); // kept loaded through the scans
+	g_peaksSample = static_cast<Sample*>(file);
+}
+
+/// The peak of frames [lo, hi) of @p sample read back through the frame reader, at the drawing's 32-bit scale.
+std::optional<deluge::ui::views::waveform::Peak> brutePeakOf(Sample& sample, uint64_t lo, uint64_t hi) {
+	std::array<uint8_t, 4096> buf{};
+	const uint32_t frameBytes = sample.numChannels * sample.byteDepth;
+	const uint32_t chunk = static_cast<uint32_t>(buf.size()) / frameBytes;
+	DelugeMaybePeak all{};
+	for (uint64_t at = lo; at < hi;) {
+		const auto want = static_cast<uint32_t>(std::min<uint64_t>(chunk, hi - at));
+		const uint32_t got = deluge::sample::SampleFrameReader::read(deluge::sample::source_id_for(sample), at, want,
+		                                                             buf.data(), buf.size());
+		if (got == 0) {
+			return std::nullopt;
+		}
+		const DelugeMaybePeak p =
+		    deluge_peaks_of_frames(buf.data(), got * frameBytes, static_cast<uint8_t>(sample.byteDepth));
+		if (p.has) {
+			all = all.has ? DelugeMaybePeak{.has = true,
+			                                .peak = {.min = std::min(all.peak.min, p.peak.min),
+			                                         .max = std::max(all.peak.max, p.peak.max)}}
+			              : p;
+		}
+		at += got;
+	}
+	if (!all.has) {
+		return std::nullopt;
+	}
+	return deluge::ui::views::waveform::Peak{.min = static_cast<int32_t>(all.peak.min) * 65536,
+	                                         .max = static_cast<int32_t>(all.peak.max) * 65536};
+}
+
+/// AB-COLUMNS: every column of the waveform, across zooms from one frame to a sixteenth of the file and scrolls from
+/// before its start to past its end, is the peak of exactly its frames, read back through the frame reader.
+void checkColumns(Sample& sample) {
+	const auto len = static_cast<int64_t>(sample.lengthInSamples);
+	int32_t compared = 0;
+	int32_t wrong = 0;
+	int32_t pending = 0;
+	for (int64_t zoom : {int64_t{1}, int64_t{7}, int64_t{255}, int64_t{256}, int64_t{4096}, int64_t{65537},
+	                     std::max<int64_t>(len / 16, 1)}) {
+		for (int64_t scroll : {-3 * zoom, int64_t{0}, int64_t{1}, len - 5 * zoom}) {
+			const deluge::ui::views::waveform::PeakRead read =
+			    deluge::sample::waveform_columns(sample, std::nullopt, {.scroll = scroll, .zoom = zoom});
+			for (int32_t col = 0; col < deluge::ui::views::waveform::kColumns; col++) {
+				const int64_t lo = std::max<int64_t>(scroll + col * zoom, 0);
+				const int64_t hi = std::min<int64_t>(scroll + (col + 1) * zoom, len);
+				const auto want = hi > lo ? brutePeakOf(sample, lo, hi) : std::nullopt;
+				const deluge::ui::views::waveform::ColumnRead got = read.column(col);
+				if (got.state() == deluge::ui::views::waveform::ColumnState::PENDING) {
+					pending++;
+					continue;
+				}
+				compared++;
+				if (got.peak() != want) {
+					wrong++;
+				}
+			}
+		}
+	}
+	printf("AB-COLUMNS compared=%d wrong=%d pending=%d\n", compared, wrong, pending);
+	if (wrong != 0 || pending != 0 || compared == 0) {
+		g_report.fail("[audioLoadAB/columns]: a column is not the peak of exactly its frames");
+	}
+}
+
 /// AB-PEAKS: the preview's own fills fold its first blocks into the sample's index before any peak scan runs; the
 /// scan, starting over from an empty index, completes it; and the index's range is the whole file's.
 void checkPeaks() {
@@ -1003,6 +1089,10 @@ void checkPeaks() {
 	}
 	if (!range.has || !brute.has || range.peak.min != brute.peak.min || range.peak.max != brute.peak.max) {
 		g_report.fail("[audioLoadAB/peaks]: the index's range is not the file's");
+	}
+	checkColumns(*sample);
+	if (g_peaksSample != nullptr) {
+		checkColumns(*g_peaksSample);
 	}
 }
 
@@ -1615,6 +1705,7 @@ bool deluge_scenario_audio_load_ab_step_done(void) {
 			runOneEjectTick();
 			if (g_ejectStep == EjectStep::Finished) {
 				finishEjectStage();
+				loadPeaksSample();
 				g_stage = Stage::Preview;
 			}
 		}

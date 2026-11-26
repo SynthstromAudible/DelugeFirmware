@@ -1,4 +1,5 @@
 #include "port_contracts.h"
+#include "support/peak_seed.h"
 #include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
@@ -101,31 +102,16 @@ Sample* make_sample(int32_t clusters = kNumClusters, void* memory = nullptr, int
 	const uint64_t length = static_cast<uint64_t>(kClusterSize) * clusters / 2;
 	s->audioDataLengthBytes = length * 2;
 	s->lengthInSamples = length;
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-	s->resizeOverviewCache(clusters);
-	for (int32_t i = 0; i < clusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-(first_peak + 3 * i));
-		e.max = static_cast<int8_t>(first_peak + 3 * i);
-		e.investigated = true;
-	}
+	peak_seed::seed_peaks(*s, [&](int32_t i) {
+		return std::pair<int8_t, int8_t>{static_cast<int8_t>(static_cast<int8_t>(-(first_peak + 3 * i))),
+		                                 static_cast<int8_t>(static_cast<int8_t>(first_peak + 3 * i))};
+	});
 	return s;
 }
-
-// The running range the legacy scan leaves over the sample above: a fresh read at the whole zoom, and a read at one
-// sample twice as long, read at two clusters a column and scrolled three columns on. The overview's peaks are `(16 + 3
-// * cluster) << 24`, either sign.
-constexpr int32_t kFreshMax = (16 + 3 * 31) << 24; // clusters 0 to 31
-constexpr int32_t kFreshMin = -kFreshMax;
-constexpr int32_t kScrolledMax = (16 + 3 * 37) << 24; // clusters 0 to 37: columns 0 to 15, then 3 to 18
-constexpr int32_t kScrolledMin = -kScrolledMax;
 
 /// The fixture's whole-sample zoom, `ceil(length / 16)`: two clusters a column.
 constexpr int64_t kWholeZoom = static_cast<int64_t>(((kSampleLength - 1) >> 4) + 1);
 
-using deluge::app::ports::waveforms::ColumnMask;
-using deluge::app::ports::waveforms::PeakCache;
 using deluge::ui::views::waveform::ColumnRead;
 using deluge::ui::views::waveform::ColumnState;
 using deluge::ui::views::waveform::Peak;
@@ -1028,78 +1014,25 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		                            .slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id()}};
 		const int64_t zoom = ((kSampleLength - 1) >> 4) + 1;
 		const deluge::ui::views::waveform::PeakRead through = app_waveforms().peaks(range, {.scroll = 0, .zoom = zoom});
-		deluge::app::ports::waveforms::PeakCache cache;
 		const deluge::ui::views::waveform::PeakRead direct =
-		    deluge::sample::find_peaks_per_col(*sample, {.scroll = 0, .zoom = zoom}, cache);
+		    deluge::sample::waveform_columns(*sample, std::nullopt, {.scroll = 0, .zoom = zoom});
 		expect(through.column(0).state()).to_equal(deluge::ui::views::waveform::ColumnState::PEAK);
 		expect(through).to_equal(direct);
 		multisample->sampleHolder.audioFile = nullptr;
 		currentSong = saved;
 	});
 
-	it("widens the sample's running range by the peaks a fresh read reads", _ {
+	it("Q32: answers the range the sample's index holds, whatever the reads through the host port read", _ {
 		Sample* sample = make_sample();
-		sample->maxValueFound = INT32_MIN;
-		sample->minValueFound = INT32_MAX;
-		const int64_t zoom = ((kSampleLength - 1) >> 4) + 1;
-		deluge::app::ports::waveforms::PeakCache cache;
-		(void)deluge::sample::find_peaks_per_col(*sample, {.scroll = 0, .zoom = zoom}, cache);
-		expect(sample->maxValueFound).to_equal(kFreshMax);
-		expect(sample->minValueFound).to_equal(kFreshMin);
-	});
-
-	it("widens the range by a scroll's new columns, and keeps it over the columns it slid", _ {
-		// Twice the clusters, read at two clusters a column (the largest power of two at which it spans 20 columns or
-		// more), so each column is whole clusters and comes from the overview.
-		constexpr int32_t kClusters = 2 * kNumClusters;
-		Sample* sample = make_sample(kClusters);
-		sample->maxValueFound = INT32_MIN;
-		sample->minValueFound = INT32_MAX;
-		const int64_t zoom = kClusterSize;
-		static_assert(kClusterSize * kClusters / 2 / kClusterSize >= 20);
-		deluge::app::ports::waveforms::PeakCache cache;
-		(void)deluge::sample::find_peaks_per_col(*sample, {.scroll = 0, .zoom = zoom}, cache);
-		(void)deluge::sample::find_peaks_per_col(*sample, {.scroll = 3 * zoom, .zoom = zoom}, cache);
-		expect(sample->maxValueFound).to_equal(kScrolledMax);
-		expect(sample->minValueFound).to_equal(kScrolledMin);
-	});
-
-	it("widens the range by a fresh read through the host port as the scan does", _ {
-		Sample* sample = make_sample();
-		sample->maxValueFound = INT32_MIN;
-		sample->minValueFound = INT32_MAX;
 		RangeHeld held(sample);
+		const Sample::FoundRange before = sample->foundRange();
 		(void)app_waveforms().peaks(held.address, {.scroll = 0, .zoom = kWholeZoom});
-		expect(sample->maxValueFound).to_equal(kFreshMax);
-		expect(sample->minValueFound).to_equal(kFreshMin);
-	});
-
-	it("widens the range by a scroll's new columns through the host port as the scan does", _ {
-		constexpr int32_t kClusters = 2 * kNumClusters;
-		Sample* sample = make_sample(kClusters);
-		sample->maxValueFound = INT32_MIN;
-		sample->minValueFound = INT32_MAX;
-		RangeHeld held(sample);
-		const int64_t zoom = kClusterSize;
-		(void)app_waveforms().peaks(held.address, {.scroll = 0, .zoom = zoom});
-		(void)app_waveforms().peaks(held.address, {.scroll = 3 * zoom, .zoom = zoom});
-		expect(sample->maxValueFound).to_equal(kScrolledMax);
-		expect(sample->minValueFound).to_equal(kScrolledMin);
-	});
-
-	it("takes a take's running range from its recorder, not from the peaks it reads", _ {
-		Sample* sample = make_sample();
-		auto* recorder = new SampleRecorder(); // left to the heap: its destructor would free the take
-		recorder->sample = sample;
-		recorder->numSamplesCaptured = static_cast<uint32_t>(kSampleLength);
-		recorder->recordMax = 5 << 24;
-		recorder->recordMin = -(5 << 24);
-		PeakCache cache;
-		const PeakRead read =
-		    deluge::sample::find_peaks_per_col(*sample, {.scroll = 0, .zoom = kWholeZoom}, cache, recorder);
-		expect(read.column(0).state()).to_equal(ColumnState::PEAK);
-		expect(sample->maxValueFound).to_equal(5 << 24);
-		expect(sample->minValueFound).to_equal(-(5 << 24));
+		(void)app_waveforms().peaks(held.address, {.scroll = 3 * kClusterSize, .zoom = kClusterSize});
+		expect(sample->foundRange().max).to_equal(before.max);
+		expect(sample->foundRange().min).to_equal(before.min);
+		// The fixture's range is the 8-bit scale it widened its index to, at the drawing's 32-bit scale.
+		expect(before.max).to_equal(127 << 24);
+		expect(before.min).to_equal(-128 << 24);
 	});
 
 	it("answers every column of a window over the whole sample PEAK, or PAST_END from the length on", _ {
@@ -1116,74 +1049,19 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		expect(wider.pending()).to_be_false();
 	});
 
-	it("Q2: folds only the columns a read reads, so a kept column is not folded again", _ {
-		// Q2: the running range takes in the columns a read reads; a kept column is not folded again.
-		Sample* sample = make_sample();
-		sample->maxValueFound = INT32_MIN;
-		sample->minValueFound = INT32_MAX;
-		const Window at{.scroll = 0, .zoom = kWholeZoom};
-		constexpr Peak kForeign{.min = -0x7000'0000, .max = 0x7000'0000}; // a peak the sample does not have
-		PeakCache cache;
-		const PeakRead first = cache.update(at, static_cast<int64_t>(kSampleLength), false, [&](ColumnMask wanted) {
-			ColumnMask others = wanted;
-			others.reset(9);
-			PeakRead read = deluge::sample::read_columns(*sample, nullptr, at, others);
-			read.set(9, ColumnRead::of(kForeign));
-			return read;
-		});
-		int32_t max = INT32_MIN;
-		int32_t min = INT32_MAX;
-		int32_t folded = 0;
-		for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
-			if (const std::optional<Peak> p = first.column(c).peak(); p && c != 9) {
-				max = std::max(max, p->max);
-				min = std::min(min, p->min);
-				folded++;
-			}
-		}
-		expect(folded).to_equal(15);
-		expect(first.column(9)).to_equal(ColumnRead::of(kForeign));
-		const PeakRead second = deluge::sample::find_peaks_per_col(*sample, at, cache);
-		expect(second).to_equal(first); // every column kept: none read again
-		expect(sample->maxValueFound).to_equal(max);
-		expect(sample->minValueFound).to_equal(min);
-	});
-
-	it("Q1: reads every column again after a forget, at a zoom of 1 near the start", _ {
-		// Q1: a forgotten cache keeps no column to slide. The reader answers every column it is asked for a peak:
-		// at one frame a column the fixture's sample would read through the card, which the spec has not.
-		PeakCache cache;
-		size_t asked = 0;
-		const auto counting = [&](ColumnMask wanted) {
-			asked = wanted.count();
-			PeakRead read;
-			for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
-				read.set(c, ColumnRead::of({.min = -c, .max = c}));
-			}
-			return read;
-		};
-		const Window at{.scroll = 5, .zoom = 1};
-		(void)cache.update(at, static_cast<int64_t>(kSampleLength), false, counting);
-		expect(asked).to_equal(size_t{16});
-		(void)cache.update(at, static_cast<int64_t>(kSampleLength), false, counting);
-		expect(asked).to_equal(size_t{0});
-		cache.forget();
-		(void)cache.update(at, static_cast<int64_t>(kSampleLength), false, counting);
-		expect(asked).to_equal(size_t{16});
-	});
-
 	it("Q3: answers a window whose zoom is below 1 every column PAST_END through the host", _ {
 		RangeHeld held(make_sample());
 		expect(app_waveforms().peaks(held.address, {.scroll = 5, .zoom = 0})).to_equal(PeakRead::all_past_end());
 	});
 
 	it("Q22: reads a column straddling the start from frame 0, and one wholly before it as PAST_END", _ {
-		// Q22. At two clusters a column, the straddling column 0 covers frames -3 to 32764 and takes the whole first
-		// cluster's overview peak; a column narrower than a cluster reads frames the fixture's sample has not.
+		// Q22. At two clusters a column, the straddling column 0 covers frames -256 to 32511: from frame 0, all of
+		// cluster 0 and most of cluster 1, so its peak is the fold of both (Q30). The scroll keeps its end on a block
+		// boundary: a column ending inside a block reads frames there, which the fixture's sample has not.
 		RangeHeld held(make_sample());
 		const bind::Waveforms& waveforms = app_waveforms();
-		const PeakRead straddling = waveforms.peaks(held.address, {.scroll = -3, .zoom = kWholeZoom});
-		expect(straddling.column(0)).to_equal(ColumnRead::of({.min = -16 << 24, .max = 16 << 24}));
+		const PeakRead straddling = waveforms.peaks(held.address, {.scroll = -256, .zoom = kWholeZoom});
+		expect(straddling.column(0)).to_equal(ColumnRead::of({.min = -19 << 24, .max = 19 << 24}));
 		const PeakRead before = waveforms.peaks(held.address, {.scroll = -16, .zoom = 8});
 		expect(before.column(0).state()).to_equal(ColumnState::PAST_END);
 		expect(before.column(1).state()).to_equal(ColumnState::PAST_END);
@@ -1199,8 +1077,6 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		auto* recorder = new SampleRecorder(); // left to the heap: its destructor would free the take
 		recorder->sample = sample;
 		recorder->numSamplesCaptured = static_cast<uint32_t>(5 * kWholeZoom + kWholeZoom / 2); // into column 5
-		recorder->recordMax = 5 << 24;
-		recorder->recordMin = -(5 << 24);
 		audio.clip->recorder = recorder;
 		const WaveformAddress clip{.kind = WaveformAddress::Kind::AUDIO_CLIP,
 		                           .clip = deluge::project::ClipAddress{audio.clip->id()}};
@@ -1218,14 +1094,12 @@ describe waveforms_host("the app's waveforms port, by address", ${
 			expect(read.column(c).state()).to_equal(ColumnState::PAST_END);
 		}
 		expect(read.pending()).to_be_false();
-		expect(sample->maxValueFound).to_equal(5 << 24);
-		expect(sample->minValueFound).to_equal(-(5 << 24));
 		audio.clip->recorder = nullptr;
 		currentSong = saved;
 	});
 
-	// A sample freed and another constructed in its memory: the host keys its columns by the sample's lifetime serial,
-	// so the new one is read afresh rather than shown the freed one's kept columns.
+	// A sample freed and another constructed in its memory: each sample owns its own peak index, so the new one is read
+	// from its own rather than shown the freed one's.
 	it("reads every column of a file constructed in a freed file's memory, not the freed file's", _ {
 		void* const memory = deluge::memory::alloc_fast(sizeof(Sample));
 		const Window whole{.scroll = 0, .zoom = kWholeZoom};
@@ -1238,8 +1112,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		expect(static_cast<void*>(second)).to_equal(memory);
 		held.multisample->sampleHolder.audioFile = second;
 		const PeakRead after = app_waveforms().peaks(held.address, whole);
-		PeakCache fresh;
-		const PeakRead own = deluge::sample::find_peaks_per_col(*second, whole, fresh);
+		const PeakRead own = deluge::sample::waveform_columns(*second, std::nullopt, whole);
 		expect(count_of(own, ColumnState::PEAK)).to_equal(16);
 		expect(after).to_equal(own);
 		expect(after).not_().to_equal(before);
@@ -1256,8 +1129,6 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		void* const memory = deluge::memory::alloc_fast(sizeof(Sample));
 		auto* recorder = new SampleRecorder(); // left to the heap: its destructor would free the take
 		recorder->numSamplesCaptured = captured;
-		recorder->recordMax = 5 << 24;
-		recorder->recordMin = -(5 << 24);
 		audio.clip->recorder = recorder;
 		Sample* const first = make_sample(kNumClusters, memory);
 		recorder->sample = first;
@@ -1267,8 +1138,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		expect(static_cast<void*>(second)).to_equal(memory);
 		recorder->sample = second;
 		const PeakRead after = app_waveforms().peaks(clip, whole);
-		PeakCache fresh;
-		const PeakRead own = deluge::sample::find_peaks_per_col(*second, whole, fresh, recorder);
+		const PeakRead own = deluge::sample::waveform_columns(*second, std::optional<uint64_t>{captured}, whole);
 		expect(count_of(own, ColumnState::PEAK)).to_equal(5);
 		expect(after).to_equal(own);
 		expect(after).not_().to_equal(before);
@@ -1340,9 +1210,8 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		}
 
 		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-		deluge::app::ports::waveforms::PeakCache cache;
 		(void)waveformRenderer.renderFullScreen(sample, static_cast<uint64_t>(view.scroll()),
-		                                        static_cast<uint64_t>(view.zoom()), legacy, cache);
+		                                        static_cast<uint64_t>(view.zoom()), legacy);
 		int32_t differ = 0;
 		int32_t lit = 0;
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
@@ -1359,7 +1228,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 
 	it("answers SLICE from the sample the slicer's host holds once the preview stops, and nothing once it is released", _ {
 		// Entering MANUAL stops the preview (`AudioEngine::stopAnyPreviewing`), which unbinds the preview's holder:
-		// PREVIEW then names nothing, while the slicer keeps drawing its file, from the columns the preview read.
+		// PREVIEW then names nothing, while the slicer keeps drawing its file, from the same sample's peaks.
 		const bind::Waveforms& waveforms = app_waveforms();
 		PreviewSound sound;
 		// Resident and leased, as a loaded sample is, so the stop's unbind may drop the holder's lease.
@@ -1376,12 +1245,6 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		const Window window{.scroll = 0, .zoom = kWholeZoom};
 		const PeakRead read = waveforms.peaks(preview, window);
 		expect(count_of(read, ColumnState::PEAK)).to_equal(16);
-		// A read that went back to the sample would find these peaks instead.
-		for (int32_t i = 0; i < kNumClusters; i++) {
-			OverviewCacheEntry& e = sample->overviewCacheEntry(static_cast<uint32_t>(i));
-			e.min = 0;
-			e.max = 0;
-		}
 		AudioEngine::stopAnyPreviewing();
 		expect(waveforms.info(preview).has_value()).to_be_false();
 		const std::optional<bind::WaveformInfo> info = waveforms.info(slice);

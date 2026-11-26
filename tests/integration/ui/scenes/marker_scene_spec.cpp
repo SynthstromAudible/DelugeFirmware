@@ -245,10 +245,13 @@ struct PadDiff {
 	int32_t first_y = -1;
 };
 
-PadDiff pad_diff(Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
+PadDiff pad_diff_excusing(int32_t excused_column, Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
 	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		if (x == excused_column) {
+			continue;
+		}
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (!frozen_pads || !(g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == (*frozen_pads)[y][x])) {
 				if (d.count == 0) {
@@ -262,15 +265,27 @@ PadDiff pad_diff(Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
 	return d;
 }
 
-/// @brief Assert the port's main pads are `pads/<name>.txt`, pad for pad.
+PadDiff pad_diff(Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
+	return pad_diff_excusing(-1, r, frozen_pads);
+}
+
+/// @brief Q30's column: the fixture's first column starts at frame 0, where main's scan reads only the first whole
+///        cluster (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp` `WaveformRenderer::findPeaksPerCol`'s
+///        initial-transient arm), and ours takes the peak of every frame the column covers.
+constexpr int32_t kQ30Column = 0;
+
+/// @brief Assert the port's main pads are `pads/<name>.txt`, pad for pad, but for Q30's column, which must differ.
 /// @param self The enclosing `it(...)` block's lambda parameter -- `expect` expands to `self.expect`.
 template <typename Self>
 void expect_pads_match(Self& self, Rig& r, std::string_view name) {
-	const PadDiff d = pad_diff(r, spec::OracleFiles::pads(name));
+	const std::optional<spec::OraclePads> main_pads = spec::OracleFiles::pads(name);
+	const PadDiff d = pad_diff_excusing(kQ30Column, r, main_pads);
 	// The coordinates first, so a failure names a pad rather than only a count.
 	expect(d.first_x).to_equal(-1);
 	expect(d.first_y).to_equal(-1);
 	expect(d.count).to_equal(0);
+	// The excused column differs from main's: a port that matched it there would have lost Q30.
+	expect(pad_diff(r, main_pads).count).to_be_greater_than(0);
 }
 
 /// @brief A fake holding the host's waveform at @p at: its info, and its peaks over the whole-waveform window, which is
@@ -2047,14 +2062,23 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			expect(std::string{slide.params.new_zoom < slide.params.old_zoom ? "1" : "0"}).to_equal(main_slide[2]);
 		}
 		expect(slide.params.pin_square_from).not_().to_equal(0); // a pin of 0 would match a port that forgot it
+		// Main's frozen new-view image is blank: at this zoom each column is one cluster, which main's scan reads from
+		// the frames (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp` `WaveformRenderer::findPeaksPerCol`'s
+		// two-cluster arm), and the fixture has none. Ours answers from the sample's peak index, so its new view holds
+		// the waveform. Both halves are pinned: main's blank image, and ours lit.
 		const std::optional<spec::OraclePads> main_to = spec::OracleFiles::pads("marker_zoom_to");
-		bool to_matches = slide.to.has_value() && main_to.has_value();
-		for (uint8_t y = 0; to_matches && y < kDisplayHeight; y++) {
+		expect(main_to.has_value()).to_be_true();
+		expect(slide.to.has_value()).to_be_true();
+		int32_t main_lit = 0;
+		int32_t ours_lit = 0;
+		for (uint8_t y = 0; main_to && slide.to && y < kDisplayHeight; y++) {
 			for (uint8_t x = 0; x < kDisplayWidth; x++) {
-				to_matches = to_matches && slide.to->at(x, y) == (*main_to)[y][x];
+				main_lit += (*main_to)[y][x] == RGB{} ? 0 : 1;
+				ours_lit += slide.to->at(x, y) == RGB{} ? 0 : 1;
 			}
 		}
-		expect(to_matches).to_be_true();
+		expect(main_lit).to_equal(0);
+		expect(ours_lit).to_be_greater_than(0);
 
 		// A successful zoom leaves main's `currentUIMode == UI_MODE_HORIZONTAL_ZOOM` until the slide finishes, and
 		// `horizontalEncoderAction`'s `isUIModeWithinRange(zoomUIModes)` gate refuses the next detent; the port's
@@ -2281,12 +2305,10 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(out_pin).to_equal(out_expected);
 	});
 
-	it("Q27: scales its first frame by the range its read widened", _ {
+	it("Q32: draws its first frame at the scale of its next: the range is the index's, not the reads'", _ {
 		Counted counted;
 		Rig r;
 		r.waveforms = &counted;
-		r.sample->maxValueFound = INT32_MIN; // the constructor's empty range
-		r.sample->minValueFound = INT32_MAX;
 		r.open(MarkerType::START);
 		r.tick(0);
 		const deluge::ui::gfx::grid::PadGrid first = r.fake.grid().grid();
@@ -2321,19 +2343,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		}
 	});
 
-	it("Q29: draws a re-entry's first frame from the columns the host kept for the file", _ {
-		// The fixture's columns at max zoom span two clusters each, read from the overview. The overview is changed
-		// between the entries, standing in for the coarser overview peak a re-read would take: a kept column is not
-		// read again.
+	it("Q29: draws a re-entry's first frame from the peaks the sample's index keeps", _ {
 		Rig r;
 		r.open(MarkerType::START);
 		r.tick(0);
 		const deluge::ui::gfx::grid::PadGrid last = r.fake.grid().grid();
-		for (int32_t i = 0; i < mf::kNumClusters; i++) {
-			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
-			e.min = static_cast<int8_t>(-mf::cluster_peak(i) / 2);
-			e.max = static_cast<int8_t>(mf::cluster_peak(i) / 2);
-		}
 		r.reopen(MarkerType::START, 0);
 		r.tick(300);
 		expect(main_pads_differ(last, r.fake.grid().grid())).to_equal(0);

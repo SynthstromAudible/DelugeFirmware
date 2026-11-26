@@ -31,6 +31,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_slice_ops.h"
+#include "support/peak_seed.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/menu/context.h"
@@ -238,7 +239,13 @@ void expect_same(Self& self, const BrowserState& port, std::string_view name) {
 	expect(port.pbm).to_equal(spec::OracleFiles::pixels("browser_" + std::string{name}));
 }
 
-/// @brief A 16-bit mono sample whose overview cache already holds every cluster's peaks, so a scan reads no card.
+/// @brief The fixture's per-cluster peak at 8-bit scale: a widening shape.
+std::pair<int8_t, int8_t> overview_peak(int32_t c) {
+	return {static_cast<int8_t>(-(16 + 3 * c)), static_cast<int8_t>(16 + 3 * c)};
+}
+
+/// @brief A 16-bit mono sample whose peak index already holds the first `investigated_clusters` clusters' peaks, so a
+///        read of them needs no card.
 Sample* make_overview_sample(int32_t investigated_clusters = 32) {
 	constexpr size_t kClusterBytes = 32768;
 	constexpr int32_t kClusters = 32;
@@ -252,15 +259,7 @@ Sample* make_overview_sample(int32_t investigated_clusters = 32) {
 	s->audioDataStartPosBytes = 0;
 	s->audioDataLengthBytes = kLength * 2;
 	s->lengthInSamples = kLength;
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-	s->resizeOverviewCache(kClusters);
-	for (int32_t i = 0; i < kClusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-(16 + 3 * i));
-		e.max = static_cast<int8_t>(16 + 3 * i);
-		e.investigated = i < investigated_clusters;
-	}
+	peak_seed::seed_peaks(*s, overview_peak, investigated_clusters);
 	return s;
 }
 
@@ -1039,9 +1038,8 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		const deluge::ui::views::waveform::WaveformView view =
 		    deluge::ui::views::waveform::WaveformView::open(sample->lengthInSamples, std::nullopt);
 		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-		deluge::app::ports::waveforms::PeakCache cache;
 		(void)waveformRenderer.renderFullScreen(sample, static_cast<uint64_t>(view.scroll()),
-		                                        static_cast<uint64_t>(view.zoom()), legacy, cache);
+		                                        static_cast<uint64_t>(view.zoom()), legacy);
 		int32_t differ = 0;
 		int32_t lit = 0;
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
@@ -1054,17 +1052,14 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(differ).to_equal(0);
 	});
 
-	it("Q27: scales a fresh preview's first frame by the range its read widened", _ {
+	it("Q32: draws a fresh preview's first frame at the scale of its next: the range is the index's, not the reads'", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
 		Sample* sample = make_overview_sample();
-		sample->maxValueFound = INT32_MIN; // the constructor's empty range
-		sample->minValueFound = INT32_MAX;
 		PreviewHeld held(sample);
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		expect(sample->maxValueFound).to_equal(INT32_MIN); // nothing has read it yet
 		const browser::WaveformDrawStats before = browser_scene().waveform_draw_stats();
 		browser_scene().preview_settled(true);
 		r.step(); // the settle asks for the repaint on the next tick
@@ -1150,9 +1145,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
 		expect(browser_scene().waveform_redraw_pending()).to_be_true();
-		for (int32_t i = 16; i < 32; i++) {
-			sample->overviewCacheEntry(static_cast<uint32_t>(i)).investigated = true;
-		}
+		peak_seed::fold_peaks(*sample, overview_peak); // the scan finishes
 		run_until(r, r.clock + 50);
 		const browser::WaveformDrawStats& s = browser_scene().waveform_draw_stats();
 		expect(s.draws - before.draws).to_equal(1);

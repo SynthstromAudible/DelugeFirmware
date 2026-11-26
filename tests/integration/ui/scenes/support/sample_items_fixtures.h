@@ -10,6 +10,7 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
+#include "peak_seed.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
@@ -44,15 +45,10 @@ inline Sample* make_sample(int32_t num_clusters) {
 	s->audioDataStartPosBytes = 0;
 	s->audioDataLengthBytes = length * kBytesPerFrame;
 	s->lengthInSamples = length;
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-	s->resizeOverviewCache(num_clusters);
-	for (int32_t i = 0; i < num_clusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-(16 + i));
-		e.max = static_cast<int8_t>(16 + i);
-		e.investigated = true;
-	}
+	peak_seed::seed_peaks(*s, [&](int32_t i) {
+		return std::pair<int8_t, int8_t>{static_cast<int8_t>(static_cast<int8_t>(-(16 + i))),
+		                                 static_cast<int8_t>(static_cast<int8_t>(16 + i))};
+	});
 	return s;
 }
 
