@@ -51,7 +51,7 @@ public:
 	/// @brief Room past the peak section that a read allows for the other sections this firmware writes.
 	static constexpr uint32_t kExtraCap = 1024;
 	/// @brief How long the byte channel must have finished nothing before a sidecar operation starts, in seconds.
-	static constexpr double kQuietSeconds = 0.3;
+	static constexpr double kQuietSeconds = 1.0;
 
 	/// @brief Look up @p sample's sidecar on a later tick. Thread mode.
 	void wantLoad(const Sample& sample);
