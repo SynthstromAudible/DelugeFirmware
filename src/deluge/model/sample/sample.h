@@ -256,6 +256,13 @@ public:
 	/// @brief The file's identity on its card, taken when the load finishes; nothing for a take not yet reopened.
 	std::optional<DelugeFileIdentity> identity_;
 
+	/// @brief Where this sample's sidecar stands (deluge::storage::PeakSidecars keeps it).
+	struct SidecarState {
+		bool looked{false};  ///< the lookup for the current index has ended, however it ended
+		uint32_t written{0}; ///< complete level-1 entries at the last successful write; 0 if none
+		uint8_t failures{0}; ///< writes that failed this session
+	} sidecar;
+
 protected:
 	// Project-relevance hooks (the object's hard-lease 0↔1 transitions): toggle the soft-reference on
 	// this sample's resource assets so current-song data is kept resident over no-song data under

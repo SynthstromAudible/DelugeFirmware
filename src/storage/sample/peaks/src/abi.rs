@@ -447,6 +447,7 @@ pub struct DelugeSidecarSection {
 ///
 /// `extras` points at `count` readable sections whose `bytes` point at `len` readable bytes each, or is null with
 /// `count` 0.
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 unsafe fn sections<'a>(
     extras: *const DelugeSidecarSection,
     count: u32,
@@ -481,6 +482,7 @@ unsafe fn sections<'a>(
 /// # Safety
 ///
 /// `bytes` points at `len` readable bytes, or is null.
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 unsafe fn byte_slice<'a>(bytes: *const u8, len: u32) -> Option<&'a [u8]> {
     // SAFETY: the caller's contract.
     (!bytes.is_null()).then(|| unsafe { core::slice::from_raw_parts(bytes, len as usize) })
@@ -491,6 +493,7 @@ unsafe fn byte_slice<'a>(bytes: *const u8, len: u32) -> Option<&'a [u8]> {
 /// # Safety
 ///
 /// As [`byte_slice`]; `key` is null or points at a readable key.
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 unsafe fn checked<'a>(
     bytes: *const u8,
     len: u32,

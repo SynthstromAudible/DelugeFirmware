@@ -62,6 +62,7 @@
 #include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
+#include "sync/sd_access.h"
 #include "util/boot.h"
 #include "util/string.h"
 #include "util/try.h"
@@ -1700,6 +1701,11 @@ void AudioFileManager::backgroundWaveformScan() {
 	deluge_peaks_collect();
 	if (backgroundScansEnabled_) {
 		backgroundPeakScan();
+	}
+	if (sidecarsEnabled_) {
+		const bool cardReady =
+		    !cardEjected && !cardDisabled && !deluge::sync::sd_busy() && !AudioEngine::audioTicksHeld();
+		peakSidecars_.tick(audioFiles, cardReady);
 	}
 }
 

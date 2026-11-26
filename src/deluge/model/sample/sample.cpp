@@ -251,8 +251,12 @@ void Sample::makePeaks(uint64_t frames, bool growing, uint64_t capacity) {
 	deluge_peaks_release(peaks_);
 	peaks_ = deluge_peaks_create(frames, growing, capacity);
 	peaksScanFrom = 0;
+	sidecar.looked = false;
 	if (peaks_ != nullptr) {
 		audioFileManager.peakScanAllDone = false;
+		if (!growing && identity_) {
+			audioFileManager.peakSidecars().wantLoad(*this);
+		}
 	}
 	if (stream_.resource_asset_id() != DELUGE_RESOURCE_NO_ASSET) {
 		deluge_peaks_bind_asset(stream_.resource_asset_id(), peaks_);
