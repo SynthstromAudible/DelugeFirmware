@@ -123,7 +123,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 			spec::SongFixture f = spec::make_synth_song();
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* stack = f.song->setupModelStackWithSongAsTimelineCounter(memory);
-			const std::optional<EffectsOwner> owner = stack->modControllable->effectsOwner();
+			const std::optional<EffectsOwner> owner = deluge::model::effects_owner_of(stack->owner);
 			expect(owner->core).to_equal(&f.song->live.master_channel.core(), "the song owner's chain core");
 			expect(owner->binding).to_equal(&f.song->live.master_channel.binding(), "the song owner's binding");
 			expect(owner->view).to_equal(&f.song->live.master_channel.view(), "the song owner's view");

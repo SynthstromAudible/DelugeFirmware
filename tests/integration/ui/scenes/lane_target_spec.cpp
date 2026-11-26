@@ -46,10 +46,9 @@ namespace {
 /// @brief Whether @p a and @p b name the same engine lane, field by field.
 bool same_stack(const ModelStackWithAutoParam& a, const ModelStackWithAutoParam& b) {
 	return a.song == b.song && a.getTimelineCounterAllowNull() == b.getTimelineCounterAllowNull()
-	       && a.noteRowId == b.noteRowId && a.getNoteRowAllowNull() == b.getNoteRowAllowNull()
-	       && a.modControllable == b.modControllable && a.paramManager == b.paramManager
-	       && a.paramCollection == b.paramCollection && a.summary == b.summary && a.kind == b.kind
-	       && a.paramId == b.paramId && a.autoParam == b.autoParam;
+	       && a.noteRowId == b.noteRowId && a.getNoteRowAllowNull() == b.getNoteRowAllowNull() && a.owner == b.owner
+	       && a.paramManager == b.paramManager && a.paramCollection == b.paramCollection && a.summary == b.summary
+	       && a.kind == b.kind && a.paramId == b.paramId && a.autoParam == b.autoParam;
 }
 
 } // namespace
@@ -113,7 +112,7 @@ describe lane_target("a lane target", ${
 			                                                   &f.clip->paramManager)
 			        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
 			const bridge::LaneTarget target =
-			    bridge::target_of(*original, bridge::owner_of(*f.instrument), std::nullopt);
+			    bridge::target_of(*original, std::nullopt);
 			expect(same_stack(*original, *bridge::stack_of(target, b))).to_be_true();
 			spec::make_current(nullptr);
 		});
@@ -132,7 +131,7 @@ describe lane_target("a lane target", ${
 			if (lane) {
 				ModelStackWithAutoParam* original = bridge::paramStackAt(*f.song, address, a);
 				expect(std::holds_alternative<Sound*>(lane->owner)).to_be_true();
-				expect(bridge::mod_controllable_of(lane->owner)).to_equal(original->modControllable);
+				expect(std::get<Sound*>(lane->owner)).to_equal(std::get<Sound*>(original->owner));
 				expect(same_stack(*original, *bridge::stack_of(*lane, b))).to_be_true();
 			}
 			spec::make_current(nullptr);

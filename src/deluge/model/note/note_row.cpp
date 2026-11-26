@@ -3815,7 +3815,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		{
 			ModelStackWithParamCollection* modelStackWithParamCollection =
 			    modelStackWithThreeMainThings->addParamCollection(patchCableSet, patchCablesSummary);
-			patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+			patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 			                             *modelStackWithParamCollection->paramManager);
 		}
 

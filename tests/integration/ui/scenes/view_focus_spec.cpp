@@ -598,7 +598,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		const ModelStackWithThreeMainThings* owner = view_knob_stack(owner_memory);
 		expect(owner).not_().to_be_null("the focus's owner stack");
 		if (owner != nullptr) {
-			expect(owner->modControllable).to_equal(row->toModControllable());
+			expect(std::get<Sound*>(owner->owner)).to_equal(std::get<Sound*>(deluge::model::owner_of(*row)));
 		}
 		arrangerView.outputsOnScreen[2] = saved;
 		currentUIMode = UI_MODE_NONE;

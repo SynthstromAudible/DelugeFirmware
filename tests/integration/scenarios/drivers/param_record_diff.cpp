@@ -896,7 +896,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 
 	// Undo (swapState with the pre-record snapshot) must revert to empty/initial; redo (swap again) must restore
 	// the recorded automation exactly — exercising the AutoParam::swapState node/value swap on the DOM store.
-	const deluge::bridge::LaneTarget lane = deluge::bridge::target_of(*msap, &song->live.master_channel, std::nullopt);
+	const deluge::bridge::LaneTarget lane = deluge::bridge::target_of(*msap, std::nullopt);
 	ap.swapState(&undoState, lane);
 	dumpParam("after-undo", msap);
 	ap.swapState(&undoState, lane);

@@ -55,15 +55,14 @@ namespace deluge::bridge {
 	    ->addParam(target.collection, target.summary, target.param_id, target.auto_param);
 }
 
-LaneTarget target_of(const ::ModelStackWithAutoParam& stack, LaneOwner owner,
-                     std::optional<project::ParamAddress> address) {
+LaneTarget target_of(const ::ModelStackWithAutoParam& stack, std::optional<project::ParamAddress> address) {
 	return LaneTarget{
 	    .address = address,
 	    .song = stack.song,
 	    .timeline = stack.getTimelineCounterAllowNull(),
 	    .note_row_id = stack.noteRowId,
 	    .note_row = stack.getNoteRowAllowNull(),
-	    .owner = owner,
+	    .owner = stack.owner,
 	    .manager = stack.paramManager,
 	    .collection = stack.paramCollection,
 	    .summary = stack.summary,

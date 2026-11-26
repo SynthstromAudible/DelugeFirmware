@@ -25,11 +25,6 @@
 
 class Song;
 class ModControllable;
-
-/// @brief @p owner as the untyped owner slot holds it.
-/// @param owner The typed owner.
-/// @return The slot's value; null for none.
-[[nodiscard]] ModControllable* untyped(const deluge::model::LaneOwner& owner);
 class TimelineCounter;
 class ParamManagerForTimeline;
 class ParamCollection;
@@ -233,7 +228,6 @@ class ModelStackWithModControllable : public ModelStackWithNoteRow {
 public:
 	/// The object whose params these are, typed.
 	deluge::model::LaneOwner owner;
-	ModControllable* modControllable;
 	ModelStackWithThreeMainThings* addParamManager(ParamManagerForTimeline* newParamManager) const;
 };
 
@@ -400,7 +394,6 @@ ModelStackWithTimelineCounter::addOtherTwoThingsButNoNoteRow(deluge::model::Lane
 inline ModelStackWithModControllable* ModelStackWithNoteRow::addModControllable(deluge::model::LaneOwner owner) const {
 	ModelStackWithModControllable* toReturn = (ModelStackWithModControllable*)this;
 	toReturn->owner = owner;
-	toReturn->modControllable = untyped(owner);
 	return toReturn;
 }
 
@@ -411,7 +404,6 @@ inline ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThings(d
                                                                                ParamManager* newParamManager) const {
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 	toReturn->owner = owner;
-	toReturn->modControllable = untyped(owner);
 	toReturn->paramManager = newParamManager;
 	return toReturn;
 }

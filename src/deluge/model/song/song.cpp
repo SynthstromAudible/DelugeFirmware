@@ -2854,7 +2854,7 @@ traverseClips:
 				    modelStackWithNoteRow->addOtherTwoThings(drum, &noteRow->paramManager));
 
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				    ->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
@@ -2919,7 +2919,7 @@ traverseClips:
 		    clip->paramManager.getPatchCableSet(modelStackWithThreeMainThings);
 
 		((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-		    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		    ->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 		                    *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
@@ -2978,7 +2978,7 @@ traverseClips:
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-		patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 		                             *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
@@ -3046,7 +3046,7 @@ traverseClips:
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-		patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 		                             *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
@@ -3086,7 +3086,7 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 				PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 				patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 
-				patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 				                             *modelStackWithParamCollection->paramManager);
 			}
 		}
@@ -3115,7 +3115,7 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 					PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 					patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-					patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+					patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 					                             *modelStackWithParamCollection->paramManager);
 				}
 			}

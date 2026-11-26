@@ -207,7 +207,7 @@ void resolveWhere(Song& song, const std::function<bool(const EffectsOwner&)>& wa
 } // namespace
 
 DelayParamRole delayParamRole(const ModelStackWithAutoParam& modelStack) {
-	if (modelStack.modControllable == nullptr) {
+	if (deluge::model::is_none(modelStack.owner)) {
 		return DelayParamRole::NONE;
 	}
 	const bool rate =
@@ -242,7 +242,7 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 	if (role == DelayParamRole::NONE) {
 		return;
 	}
-	const EffectsOwner effects = *modelStack.modControllable->effectsOwner();
+	const EffectsOwner effects = *deluge::model::effects_owner_of(modelStack.owner);
 	if (role == DelayParamRole::RATE) {
 		if (currentSong != nullptr && effects.effects().delay.type != deluge::effects::DelayType::OFF) {
 			refreshDelayReserve(*currentSong, effects);

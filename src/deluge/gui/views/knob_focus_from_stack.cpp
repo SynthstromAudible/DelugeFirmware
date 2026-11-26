@@ -80,8 +80,8 @@ deluge::ui::controls::KnobFocus nonAudioDrumFocus(::Kit& kit, const ::Drum& drum
 
 deluge::ui::controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMainThings& stack) {
 	deluge::ui::controls::KnobFocus focus;
-	ModControllable* controllable = stack.modControllable;
-	if (controllable != nullptr && controllable != static_cast<ModControllable*>(&song.live.master_channel)) {
+	const deluge::model::LaneOwner& owner = stack.owner;
+	if (!deluge::model::is_none(owner) && !std::holds_alternative<deluge::model::MasterChannel*>(owner)) {
 		TimelineCounter* counter = stack.getTimelineCounterAllowNull();
 		::Clip* clip = counter != nullptr && counter != static_cast<TimelineCounter*>(&song)
 		                   ? static_cast<::Clip*>(counter)
@@ -91,20 +91,19 @@ deluge::ui::controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStac
 			clip = clip->beingRecordedFromClip;
 		}
 		for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-			if (output->toModControllable() == controllable) {
+			if (deluge::model::owner_of(*output) == owner) {
 				focus = outputFocus(*output, clip);
 				break;
 			}
 			if (output->type == OutputType::KIT) {
 				auto& kit = static_cast<::Kit&>(*output);
 				for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
-					if (drum->type == DrumType::SOUND
-					    && static_cast<ModControllable*>(static_cast<::SoundDrum*>(drum)) == controllable) {
+					if (drum->type == DrumType::SOUND && deluge::model::owner_of(*drum) == owner) {
 						focus = drumFocus(kit, *static_cast<::SoundDrum*>(drum), clip);
 						break;
 					}
 					// Reached from hand-built stacks only (see nonAudioDrumFocus).
-					if (drum->type != DrumType::SOUND && drum->toModControllable() == controllable) {
+					if (drum->type != DrumType::SOUND && deluge::model::owner_of(*drum) == owner) {
 						focus = nonAudioDrumFocus(kit, *drum, clip);
 						break;
 					}
@@ -115,7 +114,7 @@ deluge::ui::controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStac
 			}
 		}
 	}
-	else if (controllable != nullptr) {
+	else if (!deluge::model::is_none(owner)) {
 		focus.owner = deluge::ui::controls::SongFocus{};
 	}
 	return focus;

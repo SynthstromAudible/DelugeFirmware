@@ -1063,7 +1063,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				    modelStackWithThreeMainThings->addParamCollectionSummary(
 				        thisNoteRow->paramManager.getPatchCableSetSummary());
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				    ->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
@@ -1090,7 +1090,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				    modelStackWithThreeMainThings->addParamCollectionSummary(paramManager->getPatchCableSetSummary());
 
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				    ->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 				                    *modelStackWithParamCollection->paramManager);
 			}
 		}

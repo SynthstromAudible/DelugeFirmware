@@ -362,7 +362,7 @@ std::optional<LaneTarget> lane_of(const OwnerStack& owner, ModelStackWithAutoPar
 	if (found == nullptr) {
 		return std::nullopt;
 	}
-	return target_of(*found, owner.owner, address);
+	return target_of(*found, address);
 }
 
 /// The clip @p address names, by its INSTRUMENT/DRUM clip id or its CLIP or NOTE_ROW owner's id; null for none.
@@ -478,7 +478,7 @@ bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin) {
 	if (found.stack == nullptr || (found.holder != Holder::SOUND && found.holder != Holder::EFFECTABLE)) {
 		return false;
 	}
-	const model::EffectsOwner effects = *found.stack->modControllable->effectsOwner();
+	const model::EffectsOwner effects = *deluge::model::effects_owner_of(found.stack->owner);
 	auto* params = static_cast<ParamManagerForTimeline*>(found.stack->paramManager);
 	if (begin) {
 		model::beginStutter(effects, *params);

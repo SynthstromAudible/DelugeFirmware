@@ -2047,8 +2047,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const ModelStackWithThreeMainThings* owner = view_knob_stack(owner_memory);
 		expect(owner).not_().to_be_null("the focus's owner stack");
 		if (owner != nullptr) {
-			expect(owner->modControllable)
-			    .to_equal(static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument)));
+			Sound* const sound = static_cast<SoundInstrument*>(f.instrument);
+			expect(std::get<Sound*>(owner->owner)).to_equal(sound);
 		}
 		expect(view.knobsOnClipContext()).to_be_true();
 		rig.knobs.set_mod_region(96, 48, 3);
@@ -2096,7 +2096,6 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(knobs).not_().to_be_null("the focus's owner stack");
 		if (knobs != nullptr) {
 			knobs->owner = deluge::model::LaneOwner{};
-			knobs->modControllable = nullptr;
 			const deluge::ui::scenes::bind::KnobFocus no_controllable = deluge::gui::knobFocusFromStack(*f.song, *knobs);
 			expect(deluge::ui::scenes::services::is_clip_context(no_controllable)).to_be_false();
 		}

@@ -250,7 +250,7 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-	patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+	patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 	                             *modelStackWithParamCollection->paramManager);
 }
 

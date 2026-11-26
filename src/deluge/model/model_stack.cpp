@@ -33,19 +33,6 @@
 #include <type_traits>
 #include <variant>
 
-ModControllable* untyped(const deluge::model::LaneOwner& owner) {
-	return std::visit(
-	    []<typename T>(T held) -> ModControllable* {
-		    if constexpr (std::is_same_v<T, std::monostate>) {
-			    return nullptr;
-		    }
-		    else {
-			    return held;
-		    }
-	    },
-	    owner);
-}
-
 using namespace deluge::modulation::params;
 
 // Takes the NoteRow's *index*, not id!
@@ -67,7 +54,6 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 	const deluge::model::LaneOwner owner =
 	    (isKit && newNoteRow->drum) ? deluge::model::owner_of(*newNoteRow->drum) : deluge::model::owner_of(*output);
 	toReturn->owner = owner;
-	toReturn->modControllable = untyped(owner);
 	toReturn->paramManager = &newNoteRow->paramManager;
 	return toReturn;
 }
@@ -213,7 +199,6 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	                                           ? deluge::model::owner_of(*noteRowHere->drum)
 	                                           : deluge::model::owner_of(*clip->output);
 	toReturn->owner = owner;
-	toReturn->modControllable = untyped(owner);
 	toReturn->paramManager = &noteRowHere->paramManager;
 	return toReturn;
 }
@@ -225,7 +210,7 @@ bool ModelStackWithParamId::isParam(Kind kind, ParamType id) {
 bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int32_t s) {
 	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
 	if (flagValue == FLAG_TBD) {
-		flagValue = ((Sound*)modControllable)
+		flagValue = (&deluge::model::sound_of(owner))
 		                ->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager);
 		soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s] = flagValue;
 	}
@@ -237,7 +222,7 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
 	if (flagValue == FLAG_TBD) {
 		flagValue = checkSourceEverActiveDisregardingMissingSample(s);
 		if (flagValue) { // Does an &&
-			Sound* sound = (Sound*)modControllable;
+			Sound* sound = &deluge::model::sound_of(owner);
 			flagValue = sound->getSynthMode() == SynthMode::FM
 			            || (sound->oscType(s) != OscType::SAMPLE && sound->oscType(s) != OscType::WAVETABLE)
 			            || sound->sourceResources[s].hasAtLeastOneAudioFileLoaded();

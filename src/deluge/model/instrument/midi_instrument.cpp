@@ -812,8 +812,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 	}
 
 	AutoParamState state;
-	oldParam->swapState(
-	    &state, deluge::bridge::target_of(*modelStackWithAutoParam, deluge::bridge::owner_of(*this), std::nullopt));
+	oldParam->swapState(&state, deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt));
 
 	// Delete or clear old parameter
 	MIDIParamCollection* midiParamCollection = modelStackWithAutoParam->paramManager->getMIDIParamCollection();
@@ -849,8 +848,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	newParam->swapState(
-	    &state, deluge::bridge::target_of(*modelStackWithAutoParam, deluge::bridge::owner_of(*this), std::nullopt));
+	newParam->swapState(&state, deluge::bridge::target_of(*modelStackWithAutoParam, std::nullopt));
 
 	return Error::NONE;
 }

@@ -100,7 +100,7 @@ EditCable EditCable::reroute(ModelStackWithThreeMainThings* modelStack, size_t i
 }
 
 Error EditCable::apply(Context& /*ctx*/) {
-	ModMatrixHost matrix{*static_cast<Sound*>(modelStack_->modControllable), *modelStack_->paramManager};
+	ModMatrixHost matrix{deluge::model::sound_of(modelStack_->owner), *modelStack_->paramManager};
 	std::optional<CableEdit> edit;
 	switch (op_) {
 	case deluge::instruments::classic::CableDelta::Op::ADD:

@@ -52,8 +52,7 @@ namespace {
 std::optional<deluge::model::EffectsOwner> knobOwner() {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* stack = view.knobOwnerStack(memory);
-	return stack != nullptr && stack->modControllable != nullptr ? stack->modControllable->effectsOwner()
-	                                                             : std::nullopt;
+	return stack != nullptr ? deluge::model::effects_owner_of(stack->owner) : std::nullopt;
 }
 
 } // namespace

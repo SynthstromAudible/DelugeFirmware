@@ -147,7 +147,9 @@ struct KnobOwner {
 	KnobOwner(const KnobOwner&) = delete;
 	KnobOwner& operator=(const KnobOwner&) = delete;
 	/// @brief The owner the knobs move, or null.
-	[[nodiscard]] ModControllable* owner() const { return stack != nullptr ? stack->modControllable : nullptr; }
+	[[nodiscard]] deluge::model::LaneOwner owner() const {
+		return stack != nullptr ? stack->owner : deluge::model::LaneOwner{};
+	}
 	/// @brief The owner's param manager, or null.
 	[[nodiscard]] ParamManager* params() const { return stack != nullptr ? stack->paramManager : nullptr; }
 	/// @brief The clip or song the owner is in, or null.
@@ -263,7 +265,7 @@ int32_t g_events = 0;
 Song* g_songBefore = nullptr;
 Clip* g_clipBefore = nullptr;
 /// Compared by address only: once the old song is freed, nothing it held may be dereferenced.
-const void* g_modBefore = nullptr;
+deluge::model::LaneOwner g_modBefore;
 /// The old song's record, which the menu's context names; compared by address only, as `g_modBefore` is.
 const deluge::project::Song* g_modelBefore = nullptr;
 bool g_loadSeen = false;
@@ -601,7 +603,7 @@ void stepEditorSetup() {
 	g_songBefore = currentSong;
 	g_modelBefore = &currentSong->project;
 	g_clipBefore = clip;
-	g_modBefore = clip->output->toModControllable();
+	g_modBefore = deluge::model::owner_of(*clip->output);
 	g_stackWritesAtLegStart = View::renderStackWrites();
 	// swap_work: a note-on MIDI follow sent to the outgoing song's clip, whose note-off has not come yet.
 	clipForLastNoteReceived[kPlantedNote] = clip;
@@ -952,7 +954,7 @@ void stepArrangeRun() {
 	const KnobOwner knobs{};
 	const bool followed = knobs.counter() == g_movedTo;
 	const bool params = knobs.params() == &g_movedTo->paramManager;
-	const bool output = knobs.owner() == g_movedTo->output->toModControllable();
+	const bool output = knobs.owner() == deluge::model::owner_of(*g_movedTo->output);
 	printf("SU-ARRANGE moved=1 followed=%d params=%d output=%d renderWrites=%d steps=%d\n", followed ? 1 : 0,
 	       params ? 1 : 0, output ? 1 : 0, View::renderStackWrites() - g_stackWritesAtLegStart, g_wait.ticks());
 	if (!followed || !params || !output) {

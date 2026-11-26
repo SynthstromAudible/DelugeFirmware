@@ -2090,7 +2090,8 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		expect(param).not_().to_be_null();
 		if (param != nullptr) {
 			expect(param->paramManager).to_equal(&row->paramManager);
-			expect(param->modControllable).to_equal(static_cast<ModControllable*>(drum));
+			Sound* const sound = drum;
+			expect(std::get<Sound*>(param->owner)).to_equal(sound);
 		}
 		closeGuest();
 	});
@@ -2117,7 +2118,7 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		if (param != nullptr) {
 			expect(param->paramManager).to_equal(&static_cast<InstrumentClip*>(k.f.clip)->paramManager);
 			expect(param->paramManager).not_().to_equal(&row->paramManager);
-			expect(param->modControllable).to_equal(k.f.instrument->toModControllable());
+			expect(std::get<Kit*>(param->owner)).to_equal(static_cast<Kit*>(k.f.instrument));
 		}
 		closeGuest();
 	});

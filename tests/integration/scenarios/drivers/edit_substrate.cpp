@@ -504,9 +504,8 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	store->nodes.erase(store->nodes.begin(), store->nodes.end());
 	int32_t prev = ms->autoParam->getCurrentValue();
 	store->current_value = 0x33333333;
-	ms->autoParam->projectScalarFromStore(
-	    deluge::bridge::target_of(*ms, deluge::bridge::owner_of(*g_audioClip->output), addr), prev,
-	    /*isPlaying=*/false);
+	ms->autoParam->projectScalarFromStore(deluge::bridge::target_of(*ms, addr), prev,
+	                                      /*isPlaying=*/false);
 	check(ms->autoParam->getCurrentValue() == 0x33333333, "projectScalarFromStore: engine cursor synced from store");
 }
 

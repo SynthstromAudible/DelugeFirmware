@@ -83,12 +83,11 @@ struct LaneTarget {
 /// @return The stack.
 [[nodiscard]] ::ModelStackWithAutoParam* stack_of(const LaneTarget& target, void* memory);
 
-/// @brief The target @p stack names.
+/// @brief The target @p stack names, its owner the stack's own.
 /// @param stack   The engine stack.
-/// @param owner   The object its owner slot holds, typed.
 /// @param address The lane's address, if it has one.
 /// @return The target.
-[[nodiscard]] LaneTarget target_of(const ::ModelStackWithAutoParam& stack, LaneOwner owner,
+[[nodiscard]] LaneTarget target_of(const ::ModelStackWithAutoParam& stack,
                                    std::optional<project::ParamAddress> address);
 
 } // namespace deluge::bridge

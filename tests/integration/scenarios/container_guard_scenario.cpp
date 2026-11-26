@@ -559,7 +559,7 @@ InstrumentClip* makeKitClip() {
 /// param, or a chain's unpatched one, in @p paramManager.
 void turnParam(ModelStackWithThreeMainThings* ms, int32_t id, int32_t value) {
 	ParamManager& paramManager = *ms->paramManager;
-	ParamCollectionSummary* summary = ms->modControllable->effectsOwner()->sound != nullptr
+	ParamCollectionSummary* summary = deluge::model::effects_owner_of(ms->owner)->sound != nullptr
 	                                      ? paramManager.getPatchedParamSetSummary()
 	                                      : paramManager.getUnpatchedParamSetSummary();
 	ModelStackWithParamId* withId = ms->addParamCollectionAndId(summary->paramCollection, summary, id);

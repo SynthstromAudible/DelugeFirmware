@@ -53,6 +53,20 @@ using LaneOwner = std::variant<std::monostate, ::Sound*, ::Kit*, ::AudioOutput*,
 /// @return The owner.
 [[nodiscard]] LaneOwner owner_of(::Drum& drum);
 
+/// @brief The sound @p owner is, where the code holds one: patched params and cables exist only on sounds.
+/// @param owner The owner; it must hold a Sound.
+/// @return The sound.
+[[nodiscard]] inline ::Sound& sound_of(const LaneOwner& owner) {
+	return *std::get<::Sound*>(owner);
+}
+
+/// @brief Whether @p owner names no object.
+/// @param owner The owner.
+/// @return True for none.
+[[nodiscard]] constexpr bool is_none(const LaneOwner& owner) {
+	return std::holds_alternative<std::monostate>(owner);
+}
+
 /// @brief The effects @p owner answers for: a sound's, a kit's, an audio track's or the master channel's.
 /// @param owner The owner.
 /// @return Its effects; none for a MIDI or CV instrument, a MIDI or gate drum, or no owner.
