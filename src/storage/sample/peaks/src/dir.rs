@@ -65,12 +65,13 @@ impl<T> Directory<T> {
         Some(unsafe { &*p.as_ptr().add(within) })
     }
 
-    /// Unpublishes every chunk outside chunks `[keep_first, keep_end)` whose slot's limbo is empty, into its limbo;
-    /// how many it moved. Thread mode.
+    /// Unpublishes every chunk outside both ranges of chunks `[first, end)` whose slot's limbo is empty, into its
+    /// limbo; how many it moved. Thread mode.
     #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
-    pub(crate) fn retire_outside(&self, keep_first: usize, keep_end: usize) -> u32 {
+    pub(crate) fn retire_outside(&self, a: (usize, usize), b: (usize, usize)) -> u32 {
+        let kept = |c: usize| (a.0..a.1).contains(&c) || (b.0..b.1).contains(&c);
         let mut moved = 0;
-        for c in (0..self.len).filter(|&c| c < keep_first || c >= keep_end) {
+        for c in (0..self.len).filter(|&c| !kept(c)) {
             let (Some(slot), Some(limbo)) = (self.slot(c), self.limbo_slot(c)) else {
                 continue;
             };

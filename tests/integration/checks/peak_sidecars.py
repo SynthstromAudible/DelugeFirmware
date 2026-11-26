@@ -11,6 +11,8 @@ Drives one sample per behaviour through the idle job's sidecar machine and reads
     PS-FULL, PS-PROTECT a full or write-protected card is tried twice, then left alone, with nothing on the card
     PS-TMP              a stray .TMP of the key is overwritten by its next write
     PS-PARTIAL          a partial index is written from a quarter complete, not again until it grows by a quarter
+    PS-TRIM             a deep-zoom view scrolled across an eight-chunk file holds at most four level-0 chunks at
+                        once, and none once nothing reads
 
 Gate peak-sidecars:
     a sample's sidecar through the card. One sample per behaviour, driven through the idle job's sidecar machine, the
@@ -18,7 +20,8 @@ Gate peak-sidecars:
     PTCH section; a reload completes the index from the sidecar alone with the background scan held off, and answers
     the pitch without a detection; a file changed on a computer has its sidecar refused and rewritten under the new
     key; a sidecar damaged on the card is refused and removed; a full or write-protected card (host write faults) is tried twice, then left alone; a stray .TMP is
-    overwritten; a partial index is written from a quarter complete and again only after a quarter's growth.
+    overwritten; a partial index is written from a quarter complete and again only after a quarter's growth; a deep-zoom
+    view scrolled across an eight-chunk file holds at most four level-0 chunks at once, and none once nothing reads.
 """
 
 

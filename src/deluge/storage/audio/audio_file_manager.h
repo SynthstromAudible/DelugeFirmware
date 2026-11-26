@@ -337,6 +337,7 @@ private:
 	void backgroundPeakScan();
 	bool backgroundScansEnabled_ = true;
 	bool sidecarsEnabled_ = true;
+	uint32_t lastLevel0Trim_ = 0; ///< deluge::sample::peaks_clock_ms() at the last level-0 trim
 	deluge::storage::PeakSidecars peakSidecars_;
 
 	/// @brief Convert @p sample into a WaveTable from memory, if every one of its audio clusters is cached.

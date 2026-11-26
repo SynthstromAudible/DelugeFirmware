@@ -57,10 +57,16 @@ pub struct PeakIndex {
     complete1: AtomicU32,
     /// Folds writing a level-0 value right now: a retired level-0 chunk is freed only when this reads 0.
     folding: AtomicU32,
-    /// The frames whose level-0 chunks the reads of the last [`KEEP_MS`] asked to keep, `[keep_first, keep_end)`.
+    /// The frames the current keep window covers, `[keep_first, keep_end)`: every window read since `keep_since`,
+    /// which is at most [`KEEP_MS`] ago while it grows.
     keep_first: AtomicU64,
     keep_end: AtomicU64,
-    /// When that window was last widened, in the caller's ms.
+    /// When the current keep window began, in the caller's ms.
+    keep_since: AtomicU32,
+    /// The window before it, `[prev_first, prev_end)`: the reads up to `keep_since`.
+    prev_first: AtomicU64,
+    prev_end: AtomicU64,
+    /// When a window was last read.
     keep_ms: AtomicU32,
     next_free: AtomicPtr<PeakIndex>,
     /// A peak every block holds, set by `fill_uniform`: a fixture's sample with no frames behind it.
@@ -93,6 +99,9 @@ impl PeakIndex {
             folding: AtomicU32::new(0),
             keep_first: AtomicU64::new(0),
             keep_end: AtomicU64::new(0),
+            keep_since: AtomicU32::new(0),
+            prev_first: AtomicU64::new(0),
+            prev_end: AtomicU64::new(0),
             keep_ms: AtomicU32::new(0),
             next_free: AtomicPtr::new(core::ptr::null_mut()),
             #[cfg(feature = "test_support")]
@@ -420,20 +429,26 @@ impl PeakIndex {
         }
     }
 
-    /// Keeps level 0 for frames `[first, end)`, together with every window kept in the last [`KEEP_MS`]. Thread mode.
+    /// Keeps level 0 for frames `[first, end)`. Reads within [`KEEP_MS`] of the current window's start widen it; a
+    /// later one starts a new window, and the current one becomes the previous. So a trim keeps every window read in
+    /// the last [`KEEP_MS`], and a view scrolling steadily holds at most two windows' worth. Thread mode.
     pub fn keep_level0(&self, first: u64, end: u64, now_ms: u32) {
         let (kf, ke) = (
             self.keep_first.load(Ordering::Relaxed),
             self.keep_end.load(Ordering::Relaxed),
         );
-        let fresh = ke > kf && now_ms.wrapping_sub(self.keep_ms.load(Ordering::Relaxed)) <= KEEP_MS;
-        let (f, e) = if fresh {
-            (first.min(kf), end.max(ke))
+        let growing =
+            ke > kf && now_ms.wrapping_sub(self.keep_since.load(Ordering::Relaxed)) <= KEEP_MS;
+        if growing {
+            self.keep_first.store(first.min(kf), Ordering::Relaxed);
+            self.keep_end.store(end.max(ke), Ordering::Relaxed);
         } else {
-            (first, end)
-        };
-        self.keep_first.store(f, Ordering::Relaxed);
-        self.keep_end.store(e, Ordering::Relaxed);
+            self.prev_first.store(kf, Ordering::Relaxed);
+            self.prev_end.store(ke, Ordering::Relaxed);
+            self.keep_first.store(first, Ordering::Relaxed);
+            self.keep_end.store(end, Ordering::Relaxed);
+            self.keep_since.store(now_ms, Ordering::Relaxed);
+        }
         self.keep_ms.store(now_ms, Ordering::Relaxed);
     }
 
@@ -452,22 +467,33 @@ impl PeakIndex {
             d.reap();
         }
         let chunk_log2 = BLOCK_FRAMES_LOG2 + CHUNK_LOG2;
-        let stale = now_ms.wrapping_sub(self.keep_ms.load(Ordering::Relaxed)) > KEEP_MS;
-        let (kf, ke) = if stale {
-            (0, 0)
-        } else {
-            let f = self.keep_first.load(Ordering::Relaxed) >> chunk_log2;
-            let e = self
-                .keep_end
-                .load(Ordering::Relaxed)
-                .saturating_add((1 << chunk_log2) - 1)
-                >> chunk_log2;
+        let chunks = |first: u64, end: u64| {
+            let f = first >> chunk_log2;
+            let e = end.saturating_add((1 << chunk_log2) - 1) >> chunk_log2;
             (
                 usize::try_from(f).unwrap_or(usize::MAX),
                 usize::try_from(e).unwrap_or(usize::MAX),
             )
         };
-        d.retire_outside(kf, ke)
+        // The current window while it is read; the previous one until KEEP_MS after the current one began, which is
+        // when its last read was.
+        let current = if now_ms.wrapping_sub(self.keep_ms.load(Ordering::Relaxed)) <= KEEP_MS {
+            chunks(
+                self.keep_first.load(Ordering::Relaxed),
+                self.keep_end.load(Ordering::Relaxed),
+            )
+        } else {
+            (0, 0)
+        };
+        let previous = if now_ms.wrapping_sub(self.keep_since.load(Ordering::Relaxed)) <= KEEP_MS {
+            chunks(
+                self.prev_first.load(Ordering::Relaxed),
+                self.prev_end.load(Ordering::Relaxed),
+            )
+        } else {
+            (0, 0)
+        };
+        d.retire_outside(current, previous)
     }
 
     /// How many level-0 chunks are published.

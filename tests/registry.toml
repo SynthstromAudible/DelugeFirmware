@@ -610,7 +610,7 @@ template = "scenario"
 kind = "property"
 gates = "a sample's sidecar through the card: written, restored, refused, skipped and partial"
 scenario = "peak_sidecars"
-markers = ["PS-WRITE", "PS-PITCH-WRITE", "PS-RELOAD", "PS-PITCH", "PS-REWRITE", "PS-REWRITE-WRITTEN", "PS-CORRUPT", "PS-CORRUPT-REMOVED", "PS-FULL", "PS-PROTECT", "PS-TMP", "PS-PARTIAL-HOLD", "PS-PARTIAL"]
+markers = ["PS-WRITE", "PS-PITCH-WRITE", "PS-RELOAD", "PS-PITCH", "PS-REWRITE", "PS-REWRITE-WRITTEN", "PS-CORRUPT", "PS-CORRUPT-REMOVED", "PS-FULL", "PS-PROTECT", "PS-TMP", "PS-PARTIAL-HOLD", "PS-PARTIAL", "PS-TRIM"]
 result = "PS-RESULT failures=0"
 check = "tests/integration/checks/peak_sidecars.py"
 tier = "pr"

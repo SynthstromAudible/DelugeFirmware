@@ -11,3 +11,5 @@ partials SAMPLES/SCPROT.WAV frames=100000 7:0.5,47:0.3,997:0.2
 partials SAMPLES/SCTMP.WAV frames=100000 11:0.5,53:0.3,997:0.2
 # Folded by hand, a part at a time, to drive the partial-write rule.
 partials SAMPLES/SCPART.WAV frames=400000 13:0.5,59:0.3,997:0.2
+# Eight level-0 chunks long (2,000,000 frames), scrolled across at deep zoom to drive the level-0 trim.
+partials SAMPLES/SCTRIM.WAV frames=2000000 17:0.5,61:0.3,997:0.2

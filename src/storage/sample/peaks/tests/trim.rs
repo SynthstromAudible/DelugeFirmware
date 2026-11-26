@@ -54,3 +54,27 @@ fn a_fold_into_a_trimmed_chunk_still_completes_its_block() {
     PeakIndex::release(p);
     PeakIndex::collect();
 }
+
+#[test]
+fn a_view_scrolling_steadily_holds_only_its_last_two_seconds_of_windows() {
+    let p = index(16 * CHUNK_FRAMES);
+    // SAFETY: released below.
+    let i = unsafe { p.as_ref() };
+    let mut most = 0;
+    // A window of 64 frames a column read every 10 ms, scrolling a chunk every 1.5 s, trimmed every second.
+    for t in (0..20_000u32).step_by(10) {
+        let scroll = u64::from(t) * CHUNK_FRAMES / 1_500;
+        i.ensure_level0(scroll, scroll + 1_024);
+        i.keep_level0(scroll, scroll + 1_024, t);
+        if t % 1_000 == 0 {
+            i.trim_level0(t);
+        }
+        most = most.max(i.level0_chunks());
+    }
+    assert!(most <= 4, "held {most} chunks at once");
+    i.trim_level0(30_000);
+    i.trim_level0(31_000);
+    assert_eq!(i.level0_chunks(), 0);
+    PeakIndex::release(p);
+    PeakIndex::collect();
+}

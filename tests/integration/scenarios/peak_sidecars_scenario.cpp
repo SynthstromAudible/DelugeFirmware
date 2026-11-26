@@ -34,6 +34,7 @@
 #include "libdeluge/file_bytes.h"
 #include "model/sample/pitch_scan.h"
 #include "model/sample/sample.h"
+#include "model/sample/waveform_scan.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/audio_load_context.h"
@@ -41,6 +42,7 @@
 #include "storage/audio/sidecar_path.h"
 #include "storage/audio/sidecar_policy.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -68,6 +70,12 @@ constexpr const char* kFullPath = "SAMPLES/SCFULL.WAV";
 constexpr const char* kProtPath = "SAMPLES/SCPROT.WAV";
 constexpr const char* kTmpPath = "SAMPLES/SCTMP.WAV";
 constexpr const char* kPartPath = "SAMPLES/SCPART.WAV";
+constexpr const char* kTrimPath = "SAMPLES/SCTRIM.WAV";
+/// Frames per level-0 chunk: 1,024 blocks of 256.
+constexpr int64_t kChunkFrames = int64_t{1} << 18;
+/// Steps the trim walk spends on each chunk's worth of scroll: longer than the keep window's second, so at most the
+/// chunks of the last second's windows stay.
+constexpr int64_t kStepsPerChunk = 1'500;
 
 /// Steps the boot is given before the first load.
 constexpr int32_t kSettleSteps = 64;
@@ -104,6 +112,9 @@ enum class Stage : uint8_t {
 	AwaitPartFirst,
 	HoldPart,
 	AwaitPartSecond,
+	LoadTrim,
+	WalkTrim,
+	HoldTrim,
 	Report,
 	Done,
 };
@@ -118,6 +129,7 @@ deluge::sample::PitchScan g_scan;
 float g_hz = 0;
 uint32_t g_firstWrite = 0; ///< complete level-1 entries the partial index's first sidecar held
 uint64_t g_firstSize = 0;  ///< SCLONG.WAV's size before the rewrite
+uint32_t g_maxChunks = 0;  ///< the most level-0 chunks the trim walk saw held at once
 
 void next(Stage s) {
 	g_stage = s;
@@ -540,6 +552,38 @@ void runStep() {
 			       entries(*g_sample), sound ? 1 : 0);
 			if (!sound || g_firstWrite * 4 < entries(*g_sample)) {
 				g_report.fail("a partial index must be written from a quarter, and again after a quarter's growth");
+			}
+			unload(g_sample);
+			next(Stage::LoadTrim);
+		}
+		return;
+
+	case Stage::LoadTrim:
+		audioFileManager.setBackgroundScansEnabled(false); // the walk's reads alone fill level 0
+		g_sample = load(kTrimPath);
+		g_maxChunks = 0;
+		next(g_sample != nullptr ? Stage::WalkTrim : Stage::Report);
+		return;
+
+	case Stage::WalkTrim: {
+		// A deep-zoom view scrolled across the whole file at a chunk every kStepsPerChunk steps.
+		const int64_t scroll = (g_steps * kChunkFrames) / kStepsPerChunk;
+		if (scroll + 64 * 16 >= static_cast<int64_t>(g_sample->lengthInSamples)) {
+			next(Stage::HoldTrim);
+			return;
+		}
+		(void)deluge::sample::waveform_columns(*g_sample, std::nullopt, {.scroll = scroll, .zoom = 64});
+		g_maxChunks = std::max(g_maxChunks, deluge_peaks_level0_chunks(g_sample->peaks()));
+		return;
+	}
+
+	case Stage::HoldTrim:
+		if (g_steps >= kHoldSteps) {
+			const uint32_t left = deluge_peaks_level0_chunks(g_sample->peaks());
+			printf("PS-TRIM chunks=8 max_held=%u left=%u\n", g_maxChunks, left);
+			if (g_maxChunks == 0 || g_maxChunks > 4 || left != 0) {
+				g_report.fail(
+				    "level 0 must be kept only around the last second's windows, and none once nothing reads");
 			}
 			unload(g_sample);
 			next(Stage::Report);
