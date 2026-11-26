@@ -1,0 +1,172 @@
+{
+  "presets": [
+    {
+      "path": "community/12 Metalliche.XML",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "community/Aberration.XML",
+      "dx7_slot": "osc1",
+      "other_type": "triangle",
+      "other_audible": false
+    },
+    {
+      "path": "community/Glistening.XML",
+      "dx7_slot": "osc1",
+      "other_type": "triangle",
+      "other_audible": true
+    },
+    {
+      "path": "community/Growlstrom.XML",
+      "dx7_slot": "osc1",
+      "other_type": "triangle",
+      "other_audible": true
+    },
+    {
+      "path": "community/Modello Uno.XML",
+      "dx7_slot": "osc1",
+      "other_type": "sine",
+      "other_audible": false
+    },
+    {
+      "path": "community/Pianism I.XML",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "community/Rubberdemon.XML",
+      "dx7_slot": "osc1",
+      "other_type": "analogSaw",
+      "other_audible": true
+    },
+    {
+      "path": "community/Warm DX7 Pad.XML",
+      "dx7_slot": "osc1",
+      "other_type": "analogSaw",
+      "other_audible": true
+    },
+    {
+      "path": "community/Woodeep.XML",
+      "dx7_slot": "osc1",
+      "other_type": "triangle",
+      "other_audible": true
+    },
+    {
+      "path": "community/Worrisome.XML",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/ams_depths.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/auto_alg1_fb.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/fixed_frequency.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/lfo_delay_key_sync.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/lfo_wave_0.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/lfo_wave_1.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/lfo_wave_2.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/lfo_wave_3.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/lfo_wave_4.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/lfo_wave_5.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/mki_alg32_fb.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/mki_alg4_fb.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/mki_alg6_fb.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/mki_forced_alg1_fb.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/modern_forced_alg4_fb.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/modern_forced_alg6_fb.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "dx7/osc_free_running.xml",
+      "dx7_slot": "osc1",
+      "other_type": "square",
+      "other_audible": false
+    },
+    {
+      "path": "voice/dx7_osc_b.xml",
+      "dx7_slot": "osc2",
+      "other_type": "saw",
+      "other_audible": false
+    }
+  ]
+}

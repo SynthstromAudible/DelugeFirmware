@@ -17,6 +17,7 @@
 
 #include "synth/engines/slot_engine.h"
 #include "dsp/core/fixed_point.h"
+#include "synth/sources/source_table.h"
 #include "util/lookuptables/lookuptables.h" // noteFrequencyTable, noteIntervalTable
 #include <optional>
 #include <utility>
@@ -30,9 +31,7 @@ namespace {
 std::optional<uint32_t> base_phase_increment(const SourceSetup& source, SynthMode synth_mode,
                                              int32_t transposed_note_code) {
 	// A sample or live input plays at its own rate: its neutral increment is the root note's
-	if (synth_mode != SynthMode::FM
-	    && (source.osc_type == OscType::SAMPLE || source.osc_type == OscType::INPUT_L
-	        || source.osc_type == OscType::INPUT_R || source.osc_type == OscType::INPUT_STEREO)) {
+	if (plays_at_own_rate(source.osc_type, synth_mode)) {
 		int32_t note_within_octave = static_cast<uint16_t>(transposed_note_code + 240) % 12;
 		int32_t octave = static_cast<uint16_t>(transposed_note_code + 120) / 12;
 

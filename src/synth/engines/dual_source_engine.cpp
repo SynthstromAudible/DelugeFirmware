@@ -92,18 +92,8 @@ void DualSourceEngine::store_levels(const EngineBlock& block, const std::array<d
 
 void DualSourceEngine::release(std::span<UnisonPart> parts, const ReleaseInfo& info, int32_t priority_rating) {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (info.osc_types[s] == OscType::SAMPLE) {
-			for (int32_t u = 0; u < info.num_unison; u++) {
-				SourceSlot& slot = parts[u].slots[s];
-				if (slot.active && !slot.sample().release({.priority_rating = priority_rating})) {
-					slot.unassign(false);
-				}
-			}
-		}
-		else if (info.osc_types[s] == OscType::DX7) {
-			for (int32_t u = 0; u < info.num_unison; u++) {
-				parts[u].slots[s].dx7().release({});
-			}
+		for (int32_t u = 0; u < info.num_unison; u++) {
+			parts[u].slots[s].release(info.osc_types[s], {.priority_rating = priority_rating});
 		}
 	}
 }

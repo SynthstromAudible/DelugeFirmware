@@ -52,12 +52,16 @@ patch state, a sample's porta and cache inputs, the live input's interpolation s
 
 ### Source slots (`src/synth/sources/source_slot.h`)
 
-A unison part (`UnisonPart`, `src/synth/voice/unison_part.h`) has two `SourceSlot`s. A slot holds:
+A unison part (`UnisonPart`, `src/synth/voice/unison_part.h`) has two `SourceSlot`s. The kinds of source a slot plays
+are the rows of one table (`src/synth/sources/source_table.h`): each row names its source class, the `OscType`s it
+plays, whether the slot holds it per note or keeps it bound to a port, and its hooks (bind, note-on, build, release).
+The slot's variant and its ported members are generated from the rows, and its note-on, lookup, binding and release
+walk them. A slot holds:
 
-- the note's **oscillator source** in place, in a `std::variant` of the port-free sources (VA, wavetable, supersaw),
+- the note's **oscillator source** in place, in a `std::variant` of the held rows' sources (VA, wavetable, supersaw),
   built at note-on and kept across notes while its class is unchanged, so a free-running oscillator keeps its phase;
   a VA wave change on a re-triggered voice keeps the built wave;
-- the **port-backed sources** (sample, DX7, input), bound to the firmware's ports for the voice's life;
+- the **port-backed sources** (the ported rows: sample, DX7, input), bound to the firmware's ports for the voice's life;
 - the phase state every mode shares (`SlotPhase`: `osc_pos`, the stored increment, FM's carrier feedback, `active`).
 
 `source_for(type)` is the source that renders a slot's current type: the port-backed one by type, else the held
@@ -132,8 +136,8 @@ when every part's sources ended. It derives each engine's controls from its para
 
 ## Adding to it
 
-- **A port-free source** (Karplus-Strong, a Plaits model): a class deriving `Source`, an alternative in
-  `SourceSlot::Oscillator`, and a case in `SourceSlot::build_oscillator`. The voice and the engines are unchanged.
+- **A source** (Karplus-Strong, a Plaits model): a class deriving `Source` and a row in `source_table.h` (a held row
+  with its `build`, or a ported row with its port's hooks). The slot, the voice and the engines are unchanged.
 - **An engine**: a class deriving `Engine` (or `SlotEngine` to reuse the slot lifecycle) and a case in
   `EngineSet::for_mode`, with its control struct if it needs one; `tests/unit/dsp/synth_engine_spec.cpp` drives an engine
   and a source written against the contracts alone.
