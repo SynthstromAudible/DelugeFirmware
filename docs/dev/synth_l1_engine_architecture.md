@@ -115,15 +115,15 @@ settings are `synth::SoundConfig` (`DelugeSynth::derive`).
   capture, the noise source, the level pre-roll helpers and the sample/DX7 releases.
   - **`SubtractiveEngine`**: the mono sources, then the stereo ones over a stereo copy, source 1 optionally synced to
     source 0, plus noise; the voice filters afterwards.
-    - **`Dx7Engine`** (`dx7_engine.h`): DX7 mode. The subtractive render with each unison part's DX7 as source 0
-      (`SourcePick::DX7`); source 1 never sounds. Slot 0 keeps the lifecycle the DX7 plays through (its active flag,
-      its increment from the DX7's pitch, its level ramp), and the voice's phase draws are the subtractive engine's,
-      so a DX7-mode note renders what a subtractive sound with the DX7 on osc 1 and osc 2 silent renders.
-  - **`RingModEngine`**: each part's two raw waves (source 1 optionally synced) multiplied and panned, plus noise; a
-    source that cannot sound fails the note.
 - **`FMEngine`** (`fm_engine.h`): a whole-voice engine. It ignores the slots' sources: its carriers render over each
   slot's `osc_pos` and carrier feedback, and its modulator grid (phases, increments, feedback, level de-zipper) is its
   own. It seeds and randomizes the modulators and works out their increments.
+- **`Dx7Engine`** (`dx7_engine.h`): DX7 mode, a whole-voice engine of its own over no slot. Each unison part's DX7
+  voice, active flag and increment are the engine's; it renders them at the DX7's level (ramped across the block as
+  the oscillators' levels are, held on a filter-gain change or a slow first attack) and pans them across the unison
+  spread. Its note-on reads `Dx7Setup` (the patch, the DX7's pitch, whether it can sound) and marks the voice's slots
+  inactive; its render reads `Dx7Controls` and the block's `dx7_active_currently` / `dx7_patch_changed`. It has no
+  noise source. The voice fills its controls from osc A's params until the DX7 has params of its own.
 
 The engines are rows of `engine_table.h` (each names its engine, its saved state, its mode and whether its state holds
 the two oscillator slots); the saved `EngineState` variant is generated from them. The voice holds **one of each** in
