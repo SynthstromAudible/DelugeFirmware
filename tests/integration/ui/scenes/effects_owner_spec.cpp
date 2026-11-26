@@ -131,7 +131,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 
 		it("names nothing for a MIDI instrument", _ {
 			spec::SongFixture f = spec::make_midi_song();
-			expect(static_cast<MIDIInstrument*>(f.instrument)->effectsOwner().has_value()).to_be_false();
+			expect(deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument)).has_value()).to_be_false();
 		});
 	});
 

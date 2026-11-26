@@ -4132,7 +4132,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 		auto itNull = live.param_backup.map.find({owner, std::nullopt});
 
-		// If a no-Clip backup already exists for this ModControllable, replace its contents with this one's
+		// If a no-Clip backup already exists for this owner, replace its contents with this one's
 		if (itNull != live.param_backup.map.end()) {
 			itNull->second.destructAndForgetParamCollections();
 			itNull->second.stealParamCollectionsFrom(&it->second);

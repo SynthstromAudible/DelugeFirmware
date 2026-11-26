@@ -5075,7 +5075,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 					}
 				}
 				else if (getRootUI() != &keyboardScreen) {
-					// Some other top-level view currently, don't overwrite the active ModControllable but do
+					// Some other top-level view currently, don't overwrite the knobs' owner but do
 					// request rendering
 					renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 				}

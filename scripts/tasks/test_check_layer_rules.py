@@ -80,44 +80,35 @@ class ScenesRows(unittest.TestCase):
         self.assertEqual(found, {})
 
 
-class ModControllableBridgeOnly(unittest.TestCase):
+class NoModControllable(unittest.TestCase):
     counts = ScenesRows.counts
 
-    def test_an_instrument_event_on_the_bridge_class_is_counted(self):
-        counts = self.counts(
-            "src/deluge/model/mod_controllable/mod_controllable.h",
-            "class ModControllable {\n"
-            "  virtual bool allowNoteTails(void* s) { return true; }\n"
-            "  virtual void monophonicExpressionEvent(int v, int d) {}\n"
-            "};\n",
-        )
-        self.assertEqual(counts.get("mod-controllable-bridge-only"), 2)
-
-    def test_the_bridge_alone_is_not(self):
-        counts = self.counts(
-            "src/deluge/model/mod_controllable/mod_controllable.h",
-            "class ModControllable {\n  virtual std::optional<EffectsOwner> effectsOwner();\n};\n",
-        )
-        self.assertNotIn("mod-controllable-bridge-only", counts)
-
-    def test_the_instruments_declaring_the_events_are_not(self):
-        counts = self.counts(
-            "src/deluge/model/instrument/melodic_instrument.h",
-            "virtual void monophonicExpressionEvent(int v, int d) = 0;\n",
-        )
-        self.assertNotIn("mod-controllable-bridge-only", counts)
-
-    def test_the_old_comparison_name_is_counted_anywhere(self):
+    def test_the_untyped_owner_class_is_counted_anywhere(self):
         for rel in (
-            "src/deluge/model/planted.cpp",
+            "src/deluge/model/planted.h",
             "tests/integration/ui/scenes/planted_spec.cpp",
             "tests/integration/scenarios/planted.cpp",
         ):
             with self.subTest(rel=rel):
                 counts = self.counts(
-                    rel, "bool b = o->valueChangedEnoughToMatter(1, 2, k, 3);\n"
+                    rel, "class Kit : public Instrument, public ModControllable {};\n"
                 )
-                self.assertEqual(counts.get("mod-controllable-bridge-only"), 1)
+                self.assertEqual(counts.get("no-mod-controllable"), 1)
+
+    def test_its_conversion_and_retired_comparison_are_counted(self):
+        counts = self.counts(
+            "src/deluge/model/planted.cpp",
+            "auto* o = output->toModControllable();\nbool b = o->valueChangedEnoughToMatter(1, 2, k, 3);\n",
+        )
+        self.assertEqual(counts.get("no-mod-controllable"), 2)
+
+    def test_names_that_only_contain_it_are_not(self):
+        counts = self.counts(
+            "src/deluge/model/planted.cpp",
+            "ModelStackWithModControllable* s = m->addModControllable(owner);\n"
+            "view.setActiveModControllableTimelineCounter(clip);\n",
+        )
+        self.assertNotIn("no-mod-controllable", counts)
 
 
 class LegacyEffectsOwnerRows(unittest.TestCase):

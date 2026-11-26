@@ -933,7 +933,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		KnobRig rig;
 		rig.set_song(f.song);
 		rig.set_target_with_timeline(f.clip, false);
-		// Recorded from `ModControllable::getModKnobMode` on a CV output, which has no mode field: -1.
+		// Recorded from main's `ModControllable::getModKnobMode` on a CV output, which has no mode field: -1.
 		expect(rig.knobs.mode()).to_equal(-1);
 		DirectCtx c{1000};
 		const Result r = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
@@ -1630,7 +1630,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const std::vector<int32_t> before = param_snapshot(clip->paramManager);
 
 		// A `Sound` in mod-knob mode 0 has a real param on both knobs, so the way to reach the
-		// non-existent arm without inventing a `ModControllable` is the target with no controllable
+		// non-existent arm without inventing an owner is the target with no owner
 		// at all. Recorded from `View::modEncoderAction`: it skips the whole body there and writes nothing.
 		KnobRig rig;
 		rig.set_song(f.song);

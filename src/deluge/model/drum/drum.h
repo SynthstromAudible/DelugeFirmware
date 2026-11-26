@@ -30,7 +30,6 @@
 
 class Clip;
 class Kit;
-class ModControllable;
 class ModelStackWithSoundFlags;
 class ModelStackWithThreeMainThings;
 class ModelStackWithTimelineCounter;

@@ -1036,11 +1036,11 @@ doNormal:
 			}
 
 			song->live.param_backup.backUp(*output, nullptr, &newParamManager);
-			// Obscure bug fixed, Oct 2022. Previously, we filed it away under not just the ModControllable, but also
+			// Obscure bug fixed, Oct 2022. Previously, we filed it away under not just the AudioOutput, but also
 			// this Clip. Perhaps that's still theoretically what we'd like to do? But, it caused an E170 because when
 			// we do a song swap and call Song::deleteSoundsWhichWontSound(), that calls
 			// deleteAllBackedUpParamManagersWithClips(), which would then delete this ParamManager here, because we
-			// gave it a Clip. But it's actually still needed by the associated ModControllable / AudioOutput.
+			// gave it a Clip. But it's actually still needed by the associated AudioOutput.
 		}
 	}
 

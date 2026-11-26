@@ -41,7 +41,6 @@ struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
 class TimelineCounter;
-class ModControllable;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 class ModelStackWithAutoParam;

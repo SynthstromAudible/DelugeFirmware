@@ -18,13 +18,12 @@
 #pragma once
 
 #include "model/instrument/melodic_instrument.h"
-#include "model/mod_controllable/mod_controllable.h"
 #include "storage/flash_storage.h"
 
 class ModelStack;
 class ModelStackWithSoundFlags;
 
-class NonAudioInstrument : public MelodicInstrument, public ModControllable {
+class NonAudioInstrument : public MelodicInstrument {
 public:
 	NonAudioInstrument(OutputType newType) : MelodicInstrument(newType) {
 		cachedBendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];

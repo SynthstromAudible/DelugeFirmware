@@ -412,7 +412,7 @@ RULES = [
     (
         # Code names none of ModControllableAudio and the GlobalEffectable classes: an owner's effects are an
         # EffectsOwner value (model/fx/effects_owner.h), found by address or, from a ModelStack, through
-        # ModControllable::effectsOwner(). One row per tree: the checker matches one glob per row.
+        # model::effects_owner_of on its typed owner. One row per tree: the checker matches one glob per row.
         "no-legacy-effects-owners",
         "src/**",
         "symbol",
@@ -427,28 +427,20 @@ RULES = [
         "2026-11-13-controls-layer-design.md",
     ),
     (
-        # ModControllable is the ModelStack owner slot's bridge to an owner's effects and nothing else: instruments
-        # answer their own note tails, expression events and CC output. The class goes with the slot (ModelStack
-        # stage 1). One row per tree for the retired comparison's name: the checker matches one glob per row.
-        "mod-controllable-bridge-only",
-        "src/deluge/model/mod_controllable/mod_controllable.h",
-        "symbol",
-        r"\b(allowNoteTails|polyphonicExpressionEventOnChannelOrNote|monophonicExpressionEvent)\b",
-        "2026-11-18-instrument-events-design.md",
-    ),
-    (
-        "mod-controllable-bridge-only",
+        # An owner's params are named by its typed owner (model::LaneOwner): there is no untyped owner class, nor
+        # its retired comparison. One row per tree: the checker matches one glob per row.
+        "no-mod-controllable",
         "src/**",
         "symbol",
-        r"\bvalueChangedEnoughToMatter\b",
-        "2026-11-18-instrument-events-design.md",
+        r"\b(ModControllable|toModControllable|valueChangedEnoughToMatter)\b",
+        "2026-11-25-modelstack-stage1-design.md",
     ),
     (
-        "mod-controllable-bridge-only",
+        "no-mod-controllable",
         "tests/**",
         "symbol",
-        r"\bvalueChangedEnoughToMatter\b",
-        "2026-11-18-instrument-events-design.md",
+        r"\b(ModControllable|toModControllable|valueChangedEnoughToMatter)\b",
+        "2026-11-25-modelstack-stage1-design.md",
     ),
     (
         # The host chain's param table and pages are the deluge_host_chains library (host/chains), named for
@@ -861,7 +853,7 @@ def count_file(path: Path) -> dict[str, int]:
 
 
 # The trees the rules are counted over: the firmware, and the specs and tests that drive it (only
-# `no-legacy-effects-owners` and `mod-controllable-bridge-only` have rows outside `src/`).
+# `no-legacy-effects-owners` and `no-mod-controllable` have rows outside `src/`).
 SCAN_ROOTS = ("src", "tests")
 
 

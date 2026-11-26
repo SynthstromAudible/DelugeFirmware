@@ -24,7 +24,6 @@
 #include "modulation/params/param_manager.h"
 
 class Song;
-class ModControllable;
 class TimelineCounter;
 class ParamManagerForTimeline;
 class ParamCollection;

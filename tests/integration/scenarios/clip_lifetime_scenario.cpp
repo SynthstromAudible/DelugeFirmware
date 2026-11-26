@@ -345,7 +345,7 @@ InstrumentClip* makeSynthClip() {
 	return static_cast<InstrumentClip*>(clip);
 }
 
-/// Make @p clip the one the UI is on: the song's current clip, and the view's active ModControllable.
+/// Make @p clip the one the UI is on: the song's current clip, and the owner of the view's knobs.
 void selectClip(Clip* clip) {
 	currentSong->setCurrentClip(clip);
 	view.setActiveModControllableTimelineCounter(clip);

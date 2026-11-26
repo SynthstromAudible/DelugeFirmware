@@ -23,18 +23,17 @@
 #include "model/fx/effects_binding.h"
 #include "model/fx/effects_owner.h"
 #include "model/fx/knob_carrier.h"
-#include "model/mod_controllable/mod_controllable.h"
 
 namespace deluge::model {
 
 /// @brief The song's master channel: its chain around the reverb, the chain's settings and the render's copy of them,
 /// and which values its knobs edit. The engine renders it around the reverb. It is the song's ModelStack owner slot.
-class MasterChannel : public ModControllable {
+class MasterChannel {
 public:
 	/// @brief A chain with the app's allocators, its settings at their defaults and projected.
 	MasterChannel();
 	/// @brief Ends the song's stutter if this chain plays it, then gives the delay's tapes back to the arena.
-	~MasterChannel() override;
+	~MasterChannel();
 	MasterChannel(const MasterChannel&) = delete;
 	MasterChannel& operator=(const MasterChannel&) = delete;
 
@@ -58,7 +57,7 @@ public:
 	[[nodiscard]] EffectsOwner asEffectsOwner() {
 		return EffectsOwner{.core = &core(), .binding = &binding_, .view = &view_, .knobs = &knobs_};
 	}
-	[[nodiscard]] std::optional<EffectsOwner> effectsOwner() override { return asEffectsOwner(); }
+	[[nodiscard]] std::optional<EffectsOwner> effectsOwner() { return asEffectsOwner(); }
 	/// @return The chain's remembered param conversions. Render tier only.
 	[[nodiscard]] ChainConversions& conversions() { return conversions_; }
 

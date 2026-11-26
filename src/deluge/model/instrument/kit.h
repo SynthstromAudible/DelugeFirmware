@@ -22,7 +22,6 @@
 #include "model/fx/track_channel.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/rendering_drums.h"
-#include "model/mod_controllable/mod_controllable.h"
 #include "modulation/arpeggiator.h"
 #include "util/containers.h"
 #include "util/functions.h"
@@ -35,16 +34,14 @@ class GateDrum;
 class ModelStack;
 class ModelStackWithNoteRow;
 enum class MIDIMatchType;
-class Kit final : public Instrument, public ModControllable {
+class Kit final : public Instrument {
 public:
 	Kit();
 	/// @brief The track's channel strip: its chain, the chain's settings and its view.
 	/// @return The channel.
 	[[nodiscard]] deluge::model::TrackChannel& channel() { return channel_; }
 	[[nodiscard]] const deluge::model::TrackChannel& channel() const { return channel_; }
-	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
-		return channel_.asEffectsOwner();
-	}
+	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() { return channel_.asEffectsOwner(); }
 
 	ArpeggiatorForKit arpeggiator;
 	ArpeggiatorSettings defaultArpSettings;

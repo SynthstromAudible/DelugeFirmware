@@ -33,7 +33,6 @@
 class InstrumentClip;
 class NoteRow;
 class UI;
-class ModControllable;
 class ParamManagerForTimeline;
 class RootUI;
 class ParamManagerForTimeline;

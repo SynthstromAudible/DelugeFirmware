@@ -26,7 +26,6 @@
 #include "model/fx/knob_carrier.h"
 #include "model/fx/reverb_candidate.h"
 #include "model/fx/stutter_gesture.h"
-#include "model/mod_controllable/mod_controllable.h"
 #include "model/sample/sample_recorder.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
@@ -241,7 +240,7 @@ struct SoundVoiceHost {
 	}
 };
 
-class Sound : public ModControllable, public virtual Voiced {
+class Sound : public virtual Voiced {
 public:
 	Sound();
 	~Sound() override {
@@ -276,7 +275,7 @@ public:
 	void bindEffects(deluge::effects::EffectStates* record) { deluge::model::bindEffects(*effectsOwner(), record); }
 	/// @brief Copy the settings into the render's copy, with the render excluded (model::projectEffects).
 	void projectEffects() { deluge::model::projectEffects(*effectsOwner()); }
-	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
+	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() {
 		return deluge::model::EffectsOwner{
 		    .core = &fxSection_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};
 	}
