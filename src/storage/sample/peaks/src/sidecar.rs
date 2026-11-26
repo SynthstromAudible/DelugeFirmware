@@ -108,6 +108,7 @@ fn u64_at(buf: &[u8], at: usize) -> u64 {
 }
 
 /// The `PEAK` section's length for `index`.
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 fn peak_len(index: &PeakIndex) -> Option<usize> {
     usize::try_from(index.level1_entries())
         .ok()?
@@ -117,6 +118,7 @@ fn peak_len(index: &PeakIndex) -> Option<usize> {
 
 /// The sidecar's length for `index` and `extras`, or `None` if it would not fit.
 #[must_use]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub fn len(index: &PeakIndex, extras: &[Section<'_>]) -> Option<usize> {
     if extras.len() + 1 > MAX_SECTIONS {
         return None;

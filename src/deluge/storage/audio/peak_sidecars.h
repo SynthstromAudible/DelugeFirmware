@@ -40,7 +40,10 @@ namespace deluge::storage {
 ///
 /// A sample's sidecar is looked up when its index is made (wantLoad); the next tick reads it, checks it against the
 /// sample's key and restores it into the index. A sidecar that fails a check is deleted, so a correct one replaces
-/// it. Every operation is collected on a later tick, never waited for.
+/// it. At most once a second, the loaded samples are searched for one whose sidecar is due (shouldWriteSidecar):
+/// it is written as `.TMP`, the old `.PK` removed, and the `.TMP` renamed over it, so a crash leaves the old sidecar
+/// or none, never a torn one. Every operation starts only when the card may be used and is collected on a later tick,
+/// never waited for.
 class PeakSidecars {
 public:
 	/// @brief Room past the peak section that a read allows for the other sections this firmware writes.
@@ -48,6 +51,8 @@ public:
 
 	/// @brief Look up @p sample's sidecar on a later tick. Thread mode.
 	void wantLoad(const Sample& sample);
+	/// @brief Consider @p sample for a write before the others on the next search: a finished take. Thread mode.
+	void wantWrite(const Sample& sample);
 	/// @brief One step: collect the operation in flight, or start the next. Thread mode, idle job.
 	/// @param files     The loaded audio files, searched by serial.
 	/// @param cardReady Whether a new card operation may start: the card is present and not busy, and the audio
@@ -57,7 +62,7 @@ public:
 	[[nodiscard]] bool busy() const;
 
 private:
-	enum class Op : uint8_t { None, Read, Unlink };
+	enum class Op : uint8_t { None, Read, Unlink, WriteTmp, ReplaceUnlink, Rename };
 
 	/// @brief A small ring of values, oldest first; a full ring drops its oldest.
 	template <typename T, size_t N>
@@ -73,10 +78,23 @@ private:
 	void collectRead(AudioFileVector& files);
 	void startUnlink();
 	void collectUnlink();
+	/// @brief Find a sample whose sidecar is due and start writing it.
+	void startWrite(AudioFileVector& files);
+	/// @brief Start the step @p step of the write in progress.
+	void startWriteStep(Op step);
+	void collectWriteStep(AudioFileVector& files);
+	/// @brief End the write in progress: record its outcome on its sample.
+	void finishWrite(AudioFileVector& files, bool ok);
 	/// @brief Let go of the read buffer, now or once the channel no longer holds it.
 	void releaseBuffer();
 
 	Ring<uint64_t, 16> loads_;
+	Ring<uint64_t, 8> writeHints_;
+	Op next_{Op::None};              ///< the write's next step, started when the card may be used
+	std::array<char, 32> tmpPath_{}; ///< the write's `.TMP`
+	std::array<char, 32> pkPath_{};  ///< the write's `.PK`
+	uint32_t writtenComplete_{0};    ///< complete level-1 entries in the sidecar being written
+	double lastSearch_{-1};          ///< when the loaded samples were last searched for a due write, in seconds
 	Ring<uint32_t, 8> unlinks_;
 	Op op_{Op::None};
 	uint64_t opSerial_{0};

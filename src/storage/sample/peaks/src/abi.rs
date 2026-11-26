@@ -644,6 +644,7 @@ pub unsafe extern "C" fn deluge_peaks_sidecar_section(
 
 /// `deluge_peaks_complete_level1`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_complete_level1(index_ptr: *const DelugePeakIndex) -> u32 {
     index(index_ptr).map_or(0, |i| {
         u32::try_from(i.complete_level1()).unwrap_or(u32::MAX)
@@ -652,6 +653,7 @@ pub extern "C" fn deluge_peaks_complete_level1(index_ptr: *const DelugePeakIndex
 
 /// `deluge_peaks_level1_entries`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_level1_entries(index_ptr: *const DelugePeakIndex) -> u32 {
     index(index_ptr).map_or(0, |i| u32::try_from(i.level1_entries()).unwrap_or(u32::MAX))
 }

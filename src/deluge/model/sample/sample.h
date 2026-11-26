@@ -127,6 +127,13 @@ public:
 	/// @brief The file's identity on its card: what keys its sidecar. Nothing until a load finishes with its stream
 	///        open.
 	[[nodiscard]] std::optional<DelugeFileIdentity> fileIdentity() const { return identity_; }
+	/// @brief Take the file's identity from the stream if it is not known yet: a finished take, once its stream is
+	///        open. No card access.
+	void refreshIdentity() {
+		if (!identity_) {
+			identity_ = stream_.identity();
+		}
+	}
 
 	/// @brief Make this sample a new, empty peak index, dropping any it had, and bind it to the stream asset if there
 	///        is one. Thread mode.
