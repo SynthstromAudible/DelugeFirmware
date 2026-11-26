@@ -211,6 +211,8 @@ void updateReverbParams();
 extern bool headphonesPluggedIn;
 extern bool micPluggedIn;
 extern bool lineInPluggedIn;
+/// The internal speaker is on: nothing in the headphone or line-out jacks (set in inputRoutine(), every 100 ms)
+extern bool speakerOn;
 extern bool renderInStereo;
 extern uint32_t audioSampleTimer;
 // Latches true once enough samples have elapsed since power-on for the codec ADC to settle and input monitoring to

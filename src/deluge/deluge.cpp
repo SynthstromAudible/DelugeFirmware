@@ -139,8 +139,8 @@ void inputRoutine() {
 		renderUIsForOled();
 	}
 
-	bool speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInR && !outputPluggedInL);
-	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, speakerOn);
+	AudioEngine::speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInR && !outputPluggedInL);
+	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, AudioEngine::speakerOn);
 
 	AudioEngine::renderInStereo =
 	    (AudioEngine::headphonesPluggedIn || outputPluggedInR || AudioEngine::isAnyInternalRecordingHappening());
