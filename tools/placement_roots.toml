@@ -76,13 +76,6 @@ rule = "vtable"
 function = '^deluge::storage::AsyncSampleLoad$'
 reason = "only its destructor is in SDRAM; the load object is released off the audio tier"
 
-# The modern shell's services, whose vtables stay in SRAM while their methods' copies are the GUI's. The UI's own
-# placement (scripts/layers.toml [[placement]] src/ui) moves these vtables to SDRAM.
-[[known]]
-rule = "vtable"
-function = '^deluge::ui::shell::(Notices|NullService|Screensaver|SurfaceSet)$'
-reason = "UI-tier services; their vtables move to SDRAM with the UI's placement"
-
 # Edit records whose destructors are folded onto the GUI's identical copy; edits run on the interaction tier.
 [[known]]
 rule = "vtable"
