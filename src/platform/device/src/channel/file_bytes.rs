@@ -882,6 +882,20 @@ pub extern "C" fn deluge_file_bytes_set_write_from_latency_ms(ms: u32) {
     WRITE_FROM_LATENCY_MS.store(ms, Ordering::Relaxed);
 }
 
+/// The status every [`ByteOp::WriteFrom`], [`ByteOp::Unlink`] and [`ByteOp::Rename`] fails with instead of touching
+/// the card; `DELUGE_OK` (0), the default, means none fails.
+#[cfg(feature = "host_app")]
+static WRITE_FAULT: core::sync::atomic::AtomicI8 = core::sync::atomic::AtomicI8::new(0);
+
+/// Host harness only: makes every write-from, unlink and rename fail with `status` instead of touching the card, as a
+/// full or write-protected card would; `DELUGE_OK` clears it.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_bytes_set_write_fault(status: crate::sys::DelugeStatus) {
+    // A status out of `i8`'s range is no `DelugeStatus`; it fails the operations as an I/O error.
+    WRITE_FAULT.store(i8::try_from(status).unwrap_or(-5), Ordering::Relaxed);
+}
+
 // ── The request entry points ────────────────────────────────────────────────
 
 /// Requests a whole-file read of `path` (up to [`MAX_BYTES`]).
@@ -2215,7 +2229,25 @@ async fn file_bytes_task_body() {
                     embassy_time::Timer::after_millis(u64::from(ms)).await;
                 }
             }
-            let outcome = bytes_io_once(&ops, &request, work).await;
+            #[cfg(feature = "host_app")]
+            let fault = match WRITE_FAULT.load(Ordering::Relaxed) {
+                0 => None,
+                status
+                    if matches!(
+                        request.key().0,
+                        ByteOp::WriteFrom | ByteOp::Unlink | ByteOp::Rename
+                    ) =>
+                {
+                    Some(ByteOutcome::Failed(status))
+                }
+                _ => None,
+            };
+            #[cfg(not(feature = "host_app"))]
+            let fault: Option<ByteOutcome> = None;
+            let outcome = match fault {
+                Some(failed) => failed,
+                None => bytes_io_once(&ops, &request, work).await,
+            };
             // The operation has finished with the caller's buffer, if it had one.
             RUNNING_BUFFER.store(0, Ordering::Release);
             // Publish before clearing IN_FLIGHT: briefly in both is harmless, in neither would read
@@ -2341,5 +2373,6 @@ abi_pin!(
 abi_pin!(
     deluge_file_bytes_set_latency_ms,
     deluge_file_bytes_set_chunk_latency_ms,
-    deluge_file_bytes_set_write_from_latency_ms
+    deluge_file_bytes_set_write_from_latency_ms,
+    deluge_file_bytes_set_write_fault
 );

@@ -1,0 +1,13 @@
+# The peak-sidecars scenario's card: one file per behaviour, each a sum of slow, middling and fast partials so every
+# level-1 entry of its peak index holds its own peak and the pitch detection finds the 997 Hz partial.
+dir SONGS
+# Written once complete, restored on reload with its pitch, then rewritten on a computer (the scenario appends bytes).
+partials SAMPLES/SCLONG.WAV frames=200000 3:0.5,41:0.3,997:0.2
+# Its sidecar's writes fail as a full card's would.
+partials SAMPLES/SCFULL.WAV frames=100000 5:0.5,43:0.3,997:0.2
+# Its sidecar's writes fail as a write-protected card's would.
+partials SAMPLES/SCPROT.WAV frames=100000 7:0.5,47:0.3,997:0.2
+# A stray .TMP of its key sits on the card before its sidecar is written.
+partials SAMPLES/SCTMP.WAV frames=100000 11:0.5,53:0.3,997:0.2
+# Folded by hand, a part at a time, to drive the partial-write rule.
+partials SAMPLES/SCPART.WAV frames=400000 13:0.5,59:0.3,997:0.2

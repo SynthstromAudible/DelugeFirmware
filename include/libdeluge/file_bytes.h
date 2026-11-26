@@ -560,6 +560,14 @@ void deluge_file_bytes_set_chunk_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 /// only by the Rust BSP's `host_app` build; never in a device image.
 /// @param ms Milliseconds of simulated delay per document write.
 void deluge_file_bytes_set_write_from_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+
+/// @brief Host harness only: make every write-from, unlink and rename fail with @p status instead of touching the
+/// card, as a full (`DELUGE_ERR_NO_SPACE`) or write-protected (`DELUGE_ERR_WRITE_PROTECTED`) card would;
+/// `DELUGE_OK` clears it. [task]
+///
+/// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
+/// @param status The status they fail with.
+void deluge_file_bytes_set_write_fault(DelugeStatus status) DELUGE_NOEXCEPT;
 #endif
 
 #ifdef __cplusplus

@@ -60,6 +60,7 @@ builds only `golden-vt-render`.
 | clip-lifetime | integration | scenario | property | gate | Which clip deletions free a clip the render still points at | nightly | app | ~1m |
 | container-guard | integration | scenario | property | gate | Which structural edits to the containers the audio render walks are made while the render could preempt them | nightly | app | ~1m |
 | playhead-moves | integration | scenario | property | gate | The interaction tier moves the playhead only with the render excluded | pr | app | ~30s |
+| peak-sidecars | integration | scenario | property | gate | a sample's sidecar through the card: written, restored, refused, skipped and partial | pr | app | ~30s |
 | card-reinsert | integration | scenario | property | gate | what a card swap does to the samples still in memory | nightly | app | ~6s |
 | audio-tick-hold | integration | scenario | regression | gate | the audio tick's hold and re-entry guard, on the booted app | pr | app | ~2s |
 | stem-export | integration | scenario | property | gate | an offline stem export must render byte-identical audio and write it | nightly | render | ~12s |
