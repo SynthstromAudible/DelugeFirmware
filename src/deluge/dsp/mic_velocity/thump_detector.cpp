@@ -40,6 +40,10 @@ constexpr int32_t kSustainedBlocks = 10;
 constexpr float kEndFraction = 0.25f;
 constexpr Frame kMaxThumpFrames = kInputRate * 60 / 1000;
 
+// A thump that has settled is replaced by anything this much louder (6 dB): a small sound just before a pad's thump
+// (a finger brushing it) mustn't take the thump's place
+constexpr float kSupersede = 2.f;
+
 // The hold-off after a thump decays with this time constant
 constexpr float kHoldOffSeconds = 0.015f;
 
@@ -137,6 +141,11 @@ void ThumpDetector::process(float sample, Frame frame) {
 
 	static float const holdOffDecay = std::exp(-1.f / (kHoldOffSeconds * kRate));
 	holdOff_ *= holdOffDecay;
+
+	if (inThump_ && thumps_[newest_].settled && y > thumps_[newest_].level * kSupersede) {
+		inThump_ = false; // Start a new one, below
+		holdOff_ = 0;
+	}
 
 	if (inThump_) {
 		Thump& thump = thumps_[newest_];

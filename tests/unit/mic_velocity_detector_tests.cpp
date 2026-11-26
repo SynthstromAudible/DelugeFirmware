@@ -209,6 +209,31 @@ TEST(MicVelocityDetector, aBurstsOwnRingingStartsNoSecondThump) {
 	LONGS_EQUAL(1, c.countIn(0, c.frame));
 }
 
+TEST(MicVelocityDetector, aSmallSoundJustBeforeAThumpDoesntTakeItsPlace) {
+	Chain c;
+	Noise noise;
+	Frame const thumpAt = kInputRate / 2 + ms(7);
+	for (int32_t i = 0; i < kInputRate; i++) {
+		float x = 0.0003f * noise.next();
+		int32_t const n = i - kInputRate / 2;
+		if (n >= 0) {
+			// A faint burst (a finger brushing the pad), then the pad's thump 7 ms on, 26 dB louder
+			x += 0.0025f * burst(n) + (static_cast<Frame>(i) >= thumpAt ? 0.05f * burst(i - thumpAt) : 0.f);
+		}
+		c.push(toQ31(x));
+	}
+	Thump const* t = c.loudest(0, c.frame);
+	CHECK(t != nullptr);
+	CHECK(t->onset >= thumpAt && t->onset < thumpAt + ms(2));
+	Chain alone;
+	Noise noise2;
+	for (int32_t i = 0; i < kInputRate; i++) {
+		alone.push(
+		    toQ31(0.0003f * noise2.next() + (static_cast<Frame>(i) >= thumpAt ? 0.05f * burst(i - thumpAt) : 0.f)));
+	}
+	DOUBLES_EQUAL(dB(alone.loudest(0, alone.frame)->level), dB(t->level), 1.0);
+}
+
 TEST(MicVelocityDetector, risingUntilSettled) {
 	Chain c;
 	Noise noise;
