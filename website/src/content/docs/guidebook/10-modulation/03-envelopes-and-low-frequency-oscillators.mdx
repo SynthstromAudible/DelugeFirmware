@@ -51,6 +51,19 @@ The LFO is a continuous modulation function. Wave options are Sine, Saw, Square 
   See [More envelopes](/features/community_features#458---more-envelopes).
 </Unwritten>
 
+## Envelope modes and curve <Badge text="C1.4" variant="tip" />
+
+Each of the four envelopes has a MODE and a CURVE setting, found in the envelope's menu after attack, decay, sustain and release (on OLED, on the second page). The other settings, their gold knobs and the envelope graph are renamed to match the mode.
+
+- **ADSR**: the classic attack, decay, sustain and release envelope. This is the default.
+- **AHD**: attack, hold at full level, then decay to zero. It always plays through once and ignores the note being released, which suits drums and plucks. DECAY becomes HOLD and RELEASE becomes DECAY, so the release gold knob still sets how long the sound lasts.
+- **AR**: while the note is held, the envelope rises to its LEVEL (in place of sustain) at the attack rate. When the note is released it falls to zero at the release rate. With LEVEL at full it's a simple attack/release envelope. If LEVEL is automated or modulated, the envelope glides to each new value instead of jumping, rising at the attack rate and falling at the release rate.
+- **MPE**: like AR, but the envelope also follows an expression input, chosen with FOLLOW: PRESSURE (Z), which is MPE pressure or aftertouch, or MOD WHEEL (Y), which is the mod wheel or MPE Y. With no expression it rests at LEVEL, and with full expression it rises all the way.
+
+CURVE (-50 to 50) shapes the attack, decay and release. At 0 each stage is a straight line. Positive values move fastest at the start of each stage, like an analog envelope, and negative values start slowly and speed up. The default of 32 is the shape Deluge envelopes have always had.
+
+In a kit, hold :key[AffectEntire] while changing MODE, CURVE or FOLLOW to change it for every sound row.
+
 ## LFOs 3 and 4 <Badge text="C1.3" variant="tip" />
 
 {/* TODO(kate): community_features: 4.5.9; CHANGELOG.mdx: L89, L111, L113, L114, L186 */}
