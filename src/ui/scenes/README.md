@@ -666,7 +666,8 @@ pads. They share one read and one paint, and none of them holds the sample.
   peak of every frame it covers and the range is everything the index has scanned. A column over a block not scanned
   yet answers PENDING and asks for that block; a scene whose read left one pending asks again
   through `services::PeakRetry`, every `kPeakRetryPollMs` (10). The marker editor, the slicer and the browser preview
-  give up after `kPeakRetryGiveUpMs` (300) with none newly answered; the audio clip view asks until none is pending,
+  give up after `kPeakRetryGiveUpMs` (300) with none newly answered and their pending columns' index no fuller
+  (`PeakRead::progress`); the audio clip view asks until none is pending,
   as `main`'s does. A read at another window starts the count over.
 
 ## The services (`services/`)

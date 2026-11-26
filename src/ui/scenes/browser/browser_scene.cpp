@@ -1546,7 +1546,7 @@ void BrowserScene::render_waveform(deluge::ui::widgets::grid::GridFrame& f) {
 		return;
 	}
 	// A render the card has not caught up with yet is drawn again as its clusters land, until it is whole or
-	// `services::kPeakRetryGiveUpMs` pass with no column newly answered.
+	// `services::kPeakRetryGiveUpMs` pass with no column newly answered and the pending columns' index no fuller.
 	// A frame at a new view (a scroll or a zoom) is a draw of that view, not a redraw of the last.
 	const bool was_retrying = retry_.retrying(view_.window());
 	if (!first && was_retrying) {
