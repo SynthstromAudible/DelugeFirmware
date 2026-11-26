@@ -25,41 +25,27 @@
 /// through a stale one. Its owner is typed, so code that needs the sound or the MIDI instrument behind a lane reaches
 /// it without a cast from the engine stack's owner slot.
 
+#include "model/lane_owner.h"
 #include "project/param_address.h"
 
 #include <cstdint>
 #include <optional>
-#include <variant>
 
-class AudioOutput;
 class AutoParam;
-class Drum;
-class Kit;
-
 class ModControllable;
 class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
-class NonAudioDrum;
-class NonAudioInstrument;
 class NoteRow;
-class Output;
 class ParamCollection;
 class ParamCollectionSummary;
 class ParamManager;
 class Song;
-class Sound;
 class TimelineCounter;
-
-namespace deluge::model {
-class MasterChannel;
-}
 
 namespace deluge::bridge {
 
-/// @brief The object a lane's params belong to: a synth or a sound drum (its Sound), a kit's own effects, an audio
-/// track, a MIDI or CV track, a MIDI or gate drum, or the song's master channel. Empty for none.
-using LaneOwner = std::variant<std::monostate, ::Sound*, ::Kit*, ::AudioOutput*, ::NonAudioInstrument*, ::NonAudioDrum*,
-                               model::MasterChannel*>;
+using model::LaneOwner;
+using model::owner_of;
 
 /// @brief One lane resolved for one operation. Never stored past it.
 struct LaneTarget {
@@ -79,17 +65,6 @@ struct LaneTarget {
 	int32_t param_id{0};
 	::AutoParam* auto_param{nullptr};
 };
-
-/// @brief The typed owner of @p output's params: its Sound for a synth, the kit, the audio output, the MIDI or CV
-/// instrument.
-/// @param output The output.
-/// @return The owner; empty for an output of no type.
-[[nodiscard]] LaneOwner owner_of(::Output& output);
-
-/// @brief The typed owner of @p drum's params: its Sound for a sound drum, else the MIDI or gate drum.
-/// @param drum The drum.
-/// @return The owner.
-[[nodiscard]] LaneOwner owner_of(::Drum& drum);
 
 /// @brief @p owner as the engine stack's owner slot holds it.
 /// @param owner The typed owner.

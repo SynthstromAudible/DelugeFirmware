@@ -30,30 +30,6 @@
 
 namespace deluge::bridge {
 
-LaneOwner owner_of(::Output& output) {
-	switch (output.type) {
-	case OutputType::SYNTH:
-		return static_cast<::Sound*>(static_cast<::SoundInstrument*>(&output));
-	case OutputType::KIT:
-		return static_cast<::Kit*>(&output);
-	case OutputType::AUDIO:
-		return static_cast<::AudioOutput*>(&output);
-	case OutputType::MIDI_OUT:
-	case OutputType::CV:
-		return static_cast<::NonAudioInstrument*>(&output);
-	case OutputType::NONE:
-		break;
-	}
-	return std::monostate{};
-}
-
-LaneOwner owner_of(::Drum& drum) {
-	if (drum.type == DrumType::SOUND) {
-		return static_cast<::Sound*>(static_cast<::SoundDrum*>(&drum));
-	}
-	return static_cast<::NonAudioDrum*>(&drum);
-}
-
 ::ModControllable* mod_controllable_of(const LaneOwner& owner) {
 	return std::visit(
 	    []<typename T>(T held) -> ::ModControllable* {
