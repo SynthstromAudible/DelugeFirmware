@@ -292,7 +292,7 @@ template = "scenario"
 kind = "differential"
 gates = "the async Rust audio loader must load every file the SAME way the synchronous C++ card path does, loaded in the same process as the reference"
 scenario = "audio_load_ab"
-markers = ["AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB-PREVIEW-DRAW", "AB-PREVIEW-DRAW-STALL", "AB-PREVIEW-DRAW-RELEASE", "AB-PRESCAN-RANGE", "AB-EJECT", "AB-EJECT-SUMMARY", "AB-DEFER", "AB-SUMMARY"]
+markers = ["AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB-PREVIEW-DRAW", "AB-PREVIEW-DRAW-STALL", "AB-PREVIEW-DRAW-RELEASE", "AB-READ-PROGRESS", "AB-PRESCAN-RANGE", "AB-EJECT", "AB-EJECT-SUMMARY", "AB-DEFER", "AB-SUMMARY"]
 result = "AB-RESULT failures=0"
 check = "tests/integration/checks/audio_load_ab.py"
 tier = "pr"

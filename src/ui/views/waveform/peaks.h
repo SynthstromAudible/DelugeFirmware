@@ -176,6 +176,11 @@ public:
 		}
 		return n;
 	}
+	/// @brief How many frames of the pending columns' spans their index has folded: it grows as the index fills, so a
+	///        view waiting on a column many clusters wide sees its read progress before the column is answered.
+	[[nodiscard]] constexpr uint64_t progress() const { return progress_; }
+	/// @brief Count @p frames more of the pending columns' spans folded.
+	constexpr void add_progress(uint64_t frames) { progress_ += frames; }
 	/// @brief A column's bar.
 	/// @param column The column, 0 to kColumns - 1.
 	/// @param centre The waveform's centre value (bar_of).
@@ -189,6 +194,7 @@ public:
 
 private:
 	std::array<ColumnRead, kColumns> columns_{};
+	uint64_t progress_{0};
 };
 
 } // namespace deluge::ui::views::waveform

@@ -170,7 +170,15 @@ PLACE_SDRAM_TEXT ui::views::waveform::PeakRead waveform_columns(Sample& sample, 
 			deluge_peaks_ensure_level0(peaks, static_cast<uint64_t>(std::max<int64_t>(hi - 4096, 0)),
 			                           static_cast<uint64_t>(hi + 4096));
 		}
-		read.set(col, column_of(sample, peaks, static_cast<uint64_t>(lo), static_cast<uint64_t>(hi)));
+		const auto first = static_cast<uint64_t>(lo);
+		const auto end = static_cast<uint64_t>(hi);
+		const ColumnRead column = column_of(sample, peaks, first, end);
+		read.set(col, column);
+		if (column.state() == ui::views::waveform::ColumnState::PENDING) {
+			// The frames before its first unscanned block are folded: the view's measure of a column filling.
+			const uint64_t unscanned = std::clamp(deluge_peaks_next_unscanned(peaks, first), first, end);
+			read.add_progress(unscanned - first);
+		}
 	}
 	return read;
 }

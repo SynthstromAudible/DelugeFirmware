@@ -902,6 +902,28 @@ int32_t g_prescanTicks = 0;
 constexpr int32_t kMaxPrescanTicks = 8000;
 Wait g_prescanWait{g_report, "the peak scan finishing", kMaxPrescanTicks};
 
+/// The varied sample the column check reads: loaded on the card step before the preview stage, and kept.
+Sample* g_peaksSample = nullptr;
+
+/// AB-READ-PROGRESS: a whole-file read of the varied sample's emptied index (its columns many blocks wide) on each
+/// tick of the stage, before that tick's scan. The first finds nothing folded; as the fills land and the tap and the
+/// scan fold them, a later read whose columns are still pending reports more folded frames: the progress a waiting
+/// view counts before a column is answered.
+struct ReadProgress {
+	uint64_t first = 0;
+	uint64_t most_pending = 0; ///< the most folded frames a read reported with a column still pending
+	bool first_pending = false;
+};
+ReadProgress g_readProgress;
+
+/// The varied sample read whole: its folded frames, and whether a column is pending.
+std::pair<uint64_t, bool> readWhole(Sample& sample) {
+	const deluge::ui::views::waveform::Window whole{
+	    .scroll = 0, .zoom = std::max<int64_t>(static_cast<int64_t>(sample.lengthInSamples) / 16, 1)};
+	const deluge::ui::views::waveform::PeakRead read = deluge::sample::waveform_columns(sample, std::nullopt, whole);
+	return {read.progress(), read.pending()};
+}
+
 /// One tick of the pre-scan stage: the background waveform scan, as the idle loop runs it.
 void runOnePrescanTick() {
 	if (g_prescanTicks == 0) {
@@ -914,6 +936,16 @@ void runOnePrescanTick() {
 		if (sample != nullptr) {
 			sample->resetPeaks();
 		}
+		if (g_peaksSample != nullptr) {
+			g_peaksSample->resetPeaks();
+			const auto [known, pending] = readWhole(*g_peaksSample);
+			g_readProgress = {.first = known, .first_pending = pending};
+		}
+	}
+	else if (g_peaksSample != nullptr) {
+		if (const auto [known, pending] = readWhole(*g_peaksSample); pending) {
+			g_readProgress.most_pending = std::max(g_readProgress.most_pending, known);
+		}
 	}
 	g_prescanTicks++;
 	audioFileManager.backgroundWaveformScan();
@@ -924,6 +956,13 @@ void finishPrescanStage() {
 	Sample* sample = g_prescanBefore.sample;
 	const bool sameSample = sample != nullptr && sample == drawnSample(kPreviewPath);
 	const bool complete = sameSample && deluge_peaks_next_unscanned(sample->peaks(), 0) == UINT64_MAX;
+	printf("AB-READ-PROGRESS first=%llu first_pending=%d most_pending=%llu\n",
+	       static_cast<unsigned long long>(g_readProgress.first), g_readProgress.first_pending ? 1 : 0,
+	       static_cast<unsigned long long>(g_readProgress.most_pending));
+	if (!g_readProgress.first_pending || g_readProgress.most_pending <= g_readProgress.first) {
+		g_report.fail("[audioLoadAB/read-progress]: a read of a filling index must report more folded frames while "
+		              "its columns are pending");
+	}
 	printf("AB-PRESCAN-RANGE done=%d ticks=%d complete=%d\n", audioFileManager.peakScanAllDone ? 1 : 0, g_prescanTicks,
 	       complete ? 1 : 0);
 	if (!sameSample || !audioFileManager.peakScanAllDone || !complete) {
@@ -958,8 +997,6 @@ DelugeMaybePeak brutePeak(Sample& sample) {
 	return all;
 }
 
-/// The varied sample the column check reads: loaded on the card step before the preview stage, and kept.
-Sample* g_peaksSample = nullptr;
 constexpr const char* kPeaksPath = "SAMPLES/PEAKS.WAV";
 
 /// Load kPeaksPath through the synchronous card path and keep it loaded, for checkColumns. Runs as the card step.
