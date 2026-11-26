@@ -92,7 +92,16 @@ void Handles::draw(int32_t x, int32_t y, bool focused) {
 	if (!focused && x == focused_x && y == focused_y) {
 		return;
 	}
-	f.clear({x - 1, y - 1, 3, 3});
+	{
+		// Pixel by pixel: `Canvas::clear_area_exact`, as main's `clearAreaExact`, clears a column's whole 8-row band
+		// when both edges of the area fall in it.
+		ClipScope scope{f.canvas, f.clip};
+		for (int32_t cx = x - 1; cx <= x + 1; cx++) {
+			for (int32_t cy = y - 1; cy <= y + 1; cy++) {
+				f.canvas.clear_pixel(f.origin.x + cx, f.origin.y + cy);
+			}
+		}
+	}
 	if (focused) {
 		focused_x = x;
 		focused_y = y;

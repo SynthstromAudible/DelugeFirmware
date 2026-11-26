@@ -116,6 +116,15 @@ describe page_drawing_w("ui::widgets::oled::page_drawing", $ {
 		expect(s.lit(10, 25)).to_be_true(); // the unfocused one at the same spot is skipped
 	});
 
+	it("clears only a handle's own interior, though it shares an 8-row band with ink outside the outline", _ {
+		uitest::Rig48 r;
+		r.frame.pixel(10, 34); // canvas row 39, the band 32..39 that the handle at local 31 (canvas 36) sits in
+		Handles h{r.frame};
+		h.draw(10, 31, false);
+		expect(r.lit(10, 34 + 5)).to_be_true();
+		expect(r.lit(10, 31 + 5)).to_be_false();
+	});
+
 	it("fills below a line every third column, every third row of the panel", _ {
 		uitest::Rig48 r;
 		fill_line(r.frame, {0, 20}, {12, 20}, 30, 0, 12);
