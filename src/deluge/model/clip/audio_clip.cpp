@@ -1573,7 +1573,7 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 	// automation only gets shifted if shiftAutomation is true
 	// MPE only gets shifted if shiftSequenceAndMPE is true
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+	    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager.summaries;

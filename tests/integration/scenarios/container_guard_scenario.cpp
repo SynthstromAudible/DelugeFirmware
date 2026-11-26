@@ -590,7 +590,8 @@ void turnParamIn(ModelStackWithThreeMainThings* ms, ParamCollectionSummary* summ
 }
 
 /// @brief turnParam on @p owner with no note row: a synth's sound or a chain, its params in @p paramManager.
-void turnParam(ModControllable& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t id, int32_t value) {
+template <typename Owner>
+void turnParam(Owner& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t id, int32_t value) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	turnParam(setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &paramManager), id,
 	          value);
@@ -598,14 +599,16 @@ void turnParam(ModControllable& owner, TimelineCounter* clip, ParamManager& para
 
 /// The delay feedback param of @p owner: a Sound's patched GLOBAL_DELAY_FEEDBACK, or a chain's unpatched
 /// UNPATCHED_DELAY_AMOUNT.
-int32_t delayFeedbackId(ModControllable& owner) {
+template <typename Owner>
+int32_t delayFeedbackId(Owner& owner) {
 	return owner.effectsOwner()->sound != nullptr
 	           ? static_cast<int32_t>(deluge::modulation::params::GLOBAL_DELAY_FEEDBACK)
 	           : static_cast<int32_t>(deluge::modulation::params::UNPATCHED_DELAY_AMOUNT);
 }
 
 /// @brief Turns @p owner's delay feedback to @p value as the gold knob does.
-void turnDelayFeedback(ModControllable& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t value) {
+template <typename Owner>
+void turnDelayFeedback(Owner& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t value) {
 	turnParam(owner, clip, paramManager, delayFeedbackId(owner), value);
 }
 
@@ -1096,7 +1099,7 @@ void editLeg() {
 		ParamCollectionSummary* summary = g_clip->paramManager.getMIDIParamCollectionSummary();
 		const auto three = [&] {
 			return setupModelStackWithThreeMainThingsButNoNoteRow(
-			    memory, currentSong, g_clip->output->toModControllable(), g_clip, &g_clip->paramManager);
+			    memory, currentSong, deluge::model::owner_of(*g_clip->output), g_clip, &g_clip->paramManager);
 		};
 		turnParamIn(three(), summary, 74, 0x20000000);
 		renderBlocks(kBlocksBefore);

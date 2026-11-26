@@ -148,7 +148,7 @@ ModelStackWithAutoParam* songStack(char* buf, ::Song& song, int32_t paramId) {
 
 // The harness audio clip's own param @p paramId, as the engine names it.
 ModelStackWithAutoParam* clipStack(char* buf, ::Song& song, int32_t paramId) {
-	return setupModelStackWithThreeMainThingsButNoNoteRow(buf, &song, g_audioClip->output->toModControllable(),
+	return setupModelStackWithThreeMainThingsButNoNoteRow(buf, &song, deluge::model::owner_of(*g_audioClip->output),
 	                                                      g_audioClip, &g_audioClip->paramManager)
 	    ->getUnpatchedAutoParamFromId(paramId);
 }

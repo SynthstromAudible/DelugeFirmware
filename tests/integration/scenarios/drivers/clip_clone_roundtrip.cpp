@@ -103,8 +103,8 @@ static int32_t sweepDoc(Song* song) {
 			if (clip->output == nullptr) {
 				continue;
 			}
-			ModControllable* mc = clip->output->toModControllable();
-			if (mc == nullptr) {
+			const deluge::model::LaneOwner mc = deluge::model::owner_of(*clip->output);
+			if (std::holds_alternative<std::monostate>(mc)) {
 				continue;
 			}
 			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
@@ -132,7 +132,7 @@ static int32_t sweepDoc(Song* song) {
 					}
 					alignas(ModelStackWithAutoParam) char dbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* dm3 = setupModelStackWithThreeMainThingsIncludingNoteRow(
-					    dbuf, song, clip, n, &nr, nr.drum->toModControllable(), &nr.paramManager);
+					    dbuf, song, clip, n, &nr, deluge::model::owner_of(*nr.drum), &nr.paramManager);
 					touchExpression(dm3); // every drum type's row
 					if (nr.drum->type != DrumType::SOUND || !nr.paramManager.containsAnyMainParamCollections()) {
 						continue;
@@ -325,7 +325,7 @@ int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
 					ParamSet* fx = kClone->paramManager.getUnpatchedParamSet();
 					alignas(ModelStackWithAutoParam) char sbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* sm3 = setupModelStackWithThreeMainThingsButNoNoteRow(
-					    sbuf, song, static_cast<Kit*>(kClone->output)->toModControllable(), kClone,
+					    sbuf, song, deluge::model::owner_of(*static_cast<Kit*>(kClone->output)), kClone,
 					    &kClone->paramManager);
 					ModelStackWithAutoParam* msap = sm3->getUnpatchedAutoParamFromId(0);
 					if (msap != nullptr && msap->autoParam != nullptr) {

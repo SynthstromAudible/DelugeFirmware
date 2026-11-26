@@ -706,7 +706,8 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 			ModelStackWithParamCollection* modelStack =
 			    setupModelStackWithSong(modelStackMemory, currentSong)
 			        ->addTimelineCounter(instrumentPressedForMIDILearn->getActiveClip()) // Could be NULL
-			        ->addOtherTwoThingsButNoNoteRow(instrumentPressedForMIDILearn->toModControllable(), paramManager)
+			        ->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*instrumentPressedForMIDILearn),
+			                                        paramManager)
 			        ->addParamCollection(expressionParams, expressionParamsSummary);
 
 			expressionParams->clearValues(modelStack);
@@ -1441,7 +1442,7 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	}
 
 	else {
-		modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
+		modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::LaneOwner{}, nullptr);
 	}
 	setKnobFocusFrom(reinterpret_cast<ModelStackWithThreeMainThings*>(modelStack));
 
@@ -1461,13 +1462,12 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	}
 }
 
-void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,
-                                                          ParamManager* paramManager) {
+void View::setActiveModControllableWithoutTimelineCounter(deluge::model::LaneOwner owner, ParamManager* paramManager) {
 
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	setKnobFocusFrom(setupModelStackWithSong(memory, currentSong)
 	                     ->addTimelineCounter(nullptr)
-	                     ->addOtherTwoThingsButNoNoteRow(modControllable, paramManager));
+	                     ->addOtherTwoThingsButNoNoteRow(owner, paramManager));
 
 	setModLedStates();
 	setKnobIndicatorLevels();

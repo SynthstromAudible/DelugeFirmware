@@ -109,7 +109,7 @@ describe lane_target("a lane target", ${
 			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
 			alignas(ModelStackWithAutoParam) char b[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* original =
-			    setupModelStackWithThreeMainThingsButNoNoteRow(a, f.song, f.instrument->toModControllable(), f.clip,
+			    setupModelStackWithThreeMainThingsButNoNoteRow(a, f.song, deluge::model::owner_of(*f.instrument), f.clip,
 			                                                   &f.clip->paramManager)
 			        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
 			const bridge::LaneTarget target =

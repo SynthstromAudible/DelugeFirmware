@@ -707,7 +707,7 @@ void clipCases(Song* song) {
 	alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE]{};
 	auto synthStack = [&](InstrumentClip* clip) {
 		return setupModelStackWithThreeMainThingsIncludingNoteRow(
-		    m, song, clip, 0, nullptr, clip->output->toModControllable(), &clip->paramManager);
+		    m, song, clip, 0, nullptr, deluge::model::owner_of(*clip->output), &clip->paramManager);
 	};
 
 	if (synth != nullptr) {
@@ -723,7 +723,8 @@ void clipCases(Song* song) {
 			NoteRow& nr = kit->noteRows[i];
 			if (nr.drum != nullptr && nr.drum->type == DrumType::SOUND) {
 				row = setupModelStackWithThreeMainThingsIncludingNoteRow(m, song, kit, kit->getNoteRowId(&nr, i), &nr,
-				                                                         nr.drum->toModControllable(), &nr.paramManager)
+				                                                         deluge::model::owner_of(*nr.drum),
+				                                                         &nr.paramManager)
 				          ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
 			}
 		}

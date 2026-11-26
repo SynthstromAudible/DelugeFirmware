@@ -7383,7 +7383,7 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 				paramManager = &noteRow->paramManager; // Should be NULL currently, cos it's a NonAudioDrum.
 			}
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    modelStackWithNoteRow->addOtherTwoThings(drum->toModControllable(), paramManager);
+			    modelStackWithNoteRow->addOtherTwoThings(deluge::model::owner_of(*drum), paramManager);
 
 			drum->modEncoderAction(modelStackWithThreeMainThings, offset, whichModEncoder);
 		}

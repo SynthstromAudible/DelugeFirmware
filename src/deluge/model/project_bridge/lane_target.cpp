@@ -47,7 +47,7 @@ namespace deluge::bridge {
 	return setupModelStackWithSong(memory, target.song)
 	    ->addTimelineCounter(target.timeline)
 	    ->addNoteRow(target.note_row_id, target.note_row)
-	    ->addOtherTwoThings(mod_controllable_of(target.owner), target.manager);
+	    ->addOtherTwoThings(target.owner, target.manager);
 }
 
 ::ModelStackWithAutoParam* stack_of(const LaneTarget& target, void* memory) {

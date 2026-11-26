@@ -2561,7 +2561,7 @@ bool NoteRow::check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, S
 	return (output)->noteIsOn(getNoteCode(), true)
 	       && (output)->allowNoteTails(
 	           modelStack
-	               ->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
+	               ->addOtherTwoThings(deluge::model::owner_of(*((Clip*)modelStack->getTimelineCounter())->output),
 	                                   &modelStack->getTimelineCounter()->paramManager)
 	               ->addSoundFlags());
 }
@@ -2616,7 +2616,7 @@ storePendingNoteOn:
 					getMPEValues(modelStack, mpeValues);
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(
-					    ((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
+					    deluge::model::owner_of(*((Clip*)modelStack->getTimelineCounter())->output),
 					    &modelStack->getTimelineCounter()->paramManager);
 					((MelodicInstrument*)output)
 					    ->sendNote(modelStackWithThreeMainThings, true, getNoteCode(), mpeValues, MIDI_CHANNEL_NONE,
@@ -2632,16 +2632,16 @@ storePendingNoteOn:
 				lift = thisNote->getLift();
 			}
 
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    modelStack->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
-			                                  &modelStack->getTimelineCounter()->paramManager);
+			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(
+			    deluge::model::owner_of(*((Clip*)modelStack->getTimelineCounter())->output),
+			    &modelStack->getTimelineCounter()->paramManager);
 			((MelodicInstrument*)output)
 			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCode(), nullptr, MIDI_CHANNEL_NONE, lift);
 		}
 	}
 	else if (drum) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
+		    modelStack->addOtherTwoThings(deluge::model::owner_of(*drum), &paramManager);
 
 		if (on) {
 			if (noteMightBeConstant && drum->hasActiveVoices()
@@ -2664,7 +2664,7 @@ storePendingNoteOn:
 					getMPEValues(modelStack, mpeValues);
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
+					    modelStack->addOtherTwoThings(deluge::model::owner_of(*drum), &paramManager);
 					drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, drum, thisNote->velocity, mpeValues,
 					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
 				}

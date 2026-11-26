@@ -39,6 +39,7 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/last_file_path_loaded.h"
 #include "model/song/song.h"
@@ -55,11 +56,14 @@
 #include "util/sound_menu_open.h"
 
 #include <atomic>
+#include <cstdint>
 #include <cstring>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace deluge::gui::ui {
@@ -205,7 +209,7 @@ std::string enteredTextFor(std::string_view name) {
 /// @return The sound, its source and range, the clip's (or kit row's) params and arp.
 deluge::gui::SoundTarget resolvedFor(const deluge::ui::scenes::menu::MenuContext& menuCtx) {
 	deluge::gui::SoundTarget resolved{.sound = nullptr,
-	                                  .mod = nullptr,
+	                                  .mod = {},
 	                                  .params = nullptr,
 	                                  .arp = nullptr,
 	                                  .range = nullptr,
@@ -217,7 +221,7 @@ deluge::gui::SoundTarget resolvedFor(const deluge::ui::scenes::menu::MenuContext
 	}
 	// The sound, or the chain's owner, by address.
 	if (menuCtx.addresses.chain) {
-		resolved.mod = deluge::bridge::chainSlotAt(*menuCtx.addresses.chain, *currentSong);
+		resolved.mod = deluge::bridge::chain_owner_at(*menuCtx.addresses.chain, *currentSong);
 	}
 	::Clip* clip = menuCtx.addresses.clip ? currentSong->clipForId(menuCtx.addresses.clip->clip_id) : nullptr;
 	auto* instrumentClip =
@@ -229,7 +233,7 @@ deluge::gui::SoundTarget resolvedFor(const deluge::ui::scenes::menu::MenuContext
 	if (menuCtx.addresses.slot) {
 		::Sound* sound = deluge::bridge::soundAt(*currentSong, *menuCtx.addresses.slot);
 		resolved.sound = sound;
-		resolved.mod = sound;
+		resolved.mod = sound != nullptr ? deluge::model::LaneOwner{sound} : deluge::model::LaneOwner{};
 		if (sound != nullptr) {
 			resolved.source = &sound->sourceResources[menuCtx.source_index];
 			if (menuCtx.range_index >= 0 && menuCtx.range_index < std::ssize(resolved.source->ranges)) {
@@ -480,19 +484,64 @@ void setShellBrowserFromDrumCreator(bool fromCreator) {
 }
 
 namespace {
-/// What `publishMenuTarget` last published. Read by playback automation on the audio tier, hence atomic.
-std::atomic<ModControllable*> publishedMod{nullptr};
+/// Where a packed owner keeps its alternative's index: above any pointer the device (32-bit) or the host (47-bit user
+/// addresses) hands out.
+constexpr unsigned kOwnerIndexShift = 56;
+
+/// @brief @p owner as one word: its pointer, with its alternative's index above it.
+uint64_t packed(const deluge::model::LaneOwner& owner) {
+	return std::visit(
+	    [&]<typename T>(T held) -> uint64_t {
+		    if constexpr (std::is_same_v<T, std::monostate>) {
+			    return 0;
+		    }
+		    else {
+			    return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(held))
+			           | (static_cast<uint64_t>(owner.index()) << kOwnerIndexShift);
+		    }
+	    },
+	    owner);
+}
+
+/// @brief The owner @p bits packs (packed's inverse).
+template <size_t... Index>
+deluge::model::LaneOwner unpacked(uint64_t bits, std::index_sequence<Index...> /*alternatives*/) {
+	const size_t index = bits >> kOwnerIndexShift;
+	const auto pointer = static_cast<uintptr_t>(bits & ((uint64_t{1} << kOwnerIndexShift) - 1));
+	deluge::model::LaneOwner owner;
+	(
+	    [&] {
+		    using T = std::variant_alternative_t<Index, deluge::model::LaneOwner>;
+		    if constexpr (!std::is_same_v<T, std::monostate>) {
+			    if (index == Index) {
+				    owner = reinterpret_cast<T>(pointer);
+			    }
+		    }
+	    }(),
+	    ...);
+	return owner;
+}
+
+/// What `publishMenuTarget` last published. Playback automation reads it on the audio tier, so it is one lock-free
+/// word: an owner is its pointer and its alternative's index.
+std::atomic<uint64_t> publishedOwner{0};
+static_assert(std::atomic<uint64_t>::is_always_lock_free);
 std::atomic<ParamManagerForTimeline*> publishedParams{nullptr};
 } // namespace
 
 void publishMenuTarget() {
 	const deluge::gui::SoundTarget target = menuTarget();
-	publishedMod.store(target.mod, std::memory_order_relaxed);
+	publishedOwner.store(packed(target.mod), std::memory_order_relaxed);
 	publishedParams.store(target.params, std::memory_order_relaxed);
 }
 
+deluge::model::LaneOwner sound_menu_owner() {
+	return unpacked(publishedOwner.load(std::memory_order_relaxed),
+	                std::make_index_sequence<std::variant_size_v<deluge::model::LaneOwner>>{});
+}
+
 ModControllable* soundMenuModControllable() {
-	return publishedMod.load(std::memory_order_relaxed);
+	return deluge::bridge::mod_controllable_of(sound_menu_owner());
 }
 
 ParamManagerForTimeline* soundMenuParamManager() {

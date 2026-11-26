@@ -289,7 +289,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			setupModelStackWithSong(memory, f.song)
 			    ->addTimelineCounter(in_clip ? static_cast<TimelineCounter*>(f.clip) : nullptr)
-			    ->addOtherTwoThingsButNoNoteRow(drum.toModControllable(), nullptr);
+			    ->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(drum), nullptr);
 			return deluge::gui::knobFocusFromStack(*f.song, *reinterpret_cast<ModelStackWithThreeMainThings*>(memory));
 		};
 		const ui::controls::KnobFocus midi_in_clip = focus_on(*midi, true);

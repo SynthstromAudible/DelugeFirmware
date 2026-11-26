@@ -5884,7 +5884,7 @@ void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
 	}
 	else {
 		modelStack->setTimelineCounter(nullptr);
-		modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
+		modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::LaneOwner{}, nullptr);
 	}
 }
 

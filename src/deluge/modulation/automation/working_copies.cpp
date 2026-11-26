@@ -122,7 +122,8 @@ void forEachOwner(Song& song, deluge::base::function_ref<void(ModelStackWithThre
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	visit(*song.setupModelStackWithSongAsTimelineCounter(memory));
 	for (Clip* clip : AllClips::everywhere(&song)) {
-		ModControllable* output = (clip->output != nullptr) ? clip->output->toModControllable() : nullptr;
+		const deluge::model::LaneOwner output =
+		    (clip->output != nullptr) ? deluge::model::owner_of(*clip->output) : deluge::model::LaneOwner{};
 		visit(*setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, output, clip, &clip->paramManager));
 		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
@@ -130,7 +131,7 @@ void forEachOwner(Song& song, deluge::base::function_ref<void(ModelStackWithThre
 		auto* instrumentClip = static_cast<InstrumentClip*>(clip);
 		for (int32_t i = 0; i < std::ssize(instrumentClip->noteRows); i++) {
 			NoteRow& row = instrumentClip->noteRows[i];
-			ModControllable* owner = (row.drum != nullptr) ? row.drum->toModControllable() : output;
+			const deluge::model::LaneOwner owner = (row.drum != nullptr) ? deluge::model::owner_of(*row.drum) : output;
 			visit(*setupModelStackWithThreeMainThingsIncludingNoteRow(
 			    memory, &song, clip, instrumentClip->getNoteRowId(&row, i), &row, owner, &row.paramManager));
 		}

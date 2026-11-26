@@ -1,11 +1,14 @@
 /// @file
 /// @brief The owner of a stack's params, typed: what each kind of owner is, and the effects it answers for.
 
+#include "model/clip/instrument_clip.h"
 #include "model/fx/effects_owner.h"
 #include "model/fx/master_channel.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/lane_owner.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
@@ -54,6 +57,57 @@ describe lane_owner("a stack's typed owner", ${
 			spec::make_current(f.song);
 			expect(model::effects_owner_of(model::owner_of(*f.instrument)).has_value()).to_be_false();
 			expect(model::effects_owner_of(model::LaneOwner{}).has_value()).to_be_false();
+			spec::make_current(nullptr);
+		});
+	});
+
+	context("an engine stack's owner", _ {
+		it("is the master channel for the song's own stack", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* stack = f.song->setupModelStackWithSongAsTimelineCounter(memory);
+			expect(std::holds_alternative<model::MasterChannel*>(stack->owner)).to_be_true();
+			spec::make_current(nullptr);
+		});
+
+		it("is the synth's sound for its clip", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* stack =
+			    setupModelStackWithTimelineCounter(memory, f.song, f.clip)
+			        ->addOtherTwoThingsButNoNoteRow(model::owner_of(*f.instrument), &f.clip->paramManager);
+			Sound* const sound = static_cast<SoundInstrument*>(f.instrument);
+			expect(std::get<Sound*>(stack->owner)).to_equal(sound);
+			spec::make_current(nullptr);
+		});
+
+		it("is the drum's sound for a sound drum's row, found from the row", _ {
+			spec::SongFixture f = spec::make_kit_song();
+			spec::make_current(f.song);
+			auto* drum = spec::add_drum<SoundDrum>(f);
+			int32_t index = 0;
+			NoteRow* row = f.clip->getNoteRowForDrum(drum, &index);
+			expect(row).not_().to_be_null();
+			if (row != nullptr) {
+				alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* stack =
+				    setupModelStackWithTimelineCounter(memory, f.song, f.clip)->addNoteRowAndExtraStuff(index, row);
+				Sound* const sound = drum;
+				expect(std::get<Sound*>(stack->owner)).to_equal(sound);
+			}
+			spec::make_current(nullptr);
+		});
+
+		it("is the MIDI instrument for a MIDI clip", _ {
+			spec::SongFixture f = spec::make_midi_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* stack =
+			    setupModelStackWithTimelineCounter(memory, f.song, f.clip)
+			        ->addOtherTwoThingsButNoNoteRow(model::owner_of(*f.instrument), &f.clip->paramManager);
+			expect(std::holds_alternative<NonAudioInstrument*>(stack->owner)).to_be_true();
 			spec::make_current(nullptr);
 		});
 	});

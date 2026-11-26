@@ -1348,7 +1348,7 @@ ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTi
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+	    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*this), &clip->paramManager);
 
 	if (modelStackWithThreeMainThings) {
 		ParamManager* paramManager = modelStackWithThreeMainThings->paramManager;

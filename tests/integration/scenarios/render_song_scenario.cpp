@@ -126,6 +126,7 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/resize_audio_clip.h"
 #include "model/edits/set_param_value.h"
+#include "model/fx/effects_owner.h"
 #include "model/fx/song_stutter.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/delay_arena_app.h"
@@ -301,7 +302,8 @@ void readStutter() {
 }
 
 /// @return The stutter owner @p name names, and its param manager and timeline counter in @p params and @p clip.
-ModControllable* stutterOwner(const std::string& name, ParamManagerForTimeline*& params, TimelineCounter*& clip) {
+deluge::model::LaneOwner stutterOwner(const std::string& name, ParamManagerForTimeline*& params,
+                                      TimelineCounter*& clip) {
 	if (name == "master") {
 		params = &currentSong->paramManager;
 		clip = nullptr;
@@ -315,16 +317,17 @@ ModControllable* stutterOwner(const std::string& name, ParamManagerForTimeline*&
 		Clip* active = output->getActiveClip();
 		params = &active->paramManager;
 		clip = active;
-		return output->toModControllable();
+		return deluge::model::owner_of(*output);
 	}
-	return nullptr;
+	return {};
 }
 
 /// @brief Sets @p owner's stutter-rate param to @p value as the gold knob does, by its SetParamValue Edit.
-void turnStutterRate(ModControllable& owner, TimelineCounter* clip, ParamManagerForTimeline& params, int32_t value) {
+void turnStutterRate(deluge::model::LaneOwner owner, TimelineCounter* clip, ParamManagerForTimeline& params,
+                     int32_t value) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
-	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &params);
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, owner, clip, &params);
 	ParamCollectionSummary* summary = params.getUnpatchedParamSetSummary();
 	ModelStackWithParamId* withId = ms->addParamCollectionAndId(
 	    summary->paramCollection, summary, static_cast<int32_t>(deluge::modulation::params::UNPATCHED_STUTTER_RATE));
@@ -342,7 +345,7 @@ void runStutters(uint64_t block) {
 	TimelineCounter* clip = nullptr;
 	for (StutterSpan& span : g_stutterAt) {
 		if (span.begun && !span.ended && block >= span.end) {
-			if (ModControllable* owner = stutterOwner(span.owner, params, clip)) {
+			if (deluge::model::effects_owner_of(stutterOwner(span.owner, params, clip))) {
 				deluge::model::endStutter(params);
 				g_stutterApplied++;
 				printf("RS-STUTTER block=%llu end owner=%s\n", static_cast<unsigned long long>(block),
@@ -353,8 +356,8 @@ void runStutters(uint64_t block) {
 	}
 	for (StutterSpan& span : g_stutterAt) {
 		if (!span.begun && block >= span.begin) {
-			if (ModControllable* owner = stutterOwner(span.owner, params, clip)) {
-				deluge::model::beginStutter(*owner->effectsOwner(), *params);
+			if (const auto effects = deluge::model::effects_owner_of(stutterOwner(span.owner, params, clip))) {
+				deluge::model::beginStutter(*effects, *params);
 				g_stutterApplied++;
 				printf("RS-STUTTER block=%llu begin owner=%s\n", static_cast<unsigned long long>(block),
 				       span.owner.c_str());
@@ -364,10 +367,11 @@ void runStutters(uint64_t block) {
 	}
 	bool stuttering = false;
 	for (StutterSpan& span : g_stutterAt) {
-		ModControllable* owner = stutterOwner(span.owner, params, clip);
-		const bool now = owner != nullptr && currentSong->live.stutter.isStuttering(*owner->effectsOwner()->core);
+		const deluge::model::LaneOwner owner = stutterOwner(span.owner, params, clip);
+		const auto effects = deluge::model::effects_owner_of(owner);
+		const bool now = effects.has_value() && currentSong->live.stutter.isStuttering(*effects->core);
 		if (now && g_stutterRateAsked && !g_stutterRateDone && block >= g_stutterRateAt) {
-			turnStutterRate(*owner, clip, *params, g_stutterRateValue);
+			turnStutterRate(owner, clip, *params, g_stutterRateValue);
 			g_stutterRateDone = true;
 			printf("RS-STUTTER block=%llu rate=%d owner=%s\n", static_cast<unsigned long long>(block),
 			       static_cast<int>(g_stutterRateValue), span.owner.c_str());
@@ -792,7 +796,7 @@ void turnKnob(uint64_t block, const KnobTurn& turn) {
 	                           : static_cast<int32_t>(turn.lpf ? params::UNPATCHED_LPF_FREQ : params::UNPATCHED_VOLUME);
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* three = setupModelStackWithThreeMainThingsButNoNoteRow(
-	    memory, currentSong, clip->output->toModControllable(), clip, &clip->paramManager);
+	    memory, currentSong, deluge::model::owner_of(*clip->output), clip, &clip->paramManager);
 	ModelStackWithParamId* withId = three->addParamCollectionAndId(summary->paramCollection, summary, id);
 	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId, true);
 	deluge::edits::Context context{*currentSong, currentSong->project};
@@ -817,7 +821,7 @@ void editSource(uint64_t block) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* lane =
 	    setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, clip, clip->getNoteRowId(row, 0), row,
-	                                                       row->drum->toModControllable(), &row->paramManager)
+	                                                       deluge::model::owner_of(*row->drum), &row->paramManager)
 	        ->getPatchedAutoParamFromId(deluge::modulation::params::LOCAL_LPF_FREQ);
 	const int32_t eighth = clip->loopLength() / 8;
 	deluge::edits::Context context{*currentSong, currentSong->project};

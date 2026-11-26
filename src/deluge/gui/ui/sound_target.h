@@ -17,13 +17,13 @@
 
 #pragma once
 
+#include "model/lane_owner.h"
 #include "processing/ranges_retype.h"
 
 #include <cstdint>
 
 class ArpeggiatorSettings;
 class AudioFileHolder;
-class ModControllable;
 class ModelStackWithThreeMainThings;
 class MultiRange;
 class ParamManagerForTimeline;
@@ -40,7 +40,7 @@ namespace deluge::gui {
 ///        it: the sound, its source and range, and the clip's (or the kit row's) params and arp.
 struct SoundTarget {
 	Sound* sound = nullptr;
-	ModControllable* mod = nullptr;
+	deluge::model::LaneOwner mod;
 	ParamManagerForTimeline* params = nullptr;
 	ArpeggiatorSettings* arp = nullptr;
 	::MultiRange* range = nullptr;

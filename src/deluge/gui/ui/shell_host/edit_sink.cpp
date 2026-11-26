@@ -124,7 +124,7 @@ void kit_arp_note_off(Kit* kit) {
 	NoteRow* note_row = static_cast<InstrumentClip*>(clip)->getNoteRowForDrum(kit->selectedDrum, &note_row_index);
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	auto* stack = reinterpret_cast<ModelStack*>(memory);
-	ModControllable* mod = kit->selectedDrum->toModControllable();
+	const deluge::model::LaneOwner mod = deluge::model::owner_of(*kit->selectedDrum);
 	ParamManager* params = note_row != nullptr ? &note_row->paramManager : nullptr;
 	kit->noteOffPreKitArp(
 	    stack->addTimelineCounter(clip)->addNoteRow(note_row_index, note_row)->addOtherTwoThings(mod, params),

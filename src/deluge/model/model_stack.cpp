@@ -17,13 +17,34 @@
 
 #include "model/model_stack.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/non_audio_drum.h"
+#include "model/fx/master_channel.h"
+#include "model/instrument/kit.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+
+#include <type_traits>
+#include <variant>
+
+ModControllable* untyped(const deluge::model::LaneOwner& owner) {
+	return std::visit(
+	    []<typename T>(T held) -> ModControllable* {
+		    if constexpr (std::is_same_v<T, std::monostate>) {
+			    return nullptr;
+		    }
+		    else {
+			    return held;
+		    }
+	    },
+	    owner);
+}
 
 using namespace deluge::modulation::params;
 
@@ -43,8 +64,10 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 	bool isKit = (output->type == OutputType::KIT);
 	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y();
 	toReturn->setNoteRow(newNoteRow);
-	toReturn->modControllable =
-	    (isKit && newNoteRow->drum) ? newNoteRow->drum->toModControllable() : output->toModControllable();
+	const deluge::model::LaneOwner owner =
+	    (isKit && newNoteRow->drum) ? deluge::model::owner_of(*newNoteRow->drum) : deluge::model::owner_of(*output);
+	toReturn->owner = owner;
+	toReturn->modControllable = untyped(owner);
 	toReturn->paramManager = &newNoteRow->paramManager;
 	return toReturn;
 }
@@ -186,9 +209,11 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 	NoteRow* noteRowHere = getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
-	toReturn->modControllable = (clip->output->type == OutputType::KIT && noteRowHere->drum) // What if there's no Drum?
-	                                ? noteRowHere->drum->toModControllable()
-	                                : clip->output->toModControllable();
+	const deluge::model::LaneOwner owner = (clip->output->type == OutputType::KIT && noteRowHere->drum)
+	                                           ? deluge::model::owner_of(*noteRowHere->drum)
+	                                           : deluge::model::owner_of(*clip->output);
+	toReturn->owner = owner;
+	toReturn->modControllable = untyped(owner);
 	toReturn->paramManager = &noteRowHere->paramManager;
 	return toReturn;
 }

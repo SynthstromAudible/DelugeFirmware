@@ -129,7 +129,7 @@ OwnerStack owner_stack_at_untyped(::Song& song, const project::ParamAddress& add
 		if (clip->type == ClipType::INSTRUMENT && clip->output->type == OutputType::CV) {
 			auto* instrumentClip = static_cast<::InstrumentClip*>(clip);
 			return {setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, 0, nullptr,
-			                                                           clip->output->toModControllable(),
+			                                                           deluge::model::owner_of(*clip->output),
 			                                                           &instrumentClip->paramManager),
 			        Holder::NOTE_CLIP};
 		}
@@ -148,7 +148,7 @@ OwnerStack owner_stack_at_untyped(::Song& song, const project::ParamAddress& add
 			return {};
 		}
 		return {setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, address.owner.row, noteRow,
-		                                                           clip->output->toModControllable(),
+		                                                           deluge::model::owner_of(*clip->output),
 		                                                           &noteRow->paramManager),
 		        Holder::NOTE_CLIP};
 	}
@@ -188,8 +188,8 @@ OwnerStack owner_stack_at_untyped(::Song& song, const project::ParamAddress& add
 		if (noteRow == nullptr) {
 			return {};
 		}
-		return {setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, noteRowIndex, noteRow,
-		                                                           drum->toModControllable(), &noteRow->paramManager),
+		return {setupModelStackWithThreeMainThingsIncludingNoteRow(
+		            memory, &song, clip, noteRowIndex, noteRow, deluge::model::owner_of(*drum), &noteRow->paramManager),
 		        drum->type == DrumType::SOUND ? Holder::SOUND : Holder::NOTE_CLIP};
 	}
 	return {};
@@ -287,7 +287,7 @@ OwnerStack backed_owner_stack_untyped(::Song& song, const project::ParamAddress&
 		// A MIDI or CV track's own params are its active clip's.
 		ParamManager* own = output->getParamManager(&song);
 		return own != nullptr ? OwnerStack{setupModelStackWithThreeMainThingsButNoNoteRow(
-		                                       memory, &song, output->toModControllable(), nullptr, own),
+		                                       memory, &song, deluge::model::owner_of(*output), nullptr, own),
 		                                   output->type == OutputType::MIDI_OUT ? Holder::MIDI_CLIP : Holder::NOTE_CLIP}
 		                      : OwnerStack{};
 	}
@@ -534,8 +534,8 @@ ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const ui::controls
 	if (const auto* midi = std::get_if<ui::controls::MidiFocus>(&focus.owner); midi != nullptr && !midi->clip) {
 		::Output* output = outputWithId(song, midi->track.output_id);
 		return output != nullptr && output->type == OutputType::MIDI_OUT
-		           ? setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, output->toModControllable(), nullptr,
-		                                                            output->getParamManager(&song))
+		           ? setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, deluge::model::owner_of(*output),
+		                                                            nullptr, output->getParamManager(&song))
 		           : nullptr;
 	}
 	const std::optional<project::ParamAddress> owner = ui::controls::knob_owner(focus);
