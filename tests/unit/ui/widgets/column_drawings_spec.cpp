@@ -9,6 +9,7 @@
 
 #include "support/spec_main.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
@@ -323,6 +324,99 @@ struct LegacyEnvelope {
 	}
 };
 
+/// `EqMenu::renderMenuItems` with `drawControlIndicator` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`), on the
+/// reference canvas of the 48-row panel; its `uint8_t`s and integer `std::lerp`s kept.
+struct LegacyEq {
+	Canvas& image;
+	int32_t selected_x = -1;
+	int32_t selected_y = -1;
+
+	void indicator(int32_t ix, int32_t iy, bool is_selected) {
+		if (!is_selected && ix == selected_x && iy == selected_y) {
+			return;
+		}
+		for (int32_t x = ix - 1; x <= ix + 1; x++) {
+			for (int32_t y = iy - 1; y <= iy + 1; y++) {
+				image.clear_pixel(x, y);
+			}
+		}
+		if (is_selected) {
+			selected_x = ix;
+			selected_y = iy;
+			image.invert_area(ix - 1, 3, iy - 1, iy + 1);
+		}
+		image.draw_rectangle(ix - 2, iy - 2, ix + 2, iy + 2);
+	}
+
+	void draw(float bass, float treble, float bass_freq, float treble_freq, int32_t selected) {
+		constexpr uint8_t start_y = 5 + deluge::ui::gfx::oled::kTextTitleSizeY + 5; // OLED_MAIN_TOPMOST_PIXEL is 5
+		constexpr uint8_t end_y = 48 - 6;
+		constexpr uint8_t center_y = start_y + (end_y - start_y) / 2;
+		constexpr uint8_t height = end_y - start_y;
+		constexpr uint8_t padding_x = 4;
+		constexpr uint8_t start_x = padding_x - 1;
+		constexpr uint8_t end_x = 128 - padding_x;
+		constexpr uint8_t slope_width = 12;
+		constexpr uint8_t bass_band_travel_width = (end_x - start_x) / 2 - slope_width;
+		constexpr uint8_t treble_band_travel_width = (end_x - start_x) * 0.75f;
+
+		constexpr uint8_t bass_x0 = start_x;
+		uint8_t bass_x1 = std::lerp(bass_x0, bass_x0 + bass_band_travel_width, bass_freq);
+		uint8_t bass_x2 = bass_x1 + slope_width;
+		const uint8_t bass_y1 = std::lerp(end_y, end_y - height, bass);
+		uint8_t bass_y2 = center_y;
+
+		constexpr uint8_t treble_x0 = end_x;
+		const uint8_t treble_x1 = std::lerp(end_x - treble_band_travel_width, end_x, treble_freq);
+		const uint8_t treble_x2 = treble_x1 - slope_width;
+		const uint8_t treble_y1 = std::lerp(end_y, end_y - height, treble);
+		uint8_t treble_y2 = center_y;
+
+		if (bass_x2 > treble_x2) {
+			const uint8_t diff = bass_x2 - treble_x2;
+			bass_x2 -= diff;
+			bass_x1 -= diff;
+		}
+		const auto center_between = [](uint8_t a, uint8_t b) { return std::min(a, b) + std::abs(b - a) / 2; };
+		const float morph = 1.0f - (treble_x2 - bass_x2) / 14.f;
+		if (morph > 0.f) {
+			const uint8_t target_y = center_between(bass_y1, treble_y1);
+			bass_y2 = std::lerp(bass_y2, target_y, morph);
+			treble_y2 = std::lerp(treble_y2, target_y, morph);
+		}
+
+		image.draw_line(bass_x0, bass_y1, bass_x1, bass_y1);
+		image.draw_line(bass_x1, bass_y1, bass_x2, bass_y2);
+		image.draw_line(bass_x2, bass_y2, treble_x2, treble_y2);
+		image.draw_line(treble_x2, treble_y2, treble_x1, treble_y1);
+		image.draw_line(treble_x1, treble_y1, treble_x0, treble_y1);
+
+		if (std::abs(center_y - bass_y1) > 1) {
+			for (uint8_t x = 0; x <= bass_x2; x++) {
+				if (x % 6 == 3 && std::abs(x - bass_x2) > 1 && std::abs(x - treble_x2) > 1) {
+					image.draw_pixel(x, center_y);
+				}
+			}
+		}
+		if (std::abs(center_y - treble_y1) > 1) {
+			for (uint8_t x = 0; x <= end_x; x++) {
+				if (x % 6 == 3 && std::abs(x - bass_x2) > 1 && std::abs(x - treble_x2) > 1) {
+					image.draw_pixel(x, center_y);
+				}
+			}
+		}
+		for (uint8_t y = start_y - 1; y <= end_y + 1; y += 4) {
+			image.draw_pixel(bass_x2, y);
+			image.draw_pixel(treble_x2, y);
+		}
+
+		indicator(center_between(bass_x0, bass_x1), bass_y1, selected == 0);
+		indicator(bass_x2, bass_y2, selected == 1);
+		indicator(treble_x2, treble_y2, selected == 2);
+		indicator(center_between(treble_x1, treble_x0), treble_y1, selected == 3);
+	}
+};
+
 } // namespace
 
 // clang-format off
@@ -401,6 +495,37 @@ describe column_drawings_w("ui::widgets::oled::column_drawings", $ {
 						OledFrame panel = panel_frame(r.frame);
 						envelope_graph(panel, g, focus);
 						LegacyEnvelope{.image = r.reference, .g = g, .selected_pos = focus}.draw();
+						expect(r.pbm()).to_equal(r.reference_pbm());
+					}
+				}
+			}
+		}
+	});
+
+	it("draws the EQ as main's page does, over every value of each knob", _ {
+		const auto at = [](int32_t knob, int32_t v) {
+			return knob == 3 ? static_cast<float>(v) / 32.f : static_cast<float>(v) / 50.f;
+		};
+		const auto top = [](int32_t knob) { return knob == 3 ? 32 : 50; };
+		for (int32_t swept = 0; swept < 4; swept++) {
+			for (int32_t v = 0; v <= top(swept); v++) {
+				for (int32_t others = 0; others < 27; others++) {
+					std::array<float, 4> knobs{};
+					int32_t digits = others;
+					for (int32_t k = 0; k < 4; k++) {
+						if (k == swept) {
+							knobs[k] = at(k, v);
+							continue;
+						}
+						const int32_t level = digits % 3;
+						digits /= 3;
+						knobs[k] = at(k, level == 0 ? 0 : level == 1 ? top(k) / 2 : top(k));
+					}
+					for (const int32_t focus : {0, 1, 2, 3}) {
+						uitest::Rig48 r;
+						OledFrame panel = panel_frame(r.frame);
+						eq_graph(panel, knobs[0], knobs[1], knobs[2], knobs[3], focus);
+						LegacyEq{.image = r.reference}.draw(knobs[0], knobs[1], knobs[2], knobs[3], focus);
 						expect(r.pbm()).to_equal(r.reference_pbm());
 					}
 				}
