@@ -27,7 +27,7 @@
 
 use core::cell::RefCell;
 use core::ptr::addr_of_mut;
-use core::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU8, AtomicU32, Ordering};
 
 use critical_section::Mutex;
 use embassy_usb::Builder;
@@ -124,8 +124,8 @@ impl PacketSink for Sink {
         self.0.queued()
     }
 
-    fn push(&mut self, packet: &'static [u32]) -> bool {
-        Uncached::new(packet).is_ok_and(|p| self.0.push(p))
+    fn push(&mut self, generation: u32, packet: &'static [u32]) -> bool {
+        Uncached::new(packet).is_ok_and(|p| self.0.push(generation, p))
     }
 }
 
@@ -146,6 +146,8 @@ impl WireTap for Tap {
 static mut SENDER: Option<ToHostSender<Sink>> = None;
 /// The from-host tracker, shared by the reader and the question of whether the host is streaming.
 static TRACKER: Mutex<RefCell<Option<FromHostTracker<Tap>>>> = Mutex::new(RefCell::new(None));
+/// The ring the stream from the host fills, as the stream lends it back for reading: set once, at build.
+static FROM_HOST_RING: AtomicPtr<u32> = AtomicPtr::new(core::ptr::null_mut());
 /// The from-host reader: one consumer, since `routine()` (via `deluge_usb_audio_read`) never runs on two tiers at once.
 static mut READER: FromHostReader = FromHostReader::new();
 
@@ -239,6 +241,7 @@ pub(crate) fn build(
             UncachedMut::new(ring).expect("uncached ring"),
             RingDescs::new(descs).expect("uncached descriptors"),
         );
+        FROM_HOST_RING.store(out.ring_ptr().cast_mut(), Ordering::Release);
         critical_section::with(|cs| {
             *TRACKER.borrow_ref_mut(cs) = Some(FromHostTracker::new(Tap(out)));
         });
@@ -366,11 +369,11 @@ pub extern "C" fn deluge_usb_audio_read(dst: *mut DelugeStereoSample, frames: u3
         return 0;
     };
     let lead = block_lead_frames() as u32;
-    // SAFETY: the ring the stream fills, through its mirror, for as long as the firmware runs; READER has one consumer:
-    // `routine()`, which never runs on two tiers at once.
+    let ring = FROM_HOST_RING.load(Ordering::Acquire).cast_const();
+    // SAFETY: the ring the stream fills and lends back for reading, for as long as the firmware runs (the source reads
+    // it volatile, the frames before `frames` only); READER has one consumer: `routine()`, which never runs on two tiers
+    // at once.
     unsafe {
-        let ring =
-            (addr_of_mut!(FROM_HOST_MEM) as usize + rza1_hal::UNCACHED_MIRROR_OFFSET) as *const u32;
         let source = WireSource::new(ring, FROM_HOST_WORDS, depth, frames);
         (*addr_of_mut!(READER)).read(&source, epoch, lead, out) as u32
     }

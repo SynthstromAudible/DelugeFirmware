@@ -14,8 +14,8 @@ pub trait PacketSink {
     fn generation(&self) -> u32;
     /// Packets queued and not sent.
     fn queued(&mut self) -> usize;
-    /// Queues a packet; false if it was not taken.
-    fn push(&mut self, packet: &'static [u32]) -> bool;
+    /// Queues a packet for stream `generation`; false if it was not taken (another generation's, or no room).
+    fn push(&mut self, generation: u32, packet: &'static [u32]) -> bool;
 }
 
 /// What was queued since the last [`take_counts`](ToHostSender::take_counts).
@@ -104,7 +104,7 @@ impl<S: PacketSink> ToHostSender<S> {
         while self.written.wrapping_sub(self.sent) >= PACKET_FRAMES as u32 {
             let ahead = self.sink.queued();
             let n = self.pacer.next_size(ahead);
-            if !self.sink.push(ring.packet(self.sent, n)) {
+            if !self.sink.push(self.generation, ring.packet(self.sent, n)) {
                 break;
             }
             self.sent = self.sent.wrapping_add(n as u32);
@@ -232,9 +232,9 @@ mod tests {
         fn queued(&mut self) -> usize {
             self.0.borrow().queued
         }
-        fn push(&mut self, packet: &'static [u32]) -> bool {
+        fn push(&mut self, generation: u32, packet: &'static [u32]) -> bool {
             let mut s = self.0.borrow_mut();
-            if s.refuse {
+            if s.refuse || generation != s.generation {
                 return false;
             }
             s.pushed.push(packet.to_vec());
@@ -432,6 +432,20 @@ mod tests {
             s.take_counts(),
             SendCounts::default(),
             "each take starts a new count"
+        );
+    }
+
+    /// The packets are pushed for the stream the sender started on: a later enable refuses them, and the sender
+    /// waits for its own start.
+    #[test]
+    fn packets_are_pushed_for_the_stream_they_were_made_for() {
+        let sink = Sink::default();
+        on(&sink, 3);
+        let mut s = sender(&sink);
+        s.write(1, Some(Depth::Sixteen), &block(0));
+        assert!(
+            !sink.0.borrow().pushed.is_empty(),
+            "pushed for generation 3"
         );
     }
 
