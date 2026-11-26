@@ -36,12 +36,7 @@ void place_sync(SoundState& state, synth::DualSourceState& dual, bool sync) {
 
 /// @p dual played as @p mode's engine.
 void play_dual(ComposedState& plays, SynthMode mode, synth::DualSourceState dual) {
-	if (mode == SynthMode::RINGMOD) {
-		plays.engine = synth::RingModState{.oscillators = std::move(dual)};
-	}
-	else {
-		plays.engine = synth::SubtractiveState{.oscillators = std::move(dual)};
-	}
+	plays.engine = synth::dual_state_for(mode, std::move(dual));
 }
 
 /// Into FM: each slot's pitch becomes its carrier's and the rest of it parks; the sync goes with FM, and FM's

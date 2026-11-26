@@ -22,7 +22,7 @@
 #include "support/printers/fixed_point_printer.h"
 #include "support/printers/list_printer.h"
 #include "support/printers/optional_printer.h"
-#include "synth/engines/engine_state.h"
+#include "synth/engines/engine_table.h"
 #include "synth/modulation/lfo_state.h"
 #include "synth/sources/source_state.h"
 #include "synth/voice/voicing_state.h"

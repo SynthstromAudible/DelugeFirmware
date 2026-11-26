@@ -121,7 +121,9 @@ settings are `synth::SoundConfig` (`DelugeSynth::derive`).
   slot's `osc_pos` and carrier feedback, and its modulator grid (phases, increments, feedback, level de-zipper) is its
   own. It seeds and randomizes the modulators and works out their increments.
 
-The voice holds **one of each** in an `EngineSet` (`engine_set.h`), whose `for_mode()` is the factory. A sound's mode
+The engines are rows of `engine_table.h` (each names its engine, its saved state, its mode and whether its state holds
+the two oscillator slots); the saved `EngineState` variant is generated from them. The voice holds **one of each** in
+an `EngineSet` (`engine_set.h`), whose `for_mode()` picks the mode's row. A sound's mode
 can change under a sounding voice (undo, a preset applied, a load — only a settings Edit's `bridge::applyChange` stops
 the voices for a new engine), so every engine keeps its state while another plays, and the unison parts and
 the source levels (`SourceLevels`, the de-zipper FM and the dual engines share) stay the voice's, lent per call.
@@ -138,8 +140,8 @@ when every part's sources ended. It derives each engine's controls from its para
 
 - **A source** (Karplus-Strong, a Plaits model): a class deriving `Source` and a row in `source_table.h` (a held row
   with its `build`, or a ported row with its port's hooks). The slot, the voice and the engines are unchanged.
-- **An engine**: a class deriving `Engine` (or `SlotEngine` to reuse the slot lifecycle) and a case in
-  `EngineSet::for_mode`, with its control struct if it needs one; `tests/unit/dsp/synth_engine_spec.cpp` drives an engine
+- **An engine**: a class deriving `Engine` (or `SlotEngine` to reuse the slot lifecycle), a row in `engine_table.h`
+  and its word in the instrument's `words.h`, with its control struct if it needs one; `tests/unit/dsp/synth_engine_spec.cpp` drives an engine
   and a source written against the contracts alone.
 - **The declared hooks** come into use with the engines that need them: `takes_input` with exciter→resonator,
   `owns_envelope` and `sound_stage` with a physical model.

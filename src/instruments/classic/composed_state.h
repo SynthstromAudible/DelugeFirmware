@@ -19,7 +19,7 @@
 
 #include "effects/state.h"
 #include "instruments/classic/words.h"
-#include "synth/engines/engine_state.h"
+#include "synth/engines/engine_table.h"
 #include "synth/modulation/envelope_state.h"
 #include "synth/modulation/lfo_state.h"
 #include "synth/voice/voicing_state.h"

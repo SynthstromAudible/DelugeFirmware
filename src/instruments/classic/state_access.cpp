@@ -46,13 +46,7 @@ namespace {
 } // namespace
 
 SynthMode synth_mode(const SoundState& state) noexcept {
-	if (std::holds_alternative<synth::FmState>(state.plays.engine)) {
-		return SynthMode::FM;
-	}
-	if (std::holds_alternative<synth::RingModState>(state.plays.engine)) {
-		return SynthMode::RINGMOD;
-	}
-	return SynthMode::SUBTRACTIVE;
+	return synth::mode_of(state.plays.engine);
 }
 
 OscType source_type(const SoundState& state, SourceId id) noexcept {
