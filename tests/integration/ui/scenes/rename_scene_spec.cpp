@@ -50,6 +50,7 @@
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
 
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -423,6 +424,27 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 		// `enteredTextEditPos = 0`. The whole existing name therefore sits to the cursor's right.
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Snare"});
 		expect(rename_scene().cursor()).to_equal(0);
+	});
+
+	it("lays its keyboard out by the text keyboard's DEVICE row, read through the device port", _ {
+		// `keyboardChars[FlashStorage::keyboardLayout]`: the QWERTY layout's Q pad types A on AZERTY.
+		deluge::ui::scenes::bind::test::FakeDeviceSettings device; // declared first: it outlives the rig
+		(void)device.write(deluge::project::device_path::kTextKeyboardLayout, 1); // AZERTY
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		kit_of(f)->selectedDrum->setName("");
+		MenuContext ctx = context_of(f);
+		ctx.ports.device = &device;
+		Rig r;
+		r.open_rename(ctx, TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		r.type('Q');
+		const std::string typed{rename_scene().entered_text()};
+		expect(typed.size()).to_equal(std::size_t{1});
+		if (!typed.empty()) {
+			expect(static_cast<char>(std::tolower(static_cast<unsigned char>(typed.front())))).to_equal('a');
+		}
 	});
 
 	it("blinks BACK when nothing beneath does", _ {
