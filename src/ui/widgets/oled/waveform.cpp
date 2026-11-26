@@ -50,4 +50,20 @@ void looped_waveform(OledFrame& f, gfx::oled::Rect r, std::span<const core::Peak
 	loop_marker(f, r.x + end_col, r.y, r.y + r.h - 1, r.y, false);
 }
 
+void sliced_waveform(OledFrame& f, gfx::oled::Rect r, std::span<const core::PeakCol> cols,
+                     std::span<const int32_t> slice_cols, int32_t focused) {
+	waveform(f, r, cols);
+	const int32_t bottom = r.y + r.h - 1;
+	for (size_t i = 0; i < slice_cols.size(); i++) {
+		const int32_t x = r.x + slice_cols[i];
+		if (static_cast<int32_t>(i) == focused) {
+			f.vline(x, r.y, bottom);
+			continue;
+		}
+		for (int32_t y = r.y; y <= bottom; y += 2) {
+			f.pixel(x, y);
+		}
+	}
+}
+
 } // namespace deluge::ui::widgets::oled

@@ -27,4 +27,9 @@ void loop_marker(OledFrame& f, int32_t line_x, int32_t y0, int32_t y1, int32_t i
 void looped_waveform(OledFrame& f, gfx::oled::Rect r, std::span<const core::PeakCol> cols, int32_t start_col,
                      int32_t end_col);
 
+/// @brief `waveform` with a marker at each of @p slice_cols (columns of @p r): the loop marker's line dotted every 2
+///        rows, the slice at index @p focused (-1 for none) a solid line, all over @p r's full height.
+void sliced_waveform(OledFrame& f, gfx::oled::Rect r, std::span<const core::PeakCol> cols,
+                     std::span<const int32_t> slice_cols, int32_t focused);
+
 } // namespace deluge::ui::widgets::oled

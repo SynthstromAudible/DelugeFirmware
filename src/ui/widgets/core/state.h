@@ -100,9 +100,9 @@ struct Timer {
 	uint32_t due_ms = 0;
 	bool armed = false;
 };
-/// State for the OLED `waveform` widget, **not implemented** -- it would draw columns the scene hands it as values
-/// (as the grid's `PeakCol` does), and waits for a scene that shows a waveform on the OLED. Retained for it; the *grid*
-/// waveform components (`ui/widgets/grid/waveform.h`) are unrelated and keep no state.
+/// @brief The scroll and zoom a scene showing `oled::waveform` (`ui/widgets/oled/waveform.h`) keeps.
+///
+/// The widget draws the columns it is given; the scene uses this to choose which columns of the sample those are.
 struct WaveformState {
 	int32_t scroll_cols = 0;
 	uint8_t zoom = 0;

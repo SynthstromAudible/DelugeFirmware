@@ -107,6 +107,20 @@ describe waveform_oled_w("ui::widgets::oled::waveform", $ {
 		looped_waveform(r64.frame, Rect{0, 13, 128, 49}, cols, 30, 96);
 		expect_golden(self, "ui/widgets/waveform_oled_looped_64.pbm", r64.pbm());
 	});
+
+	it("marks slices dotted every 2 rows, the focused slice solid", _ {
+		const std::vector<PeakCol> cols = burst(128);
+		const std::array<int32_t, 4> slices{0, 32, 64, 96};
+		uitest::Rig48 r48;
+		sliced_waveform(r48.frame, Rect{0, 13, 128, 29}, cols, slices, 2);
+		expect(r48.lit(32, 13 + 5)).to_be_true();
+		expect(r48.lit(32, 14 + 5)).to_be_false(); // dotted outside the waveform's own ink
+		expect(r48.lit(64, 14 + 5)).to_be_true();  // the focused slice is solid
+		expect_golden(self, "ui/widgets/waveform_oled_sliced_48.pbm", r48.pbm());
+		uitest::Rig64 r64;
+		sliced_waveform(r64.frame, Rect{0, 13, 128, 49}, cols, slices, 2);
+		expect_golden(self, "ui/widgets/waveform_oled_sliced_64.pbm", r64.pbm());
+	});
 });
 // clang-format on
 
