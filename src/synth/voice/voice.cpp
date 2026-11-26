@@ -410,19 +410,18 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LfoState& config, deluge:
 	    .spare_buffers = spare_buffers_,
 	    .sync_scratch = sync_scratch_,
 	    .noise = noise_,
-	    .dual = {},
-	    .fm = {},
+	    .controls = {},
 	};
 	if (synth_mode == SynthMode::FM) {
-		engine_block.fm =
+		engine_block.controls =
 		    fm_controls(overall_osc_amplitude, filter_gain, overall_pitch_adjust, first_render, stereo_unison);
 	}
 	else if (synth_mode == SynthMode::DX7) {
-		engine_block.dx7 = dx7_controls(block, filter_gain, overall_pitch_adjust, first_render, stereo_unison);
+		engine_block.controls = dx7_controls(block, filter_gain, overall_pitch_adjust, first_render, stereo_unison);
 	}
 	else {
-		engine_block.dual = dual_source_controls(control_block, config, cfg, block, filter_gain, overall_pitch_adjust,
-		                                         first_render, stereo_unison);
+		engine_block.controls = dual_source_controls(control_block, config, cfg, block, filter_gain,
+		                                             overall_pitch_adjust, first_render, stereo_unison);
 	}
 	const EngineRenderResult result = engines_.for_mode(synth_mode).render(engine_block);
 	did_stereo_temp_buffer = result.did_stereo_buffer;

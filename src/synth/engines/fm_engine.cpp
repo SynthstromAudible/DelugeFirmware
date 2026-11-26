@@ -185,7 +185,7 @@ void FMEngine::set_levels(std::span<const Q<31>, kNumModulators> modulator_volum
 }
 
 EngineRenderResult FMEngine::render(const EngineBlock& block) {
-	const FmControls& c = block.fm;
+	const FmControls& c = block.fm();
 	const bool stereo_unison = c.stereo_unison;
 
 	// FM renders no noise
@@ -210,7 +210,7 @@ EngineRenderResult FMEngine::render(const EngineBlock& block) {
 }
 
 FMEngine::Pass FMEngine::begin(const EngineBlock& block) const {
-	const FmControls& c = block.fm;
+	const FmControls& c = block.fm();
 	SourceLevels& levels = *block.levels;
 	const int32_t num_samples = block.num_samples;
 	Pass pass;
@@ -251,7 +251,7 @@ FMEngine::Pass FMEngine::begin(const EngineBlock& block) const {
 }
 
 std::array<UQ<32>, kNumSources> FMEngine::carrier_increments(const EngineBlock& block, int32_t u, Pass& pass) {
-	const FmControls& c = block.fm;
+	const FmControls& c = block.fm();
 	std::array<UQ<32>, kNumSources> phase_increments{};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		phase_increments[s] = block.parts[u].slots[s].phase_increment_stored_value;
@@ -271,7 +271,7 @@ std::array<UQ<32>, kNumSources> FMEngine::carrier_increments(const EngineBlock& 
 
 std::array<UQ<32>, kNumModulators> FMEngine::modulator_increments(const EngineBlock& block, int32_t u,
                                                                   Pass& pass) const {
-	const FmControls& c = block.fm;
+	const FmControls& c = block.fm();
 	std::array<UQ<32>, kNumModulators> increments{};
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		increments[m] = modulator_phase_increment_[u][m];
@@ -296,7 +296,7 @@ std::array<UQ<32>, kNumModulators> FMEngine::modulator_increments(const EngineBl
 
 bool FMEngine::render_modulators(const EngineBlock& block, int32_t u,
                                  std::span<const UQ<32>, kNumModulators> increments, const Pass& pass) {
-	const FmControls& c = block.fm;
+	const FmControls& c = block.fm();
 	const int32_t num_samples = block.num_samples;
 	Q<31>* const modulator_scratch = block.spare_buffers[2];
 	const std::array<bool, kNumModulators>& active = pass.modulators_active;
@@ -332,7 +332,7 @@ bool FMEngine::render_modulators(const EngineBlock& block, int32_t u,
 
 void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
                                   std::span<const UQ<32>, kNumSources> phase_increments, Pass& pass) {
-	const FmControls& c = block.fm;
+	const FmControls& c = block.fm();
 	const int32_t num_samples = block.num_samples;
 	Q<31>* const osc_buffer = block.osc_buffer;
 

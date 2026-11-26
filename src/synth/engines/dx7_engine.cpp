@@ -100,7 +100,7 @@ bool Dx7Engine::note_on(const EngineNote& note) {
 EngineRenderResult Dx7Engine::render(const EngineBlock& block) {
 	using dsp::Q;
 	const BlockValues& cfg = *block.values;
-	const Dx7Controls& c = block.dx7;
+	const Dx7Controls& c = block.dx7();
 	const int32_t num_samples = block.num_samples;
 	SourceLevels& levels = *block.levels;
 
