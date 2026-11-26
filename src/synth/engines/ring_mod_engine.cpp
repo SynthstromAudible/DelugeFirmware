@@ -41,7 +41,7 @@ bool RingModEngine::note_on(const EngineNote& note) {
 
 EngineRenderResult RingModEngine::render(const EngineBlock& block) {
 	const BlockValues& cfg = *block.values;
-	const DualSourceControls& c = block.dual;
+	const DualSourceControls& c = block.dual();
 	const bool stereo_unison = c.stereo_unison;
 
 	const std::array<int32_t, kNumSources> wave_index_increments = DualSourceEngine::wave_index_increments(block);
@@ -62,7 +62,7 @@ EngineRenderResult RingModEngine::render(const EngineBlock& block) {
 void RingModEngine::render_parts(const EngineBlock& block, const std::array<dsp::UQ<32>, kMaxNumVoicesUnison>& sync_pos,
                                  const std::array<int32_t, kNumSources>& wave_index_increments) {
 	const BlockValues& cfg = *block.values;
-	const DualSourceControls& c = block.dual;
+	const DualSourceControls& c = block.dual();
 	const bool stereo_unison = c.stereo_unison;
 
 	for (int32_t u = 0; u < block.config->voicing.unison.count; u++) {

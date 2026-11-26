@@ -52,6 +52,7 @@ struct Rig {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				voice.unison_parts[u].slots[s].bind({.sample = &samples[u][s], .dx = &dx, .input = &input});
 			}
+			voice.bind_dx7(u, &dx);
 		}
 	}
 

@@ -30,10 +30,6 @@
 
 namespace deluge::synth {
 
-/// @brief Where a part's slot source comes from: the slot's own by the sound's type, or the part's DX7 (the DX7
-/// engine's slot 0).
-enum class SourcePick : uint8_t { BY_TYPE, DX7 };
-
 /// @brief The dual-source family: two source slots per unison part, the A→B osc sync, and the noise source.
 /// Subtractive and ring-mod derive from it and keep their own render loops.
 class DualSourceEngine : public SlotEngine {
@@ -54,13 +50,12 @@ protected:
 
 	/// Renders source @p s in each unison part, adding into @c block.osc_buffer. @p increments_out, unless empty,
 	/// takes each part's increment (0 when too high to render) for the parts osc sync follows; with @p advance_only
-	/// the source only advances its phase; @p pick says where each part's source comes from. @return whether a unison
-	/// part became inactive (its sample ended).
+	/// the source only advances its phase. @return whether a unison part became inactive (its sample ended).
 	[[nodiscard]] static bool render_source(const EngineBlock& block, int32_t s, bool stereo_buffer,
 	                                        dsp::Q<31> source_amplitude, dsp::Q<31> amplitude_increment,
 	                                        bool do_osc_sync, const dsp::UQ<32>* sync_pos,
 	                                        const dsp::UQ<32>* sync_increments, std::span<dsp::UQ<32>> increments_out,
-	                                        bool advance_only, int32_t wave_index_increment, SourcePick pick);
+	                                        bool advance_only, int32_t wave_index_increment);
 	/// Whether every unison part's sources have ended, with no noise to keep the voice sounding.
 	[[nodiscard]] static bool all_parts_inactive(const EngineBlock& block);
 
@@ -70,8 +65,7 @@ private:
 	                                      dsp::Q<31> source_amplitude, dsp::Q<31> amplitude_increment,
 	                                      dsp::UQ<32> phase_increment, bool do_osc_sync, const dsp::UQ<32>* sync_pos,
 	                                      const dsp::UQ<32>* sync_increments, int32_t wave_index_increment,
-	                                      bool stereo_unison, dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r,
-	                                      SourcePick pick);
+	                                      bool stereo_unison, dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r);
 };
 
 } // namespace deluge::synth

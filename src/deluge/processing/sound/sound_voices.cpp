@@ -54,6 +54,7 @@ void Sound::bindVoice(SoundVoice& voice) {
 			                                            .input = &voice.part.ports(u, s).input,
 			                                            .live_inputs = &sourceResources[s].liveInputs.inputs()});
 		}
+		voice.kernel.bind_dx7(u, &voice.part.ports(u, 0).dx);
 	}
 }
 

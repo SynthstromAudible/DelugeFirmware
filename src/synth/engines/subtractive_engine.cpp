@@ -25,12 +25,8 @@
 namespace deluge::synth {
 
 EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
-	return render_with(block, SourcePick::BY_TYPE);
-}
-
-EngineRenderResult SubtractiveEngine::render_with(const EngineBlock& block, SourcePick pick) {
 	const BlockValues& cfg = *block.values;
-	const DualSourceControls& c = block.dual;
+	const DualSourceControls& c = block.dual();
 	const int32_t num_samples = block.num_samples;
 	dsp::Q<31>* const osc_buffer = block.osc_buffer;
 
@@ -64,7 +60,7 @@ EngineRenderResult SubtractiveEngine::render_with(const EngineBlock& block, Sour
 			sources_to_render_in_stereo |= (1 << s);
 			continue;
 		}
-		unison_part_became_inactive |= render_one(block, pass, s, false, pick);
+		unison_part_became_inactive |= render_one(block, pass, s, false);
 		anything_in_osc_buffer = true;
 	}
 
@@ -83,7 +79,7 @@ EngineRenderResult SubtractiveEngine::render_with(const EngineBlock& block, Sour
 		// Osc sync still applies: with stereo unison spread, both sources come here (see VoiceBlock::source_in_stereo)
 		for (int32_t s = 0; s < kNumSources; s++) {
 			if ((sources_to_render_in_stereo & (1 << s)) != 0u) {
-				unison_part_became_inactive |= render_one(block, pass, s, true, pick);
+				unison_part_became_inactive |= render_one(block, pass, s, true);
 			}
 		}
 		result.did_stereo_buffer = true;
@@ -98,7 +94,7 @@ EngineRenderResult SubtractiveEngine::render_with(const EngineBlock& block, Sour
 
 SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
                                                  const std::array<dsp::Q<31>, kNumSources>& source_amplitudes) {
-	const DualSourceControls& c = block.dual;
+	const DualSourceControls& c = block.dual();
 	SourceLevels& levels = *block.levels;
 
 	// A new filter gain, or a slow attack on the first block, jumps to the new levels rather than ramping to them
@@ -123,7 +119,7 @@ SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
 	return pass;
 }
 
-bool SubtractiveEngine::render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo, SourcePick pick) {
+bool SubtractiveEngine::render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo) {
 	const bool doing_osc_sync = block.values->doing_osc_sync;
 	std::span<dsp::UQ<32>> master_increments;
 	if (s == 0 && doing_osc_sync) {
@@ -133,7 +129,7 @@ bool SubtractiveEngine::render_one(const EngineBlock& block, Pass& pass, int32_t
 	const bool advance_only = !master_increments.empty() && !block.values->source_active_currently[s];
 	return render_source(block, s, stereo, pass.amplitudes[s], pass.amplitude_increments[s], (s == 1) && doing_osc_sync,
 	                     pass.sync_pos.data(), pass.sync_increments.data(), master_increments, advance_only,
-	                     pass.wave_index_increments[s], pick);
+	                     pass.wave_index_increments[s]);
 }
 
 } // namespace deluge::synth

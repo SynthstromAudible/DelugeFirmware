@@ -99,6 +99,8 @@ public:
 	/// With note tails not allowed, the note-off is only remembered.
 	void note_off(const ReleaseInfo& release, bool allow_release_stage, VoiceClock clock);
 	void randomize_osc_phases(const SoundConfig& config, dsp::fixed::Cong& noise);
+	/// @brief Plays unison part @p u's DX7 (DX7 mode) through @p port, which must outlive this voice.
+	void bind_dx7(int32_t u, DxVoicePort* port);
 	void expression_event_immediate(int32_t monophonic_value, int32_t voice_level_value, int32_t s);
 	bool has_release_stage();
 	/// @brief Whether the amplitude envelope is releasing, or past its release.
@@ -235,6 +237,10 @@ private:
 	                                                      const VoiceBlock& block, dsp::Q<28> filter_gain,
 	                                                      dsp::Q<24> overall_pitch_adjust, bool first_render,
 	                                                      bool stereo_unison) const;
+	/// The controls the DX7 engine renders this block from, derived from the voice's params.
+	[[nodiscard]] Dx7Controls dx7_controls(const VoiceBlock& block, dsp::Q<28> filter_gain,
+	                                       dsp::Q<24> overall_pitch_adjust, bool first_render,
+	                                       bool stereo_unison) const;
 	/// The controls FM renders this block from, derived from the voice's params.
 	[[nodiscard]] FmControls fm_controls(dsp::Q<31> overall_osc_amplitude, dsp::Q<28> filter_gain,
 	                                     dsp::Q<24> overall_pitch_adjust, bool first_render, bool stereo_unison) const;
