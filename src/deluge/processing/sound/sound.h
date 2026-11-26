@@ -154,6 +154,12 @@ public:
 
 	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
 	int32_t unisonPan[kMaxNumVoicesUnison]{};
+	// shouldDoPanning(unisonPan[u]) amplitudes, kept in sync by setupUnisonStereoSpread()
+	int32_t unisonAmplitudeL[kMaxNumVoicesUnison] = {1073741823, 1073741823, 1073741823, 1073741823,
+	                                                 1073741823, 1073741823, 1073741823, 1073741823};
+	int32_t unisonAmplitudeR[kMaxNumVoicesUnison] = {1073741823, 1073741823, 1073741823, 1073741823,
+	                                                 1073741823, 1073741823, 1073741823, 1073741823};
+	static_assert(kMaxNumVoicesUnison == 8, "update the unison amplitude initialisers");
 
 	SynthMode synthMode = SynthMode::SUBTRACTIVE;
 	bool modulator1ToModulator0 = false;
