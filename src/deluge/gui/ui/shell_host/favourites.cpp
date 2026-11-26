@@ -1,11 +1,5 @@
-#include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
-#include "model/action/action_logger.h"
 #include "model/favourite/favourite_manager.h"
-#include "model/sample/last_file_path_loaded.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "ui/scenes/menu/bind_host.h"
 
 #include <array>
 #include <cstdint>
@@ -13,27 +7,27 @@
 #include <string>
 #include <string_view>
 
-namespace deluge::ui::scenes::menu {
-
+namespace deluge::gui::shell_host {
 namespace {
 
 /// @brief The favourites the legacy browsers show, through `favouritesManager`.
-class HostFavourites final : public services::Favourites {
+class HostFavourites final : public deluge::ui::scenes::bind::Favourites {
 public:
 	void set_category(std::string_view category) override { favouritesManager.setCategory(std::string{category}); }
 	void close() override { favouritesManager.close(); }
-	[[nodiscard]] services::FavouritesBank bank_state() const override {
+	[[nodiscard]] deluge::ui::scenes::bind::FavouritesBank bank_state() const override {
 		switch (favouritesManager.bankState()) {
 		case deluge::favourites::BankState::Loading:
-			return services::FavouritesBank::Loading;
+			return deluge::ui::scenes::bind::FavouritesBank::Loading;
 		case deluge::favourites::BankState::Loaded:
-			return services::FavouritesBank::Loaded;
+			return deluge::ui::scenes::bind::FavouritesBank::Loaded;
 		case deluge::favourites::BankState::Unavailable:
 			break;
 		}
-		return services::FavouritesBank::Unavailable;
+		return deluge::ui::scenes::bind::FavouritesBank::Unavailable;
 	}
-	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::widgets::grid::kFavourites> colours() const override {
+	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::scenes::bind::kFavouriteSlots>
+	colours() const override {
 		return favouritesManager.getFavouriteColours();
 	}
 	[[nodiscard]] std::optional<uint8_t> current_favourite() const override {
@@ -52,30 +46,9 @@ public:
 
 } // namespace
 
-void host_settings_reset() {
-	gui::ui::reapplyLiveSettingsAfterReset();
-}
-
-std::string host_last_sample_path() {
-	return deluge::model::lastFilePathLoaded();
-}
-
-services::Favourites& host_favourites() {
+deluge::ui::scenes::bind::Favourites& favourites() {
 	static HostFavourites favourites;
 	return favourites;
 }
 
-bool host_release_sample_file(std::string_view path) {
-	AudioEngine::stopAnyPreviewing();
-	return audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(std::string{path}.c_str());
-}
-
-void host_forget_undo() {
-	actionLogger.deleteAllLogs();
-}
-
-void host_end_audition(bind::AuditionEnd how) {
-	gui::shell_host::view_actions().end_audition(how);
-}
-
-} // namespace deluge::ui::scenes::menu
+} // namespace deluge::gui::shell_host

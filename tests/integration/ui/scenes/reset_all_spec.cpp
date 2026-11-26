@@ -14,6 +14,7 @@
 #include "storage/flash_storage.h"
 
 #include "ui/scenes/context_menu/context_menu_scene.h"
+#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/registry.h"
@@ -39,7 +40,8 @@ using deluge::ui::scenes::context_menu::DescriptorId;
 describe reset_all("scenes::context_menu's full factory reset on the guest", $ {
 	it("re-applies every live setting main reads, and leaves rounded corners as main does", _ {
 		spec::ErasedFlash flash; // the reset programs the settings sector -- see `support/host_flash.h`
-		const deluge::ui::scenes::menu::MenuContext ctx{};
+		deluge::ui::scenes::menu::MenuContext ctx{};
+		ctx.ports = deluge::ui::scenes::menu::host_ports(); // the app's menu context carries the host's ports
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
 		deluge::gui::ui::pushShellHighlighting();
 		FlashStorage::screensaverMode = ScreensaverMode::OFF;

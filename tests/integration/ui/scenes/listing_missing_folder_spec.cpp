@@ -24,9 +24,6 @@ using namespace deluge::ui::scenes::spec::listing;
 
 namespace {
 
-/// @brief `DxSyxBrowser`'s extension list.
-char const* kSyxExtensions[] = {"SYX", nullptr};
-
 /// @brief Whether @p path is a folder on the installed card.
 bool folder_on_card(const char* path) {
 	return deluge::io::Directory::open(path).has_value();
@@ -81,13 +78,13 @@ describe listing_missing_folder("the async listing seam on a card without the de
 		// `DxSyxBrowser::opened`: `currentDir` "DX7", default "DX7".
 		ListingRequest req = open_request("DX7");
 		req.default_dir = "DX7";
-		req.allowed_extensions = kSyxExtensions;
+		req.kinds = deluge::ui::scenes::bind::FileKinds::SYX;
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
 		Deferred::run();
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("DX7"));
 		expect(static_cast<int>(result->count)).to_equal(0);
 		expect(static_cast<int>(FileCatalogue::numFileItemsDeletedAtStart)).to_equal(0);
@@ -105,14 +102,14 @@ describe listing_missing_folder("the async listing seam on a card without the de
 
 		// `SampleBrowser::opened` beside a remembered sample whose folder has gone, on a card with no SAMPLES either.
 		ListingRequest req = open_request("SAMPLES/KICKS");
-		req.filename_to_start_at = "KICK1.WAV";
+		req.start_at = "KICK1.WAV";
 		req.default_dir = "SAMPLES";
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
 		Deferred::run();
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("SAMPLES"));
 		expect(static_cast<int>(result->count)).to_equal(0);
 		expect(folder_on_card("SAMPLES")).to_be_true();
@@ -132,7 +129,7 @@ describe listing_missing_folder("the async listing seam on a card without the de
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FOLDER_DOESNT_EXIST));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::FOLDER_DOESNT_EXIST));
 		expect(folder_on_card("NOPE")).to_be_false();
 		NoticeTally tally = drain_notices();
 		expect(tally.error).to_equal(1);
@@ -156,7 +153,7 @@ describe listing_missing_folder("the async listing seam on a card without the de
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::SD_CARD));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::SD_CARD));
 		expect(folder_on_card("BAD*DIR")).to_be_false();
 		NoticeTally tally = drain_notices();
 		expect(tally.error).to_equal(1);

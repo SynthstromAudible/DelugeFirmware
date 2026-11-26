@@ -20,11 +20,11 @@
 
 #include "ui/scenes/context_menu/context_menu_scene.h"
 
+#include "ui/scenes/bind/ports/device_actions.h"
 #include "ui/scenes/bind/ports/track_facts.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/bind/target.h"
 #include "ui/scenes/browser/browser_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/nodes/context_menu_items.h"
 #include "ui/scenes/profile.h"
 
@@ -32,21 +32,10 @@
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/oled/popup.h"
 
-// `Deluge::factoryReset` (`src/deluge/deluge.cpp`). `src/deluge/deluge.h` is a ROOT-LEVEL app header, so it is named
-// explicitly in this layer's include allow-list (`src/ui/scenes/CMakeLists.txt`) the way
-// `definitions_cxx.hpp` is, rather than being covered by one of the allowed subdirectories. It is included rather than
-// re-declared locally, and its body is not re-implemented here (a notice plus the other four
-// resets) -- that would fork a legacy composite.
-#include "deluge.h"
 #include "gui/l10n/strings.h"
 #include "instruments/classic/state_access.h"
-#include "io/midi/midi_device_manager.h"
-#include "io/midi/midi_follow.h"
-#include "model/settings/runtime_feature_settings.h"
-#include "model/song/song.h"
 #include "project/audio_input.h"
 #include "project/setting_group.h"
-#include "storage/flash_storage.h"
 #include "ui/gfx/grid/pad_grid.h"
 
 #include <algorithm>
@@ -83,32 +72,35 @@ constexpr uint16_t sid(String s) {
 /// "are you sure" confirmation is one option you either press select on or back out of.
 constexpr uint16_t kConfirmOptions[] = {sid(String::STRING_FOR_OK)};
 
-bool accept_reset_flash(const menu::MenuContext&, uint8_t) {
-	FlashStorage::factoryReset();
-	menu::host_settings_reset(); // what main reads live reaches the open guest too
-	return false;                // `acceptCurrentOption` returns false -> the menu closes.
-}
-
-bool accept_reset_community_features(const menu::MenuContext&, uint8_t) {
-	runtimeFeatureSettings.factoryReset();
-	menu::host_settings_reset();
+/// @brief Run one of the device's resets through the context's device actions; the menu closes either way.
+/// @param ctx The menu's context, whose device actions run the reset; none runs with no port.
+/// @param reset The reset, a `DeviceActions` member.
+/// @return False: `acceptCurrentOption` returns false, so the menu closes.
+bool accept_reset(const menu::MenuContext& ctx, void (bind::DeviceActions::*reset)()) {
+	if (ctx.ports.device_actions != nullptr) {
+		(ctx.ports.device_actions->*reset)();
+	}
 	return false;
 }
 
-bool accept_reset_midi_follow(const menu::MenuContext&, uint8_t) {
-	midiFollow.factoryReset();
-	return false;
+bool accept_reset_flash(const menu::MenuContext& ctx, uint8_t) {
+	return accept_reset(ctx, &bind::DeviceActions::reset_settings);
 }
 
-bool accept_reset_midi_devices(const menu::MenuContext&, uint8_t) {
-	MIDIDeviceManager::factoryReset();
-	return false;
+bool accept_reset_community_features(const menu::MenuContext& ctx, uint8_t) {
+	return accept_reset(ctx, &bind::DeviceActions::reset_community_features);
 }
 
-bool accept_reset_all(const menu::MenuContext&, uint8_t) {
-	Deluge::factoryReset();
-	menu::host_settings_reset();
-	return false;
+bool accept_reset_midi_follow(const menu::MenuContext& ctx, uint8_t) {
+	return accept_reset(ctx, &bind::DeviceActions::reset_midi_follow);
+}
+
+bool accept_reset_midi_devices(const menu::MenuContext& ctx, uint8_t) {
+	return accept_reset(ctx, &bind::DeviceActions::reset_midi_devices);
+}
+
+bool accept_reset_all(const menu::MenuContext& ctx, uint8_t) {
+	return accept_reset(ctx, &bind::DeviceActions::factory_reset);
 }
 
 // ---------------------------------------------------------------------------------------------

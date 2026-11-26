@@ -3,23 +3,18 @@
 # -- being the first model-aware layer -- the model and its words and values. The exact list is
 # scripts/layers.toml's `scenes-includes-outside`; never gui/ otherwise, never hid/.
 #
-# Plus exactly three ROOT-LEVEL app headers, which are named individually because they sit in no
-# allowed subdirectory:
+# Plus exactly one ROOT-LEVEL app header, named individually because it sits in no allowed
+# subdirectory:
 #   definitions_cxx.hpp  -- the shared enums/constants every layer below already reads.
-#   deluge.h             -- `Deluge::factoryReset()` only (context_menu/context_menu_scene.cpp).
-#                           A `namespace Deluge` declaration plus C boundary externs; it reaches
-#                           behind no wall this layer may not cross.
-#   version.h            -- `kFirmwareVersionString` (menu/nodes/settings.cpp), a generated header.
 #
-# THIS LIST IS THE AUTHORITY FOR THOSE THREE, and it is enforced by hand. `scripts/layers.toml`'s
+# THIS LIST IS THE AUTHORITY FOR IT, and it is enforced by hand. `scripts/layers.toml`'s
 # `scenes-includes-outside` rule only matches include paths that contain a `/`, so a root-level
 # header -- allowed or not -- is invisible to it; closing that hole needs a stdlib-vs-project
 # discriminator (`<cstdint>` and `<stdint.h>` are both slash-less) that the checker does not have.
-# A fourth root-level include added here must be justified in this comment or it is a violation
+# A second root-level include added here must be justified in this comment or it is a violation
 # nothing will catch.
-# (io/** is for the settings root and its resets: `midiEngine` and the MIDI device registry --
-# the follow channels' and the MIDI commands' state -- and `MIDIDeviceManager`'s reset live
-# there, and the model-includes-ui rule in scripts/layers.toml already counts src/deluge/io/ as non-UI.)
+# (io/** is for the settings root: `midiEngine` and the MIDI device registry -- the follow
+# channels' and the MIDI commands' state -- live there, and the model-includes-ui rule in scripts/layers.toml already counts src/deluge/io/ as non-UI.)
 # (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions.)
 #
 # Link direction: deluge_ui_scenes links deluge_app (compile-only; see below), never the reverse.

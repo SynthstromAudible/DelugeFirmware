@@ -154,16 +154,14 @@ public:
 	/// into one vector. Both dispatch paths in this tree therefore claim *here* rather than each
 	/// keeping its own flag:
 	///
-	/// - `Browser::beginListing` (`gui/ui/browser/browser.cpp:97`), which previously guarded with
-	///   its own static `listingInProgress_` (`browser.h:170`), and
-	/// - `deluge::ui::scenes::browser::Listing::request` (`src/ui/scenes/browser/listing.cpp`), the
-	///   tick-driven seam the scenes layer uses.
+	/// - `Browser::beginListing` (`gui/ui/browser/browser.cpp`), and
+	/// - the scenes layer's tick-driven seam, `deluge::ui::scenes::browser::Listing::request`, which
+	///   claims through the catalogue port the host answers here (`gui/ui/shell_host/catalogue.cpp`).
 	///
-	/// Before this, the two were mutually invisible: a legacy browser listing and a scenes listing
-	/// could both believe they were the only one, over one shared vector. That is a live hazard for
-	/// as long as the legacy UI and the scenes stack coexist, which is the whole point of this
-	/// branch stack. Putting the guard with the resource makes it structural rather than a
-	/// convention two files have to keep agreeing on.
+	/// A guard of each caller's own would leave the two mutually invisible: a legacy browser listing
+	/// and a scenes listing could both believe they were the only one, over one shared vector, for as
+	/// long as the legacy UI and the scenes stack coexist. Putting the guard with the resource makes
+	/// it structural rather than a convention two files have to keep agreeing on.
 	///
 	/// @par The contract: hold it until the CONSUMER has finished reading, not until the read ends
 	///

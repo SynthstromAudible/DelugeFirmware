@@ -31,8 +31,9 @@
 
 #include "gui/l10n/strings.h"
 
+#include "project/device_settings.h"
 #include "project/setting_group.h"
-#include "storage/flash_storage.h"
+#include "ui/scenes/bind/device_reader.h"
 
 #include <algorithm>
 #include <array>
@@ -221,10 +222,10 @@ bool RenameScene::on_enter(const SceneId& id) {
 	edit_ = deluge::ui::widgets::oled::TextEditState{};
 	kb_ = deluge::ui::widgets::grid::TextKeyboardState{};
 	resp_ = {};
-	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI::padAction`).
-	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
-	layout_ =
-	    static_cast<deluge::ui::widgets::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
+	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI::padAction`): the text keyboard's
+	// DEVICE row, whose choices are `KeyboardLayoutKind`'s values (`keyboard.h`).
+	layout_ = bind::read_device<deluge::ui::widgets::grid::KeyboardLayoutKind>(
+	    ctx_.ports.device, project::device_path::kTextKeyboardLayout);
 	// Unarm the blink: the first render arms it against that tick's clock, so the cursor is lit on
 	// the frame the editor opens -- `setupBlink(..., shouldBlinkImmediately = true)`
 	// (`QwertyUI::drawTextForOLEDEditing` in `qwerty_ui.cpp`, and `hid/display/oled.cpp`).

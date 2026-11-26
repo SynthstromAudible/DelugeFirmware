@@ -46,13 +46,13 @@ describe listing_nested("the async listing seam over a nested directory", $ {
 		expect(catalogue_order()).to_equal(std::string("B.XML"));
 
 		ListingRequest up;
-		up.action = ListingAction::UpLevel;
+		up.step = ListingAction::UP_LEVEL;
 		expect(outcome_of(listing.request(up))).to_equal(kAccepted);
 		Deferred::run();
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("OUTER"));
 		// Legacy assigns the dropped segment to `enteredText` and lists starting at it
 		// (`Browser::goUpOneDirectoryLevelImpl` in `browser.cpp`), so the folder just left is what the browser lands

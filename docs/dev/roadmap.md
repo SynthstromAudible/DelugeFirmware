@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-21 (the menu, the services, the overlays, the waveform scenes and the recorder on the UI's ports, with the browser, the context menu, the rename scene and the cut still to go; Track A step 3, the Deluge synth's state, done: plans A to E merged into `next`; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-21). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-26 (every scene on the UI's ports, with the cut still to go; Track A step 3, the Deluge synth's state, done: plans A to E merged into `next`; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-21). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -27,7 +27,7 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
   recorded answers. A sound's sidechain send and MIDI output are the host's: `project::SoundRouting` on its synth track
   or kit row, a setting group the menus write. Its effects are its `FxSection`, its LFOs' settings `synth::LfoState`.
 - Next actions: ModelStack stage 1's S1c (the notify chain on `LaneTarget`) and S1d (recording); the arpeggiator's params vs settings (D7) spec; the C2 spec and
-  R2 (the scenes' reads behind `bind`); the float instrument's voice pool (Track B).
+  R2d (the scenes' link cut from the app); the float instrument's voice pool (Track B).
 
 ## Target architecture
 
@@ -101,8 +101,10 @@ keeps the option open to put the UI behind a C ABI.
 context holds one `bind::Ports` for everything the model does not hold. The read ports are `AudioFacts`, `CardFacts`,
 `UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts`, `Transport`, `Waveforms` and `ui::controls::Facts`; the write ports are
 `ClipWrites`, `SoundWrites`, the edit sink, `controls_sink` and `LearnSink`; the call ports are `TransportActions`,
-`DeviceActions`, `MidiFeedback`, `TakeActions` and `ViewActions`, and `Indicators` is the output port; `MidiDevices`
-carries the per-device settings, and a device is a `midi::DeviceId` the host registry maps to its cable. `Waveforms`
+`DeviceActions` (saving the settings, forgetting undo and the five resets), `CardActions`, `MidiFeedback`, `TakeActions`
+and `ViewActions`, and `Indicators` is the output port; `MidiDevices` carries the per-device settings, and a device is a
+`midi::DeviceId` the host registry maps to its cable. `Catalogue` is the card's one file listing, which a browser's
+listing seam claims, lists and reads entries from, and `Favourites` is the browsers' favourites bank. `Waveforms`
 answers a waveform by its address: its info, its 16 columns at a window (each a peak, pending or past the end) and where
 a voice plays it. The scenes keep no peak cache; the host keeps each file's columns, keyed by the sample's lifetime
 serial, and the window, navigation and paint arithmetic are `src/ui/views/waveform/`'s. The device's own settings are the
@@ -114,26 +116,15 @@ and the contract cases both run against are in `tests/support/ui/scenes/`. The v
 note lengths, filter and mod-FX words, reverb presets, arp rhythms, DX7 algorithms, cable polarity, param ids and names)
 are neutral. Layer rules keep the model stack, Edits, engine pointers and `currentSong` out of the layer.
 
-**Gap (measured 2026-11-21 with `python3 scripts/check_layers.py --list`).** The menu, the services, the
-overlays, the waveform scenes (the marker editor, the slicer and the audio clip view), the timeline and the recorder
-read and act through the ports: the menu's nodes and the recorder and marker editor through their context's set, the
-slicer, the audio clip view, the services and the overlays through a pointer the host installs. 5 scene files
-outside `bind/` include 13 (`scenes-reads-outside-bind`). By directory: `browser/` 3 files / 7 includes
-(`browser_scene.cpp` 5, `listing.{h,cpp}` 1 each), `context_menu/` 1 / 5 and `rename/` 1 / 1. Beyond those, 17 scene
-files outside `bind/` include `definitions_cxx.hpp` directly, 6 of them in the menu. `--list` prints the per-file
-counts. The 13 includes, by what they read (each header with the number of counted files that include it):
-
-- **The song and the community features:** `model/song/song.h` 1, `model/settings/runtime_feature_settings.h` 1 (2).
-- **The flash settings:** `storage/flash_storage.h` 3 (3).
-- **The card and its files:** `storage/file_catalogue.h` 2, `storage/storage_manager.h` 2, `storage/file_item.h` 1
-  (5).
-- **The audio engine:** `processing/engines/audio_engine.h` 1 (1).
-- **MIDI:** `io/midi/midi_follow.h` 1, `io/midi/midi_device_manager.h` 1 (2).
+**Gap (measured 2026-11-26 with `python3 scripts/check_layers.py --list`).** None for the reads: every scene reads and
+acts through the ports, and `scenes-reads-outside-bind` has no rows, with a baseline that may not grow. Left for the
+cut: 15 scene files outside `bind/` include `definitions_cxx.hpp` directly, 6 of them in the menu, and
+`deluge_ui_scenes` still links `deluge_app`.
 
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
 | R1 | 1 | Done: the inventory of the direct reads, shared with the Model lane's ModelStack reader inventory, and the `scenes-reads-outside-bind` include rule (`scripts/layers.toml`), whose per-file baseline in `scripts/layers_baseline.txt` may only fall, so later work adds no new reads | n/a |
-| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b); the services and overlays on ports, with the transport, its actions, the device's actions and MIDI follow's feedback as ports (R2c-1); the waveform scenes and the recorder on ports, with the waveforms, take, indicator and view-action ports and the waveform view library (R2c-2). Left: R2c-3, the browser's, the context menu's and the rename scene's reads, including the shared enums behind `definitions_cxx.hpp` and the carry list below; R2d, the cut, where `deluge_ui_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
+| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles; the menu on ports, with the DEVICE setting group and its port (R2b); the services and overlays on ports, with the transport, its actions, the device's actions and MIDI follow's feedback as ports (R2c-1); the waveform scenes and the recorder on ports, with the waveforms, take, indicator and view-action ports and the waveform view library (R2c-2); the browser, its listing, the context menu and the rename scene on ports, with the catalogue, card-action and favourites ports and the device's resets, and the ratchet at zero (R2c-3). Left: R2d, the cut, where `deluge_ui_scenes` stops linking `deluge_app`, with the shared enums behind `definitions_cxx.hpp` and the carry list below | 3d (done) |
 | R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = a `Kit` of `KitRow`s). The scenes' calls do not change, because addresses are already the API | P5 topology |
 | R4 | 4 | P6 closes: `UiEvent`, the readers and the ports are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
 
@@ -143,18 +134,8 @@ clock is deterministic and code layout does not move it, so any difference is be
 emulator sweep against upstream main (`tools/emu_parity.py`), which alone sees real timing, ARM code generation, the
 PIC and parity with main.
 
-**R2c-3 carries these:**
+**R2d carries these:**
 
-- **The `menu::host_*` hooks** left in `ui/scenes/menu/bind_host.h`, each retired with its callers:
-  - `host_settings_reset`, for the context menu's reset items, which move with `DeviceActions`;
-  - `host_end_audition`, for the browser alone (it forwards to `ViewActions::end_audition`);
-  - `host_waveforms`, for the browser alone: the browser's waveform reads move onto `ports.waveforms`, which retires
-    it;
-  - `host_last_sample_path`, `host_release_sample_file`, `host_forget_undo` and `host_favourites` (the browser;
-    `DeviceActions::delete_all_logs` is ready for `host_forget_undo`).
-- **`DeviceActions`' reset and export items**, with the context menu's reset items.
-- **`ForegroundRecording`** (`AudioFacts::foreground_recording`) is ready for the browser's comparison: its
-  `!= NONE` becomes the four-value test.
 - **The menu files the host-tree fakes driver (`tests/unit/ui/scenes/menu_fakes/`) cannot link** without the app.
   `context.cpp` links without it. Eight roots name an app symbol themselves; every other menu file outside the driver
   depends on one of them (`relevance.cpp` on `nodes/note.cpp`, through its iterance relevance rows):
@@ -169,9 +150,13 @@ PIC and parity with main.
   | `menu_scene.cpp` | the browser and recorder scenes |
   | `nodes/note.cpp` | `Iterance` (legacy `sequence/iterance.cpp`) |
 
-  The other scenes' opens count as the app here because those scenes still call `host_*` hooks or legacy code, or
-  reach the registry or the menu's node tables (the marker editor's shortcut jump, the recorder's shortcut blink).
-  Once R2c-3 clears them, R2d links the whole menu into the fakes driver.
+- **The browser, context menu and rename scenes link into the scenes fakes driver**
+  (`tests/unit/ui/scenes/scenes_fakes/`) once the menu does. A trial link on 2026-11-26 found no app symbol of their
+  own: what they lack is the menu's, through the browser's shortcut blink (`menu/shortcut_blink.cpp`, which reaches
+  the node tables of `nodes/sample.h`, `actions.h`, `edit_name.h`, `output_items.h` and `scales.h`) and the context
+  menu's items (`nodes/context_menu_items.cpp`).
+- **The stem export** already leaves the scenes as `MenuAction::StartStemExport`, which the host dispatches; it needs
+  no port.
 
 **The waveforms:**
 

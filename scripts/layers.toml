@@ -375,7 +375,7 @@ files = ["src/ui/scenes/**"]
 exclude = ["src/ui/scenes/bind/**"]
 pattern = '^(model|modulation|io|processing|storage|playback)/'
 shrink_only = true
-reason = "the scenes read the model only through ui/scenes/bind; the count only falls as reads move there"
+reason = "the scenes read the model only through ui/scenes/bind; the baseline is empty and may not grow"
 
 [[rule]]
 name = "platform-boundary"

@@ -216,6 +216,9 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.take_actions).not_().to_be_null();
 		expect(p.indicators).not_().to_be_null();
 		expect(p.view_actions).not_().to_be_null();
+		expect(p.catalogue).not_().to_be_null();
+		expect(p.card_actions).not_().to_be_null();
+		expect(p.favourites).not_().to_be_null();
 		if (p.audio != nullptr && p.take_actions != nullptr) {
 			// No take is held between cases.
 			expect(bind::contract::no_take_reads_nothing(*p.audio)).to_be_true();
@@ -352,6 +355,26 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			    .to_be_true();
 		}
 	});
+	it("holds the catalogue contract on the app's catalogue, over a listing of the card's SETTINGS folder", _ {
+		bind::Catalogue* catalogue = menu::host_ports().catalogue;
+		expect(catalogue).not_().to_be_null();
+		if (catalogue == nullptr) {
+			return;
+		}
+		expect(bind::contract::catalogue_claim_is_single(*catalogue)).to_be_true();
+		const int owner = 0;
+		expect(catalogue->claim(&owner)).to_be_true();
+		const bind::ListingOutcome out =
+		    catalogue->list(bind::ListingSpec{.step = bind::ListingStep::OPEN, .path = "SETTINGS"});
+		expect(out.error.has_value()).to_be_false();
+		expect(catalogue->dir()).to_equal(std::string_view{"SETTINGS"});
+		expect(bind::contract::catalogue_ends_at_its_count(*catalogue)).to_be_true();
+		expect(bind::contract::catalogue_search_past_the_end(*catalogue)).to_be_true();
+		expect(bind::contract::catalogue_erase_closes_the_gap(*catalogue)).to_be_true();
+		expect(bind::contract::catalogue_clear_empties(*catalogue)).to_be_true();
+		catalogue->release(&owner);
+	});
+
 	it("answers the song's clip navigation, the arrangement's mode, and a tempo grab off an audio clip as nothing", _ {
 		const bind::Ports& p = menu::host_ports();
 		Song* const saved_song = currentSong;

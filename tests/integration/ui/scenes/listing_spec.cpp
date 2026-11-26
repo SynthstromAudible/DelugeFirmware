@@ -39,6 +39,8 @@
 // project headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
 #include "support/listing_rig.h"
 
+#include "fakes.h"
+
 #include "cppspec.hpp"
 
 #include <cstdint>
@@ -78,7 +80,7 @@ describe listing("the async listing seam", $ {
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::NONE));
 		expect(static_cast<int>(result->count)).to_equal(5);
 		expect(catalogue_order()).to_equal(std::string("KITS,SAMPLES,SETTINGS,SONGS,SYNTHS"));
 
@@ -235,7 +237,7 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		ListingRequest req;
-		req.action = ListingAction::IntoFolder;
+		req.step = ListingAction::INTO_FOLDER;
 		req.path = "NO_SUCH_FOLDER";
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
 		Deferred::run();
@@ -244,14 +246,14 @@ describe listing("the async listing seam", $ {
 		expect(result.has_value()).to_be_true();
 		// FOLDER_DOESNT_EXIST, as main's FatFS directory open reports a missing folder: the default-folder arms turn on
 		// it, and its popup says "Folder not found".
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FOLDER_DOESNT_EXIST));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::FOLDER_DOESNT_EXIST));
 		// The seam did not hang: it is idle, the animation is down, and the failure was announced
 		// the way `Browser::onListingFailed` announces it (`browser.cpp`, displayError).
 		expect(state_of(listing)).to_equal(kIdle);
 		NoticeTally tally = drain_notices();
 		expect(tally.clear_working).to_equal(1);
 		expect(tally.error).to_equal(1);
-		expect(static_cast<int>(tally.last_error_code)).to_equal(static_cast<int>(result->error));
+		expect(static_cast<int>(tally.last_error_code)).to_equal(error_of(*result));
 	});
 
 	it("keeps a failed reload silent, exactly as main's Browser::selectEncoderAction does", _ {
@@ -264,13 +266,13 @@ describe listing("the async listing seam", $ {
 		// but still reports the error in the result, so a caller that wants the popup has the fact.
 		FileCatalogue::currentDir = "NO_SUCH_FOLDER";
 		ListingRequest req;
-		req.action = ListingAction::Reload;
+		req.step = ListingAction::RELOAD;
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
 		Deferred::run();
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).not_().to_equal(static_cast<int>(Error::NONE));
+		expect(error_of(*result)).not_().to_equal(static_cast<int>(Error::NONE));
 		NoticeTally tally = drain_notices();
 		expect(tally.error).to_equal(0);
 		expect(tally.clear_working).to_equal(1);
@@ -284,14 +286,14 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		ListingRequest req;
-		req.action = ListingAction::IntoFolder;
+		req.step = ListingAction::INTO_FOLDER;
 		req.path = "SETTINGS";
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
 		Deferred::run();
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("SETTINGS"));
 		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
 	});
@@ -305,13 +307,13 @@ describe listing("the async listing seam", $ {
 		// (`browser.cpp`), so "SETTINGS" is already the top as far as it is concerned.
 		FileCatalogue::currentDir = "SETTINGS";
 		ListingRequest req;
-		req.action = ListingAction::UpLevel;
+		req.step = ListingAction::UP_LEVEL;
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
 		Deferred::run();
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error))
+		expect(error_of(*result))
 		    .to_equal(static_cast<int>(Error::NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP));
 		expect(FileCatalogue::currentDir).to_equal(std::string("SETTINGS"));
 	});
@@ -323,20 +325,21 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		ListingRequest req;
-		req.action = ListingAction::ByPath;
+		req.step = ListingAction::BY_PATH;
 		req.path = "SETTINGS/MIDIFollow.XML";
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
 		Deferred::run();
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("SETTINGS"));
 		expect(result->entered_text).to_equal(std::string("MIDIFollow.XML"));
 		// Index 1, not 0: `SETTINGS/` holds the `FAVOURITES` folder as well, and folders sort in
 		// with files rather than ahead of them as a group.
-		expect(result->file_index).to_equal(1);
-		expect(result->found_exact).to_be_true();
+		const deluge::ui::scenes::bind::SearchHit hit = deluge::gui::shell_host::catalogue().search(result->entered_text);
+		expect(hit.index).to_equal(std::size_t{1});
+		expect(hit.exact).to_be_true();
 	});
 
 	it("reports a path that is not on the card as FILE_NOT_FOUND", _ {
@@ -345,14 +348,14 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		ListingRequest req;
-		req.action = ListingAction::ByPath;
+		req.step = ListingAction::BY_PATH;
 		req.path = "SETTINGS/NOPE.XML";
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
 		Deferred::run();
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FILE_NOT_FOUND));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::FILE_NOT_FOUND));
 	});
 
 	it("reloads the current directory in place", _ {
@@ -362,13 +365,13 @@ describe listing("the async listing seam", $ {
 
 		FileCatalogue::currentDir = "SETTINGS";
 		ListingRequest req;
-		req.action = ListingAction::Reload;
+		req.step = ListingAction::RELOAD;
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
 		Deferred::run();
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("SETTINGS"));
 		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
 	});
@@ -387,9 +390,46 @@ describe listing("the async listing seam", $ {
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("SETTINGS"));
 		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
+	});
+
+	// ---- the catalogue port ---------------------------------------------------------------------
+
+	it("lists through the catalogue it is pointed at, and claims and releases that catalogue", _ {
+		CleanListing clean;
+		deluge::ui::scenes::bind::test::FakeCatalogue fake;
+		fake.entries = {{"a.wav", false}, {"B", true}, {"c.wav", false}};
+		fake.folder = "SAMPLES";
+		fake.next_outcome.error = static_cast<int16_t>(Error::SD_CARD);
+		deluge::ui::scenes::browser::Listing seam(&Deferred::dispatch);
+		seam.set_catalogue(&fake);
+
+		ListingRequest req = open_request("SAMPLES");
+		req.kinds = deluge::ui::scenes::bind::FileKinds::AUDIO;
+		expect(outcome_of(seam.request(req))).to_equal(kAccepted);
+		expect(fake.holder).to_equal(static_cast<const void*>(&seam));
+		Deferred::run();
+
+		auto result = seam.take_result();
+		expect(result.has_value()).to_be_true();
+		expect(error_of(*result)).to_equal(static_cast<int>(Error::SD_CARD));
+		expect(result->count).to_equal(std::size_t{3});
+		expect(result->dir).to_equal(std::string("SAMPLES"));
+		expect(fake.listed.size()).to_equal(std::size_t{1});
+		expect(fake.listed[0].path).to_equal(std::string("SAMPLES"));
+		expect(fake.holder).to_equal(static_cast<const void*>(nullptr));
+		expect(drain_notices().error).to_equal(1);
+	});
+
+	it("drops a request when it has no catalogue, and announces nothing", _ {
+		CleanListing clean;
+		deluge::ui::scenes::browser::Listing seam(&Deferred::dispatch);
+		expect(outcome_of(seam.request(open_request()))).to_equal(kDropped);
+		expect(Deferred::pending()).to_be_false();
+		const NoticeTally tally = drain_notices();
+		expect(tally.working).to_equal(0);
 	});
 
 	// ---- the harness's own limit, pinned rather than described --------------------------------

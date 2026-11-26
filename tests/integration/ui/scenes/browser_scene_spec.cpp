@@ -76,6 +76,8 @@
 
 #include "support/browser_scene_fixtures.h"
 #include "support/fake_ports.h"
+
+#include "fakes.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
 #include "support/slicer_host_open.h"
@@ -363,44 +365,7 @@ void select_folder(Rig& r, bool folder) {
 	}
 }
 
-/// @brief A favourites bank in memory, recording what the browser asks of it.
-struct FakeFavourites final : deluge::ui::scenes::services::Favourites {
-	std::array<std::optional<uint8_t>, 16> slots{};
-	std::array<std::string, 16> paths{};
-	std::optional<uint8_t> current{};
-	uint8_t bank = 0;
-	deluge::ui::scenes::services::FavouritesBank state = deluge::ui::scenes::services::FavouritesBank::Loaded;
-	std::string category;
-	int closes = 0;
-
-	void set_category(std::string_view c) override { category = c; }
-	void close() override { closes++; }
-	[[nodiscard]] deluge::ui::scenes::services::FavouritesBank bank_state() const override { return state; }
-	[[nodiscard]] std::array<std::optional<uint8_t>, 16> colours() const override { return slots; }
-	[[nodiscard]] std::optional<uint8_t> current_favourite() const override { return current; }
-	[[nodiscard]] uint8_t current_bank() const override { return bank; }
-	[[nodiscard]] bool is_empty(uint8_t p) const override { return !slots[p].has_value(); }
-	std::string recall(uint8_t p) override {
-		current = p;
-		return slots[p].has_value() ? paths[p] : std::string{};
-	}
-	void set(uint8_t p, std::string_view path) override {
-		current = p;
-		slots[p] = 4;
-		paths[p] = path;
-	}
-	void unset(uint8_t p) override {
-		current = p;
-		slots[p].reset();
-		paths[p].clear();
-	}
-	void select_bank(uint8_t b) override { bank = b; }
-	void change_colour(uint8_t p, int32_t offset) override {
-		if (slots[p].has_value()) {
-			slots[p] = static_cast<uint8_t>(((*slots[p] + offset) % 16 + 16) % 16);
-		}
-	}
-};
+using deluge::ui::scenes::bind::test::FakeFavourites;
 
 /// @brief Install @p fake as the browser's favourites for an example, in the default layout, and put the host's back.
 struct UseFavourites {
@@ -440,8 +405,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		const browser::Descriptor& syx = browser::descriptor(BrowserId::DxSyx);
 		// `DxSyxBrowser::DxSyxBrowser` and `opened` (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`).
 		expect(std::string{syx.title}).to_equal(std::string{"DX7 syx files"});
-		expect(std::string{syx.extensions[0]}).to_equal(std::string{"SYX"});
-		expect(syx.extensions[1]).to_be_null();
+		expect(static_cast<int>(syx.kinds)).to_equal(static_cast<int>(deluge::ui::scenes::bind::FileKinds::SYX));
 		expect(std::string{syx.default_dir}).to_equal(std::string{"DX7"});
 		expect(syx.interpret_note_names).to_be_false();
 		expect(syx.allow_folders_sharing_name_with_file).to_be_true();
@@ -461,12 +425,9 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		const browser::Descriptor& midi = browser::descriptor(BrowserId::MidiDeviceDefinition);
 
 		// `allowedFileExtensionsAudio` (`SampleBrowser`'s constructor) vs the base's
-		// `allowedFileExtensionsXML` (`Browser::opened`).
-		expect(std::string{sample.extensions[0]}).to_equal(std::string{"WAV"});
-		expect(std::string{sample.extensions[1]}).to_equal(std::string{"AIFF"});
-		expect(std::string{sample.extensions[2]}).to_equal(std::string{"AIF"});
-		expect(sample.extensions[3]).to_be_null();
-		expect(std::string{midi.extensions[0]}).to_equal(std::string{"XML"});
+		// `allowedFileExtensionsXML` (`Browser::opened`), as the catalogue port's file kinds.
+		expect(static_cast<int>(sample.kinds)).to_equal(static_cast<int>(deluge::ui::scenes::bind::FileKinds::AUDIO));
+		expect(static_cast<int>(midi.kinds)).to_equal(static_cast<int>(deluge::ui::scenes::bind::FileKinds::XML));
 
 		expect(std::string{sample.default_dir}).to_equal(std::string{"SAMPLES"});
 		expect(std::string{midi.default_dir}).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});
@@ -593,6 +554,29 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		expect(browser_scene().on_enter(SceneId{kBrowserSceneKind, static_cast<uint16_t>(BrowserId::Count)}))
 		    .to_be_false();
 		expect(browser_scene().last_enter_refused()).to_be_true();
+	});
+
+	it("reads its entries through the catalogue port it is opened with", _ {
+		// Declared first so it outlives the cleanup, which exits the scene through the catalogue it was opened with.
+		deluge::ui::scenes::bind::test::FakeCatalogue catalogue;
+		CleanBrowser clean;
+		spec::SongFixture f = spec::make_midi_song();
+		catalogue.entries = {{"A.XML", false}, {"B", true}, {"C.XML", false}};
+		catalogue.folder = "MIDI_DEVICES/DEFINITION";
+		MenuContext ctx = context_of(f);
+		ctx.ports.catalogue = &catalogue;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::MidiDeviceDefinition);
+		expect(catalogue.listed.size()).to_equal(std::size_t{1});
+		expect(static_cast<int>(catalogue.listed[0].kinds))
+		    .to_equal(static_cast<int>(deluge::ui::scenes::bind::FileKinds::XML));
+		expect(browser_scene().file_index()).to_equal(0);
+		expect(browser_scene().current_is_folder()).to_be_false();
+		r.turn(1, r.clock + 10);
+		r.step();
+		expect(browser_scene().file_index()).to_equal(1);
+		expect(browser_scene().current_is_folder()).to_be_true();
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"B"});
 	});
 
 	it("opens the MIDI browser on its own folder and extension", _ {
@@ -3343,6 +3327,52 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		expect(released.actions.empty()).to_be_true();
 	});
 
+	it("leaves RECORD to the views while a foreground source is chosen, unset included, as the audio port answers", _ {
+		// `AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE`: legacy's unset value is not NONE.
+		deluge::ui::scenes::bind::test::FakeAudioFacts audio; // declared first: it outlives the cleanup
+		audio.foreground = deluge::ui::scenes::bind::ForegroundRecording::UNSET;
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		ctx.ports.audio = &audio;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		DirectCtx d;
+		const Result pressed = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		expect(find_action(pressed, ShellAction::Kind::Push)).to_be_null();
+		audio.foreground = deluge::ui::scenes::bind::ForegroundRecording::NONE;
+		const Result again = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		expect(find_action(again, ShellAction::Kind::Push)).not_().to_be_null();
+	});
+
+	it("ends a held audition and forgets undo through the view and device action ports as it opens", _ {
+		// `SampleBrowser::opened`. Declared first: the recorders outlive the cleanup.
+		deluge::ui::scenes::bind::test::RecordingViewActions views;
+		deluge::ui::scenes::bind::test::RecordingDeviceActions device;
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		ctx.ports.view_actions = &views;
+		ctx.ports.device_actions = &device;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		expect(views.ends.size()).to_equal(std::size_t{1});
+		if (!views.ends.empty()) {
+			expect(static_cast<int>(views.ends.front()))
+			    .to_equal(static_cast<int>(deluge::ui::scenes::bind::AuditionEnd::ClipViewWhenAuditioning));
+		}
+		expect(device.calls.size()).to_equal(std::size_t{1});
+		if (!device.calls.empty()) {
+			expect(static_cast<int>(device.calls.front()))
+			    .to_equal(
+			        static_cast<int>(deluge::ui::scenes::bind::test::RecordingDeviceActions::Kind::DELETE_ALL_LOGS));
+		}
+	});
+
 	it("takes RECORD and does nothing while an audition pad is held", _ {
 		// `SampleBrowser::buttonAction`'s RECORD arm returns at once under any UI mode, and a held audition pad is
 		// `UI_MODE_AUDITIONING`: the browser stays and no take starts. The audition column is the view's, so the mode
@@ -3582,6 +3612,37 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		r.step();
 	});
 
+	it("asks the card actions port to release the file before its delete menu, and refuses one the song holds", _ {
+		// `SampleBrowser::buttonAction`'s Shift+SAVE. Declared first: the recorder outlives the cleanup.
+		deluge::ui::scenes::bind::test::RecordingCardActions actions;
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		MenuContext ctx = context_of(f);
+		ctx.ports.card_actions = &actions;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const auto shift_save = [&r] {
+			r.button(kShiftX, kShiftY, true, r.clock + 5);
+			r.button(kSaveX, kSaveY, true, r.clock + 10);
+			r.step();
+			r.button(kSaveX, kSaveY, false, r.clock + 10);
+			r.button(kShiftX, kShiftY, false, r.clock + 10);
+			r.step();
+			r.step();
+		};
+		shift_save();
+		expect(actions.released.size()).to_equal(std::size_t{1});
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
+		r.shell.stack().pop(context_menu::kContextMenuSceneKind);
+		if (!actions.released.empty()) {
+			actions.in_use.insert(actions.released.front());
+		}
+		shift_save();
+		expect(actions.released.size()).to_equal(std::size_t{2});
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
+	});
+
 	it("Shift+SAVE on a file the song uses refuses with main's popup", _ {
 		CleanBrowser clean;
 		ScratchCard card;
@@ -3761,7 +3822,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		FakeFavourites fake;
 		fake.slots[3] = 1;
 		fake.paths[3] = "SAMPLES/TOM.WAV";
-		fake.state = deluge::ui::scenes::services::FavouritesBank::Loading;
+		fake.state = deluge::ui::scenes::bind::FavouritesBank::Loading;
 		UseFavourites use(fake);
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
@@ -3769,7 +3830,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		tap(r, 9, 7);
 		tap(r, 3, 7);
 		expect(fake.current.has_value()).to_be_false();
-		fake.state = deluge::ui::scenes::services::FavouritesBank::Unavailable;
+		fake.state = deluge::ui::scenes::bind::FavouritesBank::Unavailable;
 		tap(r, 3, 7);
 		r.step();
 		expect(popup_text(r)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_SD_CARD_ERROR)});

@@ -60,8 +60,10 @@ struct FakeAudioFacts final : AudioFacts {
 struct FakeCardFacts final : CardFacts {
 	bool sample_loading{false}; ///< what `sample_load_in_flight` answers
 	bool replacing{false};      ///< what `output_may_be_replaced` answers
+	std::string last_path;      ///< what `last_sample_path` answers
 	[[nodiscard]] bool sample_load_in_flight() const override { return sample_loading; }
 	[[nodiscard]] bool output_may_be_replaced() const override { return replacing; }
+	[[nodiscard]] std::string last_sample_path() const override { return last_path; }
 };
 
 /// @brief UiFacts a spec sets directly.
@@ -317,12 +319,22 @@ struct FakeMidiDevices final : MidiDevices {
 struct RecordingDeviceActions final : DeviceActions {
 	/// @brief Which action it was.
 	enum class Kind : uint8_t {
-		SAVE_SETTINGS,   ///< save_settings
-		DELETE_ALL_LOGS, ///< delete_all_logs
+		SAVE_SETTINGS,            ///< save_settings
+		DELETE_ALL_LOGS,          ///< delete_all_logs
+		RESET_SETTINGS,           ///< reset_settings
+		RESET_COMMUNITY_FEATURES, ///< reset_community_features
+		RESET_MIDI_FOLLOW,        ///< reset_midi_follow
+		RESET_MIDI_DEVICES,       ///< reset_midi_devices
+		FACTORY_RESET,            ///< factory_reset
 	};
 	std::vector<Kind> calls;                       ///< every action taken, in order
 	std::vector<std::string_view>* order{nullptr}; ///< when set, delete_all_logs appends "wipe" to it
 	void save_settings() override { calls.push_back(Kind::SAVE_SETTINGS); }
+	void reset_settings() override { calls.push_back(Kind::RESET_SETTINGS); }
+	void reset_community_features() override { calls.push_back(Kind::RESET_COMMUNITY_FEATURES); }
+	void reset_midi_follow() override { calls.push_back(Kind::RESET_MIDI_FOLLOW); }
+	void reset_midi_devices() override { calls.push_back(Kind::RESET_MIDI_DEVICES); }
+	void factory_reset() override { calls.push_back(Kind::FACTORY_RESET); }
 	void delete_all_logs() override {
 		calls.push_back(Kind::DELETE_ALL_LOGS);
 		if (order != nullptr) {
@@ -626,6 +638,106 @@ struct RecordingViewActions final : ViewActions {
 	}
 };
 
+/// @brief CardActions that records every release asked of it, and refuses the paths a spec lists as in use.
+struct RecordingCardActions final : CardActions {
+	std::vector<std::string> released;         ///< every path asked, in order
+	std::set<std::string, std::less<>> in_use; ///< the paths it refuses, as a song using them
+	[[nodiscard]] bool release_sample_file(std::string_view path) override {
+		released.emplace_back(path);
+		return !in_use.contains(path);
+	}
+};
+
+/// @brief A favourites bank in memory, recording what the browser asks of it.
+struct FakeFavourites final : Favourites {
+	std::array<std::optional<uint8_t>, 16> slots{}; ///< each slot's colour, or nothing when empty
+	std::array<std::string, 16> paths{};            ///< each slot's file
+	std::optional<uint8_t> current{};               ///< the slot last recalled, set or unset
+	uint8_t bank = 0;                               ///< the bank on show
+	FavouritesBank state = FavouritesBank::Loaded;  ///< what `bank_state` answers
+	std::string category;                           ///< the category last shown
+	int closes = 0;                                 ///< how many times the bank was left
+
+	void set_category(std::string_view c) override { category = c; }
+	void close() override { closes++; }
+	[[nodiscard]] FavouritesBank bank_state() const override { return state; }
+	[[nodiscard]] std::array<std::optional<uint8_t>, 16> colours() const override { return slots; }
+	[[nodiscard]] std::optional<uint8_t> current_favourite() const override { return current; }
+	[[nodiscard]] uint8_t current_bank() const override { return bank; }
+	[[nodiscard]] bool is_empty(uint8_t p) const override { return !slots[p].has_value(); }
+	std::string recall(uint8_t p) override {
+		current = p;
+		return slots[p].has_value() ? paths[p] : std::string{};
+	}
+	void set(uint8_t p, std::string_view path) override {
+		current = p;
+		slots[p] = 4;
+		paths[p] = path;
+	}
+	void unset(uint8_t p) override {
+		current = p;
+		slots[p].reset();
+		paths[p].clear();
+	}
+	void select_bank(uint8_t b) override { bank = b; }
+	void change_colour(uint8_t p, int32_t offset) override {
+		if (slots[p].has_value()) {
+			slots[p] = static_cast<uint8_t>(((*slots[p] + offset) % 16 + 16) % 16);
+		}
+	}
+};
+
+/// @brief A Catalogue a spec fills directly: its entries, its folder, the next listing's outcome, and every listing
+///        asked of it, in order.
+struct FakeCatalogue final : Catalogue {
+	/// @brief One entry: its name and whether it is a folder.
+	struct Entry {
+		std::string name; ///< the entry's name
+		bool folder{};    ///< whether it is a folder
+	};
+	std::vector<Entry> entries;      ///< what `entry` and `count` answer
+	std::string folder;              ///< what `dir` answers
+	ListingOutcome next_outcome;     ///< what the next `list` answers
+	std::vector<ListingSpec> listed; ///< every listing asked, in order
+	bool before{false};              ///< what `culled_before` answers
+	bool after{false};               ///< what `culled_after` answers
+	const void* holder{nullptr};     ///< who holds the claim
+
+	[[nodiscard]] bool claim(const void* owner) override {
+		if (holder != nullptr && holder != owner) {
+			return false;
+		}
+		holder = owner;
+		return true;
+	}
+	void release(const void* owner) override {
+		if (holder == owner) {
+			holder = nullptr;
+		}
+	}
+	[[nodiscard]] ListingOutcome list(const ListingSpec& spec) override {
+		listed.push_back(spec);
+		return next_outcome;
+	}
+	[[nodiscard]] std::string_view dir() const override { return folder; }
+	[[nodiscard]] std::size_t count() const override { return entries.size(); }
+	[[nodiscard]] std::optional<CatalogueEntry> entry(std::size_t index) const override {
+		if (index >= entries.size()) {
+			return std::nullopt;
+		}
+		return CatalogueEntry{.name = entries[index].name, .folder = entries[index].folder};
+	}
+	[[nodiscard]] SearchHit search(std::string_view name) override;
+	[[nodiscard]] bool culled_before() const override { return before; }
+	[[nodiscard]] bool culled_after() const override { return after; }
+	void erase(std::size_t index) override {
+		if (index < entries.size()) {
+			entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(index));
+		}
+	}
+	void clear() override { entries.clear(); }
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
 	FakeAudioFacts audio;                        ///< the audio port's fake
@@ -650,6 +762,9 @@ struct FakeHost {
 	RecordingTakeActions take_actions;           ///< the take actions' recorder
 	RecordingIndicators indicators;              ///< the indicators' recorder
 	RecordingViewActions view_actions;           ///< the view actions' recorder
+	FakeCatalogue catalogue;                     ///< the card catalogue's fake
+	RecordingCardActions card_actions;           ///< the card actions' recorder
+	FakeFavourites favourites;                   ///< the favourites bank's fake
 	/// The wipe, the drum's name, the tick clear, the take's begin and the audition end, in the order they came.
 	std::vector<std::string_view> order;
 	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
@@ -685,7 +800,10 @@ struct FakeHost {
 		        .waveforms = &waveforms,
 		        .take_actions = &take_actions,
 		        .indicators = &indicators,
-		        .view_actions = &view_actions};
+		        .view_actions = &view_actions,
+		        .catalogue = &catalogue,
+		        .card_actions = &card_actions,
+		        .favourites = &favourites};
 	}
 };
 

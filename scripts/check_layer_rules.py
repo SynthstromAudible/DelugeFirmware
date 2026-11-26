@@ -609,11 +609,7 @@ RULES = [
         # Same ratchet-not-proof caveat as the rows above: a dispatch reached through some other
         # spelling (a member function pointer, say) slips past. It catches the habit.
         "scenes-listing-through-the-seam",
-        (
-            "src/ui/scenes/**",
-            "src/ui/scenes/browser/listing.cpp",
-            "src/ui/scenes/browser/listing.h",
-        ),
+        ("src/ui/scenes/**",),
         "symbol",
         r"\b(" + "|".join(CATALOGUE_DISPATCH_CALLS) + r")\b",
         "2026-08-26-ui-scenes-menus-design.md",

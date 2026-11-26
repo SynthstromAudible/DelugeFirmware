@@ -21,7 +21,7 @@
 #include "ui/scenes/browser/browser_scene.h"
 
 #include "base/notify/notice_queue.h"
-#include "definitions_cxx.hpp" // AudioInputChannel, Error, kNumSources
+#include "definitions_cxx.hpp" // Error, kNumSources
 #include "ui/widgets/core/blink.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/favourites.h"
@@ -35,16 +35,12 @@
 #include "gui/l10n/strings.h"
 
 #include "instruments/classic/state_access.h"
-#include "processing/engines/audio_engine.h"
+#include "project/device_settings.h"
 #include "project/setting_group.h"
 #include "project/song.h"
-#include "storage/file_catalogue.h"
-#include "storage/file_item.h"
-#include "storage/flash_storage.h"
-#include "storage/storage_manager.h"
 #include "ui/gfx/grid/pad_grid.h"
+#include "ui/scenes/bind/device_reader.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/recorder/recorder_scene.h"
 #include "ui/scenes/services/waveform_paint.h"
 #include "ui/scenes/slicing/slicer_scene.h"
@@ -63,7 +59,6 @@ constexpr int32_t kMainCols = deluge::ui::gfx::grid::kDelugeGrid.main_cols;
 constexpr int32_t kRows = deluge::ui::gfx::grid::kDelugeGrid.rows;
 
 using deluge::l10n::String;
-using deluge::storage::FileCatalogue;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
@@ -129,7 +124,7 @@ bool caseless_equals(std::string_view a, std::string_view b) {
 /// back to `finalChar = 0` when there is no dot at all (`Browser::renderOLED` in `browser.cpp`) -- so a folder shows
 /// its whole name, a file shows everything before its **last** dot, and an extensionless file shows
 /// its whole name too.
-/// @param name     The entry's `FileItem::filename`.
+/// @param name     The entry's name, with its extension.
 /// @param is_folder Whether the entry is a directory.
 /// @return The part of @p name legacy inks.
 std::string_view row_label(std::string_view name, bool is_folder) {
@@ -142,10 +137,6 @@ std::string_view row_label(std::string_view name, bool is_folder) {
 
 // ---------------------------------------------------------------------------------------------
 // The three descriptors. Each block is one legacy `Browser` subclass, virtual for virtual.
-
-/// @brief `allowedFileExtensionsAudio`, the namespace-scope array in
-/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`.
-char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
 
 // --- Sample: `SampleBrowser` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) ---
 
@@ -197,7 +188,7 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 	std::string last;
 	std::string_view path = held ? std::string_view{*held} : std::string_view{};
 	if (path.empty() || !case_prefix_equal(path, "SAMPLES/", 8)) {
-		last = menu::host_last_sample_path();
+		last = ctx.ports.card != nullptr ? ctx.ports.card->last_sample_path() : std::string{};
 		path = last;
 		if (path.empty()) {
 			return; // dir stays empty -> `Descriptor::default_dir`
@@ -214,11 +205,11 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 }
 
 /// The way a listing came into its folder, as `arrivedInNewFolder`'s direction: into a folder 1, up one -1, else 0.
-int8_t entry_direction(ListingAction action) {
-	switch (action) {
-	case ListingAction::IntoFolder:
+int8_t entry_direction(bind::ListingStep step) {
+	switch (step) {
+	case bind::ListingStep::INTO_FOLDER:
 		return 1;
-	case ListingAction::UpLevel:
+	case bind::ListingStep::UP_LEVEL:
 		return -1;
 	default:
 		return 0;
@@ -307,8 +298,6 @@ AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view 
 
 // --- DX7 `.syx` banks: `DxSyxBrowser` (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`) ---
 
-char const* kSyxExtensions[] = {"SYX", nullptr};
-
 bool dx_syx_can(const menu::MenuContext& ctx) {
 	// `DxSyxBrowser::opened` refuses nothing of its own: only "DX7 source" lists the row that opens it. A bank loads
 	// into the sound the menu edits, so there has to be one.
@@ -333,7 +322,7 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
     // note names interpreted, and folders allowed to share a name with a file.
     {
         .title = "Audio files",
-        .extensions = kAudioExtensions,
+        .kinds = bind::FileKinds::AUDIO,
         .default_dir = "SAMPLES",
         .file_icon = &ui::gfx::oled::icons::browserWave,
         .file_icon_pt2 = nullptr,
@@ -350,7 +339,7 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
     // disallowed.
     {
         .title = "Load midi device",
-        .extensions = allowedFileExtensionsXML,
+        .kinds = bind::FileKinds::XML,
         .default_dir = kMidiDeviceDir,
         .file_icon = &ui::gfx::oled::icons::browserMidi,
         .file_icon_pt2 = &ui::gfx::oled::icons::browserMidiEdge,
@@ -365,7 +354,7 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
     // folders allowed to share a name with a file.
     {
         .title = "DX7 syx files",
-        .extensions = kSyxExtensions,
+        .kinds = bind::FileKinds::SYX,
         .default_dir = "DX7",
         .file_icon = &ui::gfx::oled::icons::browserWave,
         .file_icon_pt2 = nullptr,
@@ -378,14 +367,14 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
     },
 }};
 
-/// @brief The entry the selection names, or null -- `Browser::getCurrentFileItem`.
-/// @param index The selected index.
-/// @return The entry, or null when nothing is selected or the index is out of range.
-const FileItem* item_at(int32_t index) {
-	if (index < 0 || index >= static_cast<int32_t>(FileCatalogue::fileItems.size())) {
-		return nullptr;
+/// @brief The path of the entry @p name in the folder @p dir, which is empty at the card's root.
+std::string join_path(std::string_view dir, std::string_view name) {
+	std::string path{dir};
+	if (!path.empty()) {
+		path += '/';
 	}
-	return &FileCatalogue::fileItems[static_cast<size_t>(index)];
+	path += name;
+	return path;
 }
 
 /// @brief One `Result` carrying a full repaint.
@@ -421,6 +410,7 @@ BrowserHost& null_browser_host() {
 
 void BrowserScene::open(const menu::MenuContext& ctx) {
 	ctx_ = ctx;
+	listing_.set_catalogue(ctx_.ports.catalogue);
 }
 
 bool BrowserScene::on_enter(const SceneId& id) {
@@ -449,9 +439,13 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	}
 	if (id_ == BrowserId::Sample) {
 		// `SampleBrowser::opened`: a held audition ends as the browser opens.
-		menu::host_end_audition(bind::AuditionEnd::ClipViewWhenAuditioning);
+		if (ctx_.ports.view_actions != nullptr) {
+			ctx_.ports.view_actions->end_audition(bind::AuditionEnd::ClipViewWhenAuditioning);
+		}
 		// `SampleBrowser::opened`: undo history ends at the browser.
-		menu::host_forget_undo();
+		if (ctx_.ports.device_actions != nullptr) {
+			ctx_.ports.device_actions->delete_all_logs();
+		}
 	}
 
 	entered_len_ = 0;
@@ -488,10 +482,10 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	blink_fired_step_ = UINT32_MAX;
 	first_preview_ = true;
 	spare_blink_from_preview_ = false;
-	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI`'s `keyboardChars`).
-	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
-	layout_ =
-	    static_cast<deluge::ui::widgets::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
+	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI`'s `keyboardChars`): the text
+	// keyboard's DEVICE row, whose choices are `KeyboardLayoutKind`'s values (`keyboard.h`).
+	layout_ = bind::read_device<deluge::ui::widgets::grid::KeyboardLayoutKind>(
+	    ctx_.ports.device, project::device_path::kTextKeyboardLayout);
 	cursor_blink_ = deluge::ui::widgets::core::Blink{};
 
 	favourite_resp_ = {};
@@ -511,7 +505,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 
 void BrowserScene::on_exit() {
 	// `Browser::close()` empties the catalogue. Collect first: an uncollected
-	// result still holds `FileCatalogue`'s claim, and leaving it held would refuse every later
+	// result still holds the catalogue's claim, and leaving it held would refuse every later
 	// listing -- this layer's or a legacy browser's -- for the life of the process.
 	//
 	// A listing that is still *in flight* cannot be collected and is deliberately not waited for:
@@ -540,7 +534,9 @@ void BrowserScene::on_exit() {
 	// A load still out is the host's to cancel (`DxSyxBrowser::close`): it sees no browser waiting.
 	awaiting_deferred_ = false;
 	deferred_done_.reset();
-	FileCatalogue::emptyFileItems();
+	if (ctx_.ports.catalogue != nullptr) {
+		ctx_.ports.catalogue->clear();
+	}
 	// Fix the same hazard `RenameScene::on_exit` records: `open()` is the only writer of `ctx_`, and
 	// this scene is a singleton that outlives every visit, so a re-entry that forgot its `open()`
 	// must not validate `can()` against the previous song's pointers. A zeroed context fails every
@@ -553,7 +549,34 @@ void BrowserScene::on_exit() {
 }
 
 std::string_view BrowserScene::current_dir() const {
-	return FileCatalogue::currentDir;
+	return ctx_.ports.catalogue != nullptr ? ctx_.ports.catalogue->dir() : std::string_view{};
+}
+
+std::optional<bind::CatalogueEntry> BrowserScene::entry_at(int32_t index) const {
+	if (index < 0 || ctx_.ports.catalogue == nullptr) {
+		return std::nullopt;
+	}
+	return ctx_.ports.catalogue->entry(static_cast<size_t>(index));
+}
+
+int32_t BrowserScene::entry_count() const {
+	return ctx_.ports.catalogue != nullptr ? static_cast<int32_t>(ctx_.ports.catalogue->count()) : 0;
+}
+
+bind::SearchHit BrowserScene::search(std::string_view name) {
+	return ctx_.ports.catalogue != nullptr ? ctx_.ports.catalogue->search(name) : bind::SearchHit{};
+}
+
+int32_t BrowserScene::search_index(std::string_view name) {
+	return static_cast<int32_t>(search(name).index);
+}
+
+bool BrowserScene::culled_before() const {
+	return ctx_.ports.catalogue != nullptr && ctx_.ports.catalogue->culled_before();
+}
+
+bool BrowserScene::culled_after() const {
+	return ctx_.ports.catalogue != nullptr && ctx_.ports.catalogue->culled_after();
 }
 
 std::optional<ScrollRequest> BrowserScene::take_scroll() {
@@ -634,10 +657,10 @@ void BrowserScene::file_preview(int8_t direction) {
 	// `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a folder or no
 	// selection previews nothing, and stops what was previewing.
 	PreviewRequest request{.id = id_, .direction = direction};
-	const FileItem* item = item_at(file_index_);
-	if (item != nullptr && !item->isFolder) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (item.has_value() && !item->folder) {
 		const std::string_view dir = current_dir();
-		request.path = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+		request.path = join_path(dir, item->name);
 	}
 	preview_path_ = request.path;
 	preview_direction_ = direction;
@@ -660,24 +683,66 @@ void BrowserScene::reveal_keyboard() {
 	favourite_flash_anchor_ms_.reset(); // `drawKeys` draws the favourites afresh
 }
 
-services::Favourites& BrowserScene::favourites() {
-	return favourites_override_ != nullptr ? *favourites_override_ : menu::host_favourites();
+namespace {
+
+static_assert(bind::kFavouriteSlots == deluge::ui::widgets::grid::kFavourites,
+              "the favourites port's bank is the favourites row the grid draws");
+
+/// @brief The favourites a browser opened with no favourites port shows: a bank whose read never answers.
+class NoFavourites final : public bind::Favourites {
+public:
+	void set_category(std::string_view) override {}
+	void close() override {}
+	[[nodiscard]] bind::FavouritesBank bank_state() const override { return bind::FavouritesBank::Unavailable; }
+	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::scenes::bind::kFavouriteSlots>
+	colours() const override {
+		return {};
+	}
+	[[nodiscard]] std::optional<uint8_t> current_favourite() const override { return std::nullopt; }
+	[[nodiscard]] uint8_t current_bank() const override { return 0; }
+	[[nodiscard]] bool is_empty(uint8_t) const override { return true; }
+	std::string recall(uint8_t) override { return {}; }
+	void set(uint8_t, std::string_view) override {}
+	void unset(uint8_t) override {}
+	void select_bank(uint8_t) override {}
+	void change_colour(uint8_t, int32_t) override {}
+};
+
+} // namespace
+
+bind::Favourites& BrowserScene::favourites() {
+	if (favourites_override_ != nullptr) {
+		return *favourites_override_;
+	}
+	if (ctx_.ports.favourites != nullptr) {
+		return *ctx_.ports.favourites;
+	}
+	static NoFavourites none;
+	return none;
+}
+
+project::FavouritesLayout BrowserScene::favourites_layout() const {
+	return bind::read_device<project::FavouritesLayout>(ctx_.ports.device, project::device_path::kFavouritesLayout);
+}
+
+bool BrowserScene::foreground_recording_chosen() const {
+	// `AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE`: unset counts, as legacy's unset value is
+	// not NONE either.
+	return ctx_.ports.audio != nullptr && ctx_.ports.audio->foreground_recording() != bind::ForegroundRecording::NONE;
 }
 
 bool BrowserScene::favourites_visible() const {
-	return id_ == BrowserId::Sample && keyboard_visible_
-	       && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff;
+	return id_ == BrowserId::Sample && keyboard_visible_ && favourites_layout() != project::FavouritesLayout::OFF;
 }
 
 bool BrowserScene::banks_visible() const {
 	return id_ == BrowserId::Sample && keyboard_visible_
-	       && FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks;
+	       && favourites_layout() == project::FavouritesLayout::FAVOURITES_AND_BANKS;
 }
 
 int32_t BrowserScene::favourite_row() const {
 	// `QwertyUI::opened`: row 7, or 6 with the bank row beneath it.
-	return FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks ? kFavouriteRow - 1
-	                                                                                         : kFavouriteRow;
+	return favourites_layout() == project::FavouritesLayout::FAVOURITES_AND_BANKS ? kFavouriteRow - 1 : kFavouriteRow;
 }
 
 void BrowserScene::favourites_changed() {
@@ -694,20 +759,20 @@ Result BrowserScene::favourite_press(uint8_t position) {
 	};
 	// A bank still arriving, or one that could not be read, may be neither edited nor recalled from.
 	switch (favourites().bank_state()) {
-	case services::FavouritesBank::Loading:
+	case bind::FavouritesBank::Loading:
 		return r;
-	case services::FavouritesBank::Unavailable:
+	case bind::FavouritesBank::Unavailable:
 		popup(String::STRING_FOR_SD_CARD_ERROR);
 		return r;
-	case services::FavouritesBank::Loaded:
+	case bind::FavouritesBank::Loaded:
 		break;
 	}
 	if (shift_) {
-		const FileItem* item = item_at(file_index_);
+		const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
 		if (favourites().is_empty(position)) {
-			if (item != nullptr && !item->isFolder) {
+			if (item.has_value() && !item->folder) {
 				const std::string_view dir = current_dir();
-				favourites().set(position, dir.empty() ? item->filename : std::string{dir} + "/" + item->filename);
+				favourites().set(position, join_path(dir, item->name));
 				favourites_changed();
 			}
 		}
@@ -727,7 +792,7 @@ Result BrowserScene::favourite_press(uint8_t position) {
 	entered_len_ = 0;
 	edit_ = deluge::ui::widgets::oled::TextEditState{};
 	arrive_in_new_folder();
-	ListingRequest req = make_request(ListingAction::ByPath);
+	bind::ListingSpec req = make_request(bind::ListingStep::BY_PATH);
 	req.path = path;
 	file_request(std::move(req));
 	(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
@@ -741,7 +806,7 @@ void BrowserScene::render_favourites(deluge::ui::widgets::grid::GridFrame& f) {
 	const std::array<RGB, deluge::ui::widgets::grid::kFavourites> row =
 	    deluge::ui::widgets::grid::favourite_row_colours(colours);
 	favourite_resp_ = deluge::ui::widgets::grid::row(f, favourite_row(), row);
-	if (FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks) {
+	if (favourites_layout() == project::FavouritesLayout::FAVOURITES_AND_BANKS) {
 		const std::array<RGB, deluge::ui::widgets::grid::kFavourites> banks =
 		    deluge::ui::widgets::grid::favourite_bank_colours();
 		bank_resp_ = deluge::ui::widgets::grid::row(f, kFavouriteRow, banks);
@@ -771,11 +836,11 @@ void BrowserScene::render_favourites(deluge::ui::widgets::grid::GridFrame& f) {
 // ---------------------------------------------------------------------------------------------
 // Listings
 
-ListingRequest BrowserScene::make_request(ListingAction action) const {
+bind::ListingSpec BrowserScene::make_request(bind::ListingStep step) const {
 	const Descriptor& d = descriptor(id_);
-	ListingRequest req;
-	req.action = action;
-	req.allowed_extensions = d.extensions;
+	bind::ListingSpec req;
+	req.step = step;
+	req.kinds = d.kinds;
 	req.allow_folders = true; // `Browser::arrivedInNewFolder` passes `allowFolders = true`
 	req.allow_folders_sharing_name_with_file = d.allow_folders_sharing_name_with_file;
 	req.interpret_note_names = d.interpret_note_names;
@@ -790,17 +855,17 @@ void BrowserScene::request_open() {
 	if (dir.empty()) {
 		dir = d.default_dir;
 	}
-	ListingRequest req = make_request(ListingAction::Open);
+	bind::ListingSpec req = make_request(bind::ListingStep::OPEN);
 	// Only the opening listing has a default folder to fall back to and create, as main's `opened()`: entering,
 	// leaving and reloading a folder that has gone is the card's error.
 	req.default_dir = d.default_dir;
 	req.path = std::move(dir);
-	req.filename_to_start_at = name;
+	req.start_at = name;
 	select_after_listing_ = std::move(name);
 	file_request(std::move(req));
 }
 
-void BrowserScene::file_request(ListingRequest req) {
+void BrowserScene::file_request(bind::ListingSpec req) {
 	if (listing_.request(req) != RequestOutcome::Accepted) {
 		// `Busy` (something else holds the catalogue), `ResultPending` (this seam owes a collect) or
 		// `Dropped` (the owner's queue was full). None of the three loses the request: it is kept and
@@ -816,8 +881,8 @@ Result BrowserScene::apply(const ListingResult& out) {
 	// `displayError` (already raised by the seam, which is why nothing is announced here) then
 	// `close()`. Reload is legacy's one silent exception (`browser.cpp`): it empties the
 	// catalogue and leaves the browser standing.
-	if (out.error != Error::NONE) {
-		if (out.action != ListingAction::Reload) {
+	if (out.error.has_value()) {
+		if (out.step != bind::ListingStep::RELOAD) {
 			return close();
 		}
 		entered_len_ = 0;
@@ -847,16 +912,15 @@ Result BrowserScene::apply(const ListingResult& out) {
 		return repaint_all();
 	}
 
-	if (out.action == ListingAction::Reload) {
+	if (out.step == bind::ListingStep::RELOAD) {
 		// `reloadImpl`'s tail (`browser.cpp`).
-		const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+		const int32_t count = entry_count();
 		int32_t index;
 		if (reload_from_end_) {
-			index = (reload_direction_ == CATALOG_SEARCH_LEFT) ? count - 1 : 0;
+			index = (reload_direction_ == bind::SearchFrom::LEFT) ? count - 1 : 0;
 		}
 		else {
-			FileCatalogue::repinComparator();
-			index = FileCatalogue::searchFileItems(std::string{entered_text()}.c_str()) + reload_offset_;
+			index = search_index(entered_text()) + reload_offset_;
 		}
 		finish_select(index, reload_offset_);
 		return repaint_all();
@@ -874,30 +938,30 @@ Result BrowserScene::apply(const ListingResult& out) {
 		name = out.entered_text;
 	}
 
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 	if (count == 0) {
 		// "No files found at all." with `mayDefaultToBrandNewNameOnEntry` false
 		// (`Browser::applyListingSelection` in `browser.cpp`): no text, no selection, top of the list.
 		entered_len_ = 0;
 		file_index_ = -1;
 		scroll_ = 0;
-		file_preview(entry_direction(out.action));
+		file_preview(entry_direction(out.step));
 		return repaint_all();
 	}
 
 	file_index_ = 0;
 	if (!name.empty()) {
-		bool exact = false;
-		FileCatalogue::repinComparator();
-		const int32_t i = FileCatalogue::searchFileItems(name.c_str(), &exact);
+		const bind::SearchHit hit = search(name);
+		const bool exact = hit.exact;
+		const int32_t i = static_cast<int32_t>(hit.index);
 		if (exact) {
 			file_index_ = i;
 		}
-		else if (FileCatalogue::numFileItemsDeletedAtStart != 0) {
+		else if (culled_before()) {
 			// `noExactFileFound`'s re-read (`Browser::applyListingSelection` in `browser.cpp`): the search string
 			// culled entries off the start of the folder and we are about to fall back to "the first one", so the
 			// window has to be read again without it. Legacy `goto`s; here it is another listing.
-			ListingRequest req = make_request(ListingAction::Open);
+			bind::ListingSpec req = make_request(bind::ListingStep::OPEN);
 			file_request(std::move(req));
 			return repaint_all();
 		}
@@ -909,7 +973,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 	// possible" (`Browser::useFoundFile` in `browser.cpp`).
 	clamp(visible_rows_);
 	// `folderContentsReady(direction)`, which previews the entry the listing landed on.
-	file_preview(entry_direction(out.action));
+	file_preview(entry_direction(out.step));
 	return repaint_all();
 }
 
@@ -918,7 +982,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 
 void BrowserScene::clamp(int32_t visible_rows, bool allow_no_file_selection) {
 	// `Browser::clampFileSelectionAndScroll` (`browser.cpp`), statement for statement.
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 	if (count <= 0) {
 		file_index_ = -1;
 		scroll_ = 0;
@@ -963,12 +1027,12 @@ void BrowserScene::set_entered_text(std::string_view s) {
 void BrowserScene::set_entered_text_from_current_filename() {
 	// `Browser::setEnteredTextFromCurrentFilename`: the entry's display
 	// name, with the extension cut off for a file.
-	const FileItem* item = item_at(file_index_);
-	if (item == nullptr) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (!item) {
 		entered_len_ = 0;
 		return;
 	}
-	set_entered_text(row_label(item->displayName(), item->isFolder));
+	set_entered_text(row_label(item->name, item->folder));
 }
 
 BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
@@ -977,27 +1041,22 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// (enteredTextEditPos)`), which is what makes typing over a prediction search for the prefix
 	// rather than for the prediction.
 	//
-	// Re-pin the name comparator before searching, as `Browser::predictExtendedText` does by setting
-	// `shouldInterpretNoteNames` from the browser's setting and `octaveStartsFromA` to false, through
-	// `FileCatalogue::repinComparator` rather than by naming `util/name_compare.h`'s globals --
-	// `util/**` is outside this layer's include allowance (`scenes-includes-outside`). It restores
-	// what the last `sortFileItems` set, which is the only pinning under which `fileItems`' order is
-	// meaningful; relying on the last sort's pinning surviving until here would be a convention rather than a
-	// mechanism.
-	FileCatalogue::repinComparator();
+	// The catalogue port's search re-pins the name comparator to the last sort's first, as
+	// `Browser::predictExtendedText` does by setting `shouldInterpretNoteNames` and `octaveStartsFromA`: that
+	// pinning is the only one under which the entries' order means anything.
 	const size_t n = static_cast<size_t>(std::max<int32_t>(edit_.cursor, 0));
 	const std::string search{entered_, std::min<size_t>(n, entered_len_)};
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 
-	const int32_t i = FileCatalogue::searchFileItems(search.c_str());
+	const int32_t i = search_index(search);
 	// "If that search takes us off the right-hand end of the list..." (`Browser::continuePrediction`): the cached
 	// window cannot answer, so the folder has to be read again around the search string.
 	if (i >= count) {
 		return SearchOutcome::NeedsRead;
 	}
 
-	const FileItem& item = FileCatalogue::fileItems[static_cast<size_t>(i)];
-	if (!case_prefix_equal(item.displayName(), search, search.size())) {
+	const bind::CatalogueEntry item = *entry_at(i);
+	if (!case_prefix_equal(item.name, search, search.size())) {
 		// "If the search landed on the first cached item, the folder cache may be missing earlier
 		// entries" (`Browser::continuePrediction`, issue #4584).
 		if (i == 0) {
@@ -1041,7 +1100,7 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 		break;
 	case SearchOutcome::NeedsRead: {
 		// Legacy loops synchronously (`doNewRead` in `Browser::continuePrediction`); the seam cannot, so the read is
-		// dispatched and the search runs again when it lands. `CATALOG_SEARCH_BOTH` around the search string is
+		// dispatched and the search runs again when it lands. A window either side of the search string is
 		// legacy's own direction for this read.
 		//
 		// The cursor to fall back to travels with the request. Legacy decrements
@@ -1052,9 +1111,9 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 		// legacy's: the prediction highlight starts a column late and the NEXT keystroke truncates
 		// at the wrong index.
 		search_revert_cursor_ = revert_cursor_to;
-		ListingRequest req = make_request(ListingAction::Reload);
-		req.filename_to_start_at = std::string{entered_, entered_len_};
-		req.search_direction = CATALOG_SEARCH_BOTH;
+		bind::ListingSpec req = make_request(bind::ListingStep::RELOAD);
+		req.start_at = std::string{entered_, entered_len_};
+		req.search = bind::SearchFrom::BOTH;
 		searching_ = true;
 		file_request(std::move(req));
 		break;
@@ -1148,14 +1207,13 @@ void BrowserScene::step_selection(int32_t offset) {
 	//       starts with `filePrefix`. Every descriptor here leaves `filePrefix` null (only the
 	//       slot-based load/save browsers set it), so legacy's own guard takes the `nonNumeric`
 	//       branch for every name either of them can show, and the arm is not ported.
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 	int32_t index;
 	if (file_index_ < 0) {
 		if (count == 0) {
 			return;
 		}
-		FileCatalogue::repinComparator();
-		index = FileCatalogue::searchFileItems(std::string{entered_text()}.c_str());
+		index = search_index(entered_text());
 		if (offset < 0) {
 			index--;
 		}
@@ -1167,27 +1225,27 @@ void BrowserScene::step_selection(int32_t offset) {
 	// From here a reload of the folder window off the card may be needed; `apply()` runs the tail
 	// once it lands, exactly as legacy's `reloadImpl` does on the fiber.
 	if (index < 0) {
-		if (FileCatalogue::numFileItemsDeletedAtStart != 0) {
+		if (culled_before()) {
 			scroll_ = 9999;
-			request_reload(/*from_end=*/false, 0, offset);
+			request_reload(/*from_end=*/false, bind::SearchFrom::BOTH, offset);
 			return;
 		}
 		scroll_ = 0;
-		if (FileCatalogue::numFileItemsDeletedAtEnd != 0) {
-			request_reload(/*from_end=*/true, CATALOG_SEARCH_LEFT, offset);
+		if (culled_after()) {
+			request_reload(/*from_end=*/true, bind::SearchFrom::LEFT, offset);
 			return;
 		}
 		index = count - 1;
 	}
 	else if (index >= count) {
-		if (FileCatalogue::numFileItemsDeletedAtEnd != 0) {
+		if (culled_after()) {
 			scroll_ = 0;
-			request_reload(/*from_end=*/false, 0, offset);
+			request_reload(/*from_end=*/false, bind::SearchFrom::BOTH, offset);
 			return;
 		}
 		scroll_ = 9999;
-		if (FileCatalogue::numFileItemsDeletedAtStart != 0) {
-			request_reload(/*from_end=*/true, CATALOG_SEARCH_RIGHT, offset);
+		if (culled_before()) {
+			request_reload(/*from_end=*/true, bind::SearchFrom::RIGHT, offset);
 			return;
 		}
 		index = 0;
@@ -1195,19 +1253,19 @@ void BrowserScene::step_selection(int32_t offset) {
 	finish_select(index, offset);
 }
 
-void BrowserScene::request_reload(bool from_end, int32_t direction, int32_t offset) {
+void BrowserScene::request_reload(bool from_end, bind::SearchFrom direction, int32_t offset) {
 	// Legacy's `Browser::ReloadTail` (`gui/ui/browser/browser.h`) carries the same two facts: the two facts
-	// `reloadImpl` needs and `ListingRequest`'s generic fields do not carry.
+	// `reloadImpl` needs and `bind::ListingSpec`'s generic fields do not carry.
 	reload_from_end_ = from_end;
 	reload_direction_ = direction;
 	reload_offset_ = offset;
-	ListingRequest req = make_request(ListingAction::Reload);
+	bind::ListingSpec req = make_request(bind::ListingStep::RELOAD);
 	if (from_end) {
-		req.search_direction = direction;
+		req.search = direction;
 	}
 	else {
-		req.filename_to_start_at = std::string{entered_text()};
-		req.search_direction = CATALOG_SEARCH_BOTH;
+		req.start_at = std::string{entered_text()};
+		req.search = bind::SearchFrom::BOTH;
 	}
 	file_request(std::move(req));
 }
@@ -1217,8 +1275,8 @@ void BrowserScene::request_reload(bool from_end, int32_t direction, int32_t offs
 
 Result BrowserScene::enter_key_press(bool shift) {
 	const Descriptor& d = descriptor(id_);
-	const FileItem* item = item_at(file_index_);
-	if (item == nullptr) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (!item) {
 		// `SampleBrowser::enterKeyPress` announces
 		// `Error::FILE_NOT_FOUND`; `LoadMidiDeviceDefinitionUI::enterKeyPress` returns silently. The
 		// louder of the two is kept for both -- a select press that does nothing at all is the shape
@@ -1229,8 +1287,8 @@ Result BrowserScene::enter_key_press(bool shift) {
 		return r;
 	}
 
-	if (item->isFolder) {
-		const uint16_t refusal = d.folder_refusal != nullptr ? d.folder_refusal(current_dir(), item->filename) : 0;
+	if (item->folder) {
+		const uint16_t refusal = d.folder_refusal != nullptr ? d.folder_refusal(current_dir(), item->name) : 0;
 		if (refusal != 0) {
 			Result r;
 			r.handled = true;
@@ -1242,8 +1300,8 @@ Result BrowserScene::enter_key_press(bool shift) {
 		entered_len_ = 0;
 		edit_ = deluge::ui::widgets::oled::TextEditState{};
 		arrive_in_new_folder();
-		ListingRequest req = make_request(ListingAction::IntoFolder);
-		req.path = item->filename;
+		bind::ListingSpec req = make_request(bind::ListingStep::INTO_FOLDER);
+		req.path = item->name;
 		file_request(std::move(req));
 		return repaint_all();
 	}
@@ -1272,7 +1330,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 	if (!path.empty()) {
 		path += "/";
 	}
-	path += item->filename;
+	path += item->name;
 
 	Error error = Error::NONE;
 	switch (d.accept(ctx_, path, error)) {
@@ -1314,7 +1372,7 @@ Result BrowserScene::back() {
 	entered_len_ = 0;
 	edit_ = deluge::ui::widgets::oled::TextEditState{};
 	arrive_in_new_folder();
-	file_request(make_request(ListingAction::UpLevel));
+	file_request(make_request(bind::ListingStep::UP_LEVEL));
 	return repaint_all();
 }
 
@@ -1378,7 +1436,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::Oled
 
 	int32_t y = f.style.menu_base_y;
 	const Descriptor& d = descriptor(id_);
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 
 	// "If we're currently typing a filename which doesn't (yet?) have a file..." (`Browser::renderOLED`): one
 	// row, showing the edited text against the file icon.
@@ -1394,9 +1452,9 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::Oled
 			if (i >= count) {
 				break;
 			}
-			const FileItem& item = FileCatalogue::fileItems[static_cast<size_t>(i)];
-			is_folder = item.isFolder;
-			name = item.filename;
+			const bind::CatalogueEntry item = *entry_at(i);
+			is_folder = item.folder;
+			name = item.name;
 			is_selected = (i == file_index_);
 		}
 
@@ -1470,7 +1528,7 @@ void BrowserScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 		}
 		// The rows stay drawn with the keys once the keyboard is hidden, as `main`'s pads keep them; only the
 		// flash and the presses need the keyboard visible.
-		if (id_ == BrowserId::Sample && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff) {
+		if (id_ == BrowserId::Sample && favourites_layout() != project::FavouritesLayout::OFF) {
 			render_favourites(f);
 		}
 		break;
@@ -1505,7 +1563,9 @@ void BrowserScene::render_waveform(deluge::ui::widgets::grid::GridFrame& f) {
 	// `waveformRenderer.renderFullScreen` of the preview drum's sample, opened zoomed out on each new sample as
 	// `waveformBasicNavigator.opened()` does.
 	const bind::WaveformAddress preview{.kind = bind::WaveformAddress::Kind::PREVIEW};
-	const std::optional<bind::WaveformInfo> info = menu::host_waveforms().info(preview);
+	const bind::Waveforms* const waveforms = ctx_.ports.waveforms;
+	const std::optional<bind::WaveformInfo> info =
+	    waveforms != nullptr ? waveforms->info(preview) : std::optional<bind::WaveformInfo>{};
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kMainCols);
 	const int32_t rows = std::min<int32_t>(f.bounds().h, kRows);
 	if (!info) {
@@ -1529,8 +1589,7 @@ void BrowserScene::render_waveform(deluge::ui::widgets::grid::GridFrame& f) {
 		view_ = views::waveform::WaveformView::open(info->length_samples, std::nullopt);
 		retry_.restart();
 	}
-	const std::optional<services::WaveformFrame> wf =
-	    services::read_waveform(menu::host_waveforms(), preview, view_.window());
+	const std::optional<services::WaveformFrame> wf = services::read_waveform(*waveforms, preview, view_.window());
 	f.region(deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h},
 	         [&](deluge::ui::widgets::grid::GridFrame& main) {
 		         if (wf) {
@@ -1700,7 +1759,7 @@ Result BrowserScene::after_render() {
 	// 3. Retry a request the seam refused. `Busy` can clear at any tick (a legacy browser or
 	//    another seam finishing), and `Dropped` clears as soon as the owner's queue drains.
 	if (pending_.has_value() && !listing_.in_flight()) {
-		ListingRequest req = std::move(*pending_);
+		bind::ListingSpec req = std::move(*pending_);
 		pending_.reset();
 		file_request(std::move(req));
 		if (!pending_.has_value()) {
@@ -1888,11 +1947,11 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// file offers to be deleted, a folder is refused.
 			Result r;
 			r.handled = true;
-			const FileItem* item = item_at(file_index_);
-			if (!event.on || mode_up() || item == nullptr) {
+			const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+			if (!event.on || mode_up() || !item) {
 				return r;
 			}
-			if (item->isFolder) {
+			if (item->folder) {
 				(void)r.actions.push_back(Action{
 				    .kind = Action::Kind::Popup,
 				    .surface = SurfaceRole::Main,
@@ -1984,7 +2043,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// `Browser::verticalEncoderAction`: SHIFT recolours the current favourite.
 			Result r;
 			r.handled = true;
-			if (favourites().bank_state() == services::FavouritesBank::Unavailable) {
+			if (favourites().bank_state() == bind::FavouritesBank::Unavailable) {
 				(void)r.actions.push_back(
 				    Action{.kind = Action::Kind::Popup,
 				           .surface = SurfaceRole::Main,
@@ -2080,7 +2139,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		// The recorder replaces the browser with no UI mode up -- a held audition pad is `main`'s
 		// `UI_MODE_AUDITIONING`, which legacy holds because the view beneath takes that pad -- and never for an audio
 		// clip, whose RECORD goes on to the base browser and then to the global RECORD.
-		if (ctx_.is_audio_clip || AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE) {
+		if (ctx_.is_audio_clip || foreground_recording_chosen()) {
 			return std::nullopt;
 		}
 		if (on && !mode_up()) {
@@ -2099,13 +2158,14 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		if (!shift_) {
 			return std::nullopt;
 		}
-		const FileItem* item = item_at(file_index_);
-		if (!on || mode_up() || item == nullptr || item->isFolder) {
+		const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+		if (!on || mode_up() || !item || item->folder) {
 			return r;
 		}
 		const std::string_view dir = current_dir();
-		const std::string path = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
-		if (!menu::host_release_sample_file(path)) {
+		const std::string path = join_path(dir, item->name);
+		// With no card actions the file counts as in use: nothing frees it, so it may not be deleted.
+		if (ctx_.ports.card_actions == nullptr || !ctx_.ports.card_actions->release_sample_file(path)) {
 			(void)r.actions.push_back(
 			    Action{.kind = Action::Kind::Popup,
 			           .surface = SurfaceRole::Main,
@@ -2136,16 +2196,16 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 }
 
 void BrowserScene::request_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim) {
-	const FileItem* item = item_at(file_index_);
-	if (item == nullptr) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (!item) {
 		return;
 	}
 	BrowserChoice choice{.id = id_,
 	                     .op = op,
 	                     .claim = claim,
 	                     .dir = std::string{current_dir()},
-	                     .filename = item->filename,
-	                     .is_folder = item->isFolder};
+	                     .filename = std::string{item->name},
+	                     .is_folder = item->folder};
 	choice.path = choice.dir.empty() ? choice.filename : choice.dir + "/" + choice.filename;
 	awaiting_load_ = op != BrowserChoice::Op::Enter && op != BrowserChoice::Op::DeleteFile;
 	slice_out_ = op == BrowserChoice::Op::Slice;
@@ -2166,17 +2226,17 @@ void BrowserScene::slice_ready(bool opened) {
 
 void BrowserScene::file_deleted(std::string_view path) {
 	// `Browser::currentFileDeleted`, only while the deleted file is still the one selected.
-	const FileItem* item = item_at(file_index_);
-	if (item == nullptr || item->isFolder) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (!item || item->folder) {
 		return;
 	}
 	const std::string_view dir = current_dir();
-	const std::string selected = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+	const std::string selected = join_path(dir, item->name);
 	if (selected != path) {
 		return;
 	}
-	FileCatalogue::fileItems.erase(FileCatalogue::fileItems.begin() + file_index_);
-	if (file_index_ == static_cast<int32_t>(FileCatalogue::fileItems.size())) {
+	ctx_.ports.catalogue->erase(static_cast<size_t>(file_index_));
+	if (file_index_ == entry_count()) {
 		file_index_--; // none left: no selection
 		entered_len_ = 0;
 		edit_.cursor = 0;
@@ -2211,14 +2271,14 @@ void BrowserScene::long_press_done(bool success) {
 }
 
 bool BrowserScene::current_is_folder() const {
-	const FileItem* item = item_at(file_index_);
-	return item != nullptr && item->isFolder;
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	return item.has_value() && item->folder;
 }
 
 Result BrowserScene::long_press() {
 	Result r;
 	r.handled = true;
-	if (item_at(file_index_) == nullptr) {
+	if (!entry_at(file_index_)) {
 		return r;
 	}
 	const auto popup = [&r](String text) {

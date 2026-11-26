@@ -7,11 +7,14 @@
 #include "ui/controls/facts.h"
 #include "ui/controls/sink.h"
 #include "ui/scenes/bind/ports/audio_facts.h"
+#include "ui/scenes/bind/ports/card_actions.h"
 #include "ui/scenes/bind/ports/card_facts.h"
+#include "ui/scenes/bind/ports/catalogue.h"
 #include "ui/scenes/bind/ports/clip_facts.h"
 #include "ui/scenes/bind/ports/clip_writes.h"
 #include "ui/scenes/bind/ports/device_actions.h"
 #include "ui/scenes/bind/ports/device_settings.h"
+#include "ui/scenes/bind/ports/favourites.h"
 #include "ui/scenes/bind/ports/indicators.h"
 #include "ui/scenes/bind/ports/learn_sink.h"
 #include "ui/scenes/bind/ports/midi_devices.h"
@@ -55,6 +58,9 @@ struct Ports {
 	TakeActions* take_actions{nullptr};           ///< an input take's lifecycle
 	Indicators* indicators{nullptr};              ///< the indicators a scene changes outside its frames
 	ViewActions* view_actions{nullptr};           ///< the root view's actions
+	Catalogue* catalogue{nullptr};                ///< the card's file listing the browsers show
+	CardActions* card_actions{nullptr};           ///< what a scene asks of the card's files
+	Favourites* favourites{nullptr};              ///< the browsers' favourites bank
 	/// @brief Whether every port the bind dispatch reads (audio, sound, tracks and controls) is present.
 	/// @return True when all four are non-null.
 	[[nodiscard]] bool has_bind_ports() const {

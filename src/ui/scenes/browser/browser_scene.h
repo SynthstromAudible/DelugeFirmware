@@ -73,11 +73,11 @@
 ///          makes that satisfiable.
 
 #include "definitions_cxx.hpp" // Error
+#include "project/device_settings.h"
 #include "ui/scenes/browser/browser_kind.h"
 #include "ui/scenes/browser/listing.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/shortcut_blink.h"
-#include "ui/scenes/services/favourites.h"
 #include "ui/shell/scene.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/core/state.h"
@@ -155,9 +155,8 @@ struct Descriptor {
 	/// data rather than a port of the browser.
 	std::string_view title;
 
-	/// @brief `Browser::allowedFileExtensions`, NULL-terminated as
-	///        `FileCatalogue::readFileItemsForFolder` takes it.
-	char const** extensions;
+	/// @brief `Browser::allowedFileExtensions`: which files the browser lists, besides folders.
+	bind::FileKinds kinds;
 
 	/// @brief `arrivedInNewFolder`'s `defaultDirToAlsoTry`, and where the
 	///        browser opens when it has no remembered path.
@@ -192,7 +191,7 @@ struct Descriptor {
 	/// The port of each subclass's own dissection -- `SampleBrowser::opened`'s `currentPath`/`searchFilename` split
 	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) and
 	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` (`load_midi_device_definition_ui.cpp`). Both
-	/// end in "a folder plus a filename to select", which is exactly what a `ListingRequest` takes.
+	/// end in "a folder plus a filename to select", which is exactly what a `bind::ListingSpec` takes.
 	///
 	/// @param ctx  What the browser was opened over.
 	/// @param dir  Out: the directory to list. Left empty to use `Descriptor::default_dir`.
@@ -360,7 +359,7 @@ BrowserHost& null_browser_host();
 ///
 /// @note **This scene is not allocation-free, unlike `RenameScene` and `ContextMenuScene`, and the
 ///       buffer should not be read as claiming otherwise** It sits on
-///       `browser::Listing`, whose `ListingRequest` carries three owning `std::string`s by
+///       `browser::Listing`, whose `bind::ListingSpec` carries three owning `std::string`s by
 ///       construction (`listing.h`: on Embassy the caller's buffers are gone by the time the op
 ///       runs), and over `FileCatalogue`, whose `currentDir` and `FileItem::filename` are
 ///       `std::string`s. `step_selection`, `request_reload` and `search_for_entered_text` each
@@ -512,8 +511,20 @@ public:
 	int32_t cursor() const { return edit_.cursor; }
 	/// @brief `QwertyUI::scrollPosHorizontal` -- the first character `text_edit` draws.
 	int32_t text_scroll() const { return edit_.scroll; }
-	/// @brief `FileCatalogue::currentDir` as this scene last saw it.
+	/// @brief The catalogue's folder, empty at the card's root or with no catalogue.
 	std::string_view current_dir() const;
+	/// @return The catalogue's entry at @p index, or none out of range or with no catalogue.
+	std::optional<bind::CatalogueEntry> entry_at(int32_t index) const;
+	/// @return How many entries the catalogue holds, 0 with no catalogue.
+	int32_t entry_count() const;
+	/// @return Where @p name sorts among the catalogue's entries; the first entry with no catalogue.
+	bind::SearchHit search(std::string_view name);
+	/// @return The index `search` answers for @p name.
+	int32_t search_index(std::string_view name);
+	/// @return Whether the listing left out entries before its window.
+	bool culled_before() const;
+	/// @return Whether the listing left out entries after its window.
+	bool culled_after() const;
 	/// @brief Is a listing dispatched and not yet collected?
 	bool listing_in_flight() const { return listing_.in_flight(); }
 	/// @brief `UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS`: Select is down and its release will enter the item.
@@ -545,7 +556,7 @@ public:
 	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
 	int32_t favourite_row() const;
 	/// @brief Use @p favourites in place of the host's, or null to put the host's back. For specs.
-	void set_favourites(services::Favourites* favourites) { favourites_override_ = favourites; }
+	void set_favourites(bind::Favourites* favourites) { favourites_override_ = favourites; }
 	/// @brief Hand every request to @p host, or to `null_browser_host()` for null. The application installs its own
 	///        (`gui::ui::wireShellBrowserHost`); a spec installs a recording one.
 	void set_host(BrowserHost* host) { host_ = host; }
@@ -621,16 +632,16 @@ private:
 		NeedsRead,
 	};
 
-	/// @brief Build and file the request that opens the browser (`ListingAction::Open`).
+	/// @brief Build and file the request that opens the browser (`bind::ListingStep::OPEN`).
 	void request_open();
 	/// @brief Fill in the fields every request of this scene's shares (extensions, flags). The
 	///        opening listing adds the default directory itself (`request_open`).
-	/// @param action Which listing.
+	/// @param step Which listing.
 	/// @return The request, ready for `file_request`.
-	ListingRequest make_request(ListingAction action) const;
+	bind::ListingSpec make_request(bind::ListingStep step) const;
 	/// @brief Try to dispatch @p req now; keep it for the next tick if the seam refuses.
 	/// @param req The request.
-	void file_request(ListingRequest req);
+	void file_request(bind::ListingSpec req);
 	/// @brief Apply a landed listing: selection, entered text, scroll.
 	/// @param out The collected result.
 	/// @return What the shell should do about it.
@@ -656,11 +667,16 @@ private:
 	/// @brief `SampleBrowser::buttonAction`'s X_ENC, LOAD, RECORD and Shift+SAVE arms.
 	/// @return The answer, or nullopt for a button those arms do not take.
 	std::optional<deluge::ui::shell::Result> sample_button(deluge::ui::shell::ButtonId button, bool on);
-	/// @brief The favourites the browser shows: the host's, unless a spec gave its own.
-	services::Favourites& favourites();
+	/// @brief The favourites the browser shows: its port's, unless a spec gave its own; with neither, a bank that is
+	///        never available.
+	bind::Favourites& favourites();
 	/// @brief `Browser::isFavouritesVisible` / `isBanksVisible`: the sample browser's keyboard is up and the layout
 	///        shows them.
 	bool favourites_visible() const;
+	/// @return The DEVICE row's favourites layout, read through the device port.
+	project::FavouritesLayout favourites_layout() const;
+	/// @return Whether a foreground recording source is chosen (any but NONE), which keeps RECORD off the recorder.
+	bool foreground_recording_chosen() const;
 	bool banks_visible() const;
 	/// @brief `Browser::padAction`'s favourites-row arm: recall the favourite, or with SHIFT set or unset it.
 	deluge::ui::shell::Result favourite_press(uint8_t position);
@@ -709,7 +725,7 @@ private:
 	/// @param direction  Legacy's `Browser::ReloadTail::searchDirection`; read only when
 	///                   @p from_end.
 	/// @param offset     The turn that provoked it, applied to the search on landing.
-	void request_reload(bool from_end, int32_t direction, int32_t offset);
+	void request_reload(bool from_end, bind::SearchFrom direction, int32_t offset);
 	/// @brief `Browser::mainButtonAction`'s release arm -> `enterKeyPress`.
 	/// @param shift Whether SHIFT is held: on a file in a kit's sample browser, `SlicerScene`'s door
 	///              (`SampleBrowser::enterKeyPress`, `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
@@ -771,15 +787,15 @@ private:
 	/// The SD half. **A member, and the lifetime rule says it must stay one** -- see `listing.h`.
 	Listing listing_{};
 	/// A request the seam refused (`Busy`/`Dropped`), retried on the next `after_render`.
-	std::optional<ListingRequest> pending_{};
+	std::optional<bind::ListingSpec> pending_{};
 	/// The entry to select once the pending listing lands -- legacy's `filenameToStartAt`, kept on
-	/// this side because `ListingAction::Open` performs no selection search of its own
+	/// this side because `bind::ListingStep::OPEN` performs no selection search of its own
 	/// (`listing.h`: the seam carries no selection state).
 	std::string select_after_listing_{};
 	/// Legacy's `Browser::ReloadTail` (`gui/ui/browser/browser.h`) and the turn that provoked the reload.
 	/// @{
 	bool reload_from_end_ = false;
-	int32_t reload_direction_ = 0;
+	bind::SearchFrom reload_direction_ = bind::SearchFrom::RIGHT;
 	int32_t reload_offset_ = 0;
 	/// @}
 	/// True while a listing was dispatched to widen the search window: `search_for_entered_text`
@@ -828,7 +844,7 @@ private:
 	/// The browser that opened blinks LOAD (`take_load_blink`): set by a successful `on_enter`.
 	bool load_blink_pending_ = false;
 	/// A spec's favourites, in place of the host's.
-	services::Favourites* favourites_override_ = nullptr;
+	bind::Favourites* favourites_override_ = nullptr;
 	/// The application's half of the browser (`set_host`); null until one is installed.
 	BrowserHost* host_ = nullptr;
 	/// What this tick's favourites and bank rows reported, for `after_render`.
