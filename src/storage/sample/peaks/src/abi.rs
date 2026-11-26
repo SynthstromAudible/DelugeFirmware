@@ -320,3 +320,75 @@ pub extern "C" fn deluge_peaks_fill_uniform(index_ptr: *mut DelugePeakIndex, pea
         i.fill_uniform(peak.into());
     }
 }
+
+/// The C name of a [`take::Take`](crate::take::Take): opaque.
+#[repr(C)]
+pub struct DelugePeaksTake {
+    _opaque: [u8; 0],
+}
+
+fn take<'a>(p: *mut DelugePeaksTake) -> Option<&'a mut crate::take::Take> {
+    // SAFETY: a non-null `DelugePeaksTake*` came from `deluge_peaks_take_create` and is not yet dropped; the recorder
+    // is its only user.
+    NonNull::new(p.cast::<crate::take::Take>()).map(|mut p| unsafe { p.as_mut() })
+}
+
+/// `deluge_peaks_take_create`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_peaks_take_create() -> *mut DelugePeaksTake {
+    let Some(p) = mem::alloc_zeroed::<crate::take::Take>(1) else {
+        return core::ptr::null_mut();
+    };
+    // SAFETY: `p` is memory for one `Take`, which `write` initialises without reading.
+    unsafe { p.as_ptr().write(crate::take::Take::default()) };
+    p.as_ptr().cast::<DelugePeaksTake>()
+}
+
+/// `deluge_peaks_take_drop`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_peaks_take_drop(take_ptr: *mut DelugePeaksTake) {
+    if let Some(p) = NonNull::new(take_ptr.cast::<crate::take::Take>()) {
+        mem::free(p);
+    }
+}
+
+/// `deluge_peaks_take_feed`.
+///
+/// # Safety
+/// `bytes` points at `length` readable bytes, or is null.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub unsafe extern "C" fn deluge_peaks_take_feed(
+    take_ptr: *mut DelugePeaksTake,
+    index_ptr: *mut DelugePeakIndex,
+    bytes: *const u8,
+    length: u32,
+    audio_start: u32,
+    channels: u8,
+) {
+    let Some(t) = take(take_ptr) else {
+        return;
+    };
+    if bytes.is_null() {
+        return;
+    }
+    // SAFETY: the caller's contract.
+    let slice = unsafe { core::slice::from_raw_parts(bytes, length as usize) };
+    t.feed(index(index_ptr), slice, audio_start, channels);
+}
+
+/// `deluge_peaks_take_finish`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_peaks_take_finish(
+    take_ptr: *mut DelugePeaksTake,
+    index_ptr: *mut DelugePeakIndex,
+) {
+    if let Some(t) = take(take_ptr) {
+        t.finish(index(index_ptr));
+    }
+}
+
+/// `deluge_peaks_take_frames`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_peaks_take_frames(take_ptr: *mut DelugePeaksTake) -> u64 {
+    take(take_ptr).map_or(0, |t| t.frames())
+}

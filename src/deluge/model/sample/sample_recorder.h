@@ -21,7 +21,6 @@
 #include "model/sample/recorder_create_policy.h"
 #include "model/sample/recorder_finalize_policy.h"
 #include "model/sample/recorder_write_policy.h"
-#include "model/sample/take_peaks.h"
 
 #include "definitions_cxx.hpp"
 #include "dsp/core/stereo_sample.h"
@@ -61,6 +60,9 @@ class Output;
 struct RecorderConfig {
 	bool neverUseThreshold = false;
 };
+
+/// A take's peaks between clusters (`deluge_storage_sample_peaks.h`).
+struct DelugePeaksTake;
 
 class SampleRecorder {
 public:
@@ -491,7 +493,7 @@ private:
 	deluge::SegmentedVector<std::byte*, 256, deluge::memory::fast_allocator> bufferTable_{};
 
 	/// The take's peaks, folded from each cluster as it is written.
-	deluge::sample::TakePeaks takePeaks_{};
+	DelugePeaksTake* takePeaks_{nullptr};
 
 	/// @brief Recycles a flushed buffer's memory back for reuse: the card routine pushes after a successful
 	///        write_at, the audio thread pops when it needs a fresh buffer.

@@ -22,6 +22,7 @@ pub mod div;
 mod index;
 pub mod mem;
 mod peak;
+pub mod take;
 pub mod tap;
 
 pub use column::{ColumnPlan, FrameReads};

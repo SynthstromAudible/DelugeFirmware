@@ -43,7 +43,8 @@ abi_pin!(in deluge_storage_sample_fill::chunk: deluge_streamed_chunk_payload_off
 abi_pin!(in deluge_storage_sample_peaks::abi: deluge_peaks_init, deluge_peaks_create, deluge_peaks_retain,
     deluge_peaks_release, deluge_peaks_collect, deluge_peaks_bind_asset, deluge_peaks_unbind_asset, deluge_peaks_reserve,
     deluge_peaks_ensure_level0, deluge_peaks_fold_frames, deluge_peaks_fold_block, deluge_peaks_set_frames,
-    deluge_peaks_column, deluge_peaks_of_frames, deluge_peaks_range, deluge_peaks_next_unscanned);
+    deluge_peaks_column, deluge_peaks_of_frames, deluge_peaks_range, deluge_peaks_next_unscanned, deluge_peaks_take_create,
+    deluge_peaks_take_drop, deluge_peaks_take_feed, deluge_peaks_take_finish, deluge_peaks_take_frames);
 
 abi_pin!(in deluge_storage_sample_reader::abi: deluge_sample_reader_open, deluge_sample_reader_seek,
     deluge_sample_reader_close, deluge_sample_reader_window, deluge_sample_reader_advance, deluge_sample_reader_ok,

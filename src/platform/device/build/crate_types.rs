@@ -42,6 +42,7 @@ const OPAQUE: &[(&str, &str)] = &[
     // Several crates pass the manager through without owning it, so they all see it untyped.
     ("DelugeResource", "core::ffi::c_void"),
     ("DelugePeakIndex", "deluge_storage_sample_peaks::abi::DelugePeakIndex"),
+    ("DelugePeaksTake", "deluge_storage_sample_peaks::abi::DelugePeaksTake"),
     ("DelugeSampleReader", "deluge_storage_sample_reader::abi::DelugeSampleReader"),
     ("DelugeSampleReservation", "deluge_storage_sample_reader::reservation::DelugeSampleReservation"),
     ("DelugeSampleSource", "deluge_storage_sample_source::abi::DelugeSampleSource"),

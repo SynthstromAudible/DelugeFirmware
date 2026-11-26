@@ -157,6 +157,39 @@ DelugeMaybePeak deluge_peaks_range(const DelugePeakIndex* index) DELUGE_NOEXCEPT
 /// @return That block's first frame, or UINT64_MAX if every block from there is complete.
 uint64_t deluge_peaks_next_unscanned(const DelugePeakIndex* index, uint64_t from) DELUGE_NOEXCEPT;
 
+/// A take's peaks between clusters: the recorder's fold state. Opaque.
+typedef struct DelugePeaksTake DelugePeaksTake;
+
+/// @brief [task] A new take fold, before the file's first byte.
+/// @return The fold, or null on allocation failure.
+DelugePeaksTake* deluge_peaks_take_create(void) DELUGE_NOEXCEPT;
+
+/// @brief [task] Free a take fold.
+/// @param take The fold; null is ignored.
+void deluge_peaks_take_drop(DelugePeaksTake* take) DELUGE_NOEXCEPT;
+
+/// @brief [task] Fold the file's next bytes, from where the last call stopped (the first call: byte 0): whole 256-frame
+///        blocks of 24-bit little-endian frames, the header skipped, a frame split across two calls carried. Reserves
+///        the index's room for what it folds.
+/// @param take        The fold; null is ignored.
+/// @param index       The take's index; null folds nothing but counts the bytes.
+/// @param bytes       The file's next bytes.
+/// @param length      The bytes' length.
+/// @param audio_start The byte the audio starts at.
+/// @param channels    Channels per frame, 1 or 2.
+void deluge_peaks_take_feed(DelugePeaksTake* take, DelugePeakIndex* index, const uint8_t* bytes, uint32_t length,
+                            uint32_t audio_start, uint8_t channels) DELUGE_NOEXCEPT;
+
+/// @brief [task] Fold the last, part-filled block. Call once the take's index is final.
+/// @param take  The fold; null is ignored.
+/// @param index The take's index; null is ignored.
+void deluge_peaks_take_finish(DelugePeaksTake* take, DelugePeakIndex* index) DELUGE_NOEXCEPT;
+
+/// @brief [task] The frames folded or counted so far.
+/// @param take The fold; null answers 0.
+/// @return The frames.
+uint64_t deluge_peaks_take_frames(DelugePeaksTake* take) DELUGE_NOEXCEPT;
+
 #ifdef __cplusplus
 }
 #endif
