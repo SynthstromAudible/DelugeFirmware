@@ -28,6 +28,7 @@
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 
+#include "scenarios/support/render_block.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 #include "support/sound_fixtures.h"
@@ -387,7 +388,7 @@ void renderBlocks(int32_t count) {
 	static DelugeStereoSample silence[kRenderBlockFrames]{};
 	static DelugeStereoSample output[kRenderBlockFrames]{};
 	for (int32_t block = 0; block < count; block++) {
-		deluge_app_render(silence, output, kRenderBlockFrames);
+		scenarios::renderCodecBlock(silence, output, kRenderBlockFrames);
 	}
 }
 

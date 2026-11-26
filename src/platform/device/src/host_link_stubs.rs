@@ -301,29 +301,6 @@ pub extern "C" fn deluge_usb_audio_present() -> bool {
     false
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_usb_audio_receiving() -> bool {
-    false
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_usb_audio_sending() -> bool {
-    false
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_usb_audio_read(dst: *mut DelugeStereoSample, frames: u32) -> u32 {
-    if !dst.is_null() {
-        // SAFETY: the app passes `frames` writable samples.
-        unsafe { core::slice::from_raw_parts_mut(dst, frames as usize) }
-            .fill(DelugeStereoSample { l: 0, r: 0 });
-    }
-    0
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_usb_audio_write(src: *const DelugeStereoSample, frames: u32) {}
-
 abi_pin!(
     deluge_audio_input_resync,
     deluge_audio_stamp_to_render_offset,
@@ -355,9 +332,5 @@ abi_pin!(
     deluge_trigger_clock_host_edge,
     deluge_trigger_clock_set_handler,
     deluge_usb_audio_present,
-    deluge_usb_audio_read,
-    deluge_usb_audio_receiving,
-    deluge_usb_audio_sending,
-    deluge_usb_audio_write,
     deluge_usb_device_start,
 );

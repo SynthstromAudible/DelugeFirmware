@@ -41,6 +41,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/voice_pins_records.h"
+#include "scenarios/support/render_block.h"
 #include "serialization/value.h"
 #include "storage/storage_manager.h"
 #include "storage/tree_document.h"
@@ -116,7 +117,7 @@ void renderBlocks(int32_t count) {
 	static std::array<DelugeStereoSample, kBlockFrames> silence{};
 	static std::array<DelugeStereoSample, kBlockFrames> output{};
 	for (int32_t block = 0; block < count; block++) {
-		deluge_app_render(silence.data(), output.data(), kBlockFrames);
+		scenarios::renderCodecBlock(silence.data(), output.data(), kBlockFrames);
 	}
 }
 

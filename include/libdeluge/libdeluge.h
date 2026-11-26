@@ -28,6 +28,7 @@
 #include "audio_format.h"
 #include "audio_io.h"
 #include "audio_load.h"
+#include "audio_ports.h"
 #include "block_device.h"
 #include "board.h"
 #include "boot.h"

@@ -57,6 +57,14 @@ const ZERO: DelugeStereoSample = DelugeStereoSample { l: 0, r: 0 };
 static mut RENDER_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
 #[unsafe(link_section = ".sdram_bss")]
 static mut INPUT_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
+/// The USB port's pair each way: what the host sent for this block, and what the app renders for it. In SDRAM, beside the
+/// codec's, to spare internal SRAM.
+#[unsafe(link_section = ".sdram_bss")]
+static mut USB_IN_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
+#[unsafe(link_section = ".sdram_bss")]
+static mut USB_OUT_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
+/// The cycles the drive spent on the last block's USB, which the next block reports to the app's voice budget.
+static mut PLATFORM_CYCLES: u32 = 0;
 
 /// Which blocks to render, and the overruns.
 static mut DRIVE: BlockDrive = BlockDrive::new();
@@ -199,6 +207,72 @@ unsafe fn resync_rx() {
     }
 }
 
+/// One block of the app's render over every port: the host's frames read into the USB port before it, and its USB
+/// output sent after (silence for a pair it leaves silent). The USB work's cycles are reported with the next block.
+///
+/// # Safety
+/// The audio tier's: the blocks and the USB streams are its alone.
+unsafe fn render_ports() {
+    use crate::audio::ports::{Far, Pairs, PortTable};
+    use crate::peripherals::usb_audio;
+    use crate::peripherals::usb_audio_stream::{Frame, SILENCE};
+    use crate::sys::{
+        DelugeAudioPortIndex_DELUGE_PORT_CODEC as CODEC,
+        DelugeAudioPortIndex_DELUGE_PORT_USB as USB,
+    };
+    use core::ptr::{addr_of, addr_of_mut};
+
+    let usb_on = usb_audio::deluge_usb_audio_present();
+    let start = crate::services::deluge_cycle_count();
+    let far = if usb_on {
+        // SAFETY: the audio tier's block, `BLOCK_FRAMES` samples, two i32s a sample as a frame is; this slice is the
+        // only reference to it until the read returns.
+        usb_audio::read_block(unsafe {
+            core::slice::from_raw_parts_mut(addr_of_mut!(USB_IN_BLOCK) as *mut Frame, BLOCK_FRAMES)
+        });
+        // The host takes our output when it collects, and sends us input when it streams.
+        Far {
+            receiving: usb_audio::sending(),
+            sending: usb_audio::receiving(),
+        }
+    } else {
+        Far {
+            receiving: false,
+            sending: false,
+        }
+    };
+    let read_cycles = crate::services::deluge_cycle_count().wrapping_sub(start);
+    let pairs = Pairs {
+        codec_in: [addr_of!(INPUT_BLOCK) as *const DelugeStereoSample],
+        codec_out: [addr_of_mut!(RENDER_BLOCK) as *mut DelugeStereoSample],
+        usb_in: [addr_of!(USB_IN_BLOCK) as *const DelugeStereoSample],
+        usb_out: [addr_of_mut!(USB_OUT_BLOCK) as *mut DelugeStereoSample],
+    };
+    // SAFETY: the audio tier's.
+    let mut block =
+        PortTable::new(usb_on).block(BLOCK_FRAMES as u32, &pairs, far, unsafe { PLATFORM_CYCLES });
+    // SAFETY: the block's pairs are the statics above, `BLOCK_FRAMES` frames each, for the call.
+    unsafe { crate::sys::deluge_app_render(&mut block) };
+    if block.ports[CODEC as usize].out_silent & 1 != 0 {
+        // SAFETY: the audio tier's.
+        unsafe { (*addr_of_mut!(RENDER_BLOCK)).fill(ZERO) };
+    }
+    let start = crate::services::deluge_cycle_count();
+    if usb_on {
+        if block.ports[USB as usize].out_silent & 1 == 0 {
+            // SAFETY: as above; made after the render, which wrote the block through the port's pointer.
+            usb_audio::send_block(unsafe {
+                core::slice::from_raw_parts(addr_of!(USB_OUT_BLOCK) as *const Frame, BLOCK_FRAMES)
+            });
+        } else {
+            usb_audio::send_block(&[SILENCE; BLOCK_FRAMES]);
+        }
+    }
+    let send_cycles = crate::services::deluge_cycle_count().wrapping_sub(start);
+    // SAFETY: the audio tier's.
+    unsafe { PLATFORM_CYCLES = read_cycles.wrapping_add(send_cycles) };
+}
+
 /// Renders the blocks the drive plans for the play head's position now: one per completed TX block
 /// in steady state, up to [`QUEUE_BLOCKS`] after a late wake. Returns how many it rendered.
 ///
@@ -232,11 +306,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
             RENDER_BLOCKS.fetch_add(1, Ordering::Release);
             #[cfg(feature = "audio-timing")]
             let probe_start = Instant::now();
-            crate::sys::deluge_app_render(
-                core::ptr::addr_of!(INPUT_BLOCK) as *const DelugeStereoSample,
-                core::ptr::addr_of_mut!(RENDER_BLOCK) as *mut DelugeStereoSample,
-                BLOCK_FRAMES as u32,
-            );
+            render_ports();
             write_block(BLOCK_START_WRITE);
             drive.rendered();
             WRITE_END.store(

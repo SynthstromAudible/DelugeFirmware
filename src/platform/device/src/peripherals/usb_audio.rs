@@ -10,7 +10,7 @@
 //!   stream's rate is exactly the codec's, and it is the implicit feedback for the other stream: a host that honours it
 //!   sends us as many frames as we send it. The sizes of the packets hold the queue at its target.
 //! - **From the host** (the speaker stream, ISO OUT): the DMA writes each packet's frames into a ring the render drains
-//!   ([`deluge_usb_audio_read`]). The reader holds the arrival-to-playback latency in a fixed window, and for a host that
+//!   ([`read_block`]). The reader holds the arrival-to-playback latency in a fixed window, and for a host that
 //!   ignores the feedback, drops or repeats a single frame now and then as its clock drifts from ours.
 //!
 //! Neither stream takes an interrupt per packet: the USB interrupt is left to control requests, MIDI and the bus. The
@@ -160,7 +160,7 @@ static mut SENDER: Option<ToHostSender<Sink>> = None;
 static TRACKER: Mutex<RefCell<Option<FromHostTracker<Tap>>>> = Mutex::new(RefCell::new(None));
 /// The ring the stream from the host fills, as the stream lends it back for reading: set once, at build.
 static FROM_HOST_RING: AtomicPtr<u32> = AtomicPtr::new(core::ptr::null_mut());
-/// The from-host reader: one consumer, since `routine()` (via `deluge_usb_audio_read`) never runs on two tiers at once.
+/// The from-host reader: one consumer, the drive (via [`read_block`]), which never runs on two tiers at once.
 static mut READER: FromHostReader = FromHostReader::new();
 
 /// The microsecond clock the tracker uses.
@@ -204,7 +204,7 @@ pub(crate) fn take_service_stats() -> crate::audio::usb_service_probe::UsbDmaSta
     let cycles = now.wrapping_sub(TAKEN_CYCLES.swap(now, Ordering::Relaxed));
     let interrupt_us =
         (u64::from(cycles) * 1_000_000 / u64::from(crate::services::deluge_cycle_hz())) as u32;
-    // SAFETY: the render's, as `deluge_usb_audio_write` is.
+    // SAFETY: the audio tier's, as [`send_block`] is.
     let (counts, stops) = unsafe {
         (*addr_of_mut!(SENDER))
             .as_mut()
@@ -352,8 +352,8 @@ pub extern "C" fn deluge_usb_audio_present() -> bool {
     PRESENT.load(Ordering::Acquire)
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_usb_audio_receiving() -> bool {
+/// Whether the host is streaming to us: it has selected the stream's alternate, and packets are arriving.
+pub(crate) fn receiving() -> bool {
     poll_from_host();
     let now = now_us();
     critical_section::with(|cs| {
@@ -364,19 +364,18 @@ pub extern "C" fn deluge_usb_audio_receiving() -> bool {
     })
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_usb_audio_sending() -> bool {
+/// Whether the host is collecting our audio: it has selected the stream's alternate.
+pub(crate) fn sending() -> bool {
     CAPTURE_ALT.load(Ordering::Acquire) != 0
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_usb_audio_read(dst: *mut DelugeStereoSample, frames: u32) -> u32 {
-    if dst.is_null() || frames == 0 {
+/// Reads the host's frames for the block about to render into `out`; frames with nothing from the host behind them are
+/// silence. Returns how many came from the host. Called by the drive on the audio tier, every block while USB audio is
+/// present, so the reader follows the stream whether or not the app uses it; one read a block, the block's own lead.
+pub(crate) fn read_block(out: &mut [Frame]) -> u32 {
+    if out.is_empty() {
         return 0;
     }
-    // SAFETY: the app passes `frames` writable samples; `DelugeStereoSample` is two i32s, as
-    // `Frame` is (checked below).
-    let out = unsafe { core::slice::from_raw_parts_mut(dst as *mut Frame, frames as usize) };
     if !PRESENT.load(Ordering::Acquire) {
         out.fill(SILENCE);
         return 0;
@@ -389,7 +388,7 @@ pub extern "C" fn deluge_usb_audio_read(dst: *mut DelugeStereoSample, frames: u3
     let lead = block_lead_frames() as u32;
     let ring = FROM_HOST_RING.load(Ordering::Acquire).cast_const();
     // SAFETY: the ring the stream fills and lends back for reading, for as long as the firmware runs (the source reads
-    // it volatile, the frames before `frames` only); READER has one consumer: `routine()`, which never runs on two tiers
+    // it volatile, the frames before `frames` only); READER has one consumer: the drive, which never runs on two tiers
     // at once.
     unsafe {
         let source = WireSource::new(ring, FROM_HOST_WORDS, depth, frames);
@@ -397,15 +396,14 @@ pub extern "C" fn deluge_usb_audio_read(dst: *mut DelugeStereoSample, frames: u3
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_usb_audio_write(src: *const DelugeStereoSample, frames: u32) {
-    if src.is_null() || frames == 0 || CAPTURE_ALT.load(Ordering::Acquire) == 0 {
+/// Queues the block just rendered for the host; dropped when the host isn't collecting. Called by the drive, once per
+/// block, on the audio tier.
+pub(crate) fn send_block(block: &[Frame]) {
+    if block.is_empty() || CAPTURE_ALT.load(Ordering::Acquire) == 0 {
         return;
     }
-    // SAFETY: the app passes `frames` readable samples, two i32s each, as `Frame` is (checked below); the render is the
-    // sender's one user.
+    // SAFETY: the drive is the sender's one user.
     unsafe {
-        let block = core::slice::from_raw_parts(src as *const Frame, frames as usize);
         if let Some(sender) = (*addr_of_mut!(SENDER)).as_mut() {
             let epoch = CAPTURE_EPOCH.load(Ordering::Acquire);
             sender.write(
@@ -417,7 +415,7 @@ pub extern "C" fn deluge_usb_audio_write(src: *const DelugeStereoSample, frames:
     }
 }
 
-// `deluge_usb_audio_read` reinterprets the app's samples as frames.
+// The drive reinterprets the port's blocks of samples as frames.
 const _: () = {
     assert!(size_of::<DelugeStereoSample>() == size_of::<Frame>());
     assert!(align_of::<DelugeStereoSample>() == align_of::<Frame>());
@@ -425,10 +423,4 @@ const _: () = {
     assert!(core::mem::offset_of!(DelugeStereoSample, r) == 4);
 };
 
-abi_pin!(
-    deluge_usb_audio_present,
-    deluge_usb_audio_read,
-    deluge_usb_audio_receiving,
-    deluge_usb_audio_sending,
-    deluge_usb_audio_write,
-);
+abi_pin!(deluge_usb_audio_present);

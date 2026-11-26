@@ -21,8 +21,8 @@
 /// from the host (its speaker) and one to it (its microphone), both 44.1 kHz. Our sample clock sets the rate: the
 /// stream to the host carries as many frames as the codec has played since its last packet, and is the implicit
 /// feedback for the stream from the host, so a host that honours it sends exactly as fast as we play. The platform
-/// owns the USB side of both streams and matches the two clocks; the application sees whole blocks of frames, in
-/// step with its render.
+/// owns the USB side of both streams and matches the two clocks; the application sees them as the USB port of each
+/// render block (`audio_ports.h`), in step with the codec's.
 #ifndef LIBDELUGE_USB_AUDIO_H
 #define LIBDELUGE_USB_AUDIO_H
 
@@ -41,27 +41,6 @@ void deluge_usb_device_start(bool with_audio) DELUGE_NOEXCEPT;
 
 /// Whether the device was started with the USB audio function. [task] [audio]
 bool deluge_usb_audio_present(void) DELUGE_NOEXCEPT;
-
-/// Whether the host is streaming audio to us: it has selected the stream's operational alternate setting, and
-/// packets are arriving. [task] [audio]
-bool deluge_usb_audio_receiving(void) DELUGE_NOEXCEPT;
-
-/// Whether the host is collecting our audio: it has selected the stream's operational alternate setting. [task]
-/// [audio]
-bool deluge_usb_audio_sending(void) DELUGE_NOEXCEPT;
-
-/// Read the host's audio for the render block that is about to play: `frames` stereo frames into `dst`, each
-/// channel a full-scale signed 32-bit sample (the host's 16 or 24 bits in the top bits, as the codec's input
-/// arrives). Frames with nothing from the host behind them - before streaming starts, after it stops, or on an
-/// underrun - are silence. The platform keeps the stream's latency in a fixed window, dropping or repeating the odd
-/// frame if a host that ignores implicit feedback drifts from our clock. Returns how many frames came from the host.
-/// [task] [audio]
-uint32_t deluge_usb_audio_read(DelugeStereoSample* dst, uint32_t frames) DELUGE_NOEXCEPT;
-
-/// Queue `frames` stereo frames for the host, each channel a full-scale signed 32-bit sample (cut to the stream's
-/// 16 or 24 bits on the way out). Call once per render block, with that block's frames, in order. Dropped when the
-/// host isn't collecting, or past what the queue can hold. [task] [audio]
-void deluge_usb_audio_write(const DelugeStereoSample* src, uint32_t frames) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

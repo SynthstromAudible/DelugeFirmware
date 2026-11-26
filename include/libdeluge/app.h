@@ -29,6 +29,7 @@
 #define LIBDELUGE_APP_H
 
 #include "abi.h"
+#include "audio_ports.h"
 #include "board.h"
 #include "types.h"
 
@@ -78,15 +79,14 @@ uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) DELUGE_NOEXCEPT
 /// [task] [audio] [isr]
 void deluge_app_wake(DelugeWake reasons) DELUGE_NOEXCEPT;
 
-/// Realtime audio callback. Render `frames` stereo frames into `out`, reading
-/// the same number of input frames from `in` (either may be NULL if the board
-/// has no input/output). Samples are Q31.
+/// Realtime audio callback: render one block of every port (`audio_ports.h`). Read each port's input pairs, write its
+/// output pairs and mark the pairs left silent in `out_silent`; `block->frames` frames each. Samples are Q31.
 ///
 /// MUST NOT block, allocate, take locks, or call any non-`[audio]` boundary
 /// function. Note: final volume / click-free fades are handled by the BSP
 /// (e.g. the RZ/A1L SCUX DVU block) — render at unity here.
 /// [task] [audio]
-void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) DELUGE_NOEXCEPT;
+void deluge_app_render(DelugeAudioBlock* block) DELUGE_NOEXCEPT;
 
 /// @brief A render block the board chose not to produce (a host harness's null sink that skips rendering).
 ///
