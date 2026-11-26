@@ -82,8 +82,9 @@ static CAPTURE_EPOCH: AtomicU32 = AtomicU32::new(0);
 const TO_HOST_FRAMES: usize = 2048;
 /// The from-host ring, in words: 46 ms of 24-bit stereo, the deepest alternate. Whole descriptors' worth.
 const FROM_HOST_WORDS: usize = 4096;
-/// Packets the stream to the host can queue: more than the pacer holds ahead, with room for a render's burst.
-const PACKETS: usize = 128;
+/// Packets the stream to the host can queue: the pacer's target and room for the burst a late render catches up with
+/// (the queue has reached 96 of these on the rig).
+const PACKETS: usize = 256;
 /// Descriptors the from-host ring is in.
 const RECEIVE_PARTS: usize = 4;
 

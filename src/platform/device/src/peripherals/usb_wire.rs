@@ -123,8 +123,10 @@ impl ToHostRing {
     }
 }
 
-/// How many packets to keep queued ahead of the DMA: two 128-frame blocks of the average 5.5125 frames.
-pub const PACKET_TARGET_AHEAD: usize = 46;
+/// How many packets to keep queued ahead of the DMA: the codec's three 128-frame blocks, in packets of the average
+/// 5.5125 frames (8.7 ms). A render late enough to empty this has also left the codec short, so the stream to the host
+/// runs dry only when the output does.
+pub const PACKET_TARGET_AHEAD: usize = 70;
 /// The share of 6-frame packets at 44.1 kHz and 8000 packets a second: 41 in 80.
 const SHARE: i32 = 41;
 const SHARE_OF: i32 = 80;
