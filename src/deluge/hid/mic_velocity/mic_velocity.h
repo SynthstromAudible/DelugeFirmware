@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp/mic_velocity/velocity_map.h"
 #include <cstdint>
 
 /// Mic velocity: a pad press's velocity from the thump it makes in the internal mic.
@@ -57,5 +58,13 @@ PressVelocity velocityForPress(int32_t x, int32_t y, uint32_t arrived);
 
 /// Enabled in the settings
 extern bool enabled;
+
+/// How tap strength maps onto velocity (the settings)
+extern dsp::mic_velocity::VelocityCurve curve;
+
+/// The calibration presses are measured against, once there is one
+[[nodiscard]] bool calibrated();
+[[nodiscard]] dsp::mic_velocity::Calibration const& calibration();
+void setCalibration(dsp::mic_velocity::Calibration const& newCalibration);
 
 } // namespace deluge::mic_velocity

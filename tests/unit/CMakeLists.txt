@@ -82,6 +82,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For mic velocity's thump detector and echo canceller
         ../../src/deluge/dsp/mic_velocity/thump_detector.cpp
         ../../src/deluge/dsp/mic_velocity/echo_canceller.cpp
+        ../../src/deluge/dsp/mic_velocity/velocity_map.cpp
 )
 
 add_executable(UnitTests
@@ -114,6 +115,7 @@ add_executable(UnitTests
         note_locks_tests.cpp
         mic_velocity_detector_tests.cpp
         mic_velocity_echo_tests.cpp
+        mic_velocity_map_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

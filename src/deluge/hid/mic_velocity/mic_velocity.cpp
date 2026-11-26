@@ -22,10 +22,13 @@
 #include "hid/mic_velocity/mic_input.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/stem_export/stem_export.h"
+#include <algorithm>
+#include <cmath>
 
 namespace deluge::mic_velocity {
 
 bool enabled = false;
+dsp::mic_velocity::VelocityCurve curve{};
 
 namespace {
 
@@ -65,14 +68,13 @@ bool before(Frame a, Frame b) {
 	return static_cast<int32_t>(a - b) < 0;
 }
 
-/// Whether there's a calibration to measure presses against (provided by the velocity model)
-bool calibrated() {
-	return false;
-}
+PLACE_SDRAM_BSS dsp::mic_velocity::Calibration currentCalibration{}; // Read once a press, so out of internal RAM
+bool haveCalibration = false;
 
-/// The velocity a thump of this level plays at, on this pad (provided by the velocity model)
+/// The velocity a thump of this level (full scale 1) plays at, on this pad
 uint8_t velocityFromLevel(int32_t x, int32_t y, float level) {
-	return USE_DEFAULT_VELOCITY;
+	float const levelDb = 20.f * std::log10(std::max(level, 1e-9f));
+	return dsp::mic_velocity::velocityFor(currentCalibration, curve, x, y, levelDb);
 }
 
 /// Frames from the mic reader: decimate, take the speaker out (when it's on) and look for thumps
@@ -98,6 +100,20 @@ void consume(Frame first, std::span<int32_t const> mic, std::span<int16_t const>
 
 bool active() {
 	return running;
+}
+
+bool calibrated() {
+	return haveCalibration;
+}
+
+dsp::mic_velocity::Calibration const& calibration() {
+	return currentCalibration;
+}
+
+void setCalibration(dsp::mic_velocity::Calibration const& newCalibration) {
+	currentCalibration = newCalibration;
+	haveCalibration = true;
+	update();
 }
 
 void update() {
