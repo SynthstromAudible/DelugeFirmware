@@ -49,7 +49,7 @@ PLACE_SDRAM_TEXT SidecarProgress progressOf(Sample& sample) {
 	        .entries = deluge_peaks_level1_entries(peaks),
 	        .written = sample.sidecar.written,
 	        .failures = sample.sidecar.failures,
-	        .pitchUnwritten = false};
+	        .pitchUnwritten = sample.pitchResults().unwritten()};
 }
 
 } // namespace
@@ -170,19 +170,29 @@ PLACE_SDRAM_TEXT void PeakSidecars::startWrite(AudioFileVector& files) {
 	}
 	const std::optional<DelugePeakKey> key = sidecarKey(*due);
 	DelugePeakIndex* peaks = due->peaks();
-	const uint32_t len = key ? deluge_peaks_sidecar_len(peaks, nullptr, 0) : 0;
+	deluge::sample::PitchResults& pitches = due->pitchResults();
+	DelugeSidecarSection extra{};
+	uint32_t extras = 0;
+	if (!pitches.empty()) {
+		const std::span<const uint8_t> ptch = pitches.encode();
+		extra = {
+		    .tag = deluge::sample::PitchResults::kTag, .bytes = ptch.data(), .len = static_cast<uint32_t>(ptch.size())};
+		extras = 1;
+	}
+	const uint32_t len = key ? deluge_peaks_sidecar_len(peaks, &extra, extras) : 0;
 	buffer_ = len != 0 ? static_cast<uint8_t*>(deluge::memory::alloc_sdram(len)) : nullptr;
 	if (buffer_ == nullptr) {
 		return; // memory is short: the next search finds it again
 	}
 	bufferCap_ = len;
 	writtenComplete_ = deluge_peaks_complete_level1(peaks);
-	const uint32_t n = deluge_peaks_sidecar_write(peaks, &*key, nullptr, 0, buffer_, len);
+	const uint32_t n = deluge_peaks_sidecar_write(peaks, &*key, &extra, extras, buffer_, len);
 	if (n == 0) {
 		due->sidecar.failures++;
 		releaseBuffer();
 		return;
 	}
+	pitches.markWritten(); // marked again if this write fails
 	opSerial_ = due->serial;
 	tmpPath_ = sidecarPath(key->first_cluster, SidecarFile::TMP);
 	pkPath_ = sidecarPath(key->first_cluster, SidecarFile::PK);
@@ -270,6 +280,7 @@ PLACE_SDRAM_TEXT void PeakSidecars::finishWrite(AudioFileVector& files, bool ok)
 	}
 	else {
 		sample->sidecar.failures++;
+		sample->pitchResults().markUnwritten();
 	}
 }
 
@@ -325,6 +336,14 @@ PLACE_SDRAM_TEXT void PeakSidecars::collectRead(AudioFileVector& files) {
 		                   && deluge_peaks_sidecar_restore(sample->peaks(), &*key, buffer_, got) >= 0;
 		if (!sound) {
 			unlinks_.push(key->first_cluster);
+		}
+		else {
+			const uint8_t* ptch = nullptr;
+			uint32_t ptchLen = 0;
+			if (deluge_peaks_sidecar_section(buffer_, got, &*key, deluge::sample::PitchResults::kTag, &ptch,
+			                                 &ptchLen)) {
+				sample->restorePitches({ptch, ptchLen});
+			}
 		}
 	}
 	else if (status == DELUGE_CHANNEL_FAILED && error == DELUGE_ERR_NO_MEMORY && key) {

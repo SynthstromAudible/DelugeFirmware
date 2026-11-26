@@ -255,6 +255,7 @@ pub fn open<'a>(bytes: &'a [u8], key: &Key) -> Result<Sidecar<'a>, Reject> {
 impl<'a> Sidecar<'a> {
     /// The bytes of the section tagged `tag`, if the sidecar has one.
     #[must_use]
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn section(&self, tag: u32) -> Option<&'a [u8]> {
         let table = self
             .bytes

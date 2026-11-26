@@ -52,9 +52,11 @@
 #include "gui/views/instrument_clip_view.h" // fileBrowserShouldNotPreview
 #include "io/file.hpp"                      // the card swap's unlink + rename
 #include "libdeluge/audio_load.h"           // deluge_audio_load_set_latency_ms
+#include "memory/heaps.h"                   // failNextAllocationOfSize
 #include "model/clip/clip.h"
 #include "model/output.h"
 #include "model/sample/last_file_path_loaded.h"
+#include "model/sample/pitch_scan.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_reader_bridge.h"
 #include "model/sample/waveform_scan.h"
@@ -1098,6 +1100,50 @@ void checkIdentity(const Sample& preview, const Sample* varied) {
 	}
 }
 
+/// Runs @p scan to its end, a tick at a time, at most kMaxPitchTicks.
+float runPitchScan(deluge::sample::PitchScan& scan) {
+	constexpr int32_t kMaxPitchTicks = 100'000;
+	for (int32_t i = 0; i < kMaxPitchTicks && scan.tick() == deluge::sample::PitchScan::Progress::Pending; i++) {}
+	return scan.result();
+}
+
+/// AB-PITCH: a pitch detection remembers its result on the sample, by search; a detection with a remembered search
+/// answers without reading (its buffer is never allocated: an allocation armed to fail does not stop it), and one
+/// with another search still reads (the same armed failure ends it at 0 Hz) — and, ended by the card or the memory
+/// rather than decided, leaves nothing remembered for its search.
+void checkPitchMemory(Sample& sample) {
+	using deluge::sample::PitchScan;
+	const PitchScan::Limits kDefault{};
+	const PitchScan::Limits kOther{.minFreqHz = 30, .maxFreqHz = 5000, .doPrimeTest = false};
+	PitchScan scan;
+	scan.arm(sample, kDefault);
+	const float detected = runPitchScan(scan);
+	const std::optional<float> remembered = sample.pitchResults().find(
+	    {.minFreqHz = kDefault.minFreqHz, .maxFreqHz = kDefault.maxFreqHz, .primeTest = kDefault.doPrimeTest});
+	// A known answer under another search, so the cache's own answer is told apart from a real detection's.
+	sample.pitchResults().remember({.minFreqHz = 25, .maxFreqHz = 8000, .primeTest = true}, 123.5f);
+	deluge::memory::failNextAllocationOfSize(Sample::pitchBufferBytes());
+	scan.arm(sample, {.minFreqHz = 25, .maxFreqHz = 8000, .doPrimeTest = true});
+	const float fromMemory = runPitchScan(scan);
+	const bool stillArmed = deluge::memory::allocationFailurePending();
+	scan.arm(sample, kOther);
+	const float other = runPitchScan(scan);
+	const bool otherForgotten =
+	    !sample.pitchResults()
+	         .find({.minFreqHz = kOther.minFreqHz, .maxFreqHz = kOther.maxFreqHz, .primeTest = kOther.doPrimeTest})
+	         .has_value();
+	if (deluge::memory::allocationFailurePending()) {
+		(void)deluge::memory::injectedAllocationFailure(Sample::pitchBufferBytes()); // leave nothing armed
+	}
+	printf("AB-PITCH detected=%.2f remembered=%d memory=%.2f untouched=%d other=%.2f forgotten=%d\n",
+	       static_cast<double>(detected), remembered && *remembered == detected ? 1 : 0,
+	       static_cast<double>(fromMemory), stillArmed ? 1 : 0, static_cast<double>(other), otherForgotten ? 1 : 0);
+	if (!remembered || *remembered != detected || fromMemory != 123.5f || !stillArmed || other != 0.0f
+	    || !otherForgotten) {
+		g_report.fail("[audioLoadAB/pitch]: a detection must be remembered by search and answered from memory");
+	}
+}
+
 /// AB-PEAKS: the preview's own fills fold its first blocks into the sample's index before any peak scan runs; the
 /// scan, starting over from an empty index, completes it; and the index's range is the whole file's.
 void checkPeaks() {
@@ -1126,6 +1172,9 @@ void checkPeaks() {
 		checkColumns(*g_peaksSample);
 	}
 	checkIdentity(*sample, g_peaksSample);
+	if (g_peaksSample != nullptr) {
+		checkPitchMemory(*g_peaksSample);
+	}
 }
 
 /// Has anything drawn the cancelled file's waveform?
