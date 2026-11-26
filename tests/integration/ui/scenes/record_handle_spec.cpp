@@ -38,7 +38,7 @@ std::optional<bridge::LaneTarget> filter_lane(spec::SongFixture& f) {
 
 // clang-format off
 describe record_handle("a working copy's handle", ${
-	it("names its copy and the lane's AutoParam", _ {
+	it("names its copy, and the same copy when made again", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		spec::make_current(f.song);
 		const std::optional<bridge::LaneTarget> lane = filter_lane(f);
@@ -47,12 +47,12 @@ describe record_handle("a working copy's handle", ${
 			const wc::WorkingCopy made = wc::makeWorkingCopy(*lane, wc::kNodesPerRecordedWrite);
 			expect(made.copy).not_().to_be_null();
 			expect(made.handle.generation).not_().to_equal(0u, "a made copy has a generation");
-			expect(wc::copy_at(made.handle).first).to_equal(made.copy);
-			expect(wc::copy_at(made.handle).second).to_equal(lane->auto_param);
+			expect(wc::copy_at(made.handle)).to_equal(made.copy);
 			const wc::WorkingCopy again = wc::makeWorkingCopy(*lane, wc::kNodesPerRecordedWrite);
 			expect(again.copy).to_equal(made.copy, "a second make finds it");
 			expect(again.handle.generation).to_equal(made.handle.generation, "under the same handle");
 			wc::releaseWorkingCopies();
+			(void)wc::takeEndedSinceLastAsked(); // no later commit takes the release for a take's end
 		}
 		spec::make_current(nullptr);
 	});
@@ -66,12 +66,14 @@ describe record_handle("a working copy's handle", ${
 			const wc::WorkingCopy first = wc::makeWorkingCopy(*lane, wc::kNodesPerRecordedWrite);
 			expect(first.copy).not_().to_be_null();
 			wc::releaseWorkingCopies();
-			expect(wc::copy_at(first.handle).first).to_be_null();
+			(void)wc::takeEndedSinceLastAsked(); // no later commit takes the release for a take's end
+			expect(wc::copy_at(first.handle)).to_be_null();
 			const wc::WorkingCopy second = wc::makeWorkingCopy(*lane, wc::kNodesPerRecordedWrite);
 			expect(int(second.handle.index)).to_equal(int(first.handle.index), "the slot is reused");
-			expect(wc::copy_at(first.handle).first).to_be_null();
-			expect(wc::copy_at(second.handle).first).to_equal(second.copy);
+			expect(wc::copy_at(first.handle)).to_be_null();
+			expect(wc::copy_at(second.handle)).to_equal(second.copy);
 			wc::releaseWorkingCopies();
+			(void)wc::takeEndedSinceLastAsked(); // no later commit takes the release for a take's end
 		}
 		spec::make_current(nullptr);
 	});
@@ -104,7 +106,9 @@ describe record_handle("a working copy's handle", ${
 			}
 			expect(found).to_be_true();
 			playbackHandler.recording = RecordingMode::OFF;
+			lane->auto_param->cancelOverriding(); // the recorded write latched the lane
 			wc::releaseWorkingCopies();
+			(void)wc::takeEndedSinceLastAsked(); // no later commit takes the release for a take's end
 			f.clip->activeIfNoSolo = savedActive;
 			f.clip->armedForRecording = savedArmed;
 			playbackHandler.recording = savedRecording;
@@ -113,9 +117,41 @@ describe record_handle("a working copy's handle", ${
 		spec::make_current(nullptr);
 	});
 
+	it("drops a write queued for a released copy, leaving the slot's next copy as it was made", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		spec::make_current(f.song);
+		const std::optional<bridge::LaneTarget> lane = filter_lane(f);
+		expect(lane.has_value()).to_be_true();
+		if (lane) {
+			const wc::WorkingCopy first = wc::makeWorkingCopy(*lane, wc::kNodesPerRecordedWrite);
+			wc::releaseWorkingCopies();
+			(void)wc::takeEndedSinceLastAsked();
+			const wc::WorkingCopy second = wc::makeWorkingCopy(*lane, wc::kNodesPerRecordedWrite);
+			expect(second.copy).not_().to_be_null();
+			const size_t nodesBefore = second.copy != nullptr ? second.copy->nodes.size() : 0;
+			const int32_t length = f.clip->loopLength();
+			const wc::RecordEvent stale{.song = f.song,
+			                            .copy = first.handle,
+			                            .livePos = length / 4,
+			                            .value = 500000000,
+			                            .ticksToClear = 1,
+			                            .effectiveLength = length,
+			                            .posAtWhichPlaybackWillCut = 2147483647,
+			                            .timePerInternalTick = 1};
+			expect(wc::postRecordEvent(stale)).to_be_true();
+			wc::applyRecordEvents(*f.song);
+			if (second.copy != nullptr) {
+				expect(second.copy->nodes.size()).to_equal(nodesBefore, "the later copy took no write");
+			}
+			wc::releaseWorkingCopies();
+			(void)wc::takeEndedSinceLastAsked();
+		}
+		spec::make_current(nullptr);
+	});
+
 	it("names nothing when it names no copy", _ {
-		expect(wc::copy_at(wc::CopyHandle{}).first).to_be_null();
-		expect(wc::copy_at(wc::CopyHandle{.index = 200, .generation = 1}).first).to_be_null();
+		expect(wc::copy_at(wc::CopyHandle{})).to_be_null();
+		expect(wc::copy_at(wc::CopyHandle{.index = 200, .generation = 1})).to_be_null();
 	});
 });
 // clang-format on

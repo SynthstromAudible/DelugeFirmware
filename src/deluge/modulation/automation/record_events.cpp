@@ -18,10 +18,8 @@
 #include "modulation/automation/record_events.h"
 #include "io/debug/log.h"
 #include "libdeluge/system.h"
-#include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/lane_target.h"
-#include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/working_copies.h"
@@ -122,7 +120,7 @@ void applyRecordEvents(::Song& song) {
 		if (event.song != &song) {
 			continue;
 		}
-		auto [lane, param] = copy_at(event.copy);
+		project::DocAutoParam* lane = copy_at(event.copy);
 		if (lane == nullptr) {
 			continue; // the take was released before the render reached the value
 		}
@@ -133,7 +131,7 @@ void applyRecordEvents(::Song& song) {
 			applyCommand(*lane, *event.command);
 		}
 		else {
-			param->writeRecordedValue(*lane, event);
+			AutoParam::writeRecordedValue(*lane, event);
 		}
 		noteWorkingCopyWritten(*lane);
 #if ALPHA_OR_BETA_VERSION

@@ -240,9 +240,11 @@ private:
 	/// @brief Write a value recorded while playing into @p lane: the live-record kernel, with what it decides from the
 	/// lane's own nodes (whether the region's start interpolates, which node of a straight run to drop). The render's
 	/// apply of a queued event; the interaction tier runs it only with the render excluded.
-	void writeRecordedValue(deluge::project::DocAutoParam& lane, const deluge::modulation::RecordEvent& event);
-	bool deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
-	                                    int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
+	/// @brief Writes @p event's recorded value into @p lane; reads nothing of an AutoParam's own state, so the render
+	///        calls it with only the lane's working copy.
+	static void writeRecordedValue(deluge::project::DocAutoParam& lane, const deluge::modulation::RecordEvent& event);
+	static bool deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
+	                                           int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, const ParamNode* nextNode,
 	                        int32_t effectiveLength, int32_t currentPos, bool reversed);
 

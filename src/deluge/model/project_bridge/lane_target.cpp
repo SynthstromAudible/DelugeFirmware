@@ -61,9 +61,6 @@ project::DocAutoParam* doc_of(const LaneTarget& target) {
 }
 
 std::optional<project::ParamAddress> address_of(const LaneTarget& lane) {
-	if (lane.address) {
-		return lane.address;
-	}
 	alignas(::ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	return edits::addressFor(*stack_of(lane, memory));
 }

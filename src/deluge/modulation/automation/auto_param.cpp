@@ -370,7 +370,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, const deluge
 			    mayDeleteNodesInLinearRun && !event.reversed && lane.collection->mayParamInterpolate(lane.param_id);
 			// Wait, I can no longer see why this matters...
 			event.backtrackingCouldLoopBack = timing.backtracking_could_loop_back;
-			const std::optional<deluge::project::ParamAddress> address = deluge::bridge::address_of(lane);
+			const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*stack);
 			// The render records into a copy of the lane it owns; the model hears at the next commit. Without a copy
 			// the value is set, not recorded.
 			const deluge::modulation::WorkingCopy made = deluge::modulation::makeWorkingCopy(
@@ -425,12 +425,13 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, const deluge
 
 getOut:
 	// The edit is the lane's new base, which save reads, and what it plays now; a recorded value is played already.
+	// Resolved again: the automation delete commits the take, which may have moved the lane's store.
 	if (!recorded) {
-		setBase(doc, value);
+		setBase(*deluge::bridge::doc_of(lane), value);
 		deluge::modulation::postLaneCommand(lane, {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value},
 		                                    0);
 	}
-	bool automatedNow = recorded || isAutomated(doc);
+	bool automatedNow = recorded || isAutomated(*deluge::bridge::doc_of(lane));
 	lane.collection->notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore, automatedNow);
 }
 
@@ -1414,7 +1415,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value, 
 				action->recordParamChangeIfNotAlreadySnapshotted(stack, false);
 			}
 		}
-		setBase(doc, value);
+		setBase(*deluge::bridge::doc_of(lane), value);
 	}
 
 	// Or, normal case
@@ -1466,14 +1467,16 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value, 
 			if (clockActive) {
 				stopInterpolating();
 			}
-			setBase(doc, value);
+			setBase(*deluge::bridge::doc_of(lane), value);
 		}
 		else {
 			view.notifyParamAutomationOccurred(lane.manager);
 		}
 	}
 
-	lane.collection->notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore, isAutomated(doc));
+	// Resolved again: the automation delete commits the take, which may have moved the lane's store.
+	lane.collection->notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore,
+	                                              isAutomated(*deluge::bridge::doc_of(lane)));
 }
 
 #define REGION_EDGE_LEFT 0

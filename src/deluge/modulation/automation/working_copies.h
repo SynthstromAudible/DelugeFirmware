@@ -20,9 +20,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <utility>
 
-class AutoParam;
 class ParamCollection;
 class ParamCollectionSummary;
 class Song;
@@ -92,9 +90,9 @@ WorkingCopy makeWorkingCopy(const bridge::LaneTarget& lane, size_t room, Hold ho
 /// @return It, or no copy if the lane has none.
 [[nodiscard]] WorkingCopy find_working_copy(const ParamCollection& collection, int32_t paramId);
 
-/// @brief [render] or [interaction] The live copy @p handle names, and its lane's AutoParam.
-/// @return Both, or nulls when the slot was emptied since @p handle was made, or its copy's take ended.
-[[nodiscard]] std::pair<project::DocAutoParam*, AutoParam*> copy_at(CopyHandle handle);
+/// @brief [render] or [interaction] The live copy @p handle names.
+/// @return It, or nullptr when the slot was emptied since @p handle was made, or its copy's take ended.
+[[nodiscard]] project::DocAutoParam* copy_at(CopyHandle handle);
 
 /// @brief [render] or [interaction] The working copy of lane @p paramId of @p collection.
 /// @return It, or nullptr if the lane has none.

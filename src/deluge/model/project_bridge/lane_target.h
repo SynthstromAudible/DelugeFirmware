@@ -122,7 +122,7 @@ struct LaneTiming {
 	bool reversed{false};
 };
 
-/// @brief [interaction] The address of @p lane: its own, or the one its engine stack names (edits::addressFor).
+/// @brief [interaction] The address @p lane's engine stack names (edits::addressFor, with its alpha checks).
 [[nodiscard]] std::optional<project::ParamAddress> address_of(const LaneTarget& lane);
 
 /// @brief [interaction] The playback facts of @p lane's clip and note row; a lane with no timeline has none.

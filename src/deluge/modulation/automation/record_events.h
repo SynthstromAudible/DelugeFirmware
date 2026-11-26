@@ -31,12 +31,10 @@
 #include "definitions_cxx.hpp"
 #include "modulation/automation/lane_command.h"
 #include "modulation/automation/working_copies.h"
-#include "project/param_address.h"
 #include "project/param_node.h"
 #include <cstddef>
 #include <cstdint>
 
-class ModelStackWithAutoParam;
 class Song;
 
 namespace deluge::modulation {
@@ -82,9 +80,10 @@ void postLaneCommand(const bridge::LaneTarget& lane, LaneCommand command, size_t
 /// @return false when the queue is full: the caller, with the render excluded, writes the queue and then its event.
 [[nodiscard]] bool postRecordEvent(const RecordEvent& event);
 
-/// @brief [audio] Write the queued events into their lanes in @p song, oldest first; an event made in another song, or
-/// whose lane no longer resolves (its clip was deleted after the write), is dropped. Bounded: at most the queue's
-/// capacity per call. [task] only with the render excluded, which makes it the queue's one consumer while it runs.
+/// @brief [audio] Write the queued events into their lanes' working copies in @p song, oldest first; an event made in
+/// another song, or whose handle names no live copy (released, its take ended, or its slot holding a later copy), is
+/// dropped. Bounded: at most the queue's capacity per call. [task] only with the render excluded, which makes it the
+/// queue's one consumer while it runs.
 void applyRecordEvents(::Song& song);
 
 /// @brief [task] Write what is still queued into the working copies of the current song's lanes, with the render

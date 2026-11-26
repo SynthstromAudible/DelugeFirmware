@@ -82,8 +82,6 @@ struct Entry {
 	uint32_t held = 0;
 	/// The handle's generation: a fresh one for each copy the slot holds, 0 while it is empty.
 	uint32_t generation = 0;
-	/// The lane's AutoParam, which a recorded write into the copy reads.
-	AutoParam* param = nullptr;
 };
 
 /// [interaction] -> [render] Changed only with the render held off, but for `written` and `ended`.
@@ -170,7 +168,6 @@ void clear(Entry& entry) {
 	entry.ended.store(false, std::memory_order_relaxed);
 	entry.held = 0;
 	entry.generation = 0;
-	entry.param = nullptr;
 }
 
 /// The handle of the copy @p entry holds.
@@ -294,7 +291,6 @@ WorkingCopy makeWorkingCopy(const bridge::LaneTarget& lane, size_t room, Hold ho
 	slot->copy = copy;
 	slot->hold = hold;
 	slot->held = repeats != nullptr ? repeats->inModel : 0;
-	slot->param = lane.auto_param;
 	if (++g_generation == 0) {
 		++g_generation; // 0 names no copy
 	}
@@ -321,15 +317,12 @@ WorkingCopy find_working_copy(const ParamCollection& collection, int32_t paramId
 	return {};
 }
 
-std::pair<project::DocAutoParam*, AutoParam*> copy_at(CopyHandle handle) {
+project::DocAutoParam* copy_at(CopyHandle handle) {
 	if (handle.generation == 0 || handle.index >= kWorkingCopies) {
-		return {nullptr, nullptr};
+		return nullptr;
 	}
 	const Entry& entry = g_entries[handle.index];
-	if (entry.generation != handle.generation || !live(entry)) {
-		return {nullptr, nullptr};
-	}
-	return {entry.copy, entry.param};
+	return (entry.generation == handle.generation && live(entry)) ? entry.copy : nullptr;
 }
 
 project::DocAutoParam* workingCopy(const ParamCollection& collection, int32_t paramId) {

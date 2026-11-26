@@ -365,6 +365,32 @@ describe lane_target("a lane target", ${
 			spec::make_current(nullptr);
 		});
 
+		it("reads a row's own loop length, and the clip's reversed playback", _ {
+			spec::SongFixture f = spec::make_kit_song();
+			spec::make_current(f.song);
+			auto* drum = spec::add_drum<SoundDrum>(f);
+			const project::ParamAddress address = bridge::addressOf(
+			    project::OwnerId::drum(*drum->id()), params::Kind::PATCHED, params::LOCAL_LPF_FREQ, f.clip->id());
+			const std::optional<bridge::LaneTarget> lane = bridge::lane_exact(*f.song, address);
+			expect(lane.has_value()).to_be_true();
+			if (lane && lane->note_row != nullptr) {
+				const int32_t rowLength = f.clip->loopLength() / 2;
+				expect(rowLength).not_().to_equal(f.clip->loopLength(), "the row's length differs from its clip's");
+				lane->note_row->setLoopLengthIfIndependent(rowLength);
+				expect(bridge::lane_timing(*lane).loop_length).to_equal(rowLength);
+				lane->note_row->setLoopLengthIfIndependent(0);
+				expect(bridge::lane_timing(*lane).loop_length).to_equal(f.clip->loopLength(), "the clip's, once obeyed");
+				const uint8_t saved = playbackHandler.playbackState;
+				playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+				f.clip->currentlyPlayingReversed = true;
+				expect(bridge::lane_timing(*lane).reversed).to_be_true();
+				f.clip->currentlyPlayingReversed = false;
+				expect(bridge::lane_timing(*lane).reversed).to_be_false();
+				playbackHandler.playbackState = saved;
+			}
+			spec::make_current(nullptr);
+		});
+
 		it("has none for a lane with no timeline", _ {
 			bridge::LaneTarget lane{};
 			const bridge::LaneTiming timing = bridge::lane_timing(lane);
