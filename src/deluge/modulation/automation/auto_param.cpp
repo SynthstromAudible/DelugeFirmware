@@ -35,6 +35,7 @@
 #include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
@@ -523,7 +524,10 @@ skipThat: {}
 #endif
 }
 
-void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying) {
+void AutoParam::projectScalarFromStore(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool isPlaying) {
+	// The notify chain still takes an engine stack.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam const* modelStack = deluge::bridge::stack_of(lane, memory);
 	// The store's current_value was already written model-first (ParamSnapshot::applyPatch); this derives the
 	// engine's RT state from it, reproducing setCurrentValueInResponseToUserInput's non-recording scalar tail. A
 	// scalar patch never touches nodes, so isAutomated is invariant across the write (automatedBefore ==
@@ -539,8 +543,11 @@ void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
 
-void AutoParam::projectRegionFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-                                       bool automatedBefore, deluge::project::RegionWriteResult result) {
+void AutoParam::projectRegionFromStore(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automatedBefore,
+                                       deluge::project::RegionWriteResult result) {
+	// The notify chain still takes an engine stack.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam const* modelStack = deluge::bridge::stack_of(lane, memory);
 	// The store (nodes + current_value) was already written model-first (ParamSnapshot::applyPatch's region
 	// kernel). Reproduce setValueForRegion's post-mutation tail from the branch
 	// the kernel took (result.currentValueEffect). Playing the base is uniform: the value-taking
@@ -1862,7 +1869,10 @@ void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t am
 	deluge::project::shiftHorizontally(doc, amount, effectiveLength); // forwards to the DOM kernel
 }
 
-void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
+void AutoParam::swapState(AutoParamState* state, const deluge::bridge::LaneTarget& lane) {
+	// The notify chain still takes an engine stack.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam const* modelStack = deluge::bridge::stack_of(lane, memory);
 	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;

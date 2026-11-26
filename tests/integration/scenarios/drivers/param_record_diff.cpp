@@ -42,6 +42,7 @@
 #include "model/fx/chain_params.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -894,9 +895,10 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 
 	// Undo (swapState with the pre-record snapshot) must revert to empty/initial; redo (swap again) must restore
 	// the recorded automation exactly — exercising the AutoParam::swapState node/value swap on the DOM store.
-	ap.swapState(&undoState, msap);
+	const deluge::bridge::LaneTarget lane = deluge::bridge::target_of(*msap, &song->live.master_channel, std::nullopt);
+	ap.swapState(&undoState, lane);
 	dumpParam("after-undo", msap);
-	ap.swapState(&undoState, msap);
+	ap.swapState(&undoState, lane);
 	dumpParam("after-redo", msap);
 
 	// Persistence: save the song and reload it; the recorded automation must survive the DOM serialization

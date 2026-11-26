@@ -280,20 +280,6 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 	}
 }
 
-void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
-
-	MIDIParam* midiParam = params.getOrCreateParamFromCC(modelStack->paramId);
-	if (!midiParam) {
-		return;
-	}
-
-	AutoParam* param = &midiParam->param;
-
-	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(param);
-
-	param->swapState(state, modelStackWithParam);
-}
-
 void MIDIParamCollection::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 

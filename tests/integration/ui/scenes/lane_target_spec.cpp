@@ -186,6 +186,28 @@ describe lane_target("a lane target", ${
 			spec::make_current(nullptr);
 		});
 	});
+	context("an undone param edit", _ {
+		it("swaps the lane's state back through its target", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			const project::ParamAddress address = bridge::addressOf(
+			    project::OwnerId::instrument(*f.instrument->id()), params::Kind::PATCHED, params::LOCAL_LPF_FREQ,
+			    f.clip->id());
+			const std::optional<bridge::LaneTarget> lane = bridge::lane_exact(*f.song, address);
+			expect(lane.has_value()).to_be_true();
+			if (lane) {
+				const int32_t before = lane->auto_param->getCurrentValue();
+				AutoParamState state;
+				state.value = before + 1000;
+				state.base = before + 1000;
+				lane->auto_param->swapState(&state, *lane);
+				expect(lane->auto_param->getCurrentValue()).to_equal(before + 1000);
+				lane->auto_param->swapState(&state, *lane);
+				expect(lane->auto_param->getCurrentValue()).to_equal(before);
+			}
+			spec::make_current(nullptr);
+		});
+	});
 });
 // clang-format on
 

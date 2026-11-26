@@ -71,6 +71,7 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_stack.h"
@@ -503,7 +504,9 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	store->nodes.erase(store->nodes.begin(), store->nodes.end());
 	int32_t prev = ms->autoParam->getCurrentValue();
 	store->current_value = 0x33333333;
-	ms->autoParam->projectScalarFromStore(ms, prev, /*isPlaying=*/false);
+	ms->autoParam->projectScalarFromStore(
+	    deluge::bridge::target_of(*ms, deluge::bridge::owner_of(*g_audioClip->output), addr), prev,
+	    /*isPlaying=*/false);
 	check(ms->autoParam->getCurrentValue() == 0x33333333, "projectScalarFromStore: engine cursor synced from store");
 }
 

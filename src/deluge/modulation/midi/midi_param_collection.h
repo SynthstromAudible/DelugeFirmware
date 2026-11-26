@@ -60,7 +60,6 @@ public:
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) override;
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) override;
-	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override;
 	Error makeInterpolatedCCsGoodAgain(int32_t clipLength);
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) override;

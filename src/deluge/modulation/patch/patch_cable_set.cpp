@@ -1037,22 +1037,6 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // Surely this could be more targeted?
 }
 
-void PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
-	PatchSource s;
-	deluge::synth::CableTarget destination;
-	dissectParamId(modelStack->paramId, &destination, &s);
-
-	int32_t c = getPatchCableIndex(s, destination);
-	if (c == 255) {
-		return;
-	}
-	AutoParam* param = &patchCables[c].param;
-
-	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(param);
-
-	param->swapState(state, modelStackWithParam);
-}
-
 void PatchCableSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)

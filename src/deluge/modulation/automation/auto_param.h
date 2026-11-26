@@ -44,6 +44,9 @@ class TimelineCounter;
 class Clip;
 class ModelStackWithAutoParam;
 class Song;
+namespace deluge::bridge {
+struct LaneTarget;
+}
 namespace deluge::modulation {
 struct RecordEvent;
 void applyRecordEvents(::Song& song);
@@ -83,10 +86,10 @@ public:
 	/// engine's RT state from it, reproducing setCurrentValueInResponseToUserInput's non-recording scalar tail
 	/// (interpolation reset, the playing latch, cursor sync, notify) but sourcing the value from the store.
 	///
-	/// @param modelStack The param's model stack.
-	/// @param oldValue   The value before the edit.
-	/// @param isPlaying  Whether playback is running.
-	void projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying);
+	/// @param lane      The param's lane, resolved for this call.
+	/// @param oldValue  The value before the edit.
+	/// @param isPlaying Whether playback is running.
+	void projectScalarFromStore(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool isPlaying);
 	/// @brief Model-first projection half of the region poke, for every clock state.
 	///
 	/// The store (nodes and current_value) has already been written (ParamSnapshot::applyPatch's region kernel); this
@@ -94,11 +97,11 @@ public:
 	/// playhead in region) or UI notify (clock active, playhead outside), then notify. The branch is the one
 	/// `result.currentValueEffect` names; the kernel decides it and this tail replays it.
 	///
-	/// @param modelStack      The param's model stack.
+	/// @param lane            The param's lane, resolved for this call.
 	/// @param oldValue        The value before the edit.
 	/// @param automatedBefore Whether the param was automated before the edit.
 	/// @param result          The region kernel's result.
-	void projectRegionFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automatedBefore,
+	void projectRegionFromStore(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automatedBefore,
 	                            deluge::project::RegionWriteResult result);
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
@@ -136,7 +139,10 @@ public:
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
 	void shiftValues(deluge::project::DocAutoParam& doc, int32_t offset);
 	void shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength);
-	void swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack);
+	/// @brief Swap @p state (an undo record's value, base and nodes) with the lane's own, and notify.
+	/// @param state The state to swap in; on return, the lane's previous state.
+	/// @param lane  The param's lane, resolved for this call.
+	void swapState(AutoParamState* state, const deluge::bridge::LaneTarget& lane);
 	void copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
 	          ModelStackWithAutoParam const* modelStack);
 	void paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,

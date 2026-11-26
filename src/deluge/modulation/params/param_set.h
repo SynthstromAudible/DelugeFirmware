@@ -154,9 +154,6 @@ public:
 	void backUpAllAutomatedParamsToAction(Action* action, ModelStackWithParamCollection* modelStack);
 	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) final;
 
-	// For undoing / redoing
-	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) final;
-
 	int32_t getNumParams() { return numParams_; }
 
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) final;

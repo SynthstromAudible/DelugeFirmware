@@ -1,8 +1,10 @@
 #pragma once
 
 #include "model/edits/edit.h"
+#include "model/project_bridge/lane_target.h"
 #include "project/param_address.h"
 #include <cstdint>
+#include <optional>
 
 class ModelStackWithAutoParam;
 class Song;
@@ -56,7 +58,7 @@ public:
 
 private:
 	/// @brief The write itself, on @p stack, the param apply() found.
-	Error write(Context& ctx, ModelStackWithAutoParam* stack);
+	Error write(Context& ctx, const bridge::LaneTarget& lane, ModelStackWithAutoParam* stack);
 
 	/// The lane's address. apply() writes model-first through it where it resolves in the project tree; emitEvent
 	/// keys on it.
@@ -70,14 +72,13 @@ private:
 	Write write_;
 };
 
-/// @brief The engine stack of the param at @p address, found as @p resolve says; with WRITE or LEARNED, @p address
-/// moves to the take the write lands in.
+/// @brief The lane of the param at @p address, found as @p resolve says; with WRITE or LEARNED, @p address moves to
+/// the take the write lands in. Use it at once.
 /// @param song    The song holding the owner.
 /// @param address The param's address.
 /// @param resolve How it is found.
-/// @param memory  MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
-/// @return The stack, or null where the song holds no such param.
-ModelStackWithAutoParam* paramStackFor(::Song& song, project::ParamAddress& address, SetParamValue::Resolve resolve,
-                                       void* memory);
+/// @return The lane, or none where the song holds no such param.
+std::optional<bridge::LaneTarget> lane_for(::Song& song, project::ParamAddress& address,
+                                           SetParamValue::Resolve resolve);
 
 } // namespace deluge::edits

@@ -53,9 +53,9 @@ ConsequenceParamChange::ConsequenceParamChange(deluge::project::ParamAddress add
 Error ConsequenceParamChange::revert(TimeType /*time*/, ModelStack* modelStackWithSong) {
 	// One state is stored at a time, the before or the after: reverting either way swaps it with the lane's (the node
 	// vectors themselves are swapped, not copied).
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	if (ModelStackWithAutoParam* lane = deluge::bridge::paramStackExact(*modelStackWithSong->song, address, memory)) {
-		lane->paramCollection->remotelySwapParamState(&state, lane);
+	if (const std::optional<deluge::bridge::LaneTarget> lane =
+	        deluge::bridge::lane_exact(*modelStackWithSong->song, address)) {
+		lane->auto_param->swapState(&state, *lane);
 	}
 	return Error::NONE;
 }
