@@ -18,11 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // ActionResult
+#include "model/lane_owner.h"
 
 #include <cstdint>
 #include <optional>
 
-class ModControllable;
 class ParamManagerForTimeline;
 
 /// @file
@@ -38,8 +38,8 @@ namespace deluge::gui::ui {
 bool soundMenuOpen();
 
 /// @brief The owner the sound menu edits, as the menu last published it (`publishMenuTarget`). Read only while
-///        `soundMenuOpen()`.
-ModControllable* soundMenuModControllable();
+///        `soundMenuOpen()`. Safe on the audio tier.
+deluge::model::LaneOwner sound_menu_owner();
 
 /// @brief The params the sound menu edits, as the menu last published them. Safe on the audio tier.
 ParamManagerForTimeline* soundMenuParamManager();

@@ -536,7 +536,7 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addTimelineCounter(activeClip)
-	        ->addOtherTwoThingsButNoNoteRow(toModControllable(), getParamManager(modelStack->song));
+	        ->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*this), getParamManager(modelStack->song));
 
 	for (int16_t note : notesAuditioned | std::views::keys) {
 		sendNote(modelStackWithThreeMainThings, false, note, nullptr);
@@ -583,7 +583,7 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 
 	ParamManager* paramManager = getParamManager(modelStackWithNoteRow->song);
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStackWithNoteRow->addOtherTwoThings(toModControllable(), paramManager);
+	    modelStackWithNoteRow->addOtherTwoThings(deluge::model::owner_of(*this), paramManager);
 
 	sendNote(modelStackWithThreeMainThings, true, note, mpeValues, fromMIDIChannel, velocity, sampleSyncLength);
 }
@@ -616,7 +616,7 @@ void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t no
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addTimelineCounter(activeClip)
-	        ->addOtherTwoThingsButNoNoteRow(toModControllable(), getParamManager(modelStack->song));
+	        ->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*this), getParamManager(modelStack->song));
 
 	sendNote(modelStackWithThreeMainThings, false, note, nullptr, MIDI_CHANNEL_NONE, velocity);
 }
@@ -680,7 +680,7 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStackWithNoteRow->addOtherTwoThings(toModControllable(), getParamManager(modelStack->song));
+	    modelStackWithNoteRow->addOtherTwoThings(deluge::model::owner_of(*this), getParamManager(modelStack->song));
 
 	ModelStackWithAutoParam* modelStackWithParam =
 	    getParamToControlFromInputMIDIChannel(cc, modelStackWithThreeMainThings);
@@ -775,7 +775,7 @@ ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWit
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+	    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*this), &clip->paramManager);
 
 	if (modelStackWithThreeMainThings) {
 		if (paramKind == deluge::modulation::params::Kind::PATCHED) {

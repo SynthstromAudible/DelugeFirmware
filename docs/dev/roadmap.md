@@ -16,8 +16,9 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
 - Each effect param is declared once (`effects/params.h`); the host chain's table (`host/chains`) and the
   instrument's effect rows are built from them (P3d-1d / params C4, merged 77a23d631).
 - Instrument events (Track A step 1b-i, `feat/instrument-events`): note tails are `Voiced`'s, an expression lane's
-  change reaches the clip's instrument or the row's drum by address, and a MIDI instrument sends its own CCs;
-  `ModControllable` is the `effectsOwner()` bridge only.
+  change reaches the clip's instrument or the row's drum by address, and a MIDI instrument sends its own CCs.
+- Track A step 1b-ii is done: a ModelStack's owner is typed (`model::LaneOwner`), its effects are
+  `model::effects_owner_of`, and `ModControllable` is deleted (the `no-mod-controllable` layer rule).
 - Track A step 3 (the Deluge synth's state) is done: five plans, A to E, merged. A sound's
   record (`instruments::classic::SoundState`) is composed of its components' states, with a typed `Recall` for a switch back;
   one derived `Config` and one apply path replace the setters; `BlockValues` and `ParamView` replace `VoiceConfig`'s
@@ -25,8 +26,7 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
   component; the file's flat layout is the codec's parse form alone, and the tests check the record against its
   recorded answers. A sound's sidechain send and MIDI output are the host's: `project::SoundRouting` on its synth track
   or kit row, a setting group the menus write. Its effects are its `FxSection`, its LFOs' settings `synth::LfoState`.
-- Next actions: the ModelStack
-  stage 1 spec (it ends Track A step 1b-ii); the arpeggiator's params vs settings (D7) spec; the C2 spec and
+- Next actions: ModelStack stage 1's S1c (the notify chain on `LaneTarget`) and S1d (recording); the arpeggiator's params vs settings (D7) spec; the C2 spec and
   R2 (the scenes' reads behind `bind`); the float instrument's voice pool (Track B).
 
 ## Target architecture
@@ -182,8 +182,16 @@ PIC and parity with main.
   frame it covers (`sample::waveform_columns`), and the bars scale to the index's range. The overview cache, the
   host's and the clips' peak caches and the samples' running range are gone, and with them the D38 race. Its
   differences from `main` are D188–D191.
-- **Next: the peak index's sidecars** (stage 2): each file's pyramid, levels 1 and up, written to a central directory
-  on the card when idle and keyed by the file's identity on its card, so a file seen before is whole at once.
+- **Done: the peak index's sidecars** (stage 2). What the firmware works out from a sample's audio is kept beside it
+  on the card, in `DELUGE/PEAKS/` (one 8.3 file per sample, keyed by its first cluster and checked against its size,
+  date-time and shape): its peak index's level 1 and its detected pitches, as tagged sections (`PEAK`, `PTCH`), so
+  later data (the time-stretch percussiveness cache, RMS, slice points) is a new section. A sample's sidecar is read
+  when it loads, so a file seen before is whole at once and its pitch known without a detection; it is written from
+  the idle job when its index completes or grows by a quarter, or a pitch is detected. Level-0 peaks are kept only
+  around what was drawn in the last second.
+- **Next: hide `DELUGE/PEAKS/`**: the FAT fork's attribute setter is ready (`deluge-sdk` branch
+  `feat/fatfs-set-attributes`, version 0.2.1); once that version is released, a byte-channel call marks the folder
+  hidden on its first write.
 - **Offer `main` the waveform fixes** that `next` lists as accepted differences
   (`tests/ui-scripts/parity/DIFFERENCES.md`, the sample-view rows):
   - the navigator's 32-bit and rounding faults, and the short-waveform and remembered-zoom clamps;
@@ -244,7 +252,7 @@ budget.
 | --- | --- | --- |
 | 1 | The controls layer, then the `ModControllableAudio` / `GlobalEffectable` deletion: `src/ui/controls` (one resolver for knobs, presses, mod buttons, learned MIDI and MIDI follow; owners publish CLAP remote-controls pages through `plugin`; board profiles), then the classes go. Branches: `controls-library`, `controls-root-views` (the root views' knobs, presses and mod buttons go through the library; the legacy knob path is gone), `controls-shape` (owners publish their pages, the library assembles them for any board, CV tracks and MIDI and gate drums have an empty layout, and the instrument's layouts are data) and `controls-learn` (learned MIDI knobs and MIDI follow reach params by address through the library, with takeover state kept by table entry; learned knobs load through the model's codec and the engine plays none) and `mca-ge-deletion` (the classes deleted; an owner's effects are a `model::EffectsOwner`, reached from a ModelStack through the `ModControllable::effectsOwner()` bridge until ModelStack stage 1) are done. P3d-1d / C4 (per-effect tables) is done: each effect param is declared once and both tables' effect rows are built from it; the host chain keeps its flat ids until effect slots (P3d-2) | 3d (done) |
 | 1b-i | Instrument events: note tails are `Voiced`'s; an expression lane's change reaches the clip's instrument or the row's drum by address (`model::expressionReceiverOf`); a MIDI instrument sends its own CCs; `ModControllable` is the `effectsOwner()` bridge only, held there by the `mod-controllable-bridge-only` layer rule (done on `feat/instrument-events`) | 1 |
-| 1b-ii | The ModelStack owner slot goes; the `effectsOwner()` bridge and `ModControllable` are deleted | 1b-i; ModelStack stage 1 |
+| 1b-ii | The ModelStack owner slot is typed; `ModControllable` and its `effectsOwner()` bridge are deleted: **done** | 1b-i; ModelStack stage 1 |
 | 2 | Params C2 (UI param reads by address, on the R1 inventory and ratchet: spec, conversion), C3 (one store per instance; `ParamBackup` retires; after step 3, replacing `ParamView`'s adapter), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and the `synth-boundary` rule (`scripts/layers.toml`) forbids `instruments/` | 1 for C3 to C5 |
 | 3 | The Deluge synth's state (`instruments::classic::SoundState`, named `DelugeSynth::State` at the split; the state L3 serializes): one state composed of its components' states, one derived render config in place of `SoundSnapshot` and `VoiceConfig`'s settings, a per-block pack, the loaded resources, and one apply path. Five plans, merged: A (query surface), B (config and apply), C (per-block pack), D (resources), E (the composed state, its recorded answers, the routing on the host, the names) | 1b-i |
 | 4 | Part 1, voice ownership (done): the Deluge synth owns its voices. `instruments::classic::VoicePool` (`src/instruments/classic/voice_pool.h`) is the only code that edits a sound's voice list: note on and off with their steals and fall-backs, the render loop, and the culls the host's budget asks for; `DelugeSynth::Instance` holds a sound's derived config and its pool, and `DelugeSynth::begin_block` makes each block's values from `synth::HostBlock` and `instruments::classic::SoundBlockFacts`. The app keeps the cull policy (the voice budget) and implements the pool's host (`SoundVoiceHost`). Part 2, its own spec: an engine registry in place of the note-on `OscType` dispatch, and DX7 as a sound-level engine only; a DX7 on one oscillator slot mixed with another oscillator is dropped, a known breaking change. Engine stacking (several engine instances per sound, as layers) is an idea for part 2, not decided | 3 |
@@ -308,7 +316,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | --- | --- | --- | --- |
 | Legacy menus (SoundEditor, menu_item) | 2 | 3b closed, 3a flash-tested, oracle specs frozen | Deleted |
 | `ModControllableAudio`, `GlobalEffectable` | 2 | Legacy menus gone | Deleted |
-| ModelStack stage 1: params by address | 2 | MCA/GE gone; automation recording, the notify chain and AutoParam projection re-keyed; `Consequence::revert` keeps its stack until the new undo | S1a done: a param address resolves to a `bridge::LaneTarget` with a typed owner; the param Edits, param undo, the projections and lane swaps, and the model's cable owner reads use it; owners have their ids from adoption. S1b (notify on both tiers), S1c (recording), S1d (owner-slot readers, `ModControllable` deleted), S1e (the slot field) next |
+| ModelStack stage 1: params by address | 2 | MCA/GE gone; automation recording, the notify chain and AutoParam projection re-keyed; `Consequence::revert` keeps its stack until the new undo | S1a done: a param address resolves to a `bridge::LaneTarget` with a typed owner; the param Edits, param undo, the projections and lane swaps, and the model's cable owner reads use it; owners have their ids from adoption. S1b done: the stack's owner slot is a typed `model::LaneOwner` and `ModControllable` is deleted. S1c (the notify chain on `LaneTarget`), S1d (recording) next |
 | ModelStack stage 2: clip, note-row, sequencer chain on ids | 3 | P5 topology and reconciler | (proposed) |
 | Scenes' direct runtime reads (54 files) | 2 | 3d (done); R1 ratchet (done) | Readers exist for settings, slots and chains; (proposed) |
 | `ShellHostUI`, the legacy UI hosting the shell | 3 | R2; P5 topology for the big views | The root-view program |

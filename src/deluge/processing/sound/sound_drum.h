@@ -57,7 +57,6 @@ public:
 	void choke(ModelStackWithSoundFlags* modelStack) override;
 	void setSkippingRendering(bool newSkipping) override;
 	void drumWontBeRenderedForAWhile() override;
-	ModControllable* toModControllable() override { return this; }
 
 	void expressionEvent(int32_t newValue, int32_t expressionDimension) override;
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,

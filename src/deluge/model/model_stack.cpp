@@ -17,13 +17,21 @@
 
 #include "model/model_stack.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/non_audio_drum.h"
+#include "model/fx/master_channel.h"
+#include "model/instrument/kit.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+
+#include <type_traits>
+#include <variant>
 
 using namespace deluge::modulation::params;
 
@@ -43,8 +51,9 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 	bool isKit = (output->type == OutputType::KIT);
 	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y();
 	toReturn->setNoteRow(newNoteRow);
-	toReturn->modControllable =
-	    (isKit && newNoteRow->drum) ? newNoteRow->drum->toModControllable() : output->toModControllable();
+	const deluge::model::LaneOwner owner =
+	    (isKit && newNoteRow->drum) ? deluge::model::owner_of(*newNoteRow->drum) : deluge::model::owner_of(*output);
+	toReturn->owner = owner;
 	toReturn->paramManager = &newNoteRow->paramManager;
 	return toReturn;
 }
@@ -186,9 +195,10 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 	NoteRow* noteRowHere = getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
-	toReturn->modControllable = (clip->output->type == OutputType::KIT && noteRowHere->drum) // What if there's no Drum?
-	                                ? noteRowHere->drum->toModControllable()
-	                                : clip->output->toModControllable();
+	const deluge::model::LaneOwner owner = (clip->output->type == OutputType::KIT && noteRowHere->drum)
+	                                           ? deluge::model::owner_of(*noteRowHere->drum)
+	                                           : deluge::model::owner_of(*clip->output);
+	toReturn->owner = owner;
 	toReturn->paramManager = &noteRowHere->paramManager;
 	return toReturn;
 }
@@ -200,7 +210,7 @@ bool ModelStackWithParamId::isParam(Kind kind, ParamType id) {
 bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int32_t s) {
 	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
 	if (flagValue == FLAG_TBD) {
-		flagValue = ((Sound*)modControllable)
+		flagValue = (&deluge::model::sound_of(owner))
 		                ->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager);
 		soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s] = flagValue;
 	}
@@ -212,7 +222,7 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
 	if (flagValue == FLAG_TBD) {
 		flagValue = checkSourceEverActiveDisregardingMissingSample(s);
 		if (flagValue) { // Does an &&
-			Sound* sound = (Sound*)modControllable;
+			Sound* sound = &deluge::model::sound_of(owner);
 			flagValue = sound->getSynthMode() == SynthMode::FM
 			            || (sound->oscType(s) != OscType::SAMPLE && sound->oscType(s) != OscType::WAVETABLE)
 			            || sound->sourceResources[s].hasAtLeastOneAudioFileLoaded();

@@ -129,14 +129,14 @@ std::optional<deluge::model::EffectsOwner> chainAt(ChainAddress address, ::Song&
 	return found;
 }
 
-::ModControllable* chainSlotAt(ChainAddress address, ::Song& song) {
+deluge::model::LaneOwner chain_owner_at(ChainAddress address, ::Song& song) {
 	if (address.kind == ChainAddress::Kind::SONG) {
 		return &song.live.master_channel;
 	}
-	::ModControllable* found = nullptr;
+	deluge::model::LaneOwner found;
 	forEachOutput(song, [&](::Output& output) {
-		if (found == nullptr && output.id() == address.id && ownerOf(output)) {
-			found = output.toModControllable();
+		if (deluge::model::is_none(found) && output.id() == address.id && ownerOf(output)) {
+			found = deluge::model::owner_of(output);
 		}
 	});
 	return found;

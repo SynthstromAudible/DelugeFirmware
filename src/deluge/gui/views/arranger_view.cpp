@@ -103,7 +103,7 @@ void pointKnobsAtRow(Output& output) {
 		view.setActiveModControllableTimelineCounter(output.getActiveClip());
 	}
 	else {
-		view.setActiveModControllableWithoutTimelineCounter(output.toModControllable(),
+		view.setActiveModControllableWithoutTimelineCounter(deluge::model::owner_of(output),
 		                                                    output.getParamManager(currentSong));
 	}
 }

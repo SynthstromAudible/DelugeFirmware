@@ -47,7 +47,7 @@ Error NudgeNote::apply(Context& /*ctx*/) {
 		    setupModelStackWithTimelineCounter(modelStackMemory, engineStack_->song, clip);
 		int32_t lengthBeforeLoop = clip->getLoopLength();
 		ModelStackWithThreeMainThings* modelStackForClip =
-		    modelStack->addOtherTwoThingsButNoNoteRow(clip->output->toModControllable(), &clip->paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*clip->output), &clip->paramManager);
 		clip->paramManager.nudgeAutomationHorizontallyAtPos(intendedPos_, offset_, lengthBeforeLoop, action,
 		                                                    modelStackForClip, nudgeAutomation_, nudgeMPE_);
 	}

@@ -36,6 +36,7 @@ DELUGE_SCENARIO_DECLARE(audio_header_dump);
 DELUGE_SCENARIO_DECLARE(audio_load_ab);
 DELUGE_SCENARIO_DECLARE(audio_tick_hold);
 DELUGE_SCENARIO_DECLARE(card_reinsert);
+DELUGE_SCENARIO_DECLARE(peak_sidecars);
 DELUGE_SCENARIO_DECLARE(clear_song_undo);
 DELUGE_SCENARIO_DECLARE(clip_lifetime);
 DELUGE_SCENARIO_DECLARE(clock_input);
@@ -113,6 +114,10 @@ constexpr DelugeScenario kScenarios[] = {
      &deluge_scenario_card_reinsert_dispatch_step, &deluge_scenario_card_reinsert_step_done,
      &deluge_scenario_card_reinsert_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
      manifest("tests/integration/scenarios/card_reinsert.card")},
+    {"peak_sidecars", nullptr, &deluge_scenario_peak_sidecars_begin, &deluge_scenario_peak_sidecars_complete,
+     &deluge_scenario_peak_sidecars_dispatch_step, &deluge_scenario_peak_sidecars_step_done,
+     &deluge_scenario_peak_sidecars_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
+     manifest("tests/integration/scenarios/peak_sidecars.card")},
     {"clear_song_undo", nullptr, &deluge_scenario_clear_song_undo_begin, &deluge_scenario_clear_song_undo_complete,
      &deluge_scenario_clear_song_undo_dispatch_step, &deluge_scenario_clear_song_undo_step_done,
      &deluge_scenario_clear_song_undo_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,

@@ -209,7 +209,7 @@ Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelSt
 	// A scalar write while recording automation, and a lane not yet in the project tree: the engine's own setter.
 	stack->autoParam->setValuePossiblyForRegion(newValue_, stack, pos_, length_, mayDeleteNodesInLinearRun_);
 	// The setter may have moved the stack to the lane it wrote; settle that one.
-	settleCableDepth(bridge::target_of(*stack, lane.owner, lane.address));
+	settleCableDepth(bridge::target_of(*stack, lane.address));
 	return Error::NONE;
 }
 

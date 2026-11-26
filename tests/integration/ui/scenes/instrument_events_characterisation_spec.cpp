@@ -44,7 +44,7 @@ constexpr int32_t kNote = 60;
 /// @brief The stack of expression dimension @p dim on the clip's own params (no note row): a channel lane.
 ModelStackWithAutoParam* channelLane(spec::SongFixture& f, int32_t dim, void* memory) {
 	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, f.clip);
-	return stack->addOtherTwoThingsButNoNoteRow(f.clip->output->toModControllable(), &f.clip->paramManager)
+	return stack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*f.clip->output), &f.clip->paramManager)
 	    ->getExpressionAutoParamFromID(dim);
 }
 

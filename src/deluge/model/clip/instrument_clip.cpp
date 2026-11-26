@@ -330,7 +330,7 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 
 	if (newLength > loopLength()) {
 		ModelStackWithThreeMainThings* modelStackWithParamManager =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 		paramManager.generateRepeats(modelStackWithParamManager, loopLength(), newLength, pingponging);
 	}
 
@@ -402,7 +402,7 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 		bool pingponging = (sequenceDirectionMode == SequenceDirection::PINGPONG);
 
 		ModelStackWithThreeMainThings* modelStackWithParamManager =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 
 		paramManager.generateRepeats(modelStackWithParamManager, loopLength(), newLength, pingponging);
 
@@ -1038,7 +1038,7 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 
 	if (output->type == OutputType::KIT) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
-		    pendingNoteOn->noteRow->drum->toModControllable(), &pendingNoteOn->noteRow->paramManager);
+		    deluge::model::owner_of(*pendingNoteOn->noteRow->drum), &pendingNoteOn->noteRow->paramManager);
 
 		pendingNoteOn->noteRow->drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, pendingNoteOn->noteRow->drum,
 		                                                   pendingNoteOn->velocity, mpeValues, MIDI_CHANNEL_NONE,
@@ -1046,7 +1046,7 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 	}
 	else {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStackWithNoteRow->addOtherTwoThings(output->toModControllable(), &paramManager);
+		    modelStackWithNoteRow->addOtherTwoThings(deluge::model::owner_of(*output), &paramManager);
 		((MelodicInstrument*)output)
 		    ->sendNote(modelStackWithThreeMainThings, true, pendingNoteOn->noteRow->getNoteCode(), mpeValues,
 		               MIDI_CHANNEL_NONE, pendingNoteOn->velocity, pendingNoteOn->sampleSyncLength,
@@ -1286,7 +1286,7 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 	stopAllNotesPlaying(modelStack, actuallySoundChange && !currentlyRecordingLinearly); // Stop all sound
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+	    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		paramManager.expectNoFurtherTicks(modelStackWithThreeMainThings);
@@ -1298,7 +1298,7 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 			if (thisNoteRow->drum && thisNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThingsForNoteRow =
 				    modelStack->addNoteRow(i, thisNoteRow)
-				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
+				        ->addOtherTwoThings(deluge::model::owner_of(*thisNoteRow->drum), &thisNoteRow->paramManager);
 				thisNoteRow->paramManager.expectNoFurtherTicks(modelStackWithThreeMainThingsForNoteRow);
 			}
 		}
@@ -1787,7 +1787,7 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 	if (newInstrument->type == OutputType::MIDI_OUT) {
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithModControllable* modelStack =
-		    setupModelStackWithModControllable(modelStackMemory, song, this, newInstrument->toModControllable());
+		    setupModelStackWithModControllable(modelStackMemory, song, this, deluge::model::owner_of(*newInstrument));
 		restoreBackedUpParamManagerMIDI(modelStack);
 		if (!paramManager.containsAnyMainParamCollections()) {
 			Error error = paramManager.setupMIDI();
@@ -1955,7 +1955,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	    && modelStack->song->isClipActive(this)) {
 		deluge::playback::MoveSection section{"InstrumentClip::changeInstrument"};
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 		paramManager.setPlayPos(getLivePos(), modelStackWithThreeMainThings, currentlyPlayingReversed);
 	}
 
@@ -2469,7 +2469,7 @@ Error InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* mo
 	if (output->type == OutputType::MIDI_OUT) {
 
 		ModelStackWithModControllable* modelStackWithModControllable =
-		    modelStack->addModControllableButNoNoteRow(output->toModControllable());
+		    modelStack->addModControllableButNoNoteRow(deluge::model::owner_of(*output));
 		restoreBackedUpParamManagerMIDI(modelStackWithModControllable);
 
 		if (!paramManager.containsAnyMainParamCollections()) {
@@ -3143,12 +3143,12 @@ doReadBendRange:
 			if (!paramManager.containsAnyMainParamCollections()) {
 
 				// Try grabbing the Instrument's "backed up" one
-				ModControllable* modControllable = output->toModControllable();
+				const deluge::model::LaneOwner owner = deluge::model::owner_of(*output);
 				bool success = song->live.param_backup.getPreferablyWithClip(*output, this, &paramManager);
 				if (success) {
 					alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, modControllable, this,
+					    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, owner, this,
 					                                                   &paramManager);
 
 					paramManager.trimToLength(loopLength(), modelStackWithThreeMainThings, nullptr,
@@ -3583,7 +3583,7 @@ bool InstrumentClip::allowNoteTails(ModelStackWithNoteRow* modelStack) {
 		return true;
 	}
 	ModelStackWithSoundFlags* modelStackWithSoundFlags =
-	    modelStack->addOtherTwoThings(noteRow->drum->toModControllable(), &noteRow->paramManager)->addSoundFlags();
+	    modelStack->addOtherTwoThings(deluge::model::owner_of(*noteRow->drum), &noteRow->paramManager)->addSoundFlags();
 	return noteRow->drum->allowNoteTails(
 	    modelStackWithSoundFlags); // Needs to survive a NULL noteRow, even if this generally wouldn't happen (it might
 	                               // if auditioning a Drum via MIDI or arranger audition pad which doesn't have one)
@@ -3685,7 +3685,7 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 	// automation only gets shifted if shiftAutomation is true
 	// MPE only gets shifted if shiftSequenceAndMPE is true
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+	    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager.summaries;
@@ -4503,7 +4503,7 @@ void InstrumentClip::getActiveModControllable(ModelStackWithTimelineCounter* mod
 		if (!kit->selectedDrum || kit->selectedDrum->type != DrumType::SOUND) {
 returnNull:
 			modelStack->setTimelineCounter(nullptr);
-			modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
+			modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::LaneOwner{}, nullptr);
 		}
 		else {
 			int32_t noteRowIndex;

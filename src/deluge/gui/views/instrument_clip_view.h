@@ -34,7 +34,6 @@ class Note;
 class Editor;
 class Instrument;
 class Sound;
-class ModControllable;
 class Kit;
 class Drum;
 class SoundDrum;

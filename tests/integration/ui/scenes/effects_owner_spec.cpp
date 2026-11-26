@@ -123,7 +123,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 			spec::SongFixture f = spec::make_synth_song();
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* stack = f.song->setupModelStackWithSongAsTimelineCounter(memory);
-			const std::optional<EffectsOwner> owner = stack->modControllable->effectsOwner();
+			const std::optional<EffectsOwner> owner = deluge::model::effects_owner_of(stack->owner);
 			expect(owner->core).to_equal(&f.song->live.master_channel.core(), "the song owner's chain core");
 			expect(owner->binding).to_equal(&f.song->live.master_channel.binding(), "the song owner's binding");
 			expect(owner->view).to_equal(&f.song->live.master_channel.view(), "the song owner's view");
@@ -131,7 +131,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 
 		it("names nothing for a MIDI instrument", _ {
 			spec::SongFixture f = spec::make_midi_song();
-			expect(static_cast<MIDIInstrument*>(f.instrument)->effectsOwner().has_value()).to_be_false();
+			expect(deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument)).has_value()).to_be_false();
 		});
 	});
 
@@ -268,8 +268,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 			    .to_equal(&k.channel().core(), "the kit owner's chain core");
 			expect(deluge::bridge::effectsOwnerAt(*kit.song, ofRow)->sound)
 			    .to_equal(static_cast<Sound*>(drum), "the sound row owner's sound");
-			expect(deluge::bridge::controlsSlotAt(*kit.song, ofKit))
-			    .to_equal(static_cast<ModControllable*>(&k), "the kit's controls slot");
+			expect(std::get<Kit*>(deluge::bridge::controlsSlotAt(*kit.song, ofKit))).to_equal(&k, "the kit's controls slot");
 
 			spec::SongFixture synth = spec::make_synth_song();
 			const ControlsAddress ofSynth{ControlsAddress::Kind::OUTPUT, *synth.instrument->id()};

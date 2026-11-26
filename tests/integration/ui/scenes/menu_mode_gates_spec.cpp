@@ -265,7 +265,7 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		expect(openUI(&shellHostUI)).to_be_true();
 		(void)shellHostUI.timerCallback();
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2); // a turn steps one semitone
-		auto* sound = fx.instrument->toModControllable()->effectsOwner()->sound;
+		auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*fx.instrument))->sound;
 		const int32_t before = sound->config().sources[0].transpose;
 		shellHostUI.selectEncoderAction(1);
 		(void)shellHostUI.exitUI();

@@ -12,9 +12,9 @@ ParamManager, but don't know anything about settings, UI or the larger applicati
 - `effects_owner`: `EffectsOwner`, one owner's effects as a value (its chain core, its settings binding, a host chain's
   view, the sound when it is one, its `knob_carrier`), and the functions over it: store, bind and project the settings,
   set a host chain's view, bind and unbind its chain record, clear the mod FX, and take the owner out of the render. A
-  sound, a kit, an audio track and the master each name theirs; code that holds only a ModelStack's owner slot reaches
-  it through `ModControllable::effectsOwner()`, a bridge that goes with the slot (ModelStack stage 1). Code that holds
-  an address finds it through `bridge::chainAt` / `effectsOwnerAt` / `soundAt`.
+  sound, a kit, an audio track and the master each name theirs; code that holds a ModelStack reaches it from the
+  stack's typed owner through `model::effects_owner_of` (`model/lane_owner.h`). Code that holds an address finds it
+  through `bridge::chainAt` / `effectsOwnerAt` / `soundAt`.
 - `knob_carrier`: the learned MIDI knobs an owner holds outside a song's table (read from its file before a song holds
   it, and a render-made clone's source).
 - `stutter_gesture`, `stutter_ui`: beginning and ending the song's stutter from a gold knob's press. Its UI half (the

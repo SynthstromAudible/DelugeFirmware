@@ -27,7 +27,6 @@ namespace deluge::dsp {
 struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
-class ModControllable;
 class InstrumentClip;
 class ParamManagerForTimeline;
 class Song;

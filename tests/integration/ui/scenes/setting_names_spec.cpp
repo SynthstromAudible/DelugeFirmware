@@ -250,14 +250,14 @@ void check_morphs(auto& self) {
 		for (const FilterMode hpf_mode : hpf_modes) {
 			const int lpf = static_cast<int>(lpf_mode);
 			const int hpf = static_cast<int>(hpf_mode);
-			deluge::edits::effectSettingFor(*deluge::ui::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod,
+			deluge::edits::effectSettingFor(deluge::ui::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod,
 			                                "lpfMode",
 			                                Value::makeScalar(std::string{deluge::effects::to_string(lpf_mode)}));
-			deluge::edits::effectSettingFor(*deluge::ui::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod,
+			deluge::edits::effectSettingFor(deluge::ui::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod,
 			                                "hpfMode",
 			                                Value::makeScalar(std::string{deluge::effects::to_string(hpf_mode)}));
 			const std::optional<deluge::model::EffectsOwner> owner =
-			    deluge::ui::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod->effectsOwner();
+			    deluge::model::effects_owner_of(deluge::ui::scenes::spec::menu_engine(ctx, song_of(Where::SYNTH)).mod);
 			for (const Morph& morph : morphs) {
 				const Legacy legacy = legacy_of(morph.id, morph.engine);
 				const ParamNameContext state{.lpf_mode = lpf_mode, .hpf_mode = hpf_mode};

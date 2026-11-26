@@ -706,7 +706,8 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 			ModelStackWithParamCollection* modelStack =
 			    setupModelStackWithSong(modelStackMemory, currentSong)
 			        ->addTimelineCounter(instrumentPressedForMIDILearn->getActiveClip()) // Could be NULL
-			        ->addOtherTwoThingsButNoNoteRow(instrumentPressedForMIDILearn->toModControllable(), paramManager)
+			        ->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*instrumentPressedForMIDILearn),
+			                                        paramManager)
 			        ->addParamCollection(expressionParams, expressionParamsSummary);
 
 			expressionParams->clearValues(modelStack);
@@ -864,7 +865,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	alignas(ModelStackWithAutoParam) char knobsMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* knobs = knobOwnerStack(knobsMemory);
 	const std::optional<deluge::model::EffectsOwner> knobEffects =
-	    knobs != nullptr && knobs->modControllable != nullptr ? knobs->modControllable->effectsOwner() : std::nullopt;
+	    knobs != nullptr ? deluge::model::effects_owner_of(knobs->owner) : std::nullopt;
 	const deluge::model::EffectsOwner* knobOwner = knobEffects ? &*knobEffects : nullptr;
 
 	auto& [last_param_kind, last_param_id, last_display_value, last_source1, last_source2, display_owner_kind,
@@ -1441,7 +1442,7 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	}
 
 	else {
-		modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
+		modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::LaneOwner{}, nullptr);
 	}
 	setKnobFocusFrom(reinterpret_cast<ModelStackWithThreeMainThings*>(modelStack));
 
@@ -1461,13 +1462,12 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	}
 }
 
-void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,
-                                                          ParamManager* paramManager) {
+void View::setActiveModControllableWithoutTimelineCounter(deluge::model::LaneOwner owner, ParamManager* paramManager) {
 
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	setKnobFocusFrom(setupModelStackWithSong(memory, currentSong)
 	                     ->addTimelineCounter(nullptr)
-	                     ->addOtherTwoThingsButNoNoteRow(modControllable, paramManager));
+	                     ->addOtherTwoThingsButNoNoteRow(owner, paramManager));
 
 	setModLedStates();
 	setKnobIndicatorLevels();
@@ -1499,7 +1499,7 @@ void View::setKnobFocusFrom(const ModelStackWithThreeMainThings* stack) {
 		knobFocus_.comp = {};
 		compSong_ = currentSong;
 	}
-	knobsOnClipContext_ = stack != nullptr && stack->modControllable != nullptr && stack->timelineCounterIsSet()
+	knobsOnClipContext_ = stack != nullptr && !deluge::model::is_none(stack->owner) && stack->timelineCounterIsSet()
 	                      && stack->getTimelineCounter() != currentSong;
 	refreshKnobParamManager();
 }

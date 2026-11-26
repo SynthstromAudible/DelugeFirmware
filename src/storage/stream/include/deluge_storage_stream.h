@@ -102,6 +102,12 @@ void deluge_sample_stream_set_geometry(DelugeHandle handle, DelugeSampleStreamGe
 ///         with no asset id assigned yet.
 uint32_t deluge_sample_stream_get_asset_id(DelugeHandle handle) DELUGE_NOEXCEPT;
 
+/// @brief The identity of a sample stream's file on its card, from its open context: no card access. [task]
+/// @param handle A handle previously returned by deluge_sample_stream_open.
+/// @param out    Set to the identity on success.
+/// @return `DELUGE_OK`, or `DELUGE_ERR_PARAM` for an invalid handle or a file with no directory entry.
+DelugeStatus deluge_sample_stream_identity(DelugeHandle handle, DelugeFileIdentity* out) DELUGE_NOEXCEPT;
+
 /// @brief Assign @p id as @p handle's resource-manager asset, registering its streaming
 ///        fill-context once both an asset id and a geometry are present. [task]
 ///

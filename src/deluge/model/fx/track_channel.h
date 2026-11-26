@@ -27,10 +27,10 @@
 #include "model/fx/effects_owner.h"
 #include "model/fx/knob_carrier.h"
 #include "model/fx/reverb_candidate.h"
+#include "model/lane_owner.h"
 #include <cstdint>
 #include <span>
 
-class ModControllable;
 class ModelStackWithTimelineCounter;
 class ParamManager;
 class ParamManagerForTimeline;
@@ -45,9 +45,9 @@ struct ChannelBlock {
 	int32_t side_chain_hit_pending{};           ///< The sidechain hit pending this block, Q31; 0 for none.
 	bool should_limit_delay_feedback{};         ///< Whether the delay's feedback is capped below self-oscillation.
 	bool is_clip_active{};                      ///< Whether the track's active clip plays (its automation ticks).
-	OutputType output_type{};             ///< KIT or AUDIO: the volume headroom factor and the delay's saturation.
-	SampleRecorder* recorder{nullptr};    ///< The recorder taking the track's audio, or null.
-	ModControllable* tick_owner{nullptr}; ///< The track, which the param tick's model stack names.
+	OutputType output_type{};            ///< KIT or AUDIO: the volume headroom factor and the delay's saturation.
+	SampleRecorder* recorder{nullptr};   ///< The recorder taking the track's audio, or null.
+	deluge::model::LaneOwner tick_owner; ///< The track, which the param tick's model stack names.
 };
 
 /// @brief A channel's volume and pitch adjust for one block, and the reverb send scaling its content renders with,

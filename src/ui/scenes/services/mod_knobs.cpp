@@ -458,8 +458,8 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 	}
 
 	// The button's rules (`View::modButtonAction` in `origin/main:src/deluge/gui/views/view.cpp`,
-	// `ModControllable::modButtonAction`): the VU meter's toggle and the mode change come before the stutter's end,
-	// which the popup reads, and a press the rules ignore does nothing.
+	// main's `ModControllable::modButtonAction`): the VU meter's toggle and the mode change come before the stutter's
+	// end, which the popup reads, and a press the rules ignore does nothing.
 	const ui::controls::SectionResult section = ui::controls::resolve_section(
 	    *focus_, static_cast<uint8_t>(mode()), which_button, on,
 	    {.root_is_performance = view_.root_is_performance,

@@ -32,7 +32,6 @@ class Song;
 class NoteRow;
 class InstrumentClip;
 class Instrument;
-class ModControllable;
 namespace deluge::storage {
 struct AcquireResult;
 struct AcquireWalkSpec;

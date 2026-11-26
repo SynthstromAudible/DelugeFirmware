@@ -165,6 +165,81 @@ uint64_t deluge_peaks_frames(const DelugePeakIndex* index) DELUGE_NOEXCEPT;
 /// @return That block's first frame, or UINT64_MAX if every block from there is complete.
 uint64_t deluge_peaks_next_unscanned(const DelugePeakIndex* index, uint64_t from) DELUGE_NOEXCEPT;
 
+/// A sidecar's key: the audio file on its card, and the shape of its samples. A sidecar written for one key is
+/// refused for any other.
+typedef struct DelugePeakKey {
+	uint32_t first_cluster; ///< the file's first cluster on its card
+	uint32_t file_size;     ///< the file's size in bytes
+	uint32_t fat_datetime;  ///< the file's FAT modify date and time, date << 16 | time
+	uint32_t sample_rate;   ///< frames per second
+	uint64_t frames;        ///< frames in the file
+	uint8_t channels;       ///< channels per frame
+	uint8_t byte_depth;     ///< bytes per sample
+	uint16_t reserved;      ///< 0
+} DelugePeakKey;
+
+/// A sidecar section other than the peaks, carried byte for byte.
+typedef struct DelugeSidecarSection {
+	uint32_t tag;         ///< four ASCII bytes, little-endian
+	const uint8_t* bytes; ///< its bytes; null only when `len` is 0
+	uint32_t len;         ///< their count
+} DelugeSidecarSection;
+
+/// @brief [task] The length of the index's sidecar with `extras`.
+/// @param index       The index; null answers 0.
+/// @param extras      The other sections, at most 7, none tagged PEAK; null when `extra_count` is 0.
+/// @param extra_count How many.
+/// @return The length in bytes, or 0 if it cannot be written.
+uint32_t deluge_peaks_sidecar_len(const DelugePeakIndex* index, const DelugeSidecarSection* extras,
+                                  uint32_t extra_count) DELUGE_NOEXCEPT;
+
+/// @brief [task] Writes the index's sidecar: its level 1 as the PEAK section, then `extras`.
+/// @param index       The index; null writes nothing.
+/// @param key         The audio file's key.
+/// @param extras      As deluge_peaks_sidecar_len.
+/// @param extra_count How many.
+/// @param out         Where to write.
+/// @param cap         Room at `out`, in bytes.
+/// @return The bytes written, or 0 if they do not fit.
+uint32_t deluge_peaks_sidecar_write(const DelugePeakIndex* index, const DelugePeakKey* key,
+                                    const DelugeSidecarSection* extras, uint32_t extra_count, uint8_t* out,
+                                    uint32_t cap) DELUGE_NOEXCEPT;
+
+/// @brief [task] Checks a sidecar's header, section table and every section's checksum against `key`.
+/// @return 0, or a negative reason: -1 short, -2 magic, -3 version, -4 header CRC, -5 key, -6 table, -7 section CRC.
+int32_t deluge_peaks_sidecar_check(const uint8_t* bytes, uint32_t len, const DelugePeakKey* key) DELUGE_NOEXCEPT;
+
+/// @brief [task] Restores a sidecar's PEAK section into the index, a final index of its frames. Entries already
+///        complete are left as they are.
+/// @return The complete level-1 entries it held, or a negative reason as deluge_peaks_sidecar_check, -5 also for an
+///         index of other frames, -8 for a missing or misfitting PEAK section.
+int32_t deluge_peaks_sidecar_restore(DelugePeakIndex* index, const DelugePeakKey* key, const uint8_t* bytes,
+                                     uint32_t len) DELUGE_NOEXCEPT;
+
+/// @brief [task] A section of a sidecar that passes deluge_peaks_sidecar_check.
+/// @param out_bytes Set to the section's bytes, inside `bytes`.
+/// @param out_len   Set to their count.
+/// @return Whether the sidecar checks out and holds a section tagged `tag`.
+bool deluge_peaks_sidecar_section(const uint8_t* bytes, uint32_t len, const DelugePeakKey* key, uint32_t tag,
+                                  const uint8_t** out_bytes, uint32_t* out_len) DELUGE_NOEXCEPT;
+
+/// @brief [task] How many of the index's level-1 entries (4,096 frames each) are complete. Null answers 0.
+uint32_t deluge_peaks_complete_level1(const DelugePeakIndex* index) DELUGE_NOEXCEPT;
+
+/// @brief [task] How many level-1 entries the index has. Null answers 0.
+uint32_t deluge_peaks_level1_entries(const DelugePeakIndex* index) DELUGE_NOEXCEPT;
+
+/// @brief [task] Keeps level-0 values for frames [first, end), together with every window kept in the last second.
+void deluge_peaks_keep_level0(DelugePeakIndex* index, uint64_t first, uint64_t end, uint32_t now_ms) DELUGE_NOEXCEPT;
+
+/// @brief [task] Frees the level-0 chunks earlier calls retired, once no fold is in flight, and retires those outside
+///        the kept window (all of them once it is older than a second).
+/// @return How many it retired.
+uint32_t deluge_peaks_trim_level0(DelugePeakIndex* index, uint32_t now_ms) DELUGE_NOEXCEPT;
+
+/// @brief [task] How many level-0 chunks (1,024 blocks each) the index holds. Null answers 0.
+uint32_t deluge_peaks_level0_chunks(const DelugePeakIndex* index) DELUGE_NOEXCEPT;
+
 /// A take's peaks between clusters: the recorder's fold state. Opaque.
 typedef struct DelugePeaksTake DelugePeaksTake;
 

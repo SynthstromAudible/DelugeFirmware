@@ -42,6 +42,17 @@ uint32_t SampleStream::resource_asset_id() const {
 	return resource_asset_id_;
 }
 
+std::optional<DelugeFileIdentity> SampleStream::identity() const {
+	if (stream_handle_ == DELUGE_HANDLE_NONE) {
+		return std::nullopt;
+	}
+	DelugeFileIdentity id{};
+	if (deluge_sample_stream_identity(stream_handle_, &id) != DELUGE_OK) {
+		return std::nullopt;
+	}
+	return id;
+}
+
 void SampleStream::set_resource_asset_id(uint32_t id) {
 	resource_asset_id_ = id;
 	if (stream_handle_ != DELUGE_HANDLE_NONE) {

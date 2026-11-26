@@ -18,12 +18,12 @@
 #pragma once
 
 #include "hid/display/display.h"
+#include "model/lane_owner.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h" // ParamCollection::getParamKind() — called by the builders below
 #include "modulation/params/param_manager.h"
 
 class Song;
-class ModControllable;
 class TimelineCounter;
 class ParamManagerForTimeline;
 class ParamCollection;
@@ -138,9 +138,9 @@ public:
 	ModelStackWithNoteRow* addNoteRow(int32_t noteRowId, NoteRow* noteRow) const;
 	ModelStackWithNoteRowId* addNoteRowId(int32_t noteRowId) const;
 	ModelStackWithThreeMainThings* addNoteRowAndExtraStuff(int32_t noteRowIndex, NoteRow* newNoteRow) const;
-	ModelStackWithThreeMainThings* addOtherTwoThingsButNoNoteRow(ModControllable* newModControllable,
+	ModelStackWithThreeMainThings* addOtherTwoThingsButNoNoteRow(deluge::model::LaneOwner owner,
 	                                                             ParamManager* newParamManager) const;
-	ModelStackWithModControllable* addModControllableButNoNoteRow(ModControllable* newModControllable) const;
+	ModelStackWithModControllable* addModControllableButNoNoteRow(deluge::model::LaneOwner owner) const;
 
 	inline ModelStack*
 	toWithSong() const { // I thiiiink you're supposed to just be real careful about when you call this etc...
@@ -207,9 +207,9 @@ public:
 
 	inline void setNoteRow(NoteRow* newNoteRow) { noteRow = newNoteRow; }
 
-	ModelStackWithThreeMainThings* addOtherTwoThings(ModControllable* newModControllable,
+	ModelStackWithThreeMainThings* addOtherTwoThings(deluge::model::LaneOwner owner,
 	                                                 ParamManager* newParamManager) const;
-	ModelStackWithModControllable* addModControllable(ModControllable* newModControllable) const;
+	ModelStackWithModControllable* addModControllable(deluge::model::LaneOwner owner) const;
 	ModelStackWithThreeMainThings* addOtherTwoThingsAutomaticallyGivenNoteRow() const;
 
 	int32_t getLoopLength() const;
@@ -225,7 +225,8 @@ protected:
 
 class ModelStackWithModControllable : public ModelStackWithNoteRow {
 public:
-	ModControllable* modControllable;
+	/// The object whose params these are, typed.
+	deluge::model::LaneOwner owner;
 	ModelStackWithThreeMainThings* addParamManager(ParamManagerForTimeline* newParamManager) const;
 };
 
@@ -330,32 +331,33 @@ inline ModelStackWithTimelineCounter* setupModelStackWithTimelineCounter(void* m
 
 inline ModelStackWithModControllable* setupModelStackWithModControllable(void* memory, Song* newSong,
                                                                          TimelineCounter* newTimelineCounter,
-                                                                         ModControllable* newModControllable) {
+                                                                         deluge::model::LaneOwner owner) {
 
 	return setupModelStackWithSong(memory, newSong)
 	    ->addTimelineCounter(newTimelineCounter)
 	    ->addNoteRow(0, nullptr)
-	    ->addModControllable(newModControllable);
+	    ->addModControllable(owner);
 }
 
 inline ModelStackWithThreeMainThings*
-setupModelStackWithThreeMainThingsButNoNoteRow(void* memory, Song* newSong, ModControllable* newModControllable,
+setupModelStackWithThreeMainThingsButNoNoteRow(void* memory, Song* newSong, deluge::model::LaneOwner owner,
                                                TimelineCounter* newTimelineCounter, ParamManager* newParamManager) {
 
 	return setupModelStackWithSong(memory, newSong)
 	    ->addTimelineCounter(newTimelineCounter)
 	    ->addNoteRow(0, nullptr)
-	    ->addOtherTwoThings(newModControllable, newParamManager);
+	    ->addOtherTwoThings(owner, newParamManager);
 }
 
-inline ModelStackWithThreeMainThings* setupModelStackWithThreeMainThingsIncludingNoteRow(
-    void* memory, Song* newSong, TimelineCounter* newTimelineCounter, int32_t noteRowId, NoteRow* noteRow,
-    ModControllable* newModControllable, ParamManagerForTimeline* newParamManager) {
+inline ModelStackWithThreeMainThings*
+setupModelStackWithThreeMainThingsIncludingNoteRow(void* memory, Song* newSong, TimelineCounter* newTimelineCounter,
+                                                   int32_t noteRowId, NoteRow* noteRow, deluge::model::LaneOwner owner,
+                                                   ParamManagerForTimeline* newParamManager) {
 
 	return setupModelStackWithSong(memory, newSong)
 	    ->addTimelineCounter(newTimelineCounter)
 	    ->addNoteRow(noteRowId, noteRow)
-	    ->addOtherTwoThings(newModControllable, newParamManager);
+	    ->addOtherTwoThings(owner, newParamManager);
 }
 
 inline ModelStackWithTimelineCounter* ModelStack::addTimelineCounter(TimelineCounter* newTimelineCounter) const {
@@ -378,30 +380,29 @@ inline ModelStackWithNoteRow* ModelStackWithTimelineCounter::addNoteRow(int32_t 
 }
 
 inline ModelStackWithModControllable*
-ModelStackWithTimelineCounter::addModControllableButNoNoteRow(ModControllable* newModControllable) const {
-	return addNoteRow(0, nullptr)->addModControllable(newModControllable);
+ModelStackWithTimelineCounter::addModControllableButNoNoteRow(deluge::model::LaneOwner owner) const {
+	return addNoteRow(0, nullptr)->addModControllable(owner);
 }
 
 inline ModelStackWithThreeMainThings*
-ModelStackWithTimelineCounter::addOtherTwoThingsButNoNoteRow(ModControllable* newModControllable,
+ModelStackWithTimelineCounter::addOtherTwoThingsButNoNoteRow(deluge::model::LaneOwner owner,
                                                              ParamManager* newParamManager) const {
-	return addNoteRow(0, nullptr)->addOtherTwoThings(newModControllable, newParamManager);
+	return addNoteRow(0, nullptr)->addOtherTwoThings(owner, newParamManager);
 }
 
-inline ModelStackWithModControllable*
-ModelStackWithNoteRow::addModControllable(ModControllable* newModControllable) const {
+inline ModelStackWithModControllable* ModelStackWithNoteRow::addModControllable(deluge::model::LaneOwner owner) const {
 	ModelStackWithModControllable* toReturn = (ModelStackWithModControllable*)this;
-	toReturn->modControllable = newModControllable;
+	toReturn->owner = owner;
 	return toReturn;
 }
 
 /**
  * adds a modcontrollable and a param manager
  */
-inline ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThings(ModControllable* newModControllable,
+inline ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThings(deluge::model::LaneOwner owner,
                                                                                ParamManager* newParamManager) const {
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
-	toReturn->modControllable = newModControllable;
+	toReturn->owner = owner;
 	toReturn->paramManager = newParamManager;
 	return toReturn;
 }

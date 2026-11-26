@@ -58,4 +58,14 @@ namespace deluge::sample {
 /// @return True while blocks remain, false once its index is complete (or it has none).
 bool advance_peak_scan(Sample& sample);
 
+/// @brief The clock the level-0 keep window and its trim share: milliseconds since the scheduler started, from its
+///        seconds (a multiply on the FPU, no divide).
+[[nodiscard]] uint32_t peaks_clock_ms();
+
+/// @brief Trim @p sample's level 0 to the windows read in the last second (`deluge_peaks_trim_level0`). Thread mode,
+///        the idle job.
+/// @param sample The sample.
+/// @param now_ms peaks_clock_ms() now.
+void trim_level0(Sample& sample, uint32_t now_ms);
+
 } // namespace deluge::sample

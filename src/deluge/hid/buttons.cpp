@@ -23,7 +23,6 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "model/mod_controllable/mod_controllable.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"

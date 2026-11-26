@@ -141,8 +141,8 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 
 	it("copies the song's stutter onto a sound set to 'use song'", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		deluge::edits::changeEffect(*f.song, f.song->live.master_channel, "stutter/quantized", Value::makeNumber(1));
-		deluge::edits::changeEffect(*f.song, f.song->live.master_channel, "stutter/reverse", Value::makeNumber(1));
+		deluge::edits::changeEffect(*f.song, &f.song->live.master_channel, "stutter/quantized", Value::makeNumber(1));
+		deluge::edits::changeEffect(*f.song, &f.song->live.master_channel, "stutter/reverse", Value::makeNumber(1));
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::test::RecordingWrites recording;
 		MenuContext recorded = ctx;
@@ -163,7 +163,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 	it("refuses stutter quantize under affect-entire on a row that uses the song's stutter", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
-		deluge::edits::changeEffect(*f.song, *drum, "stutter/useSongStutter", Value::makeNumber(1));
+		deluge::edits::changeEffect(*f.song, drum, "stutter/useSongStutter", Value::makeNumber(1));
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
 		bind::test::RecordingWrites recording;

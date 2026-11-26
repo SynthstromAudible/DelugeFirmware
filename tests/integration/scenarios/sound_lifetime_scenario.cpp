@@ -215,7 +215,8 @@ InstrumentClip* attachClip(Instrument* instrument) {
 }
 
 /// Hold a note on @p s, the audition path's shape: no note row.
-bool sound(Sound& s, ModControllable* mc, ArpeggiatorBase* arp, InstrumentClip* clip, ParamManager* paramManager) {
+bool sound(Sound& s, deluge::model::LaneOwner mc, ArpeggiatorBase* arp, InstrumentClip* clip,
+           ParamManager* paramManager) {
 	if (paramManager == nullptr) {
 		return setupFailed("the sound has no ParamManager");
 	}

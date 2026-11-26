@@ -313,7 +313,7 @@ void costLeg(Song& song) {
 /// coherent.
 void ringFailureLeg(Song& song) {
 	const HostOwner owner{.address = {.kind = ChainAddress::Kind::SONG}, .name = "master"};
-	ModControllable& master = song.live.master_channel;
+	deluge::model::MasterChannel& master = song.live.master_channel;
 	const Value none = Value::makeScalar("none");
 	if (setEffect(song, owner, "modFXType", none) != Error::NONE) {
 		fail(owner, "modFXType", none, "refused");

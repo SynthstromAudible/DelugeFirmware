@@ -117,7 +117,7 @@ void learnAndSendVolume(const spec::SongFixture& f, uint8_t value) {
 	auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 	const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 	if (f.song->project.mappings.params_of({project::ControlsAddress::Kind::OUTPUT, *f.instrument->id()}).empty()) {
-		(void)deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
+		(void)deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 	}
 	activate(f);
 	deluge::midi::refreshMappingIndex();
@@ -289,7 +289,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			setupModelStackWithSong(memory, f.song)
 			    ->addTimelineCounter(in_clip ? static_cast<TimelineCounter*>(f.clip) : nullptr)
-			    ->addOtherTwoThingsButNoNoteRow(drum.toModControllable(), nullptr);
+			    ->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(drum), nullptr);
 			return deluge::gui::knobFocusFromStack(*f.song, *reinterpret_cast<ModelStackWithThreeMainThings*>(memory));
 		};
 		const ui::controls::KnobFocus midi_in_clip = focus_on(*midi, true);
@@ -598,7 +598,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		const ModelStackWithThreeMainThings* owner = view_knob_stack(owner_memory);
 		expect(owner).not_().to_be_null("the focus's owner stack");
 		if (owner != nullptr) {
-			expect(owner->modControllable).to_equal(row->toModControllable());
+			expect(std::get<Sound*>(owner->owner)).to_equal(std::get<Sound*>(deluge::model::owner_of(*row)));
 		}
 		arrangerView.outputsOnScreen[2] = saved;
 		currentUIMode = UI_MODE_NONE;
@@ -853,7 +853,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		static_cast<Kit*>(f.instrument)->selectedDrum = drum;
 		f.clip->affectEntire = false;
 		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
-		(void)deluge::edits::learnKnobFor(*drum, volume, &MIDIDeviceManager::dinMIDIPorts, 75, 1);
+		(void)deluge::edits::learnKnobFor(drum, volume, &MIDIDeviceManager::dinMIDIPorts, 75, 1);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.setModRegion(96, 48, static_cast<int32_t>(*drum->id()));
 		activate(f);

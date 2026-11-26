@@ -19,12 +19,14 @@
 #include "board_config.h" // PLACE_SDRAM_TEXT: thread mode, once a render or an idle tick
 #include "definitions_cxx.hpp"
 #include "deluge_storage_sample_peaks.h"
+#include "libdeluge/scheduler.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_reader_bridge.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
 #include "sync/sd_access.h"
 #include <algorithm>
+#include <cmath>
 #include <optional>
 
 namespace deluge::sample {
@@ -33,7 +35,7 @@ namespace {
 
 /// Read the 256-frame block at frame @p from and fold it into @p peaks. False if a cluster under it is not resident:
 /// the read has requested its fill, and the tap folds the whole cluster when it lands.
-bool fold_block_from_frames(Sample& sample, DelugePeakIndex* peaks, uint64_t from) {
+PLACE_SDRAM_TEXT bool fold_block_from_frames(Sample& sample, DelugePeakIndex* peaks, uint64_t from) {
 	constexpr uint64_t kBlockFrames = uint64_t{1} << 8;
 	const uint64_t end = std::min(from + kBlockFrames, sample.lengthInSamples);
 	const uint32_t frameBytes = sample.numChannels * sample.byteDepth;
@@ -144,6 +146,12 @@ PLACE_SDRAM_TEXT ui::views::waveform::PeakRead waveform_columns(Sample& sample, 
 	const auto valid = static_cast<int64_t>(captured.value_or(sample.lengthInSamples));
 	// What the index holds: a take's may lag its recorder by a tick.
 	const auto held = static_cast<int64_t>(deluge_peaks_frames(peaks));
+	if (peaks != nullptr && at.zoom <= kLevel0Zoom) {
+		// The whole window's level-0 chunks, with the margin the column ends read past it, stay through the next trim.
+		deluge_peaks_keep_level0(peaks, static_cast<uint64_t>(std::max<int64_t>(at.scroll - 4096, 0)),
+		                         static_cast<uint64_t>(std::max<int64_t>(at.scroll + at.zoom * kColumns + 4096, 0)),
+		                         peaks_clock_ms());
+	}
 	ui::views::waveform::PeakRead read; // every column pending until it is answered
 	for (int32_t col = 0; col < kColumns; col++) {
 		int64_t lo = at.scroll + int64_t{col} * at.zoom;
@@ -183,7 +191,19 @@ PLACE_SDRAM_TEXT ui::views::waveform::PeakRead waveform_columns(Sample& sample, 
 	return read;
 }
 
-bool advance_peak_scan(Sample& sample) {
+PLACE_SDRAM_TEXT uint32_t peaks_clock_ms() {
+	const double seconds = getSystemTime();
+	// Wrapped into 32 bits on the FPU, so the conversion is one instruction (a 64-bit one is a library call).
+	return seconds > 0.0 ? static_cast<uint32_t>(std::fmod(seconds * 1000.0, 4294967296.0)) : 0;
+}
+
+PLACE_SDRAM_TEXT void trim_level0(Sample& sample, uint32_t now_ms) {
+	if (DelugePeakIndex* peaks = sample.peaks()) {
+		(void)deluge_peaks_trim_level0(peaks, now_ms);
+	}
+}
+
+PLACE_SDRAM_TEXT bool advance_peak_scan(Sample& sample) {
 	if (!sample.isLengthKnown()) {
 		return false;
 	}

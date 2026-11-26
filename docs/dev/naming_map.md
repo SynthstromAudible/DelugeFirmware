@@ -17,7 +17,7 @@ for routing edges and summing buffers.
 | `NonAudioInstrument`, `MIDIInstrument`, `CVInstrument` | MIDI-out and CV-out instrument devices | P5 | |
 | `GlobalEffectable`, `GlobalEffectableForClip`, `GlobalEffectableForSong` | deleted | done | the render side lives in `TrackChannel` / `MasterChannel` |
 | `ModControllableAudio` | deleted | done | the settings binding is `EffectsBinding`; an owner's effects are `model::EffectsOwner` |
-| `ModControllable` | deleted | Track A 1b-ii (with ModelStack stage 1) | today only the `effectsOwner()` bridge |
+| `ModControllable` | deleted | done | a ModelStack's owner is `model::LaneOwner`; its effects are `model::effects_owner_of` |
 | `SongLive::global_effectable` | deleted with `GlobalEffectableForSong` | done | the master is `SongLive::master_channel` |
 | `effects::ClipChain`, `ClipChainInputs`, `ClipBlock`, `Home::CLIP`, `ChainHome::CLIP` | `TrackChain`, `TrackChainInputs`, `TrackBlock`, `Home::TRACK`, `ChainHome::TRACK` | done | a track's insert chain |
 | `GlobalEffectableForClip::renderOutput` | `TrackChannel::render` | done | |

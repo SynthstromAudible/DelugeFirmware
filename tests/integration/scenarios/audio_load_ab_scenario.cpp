@@ -52,9 +52,11 @@
 #include "gui/views/instrument_clip_view.h" // fileBrowserShouldNotPreview
 #include "io/file.hpp"                      // the card swap's unlink + rename
 #include "libdeluge/audio_load.h"           // deluge_audio_load_set_latency_ms
+#include "memory/heaps.h"                   // failNextAllocationOfSize
 #include "model/clip/clip.h"
 #include "model/output.h"
 #include "model/sample/last_file_path_loaded.h"
+#include "model/sample/pitch_scan.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_reader_bridge.h"
 #include "model/sample/waveform_scan.h"
@@ -1079,6 +1081,69 @@ void checkColumns(Sample& sample) {
 	}
 }
 
+/// AB-IDENTITY: each sample knows its file's identity on the card, from the stream it opened: the preview (loaded
+/// by the async path) and the varied sample (the synchronous path). The fixtures' files are a 44-byte header and
+/// their data, so a file's size is its data's start plus its length; two files never share a first cluster.
+void checkIdentity(const Sample& preview, const Sample* varied) {
+	const auto fileSize = [](const Sample& s) {
+		return static_cast<uint64_t>(s.audioDataStartPosBytes) + s.audioDataLengthBytes;
+	};
+	const std::optional<DelugeFileIdentity> a = preview.fileIdentity();
+	const std::optional<DelugeFileIdentity> b = varied != nullptr ? varied->fileIdentity() : std::nullopt;
+	const bool sizesMatch = a && b && a->size == fileSize(preview) && b->size == fileSize(*varied);
+	const bool clustersDistinct =
+	    a && b && a->first_cluster != 0 && b->first_cluster != 0 && a->first_cluster != b->first_cluster;
+	printf("AB-IDENTITY preview=%u/%u varied=%u/%u sizes=%d clusters=%d\n", a ? a->first_cluster : 0, a ? a->size : 0,
+	       b ? b->first_cluster : 0, b ? b->size : 0, sizesMatch ? 1 : 0, clustersDistinct ? 1 : 0);
+	if (!sizesMatch || !clustersDistinct) {
+		g_report.fail("[audioLoadAB/identity]: a loaded sample must know its file's first cluster and size");
+	}
+}
+
+/// Runs @p scan to its end, a tick at a time, at most kMaxPitchTicks.
+float runPitchScan(deluge::sample::PitchScan& scan) {
+	constexpr int32_t kMaxPitchTicks = 100'000;
+	for (int32_t i = 0; i < kMaxPitchTicks && scan.tick() == deluge::sample::PitchScan::Progress::Pending; i++) {}
+	return scan.result();
+}
+
+/// AB-PITCH: a pitch detection remembers its result on the sample, by search; a detection with a remembered search
+/// answers without reading (its buffer is never allocated: an allocation armed to fail does not stop it), and one
+/// with another search still reads (the same armed failure ends it at 0 Hz) — and, ended by the card or the memory
+/// rather than decided, leaves nothing remembered for its search.
+void checkPitchMemory(Sample& sample) {
+	using deluge::sample::PitchScan;
+	const PitchScan::Limits kDefault{};
+	const PitchScan::Limits kOther{.minFreqHz = 30, .maxFreqHz = 5000, .doPrimeTest = false};
+	PitchScan scan;
+	scan.arm(sample, kDefault);
+	const float detected = runPitchScan(scan);
+	const std::optional<float> remembered = sample.pitchResults().find(
+	    {.minFreqHz = kDefault.minFreqHz, .maxFreqHz = kDefault.maxFreqHz, .primeTest = kDefault.doPrimeTest});
+	// A known answer under another search, so the cache's own answer is told apart from a real detection's.
+	sample.pitchResults().remember({.minFreqHz = 25, .maxFreqHz = 8000, .primeTest = true}, 123.5f);
+	deluge::memory::failNextAllocationOfSize(Sample::pitchBufferBytes());
+	scan.arm(sample, {.minFreqHz = 25, .maxFreqHz = 8000, .doPrimeTest = true});
+	const float fromMemory = runPitchScan(scan);
+	const bool stillArmed = deluge::memory::allocationFailurePending();
+	scan.arm(sample, kOther);
+	const float other = runPitchScan(scan);
+	const bool otherForgotten =
+	    !sample.pitchResults()
+	         .find({.minFreqHz = kOther.minFreqHz, .maxFreqHz = kOther.maxFreqHz, .primeTest = kOther.doPrimeTest})
+	         .has_value();
+	if (deluge::memory::allocationFailurePending()) {
+		(void)deluge::memory::injectedAllocationFailure(Sample::pitchBufferBytes()); // leave nothing armed
+	}
+	printf("AB-PITCH detected=%.2f remembered=%d memory=%.2f untouched=%d other=%.2f forgotten=%d\n",
+	       static_cast<double>(detected), remembered && *remembered == detected ? 1 : 0,
+	       static_cast<double>(fromMemory), stillArmed ? 1 : 0, static_cast<double>(other), otherForgotten ? 1 : 0);
+	if (!remembered || *remembered != detected || fromMemory != 123.5f || !stillArmed || other != 0.0f
+	    || !otherForgotten) {
+		g_report.fail("[audioLoadAB/pitch]: a detection must be remembered by search and answered from memory");
+	}
+}
+
 /// AB-PEAKS: the preview's own fills fold its first blocks into the sample's index before any peak scan runs; the
 /// scan, starting over from an empty index, completes it; and the index's range is the whole file's.
 void checkPeaks() {
@@ -1105,6 +1170,10 @@ void checkPeaks() {
 	checkColumns(*sample);
 	if (g_peaksSample != nullptr) {
 		checkColumns(*g_peaksSample);
+	}
+	checkIdentity(*sample, g_peaksSample);
+	if (g_peaksSample != nullptr) {
+		checkPitchMemory(*g_peaksSample);
 	}
 }
 

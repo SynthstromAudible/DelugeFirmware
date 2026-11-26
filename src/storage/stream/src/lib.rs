@@ -39,6 +39,18 @@ pub struct DelugeSampleStreamGeometry {
 /// `deluge_streaming_set_fill_context`.
 pub(crate) use deluge_storage_sample_fill::FillContext as DelugeStreamingFillContext;
 
+/// `DelugeFileIdentity` (`libdeluge/types.h`): an open file's identity on its card.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct DelugeFileIdentity {
+    /// The file's first cluster; 0 for an empty file.
+    pub first_cluster: u32,
+    /// The file's size in bytes.
+    pub size: u32,
+    /// The entry's modify date and time, `date << 16 | time`.
+    pub fat_datetime: u32,
+}
+
 // Externs this crate consumes: efatfs from the BSP (`storage::efatfs`), the rest from the
 // resource manager's C ABI. Mocked under `cfg(test)` by `mock_backing`.
 unsafe extern "C" {
@@ -57,6 +69,11 @@ unsafe extern "C" {
     ) -> deluge_storage_sample_fill::DelugeStatus;
     /// Closes a streaming file handle (`libdeluge/file_io.h`).
     pub fn deluge_efatfs_close(handle: deluge_storage_sample_fill::DelugeHandle);
+    /// The identity of the file behind a handle, from its open context (`libdeluge/file_io.h`).
+    pub fn deluge_efatfs_file_identity(
+        handle: deluge_storage_sample_fill::DelugeHandle,
+        out: *mut DelugeFileIdentity,
+    ) -> deluge_storage_sample_fill::DelugeStatus;
     /// Reads synchronously from the card at an absolute byte offset (`libdeluge/file_io.h`).
     pub fn deluge_efatfs_read_at(
         handle: deluge_storage_sample_fill::DelugeHandle,
@@ -247,6 +264,23 @@ pub(crate) mod mock_backing {
     #[unsafe(no_mangle)]
     extern "C" fn deluge_efatfs_close(handle: deluge_storage_sample_fill::DelugeHandle) {
         CLOSED_HANDLES.with(|c| c.borrow_mut().push(handle));
+    }
+
+    /// Answers every handle with cluster `handle + 100`, size 4096 and date-time `0x5A21_6C33`.
+    #[unsafe(no_mangle)]
+    extern "C" fn deluge_efatfs_file_identity(
+        handle: deluge_storage_sample_fill::DelugeHandle,
+        out: *mut super::DelugeFileIdentity,
+    ) -> deluge_storage_sample_fill::DelugeStatus {
+        // SAFETY: the registry passes a valid out pointer.
+        unsafe {
+            out.write(super::DelugeFileIdentity {
+                first_cluster: handle + 100,
+                size: 4096,
+                fat_datetime: 0x5A21_6C33,
+            });
+        }
+        deluge_storage_sample_fill::DELUGE_OK
     }
 
     #[unsafe(no_mangle)]

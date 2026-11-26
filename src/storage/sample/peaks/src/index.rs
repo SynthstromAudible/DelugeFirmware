@@ -8,9 +8,9 @@
 
 use crate::dir::Directory;
 use crate::peak::{Peak, peak_of_frames};
-use crate::{BLOCK_FRAMES_LOG2, FAN_LOG2, MAX_LEVELS, div, mem};
+use crate::{BLOCK_FRAMES_LOG2, CHUNK_LOG2, FAN_LOG2, MAX_LEVELS, div, mem};
 use core::ptr::NonNull;
-use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU16, AtomicU32, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU16, AtomicU32, AtomicU64, Ordering, fence};
 
 /// The frames one entry of `level` covers, as a power of two.
 pub(crate) const fn shift(level: u32) -> u32 {
@@ -38,6 +38,9 @@ pub(crate) fn fold_into(cell: &AtomicU32, e: u32) {
     }
 }
 
+/// How long a read's window keeps its level-0 chunks, in ms: reads of two views alternating within it keep both.
+pub const KEEP_MS: u32 = 1000;
+
 /// Indexes released to zero references, waiting for [`PeakIndex::collect`].
 static FREE_LIST: AtomicPtr<PeakIndex> = AtomicPtr::new(core::ptr::null_mut());
 
@@ -50,6 +53,21 @@ pub struct PeakIndex {
     values: [Option<Directory<AtomicU32>>; MAX_LEVELS as usize],
     masks: [Option<Directory<AtomicU16>>; MAX_LEVELS as usize],
     range: AtomicU32,
+    /// How many level-1 entries are complete: what a sidecar would hold.
+    complete1: AtomicU32,
+    /// Folds writing a level-0 value right now: a retired level-0 chunk is freed only when this reads 0.
+    folding: AtomicU32,
+    /// The frames the current keep window covers, `[keep_first, keep_end)`: every window read since `keep_since`,
+    /// which is at most [`KEEP_MS`] ago while it grows.
+    keep_first: AtomicU64,
+    keep_end: AtomicU64,
+    /// When the current keep window began, in the caller's ms.
+    keep_since: AtomicU32,
+    /// The window before it, `[prev_first, prev_end)`: the reads up to `keep_since`.
+    prev_first: AtomicU64,
+    prev_end: AtomicU64,
+    /// When a window was last read.
+    keep_ms: AtomicU32,
     next_free: AtomicPtr<PeakIndex>,
     /// A peak every block holds, set by `fill_uniform`: a fixture's sample with no frames behind it.
     #[cfg(feature = "test_support")]
@@ -76,6 +94,14 @@ impl PeakIndex {
             values: [const { None }; MAX_LEVELS as usize],
             masks: [const { None }; MAX_LEVELS as usize],
             range: AtomicU32::new(0),
+            complete1: AtomicU32::new(0),
+            folding: AtomicU32::new(0),
+            keep_first: AtomicU64::new(0),
+            keep_end: AtomicU64::new(0),
+            keep_since: AtomicU32::new(0),
+            prev_first: AtomicU64::new(0),
+            prev_end: AtomicU64::new(0),
+            keep_ms: AtomicU32::new(0),
             next_free: AtomicPtr::new(core::ptr::null_mut()),
             #[cfg(feature = "test_support")]
             uniform: AtomicU32::new(0),
@@ -83,7 +109,11 @@ impl PeakIndex {
         let mut ok = true;
         for k in 0..levels {
             let n = entries(k, capacity);
-            index.values[k as usize] = Directory::new(n);
+            index.values[k as usize] = if k == 0 {
+                Directory::new_retirable(n)
+            } else {
+                Directory::new(n)
+            };
             ok &= index.values[k as usize].is_some();
             if k >= 1 {
                 index.masks[k as usize] = Directory::new(n);
@@ -120,6 +150,7 @@ impl PeakIndex {
 
     /// Grows a take's level-1-and-up chunks to cover `frames` frames. Thread mode. A fold past the reserved chunks is
     /// dropped, and its block stays incomplete.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn reserve(&self, frames: u64) {
         let _ = self.reserve_upto(frames);
     }
@@ -224,9 +255,14 @@ impl PeakIndex {
             return;
         }
         let e = peak.encode();
+        // Counted, so a trim frees a retired chunk only once no fold that could have loaded it is in flight. The fence
+        // pairs with the trim's: either this load sees the chunk retired, or the trim sees this fold counted.
+        self.folding.fetch_add(1, Ordering::Relaxed);
+        fence(Ordering::SeqCst);
         if let Some(v) = self.values[0].as_ref().and_then(|d| d.get(block)) {
             fold_into(v, e);
         }
+        self.folding.fetch_sub(1, Ordering::Release);
         if self.complete_bit(block) {
             return;
         }
@@ -250,7 +286,11 @@ impl PeakIndex {
         let b = 1u16 << bit;
         let old = mask.fetch_or(b, Ordering::SeqCst); // SeqCst: see `final_frames`
         let full = self.full_mask(level, entry);
-        if old != full && (old | b) == full && level + 1 < self.levels {
+        let became = old != full && (old | b) == full;
+        if became && level == 1 {
+            self.complete1.fetch_add(1, Ordering::Relaxed);
+        }
+        if became && level + 1 < self.levels {
             let v = value.load(Ordering::Acquire);
             self.complete_child(level + 1, entry >> FAN_LOG2, (entry & 15) as u32, v);
         }
@@ -312,7 +352,14 @@ impl PeakIndex {
             else {
                 continue;
             };
-            if mask.load(Ordering::SeqCst) == self.full_mask(level, last)
+            let full = self.full_mask(level, last);
+            let m = mask.load(Ordering::SeqCst);
+            // A last entry with all 16 children was counted when its last child completed it; one with fewer becomes
+            // complete only now.
+            if level == 1 && m == full && full != u16::MAX {
+                self.complete1.fetch_add(1, Ordering::Relaxed);
+            }
+            if m == full
                 && level + 1 < self.levels
                 && let Some(v) = self.values[level as usize]
                     .as_ref()
@@ -322,6 +369,133 @@ impl PeakIndex {
                 self.complete_child(level + 1, last >> FAN_LOG2, (last & 15) as u32, e);
             }
         }
+    }
+
+    /// How many level-1 entries are complete.
+    #[must_use]
+    pub fn complete_level1(&self) -> u64 {
+        u64::from(self.complete1.load(Ordering::Relaxed))
+    }
+
+    /// How many level-1 entries the index has: one per 4,096 frames.
+    #[must_use]
+    pub fn level1_entries(&self) -> u64 {
+        entries(1, self.frames())
+    }
+
+    /// The word a sidecar stores for level-1 entry `entry`: its value if complete, else 0.
+    pub(crate) fn level1_word(&self, entry: u64) -> u32 {
+        if !self.complete(1, entry) {
+            return 0;
+        }
+        self.values[1]
+            .as_ref()
+            .and_then(|d| d.get(entry))
+            .map_or(0, |v| v.load(Ordering::Acquire))
+    }
+
+    /// Whether the index is final with `frames` frames: what a sidecar's peaks may be restored into.
+    pub(crate) fn is_final_at(&self, frames: u64) -> bool {
+        self.final_frames() == Some(frames)
+    }
+
+    /// Restores level-1 entry `entry` from a sidecar's word `e`: folds it in, sets its mask full, and propagates it
+    /// as a scan completing it would. Never allocates.
+    pub(crate) fn restore_level1(&self, entry: u64, e: u32) {
+        if e == 0 {
+            return;
+        }
+        let (Some(value), Some(mask)) = (
+            self.values[1].as_ref().and_then(|d| d.get(entry)),
+            self.masks[1].as_ref().and_then(|d| d.get(entry)),
+        ) else {
+            return;
+        };
+        fold_into(value, e);
+        let full = self.full_mask(1, entry);
+        let old = mask.fetch_or(full, Ordering::SeqCst); // SeqCst: see `final_frames`
+        if old == full {
+            return; // already complete: its parent has it
+        }
+        self.complete1.fetch_add(1, Ordering::Relaxed);
+        fold_into(&self.range, e);
+        if 2 < self.levels {
+            let v = value.load(Ordering::Acquire);
+            self.complete_child(2, entry >> FAN_LOG2, (entry & 15) as u32, v);
+        }
+    }
+
+    /// Keeps level 0 for frames `[first, end)`. Reads within [`KEEP_MS`] of the current window's start widen it; a
+    /// later one starts a new window, and the current one becomes the previous. So a trim keeps every window read in
+    /// the last [`KEEP_MS`], and a view scrolling steadily holds at most two windows' worth. Thread mode.
+    pub fn keep_level0(&self, first: u64, end: u64, now_ms: u32) {
+        let (kf, ke) = (
+            self.keep_first.load(Ordering::Relaxed),
+            self.keep_end.load(Ordering::Relaxed),
+        );
+        let growing =
+            ke > kf && now_ms.wrapping_sub(self.keep_since.load(Ordering::Relaxed)) <= KEEP_MS;
+        if growing {
+            self.keep_first.store(first.min(kf), Ordering::Relaxed);
+            self.keep_end.store(end.max(ke), Ordering::Relaxed);
+        } else {
+            self.prev_first.store(kf, Ordering::Relaxed);
+            self.prev_end.store(ke, Ordering::Relaxed);
+            self.keep_first.store(first, Ordering::Relaxed);
+            self.keep_end.store(end, Ordering::Relaxed);
+            self.keep_since.store(now_ms, Ordering::Relaxed);
+        }
+        self.keep_ms.store(now_ms, Ordering::Relaxed);
+    }
+
+    /// Frees the level-0 chunks earlier passes retired, if no fold is in flight, then retires those outside the kept
+    /// window (every one once the window is older than [`KEEP_MS`]); how many it retired. A chunk retired now is
+    /// freed by a later pass. Thread mode.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+    pub fn trim_level0(&self, now_ms: u32) -> u32 {
+        let Some(d) = &self.values[0] else {
+            return 0;
+        };
+        // Pairs with the fold's fence: a fold that loaded a chunk retired by an earlier pass is counted here, and one
+        // that starts after it sees the chunk gone. Acquire: a finished fold's writes happen before the free.
+        fence(Ordering::SeqCst);
+        if self.folding.load(Ordering::Acquire) == 0 {
+            d.reap();
+        }
+        let chunk_log2 = BLOCK_FRAMES_LOG2 + CHUNK_LOG2;
+        let chunks = |first: u64, end: u64| {
+            let f = first >> chunk_log2;
+            let e = end.saturating_add((1 << chunk_log2) - 1) >> chunk_log2;
+            (
+                usize::try_from(f).unwrap_or(usize::MAX),
+                usize::try_from(e).unwrap_or(usize::MAX),
+            )
+        };
+        // The current window while it is read; the previous one until KEEP_MS after the current one began, which is
+        // when its last read was.
+        let current = if now_ms.wrapping_sub(self.keep_ms.load(Ordering::Relaxed)) <= KEEP_MS {
+            chunks(
+                self.keep_first.load(Ordering::Relaxed),
+                self.keep_end.load(Ordering::Relaxed),
+            )
+        } else {
+            (0, 0)
+        };
+        let previous = if now_ms.wrapping_sub(self.keep_since.load(Ordering::Relaxed)) <= KEEP_MS {
+            chunks(
+                self.prev_first.load(Ordering::Relaxed),
+                self.prev_end.load(Ordering::Relaxed),
+            )
+        } else {
+            (0, 0)
+        };
+        d.retire_outside(current, previous)
+    }
+
+    /// How many level-0 chunks are published.
+    #[must_use]
+    pub fn level0_chunks(&self) -> u32 {
+        self.values[0].as_ref().map_or(0, Directory::published)
     }
 
     /// The range over every block completed so far, or `None` before the first.
@@ -334,6 +508,7 @@ impl PeakIndex {
     /// The first frame of the first incomplete level-0 block that ends after frame `from` (so it may start up to 255
     /// frames before it), or `None` if every block from there to the index's frames is complete.
     #[must_use]
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn next_unscanned(&self, from: u64) -> Option<u64> {
         let blocks = entries(0, self.frames());
         let first = from >> BLOCK_FRAMES_LOG2;
@@ -346,6 +521,7 @@ impl PeakIndex {
             .map(|b| b << BLOCK_FRAMES_LOG2)
     }
 
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     fn find_incomplete(&self, level: u32, entry: u64, first: u64, blocks: u64) -> Option<u64> {
         let span = shift(level) - BLOCK_FRAMES_LOG2;
         let (lo, hi) = (entry << span, (entry + 1) << span);
@@ -395,6 +571,7 @@ impl PeakIndex {
     }
 
     /// Frees every index whose last reference has gone. Thread mode.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn collect() {
         let mut p = FREE_LIST.swap(core::ptr::null_mut(), Ordering::Acquire);
         while let Some(index) = NonNull::new(p) {
@@ -413,6 +590,13 @@ impl PeakIndex {
         for d in self.masks.iter().flatten() {
             d.free_all();
         }
+    }
+
+    /// The word a sidecar stores for level-1 entry `entry`.
+    #[cfg(feature = "test_support")]
+    #[must_use]
+    pub fn level1_word_for_test(&self, entry: u64) -> u32 {
+        self.level1_word(entry)
     }
 
     /// Whether level-0 block `block` is complete. Test support.

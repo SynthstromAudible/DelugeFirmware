@@ -22,7 +22,6 @@
 
 class Song;
 class Sound;
-class ModControllable;
 class ModelStackWithTimelineCounter;
 
 class TimelineCounter {

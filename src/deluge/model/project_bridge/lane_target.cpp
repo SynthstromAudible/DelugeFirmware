@@ -17,61 +17,15 @@
 
 #include "model/project_bridge/lane_target.h"
 
-#include "model/drum/non_audio_drum.h"
-#include "model/fx/master_channel.h"
-#include "model/instrument/kit.h"
-#include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
-#include "processing/audio_output.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-
-#include <type_traits>
 
 namespace deluge::bridge {
-
-LaneOwner owner_of(::Output& output) {
-	switch (output.type) {
-	case OutputType::SYNTH:
-		return static_cast<::Sound*>(static_cast<::SoundInstrument*>(&output));
-	case OutputType::KIT:
-		return static_cast<::Kit*>(&output);
-	case OutputType::AUDIO:
-		return static_cast<::AudioOutput*>(&output);
-	case OutputType::MIDI_OUT:
-	case OutputType::CV:
-		return static_cast<::NonAudioInstrument*>(&output);
-	case OutputType::NONE:
-		break;
-	}
-	return std::monostate{};
-}
-
-LaneOwner owner_of(::Drum& drum) {
-	if (drum.type == DrumType::SOUND) {
-		return static_cast<::Sound*>(static_cast<::SoundDrum*>(&drum));
-	}
-	return static_cast<::NonAudioDrum*>(&drum);
-}
-
-::ModControllable* mod_controllable_of(const LaneOwner& owner) {
-	return std::visit(
-	    []<typename T>(T held) -> ::ModControllable* {
-		    if constexpr (std::is_same_v<T, std::monostate>) {
-			    return nullptr;
-		    }
-		    else {
-			    return held;
-		    }
-	    },
-	    owner);
-}
 
 ::ModelStackWithThreeMainThings* owner_stack_of(const LaneTarget& target, void* memory) {
 	return setupModelStackWithSong(memory, target.song)
 	    ->addTimelineCounter(target.timeline)
 	    ->addNoteRow(target.note_row_id, target.note_row)
-	    ->addOtherTwoThings(mod_controllable_of(target.owner), target.manager);
+	    ->addOtherTwoThings(target.owner, target.manager);
 }
 
 ::ModelStackWithAutoParam* stack_of(const LaneTarget& target, void* memory) {
@@ -79,15 +33,14 @@ LaneOwner owner_of(::Drum& drum) {
 	    ->addParam(target.collection, target.summary, target.param_id, target.auto_param);
 }
 
-LaneTarget target_of(const ::ModelStackWithAutoParam& stack, LaneOwner owner,
-                     std::optional<project::ParamAddress> address) {
+LaneTarget target_of(const ::ModelStackWithAutoParam& stack, std::optional<project::ParamAddress> address) {
 	return LaneTarget{
 	    .address = address,
 	    .song = stack.song,
 	    .timeline = stack.getTimelineCounterAllowNull(),
 	    .note_row_id = stack.noteRowId,
 	    .note_row = stack.getNoteRowAllowNull(),
-	    .owner = owner,
+	    .owner = stack.owner,
 	    .manager = stack.paramManager,
 	    .collection = stack.paramCollection,
 	    .summary = stack.summary,

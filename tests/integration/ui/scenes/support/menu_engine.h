@@ -34,7 +34,7 @@ struct MenuEngine {
 	ArpeggiatorSettings* arp = nullptr;        ///< the clip's, or the selected drum's
 	SourceResources* source = nullptr;         ///< the sound's source at the context's index
 	MultiRange* range = nullptr;               ///< the source's range at the context's index
-	ModControllable* mod = nullptr;            ///< the sound, or the chain's owner (the song, a kit, an audio track)
+	deluge::model::LaneOwner mod;              ///< the sound, or the chain's owner (the song, a kit, an audio track)
 };
 
 /// @brief Resolve @p ctx's addresses in @p song.
@@ -79,11 +79,11 @@ inline MenuEngine menu_engine(const deluge::ui::scenes::menu::MenuContext& ctx, 
 		}
 	}
 	if (ctx.addresses.chain) {
-		e.mod = deluge::bridge::chainSlotAt(*ctx.addresses.chain, song);
+		e.mod = deluge::bridge::chain_owner_at(*ctx.addresses.chain, song);
 	}
 	if (ctx.addresses.slot) {
 		e.sound = deluge::bridge::soundAt(song, *ctx.addresses.slot);
-		e.mod = e.sound;
+		e.mod = e.sound != nullptr ? deluge::model::LaneOwner{e.sound} : deluge::model::LaneOwner{};
 		if (e.sound != nullptr) {
 			e.source = &e.sound->sourceResources[ctx.source_index];
 			if (ctx.range_index >= 0 && ctx.range_index < std::ssize(e.source->ranges)) {

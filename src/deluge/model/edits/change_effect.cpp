@@ -36,8 +36,8 @@ namespace deluge::edits {
 
 namespace {
 /// @brief @p owner's effects; an owner a gesture edits the effects of always has them.
-[[nodiscard]] deluge::model::EffectsOwner effectsOf(ModControllable& owner) {
-	const std::optional<deluge::model::EffectsOwner> effects = owner.effectsOwner();
+[[nodiscard]] deluge::model::EffectsOwner effectsOf(const deluge::model::LaneOwner& owner) {
+	const std::optional<deluge::model::EffectsOwner> effects = deluge::model::effects_owner_of(owner);
 	if (!effects) {
 		FREEZE_WITH_ERROR("E475");
 	}
@@ -45,11 +45,12 @@ namespace {
 }
 } // namespace
 
-void changeEffect(ModControllable& owner, std::string_view path, deluge::serialization::Value value) {
+void changeEffect(deluge::model::LaneOwner owner, std::string_view path, deluge::serialization::Value value) {
 	changeEffect(effectsOf(owner), path, std::move(value));
 }
 
-void changeEffect(::Song& song, ModControllable& owner, std::string_view path, deluge::serialization::Value value) {
+void changeEffect(::Song& song, deluge::model::LaneOwner owner, std::string_view path,
+                  deluge::serialization::Value value) {
 	changeEffect(song, effectsOf(owner), path, std::move(value));
 }
 
@@ -92,7 +93,7 @@ void changeEffect(::Song& song, deluge::model::EffectsOwner effects, std::string
 	}
 }
 
-void changeView(ModControllable& owner, std::string_view key, std::string_view word) {
+void changeView(deluge::model::LaneOwner owner, std::string_view key, std::string_view word) {
 	const deluge::model::EffectsOwner effects = effectsOf(owner);
 	if (effects.view == nullptr) {
 		// Only a host chain has a view; a gesture offering one on a sound is a gesture and its owner out of step.

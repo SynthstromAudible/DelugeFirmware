@@ -16,6 +16,7 @@
  */
 
 #include "model/sample/pitch_scan.h"
+#include "board_config.h" // PLACE_SDRAM_TEXT: thread-mode work
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/interpolation/table_interpolation.h"
 
@@ -41,9 +42,13 @@ void PitchScan::arm(Sample& sample, Limits limits) {
 	bytesAtLastProgress_ = 0;
 	span_.reset();
 
+	if (const std::optional<float> hz = remembered()) {
+		finish(*hz, /*decided=*/false); // already remembered: nothing to read
+		return;
+	}
 	buffer_ = static_cast<int32_t*>(deluge::memory::alloc_fast(Sample::pitchBufferBytes()));
 	if (buffer_ == nullptr) {
-		finish(0);
+		finish(0, /*decided=*/false);
 		return;
 	}
 
@@ -205,6 +210,10 @@ PitchScan::Progress PitchScan::tick() {
 		case Phase::Done:
 			return Progress::Done;
 		case Phase::Read:
+			if (const std::optional<float> hz = remembered()) {
+				finish(*hz, /*decided=*/false); // a sidecar landed mid-scan
+				return Progress::Done;
+			}
 			if (stepRead() == ReadOutcome::Missed) {
 				if (bytesConsumed_ > bytesAtLastProgress_) {
 					bytesAtLastProgress_ = bytesConsumed_; // frames arrived since the last miss: the bound starts again
@@ -213,7 +222,7 @@ PitchScan::Progress PitchScan::tick() {
 				span_.note(deluge_clock_now());
 				if (span_.elapsedUs > deluge::storage::kMaxUnproductiveUs) {
 					gaveUp_ = true;
-					finish(0);
+					finish(0, /*decided=*/false);
 					return Progress::Done;
 				}
 				return Progress::Pending;
@@ -244,10 +253,22 @@ void PitchScan::release() {
 	}
 }
 
-void PitchScan::finish(float hz) {
+PLACE_SDRAM_TEXT void PitchScan::finish(float hz, bool decided) {
 	release();
 	result_ = hz;
 	phase_ = Phase::Done;
+	if (decided && sample_ != nullptr) {
+		sample_->pitchResults().remember(
+		    {.minFreqHz = limits_.minFreqHz, .maxFreqHz = limits_.maxFreqHz, .primeTest = limits_.doPrimeTest}, hz);
+	}
+}
+
+PLACE_SDRAM_TEXT std::optional<float> PitchScan::remembered() const {
+	if (sample_ == nullptr) {
+		return std::nullopt;
+	}
+	return sample_->pitchResults().find(
+	    {.minFreqHz = limits_.minFreqHz, .maxFreqHz = limits_.maxFreqHz, .primeTest = limits_.doPrimeTest});
 }
 
 void PitchScan::cancel() {

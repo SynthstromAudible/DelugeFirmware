@@ -14,4 +14,5 @@ deluge_specs_driver(peaks_specs TREES host
   INCLUDES
     ${DELUGE_CRATE_INCLUDE_DIRS}                      # the crates' C headers
     ${DELUGE_REPO_ROOT}/include                       # libdeluge/abi.h
+    ${DELUGE_REPO_ROOT}/src/deluge                    # storage/audio/sidecar_path.h (header only)
 )

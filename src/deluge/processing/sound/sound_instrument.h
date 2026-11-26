@@ -41,7 +41,6 @@ public:
 
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	void resyncLFOs(bool reset_state = false) override;
-	ModControllable* toModControllable() override;
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	void setupPatchingForAllParamManagers(Song* song) override;
 	void setupPatching(ModelStackWithTimelineCounter* modelStack) override;

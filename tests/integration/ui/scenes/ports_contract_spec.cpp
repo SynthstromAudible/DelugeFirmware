@@ -127,7 +127,7 @@ struct RangeHeld {
 	WaveformAddress address{};
 	explicit RangeHeld(Sample* sample) {
 		currentSong = synth.song;
-		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
+		auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*synth.instrument))->sound;
 		deluge::test::set(sound->record(), "osc1/type", "sample");
 		sound->deriveConfig();
 		multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
@@ -967,7 +967,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		const bind::Waveforms& waveforms = app_waveforms();
 		expect(waveforms.info(range).has_value()).to_be_false();
 
-		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
+		auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*synth.instrument))->sound;
 		SourceResources& source = sound->sourceResources[0];
 		deluge::test::set(sound->record(), "osc1/type", "sample");
 		sound->deriveConfig();
@@ -1003,7 +1003,7 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		spec::SongFixture synth = spec::make_synth_song();
 		Song* const saved = currentSong;
 		currentSong = synth.song;
-		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
+		auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*synth.instrument))->sound;
 		SourceResources& source = sound->sourceResources[0];
 		deluge::test::set(sound->record(), "osc1/type", "sample");
 		sound->deriveConfig();
