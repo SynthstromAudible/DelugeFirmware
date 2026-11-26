@@ -375,15 +375,14 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*modelStack);
 			// The render records into a copy of the lane it owns; the model hears at the next commit. Without a copy
 			// the value is set, not recorded.
-			deluge::project::DocAutoParam* copy = deluge::modulation::makeWorkingCopy(
-			    *modelStack, deluge::modulation::kNodesPerRecordedWrite,
+			const deluge::modulation::WorkingCopy made = deluge::modulation::makeWorkingCopy(
+			    deluge::bridge::target_of(*modelStack, std::nullopt), deluge::modulation::kNodesPerRecordedWrite,
 			    doMPEMode ? deluge::modulation::Hold::WRITES : deluge::modulation::Hold::TAKE);
+			deluge::project::DocAutoParam* copy = made.copy;
 			if (copy != nullptr) {
 				AudioExcludedSection section;
 				deluge::modulation::reserveForRecordedWrite(copy->nodes);
-				if (address) {
-					event.lane = *address;
-				}
+				event.copy = made.handle;
 				if (!address || !deluge::modulation::postRecordEvent(event)) {
 					// The render is excluded: write what it has queued, then this, so the writes land in order.
 					deluge::modulation::applyRecordEvents(*modelStack->song);
@@ -1106,7 +1105,8 @@ void AutoParam::cancelOverriding() {
 void AutoParam::overrideFromNow(ModelStackWithAutoParam const& lane) {
 	// While recording, the latch drifts back on an overridden lane: it writes the lane's working copy
 	if (playbackHandler.recording != RecordingMode::OFF && !deluge::memory::onRenderTier()) {
-		(void)deluge::modulation::makeWorkingCopy(lane, deluge::modulation::kNodesPerRecordedWrite);
+		(void)deluge::modulation::makeWorkingCopy(deluge::bridge::target_of(lane, std::nullopt),
+		                                          deluge::modulation::kNodesPerRecordedWrite);
 	}
 	writeCursor([&] {
 		renewedOverridingAtTime = AudioEngine::audioSampleTimer;

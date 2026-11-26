@@ -23,7 +23,9 @@
 #include <utility>
 
 class InstrumentClip;
-class ModelStackWithAutoParam;
+namespace deluge::bridge {
+struct LaneTarget;
+} // namespace deluge::bridge
 class ModelStackWithNoteRow;
 class ModelStackWithTimelineCounter;
 class NoteRow;
@@ -119,7 +121,7 @@ void appendRepeatIntoRowCopies(NoteRow& row, ModelStackWithNoteRow* rowModelStac
 /// @brief [render] or [interaction] The repeats of the arrangement take whose lane @p lane names: its row's when the
 /// row
 ///        has its own length, else its clip's; none for a lane of no take recording.
-const TakeRepeats* takeRepeatsOf(const ModelStackWithAutoParam& lane);
+const TakeRepeats* takeRepeatsOf(const deluge::bridge::LaneTarget& lane);
 
 /// @brief [render] As swapStagedRepeat(), at the end of @p row of a take, which has its own length: @p rowModelStack
 /// names

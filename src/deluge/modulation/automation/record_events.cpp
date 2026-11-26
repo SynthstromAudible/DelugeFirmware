@@ -93,7 +93,8 @@ bool postRecordEvent(const RecordEvent& event) {
 }
 
 void postLaneCommand(ModelStackWithAutoParam const& lane, LaneCommand command, size_t room) {
-	project::DocAutoParam* copy = workingCopy(*lane.paramCollection, lane.paramId);
+	const WorkingCopy found = find_working_copy(*lane.paramCollection, lane.paramId);
+	project::DocAutoParam* copy = found.copy;
 	if (copy == nullptr) {
 		return;
 	}
@@ -105,9 +106,7 @@ void postLaneCommand(ModelStackWithAutoParam const& lane, LaneCommand command, s
 	if (copy->nodes.capacity() < copy->nodes.size() + room) {
 		(void)copy->nodes.reserveExtra(static_cast<int32_t>(room));
 	}
-	if (address) {
-		event.lane = *address;
-	}
+	event.copy = found.handle;
 	if (!address || !postRecordEvent(event)) {
 		// The render is excluded: make what it has queued, then this, so the changes land in order
 		applyRecordEvents(*lane.song);
@@ -123,10 +122,7 @@ void applyRecordEvents(::Song& song) {
 		if (event.song != &song) {
 			continue;
 		}
-		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithAutoParam* stack = bridge::paramStackOnRender(song, event.lane, memory);
-		project::DocAutoParam* lane =
-		    (stack != nullptr) ? workingCopy(*stack->paramCollection, stack->paramId) : nullptr;
+		auto [lane, param] = copy_at(event.copy);
 		if (lane == nullptr) {
 			continue; // the take was released before the render reached the value
 		}
@@ -137,7 +133,7 @@ void applyRecordEvents(::Song& song) {
 			applyCommand(*lane, *event.command);
 		}
 		else {
-			stack->autoParam->writeRecordedValue(*lane, event);
+			param->writeRecordedValue(*lane, event);
 		}
 		noteWorkingCopyWritten(*lane);
 #if ALPHA_OR_BETA_VERSION

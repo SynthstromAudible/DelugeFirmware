@@ -30,6 +30,7 @@
 
 #include "definitions_cxx.hpp"
 #include "modulation/automation/lane_command.h"
+#include "modulation/automation/working_copies.h"
 #include "project/param_address.h"
 #include "project/param_node.h"
 #include <cstddef>
@@ -43,8 +44,8 @@ namespace deluge::modulation {
 /// @brief A value recorded into a lane while playing, with every input the live-record kernel reads that is not the
 /// lane's own nodes; or, with @ref command, an Edit's change to a lane being recorded.
 struct RecordEvent {
-	const ::Song* song{nullptr}; ///< the song @ref lane is addressed in
-	project::ParamAddress lane{};
+	const ::Song* song{nullptr}; ///< the song the lane is in
+	CopyHandle copy{};           ///< the lane's working copy, which the render writes
 	int32_t livePos{0};
 	int32_t value{0};
 	int32_t ticksToClear{0};    ///< the stretch ahead of livePos the write clears

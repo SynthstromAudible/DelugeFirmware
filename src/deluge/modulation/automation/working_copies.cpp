@@ -27,6 +27,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -79,10 +80,17 @@ struct Entry {
 	/// the automation of. The render appends the next into a live copy at the take's loop end; the interaction tier
 	/// appends each counted into a copy that does not hold it yet.
 	uint32_t held = 0;
+	/// The handle's generation: a fresh one for each copy the slot holds, 0 while it is empty.
+	uint32_t generation = 0;
+	/// The lane's AutoParam, which a recorded write into the copy reads.
+	AutoParam* param = nullptr;
 };
 
 /// [interaction] -> [render] Changed only with the render held off, but for `written` and `ended`.
 std::array<Entry, kWorkingCopies> g_entries;
+
+/// [interaction] The generation the last copy made was given.
+uint32_t g_generation = 0;
 
 /// [interaction] A take ended for some lanes since the commit last asked.
 bool g_takeEnded = false;
@@ -156,6 +164,13 @@ void clear(Entry& entry) {
 	entry.hold = Hold::TAKE;
 	entry.ended.store(false, std::memory_order_relaxed);
 	entry.held = 0;
+	entry.generation = 0;
+	entry.param = nullptr;
+}
+
+/// The handle of the copy @p entry holds.
+CopyHandle handleOf(const Entry& entry) {
+	return {.index = static_cast<uint8_t>(&entry - g_entries.data()), .generation = entry.generation};
 }
 
 /// The entry holding the working copy of lane @p key of @p collection, live or ended, if any.
@@ -233,15 +248,11 @@ void WorkingCopies::count(ParamCollection& collection, int32_t delta) {
 	collection.workingCopies_ = static_cast<uint8_t>(collection.workingCopies_ + delta);
 }
 
-project::DocAutoParam* makeWorkingCopy(ModelStackWithAutoParam const& lane, size_t room, Hold hold) {
-	ParamCollection& collection = *lane.paramCollection;
-	if (project::DocAutoParam* existing = workingCopy(collection, lane.paramId)) {
+WorkingCopy makeWorkingCopy(const bridge::LaneTarget& lane, size_t room, Hold hold) {
+	ParamCollection& collection = *lane.collection;
+	if (WorkingCopy existing = find_working_copy(collection, lane.param_id); existing.copy != nullptr) {
 		if (hold == Hold::TAKE) {
-			for (Entry& entry : g_entries) {
-				if (entry.copy == existing) {
-					entry.hold = Hold::TAKE;
-				}
-			}
+			g_entries[existing.handle.index].hold = Hold::TAKE;
 		}
 		return existing;
 	}
@@ -254,36 +265,66 @@ project::DocAutoParam* makeWorkingCopy(ModelStackWithAutoParam const& lane, size
 	}
 	if (slot == nullptr) {
 		countOverflow();
-		return nullptr;
+		return {};
 	}
 	// The take's undo restores the lane as it was before the render wrote anything into its copy
 	if (Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED)) {
-		action->recordParamChangeIfNotAlreadySnapshotted(&lane);
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		action->recordParamChangeIfNotAlreadySnapshotted(bridge::stack_of(lane, memory));
 	}
 	// A lane of an arrangement take: the model holds every repeat counted, so the copy does
 	const TakeRepeats* repeats = takeRepeatsOf(lane);
 	if (repeats != nullptr && repeats->inModel != repeats->appended.load(std::memory_order_acquire)) {
 		catchUpArrangementTakes(*lane.song);
 	}
-	project::DocAutoParam* copy = copyOf(*lane.doc(), room);
+	project::DocAutoParam* copy = copyOf(*bridge::doc_of(lane), room);
 	if (copy == nullptr) {
 		countOverflow();
-		return nullptr;
+		return {};
 	}
 	std::optional<AudioExcludedSection> section{std::in_place};
 	slot->collection = &collection;
 	slot->serial = collection.serial();
-	slot->paramId = lane.paramId;
+	slot->paramId = lane.param_id;
 	slot->copy = copy;
 	slot->hold = hold;
 	slot->held = repeats != nullptr ? repeats->inModel : 0;
+	slot->param = lane.auto_param;
+	if (++g_generation == 0) {
+		++g_generation; // 0 names no copy
+	}
+	slot->generation = g_generation;
 	WorkingCopies::count(collection, 1);
 	section.reset();
 	// A loop end since the take was caught up counted a repeat the copy, made before it was live, lacks
 	if (repeats != nullptr && repeats->appended.load(std::memory_order_acquire) != slot->held) {
 		catchUpArrangementTakes(*lane.song);
 	}
-	return copy;
+	return {.copy = copy, .handle = handleOf(*slot)};
+}
+
+WorkingCopy find_working_copy(const ParamCollection& collection, int32_t paramId) {
+	if (!collection.hasWorkingCopies()) {
+		return {};
+	}
+	for (const Entry& entry : g_entries) {
+		if (entry.collection == &collection && entry.paramId == paramId && entry.serial == collection.serial()
+		    && live(entry)) {
+			return {.copy = entry.copy, .handle = handleOf(entry)};
+		}
+	}
+	return {};
+}
+
+std::pair<project::DocAutoParam*, AutoParam*> copy_at(CopyHandle handle) {
+	if (handle.generation == 0 || handle.index >= kWorkingCopies) {
+		return {nullptr, nullptr};
+	}
+	const Entry& entry = g_entries[handle.index];
+	if (entry.generation != handle.generation || !live(entry)) {
+		return {nullptr, nullptr};
+	}
+	return {entry.copy, entry.param};
 }
 
 project::DocAutoParam* workingCopy(const ParamCollection& collection, int32_t paramId) {
@@ -421,7 +462,7 @@ void copyOverriddenLanes(Song& song) {
 		for (const Overridden& lane : overridden) {
 			if (ModelStackWithAutoParam* stack = laneStack(owner, *lane.summary, lane.paramId);
 			    stack != nullptr && stack->autoParam != nullptr) {
-				(void)makeWorkingCopy(*stack, kNodesPerRecordedWrite);
+				(void)makeWorkingCopy(bridge::target_of(*stack, std::nullopt), kNodesPerRecordedWrite);
 			}
 		}
 	});
