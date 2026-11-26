@@ -156,6 +156,7 @@ src/effects/track_chain.cpp raw=0 boundary=3
 src/instruments/classic/composed_state.cpp raw=0 boundary=2
 src/synth/engines/block_controls.h raw=0 boundary=2
 src/synth/engines/dual_source_engine.cpp raw=0 boundary=3
+src/synth/engines/dx7_engine.cpp raw=0 boundary=6
 src/synth/engines/fm_engine.cpp raw=0 boundary=29
 src/synth/engines/pitch.h raw=0 boundary=2
 src/synth/engines/ring_mod_engine.cpp raw=0 boundary=1

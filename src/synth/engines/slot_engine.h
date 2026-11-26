@@ -25,10 +25,6 @@
 
 namespace deluge::synth {
 
-/// @brief A unison part's increment: @p phase_increment detuned by the part's @p detuner, or none when it reaches
-/// 2^31, too high to render (above 22.05 kHz), as the base increment is held under it.
-[[nodiscard]] std::optional<uint32_t> detuned_increment(uint32_t phase_increment, const dsp::fixed::FineTune& detuner);
-
 /// @brief An engine over the Deluge voice's source slots: the per-source note-on and phase increments every engine
 /// here shares. Each source is marked active in every part where it can sound, gets its phase increments, and its
 /// slot starts.

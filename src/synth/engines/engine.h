@@ -61,6 +61,7 @@ struct BasicEngineBlock {
 	dsp::fixed::Cong* noise{};                          ///< The synth's noise stream
 	B::DualSourceControls dual{};                       ///< For the dual-source engines
 	B::FmControls fm{};                                 ///< For FM
+	B::Dx7Controls dx7{};                               ///< For the DX7 engine
 };
 using EngineBlock = BasicEngineBlock<Fixed>;
 

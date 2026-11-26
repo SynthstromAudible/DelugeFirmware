@@ -43,6 +43,20 @@ struct DualSourceControls {
 	bool stereo_unison{};              ///< The unison parts are spread across the stereo field
 };
 
+/// @brief What the voice derives each block for the DX7 engine from its params; the engine reads no param plane.
+struct Dx7Controls {
+	dsp::Q<31> volume{};               ///< The DX7's level param
+	dsp::Q<24> pitch_adjust{};         ///< The DX7's pitch adjust
+	int32_t amp_mod{};                 ///< The DX7's amplitude-modulation param
+	int32_t env0_attack{};             ///< The amplitude envelope's attack param (a slow attack holds the level still)
+	dsp::Q<28> filter_gain{};          ///< The gain the filters' configuration asks of what goes in (2^28 is unity)
+	dsp::Q<24> overall_pitch_adjust{}; ///< The voice's pitch adjust, bend and portamento
+	int32_t note_code{};               ///< The note after arpeggiation
+	bool first_render{};               ///< The voice's first block since its note started
+	bool stereo_unison{};              ///< The unison parts are spread across the stereo field
+	bool in_stereo{};                  ///< The DX7 renders into a stereo buffer (the voice spreads its unison)
+};
+
 /// @brief What the voice derives each block for FM from its params; the engine reads no param plane.
 struct FmControls {
 	std::array<dsp::Q<31>, kNumSources> carrier_volume{};       ///< Each carrier's (source's) volume param

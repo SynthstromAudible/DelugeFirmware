@@ -81,8 +81,8 @@ private:
 	int32_t blocks_since_keyup_{-1};
 };
 
-/// A rig whose every slot plays through its own logging DX7 port, declared first so it outlives the slots (their
-/// destructors unassign through it).
+/// A rig whose every slot and DX7 engine part plays through its own logging DX7 port, declared first so it outlives the
+/// slots (their destructors unassign through it).
 struct DxRig {
 	ToneDxPort tone;
 	std::unique_ptr<Rig> rig = std::make_unique<Rig>();
@@ -92,6 +92,7 @@ struct DxRig {
 				rig->voice.unison_parts[u].slots[s].bind(
 				    {.sample = &rig->samples[u][s], .dx = &tone, .input = &rig->input});
 			}
+			rig->voice.bind_dx7(u, &tone);
 		}
 	}
 };
@@ -105,21 +106,26 @@ struct Played {
 
 int32_t dummy_patch = 0;
 
-/// The DX7 on osc 1, osc 2 silent.
+/// The DX7: on osc 1 with osc 2 silent for the subtractive engine, and the DX7 engine's own setup.
 NoteSetup dx7_setup() {
 	NoteSetup setup = note_setup(OscType::DX7);
 	setup.sources[0].dx_patch = &dummy_patch;
+	setup.dx7 = {.patch = &dummy_patch, .ever_active = true};
 	return setup;
 }
 
 /// Plays one note of @p setup in @p mode: the phase draws, the note-on, six blocks (the patch changed on the third
-/// when @p patch_change), the release, then blocks until the voice ends; @p shape adjusts the config first.
+/// when @p patch_change; the level halved from the fourth on when @p level_change), the release, then blocks until the
+/// voice ends; @p shape adjusts the config first.
 Played play(SynthMode mode, const NoteSetup& setup, const std::function<void(RenderConfig&)>& shape,
-            bool patch_change = false) {
+            bool patch_change = false, bool level_change = false) {
+	NoteSetup quieter = setup;
+	quieter.initial_patching.preset_values[params::LOCAL_OSC_A_VOLUME] = deluge::dsp::Q<31>::from_raw(0x40000000);
 	DxRig dx;
 	Rig& rig = *dx.rig;
 	RenderConfig cfg = config(mode, OscType::DX7);
 	shape(cfg);
+	cfg.values.dx7_active_currently = cfg.values.source_active_currently[0];
 	rig.voice.randomize_osc_phases(cfg.sound, rig.noise);
 	(void)rig.voice.note_on(setup, cfg.sound, note(60), rig.clock(), 1, rig.noise);
 	Played played;
@@ -128,7 +134,8 @@ Played play(SynthMode mode, const NoteSetup& setup, const std::function<void(Ren
 	for (int32_t b = 0; b < 6 && alive; b++) {
 		RenderConfig block_cfg = cfg;
 		block_cfg.values.dx_patch_changed[0] = patch_change && b == 2;
-		alive = render_block(rig, setup, block_cfg);
+		block_cfg.values.dx7_patch_changed = patch_change && b == 2;
+		alive = render_block(rig, level_change && b >= 3 ? quieter : setup, block_cfg);
 		played.blocks.push_back(rig.out);
 	}
 	if (alive) {
@@ -137,7 +144,7 @@ Played play(SynthMode mode, const NoteSetup& setup, const std::function<void(Ren
 		rig.voice.note_off(off, true, rig.clock());
 	}
 	for (int32_t b = 0; b < 64 && alive; b++) {
-		alive = render_block(rig, setup, cfg);
+		alive = render_block(rig, level_change ? quieter : setup, cfg);
 		played.blocks.push_back(rig.out);
 	}
 	played.calls = dx.tone.calls;
@@ -169,9 +176,9 @@ std::string difference(const Played& subtractive, const Played& dx7) {
 
 /// How the DX7 mode's note differs from the subtractive engine's with the DX7 on osc 1.
 std::string dx7_mode_difference(const NoteSetup& setup, const std::function<void(RenderConfig&)>& shape,
-                                bool patch_change = false) {
-	return difference(play(SynthMode::SUBTRACTIVE, setup, shape, patch_change),
-	                  play(SynthMode::DX7, setup, shape, patch_change));
+                                bool patch_change = false, bool level_change = false) {
+	return difference(play(SynthMode::SUBTRACTIVE, setup, shape, patch_change, level_change),
+	                  play(SynthMode::DX7, setup, shape, patch_change, level_change));
 }
 
 void as_is(RenderConfig& /*cfg*/) {
@@ -198,18 +205,35 @@ describe dx7_engine_spec_body("the DX7 engine", ${
 		    .to_equal(std::string{});
 	});
 
+	it("ramps the first block's level from silence the same", _{
+		NoteSetup ramped = dx7_setup();
+		ramped.initial_patching.preset_values[params::LOCAL_ENV_0_ATTACK] = deluge::dsp::Q<31>::from_raw(kMax);
+		expect(dx7_mode_difference(ramped, as_is)).to_equal(std::string{});
+	});
+
 	it("passes a patch change on to the DX7 the same", _{
 		expect(dx7_mode_difference(dx7_setup(), as_is, /*patch_change=*/true)).to_equal(std::string{});
 	});
 
-	it("plays the noise source beside the DX7 the same", _{
-		NoteSetup setup = dx7_setup();
-		setup.initial_patching.preset_values[params::LOCAL_NOISE_VOLUME] = deluge::dsp::Q<31>::from_raw(0x20000000);
-		expect(dx7_mode_difference(setup, [](RenderConfig& cfg) { cfg.values.noise_volume_contains_something = true; }))
-		    .to_equal(std::string{});
+	it("plays no noise source: a DX7 with the noise up plays as the subtractive DX7 without it", _{
+		NoteSetup noisy = dx7_setup();
+		noisy.initial_patching.preset_values[params::LOCAL_NOISE_VOLUME] = deluge::dsp::Q<31>::from_raw(0x20000000);
+		const Played dx7 = play(SynthMode::DX7, noisy,
+		                        [](RenderConfig& cfg) { cfg.values.noise_volume_contains_something = true; });
+		const Played subtractive = play(SynthMode::SUBTRACTIVE, dx7_setup(), as_is);
+		expect(dx7.blocks.size()).to_equal(subtractive.blocks.size());
+		expect(dx7.blocks == subtractive.blocks).to_equal(true);
 	});
 
-	it("never sounds osc 2", _{
+	it("reads its pitch from its own setup, not osc 1's", _{
+		NoteSetup up = dx7_setup();
+		up.dx7.transpose = 7;
+		const Played transposed = play(SynthMode::DX7, up, as_is);
+		const Played plain = play(SynthMode::DX7, dx7_setup(), as_is);
+		expect(transposed.calls == plain.calls).to_equal(false);
+	});
+
+	it("never sounds osc 2, whatever its setup", _{
 		NoteSetup with_osc2 = dx7_setup();
 		with_osc2.sources[1].ever_active = true;
 		with_osc2.initial_patching.preset_values[params::LOCAL_OSC_B_VOLUME] = deluge::dsp::Q<31>::from_raw(0x40000000);

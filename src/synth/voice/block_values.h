@@ -53,6 +53,8 @@ struct BlockValues {
 	bool engine_rendering_in_stereo{}; ///< The engine renders in stereo (headphones), so voices may pan
 
 	std::array<bool, kNumSources> dx_patch_changed{}; ///< A DX7 source's patch changed since the last block
+	bool dx7_active_currently{};                      ///< DX7 mode: the DX7 sounds this block (its level is not off)
+	bool dx7_patch_changed{};                         ///< DX7 mode: the sound's DX7 patch changed since the last block
 
 	/// The sound's global patch-source values, copied into the voice's own before its patching. The sound's patching
 	/// runs first, so they are settled for the block.
