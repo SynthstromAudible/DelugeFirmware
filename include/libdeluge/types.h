@@ -75,6 +75,13 @@ typedef struct DelugeFileLocation {
 	uint8_t valid;                               ///< nonzero if this names a file
 } DelugeFileLocation;
 
+/// An open file's identity on its card, from its directory entry.
+typedef struct DelugeFileIdentity {
+	uint32_t first_cluster; ///< the file's first cluster; 0 for an empty file
+	uint32_t size;          ///< the file's size in bytes
+	uint32_t fat_datetime;  ///< the entry's modify date and time, date << 16 | time, as stored
+} DelugeFileIdentity;
+
 /// The resource manager chunks are leased from. Opaque; owned by the Rust `deluge_storage_resource` crate.
 typedef struct DelugeResource DelugeResource;
 

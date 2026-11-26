@@ -124,6 +124,9 @@ public:
 
 	/// @brief This sample's waveform peak index, or null if it could not be made.
 	[[nodiscard]] DelugePeakIndex* peaks() const { return peaks_; }
+	/// @brief The file's identity on its card: what keys its sidecar. Nothing until a load finishes with its stream
+	///        open.
+	[[nodiscard]] std::optional<DelugeFileIdentity> fileIdentity() const { return identity_; }
 
 	/// @brief Make this sample a new, empty peak index, dropping any it had, and bind it to the stream asset if there
 	///        is one. Thread mode.
@@ -250,6 +253,8 @@ public:
 	bool peaksTried_{false};
 	/// @brief The waveform peak index: one reference, dropped in the destructor or by `makePeaks`.
 	DelugePeakIndex* peaks_{nullptr};
+	/// @brief The file's identity on its card, taken when the load finishes; nothing for a take not yet reopened.
+	std::optional<DelugeFileIdentity> identity_;
 
 protected:
 	// Project-relevance hooks (the object's hard-lease 0↔1 transitions): toggle the soft-reference on

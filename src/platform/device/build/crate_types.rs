@@ -26,6 +26,7 @@ const STRUCTS: &[(&str, &str)] = &[
     ("DelugeSampleGeometry", "deluge_storage_sample_source::geometry::Geometry"),
     ("DelugeSampleRegion", "deluge_storage_sample_source::abi::DelugeSampleRegion"),
     ("DelugeSampleStreamGeometry", "deluge_storage_stream::DelugeSampleStreamGeometry"),
+    ("DelugeFileIdentity", "deluge_storage_stream::DelugeFileIdentity"),
     ("DelugeResourceStats", "deluge_storage_resource::manager::Stats"),
 ];
 

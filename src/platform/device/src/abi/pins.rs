@@ -61,7 +61,8 @@ abi_pin!(in deluge_storage_sample_source::abi: deluge_sample_source_open, deluge
 
 abi_pin!(in deluge_storage_stream::abi: deluge_sample_stream_open,
     deluge_sample_stream_open_at, deluge_sample_stream_close, deluge_sample_stream_set_geometry,
-    deluge_sample_stream_get_asset_id, deluge_sample_stream_set_asset_id, deluge_sample_stream_read_at);
+    deluge_sample_stream_get_asset_id, deluge_sample_stream_set_asset_id, deluge_sample_stream_read_at,
+    deluge_sample_stream_identity);
 
 // --- The crates' own declarations of header functions (they cannot see `sys`) ---
 
@@ -75,6 +76,7 @@ abi_pin!(in deluge_storage_sample_reader::reservation: deluge_streaming_resource
 abi_pin!(in deluge_storage_sample_source::abi: deluge_streaming_resource_manager, deluge_sample_stream_asset_id);
 abi_pin!(in deluge_storage_sample_source::manager_residency: deluge_streaming_signal_fill);
 abi_pin!(in deluge_storage_stream: deluge_efatfs_open, deluge_efatfs_open_at, deluge_efatfs_close,
+    deluge_efatfs_file_identity,
     deluge_efatfs_read_at, deluge_streaming_resource_manager, deluge_streaming_set_fill_context,
     deluge_resource_release_asset);
 
@@ -137,6 +139,7 @@ abi_layout!(deluge_storage_resource::manager::Stats => DelugeResourceStats { acq
     loader_depth_polls, loader_depth_total, loader_depth_max, queue_wait_samples, queue_wait_total, queue_wait_max,
     fill_samples, fill_total, fill_max, queue_wait_buckets, fill_buckets });
 
+abi_layout!(deluge_storage_stream::DelugeFileIdentity => DelugeFileIdentity { first_cluster, size, fat_datetime });
 abi_layout!(deluge_storage_stream::DelugeSampleStreamGeometry => DelugeSampleStreamGeometry {
     audio_data_start_pos_bytes, audio_data_length_bytes, first_cluster_index_with_no_audio_data, cluster_size,
     cluster_size_magnitude, raw_data_format, byte_depth, num_channels });

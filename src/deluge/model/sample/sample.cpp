@@ -1498,6 +1498,7 @@ void Sample::finalizeAfterLoad(uint32_t fileSize) {
 	audioDataLengthBytes = lengthInSamples * bytesPerSample; // Make sure it's an exact number of samples
 
 	workOutBitMask();
+	identity_ = stream_.identity();
 	makePeaks(lengthInSamples, false, lengthInSamples);
 }
 

@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 class Sample;
@@ -92,6 +93,10 @@ public:
 	///         the local cache (`resource_asset_id_`) -- see the class doc for why that, not the
 	///         registry slot, stays the source of truth for this getter.
 	[[nodiscard]] uint32_t resource_asset_id() const;
+
+	/// @brief The file's identity on its card (first cluster, size, FAT date-time), from the open stream: nothing
+	///        before open_read_stream()/open_read_stream_at() succeeds.
+	[[nodiscard]] std::optional<DelugeFileIdentity> identity() const;
 
 	/// @brief Set this sample's cached Asset id. Storage only -- the asset-*definition* logic that
 	///        assigns it lives in `deluge_streaming_define_asset()` (chunk_residency.cpp), which

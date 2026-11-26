@@ -743,6 +743,25 @@ where
     Some((f.detach(), filled))
 }
 
+/// An open file's identity on its card, from its context alone: its first cluster (0 for an empty file), its size
+/// and its directory entry's modify date and time as `date << 16 | time`. `None` for a context with no directory
+/// entry (the root).
+pub fn identity_of(ctx: &FileContext) -> Option<(u32, u32, u32)> {
+    const HAS_ENTRY: u8 = 1 << 2;
+    let bytes = ctx.to_bytes();
+    if bytes[1] & HAS_ENTRY == 0 {
+        return None;
+    }
+    // The 32-byte short entry sits at bytes 24..56: modify time at its offset 22, modify date at 24.
+    let time = u16::from_le_bytes([bytes[24 + 22], bytes[24 + 23]]);
+    let date = u16::from_le_bytes([bytes[24 + 24], bytes[24 + 25]]);
+    Some((
+        ctx.first_cluster().unwrap_or(0),
+        ctx.size()?,
+        (u32::from(date) << 16) | u32::from(time),
+    ))
+}
+
 /// Returns the file length in bytes, via `Seek(End(0))` since `File::size` is private to
 /// embedded-fatfs. `None` on any FS error.
 ///

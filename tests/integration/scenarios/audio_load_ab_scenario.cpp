@@ -1079,6 +1079,25 @@ void checkColumns(Sample& sample) {
 	}
 }
 
+/// AB-IDENTITY: each sample knows its file's identity on the card, from the stream it opened: the preview (loaded
+/// by the async path) and the varied sample (the synchronous path). The fixtures' files are a 44-byte header and
+/// their data, so a file's size is its data's start plus its length; two files never share a first cluster.
+void checkIdentity(const Sample& preview, const Sample* varied) {
+	const auto fileSize = [](const Sample& s) {
+		return static_cast<uint64_t>(s.audioDataStartPosBytes) + s.audioDataLengthBytes;
+	};
+	const std::optional<DelugeFileIdentity> a = preview.fileIdentity();
+	const std::optional<DelugeFileIdentity> b = varied != nullptr ? varied->fileIdentity() : std::nullopt;
+	const bool sizesMatch = a && b && a->size == fileSize(preview) && b->size == fileSize(*varied);
+	const bool clustersDistinct =
+	    a && b && a->first_cluster != 0 && b->first_cluster != 0 && a->first_cluster != b->first_cluster;
+	printf("AB-IDENTITY preview=%u/%u varied=%u/%u sizes=%d clusters=%d\n", a ? a->first_cluster : 0, a ? a->size : 0,
+	       b ? b->first_cluster : 0, b ? b->size : 0, sizesMatch ? 1 : 0, clustersDistinct ? 1 : 0);
+	if (!sizesMatch || !clustersDistinct) {
+		g_report.fail("[audioLoadAB/identity]: a loaded sample must know its file's first cluster and size");
+	}
+}
+
 /// AB-PEAKS: the preview's own fills fold its first blocks into the sample's index before any peak scan runs; the
 /// scan, starting over from an empty index, completes it; and the index's range is the whole file's.
 void checkPeaks() {
@@ -1106,6 +1125,7 @@ void checkPeaks() {
 	if (g_peaksSample != nullptr) {
 		checkColumns(*g_peaksSample);
 	}
+	checkIdentity(*sample, g_peaksSample);
 }
 
 /// Has anything drawn the cancelled file's waveform?
