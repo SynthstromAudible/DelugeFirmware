@@ -88,6 +88,7 @@ enum class Stage : uint8_t {
 	Settle,
 	LoadLong,
 	AwaitLongWritten,
+	AwaitHidden,
 	DetectPitch,
 	AwaitPitchWritten,
 	Reload,
@@ -203,6 +204,23 @@ std::string pathOf(const Sample& sample, SidecarFile file) {
 	return id ? std::string{sidecarPath(id->first_cluster, file).data()} : std::string{};
 }
 
+/// Whether `DELUGE`'s listing shows `PEAKS` with the hidden attribute.
+bool peaksHidden() {
+	auto dir = deluge::io::Directory::open("DELUGE");
+	if (!dir) {
+		return false;
+	}
+	for (;;) {
+		auto entry = dir->read();
+		if (!entry || !entry->has_value()) {
+			return false;
+		}
+		if (std::string_view{(*entry)->name} == "PEAKS") {
+			return (*entry)->is_hidden;
+		}
+	}
+}
+
 bool onCard(std::string_view path) {
 	return deluge::io::File::open(path, DELUGE_FILE_READ).has_value();
 }
@@ -272,6 +290,17 @@ void runStep() {
 			       g_sample->sidecar.written, sound ? 1 : 0, noTmp ? 1 : 0, pathOf(*g_sample, SidecarFile::PK).c_str());
 			if (!key || !sound || !noTmp) {
 				g_report.fail("a complete index must leave a sound sidecar and no .TMP");
+			}
+			next(Stage::AwaitHidden);
+		}
+		return;
+
+	case Stage::AwaitHidden:
+		// Every tick polls the card's listing; only every hundredth step, so the checks do not crowd the channel.
+		if ((g_steps % 100) == 0 && waited(peaksHidden(), "DELUGE/PEAKS hidden after the first write")) {
+			printf("PS-HIDDEN hidden=%d\n", peaksHidden() ? 1 : 0);
+			if (!peaksHidden()) {
+				g_report.fail("the sidecars' folder must be hidden after the session's first write");
 			}
 			g_scan.arm(*g_sample, kDefaultLimits);
 			next(Stage::DetectPitch);

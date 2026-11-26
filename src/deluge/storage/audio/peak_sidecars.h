@@ -42,12 +42,16 @@ namespace deluge::storage {
 /// sample's key and restores it into the index. A sidecar that fails a check is deleted, so a correct one replaces
 /// it. At most once a second, the loaded samples are searched for one whose sidecar is due (shouldWriteSidecar):
 /// it is written as `.TMP`, the old `.PK` removed, and the `.TMP` renamed over it, so a crash leaves the old sidecar
-/// or none, never a torn one. Every operation starts only when the card may be used and is collected on a later tick,
+/// or none, never a torn one. After the session's first successful write the folder is marked hidden, once. Every
+/// operation starts only when the card may be used and the byte channel has finished nothing for kQuietSeconds, so the
+/// sidecars, which are idle work, never keep the browser's own requests waiting, and is collected on a later tick,
 /// never waited for.
 class PeakSidecars {
 public:
 	/// @brief Room past the peak section that a read allows for the other sections this firmware writes.
 	static constexpr uint32_t kExtraCap = 1024;
+	/// @brief How long the byte channel must have finished nothing before a sidecar operation starts, in seconds.
+	static constexpr double kQuietSeconds = 0.3;
 
 	/// @brief Look up @p sample's sidecar on a later tick. Thread mode.
 	void wantLoad(const Sample& sample);
@@ -60,7 +64,7 @@ public:
 	[[nodiscard]] bool busy() const;
 
 private:
-	enum class Op : uint8_t { None, Read, Unlink, WriteTmp, ReplaceUnlink, Rename };
+	enum class Op : uint8_t { None, Read, Unlink, WriteTmp, ReplaceUnlink, Rename, Hide };
 
 	/// @brief A small ring of values, oldest first; a full ring drops its oldest.
 	template <typename T, size_t N>
@@ -92,6 +96,11 @@ private:
 	std::array<char, 32> pkPath_{};  ///< the write's `.PK`
 	uint32_t writtenComplete_{0};    ///< complete level-1 entries in the sidecar being written
 	double lastSearch_{-1};          ///< when the loaded samples were last searched for a due write, in seconds
+	bool hideWanted_{false};         ///< a write succeeded and the folder is not hidden yet this session
+	bool hidden_{false};             ///< the folder was marked hidden this session
+	uint32_t channelMark_{0};        ///< deluge_file_bytes_progress() when last read
+	bool channelMarkSeen_{false};    ///< channelMark_ holds a reading
+	double quietSince_{0};           ///< when the channel last finished something, in seconds
 	Ring<uint32_t, 8> unlinks_;
 	Op op_{Op::None};
 	uint64_t opSerial_{0};

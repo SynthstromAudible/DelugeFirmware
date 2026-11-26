@@ -116,10 +116,27 @@ PLACE_SDRAM_TEXT void PeakSidecars::tick(AudioFileVector& files, bool cardReady)
 	case Op::Rename:
 		collectWriteStep(files);
 		return;
+	case Op::Hide: {
+		DelugeStatus result = DELUGE_OK;
+		const DelugeChannelStatus status = deluge_file_bytes_collect_set_hidden(kSidecarDir.data(), &result);
+		if (status != DELUGE_CHANNEL_PENDING) {
+			op_ = Op::None;
+			hidden_ = status == DELUGE_CHANNEL_READY; // a failure asks again after the next write
+			hideWanted_ = false;
+		}
+		return;
+	}
 	case Op::None:
 		break;
 	}
-	if (!cardReady) {
+	// Idle work: wait until the channel has finished nothing for a while, so no one else's request is refused for ours.
+	const double now = getSystemTime();
+	if (const uint32_t mark = deluge_file_bytes_progress(); !channelMarkSeen_ || mark != channelMark_) {
+		channelMark_ = mark;
+		channelMarkSeen_ = true;
+		quietSince_ = now;
+	}
+	if (!cardReady || now - quietSince_ < kQuietSeconds) {
 		return;
 	}
 	if (next_ != Op::None) {
@@ -129,7 +146,12 @@ PLACE_SDRAM_TEXT void PeakSidecars::tick(AudioFileVector& files, bool cardReady)
 	if (pendingFree_ != nullptr) {
 		return;
 	}
-	if (unlinks_.count != 0) {
+	if (hideWanted_ && !hidden_) {
+		if (deluge_file_bytes_request_set_hidden(kSidecarDir.data())) {
+			op_ = Op::Hide;
+		}
+	}
+	else if (unlinks_.count != 0) {
 		startUnlink();
 	}
 	else if (loads_.count != 0) {
@@ -265,6 +287,7 @@ PLACE_SDRAM_TEXT void PeakSidecars::finishWrite(AudioFileVector& files, bool ok)
 	}
 	if (ok) {
 		sample->sidecar.written = writtenComplete_;
+		hideWanted_ = !hidden_;
 	}
 	else {
 		sample->sidecar.failures++;

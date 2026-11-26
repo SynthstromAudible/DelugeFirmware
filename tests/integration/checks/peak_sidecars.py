@@ -2,6 +2,7 @@
 
 Drives one sample per behaviour through the idle job's sidecar machine and reads the card directly:
     PS-WRITE            a complete index leaves a sound sidecar under its key and no .TMP
+    PS-HIDDEN           after the session's first write, DELUGE/PEAKS is hidden
     PS-PITCH-WRITE      a detected pitch is written to the sidecar's PTCH section
     PS-RELOAD           a reloaded sample's index is complete from its sidecar alone (the scan held off)
     PS-PITCH            and it answers its detected pitch without a detection
@@ -16,7 +17,8 @@ Drives one sample per behaviour through the idle job's sidecar machine and reads
 
 Gate peak-sidecars:
     a sample's sidecar through the card. One sample per behaviour, driven through the idle job's sidecar machine, the
-    card read back directly: a complete index's sidecar is sound and leaves no .TMP; a detected pitch is written to the
+    card read back directly: a complete index's sidecar is sound and leaves no .TMP, and the folder is hidden after the
+    session's first write; a detected pitch is written to the
     PTCH section; a reload completes the index from the sidecar alone with the background scan held off, and answers
     the pitch without a detection; a file changed on a computer has its sidecar refused and rewritten under the new
     key; a sidecar damaged on the card is refused and removed; a full or write-protected card (host write faults) is tried twice, then left alone; a stray .TMP is

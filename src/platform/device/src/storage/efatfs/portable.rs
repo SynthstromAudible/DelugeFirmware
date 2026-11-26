@@ -26,8 +26,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use embedded_fatfs::{
-    Date, DateTime, File, FileContext, FileSystem, OemCpConverter, ReadWriteSeek, Time,
-    TimeProvider,
+    Date, DateTime, File, FileAttributes, FileContext, FileSystem, OemCpConverter, ReadWriteSeek,
+    Time, TimeProvider,
 };
 // embedded-fatfs keeps its own `io` traits `pub(crate)`; `File` implements the public
 // `embedded_io_async` ones.
@@ -928,6 +928,28 @@ where
 {
     let root = fs.root_dir();
     root.rename(old, &root, new)
+        .await
+        .map_err(|e| error_to_status(&e))
+}
+
+/// Marks the file or directory at `path` hidden, keeping its other attributes. Errors map through
+/// [`error_to_status`].
+pub async fn set_hidden<IO, TP, OCC>(
+    fs: &FileSystem<IO, TP, OCC>,
+    path: &str,
+) -> Result<(), DelugeStatus>
+where
+    IO: ReadWriteSeek,
+    TP: TimeProvider,
+    OCC: OemCpConverter,
+{
+    let root = fs.root_dir();
+    let attrs = root
+        .open_meta(path)
+        .await
+        .map_err(|e| error_to_status(&e))?
+        .attributes();
+    root.set_attributes(path, attrs | FileAttributes::HIDDEN)
         .await
         .map_err(|e| error_to_status(&e))
 }

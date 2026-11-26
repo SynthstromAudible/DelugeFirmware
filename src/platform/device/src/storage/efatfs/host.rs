@@ -1217,6 +1217,16 @@ pub extern "C" fn deluge_efatfs_rename(
     }
 }
 
+/// Marks a file or directory hidden; see [`portable::set_hidden`].
+///
+/// `pub(crate)` so the byte channel's driver can await it.
+pub(crate) async fn task_set_hidden(path: &str) -> Result<(), DelugeStatus> {
+    match with_fs(async |fs| portable::set_hidden(fs, path).await).await {
+        Some(result) => result,
+        None => Err(DELUGE_ERR_NO_FILESYSTEM),
+    }
+}
+
 /// Sets a file or directory's modification time from decomposed fields (packed by
 /// [`portable::pack_timestamp`]).
 ///

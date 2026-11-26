@@ -153,6 +153,7 @@ pub enum ByteOp {
     DirExists,
     MkdirAll,
     SetTime,
+    SetHidden,
     ReadAt,
     WriteAt,
     Stat,
@@ -484,6 +485,8 @@ pub trait ByteOps {
     async fn mkdir_all(&self, path: &str) -> Result<(), i8>;
     /// Sets `path`'s modification time.
     async fn set_time(&self, path: &str, timestamp: FileTimestamp) -> Result<(), i8>;
+    /// Marks the file or directory at `path` hidden, keeping its other attributes.
+    async fn set_hidden(&self, path: &str) -> Result<(), i8>;
     /// Reads up to `into.len()` bytes from `path` at `offset`, returning how many. A short result
     /// means end-of-file, not failure.
     async fn read_at(&self, path: &str, offset: u32, into: &mut [u8]) -> Result<usize, i8>;
@@ -543,6 +546,9 @@ pub enum ByteRequest {
         path: BytesPath,
         timestamp: FileTimestamp,
     },
+    SetHidden {
+        path: BytesPath,
+    },
     ReadAt {
         path: BytesPath,
         offset: u32,
@@ -589,6 +595,7 @@ impl ByteRequest {
             Self::DirExists { path } => (ByteOp::DirExists, path.as_str()),
             Self::MkdirAll { path } => (ByteOp::MkdirAll, path.as_str()),
             Self::SetTime { path, .. } => (ByteOp::SetTime, path.as_str()),
+            Self::SetHidden { path } => (ByteOp::SetHidden, path.as_str()),
             Self::ReadAt { path, .. } => (ByteOp::ReadAt, path.as_str()),
             Self::WriteAt { path, .. } => (ByteOp::WriteAt, path.as_str()),
             Self::Stat { path } => (ByteOp::Stat, path.as_str()),
@@ -610,6 +617,7 @@ impl ByteRequest {
             Self::DirExists { path } => (ByteOp::DirExists, path.clone()),
             Self::MkdirAll { path } => (ByteOp::MkdirAll, path.clone()),
             Self::SetTime { path, .. } => (ByteOp::SetTime, path.clone()),
+            Self::SetHidden { path } => (ByteOp::SetHidden, path.clone()),
             Self::ReadAt { path, .. } => (ByteOp::ReadAt, path.clone()),
             Self::WriteAt { path, .. } => (ByteOp::WriteAt, path.clone()),
             Self::Stat { path } => (ByteOp::Stat, path.clone()),
@@ -661,6 +669,7 @@ pub async fn bytes_io_once<O: ByteOps>(
         ByteRequest::Unlink { path } => ops.unlink(path).await,
         ByteRequest::MkdirAll { path } => ops.mkdir_all(path).await,
         ByteRequest::SetTime { path, timestamp } => ops.set_time(path, *timestamp).await,
+        ByteRequest::SetHidden { path } => ops.set_hidden(path).await,
         ByteRequest::Copy { from, to } => ops.copy_file(from, to, work).await,
         ByteRequest::ReadAt { path, offset, len } => {
             let into = &mut work[..(*len as usize).min(BLOCK_BYTES)];
@@ -1041,6 +1050,20 @@ pub unsafe extern "C" fn deluge_file_bytes_request_set_time(
         second: timestamp.second,
     };
     enqueue_request(ByteRequest::SetTime { path, timestamp }, &[])
+}
+
+/// Requests that the file or directory at `path` be marked hidden. Returns `false` when refused.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. It is copied out before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_set_hidden(path: *const c_char) -> bool {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return false;
+    };
+    enqueue_request(ByteRequest::SetHidden { path }, &[])
 }
 
 /// Requests up to `len` (at most [`BLOCK_BYTES`]) bytes from `path` at `offset`. Returns `false`
@@ -1469,6 +1492,21 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_mkdir_all(
 ) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::MkdirAll, path, out_status) }
+}
+
+/// Collects the outcome of the hide of `path`, if it has finished.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`,
+/// written only on [`DELUGE_CHANNEL_FAILED`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_set_hidden(
+    path: *const c_char,
+    out_status: *mut i8,
+) -> DelugeChannelStatus {
+    // SAFETY: the caller's contract, above.
+    unsafe { collect_completion(ByteOp::SetHidden, path, out_status) }
 }
 
 /// Collects the outcome of the timestamp write for `path`, if it has finished.
@@ -2026,6 +2064,10 @@ impl ByteOps for ProdByteOps {
         Ok(())
     }
 
+    async fn set_hidden(&self, path: &str) -> Result<(), i8> {
+        backing::task_set_hidden(path).await
+    }
+
     async fn set_time(&self, path: &str, timestamp: FileTimestamp) -> Result<(), i8> {
         backing::task_set_time(
             path,
@@ -2345,6 +2387,7 @@ abi_pin!(
     deluge_file_bytes_collect_read,
     deluge_file_bytes_collect_read_at,
     deluge_file_bytes_collect_rename,
+    deluge_file_bytes_collect_set_hidden,
     deluge_file_bytes_collect_set_time,
     deluge_file_bytes_collect_stat,
     deluge_file_bytes_collect_unlink,
@@ -2357,6 +2400,7 @@ abi_pin!(
     deluge_file_bytes_request_read,
     deluge_file_bytes_request_read_at,
     deluge_file_bytes_request_rename,
+    deluge_file_bytes_request_set_hidden,
     deluge_file_bytes_request_set_time,
     deluge_file_bytes_request_stat,
     deluge_file_bytes_request_unlink,
