@@ -133,13 +133,6 @@ public:
 	/// @brief Adopt the pitches a sidecar holds, if this sample has none yet (a detection made while the sidecar was
 	///        in flight is kept).
 	void restorePitches(std::span<const uint8_t> ptch);
-	/// @brief Take the file's identity from the stream if it is not known yet: a finished take, once its stream is
-	///        open. No card access.
-	void refreshIdentity() {
-		if (!identity_) {
-			identity_ = stream_.identity();
-		}
-	}
 
 	/// @brief Make this sample a new, empty peak index, dropping any it had, and bind it to the stream asset if there
 	///        is one. Thread mode.

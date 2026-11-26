@@ -51,8 +51,6 @@ public:
 
 	/// @brief Look up @p sample's sidecar on a later tick. Thread mode.
 	void wantLoad(const Sample& sample);
-	/// @brief Consider @p sample for a write before the others on the next search: a finished take. Thread mode.
-	void wantWrite(const Sample& sample);
 	/// @brief One step: collect the operation in flight, or start the next. Thread mode, idle job.
 	/// @param files     The loaded audio files, searched by serial.
 	/// @param cardReady Whether a new card operation may start: the card is present and not busy, and the audio
@@ -89,7 +87,6 @@ private:
 	void releaseBuffer();
 
 	Ring<uint64_t, 16> loads_;
-	Ring<uint64_t, 8> writeHints_;
 	Op next_{Op::None};              ///< the write's next step, started when the card may be used
 	std::array<char, 32> tmpPath_{}; ///< the write's `.TMP`
 	std::array<char, 32> pkPath_{};  ///< the write's `.PK`

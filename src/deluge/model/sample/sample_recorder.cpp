@@ -751,9 +751,6 @@ Error SampleRecorder::finalizeBookkeeping() {
 	else {
 		deluge_peaks_set_frames(sample->peaks(), sample->lengthInSamples, true);
 		deluge_peaks_take_finish(takePeaks_, sample->peaks());
-		// A new file has no sidecar to look up; its index is whole, so it is written once its identity is known.
-		sample->sidecar.looked = true;
-		audioFileManager.peakSidecars().wantWrite(*sample);
 	}
 
 	if (sample->tempFilePathForRecording.empty()) {

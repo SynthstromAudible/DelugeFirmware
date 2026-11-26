@@ -40,7 +40,8 @@ PLACE_SDRAM_TEXT Sample* sampleBySerial(AudioFileVector& files, uint64_t serial)
 
 /// @brief What the write rule reads about @p sample.
 PLACE_SDRAM_TEXT SidecarProgress progressOf(Sample& sample) {
-	sample.refreshIdentity(); // a finished take learns its file's identity once its stream is open
+	// A take recording or just finished has no identity (its file is not open for reading), so it is not keyed: its
+	// sidecar is written when it is next loaded from the card, like any file.
 	DelugePeakIndex* peaks = sample.peaks();
 	return {.keyed = sample.fileIdentity().has_value() && peaks != nullptr,
 	        .looked = sample.sidecar.looked,
@@ -94,10 +95,6 @@ PLACE_SDRAM_TEXT void PeakSidecars::wantLoad(const Sample& sample) {
 	loads_.push(sample.serial);
 }
 
-PLACE_SDRAM_TEXT void PeakSidecars::wantWrite(const Sample& sample) {
-	writeHints_.push(sample.serial);
-}
-
 PLACE_SDRAM_TEXT bool PeakSidecars::busy() const {
 	return op_ != Op::None || next_ != Op::None || loads_.count != 0 || unlinks_.count != 0;
 }
@@ -145,24 +142,15 @@ PLACE_SDRAM_TEXT void PeakSidecars::tick(AudioFileVector& files, bool cardReady)
 
 PLACE_SDRAM_TEXT void PeakSidecars::startWrite(AudioFileVector& files) {
 	const double now = getSystemTime();
-	const bool hinted = writeHints_.count != 0;
-	if (!hinted && lastSearch_ >= 0 && now - lastSearch_ < 1.0) {
+	if (lastSearch_ >= 0 && now - lastSearch_ < 1.0) {
 		return;
 	}
+	lastSearch_ = now;
 	Sample* due = nullptr;
-	while (due == nullptr && writeHints_.count != 0) {
-		Sample* s = sampleBySerial(files, *writeHints_.pop());
-		if (s != nullptr && shouldWriteSidecar(progressOf(*s))) {
-			due = s;
-		}
-	}
-	if (due == nullptr) {
-		lastSearch_ = now;
-		for (AudioFile* f : files) {
-			if (AudioFile::isSample(f) && shouldWriteSidecar(progressOf(*static_cast<Sample*>(f)))) {
-				due = static_cast<Sample*>(f);
-				break;
-			}
+	for (AudioFile* f : files) {
+		if (AudioFile::isSample(f) && shouldWriteSidecar(progressOf(*static_cast<Sample*>(f)))) {
+			due = static_cast<Sample*>(f);
+			break;
 		}
 	}
 	if (due == nullptr) {
@@ -388,7 +376,6 @@ PLACE_SDRAM_TEXT void PeakSidecars::releaseBuffer() {
 }
 
 template struct PeakSidecars::Ring<uint64_t, 16>;
-template struct PeakSidecars::Ring<uint64_t, 8>;
 template struct PeakSidecars::Ring<uint32_t, 8>;
 
 } // namespace deluge::storage
