@@ -17,7 +17,14 @@
     },
     {
       "head": "Affect entire",
-      "match": ["affect-entire", "affect entire"]
+      "match": ["affect-entire", "affect entire"],
+      "refs": [
+        {
+          "label": "Editing every note row at once",
+          "href": "/guidebook/06-automation/03-velocity-view#editing-every-note-row-at-once",
+          "section": "6.3"
+        }
+      ]
     },
     {
       "head": "Affect group",
