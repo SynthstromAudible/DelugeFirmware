@@ -1464,21 +1464,33 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 	return {PitchVerdict::Kind::Found, freq};
 }
 
+Sample::FoundRange Sample::foundRange() const {
+	// The peak index's range, at the 32-bit scale the drawing works in; nothing scanned yet reads as silence.
+	const DelugeMaybePeak range = deluge_peaks_range(peaks_);
+	if (!range.has) {
+		return {};
+	}
+	return {.min = static_cast<int32_t>(range.peak.min) * 65536, .max = static_cast<int32_t>(range.peak.max) * 65536};
+}
+
 int32_t Sample::getMaxPeakFromZero() {
+	const auto [minValue, maxValue] = foundRange();
 	// Comes out one >> of the value we actually want
-	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValueFound >> 2) - (minValueFound >> 2);
+	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValue >> 2) - (minValue >> 2);
 
 	// Doubled, held to 31 bits first: a clipped recording's peak would otherwise overflow
 	return scale_shl_clamp_then_shift<1>(deluge::dsp::Q<31>::from_raw(halfValue)).raw();
 }
 
 int32_t Sample::getFoundValueCentrePoint() {
-	return (maxValueFound >> 1) + (minValueFound >> 1);
+	const auto [minValue, maxValue] = foundRange();
+	return (maxValue >> 1) + (minValue >> 1);
 }
 
 // Returns the value span divided by display height
 int32_t Sample::getValueSpan() {
-	return (maxValueFound >> kDisplayHeightMagnitude) - (minValueFound >> kDisplayHeightMagnitude);
+	const auto [minValue, maxValue] = foundRange();
+	return (maxValue >> kDisplayHeightMagnitude) - (minValue >> kDisplayHeightMagnitude);
 }
 
 void Sample::finalizeAfterLoad(uint32_t fileSize) {

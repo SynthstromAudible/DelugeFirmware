@@ -34,12 +34,10 @@ public:
 	WaveformRenderer();
 
 	bool renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
-	                      RGB thisImage[][kDisplayWidth + kSideBarWidth],
-	                      deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder = nullptr,
+	                      RGB thisImage[][kDisplayWidth + kSideBarWidth], SampleRecorder* recorder = nullptr,
 	                      std::optional<RGB> rgb = std::nullopt, bool reversed = false, int32_t xEnd = kDisplayWidth);
-	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage,
-	                       deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder, RGB rgb,
-	                       bool reversed, int32_t xStart, int32_t xEnd);
+	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage, SampleRecorder* recorder,
+	                       RGB rgb, bool reversed, int32_t xStart, int32_t xEnd);
 	void renderOneCol(Sample* sample, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth],
 	                  const deluge::ui::views::waveform::PeakRead& read, bool reversed = false,
 	                  std::optional<RGB> rgb = std::nullopt);

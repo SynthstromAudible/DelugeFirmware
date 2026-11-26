@@ -39,6 +39,8 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
+#include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "ui/views/waveform/peaks.h"
@@ -552,7 +554,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 		sampleMaxPeakFromZero = 1;
 		sampleValueCentrePoint = 0;
 		sampleValueSpan = 1;
-		waveformColumns = clip->renderData.columns();
+		waveformColumns = deluge::ui::views::waveform::PeakRead::all_past_end();
 		return;
 	}
 
@@ -560,7 +562,14 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	sampleValueCentrePoint = sample->getFoundValueCentrePoint();
 	sampleValueSpan = sample->getValueSpan();
 
-	waveformColumns = clip->renderData.columns();
+	// The clip view's columns, at the scroll and zoom it shows.
+	int64_t xScrollSamples = 0;
+	int64_t xZoomSamples = 0;
+	clip->getScrollAndZoomInSamples(currentSong->persistentView.xScroll[NAVIGATION_CLIP],
+	                                currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples, &xZoomSamples);
+	waveformColumns = deluge::sample::waveform_columns(
+	    *sample, clip->recorder != nullptr ? std::optional<uint64_t>{clip->recorder->numSamplesCaptured} : std::nullopt,
+	    {.scroll = xScrollSamples, .zoom = xZoomSamples});
 }
 
 void renderAudioClipCollapseAnimation(int32_t progress) {

@@ -110,6 +110,14 @@ public:
 	/// window's lowest pixel. Nullopt where no filled zone holds the pixel.
 	std::optional<deluge::dsp::fixed::timestretch::PercWindow>
 	perc_at(int32_t pixel, deluge::dsp::fixed::sample_read::Direction direction);
+	/// @brief The lowest and highest sample value the peak index has found, at 32-bit scale.
+	struct FoundRange {
+		int32_t min{0}; ///< the lowest value
+		int32_t max{0}; ///< the highest value
+	};
+	/// @return The range over every block scanned so far; zeros before the first.
+	[[nodiscard]] FoundRange foundRange() const;
+
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
 	int32_t getValueSpan();

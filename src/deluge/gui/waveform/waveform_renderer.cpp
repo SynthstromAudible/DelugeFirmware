@@ -39,17 +39,23 @@
 
 WaveformRenderer waveformRenderer{};
 
+namespace {
+/// The frames a recorder has captured, or nothing for a finished file.
+std::optional<uint64_t> captured(const SampleRecorder* recorder) {
+	return recorder != nullptr ? std::optional<uint64_t>{recorder->numSamplesCaptured} : std::nullopt;
+}
+} // namespace
+
 WaveformRenderer::WaveformRenderer() {
 }
 
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
 bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
-                                        RGB thisImage[][kDisplayWidth + kSideBarWidth],
-                                        deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder,
+                                        RGB thisImage[][kDisplayWidth + kSideBarWidth], SampleRecorder* recorder,
                                         std::optional<RGB> rgb, bool reversed, int32_t xEnd) {
 
-	const deluge::ui::views::waveform::PeakRead read = deluge::sample::find_peaks_per_col(
-	    *sample, {.scroll = static_cast<int64_t>(xScroll), .zoom = static_cast<int64_t>(xZoom)}, cache, recorder);
+	const deluge::ui::views::waveform::PeakRead read = deluge::sample::waveform_columns(
+	    *sample, captured(recorder), {.scroll = static_cast<int64_t>(xScroll), .zoom = static_cast<int64_t>(xZoom)});
 	if (read.pending()) {
 		return false;
 	}
@@ -68,8 +74,8 @@ bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64
 
 // Returns false if had trouble loading some (will often not be all) Clusters
 bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage,
-                                         deluge::app::ports::waveforms::PeakCache& cache, SampleRecorder* recorder,
-                                         RGB rgb, bool reversed, int32_t xStart, int32_t xEnd) {
+                                         SampleRecorder* recorder, RGB rgb, bool reversed, int32_t xStart,
+                                         int32_t xEnd) {
 
 	int32_t xStartSource = xStart;
 	int32_t xEndSource = xEnd;
@@ -78,8 +84,8 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 		xEndSource = kDisplayWidth - 1 - xStart;
 	}
 
-	const deluge::ui::views::waveform::PeakRead read = deluge::sample::find_peaks_per_col(
-	    *sample, {.scroll = xScroll, .zoom = static_cast<int64_t>(xZoom)}, cache, recorder, xStartSource, xEndSource);
+	const deluge::ui::views::waveform::PeakRead read = deluge::sample::waveform_columns(
+	    *sample, captured(recorder), {.scroll = xScroll, .zoom = static_cast<int64_t>(xZoom)});
 	if (read.pending(xStartSource, xEndSource)) {
 		return false;
 	}

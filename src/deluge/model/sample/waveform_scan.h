@@ -31,6 +31,7 @@
 #include "definitions_cxx.hpp"
 
 #include <cstdint>
+#include <optional>
 
 class Sample;
 class SampleRecorder;
@@ -52,6 +53,19 @@ namespace deluge::sample {
 [[nodiscard]] deluge::ui::views::waveform::PeakRead read_columns(Sample& sample, SampleRecorder* recorder,
                                                                  deluge::ui::views::waveform::Window at,
                                                                  deluge::app::ports::waveforms::ColumnMask wanted);
+
+/// @brief The sample's 16 columns at @p at, read from its peak index: each column's exact peak over every frame it
+///        covers. PAST_END outside the frames the sample holds (a take: the frames captured, and a column not wholly
+///        captured yet); PENDING where a block under it is not scanned yet, or the frames at its ends are not resident.
+///
+/// A pure function of the sample's data: it keeps no state of its own. Frames read at a column's ends are folded back
+/// into the index, so the next read finds them kept.
+/// @param sample   The sample.
+/// @param captured The frames a recorder has captured, or nullopt for a finished file.
+/// @param at       The window. A zoom below 1 answers every column PAST_END.
+/// @return The answers, peaks at 32-bit scale.
+[[nodiscard]] deluge::ui::views::waveform::PeakRead waveform_columns(Sample& sample, std::optional<uint64_t> captured,
+                                                                     deluge::ui::views::waveform::Window at);
 
 /// @brief The legacy views' scan: @p cache brought to @p at for [@p first, @p last), reading through
 ///        @ref read_columns what it lacks.

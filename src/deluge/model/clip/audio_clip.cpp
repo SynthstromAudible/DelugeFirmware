@@ -1125,8 +1125,8 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 		RGB rgb = getColour();
 
-		success = waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, renderData, recorder,
-		                                             rgb, sampleControls.isCurrentlyReversed(), xStart, xEnd);
+		success = waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, recorder, rgb,
+		                                             sampleControls.isCurrentlyReversed(), xStart, xEnd);
 	}
 
 	else {
