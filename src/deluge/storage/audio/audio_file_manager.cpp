@@ -1488,11 +1488,11 @@ Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const
 /// the header parse's define_asset) ran while the geometry was still zero, and a zero frame stride
 /// makes every fill-context consumer resolve nothing for this sample.
 ///
-/// Finalizes and publishes fully -- geometry clamp, pre-scan re-arm, and dropping the protect-during-
-/// setup reason -- so a direct caller (the C ABI among them) can't land a half-finished Sample in
-/// audioFiles: one that's inserted but still holds its setup reason forever (unevictable) and never had
-/// its geometry clamped/quantized by finalizeAfterLoad. @p sizeBytes must be the same value passed to
-/// the matching beginSampleFromCard.
+/// Finalizes and publishes fully -- geometry clamp and a fresh peak index (finalizeAfterLoad), and
+/// dropping the protect-during-setup reason -- so a direct caller (the C ABI among them) can't land a half-finished
+/// Sample in audioFiles: one that's inserted but still holds its setup reason forever (unevictable) and never had its
+/// geometry clamped/quantized by finalizeAfterLoad. @p sizeBytes must be the same value passed to the matching
+/// beginSampleFromCard.
 AudioFile* AudioFileManager::finishSampleFromCard(Sample* sampleFile, uint64_t sizeBytes, Error* error) {
 	if (sampleFile == nullptr) {
 		return nullptr;
