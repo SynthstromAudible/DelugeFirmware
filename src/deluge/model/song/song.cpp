@@ -344,6 +344,7 @@ Song::~Song() {
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
+#include "model/project_bridge/param_stack.h"
 #include "util/structural_edit_probe.h"
 
 namespace {
@@ -3210,11 +3211,15 @@ void Song::setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction) 
 	setTimePerTimerTick(newTimePerTimerTickBig, shouldLogAction);
 }
 
+namespace {
+/// The song's tempo param's address.
+deluge::project::ParamAddress tempoAddress() {
+	return deluge::bridge::addressOf(deluge::project::OwnerId::song(), params::Kind::UNPATCHED_GLOBAL,
+	                                 params::UnpatchedGlobal::UNPATCHED_TEMPO);
+}
+} // namespace
+
 void Song::setBPM(float tempoBPM, bool shouldLogAction) {
-	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	auto intTempo = (int32_t)(tempoBPM * 100);
 	int32_t pos = -1;   // means use the live position
@@ -3230,34 +3235,30 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 		uint32_t x_scroll = persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 		int32_t x_zoom = persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 		pos = arrangerView.getPosFromSquare(arrangerView.xPressed, x_scroll, x_zoom);
-		length = std::min<int32_t>(tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false),
-		                           arrangerView.getMaxLength());
+		if (const std::optional<deluge::bridge::LaneTarget> tempo = deluge::bridge::lane_at(*this, tempoAddress())) {
+			// The distance query still takes an engine stack.
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* tempoParam = deluge::bridge::stack_of(*tempo, modelStackMemory);
+			length = std::min<int32_t>(tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false),
+			                           arrangerView.getMaxLength());
+		}
 	}
 
 	// Scalar tempo edit (length 0 => the scalar branch's implicit livePos -1). recordUnautomatedParamChange
 	// early-returns for UNPATCHED_TEMPO (tempo has its own recordTempoChange), so this opens no Action;
 	// shouldLogAction is used below for setBPMInner. A held arranger pad makes it a region edit instead.
 	deluge::edits::Context editCtx{*this, this->project};
-	if (const std::optional<deluge::project::ParamAddress> editAddress = deluge::edits::addressFor(*tempoParam)) {
-		deluge::edits::SetParamValue edit{*editAddress, intTempo, pos, length,
-		                                  deluge::edits::SetParamValue::Resolve::EXACT};
-		deluge::edits::apply(editCtx, edit);
-	}
+	deluge::edits::SetParamValue edit{tempoAddress(), intTempo, pos, length,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT};
+	deluge::edits::apply(editCtx, edit);
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
 void Song::clearTempoAutomation() {
-	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
-	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	deluge::edits::Context editCtx{*this, this->project};
-	if (const std::optional<deluge::project::ParamAddress> editAddress = deluge::edits::addressFor(*tempoParam)) {
-		deluge::edits::DeleteParamAutomation edit{*editAddress, ActionAddition::ALLOWED,
-		                                          deluge::edits::SetParamValue::Resolve::EXACT};
-		deluge::edits::apply(editCtx, edit);
-	}
+	deluge::edits::DeleteParamAutomation edit{tempoAddress(), ActionAddition::ALLOWED,
+	                                          deluge::edits::SetParamValue::Resolve::EXACT};
+	deluge::edits::apply(editCtx, edit);
 	deluge::base::notify::notice(l10n::String::STRING_FOR_AUTOMATION_CLEARED);
 }
 
