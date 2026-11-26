@@ -4,7 +4,7 @@
 #include "ui/scenes/recorder/recorder_scene.h"
 
 #include "base/error.h"
-#include "definitions_cxx.hpp" // kSampleRate
+#include "base/sample_rate.h"
 #include "ui/widgets/oled/frame.h"
 #include "ui/widgets/oled/text.h"
 
@@ -431,7 +431,7 @@ deluge::ui::widgets::oled::ThresholdMeter RecorderScene::meter_state(int32_t wid
 	// The meter's ends from the input's levels (a mono take shows its one channel on both), the threshold's x, and the
 	// blink, on the audio clock legacy blinks by.
 	const uint32_t frames = ctx_.ports.audio != nullptr ? ctx_.ports.audio->audio_sample_timer() : 0;
-	const auto animation_ms = static_cast<uint32_t>(static_cast<uint64_t>(frames) * 1000 / kSampleRate);
+	const auto animation_ms = static_cast<uint32_t>(static_cast<uint64_t>(frames) * 1000 / base::kSampleRate);
 	const bind::InputLevels level = takes() != nullptr ? takes()->take_levels() : bind::InputLevels{};
 	const bind::InputTake t = take().value_or(bind::InputTake{});
 	const float right = t.channels == 2 ? level.right : level.left;

@@ -82,7 +82,6 @@
 ///          (`SampleMarkerEditor::padAction`, `SampleMarkerEditor::horizontalEncoderAction`), which defers and retries;
 ///          its port is `InputLowering::set_sd_busy`, which is not an `Action` and is not this scene's to file.
 
-#include "definitions_cxx.hpp" // kSampleMarkerBlinkTime
 #include "project/sample_marker.h"
 #include "ui/scenes/bind/ports/waveforms.h"
 #include "ui/scenes/menu/context.h"
@@ -90,6 +89,7 @@
 #include "ui/scenes/services/view_state.h"
 #include "ui/shell/scene.h"
 #include "ui/views/waveform/view.h"
+#include "ui/widgets/core/metrics.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/grid/effects.h"
 #include "ui/widgets/grid/markers.h"
@@ -122,8 +122,8 @@ namespace deluge::ui::scenes::marker {
 inline constexpr deluge::ui::shell::SceneKind kMarkerSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 4);
 
-/// @brief How long one blink phase lasts. Legacy's `kSampleMarkerBlinkTime` (`definitions_cxx.hpp`).
-inline constexpr uint32_t kBlinkPhaseMs = static_cast<uint32_t>(kSampleMarkerBlinkTime);
+/// @brief How long one blink phase lasts: `widgets::core::kSampleMarkerBlinkTime`, legacy's blink half-period.
+inline constexpr uint32_t kBlinkPhaseMs = static_cast<uint32_t>(widgets::core::kSampleMarkerBlinkTime);
 
 /// @brief The four marker colours, in `project::SampleMarker` order.
 ///

@@ -3,8 +3,8 @@
 
 #include "ui/scenes/marker/marker_scene.h"
 
-#include "board_config.h"      // PLACE_SDRAM_TEXT
-#include "definitions_cxx.hpp" // kNumSources
+#include "board_config.h" // PLACE_SDRAM_TEXT
+#include "instruments/classic/words.h"
 #include "project/sample_marker.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/columns.h"
@@ -138,7 +138,7 @@ std::optional<bind::WaveformAddress> MarkerScene::address_of(const menu::MenuCon
 }
 
 const deluge::instruments::classic::SoundState* MarkerScene::sound_state() const {
-	if (ctx_.is_audio_clip || ctx_.ports.sound == nullptr || where_.source >= kNumSources) {
+	if (ctx_.is_audio_clip || ctx_.ports.sound == nullptr || where_.source >= instruments::classic::kSourceCount) {
 		return nullptr;
 	}
 	return ctx_.ports.sound->sound_state(where_.slot);

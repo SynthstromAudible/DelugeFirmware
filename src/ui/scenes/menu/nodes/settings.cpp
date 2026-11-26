@@ -36,7 +36,6 @@
 #include "ui/scenes/profile.h"         // deluge_profile() -- ditto
 #include "ui/scenes/registry.h"        // menu_scene()
 
-#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, NUM_GATE_CHANNELS
 #include "music/note_names.h"
 #include "project/device_settings.h"
 #include "project/midi_channels.h"
@@ -73,7 +72,7 @@ int32_t follow_channel_get(const MenuContext& ctx, project::FollowInput input) {
 	// `FollowChannel::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`): an
 	// input with no channel learned is unassigned, whatever its device.
 	const std::optional<bind::LearnedBinding> binding = follow_binding(ctx, input);
-	return binding && binding->channel_or_zone ? *binding->channel_or_zone : MIDI_CHANNEL_NONE;
+	return binding && binding->channel_or_zone ? *binding->channel_or_zone : kFollowChannelUnassigned;
 }
 
 void follow_channel_set(const MenuContext& ctx, project::FollowInput input, int32_t value) {
@@ -82,7 +81,7 @@ void follow_channel_set(const MenuContext& ctx, project::FollowInput input, int3
 	}
 	// `FollowChannel::selectEncoderAction`'s unassigned arm forgets the learned input, device and all; any other value
 	// is `writeCurrentValue`, which keeps the device.
-	if (value == MIDI_CHANNEL_NONE) {
+	if (value == kFollowChannelUnassigned) {
 		ctx.ports.learn->learn_follow(input, std::nullopt);
 		return;
 	}
@@ -114,7 +113,7 @@ bool follow_channel_unlearn(const MenuContext& ctx, project::FollowInput input) 
 }
 
 std::optional<int32_t> turn_follow_channel(const MenuContext&, int32_t value, int32_t offset) {
-	if (value == MIDI_CHANNEL_NONE) {
+	if (value == kFollowChannelUnassigned) {
 		if (offset > 0) {
 			return 0;
 		}
@@ -124,7 +123,7 @@ std::optional<int32_t> turn_follow_channel(const MenuContext&, int32_t value, in
 		return value;
 	}
 	const int32_t next = value + offset;
-	return next >= NUM_CHANNELS || next < 0 ? MIDI_CHANNEL_NONE : next;
+	return next >= project::kMidiChannelCount || next < 0 ? kFollowChannelUnassigned : next;
 }
 
 void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, deluge::ui::widgets::oled::OledFrame& f,
@@ -164,7 +163,7 @@ void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, del
 	else if (value == project::kMidiChannelUpperZone) {
 		channel_text = deluge::ui::scenes::text_lookup(sid(String::STRING_FOR_MPE_UPPER_ZONE));
 	}
-	else if (value == MIDI_CHANNEL_NONE) {
+	else if (value == kFollowChannelUnassigned) {
 		channel_text = deluge::ui::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED));
 	}
 	else {
@@ -225,7 +224,7 @@ const Node* gate_selection_chain(const MenuContext& ctx, const MenuState&) {
 	// backward arm (`nodes/dynamic.cpp`) needs a DIFFERENT value on the way back -- "the last real
 	// output", which `source_index` is not once this branch has been taken -- and gets it from its
 	// own `MenuState::real_output_choice` rather than by disturbing this read.
-	return ctx.source_index == NUM_GATE_CHANNELS ? &gate_off_time : &gate_mode;
+	return static_cast<std::size_t>(ctx.source_index) == project::kGateOutputCount ? &gate_off_time : &gate_mode;
 }
 
 // ---------------------------------------------------------------------------------------------

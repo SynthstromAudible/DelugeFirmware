@@ -198,11 +198,11 @@
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
 ///          `Action` in `ui/shell/scene.h`.
 
-#include "definitions_cxx.hpp" // kSampleMarkerBlinkTime
 #include "project/clip_address.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/timeline/timeline.h"
 #include "ui/shell/scene.h"
+#include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/frame.h"
 #include "ui/widgets/oled/frame.h"
 
@@ -228,13 +228,12 @@ class Song;
 
 namespace deluge::ui::scenes::audio_clip {
 
-/// @brief How long one blink phase lasts. Legacy's `kSampleMarkerBlinkTime`
-///        (`definitions_cxx.hpp`), the interval at which `AudioClipView::timerCallback` re-arms
-///        `TimerName::UI_SPECIFIC`.
+/// @brief How long one blink phase lasts: `widgets::core::kSampleMarkerBlinkTime` (`ui/widgets/core/metrics.h`), the
+///        interval at which `AudioClipView::timerCallback` re-arms `TimerName::UI_SPECIFIC`.
 ///
 /// Spelled through the constant rather than as a literal, exactly as
 /// `marker::kBlinkPhaseMs` is.
-inline constexpr uint32_t kMarkerBlinkMs = static_cast<uint32_t>(kSampleMarkerBlinkTime);
+inline constexpr uint32_t kMarkerBlinkMs = static_cast<uint32_t>(widgets::core::kSampleMarkerBlinkTime);
 
 /// @name The `currentUIMode` word, transcribed
 ///

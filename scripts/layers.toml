@@ -400,8 +400,10 @@ allow = [
     "project/arrangement.h",
     "project/drum_type.h",
     "project/launch_style.h",
+    "project/midi_channels.h",
     "project/midi_command.h",
     "project/sequence_direction.h",
+    "project/timeline_limits.h",
 ]
 transitive = true
 reason = "the synth library reaches no app layer, the legacy dsp library or the platform, directly or through another header"
