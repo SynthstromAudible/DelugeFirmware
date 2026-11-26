@@ -105,6 +105,8 @@ public:
 
 	/// Whether a thump is in progress (started, not yet settled)
 	[[nodiscard]] bool rising() const { return inThump_ && !thumps_[newest_].settled; }
+	/// Whether a thump is going on (from its onset until it has died away)
+	[[nodiscard]] bool inThump() const { return inThump_; }
 
 private:
 	Biquad highPass_;

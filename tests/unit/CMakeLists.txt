@@ -79,8 +79,9 @@ file(GLOB_RECURSE deluge_SOURCES
         # For note parameter lock tests
         ../../src/deluge/model/note/note_locks.cpp
         ../../src/deluge/model/note/note_lock_playback.cpp
-        # For mic velocity's thump detector
+        # For mic velocity's thump detector and echo canceller
         ../../src/deluge/dsp/mic_velocity/thump_detector.cpp
+        ../../src/deluge/dsp/mic_velocity/echo_canceller.cpp
 )
 
 add_executable(UnitTests
@@ -112,6 +113,7 @@ add_executable(UnitTests
         envelope_curve_tests.cpp
         note_locks_tests.cpp
         mic_velocity_detector_tests.cpp
+        mic_velocity_echo_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

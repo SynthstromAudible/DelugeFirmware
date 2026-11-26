@@ -3,17 +3,16 @@
 
 #include "CppUTest/TestHarness.h"
 #include "dsp/mic_velocity/thump_detector.h"
+#include "mic_velocity_test_data.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
-#include <fstream>
-#include <iterator>
 #include <numbers>
 #include <string>
 #include <vector>
 
 using namespace deluge::dsp::mic_velocity;
+using namespace mic_velocity_test;
 
 namespace {
 
@@ -93,41 +92,6 @@ float gainAt(Biquad f, float hz, float rate) {
 		}
 	}
 	return peak;
-}
-
-std::string dataPath(char const* name) {
-	return std::string(MIC_VELOCITY_TEST_DATA) + "/" + name;
-}
-
-/// A 16-bit mono WAV as q31 samples (the header is the plain 44-byte one the clips are written with)
-std::vector<int32_t> readClip(char const* name) {
-	std::ifstream file(dataPath(name), std::ios::binary);
-	std::vector<char> bytes((std::istreambuf_iterator<char>(file)), {});
-	std::vector<int32_t> samples;
-	for (size_t i = 44; i + 2 <= bytes.size(); i += 2) {
-		auto const s = static_cast<int16_t>(static_cast<uint8_t>(bytes[i]) | (static_cast<uint8_t>(bytes[i + 1]) << 8));
-		samples.push_back(static_cast<int32_t>(s) << 16);
-	}
-	return samples;
-}
-
-struct Tap {
-	Frame frame;
-	int32_t strength;
-	int32_t x, y;
-};
-
-std::vector<Tap> readLabels(char const* name) {
-	std::ifstream file(dataPath(name));
-	std::vector<Tap> taps;
-	std::string line;
-	while (std::getline(file, line)) {
-		Tap t{};
-		if (std::sscanf(line.c_str(), "%u,%d,%d,%d", &t.frame, &t.strength, &t.x, &t.y) == 4) {
-			taps.push_back(t);
-		}
-	}
-	return taps;
 }
 
 constexpr Frame ms(float m) {
@@ -267,8 +231,8 @@ TEST(MicVelocityDetector, risingUntilSettled) {
 
 // Taps recorded from a Deluge: the centre and top-left pads, two soft, two normal and two hard each
 TEST(MicVelocityDetector, recordedTapsAreFoundAndOrderedByStrength) {
-	std::vector<int32_t> const clip = readClip("taps.wav");
-	std::vector<Tap> const taps = readLabels("taps.csv");
+	std::vector<int32_t> const clip = readClip("taps.wav", 1).mic;
+	std::vector<Press> const taps = readPresses("taps.csv");
 	LONGS_EQUAL(12, taps.size());
 
 	Chain c;
@@ -300,13 +264,13 @@ TEST(MicVelocityDetector, recordedTapsAreFoundAndOrderedByStrength) {
 }
 
 TEST(MicVelocityDetector, recordedTapsGiveAtMostAPressAndAReleaseThump) {
-	std::vector<int32_t> const clip = readClip("taps.wav");
-	std::vector<Tap> const taps = readLabels("taps.csv");
+	std::vector<int32_t> const clip = readClip("taps.wav", 1).mic;
+	std::vector<Press> const taps = readPresses("taps.csv");
 	Chain c;
 	for (int32_t sample : clip) {
 		c.push(sample);
 	}
-	for (Tap const& tap : taps) {
+	for (Press const& tap : taps) {
 		CHECK(c.countIn(tap.frame - ms(25), tap.frame + ms(60)) <= 2);
 	}
 	// And nothing in the quiet lead-in
