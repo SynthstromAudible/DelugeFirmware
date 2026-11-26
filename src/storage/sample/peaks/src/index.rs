@@ -8,9 +8,9 @@
 
 use crate::dir::Directory;
 use crate::peak::{Peak, peak_of_frames};
-use crate::{BLOCK_FRAMES_LOG2, FAN_LOG2, MAX_LEVELS, div, mem};
+use crate::{BLOCK_FRAMES_LOG2, CHUNK_LOG2, FAN_LOG2, MAX_LEVELS, div, mem};
 use core::ptr::NonNull;
-use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU16, AtomicU32, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU16, AtomicU32, AtomicU64, Ordering, fence};
 
 /// The frames one entry of `level` covers, as a power of two.
 pub(crate) const fn shift(level: u32) -> u32 {
@@ -38,6 +38,9 @@ pub(crate) fn fold_into(cell: &AtomicU32, e: u32) {
     }
 }
 
+/// How long a read's window keeps its level-0 chunks, in ms: reads of two views alternating within it keep both.
+pub const KEEP_MS: u32 = 1000;
+
 /// Indexes released to zero references, waiting for [`PeakIndex::collect`].
 static FREE_LIST: AtomicPtr<PeakIndex> = AtomicPtr::new(core::ptr::null_mut());
 
@@ -52,6 +55,13 @@ pub struct PeakIndex {
     range: AtomicU32,
     /// How many level-1 entries are complete: what a sidecar would hold.
     complete1: AtomicU32,
+    /// Folds writing a level-0 value right now: a retired level-0 chunk is freed only when this reads 0.
+    folding: AtomicU32,
+    /// The frames whose level-0 chunks the reads of the last [`KEEP_MS`] asked to keep, `[keep_first, keep_end)`.
+    keep_first: AtomicU64,
+    keep_end: AtomicU64,
+    /// When that window was last widened, in the caller's ms.
+    keep_ms: AtomicU32,
     next_free: AtomicPtr<PeakIndex>,
     /// A peak every block holds, set by `fill_uniform`: a fixture's sample with no frames behind it.
     #[cfg(feature = "test_support")]
@@ -80,6 +90,10 @@ impl PeakIndex {
             masks: [const { None }; MAX_LEVELS as usize],
             range: AtomicU32::new(0),
             complete1: AtomicU32::new(0),
+            folding: AtomicU32::new(0),
+            keep_first: AtomicU64::new(0),
+            keep_end: AtomicU64::new(0),
+            keep_ms: AtomicU32::new(0),
             next_free: AtomicPtr::new(core::ptr::null_mut()),
             #[cfg(feature = "test_support")]
             uniform: AtomicU32::new(0),
@@ -87,7 +101,11 @@ impl PeakIndex {
         let mut ok = true;
         for k in 0..levels {
             let n = entries(k, capacity);
-            index.values[k as usize] = Directory::new(n);
+            index.values[k as usize] = if k == 0 {
+                Directory::new_retirable(n)
+            } else {
+                Directory::new(n)
+            };
             ok &= index.values[k as usize].is_some();
             if k >= 1 {
                 index.masks[k as usize] = Directory::new(n);
@@ -231,9 +249,14 @@ impl PeakIndex {
             return;
         }
         let e = peak.encode();
+        // Counted, so a trim frees a retired chunk only once no fold that could have loaded it is in flight. The fence
+        // pairs with the trim's: either this load sees the chunk retired, or the trim sees this fold counted.
+        self.folding.fetch_add(1, Ordering::Relaxed);
+        fence(Ordering::SeqCst);
         if let Some(v) = self.values[0].as_ref().and_then(|d| d.get(block)) {
             fold_into(v, e);
         }
+        self.folding.fetch_sub(1, Ordering::Release);
         if self.complete_bit(block) {
             return;
         }
@@ -395,6 +418,62 @@ impl PeakIndex {
             let v = value.load(Ordering::Acquire);
             self.complete_child(2, entry >> FAN_LOG2, (entry & 15) as u32, v);
         }
+    }
+
+    /// Keeps level 0 for frames `[first, end)`, together with every window kept in the last [`KEEP_MS`]. Thread mode.
+    pub fn keep_level0(&self, first: u64, end: u64, now_ms: u32) {
+        let (kf, ke) = (
+            self.keep_first.load(Ordering::Relaxed),
+            self.keep_end.load(Ordering::Relaxed),
+        );
+        let fresh = ke > kf && now_ms.wrapping_sub(self.keep_ms.load(Ordering::Relaxed)) <= KEEP_MS;
+        let (f, e) = if fresh {
+            (first.min(kf), end.max(ke))
+        } else {
+            (first, end)
+        };
+        self.keep_first.store(f, Ordering::Relaxed);
+        self.keep_end.store(e, Ordering::Relaxed);
+        self.keep_ms.store(now_ms, Ordering::Relaxed);
+    }
+
+    /// Frees the level-0 chunks earlier passes retired, if no fold is in flight, then retires those outside the kept
+    /// window (every one once the window is older than [`KEEP_MS`]); how many it retired. A chunk retired now is
+    /// freed by a later pass. Thread mode.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
+    pub fn trim_level0(&self, now_ms: u32) -> u32 {
+        let Some(d) = &self.values[0] else {
+            return 0;
+        };
+        // Pairs with the fold's fence: a fold that loaded a chunk retired by an earlier pass is counted here, and one
+        // that starts after it sees the chunk gone. Acquire: a finished fold's writes happen before the free.
+        fence(Ordering::SeqCst);
+        if self.folding.load(Ordering::Acquire) == 0 {
+            d.reap();
+        }
+        let chunk_log2 = BLOCK_FRAMES_LOG2 + CHUNK_LOG2;
+        let stale = now_ms.wrapping_sub(self.keep_ms.load(Ordering::Relaxed)) > KEEP_MS;
+        let (kf, ke) = if stale {
+            (0, 0)
+        } else {
+            let f = self.keep_first.load(Ordering::Relaxed) >> chunk_log2;
+            let e = self
+                .keep_end
+                .load(Ordering::Relaxed)
+                .saturating_add((1 << chunk_log2) - 1)
+                >> chunk_log2;
+            (
+                usize::try_from(f).unwrap_or(usize::MAX),
+                usize::try_from(e).unwrap_or(usize::MAX),
+            )
+        };
+        d.retire_outside(kf, ke)
+    }
+
+    /// How many level-0 chunks are published.
+    #[must_use]
+    pub fn level0_chunks(&self) -> u32 {
+        self.values[0].as_ref().map_or(0, Directory::published)
     }
 
     /// The range over every block completed so far, or `None` before the first.

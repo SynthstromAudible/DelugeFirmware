@@ -28,7 +28,7 @@ pub mod take;
 pub mod tap;
 
 pub use column::{ColumnPlan, FrameReads};
-pub use index::PeakIndex;
+pub use index::{KEEP_MS, PeakIndex};
 pub use peak::{Peak, peak_of_frames};
 
 /// Frames per level-0 block, as a power of two: 256.

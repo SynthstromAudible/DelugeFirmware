@@ -90,7 +90,7 @@ proptest! {
         // split and some only after it.
         let frames = 640 * 256;
         let peak = |b: u64| Peak { min: -((b % 300) as i16), max: (b % 500) as i16 };
-        let all: Vec<(u64, Peak)> = whole_entries.iter().flat_map(|&e| (e * 16..e * 16 + 16))
+        let all: Vec<(u64, Peak)> = whole_entries.iter().flat_map(|&e| e * 16..e * 16 + 16)
             .chain(loose.iter().copied())
             .map(|b| (b, peak(b)))
             .collect();
