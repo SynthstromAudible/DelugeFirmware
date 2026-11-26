@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/core/phasor.h"
 #include "dsp/fixed/noise/cong.h"
+#include "synth/engines/engine_table.h"
 #include "synth/sources/dx7/dx7_source.h"
 #include "synth/sources/input/input_source.h"
 #include "synth/sources/sample/sample_source.h"
@@ -35,9 +36,9 @@
 /// @brief The kinds of source an oscillator slot plays, one row each: the slot's note-on, build, lookup, binding and
 /// release, and the engines' own-rate test, are generated from these rows. Adding a source is adding a row.
 ///
-/// A ported row's source is bound to a firmware port for the voice's life (sample, DX7, live input) and sounds outside
-/// FM. A held row's source is built per note into the slot's held oscillator (the waves) and sounds in the subtractive
-/// and ring-mod engines.
+/// A ported row's source is bound to a firmware port for the voice's life (sample, DX7, live input); a held row's
+/// source is built per note into the slot's held oscillator (the waves). Either sounds only where the engine table's
+/// row for the mode holds the oscillators (holds_oscillators).
 
 namespace deluge::synth {
 
@@ -48,18 +49,6 @@ struct SourcePorts {
 	AudioInputPort* input{};         ///< the engine's live input
 	const LiveInputs* live_inputs{}; ///< the oscillator's live histories
 };
-
-/// @brief Whether a ported source sounds in @p mode: outside FM, whose slots are its carriers.
-/// @return True outside FM.
-[[nodiscard]] constexpr bool ported_mode(SynthMode mode) noexcept {
-	return mode != SynthMode::FM;
-}
-
-/// @brief Whether a held oscillator is built in @p mode: the subtractive and ring-mod engines only.
-/// @return True for SUBTRACTIVE and RINGMOD.
-[[nodiscard]] constexpr bool held_mode(SynthMode mode) noexcept {
-	return mode == SynthMode::SUBTRACTIVE || mode == SynthMode::RINGMOD;
-}
 
 /// @brief What a held source's build reads.
 struct HeldBuild {
@@ -268,10 +257,10 @@ using PortedKinds = detail::PortedKindsOf<SourceKinds>::type;
 using HeldKinds = detail::HeldKindsOf<SourceKinds>::type;
 
 /// @brief Whether a source of @p type plays at its own rate in @p mode, so its neutral increment is the root note's: a
-/// ported row with kOwnRate, outside FM.
+/// ported row with kOwnRate, where the mode's engine holds the oscillators.
 /// @return True for a sample or a live input outside FM.
 [[nodiscard]] inline bool plays_at_own_rate(OscType type, SynthMode mode) {
-	return ported_mode(mode)
+	return holds_oscillators(mode)
 	       && find_row<PortedKinds>([&]<class Kind>(Kind) { return Kind::kOwnRate && Kind::plays(type); });
 }
 

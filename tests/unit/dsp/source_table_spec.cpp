@@ -96,10 +96,10 @@ std::string chosen_by_table(OscType type, SynthMode mode) {
 		chosen = name(Kind{});
 		return true;
 	};
-	if (ported_mode(mode) && find_row<PortedKinds>(pick)) {
+	if (holds_oscillators(mode) && find_row<PortedKinds>(pick)) {
 		return chosen;
 	}
-	if (held_mode(mode)) {
+	if (holds_oscillators(mode)) {
 		find_row<HeldKinds>(pick);
 	}
 	return chosen;

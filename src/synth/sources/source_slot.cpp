@@ -53,10 +53,12 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 	    .osc_type = source.osc_type,
 	};
 
-	// A port-backed source outside FM starts through its port; a sample's note-on is the whole of the slot's
+	// Where the engine plays the slots, a port-backed source starts through its port (a sample's note-on is the whole
+	// of the slot's) and any other type builds its held wave
 	bool started = true;
 	bool owned = false;
-	const bool ported = ported_mode(synth_mode) && with_ported(source.osc_type, [&]<class Kind>(Kind, auto& src) {
+	const bool plays_slots = holds_oscillators(synth_mode);
+	const bool ported = plays_slots && with_ported(source.osc_type, [&]<class Kind>(Kind, auto& src) {
 		                    started = Kind::note_on(src, note);
 		                    owned = Kind::kOwnsNote;
 	                    });
@@ -64,7 +66,7 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 		return started;
 	}
 	if (!ported) {
-		build_oscillator(source.osc_type, held_mode(synth_mode), osc_retrigger_phase, reset_everything, noise);
+		build_oscillator(source.osc_type, plays_slots, osc_retrigger_phase, reset_everything, noise);
 	}
 
 	if (reset_everything) {

@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#include "synth/engines/engine_set.h"
 #include "synth/engines/engine_table.h"
 
 #include <array>
@@ -98,6 +99,19 @@ describe engine_table_spec_body("the engine table", ${
 		    .to_equal(true);
 		expect(dual_state_for(kUnnamedMode, a_dual()) == EngineState{SubtractiveState{.oscillators = a_dual()}})
 		    .to_equal(true);
+	});
+
+	it("gives each mode its row's engine, and the first row's to a mode no row names", _{
+		EngineSet set;
+		for_each_row<EngineRows>([&]<class Row>(Row) {
+			expect(&set.for_mode(Row::kMode) == static_cast<Engine*>(&set.of<Row>())).to_equal(true);
+		});
+		expect(&set.for_mode(SynthMode::SUBTRACTIVE) != &set.for_mode(SynthMode::RINGMOD)
+		       && &set.for_mode(SynthMode::RINGMOD) != &set.for_mode(SynthMode::FM)
+		       && &set.for_mode(SynthMode::SUBTRACTIVE) != &set.for_mode(SynthMode::FM))
+		    .to_equal(true);
+		expect(&set.for_mode(SynthMode::FM) == static_cast<Engine*>(&set.fm())).to_equal(true);
+		expect(&set.for_mode(kUnnamedMode) == static_cast<Engine*>(&set.of<SubtractiveRow>())).to_equal(true);
 	});
 
 	it("saves each row's mode under a word of its own that reads back as it", _{
