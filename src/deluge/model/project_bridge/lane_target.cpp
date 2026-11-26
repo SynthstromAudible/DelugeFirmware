@@ -17,8 +17,11 @@
 
 #include "model/project_bridge/lane_target.h"
 
+#include "model/clip/clip.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/params/param_collection.h"
+#include "playback/playback_handler.h"
 
 namespace deluge::bridge {
 
@@ -54,6 +57,26 @@ LaneTarget target_of(const ::ModelStackWithAutoParam& stack, std::optional<proje
 project::DocAutoParam* doc_of(const LaneTarget& target) {
 	alignas(::ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	return stack_of(target, memory)->doc();
+}
+
+LaneTiming lane_timing(const LaneTarget& lane) {
+	LaneTiming timing{};
+	if (lane.timeline == nullptr) {
+		return timing;
+	}
+	alignas(::ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const ::ModelStackWithAutoParam& stack = *stack_of(lane, memory);
+	timing.loop_length = stack.getLoopLength();
+	if (lane.timeline != static_cast<::TimelineCounter*>(lane.song)) {
+		timing.recording_linearly = static_cast<::Clip*>(lane.timeline)->getCurrentlyRecordingLinearly();
+	}
+	timing.backtracking_could_loop_back = lane.timeline->backtrackingCouldLoopBackToEnd();
+	if (playbackHandler.isEitherClockActive()) {
+		timing.live_pos = stack.getLivePos();
+		timing.cut_pos = stack.getPosAtWhichPlaybackWillCut();
+		timing.reversed = stack.isCurrentlyPlayingReversed();
+	}
+	return timing;
 }
 
 void notify_modified(const ::ModelStackWithAutoParam& stack, int32_t oldValue, bool automationChanged,

@@ -111,6 +111,22 @@ struct LaneTarget {
 void notify_modified(const ::ModelStackWithAutoParam& stack, int32_t oldValue, bool automationChanged,
                      bool automatedBefore, bool automatedNow);
 
+/// @brief What a write to a lane reads from its clip's and note row's playback, at the moment it is asked.
+struct LaneTiming {
+	int32_t loop_length{0};                   ///< the clip's, or the note row's own when it loops on its own
+	bool recording_linearly{false};           ///< the clip records linearly (a song's own lanes never do)
+	bool backtracking_could_loop_back{false}; ///< the timeline's
+	// With the clock active only:
+	int32_t live_pos{0};
+	int32_t cut_pos{0}; ///< where playback will cut
+	bool reversed{false};
+};
+
+/// @brief [interaction] The playback facts of @p lane's clip and note row; a lane with no timeline has none.
+/// @param lane The lane.
+/// @return The facts: the clock's (live pos, cut pos, reversed) only while it is active.
+[[nodiscard]] LaneTiming lane_timing(const LaneTarget& lane);
+
 /// A lane is plain data: the move section's queue copies it, and holds it zero-initialised.
 static_assert(std::is_trivially_copyable_v<LaneTarget>);
 
