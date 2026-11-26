@@ -4,6 +4,7 @@
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/core/style.h"
 #include "ui/widgets/oled/meters.h"
+#include "ui/widgets/oled/page_drawing.h"
 
 #include <algorithm>
 #include <cmath>
@@ -17,28 +18,6 @@ float sigmoid_like_curve(float x, float x_max, float softening) {
 	const float raw = x / (x + softening);
 	const float max_val = x_max / (x_max + softening);
 	return raw / max_val;
-}
-
-/// @brief What the fill-pattern callback needs: the canvas and the curve's bottom row, both canvas-space.
-struct FillPattern {
-	gfx::oled::Canvas* canvas;
-	int32_t end_y;
-	gfx::oled::Point last{-1, -1};
-};
-
-/// @brief `draw_fill_pattern` (the lambda in `FilterContainer::render`,
-/// `origin/main:src/deluge/gui/menu_item/filter/filter_container.h`): below each third column of the curve, every third
-/// row.
-void fill_pattern(gfx::oled::Point point, void* ctx) {
-	auto* fill = static_cast<FillPattern*>(ctx);
-	if (fill->last.x != point.x && point.x % 3 == 0) {
-		for (int32_t y = point.y; y <= fill->end_y; y++) {
-			if (y % 3 == 1) {
-				fill->canvas->draw_pixel(point.x, y);
-			}
-		}
-	}
-	fill->last = point;
 }
 
 } // namespace
@@ -93,12 +72,10 @@ void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g) {
 	f.rect_rounded(gfx::oled::Rect{min_x - 1 - f.origin.x, start_y - 1 - f.origin.y, (max_x + 1) - (min_x - 1) + 1,
 	                               (end_y + 1) - (start_y - 1) + 1});
 
-	ClipScope scope{f.canvas, f.clip};
-	FillPattern fill{.canvas = &f.canvas, .end_y = end_y};
+	// The segments are in canvas coordinates, as legacy computes them; the fill's dot grid is the panel's.
+	const auto local = [&](int32_t x, int32_t y) { return gfx::oled::Point{x - f.origin.x, y - f.origin.y}; };
 	const auto segment = [&](int32_t x0, int32_t y0, int32_t x1, int32_t y1) {
-		fill.last = {-1, -1};
-		f.canvas.draw_line(x0, y0, x1, y1,
-		                   {.min_x = min_x, .max_x = max_x, .point_callback = fill_pattern, .callback_ctx = &fill});
+		fill_line(f, local(x0, y0), local(x1, y1), end_y - f.origin.y, min_x - f.origin.x, max_x - f.origin.x);
 	};
 
 	segment(left_slope_x0, end_y, left_slope_x1, center_y); // left slope
