@@ -46,6 +46,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "hid/mic_velocity/mic_velocity.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -69,6 +70,7 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include "util/pack.h"
+#include <array>
 #include <stdlib.h>
 
 #include "RZA1/cache/cache.h"
@@ -151,6 +153,8 @@ void inputRoutine() {
 		AudioEngine::lineInPluggedIn = lineInNow;
 		renderUIsForOled();
 	}
+
+	deluge::mic_velocity::update(); // Plugging into the mic or line-in jack turns the internal mic off
 
 	// Battery voltage
 	// If analog read is ready...
@@ -246,28 +250,195 @@ bool isShortPress(uint32_t pressTime) {
 	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
 }
 
-bool readButtonsAndPads() {
+void readButtonsAndPadsOnce();
+uint8_t buttonsAndPadsTaskPriority = 0;
 
-	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
-		usbInitializationPeriodComplete = 1;
-	}
-
-	/*
-	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >=
-	(44100 << 1)) { D_PRINTLN("closing peripheral"); closeUSBPeripheral(); D_PRINTLN("switching back to host");
-	    openUSBHost();
-	    closedPeripheral = true;
-	}
-	*/
-
-	if (waitingForSDRoutineToEnd) {
-		if (sdRoutineLock) {
-			return false;
+/// Sends a pad or button edge on to the UI. velocity: 0 for a release; for a press, USE_DEFAULT_VELOCITY or what it
+/// was measured at.
+ActionResult sendPadOrButton(PIC::Response value, int32_t velocity) {
+	if (Pad::isPad(util::to_underlying(value))) {
+		auto p = Pad(util::to_underlying(value));
+		/* while this function takes an int32_t for velocity, 255 indicates to the downstream audition pad
+		 * function that it should use the default velocity for the instrument
+		 */
+		ActionResult result = matrixDriver.padAction(p.x, p.y, velocity);
+		if (velocity) {
+			Buttons::ignoreCurrentShiftForSticky();
 		}
-		D_PRINTLN("got to end of sd routine");
-		waitingForSDRoutineToEnd = false;
+		return result;
 	}
+	return Buttons::buttonAction(deluge::hid::Button(value), velocity, sdRoutineLock);
+}
 
+// Mic velocity (hid/mic_velocity.h): a press that plays notes at its velocity waits here for its thump, with anything
+// that has to stay behind it (that pad's release; the "no presses happening" safety net). Everything else goes on
+// as it arrives.
+struct QueuedEvent {
+	PIC::Response value;
+	int32_t velocity; ///< As it'll be sent (see sendPadOrButton)
+	uint32_t arrived; ///< On mic velocity's frame clock
+	bool measured;    ///< Measured, or doesn't need it
+};
+constexpr size_t kEventQueueSize = 32;
+std::array<QueuedEvent, kEventQueueSize> eventQueue;
+size_t eventQueueHead = 0;
+size_t eventQueueCount = 0;
+bool micVelocityRetryQueued = false;
+
+QueuedEvent& queuedEvent(size_t i) {
+	return eventQueue[(eventQueueHead + i) % kEventQueueSize];
+}
+
+void queueEvent(QueuedEvent event) {
+	queuedEvent(eventQueueCount++) = event;
+}
+
+/// Whether a press on (x, y) plays notes at the velocity it was pressed with, in the UI it's going to: keyboard view's
+/// main pads (in a layout that uses it), and the audition pads in clip and automation view. Only these are measured.
+bool padUsesVelocity(int32_t x, int32_t y) {
+	UI* ui = getCurrentUI();
+	if (ui == &keyboardScreen) {
+		return keyboardScreen.padUsesVelocity(x, y);
+	}
+	if (x == kDisplayWidth + 1) {
+		return ui == &instrumentClipView
+		       || (ui == &automationView && getCurrentClip() != nullptr
+		           && getCurrentClip()->type == ClipType::INSTRUMENT);
+	}
+	return false;
+}
+
+/// Whether an edge has to wait in the queue: a press to be measured, or the release of a pad whose press is waiting
+bool mustQueue(PIC::Response value, int32_t velocity) {
+	if (!Pad::isPad(util::to_underlying(value))) {
+		return false;
+	}
+	if (velocity != 0) {
+		auto const p = Pad(util::to_underlying(value));
+		return velocity == USE_DEFAULT_VELOCITY && deluge::mic_velocity::active() && padUsesVelocity(p.x, p.y);
+	}
+	for (size_t i = 0; i < eventQueueCount; i++) {
+		if (queuedEvent(i).value == value) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// The press at the front is waiting for its thump: come back for it shortly, rather than at the next 5 ms tick
+void retryWhenThumpIsDue() {
+	if (micVelocityRetryQueued) {
+		return;
+	}
+	micVelocityRetryQueued = true;
+	addConditionalTask(
+	    []() {
+		    micVelocityRetryQueued = false;
+		    readButtonsAndPadsOnce();
+	    },
+	    buttonsAndPadsTaskPriority, deluge::mic_velocity::retryDue, "mic velocity wait", RESOURCE_NONE);
+}
+
+/// Sends on what's queued, in order, until a press has to wait for its thump (or the card routine has to finish)
+bool sendQueuedEvents() {
+	bool sentAny = false;
+	while (eventQueueCount > 0) {
+		QueuedEvent& event = queuedEvent(0);
+		if (event.value == PIC::Response::NO_PRESSES_HAPPENING) {
+			if (sdRoutineLock) {
+				waitingForSDRoutineToEnd = true;
+				return sentAny;
+			}
+			matrixDriver.noPressesHappening(sdRoutineLock);
+			Buttons::noPressesHappening(sdRoutineLock);
+		}
+		else {
+			if (!event.measured) {
+				auto const p = Pad(util::to_underlying(event.value));
+				auto const measured = deluge::mic_velocity::velocityForPress(p.x, p.y, event.arrived);
+				if (measured.wait) { // Its thump is still rising
+					retryWhenThumpIsDue();
+					return sentAny;
+				}
+				event.velocity = measured.velocity;
+				event.measured = true; // So if the card routine hands it back, it keeps its velocity
+			}
+			if (sendPadOrButton(event.value, event.velocity) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+				waitingForSDRoutineToEnd = true;
+				return sentAny;
+			}
+		}
+		eventQueueHead = (eventQueueHead + 1) % kEventQueueSize;
+		eventQueueCount--;
+		sentAny = true;
+	}
+	return sentAny;
+}
+
+/// While mic velocity is measuring (or has presses still queued): read everything that's arrived, so each press is
+/// stamped as close to its arrival as possible. Presses that need velocity are queued; the rest go on at once.
+bool readButtonsAndPadsMeasuring() {
+	bool anything = sendQueuedEvents();
+	while (!waitingForSDRoutineToEnd) {
+		PIC::Response value{0};
+		if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) {
+			break;
+		}
+		anything = true;
+		if (value < PIC::kPadAndButtonMessagesEnd) {
+			// Any pad or button edge counts as activity, press or release alike.
+			deluge::hid::display::Screensaver::noteActivity();
+			deluge::mic_velocity::noteActivity();
+
+			int32_t const thisPadPressIsOn = nextPadPressIsOn;
+			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
+
+			if (mustQueue(value, thisPadPressIsOn)) {
+				if (eventQueueCount == kEventQueueSize) { // Full (never, really): leave it for later
+					nextPadPressIsOn = thisPadPressIsOn;
+					uartPutCharBack(UART_ITEM_PIC);
+					break;
+				}
+				queueEvent({.value = value,
+				            .velocity = thisPadPressIsOn,
+				            .arrived = deluge::mic_velocity::now(),
+				            .measured = thisPadPressIsOn == 0});
+			}
+			else if (sendPadOrButton(value, thisPadPressIsOn) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+				nextPadPressIsOn = thisPadPressIsOn;
+				uartPutCharBack(UART_ITEM_PIC);
+				waitingForSDRoutineToEnd = true;
+			}
+		}
+		else if (value == PIC::Response::NEXT_PAD_OFF) {
+			nextPadPressIsOn = false;
+		}
+		else if (value == PIC::Response::NO_PRESSES_HAPPENING) {
+			// The safety net that releases any pad the firmware still thinks is held (see the unqueued path below).
+			// Behind any queued presses, or it would come before them.
+			if (eventQueueCount > 0 && eventQueueCount < kEventQueueSize) {
+				queueEvent({.value = value, .velocity = 0, .arrived = 0, .measured = true});
+			}
+			else if (sdRoutineLock) {
+				uartPutCharBack(UART_ITEM_PIC);
+				waitingForSDRoutineToEnd = true;
+			}
+			else {
+				matrixDriver.noPressesHappening(sdRoutineLock);
+				Buttons::noPressesHappening(sdRoutineLock);
+			}
+		}
+		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
+			oledAcknowledgementReceived(util::to_underlying(value));
+		}
+	}
+	// A press whose thump is already in goes on now, not at the next read
+	sendQueuedEvents();
+	return anything;
+}
+
+/// One event at a time, straight from the PIC (when mic velocity isn't measuring)
+bool readButtonsAndPadsUnqueued() {
 	PIC::Response value{0};
 	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 	if (anything) {
@@ -280,21 +451,7 @@ bool readButtonsAndPads() {
 			int32_t thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
 
-			ActionResult result;
-			if (Pad::isPad(util::to_underlying(value))) {
-				auto p = Pad(util::to_underlying(value));
-				/* while this function takes an int32_t for velocity, 255 indicates to the downstream audition pad
-				 * function that it should use the default velocity for the instrument
-				 */
-				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
-				if (thisPadPressIsOn) {
-					Buttons::ignoreCurrentShiftForSticky();
-				}
-			}
-			else {
-				auto b = deluge::hid::Button(value);
-				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
-			}
+			ActionResult result = sendPadOrButton(value, thisPadPressIsOn);
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
@@ -326,6 +483,34 @@ bool readButtonsAndPads() {
 			oledAcknowledgementReceived(util::to_underlying(value));
 		}
 	}
+	return anything;
+}
+
+bool readButtonsAndPads() {
+
+	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
+		usbInitializationPeriodComplete = 1;
+	}
+
+	/*
+	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >=
+	(44100 << 1)) { D_PRINTLN("closing peripheral"); closeUSBPeripheral(); D_PRINTLN("switching back to host");
+	    openUSBHost();
+	    closedPeripheral = true;
+	}
+	*/
+
+	if (waitingForSDRoutineToEnd) {
+		if (sdRoutineLock) {
+			return false;
+		}
+		D_PRINTLN("got to end of sd routine");
+		waitingForSDRoutineToEnd = false;
+	}
+
+	// Queued presses still go on (unmeasured) if mic velocity stops
+	bool const anything = (deluge::mic_velocity::active() || eventQueueCount > 0) ? readButtonsAndPadsMeasuring()
+	                                                                              : readButtonsAndPadsUnqueued();
 
 	if (!sdRoutineLock && Buttons::shiftHasChanged()
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
@@ -574,6 +759,7 @@ void registerTasks() {
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
 	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow", RESOURCE_NONE);
+	buttonsAndPadsTaskPriority = p;
 	addRepeatingTask(&(readButtonsAndPadsOnce), p++, 0.005, 0.005, 0.01, "buttons and pads", RESOURCE_NONE);
 
 	// 11-19: Medium priority (20 for dyn tasks)
