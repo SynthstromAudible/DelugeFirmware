@@ -3,7 +3,9 @@
 
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
+#include "model/fx/master_channel.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_ids.h"
@@ -103,6 +105,84 @@ describe lane_target("a lane target", ${
 			const bridge::LaneTarget target =
 			    bridge::target_of(*original, bridge::owner_of(*f.instrument), std::nullopt);
 			expect(same_stack(*original, *bridge::stack_of(target, b))).to_be_true();
+			spec::make_current(nullptr);
+		});
+	});
+	context("resolved by address", _ {
+		it("names what paramStackAt names, for a synth's param in its clip", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			const project::ParamAddress address = bridge::addressOf(
+			    project::OwnerId::instrument(*f.instrument->id()), params::Kind::PATCHED, params::LOCAL_LPF_FREQ,
+			    f.clip->id());
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char b[MODEL_STACK_MAX_SIZE];
+			const std::optional<bridge::LaneTarget> lane = bridge::lane_at(*f.song, address);
+			expect(lane.has_value()).to_be_true();
+			if (lane) {
+				ModelStackWithAutoParam* original = bridge::paramStackAt(*f.song, address, a);
+				expect(std::holds_alternative<Sound*>(lane->owner)).to_be_true();
+				expect(bridge::mod_controllable_of(lane->owner)).to_equal(original->modControllable);
+				expect(same_stack(*original, *bridge::stack_of(*lane, b))).to_be_true();
+			}
+			spec::make_current(nullptr);
+		});
+
+		it("names the song's own param, owned by the master channel", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			const project::ParamAddress address =
+			    bridge::addressOf(project::OwnerId::song(), params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME);
+			const std::optional<bridge::LaneTarget> lane = bridge::lane_at(*f.song, address);
+			expect(lane.has_value()).to_be_true();
+			if (lane) {
+				expect(std::holds_alternative<deluge::model::MasterChannel*>(lane->owner)).to_be_true();
+				expect(lane->timeline).to_equal(static_cast<TimelineCounter*>(f.song));
+			}
+			spec::make_current(nullptr);
+		});
+
+		it("names a sound drum's param in its row, owned by the drum's sound", _ {
+			spec::SongFixture f = spec::make_kit_song();
+			spec::make_current(f.song);
+			auto* drum = spec::add_drum<SoundDrum>(f);
+			const project::ParamAddress address = bridge::addressOf(
+			    project::OwnerId::drum(*drum->id()), params::Kind::PATCHED, params::LOCAL_LPF_FREQ, f.clip->id());
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char b[MODEL_STACK_MAX_SIZE];
+			const std::optional<bridge::LaneTarget> lane = bridge::lane_exact(*f.song, address);
+			expect(lane.has_value()).to_be_true();
+			if (lane) {
+				expect(lane->note_row).not_().to_be_null();
+				expect(std::get<Sound*>(lane->owner)).to_equal(static_cast<Sound*>(drum));
+				expect(same_stack(*bridge::paramStackExact(*f.song, address, a), *bridge::stack_of(*lane, b)))
+				    .to_be_true();
+			}
+			spec::make_current(nullptr);
+		});
+
+		it("names a MIDI clip's CC lane, made for a write, owned by the MIDI instrument", _ {
+			spec::SongFixture f = spec::make_midi_song();
+			spec::make_current(f.song);
+			project::ParamAddress address{.owner = project::OwnerId::clip(f.clip->id()),
+			                              .space = project::ParamSpace::MIDI_CC,
+			                              .id = deluge::plugin::ParamId{74}};
+			const std::optional<bridge::LaneTarget> lane = bridge::lane_for_write(*f.song, address);
+			expect(lane.has_value()).to_be_true();
+			if (lane) {
+				expect(lane->auto_param).not_().to_be_null();
+				expect(std::holds_alternative<NonAudioInstrument*>(lane->owner)).to_be_true();
+			}
+			spec::make_current(nullptr);
+		});
+
+		it("finds nothing for an owner the song does not hold", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			const project::ParamAddress address = bridge::addressOf(
+			    project::OwnerId::instrument(0xFFFF'FFF0U), params::Kind::PATCHED, params::LOCAL_LPF_FREQ,
+			    f.clip->id());
+			expect(bridge::lane_at(*f.song, address).has_value()).to_be_false();
 			spec::make_current(nullptr);
 		});
 	});

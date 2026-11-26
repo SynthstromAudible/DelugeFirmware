@@ -27,6 +27,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -96,11 +97,13 @@ enum class Holder : uint8_t {
 struct OwnerStack {
 	ModelStackWithThreeMainThings* stack{nullptr};
 	Holder holder{Holder::NONE};
+	/// The object the stack's owner slot holds, typed.
+	LaneOwner owner;
 };
 
 /// The engine stack of @p address's owner in @p song: the clip by id, the output or drum by id, the drum's note row in
-/// that clip.
-OwnerStack ownerStackAt(::Song& song, const project::ParamAddress& address, void* memory) {
+/// that clip. Its owner is not typed yet (ownerStackAt types it).
+OwnerStack ownerStackAtUntyped(::Song& song, const project::ParamAddress& address, void* memory) {
 	using Kind = project::OwnerId::Kind;
 	if (address.owner.kind == Kind::SONG) {
 		return {song.setupModelStackWithSongAsTimelineCounter(memory), Holder::EFFECTABLE};
@@ -257,8 +260,9 @@ project::ParamAddress inClip(project::ParamAddress address, const ::Clip& clip) 
 	return address;
 }
 
-/// The stack of an INSTRUMENT or DRUM owner with no clip: its backed-up params, which an arranger row edits.
-OwnerStack backedOwnerStack(::Song& song, const project::ParamAddress& address, void* memory) {
+/// The stack of an INSTRUMENT or DRUM owner with no clip: its backed-up params, which an arranger row edits. Its owner
+/// is not typed yet (backedOwnerStack types it).
+OwnerStack backedOwnerStackUntyped(::Song& song, const project::ParamAddress& address, void* memory) {
 	using Kind = project::OwnerId::Kind;
 	if (address.owner.kind == Kind::DRUM) {
 		::Drum* drum = song.drumForId(address.owner.id);
@@ -309,6 +313,58 @@ OwnerStack backedOwnerStack(::Song& song, const project::ParamAddress& address, 
 	}
 }
 
+/// The typed owner of the params @p found names: the object its stack's owner slot holds.
+LaneOwner laneOwnerOf(::Song& song, const project::ParamAddress& address, const OwnerStack& found) {
+	using Kind = project::OwnerId::Kind;
+	if (found.stack == nullptr) {
+		return std::monostate{};
+	}
+	switch (address.owner.kind) {
+	case Kind::SONG:
+		return &song.live.master_channel;
+	case Kind::CLIP:
+	case Kind::NOTE_ROW:
+		if (::Clip* clip = song.clipForId(address.owner.id); clip != nullptr && clip->output != nullptr) {
+			return owner_of(*clip->output);
+		}
+		return std::monostate{};
+	case Kind::INSTRUMENT:
+		if (::Output* output = outputWithId(song, address.owner.id)) {
+			return owner_of(*output);
+		}
+		return std::monostate{};
+	case Kind::DRUM:
+		if (::Drum* drum = song.drumForId(address.owner.id)) {
+			return owner_of(*drum);
+		}
+		return std::monostate{};
+	}
+	return std::monostate{};
+}
+
+/// The engine stack of @p address's owner in @p song, with its owner typed.
+OwnerStack ownerStackAt(::Song& song, const project::ParamAddress& address, void* memory) {
+	OwnerStack found = ownerStackAtUntyped(song, address, memory);
+	found.owner = laneOwnerOf(song, address, found);
+	return found;
+}
+
+/// The stack of an INSTRUMENT or DRUM owner's backed-up params, with its owner typed.
+OwnerStack backedOwnerStack(::Song& song, const project::ParamAddress& address, void* memory) {
+	OwnerStack found = backedOwnerStackUntyped(song, address, memory);
+	found.owner = laneOwnerOf(song, address, found);
+	return found;
+}
+
+/// The lane @p found names in @p owner's stack, at @p address; none where nothing was found.
+std::optional<LaneTarget> laneOf(const OwnerStack& owner, ModelStackWithAutoParam* found,
+                                 const project::ParamAddress& address) {
+	if (found == nullptr) {
+		return std::nullopt;
+	}
+	return target_of(*found, owner.owner, address);
+}
+
 /// The clip @p address names, by its INSTRUMENT/DRUM clip id or its CLIP or NOTE_ROW owner's id; null for none.
 ::Clip* clipOf(::Song& song, const project::ParamAddress& address) {
 	if (address.owner.kind == project::OwnerId::Kind::CLIP || address.owner.kind == project::OwnerId::Kind::NOTE_ROW) {
@@ -335,15 +391,57 @@ project::ParamAddress followingTake(::Song& song, project::ParamAddress owner, v
 
 } // namespace
 
-ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress& address, void* memory) {
-	return paramInOwner(ownerStackAt(song, address, memory), address, false, false);
+std::optional<LaneTarget> lane_at(::Song& song, const project::ParamAddress& address) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const OwnerStack owner = ownerStackAt(song, address, memory);
+	return laneOf(owner, paramInOwner(owner, address, false, false), address);
 }
 
-ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress& address, void* memory) {
+std::optional<LaneTarget> lane_for_write(::Song& song, project::ParamAddress& address) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	if (::Clip* clip = clipOf(song, address)) {
 		address = inClip(address, *takeOf(song, *clip, true, memory));
 	}
-	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true, true);
+	const OwnerStack owner = ownerOrBackedStack(song, address, memory);
+	return laneOf(owner, paramInOwner(owner, address, true, true), address);
+}
+
+std::optional<LaneTarget> lane_exact(::Song& song, const project::ParamAddress& address) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const OwnerStack owner = ownerOrBackedStack(song, address, memory);
+	return laneOf(owner, paramInOwner(owner, address, true, false), address);
+}
+
+std::optional<LaneTarget> lane_following_take(::Song& song, const project::ParamAddress& address) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const project::ParamAddress followed = followingTake(song, address, memory);
+	const OwnerStack owner = ownerOrBackedStack(song, followed, memory);
+	return laneOf(owner, paramInOwner(owner, followed, false, false), followed);
+}
+
+std::optional<LaneTarget> sound_lane_exact(::Song& song, const project::ParamAddress& owner) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const OwnerStack found = ownerOrBackedStack(song, owner, memory);
+	if (found.stack == nullptr || found.holder != Holder::SOUND) {
+		return std::nullopt;
+	}
+	return LaneTarget{.address = owner,
+	                  .song = found.stack->song,
+	                  .timeline = found.stack->getTimelineCounterAllowNull(),
+	                  .note_row_id = found.stack->noteRowId,
+	                  .note_row = found.stack->getNoteRowAllowNull(),
+	                  .owner = found.owner,
+	                  .manager = found.stack->paramManager};
+}
+
+ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress& address, void* memory) {
+	const std::optional<LaneTarget> lane = lane_at(song, address);
+	return lane ? stack_of(*lane, memory) : nullptr;
+}
+
+ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress& address, void* memory) {
+	const std::optional<LaneTarget> lane = lane_for_write(song, address);
+	return lane ? stack_of(*lane, memory) : nullptr;
 }
 
 std::optional<uint32_t> takeFor(::Song& song, uint32_t output_id) {
@@ -361,7 +459,8 @@ std::optional<uint32_t> takeFor(::Song& song, uint32_t output_id) {
 }
 
 ModelStackWithAutoParam* paramStackExact(::Song& song, const project::ParamAddress& address, void* memory) {
-	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true, false);
+	const std::optional<LaneTarget> lane = lane_exact(song, address);
+	return lane ? stack_of(*lane, memory) : nullptr;
 }
 
 ModelStackWithAutoParam* paramStackOnRender(::Song& song, const project::ParamAddress& address, void* memory) {
@@ -369,8 +468,8 @@ ModelStackWithAutoParam* paramStackOnRender(::Song& song, const project::ParamAd
 }
 
 ModelStackWithThreeMainThings* soundStackExact(::Song& song, const project::ParamAddress& owner, void* memory) {
-	const OwnerStack found = ownerOrBackedStack(song, owner, memory);
-	return found.holder == Holder::SOUND ? found.stack : nullptr;
+	const std::optional<LaneTarget> lane = sound_lane_exact(song, owner);
+	return lane ? owner_stack_of(*lane, memory) : nullptr;
 }
 
 bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin) {
@@ -409,8 +508,8 @@ bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos
 }
 
 ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address, void* memory) {
-	const project::ParamAddress followed = followingTake(song, address, memory);
-	return paramInOwner(ownerOrBackedStack(song, followed, memory), followed, false, false);
+	const std::optional<LaneTarget> lane = lane_following_take(song, address);
+	return lane ? stack_of(*lane, memory) : nullptr;
 }
 
 std::optional<ParamLane> paramLaneFollowingTake(::Song& song, const project::ParamAddress& address) {
@@ -454,21 +553,21 @@ PatchCableSet* cableSetAt(::Song& song, const project::ParamAddress& owner, void
 	return sound.stack->paramManager->getPatchCableSetAllowJibberish();
 }
 
-ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress& address, Polarity polarity,
-                                      void* memory) {
+std::optional<LaneTarget> cable_lane_at(::Song& song, const project::ParamAddress& address, Polarity polarity) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	if (address.space != project::ParamSpace::ENGINE || !instruments::classic::is_cable_depth(address.id)) {
-		return nullptr;
+		return std::nullopt;
 	}
 	const OwnerStack owner = ownerStackAt(song, address, memory);
 	if (owner.stack == nullptr || owner.holder != Holder::SOUND) {
-		return nullptr;
+		return std::nullopt;
 	}
 	if (ModelStackWithAutoParam* found = cableIn(owner.stack, address.id, false)) {
-		return found;
+		return laneOf(owner, found, address);
 	}
 	ModelStackWithAutoParam* made = cableIn(owner.stack, address.id, true);
 	if (made == nullptr) {
-		return nullptr;
+		return std::nullopt;
 	}
 	PatchCableSet* set = owner.stack->paramManager->getPatchCableSet();
 	PatchSource source{};
@@ -476,14 +575,20 @@ ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress&
 	PatchCableSet::dissectParamId(made->paramId, &destination, &source);
 	const uint8_t index = set->getPatchCableIndex(source, destination);
 	if (index == 255) {
-		return nullptr;
+		return std::nullopt;
 	}
-	ModMatrixHost matrix{*static_cast<Sound*>(made->modControllable), *made->paramManager};
+	ModMatrixHost matrix{*std::get<Sound*>(owner.owner), *made->paramManager};
 	if (std::optional<CableEdit> edit =
 	        matrix.setPolarity(index, static_cast<deluge::synth::CablePolarity>(polarity))) {
 		deluge::edits::recordCableEdit(made, std::move(*edit));
 	}
-	return made;
+	return laneOf(owner, made, address);
+}
+
+ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress& address, Polarity polarity,
+                                      void* memory) {
+	const std::optional<LaneTarget> lane = cable_lane_at(song, address, polarity);
+	return lane ? stack_of(*lane, memory) : nullptr;
 }
 
 } // namespace deluge::bridge
