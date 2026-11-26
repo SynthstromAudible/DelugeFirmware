@@ -201,6 +201,8 @@ builds only `golden-vt-render`.
 | fixed-point-raw-selftest | unit | script | unit | gate | the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments | pr | tooling | ~1s |
 | fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
 | spec-comparisons | unit | script | unit | gate | no C++ spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy(), so every failed comparison prints its values | pr | tooling | ~2s |
+| dx7-presets | unit | script | unit | gate | the render presets that hold a DX7, and whether each one's other oscillator can sound, are as recorded | pr | tooling | ~1s |
+| dx7-presets-selftest | unit | script | unit | gate | the DX7 preset scan finds a DX7 on either slot, and an audible other oscillator by its volume or a cable | pr | tooling | ~1s |
 | layers-selftest | unit | script | unit | gate | the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth | pr | tooling | ~1s |
 | registry-selftest | unit | script | unit | gate | this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams | pr | tooling | ~1s |
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
