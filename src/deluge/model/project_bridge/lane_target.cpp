@@ -18,6 +18,7 @@
 #include "model/project_bridge/lane_target.h"
 
 #include "model/model_stack.h"
+#include "modulation/params/param_collection.h"
 
 namespace deluge::bridge {
 
@@ -44,9 +45,21 @@ LaneTarget target_of(const ::ModelStackWithAutoParam& stack, std::optional<proje
 	    .manager = stack.paramManager,
 	    .collection = stack.paramCollection,
 	    .summary = stack.summary,
+	    .kind = stack.kind,
 	    .param_id = stack.paramId,
 	    .auto_param = stack.autoParam,
 	};
+}
+
+project::DocAutoParam* doc_of(const LaneTarget& target) {
+	alignas(::ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	return stack_of(target, memory)->doc();
+}
+
+void notify_modified(const ::ModelStackWithAutoParam& stack, int32_t oldValue, bool automationChanged,
+                     bool automatedBefore, bool automatedNow) {
+	stack.paramCollection->notifyParamModifiedInSomeWay(target_of(stack, std::nullopt), oldValue, automationChanged,
+	                                                    automatedBefore, automatedNow);
 }
 
 } // namespace deluge::bridge

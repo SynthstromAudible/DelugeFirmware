@@ -21,6 +21,7 @@
 #include "memory/heaps.h"
 #include "model/mod_controllable/delay_type.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/lane_target.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
@@ -101,13 +102,12 @@ ParamCollection::~ParamCollection() {
 	deluge::modulation::LanePublication::gone(*this);
 }
 
-void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+void ParamCollection::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue,
                                                    bool automationChanged, bool automatedBefore, bool automatedNow) {
 
-	bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
+	bool currentValueChanged = (oldValue != lane.auto_param->getCurrentValue());
 	if (currentValueChanged || automationChanged) {
-		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, currentValueChanged, automationChanged,
-		                                                       automatedNow);
+		lane.manager->notifyParamModifiedInSomeWay(lane, currentValueChanged, automationChanged, automatedNow);
 	}
 
 	if (automationChanged && automatedNow) {
@@ -121,11 +121,11 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 		// A playhead move holds the render off, and the delay's reaction may grow its reserve or log an Edit: it runs
 		// once the move's section ends.
 		if (deluge::playback::MoveEffects::collecting()
-		    && deluge::model::delayParamRole(*modelStack) != deluge::model::DelayParamRole::NONE
-		    && deluge::playback::MoveEffects::defer({*modelStack, oldValue, automatedBefore})) {
+		    && deluge::model::delayParamRole(lane) != deluge::model::DelayParamRole::NONE
+		    && deluge::playback::MoveEffects::defer({lane, oldValue, automatedBefore})) {
 			return;
 		}
-		deluge::model::onDelayParamModified(*modelStack, oldValue, automatedBefore);
+		deluge::model::onDelayParamModified(lane, oldValue, automatedBefore);
 	}
 }
 

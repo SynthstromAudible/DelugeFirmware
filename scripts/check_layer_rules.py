@@ -443,6 +443,31 @@ RULES = [
         "2026-11-25-modelstack-stage1-design.md",
     ),
     (
+        # The engine stack names left in the param path, counted per file: the count may only fall. modulation/ still
+        # threads stacks through playback and recording (ModelStack stage 2); it moves out of src/deluge once its
+        # count is zero. The delay hook and the playhead move's deferred notify take a lane (bridge::LaneTarget) and
+        # stay at zero. One row per glob: the checker matches one glob per row.
+        "no-new-model-stack-in-params",
+        "src/deluge/modulation/**",
+        "symbol",
+        r"\bModelStack\w*\b",
+        "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
+        "no-new-model-stack-in-params",
+        "src/deluge/model/mod_controllable/delay_type.*",
+        "symbol",
+        r"\bModelStack\w*\b",
+        "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
+        "no-new-model-stack-in-params",
+        "src/deluge/playback/move_section.*",
+        "symbol",
+        r"\bModelStack\w*\b",
+        "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
         # The host chain's param table and pages are the deluge_host_chains library (host/chains), named for
         # what they serve. One row per tree: the checker matches one glob per row.
         "no-global-effectable-table",

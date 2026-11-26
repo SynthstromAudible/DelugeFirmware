@@ -242,15 +242,14 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 			                                    lane.empty() ? oldValue : lane.base, value);
 		}
 		const bool automatedNow = isAutomated(lane);
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow,
-		                                                          automatedNow);
+		deluge::bridge::notify_modified(*modelStack, oldValue, false, automatedNow, automatedNow);
 		return;
 	}
 	setBase(*modelStack->doc(), value);
 	deluge::modulation::postLaneCommand(*modelStack,
 	                                    {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value}, 0);
 	bool automatedNow = isAutomated(*modelStack->doc());
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
+	deluge::bridge::notify_modified(*modelStack, oldValue, false, automatedNow, automatedNow);
 }
 
 namespace {
@@ -436,8 +435,7 @@ getOut:
 		                                    {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value}, 0);
 	}
 	bool automatedNow = recorded || isAutomated(*modelStack->doc());
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                                          automatedNow);
+	deluge::bridge::notify_modified(*modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
 }
 
 void AutoParam::writeRecordedValue(deluge::project::DocAutoParam& lane, const deluge::modulation::RecordEvent& event) {
@@ -525,7 +523,7 @@ skipThat: {}
 }
 
 void AutoParam::projectScalarFromStore(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool isPlaying) {
-	// The notify chain takes an engine stack.
+	// The lane's store is read through the engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam const* modelStack = deluge::bridge::stack_of(lane, memory);
 	// The store's current_value was already written model-first (ParamSnapshot::applyPatch); this derives the
@@ -540,12 +538,12 @@ void AutoParam::projectScalarFromStore(const deluge::bridge::LaneTarget& lane, i
 	}
 	playBase(*modelStack->doc());
 	bool automatedNow = isAutomated(*modelStack->doc());
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
+	lane.collection->notifyParamModifiedInSomeWay(lane, oldValue, false, automatedNow, automatedNow);
 }
 
 void AutoParam::projectRegionFromStore(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automatedBefore,
                                        deluge::project::RegionWriteResult result) {
-	// The notify chain takes an engine stack.
+	// The lane's store is read through the engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam const* modelStack = deluge::bridge::stack_of(lane, memory);
 	// The store (nodes + current_value) was already written model-first (ParamSnapshot::applyPatch's region
@@ -563,8 +561,8 @@ void AutoParam::projectRegionFromStore(const deluge::bridge::LaneTarget& lane, i
 	}
 	playBase(*modelStack->doc());
 	bool automatedNow = isAutomated(*modelStack->doc());
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, result.automationChanged,
-	                                                          automatedBefore, automatedNow);
+	lane.collection->notifyParamModifiedInSomeWay(lane, oldValue, result.automationChanged, automatedBefore,
+	                                              automatedNow);
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
@@ -659,7 +657,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	cancelOverriding();
 
 	if (shouldNotify && wasAutomated) {
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, getCurrentValue(), true, true, false);
+		deluge::bridge::notify_modified(*modelStack, getCurrentValue(), true, true, false);
 	}
 }
 
@@ -1040,7 +1038,7 @@ adjustNodeJustReached:
 			FREEZE_WITH_ERROR("E372");
 		}
 #endif
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, true, true);
+		deluge::bridge::notify_modified(*modelStack, oldValue, false, true, true);
 	}
 
 	if (mayInterpolate) {
@@ -1369,8 +1367,7 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		deluge::project::deleteNodesWithinRegion(*doc, pos, length, effectiveLength);
 		playBase(*doc);
 	}
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true,
-	                                                          isAutomated(*modelStack->doc()));
+	deluge::bridge::notify_modified(*modelStack, oldValue, true, true, isAutomated(*modelStack->doc()));
 }
 
 int32_t AutoParam::setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value,
@@ -1475,8 +1472,8 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		}
 	}
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                                          isAutomated(*modelStack->doc()));
+	deluge::bridge::notify_modified(*modelStack, oldValue, automationChanged, automatedBefore,
+	                                isAutomated(*modelStack->doc()));
 }
 
 #define REGION_EDGE_LEFT 0
@@ -1567,7 +1564,7 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 			setupInterpolation(modelStack, nextNodeOurDirection, modelStack->getLoopLength(), pos, reversed);
 		}
 
-		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, true, true);
+		deluge::bridge::notify_modified(*modelStack, oldValue, false, true, true);
 	}
 }
 
@@ -1870,7 +1867,7 @@ void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t am
 }
 
 void AutoParam::swapState(AutoParamState* state, const deluge::bridge::LaneTarget& lane) {
-	// The notify chain takes an engine stack.
+	// The lane's store is read through the engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam const* modelStack = deluge::bridge::stack_of(lane, memory);
 	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
@@ -1888,8 +1885,7 @@ void AutoParam::swapState(AutoParamState* state, const deluge::bridge::LaneTarge
 
 	bool automatedNow = isAutomated(*modelStack->doc());
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValueHere, true, automatedBefore,
-	                                                          automatedNow);
+	lane.collection->notifyParamModifiedInSomeWay(lane, oldValueHere, true, automatedBefore, automatedNow);
 }
 
 void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,
@@ -2024,8 +2020,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 
 	nodesRef.testSequentiality("E440");
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, played_, true, automatedBefore,
-	                                                          isAutomated(*modelStack->doc()));
+	deluge::bridge::notify_modified(*modelStack, played_, true, automatedBefore, isAutomated(*modelStack->doc()));
 }
 
 void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
@@ -2284,8 +2279,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 		}
 	}
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, played_, true, wasAutomatedBefore,
-	                                                          isAutomated(*modelStack->doc()));
+	deluge::bridge::notify_modified(*modelStack, played_, true, wasAutomatedBefore, isAutomated(*modelStack->doc()));
 
 	nodesRef.testSequentiality("E423");
 }

@@ -26,7 +26,7 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
   component; the file's flat layout is the codec's parse form alone, and the tests check the record against its
   recorded answers. A sound's sidechain send and MIDI output are the host's: `project::SoundRouting` on its synth track
   or kit row, a setting group the menus write. Its effects are its `FxSection`, its LFOs' settings `synth::LfoState`.
-- Next actions: ModelStack stage 1's S1c (the notify chain on `LaneTarget`) and S1d (recording); the arpeggiator's params vs settings (D7) spec; the C2 spec and
+- Next actions: ModelStack stage 1's S1d (recording); the arpeggiator's params vs settings (D7) spec; the C2 spec and
   R2d (the scenes' link cut from the app); the float instrument's voice pool (Track B).
 
 ## Target architecture
@@ -301,7 +301,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | --- | --- | --- | --- |
 | Legacy menus (SoundEditor, menu_item) | 2 | 3b closed, 3a flash-tested, oracle specs frozen | Deleted |
 | `ModControllableAudio`, `GlobalEffectable` | 2 | Legacy menus gone | Deleted |
-| ModelStack stage 1: params by address | 2 | MCA/GE gone; automation recording, the notify chain and AutoParam projection re-keyed; `Consequence::revert` keeps its stack until the new undo | S1a done: a param address resolves to a `bridge::LaneTarget` with a typed owner; the param Edits, param undo, the projections and lane swaps, and the model's cable owner reads use it; owners have their ids from adoption. S1b done: the stack's owner slot is a typed `model::LaneOwner` and `ModControllable` is deleted. S1c (the notify chain on `LaneTarget`), S1d (recording) next |
+| ModelStack stage 1: params by address | 2 | MCA/GE gone; automation recording, the notify chain and AutoParam projection re-keyed; `Consequence::revert` keeps its stack until the new undo | S1a done: a param address resolves to a `bridge::LaneTarget` with a typed owner; the param Edits, param undo, the projections and lane swaps, and the model's cable owner reads use it; owners have their ids from adoption. S1b done: the stack's owner slot is a typed `model::LaneOwner` and `ModControllable` is deleted. S1c done: the notify chain (every `notifyParamModifiedInSomeWay`, the clip's `expectEvent`, the sound's smoothing, the delay's hook and its deferred notify) reads a `LaneTarget` on either tier, and `no-new-model-stack-in-params` counts the stack names left under `modulation/`. S1d (recording) next |
 | ModelStack stage 2: clip, note-row, sequencer chain on ids | 3 | P5 topology and reconciler | (proposed) |
 | Scenes' direct runtime reads (54 files) | 2 | 3d (done); R1 ratchet (done) | Readers exist for settings, slots and chains; (proposed) |
 | `ShellHostUI`, the legacy UI hosting the shell | 3 | R2; P5 topology for the big views | The root-view program |

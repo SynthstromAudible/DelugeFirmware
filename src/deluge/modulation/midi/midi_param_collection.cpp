@@ -25,6 +25,7 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
@@ -158,7 +159,7 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 			bool shouldNotify = param->tickTicks(numTicks);
 			if (shouldNotify) { // Should always actually be true...
 				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
-				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+				deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 			}
 		}
 	}
@@ -345,7 +346,7 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 			bool shouldSend = param->grabValueFromPos(pos, modelStackWithAutoParam);
 
 			if (shouldSend) {
-				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+				deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 			}
 		}
 	}
@@ -363,17 +364,16 @@ void MIDIParamCollection::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t o
 	}
 }
 
-void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+void MIDIParamCollection::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue,
                                                        bool automationChanged, bool automatedBefore,
                                                        bool automatedNow) {
 
-	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                              automatedNow);
+	ParamCollection::notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore, automatedNow);
 
 	auto* instrument =
-	    static_cast<MIDIInstrument*>(std::get<NonAudioInstrument*>(modelStack->owner)); // the collection's owner
-	if (modelStack->song->isOutputActiveInArrangement(instrument)) {
-		instrument->ccValueChanged(modelStack->paramId, oldValue, modelStack->autoParam->getCurrentValue());
+	    static_cast<MIDIInstrument*>(std::get<NonAudioInstrument*>(lane.owner)); // the collection's owner
+	if (lane.song->isOutputActiveInArrangement(instrument)) {
+		instrument->ccValueChanged(lane.param_id, oldValue, lane.auto_param->getCurrentValue());
 	}
 }
 

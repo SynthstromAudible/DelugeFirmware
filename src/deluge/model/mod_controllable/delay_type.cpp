@@ -23,9 +23,9 @@
 #include "model/edits/change_effect.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
-#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/param_backup.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
@@ -206,43 +206,42 @@ void resolveWhere(Song& song, const std::function<bool(const EffectsOwner&)>& wa
 
 } // namespace
 
-DelayParamRole delayParamRole(const ModelStackWithAutoParam& modelStack) {
-	if (deluge::model::is_none(modelStack.owner)) {
+DelayParamRole delayParamRole(const deluge::bridge::LaneTarget& lane) {
+	if (deluge::model::is_none(lane.owner)) {
 		return DelayParamRole::NONE;
 	}
-	const bool rate =
-	    (modelStack.kind == params::Kind::PATCHED && modelStack.paramId == params::GLOBAL_DELAY_RATE)
-	    || (modelStack.kind == params::Kind::UNPATCHED_GLOBAL && modelStack.paramId == params::UNPATCHED_DELAY_RATE);
+	const bool rate = (lane.kind == params::Kind::PATCHED && lane.param_id == params::GLOBAL_DELAY_RATE)
+	                  || (lane.kind == params::Kind::UNPATCHED_GLOBAL && lane.param_id == params::UNPATCHED_DELAY_RATE);
 	if (rate) {
 		return DelayParamRole::RATE;
 	}
 	bool reaches = false;
-	switch (modelStack.kind) {
+	switch (lane.kind) {
 	case params::Kind::PATCHED:
-		reaches = modelStack.paramId == params::GLOBAL_DELAY_FEEDBACK;
+		reaches = lane.param_id == params::GLOBAL_DELAY_FEEDBACK;
 		break;
 	case params::Kind::UNPATCHED_GLOBAL:
-		reaches = modelStack.paramId == params::UNPATCHED_DELAY_AMOUNT;
+		reaches = lane.param_id == params::UNPATCHED_DELAY_AMOUNT;
 		break;
 	case params::Kind::PATCH_CABLE: {
 		deluge::synth::CableTarget destination;
 		PatchSource source{};
-		PatchCableSet::dissectParamId(modelStack.paramId, &destination, &source);
+		PatchCableSet::dissectParamId(lane.param_id, &destination, &source);
 		reaches = destination.param_index() == params::GLOBAL_DELAY_FEEDBACK;
 		break;
 	}
 	default:
 		break;
 	}
-	return (reaches && modelStack.paramManager != nullptr) ? DelayParamRole::FEEDBACK : DelayParamRole::NONE;
+	return (reaches && lane.manager != nullptr) ? DelayParamRole::FEEDBACK : DelayParamRole::NONE;
 }
 
-void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore) {
-	const DelayParamRole role = delayParamRole(modelStack);
+void onDelayParamModified(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automatedBefore) {
+	const DelayParamRole role = delayParamRole(lane);
 	if (role == DelayParamRole::NONE) {
 		return;
 	}
-	const EffectsOwner effects = *deluge::model::effects_owner_of(modelStack.owner);
+	const EffectsOwner effects = *deluge::model::effects_owner_of(lane.owner);
 	if (role == DelayParamRole::RATE) {
 		if (currentSong != nullptr && effects.effects().delay.type != deluge::effects::DelayType::OFF) {
 			refreshDelayReserve(*currentSong, effects);
@@ -252,11 +251,11 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 	if (effects.effects().delay.type != deluge::effects::DelayType::OFF) {
 		return;
 	}
-	ParamManager& paramManager = *modelStack.paramManager;
+	ParamManager& paramManager = *lane.manager;
 	const bool sound = effects.sound != nullptr;
 	if (!delayCouldSound(paramManager, sound)
 	    || delayCouldSound(paramManager, sound,
-	                       {.param = modelStack.autoParam, .value = oldValue, .automated = automatedBefore})) {
+	                       {.param = lane.auto_param, .value = oldValue, .automated = automatedBefore})) {
 		return;
 	}
 	// The Edit a press of the feedback knob makes: the press cycle's step from OFF. It is applied here, inside the

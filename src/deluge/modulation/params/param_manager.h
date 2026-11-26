@@ -45,6 +45,9 @@ struct RepeatArgs {
 };
 
 class ParamManagerForTimeline;
+namespace deluge::bridge {
+struct LaneTarget;
+} // namespace deluge::bridge
 class ParamCollectionSummary;
 
 #define PARAM_COLLECTIONS_STORAGE_NUM 5
@@ -175,7 +178,7 @@ public:
 		return (PatchCableSet*)summaries[2].paramCollection;
 	}
 
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t currentValueChanged,
+	void notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t currentValueChanged,
 	                                  bool automationChanged, bool paramAutomatedNow);
 
 	virtual ParamManagerForTimeline* toForTimeline();
@@ -214,7 +217,7 @@ public:
 
 	void processCurrentPos(ModelStackWithThreeMainThings* modelStack, int32_t ticksSinceLast, bool reversed,
 	                       bool didPingpong = false, bool mayInterpolate = true);
-	void expectEvent(ModelStackWithThreeMainThings const* modelStack);
+	void expectEvent(TimelineCounter* timeline);
 
 	void shiftHorizontally(ModelStackWithThreeMainThings* modelStack, int32_t amount, int32_t effectiveLength);
 	void nudgeAutomationHorizontallyAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,

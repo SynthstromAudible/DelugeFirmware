@@ -25,9 +25,12 @@
 #include <functional>
 
 class AutoParam;
-class ModelStackWithAutoParam;
 class ParamManager;
 class Song;
+
+namespace deluge::bridge {
+struct LaneTarget;
+} // namespace deluge::bridge
 
 namespace deluge::model {
 
@@ -63,18 +66,18 @@ enum class DelayParamRole : uint8_t {
 	FEEDBACK, ///< its feedback (or amount), or a patch cable reaching the feedback: may lift the delay from OFF
 };
 
-/// @brief [render] or [interaction] What @p modelStack's param is to its owner's delay. Reads only the stack.
-/// @param modelStack The param.
+/// @brief [render] or [interaction] What @p lane's param is to its owner's delay. Reads only the lane.
+/// @param lane The param.
 /// @return Its role; NONE without an owner (or, for the feedback, without a param manager).
-DelayParamRole delayParamRole(const ModelStackWithAutoParam& modelStack);
+DelayParamRole delayParamRole(const deluge::bridge::LaneTarget& lane);
 
 /// @brief [task] After an interaction-tier change to a param: when it is an owner's delay feedback, or a patch cable
 /// reaching it, and the change took the delay from unable to sound to able while its type is OFF, steps the type by
 /// the Edit a press of the feedback knob makes, OFF to DIGITAL; when it is the delay's rate, refreshes its reserve.
-/// @param modelStack The changed param.
+/// @param lane The changed param.
 /// @param oldValue The param's value before the change.
 /// @param automatedBefore Whether it was automated before the change.
-void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore);
+void onDelayParamModified(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automatedBefore);
 
 /// @brief The tape, in frames, a delay with @p settings needs on the chain whose core is @p core: its owner's rate
 /// param in each of its param managers in @p song (the largest tape), synced to @p settings at the playback's tempo.
