@@ -245,6 +245,7 @@ private:
 	void getLastSelectedGlobalParamArrayPosition(Clip* clip);
 
 	void blinkShortcuts();
+	void endNoteEditorPadPresses();
 	void resetParameterShortcutBlinking();
 	bool parameterShortcutBlinking;
 	bool interpolationShortcutBlinking;

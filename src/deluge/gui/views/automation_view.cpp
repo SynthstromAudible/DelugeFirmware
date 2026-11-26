@@ -38,6 +38,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation/editor_layout/mod_controllable.h"
 #include "gui/views/automation/editor_layout/note.h"
+#include "gui/views/automation/editor_layout/note/velocity.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
@@ -322,6 +323,12 @@ constexpr uint8_t kVelocityShortcutY = 1;
 
 PLACE_SDRAM_BSS AutomationView automationView{};
 
+namespace {
+VelocityFold& velocityFold() {
+	return automationEditorLayoutNoteVelocity.fold;
+}
+} // namespace
+
 AutomationView::AutomationView() {
 
 	instrumentClipView.numEditPadPresses = 0;
@@ -427,6 +434,9 @@ uint32_t AutomationView::getMIDICCForAutomation(int32_t x, int32_t y) const {
 // called everytime you open up the automation view
 bool AutomationView::opened() {
 	initializeView();
+
+	// any folded velocity presses left over from last time we were here are stale
+	velocityFold().endPadPresses();
 
 	openedInBackground();
 
@@ -727,7 +737,13 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
-		if (inNoteEditor()) {
+		if (velocityFold().isFolded()) {
+			// draw every note row's pads now; the per-column note editor render below then only adds the undefined
+			// area, as there's no single note row
+			effectiveLength = clip->getMaxLength();
+			velocityFold().render((InstrumentClip*)clip, image, occupancyMask);
+		}
+		else if (inNoteEditor()) {
 			modelStackWithNoteRow = ((InstrumentClip*)clip)
 			                            ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 			                                                 modelStackWithTimelineCounter); // don't create
@@ -1314,15 +1330,23 @@ passToOthers:
 			result = ClipView::buttonAction(b, on, inCardRoutine);
 		}
 
-		// when you press affect entire, the parameter selection needs to reset
 		// do this here because affect entire state may have just changed
 		if (on && b == AFFECT_ENTIRE) {
-			// Overview releases use physical pad rows, not the note rows stored by Velocity Editor.
+			// in the velocity editor, affect entire folds / unfolds it to show all note rows at once.
+			// Held presses refer to one representation of the grid, so end them.
 			if (inNoteEditor()) {
-				instrumentClipView.endAllEditPadPresses();
+				// only with nothing held, matching InstrumentClipMinder's kit affect entire toggle
+				if (currentUIMode == UI_MODE_NONE) {
+					endNoteEditorPadPresses();
+					velocityFold().affectEntireChanged();
+					blinkShortcuts();
+				}
 			}
-			initParameterSelection();
-			blinkShortcuts();
+			// otherwise the parameter selection needs to reset
+			else {
+				initParameterSelection();
+				blinkShortcuts();
+			}
 		}
 
 		return result;
@@ -1342,7 +1366,7 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 		// Note edits store the selected note row, not the physical pad row used by overview releases.
 		// End them while leaving the editor, before discarding that context.
 		if (inNoteEditor()) {
-			instrumentClipView.endAllEditPadPresses();
+			endNoteEditorPadPresses();
 		}
 		initParameterSelection();
 		blinkShortcuts();
@@ -1395,7 +1419,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 		// Note edits store the selected note row, not the physical pad row used by overview releases.
 		// End them while leaving the editor, before discarding that context.
 		if (inNoteEditor()) {
-			instrumentClipView.endAllEditPadPresses();
+			endNoteEditorPadPresses();
 		}
 		initParameterSelection();
 		blinkShortcuts();
@@ -1790,7 +1814,8 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
-		if (inNoteEditor()) {
+		// the folded editor has no selected note row
+		if (inNoteEditor() && !velocityFold().isFolded()) {
 			modelStackWithNoteRow = ((InstrumentClip*)clip)
 			                            ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 			                                                 modelStackWithTimelineCounter); // don't create
@@ -1865,26 +1890,25 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	// pressing PatchSource::Velocity shortcut
 	if (velocity && !onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
 	    && isNoteVelocityEditorShortcut(x, y)) {
-		// don't enter if we're in a kit with affect entire enabled
-		if (!(outputType == OutputType::KIT && getAffectEntire())) {
-			// Automation edits store physical pad rows, which note-editor releases cannot match.
-			if (inAutomationEditor()) {
-				endAutomationEditPadPresses();
-			}
-			if (outputType == OutputType::KIT) {
-				potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
-			}
-			initParameterSelection(false);
-			automationParamType = AutomationParamType::NOTE_VELOCITY;
-			clip->lastSelectedParamShortcutX = x;
-			clip->lastSelectedParamShortcutY = y;
-			blinkShortcuts();
-			renderDisplay();
-			uiNeedsRendering(&automationView);
-			// if you're in note editor, turn led on
-			if (((InstrumentClip*)clip)->wrapEditing) {
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
-			}
+		// Automation edits store physical pad rows, which note-editor releases cannot match.
+		if (inAutomationEditor()) {
+			endAutomationEditPadPresses();
+		}
+		if (outputType == OutputType::KIT) {
+			potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
+		}
+		initParameterSelection(false);
+		automationParamType = AutomationParamType::NOTE_VELOCITY;
+		clip->lastSelectedParamShortcutX = x;
+		clip->lastSelectedParamShortcutY = y;
+		// a kit with affect entire on opens folded; the affect entire LED shows the fold state
+		view.setModLedStates();
+		blinkShortcuts();
+		renderDisplay();
+		uiNeedsRendering(&automationView);
+		// if you're in note editor, turn led on
+		if (((InstrumentClip*)clip)->wrapEditing) {
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
 		}
 		return ActionResult::DEALT_WITH;
 	}
@@ -1909,6 +1933,9 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 		if (inAutomationEditor()) {
 			automationEditorLayoutModControllable.automationEditPadAction(modelStackWithParam, clip, x, y, velocity,
 			                                                              effectiveLength, xScroll, xZoom);
+		}
+		else if (velocityFold().isFolded()) {
+			velocityFold().padAction((InstrumentClip*)clip, x, y, velocity);
 		}
 		else if (inNoteEditor()) {
 			if (noteRow) {
@@ -2086,7 +2113,7 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	if (inNoteEditor()) {
 		// Note edits use the selected note row; parameter edits release by physical pad row.
 		// Finish held note edits before switching to the parameter editor.
-		instrumentClipView.endAllEditPadPresses();
+		endNoteEditorPadPresses();
 		automationParamType = AutomationParamType::PER_SOUND;
 		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
@@ -2376,6 +2403,12 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 
 	// The overview layout is fixed; horizontal scrolling only applies in the editor.
 	else if (onAutomationOverview()) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	// fine tune velocity of the held steps in the folded velocity editor
+	else if (velocityFold().isFolded() && velocityFold().anyPadPresses()) {
+		velocityFold().adjustHeldVelocity(getCurrentInstrumentClip(), offset);
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -3418,6 +3451,12 @@ void AutomationView::blinkShortcuts() {
 	else {
 		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
+}
+
+// end the pad presses held in the note editor, folded or not
+void AutomationView::endNoteEditorPadPresses() {
+	instrumentClipView.endAllEditPadPresses();
+	velocityFold().endPadPresses();
 }
 
 void AutomationView::resetShortcutBlinking() {
