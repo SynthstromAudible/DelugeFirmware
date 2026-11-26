@@ -125,6 +125,11 @@ PLACE_SDRAM_TEXT deluge::ui::views::waveform::ColumnRead column_of(Sample& sampl
 	return ColumnRead::of({.min = static_cast<int32_t>(acc.min) * 65536, .max = static_cast<int32_t>(acc.max) * 65536});
 }
 
+/// The deepest zoom (frames a column) at which a read keeps level-0 values around its columns' ends. A window this
+/// deep spans at most 65,536 frames, so it touches at most two level-0 chunks; zoomed out, a column's ends are a small
+/// part of its read, and keeping them would hold a chunk per end across the whole file.
+constexpr int64_t kLevel0Zoom = 4096;
+
 } // namespace
 
 PLACE_SDRAM_TEXT ui::views::waveform::PeakRead waveform_columns(Sample& sample, std::optional<uint64_t> captured,
@@ -133,6 +138,9 @@ PLACE_SDRAM_TEXT ui::views::waveform::PeakRead waveform_columns(Sample& sample, 
 	using ui::views::waveform::kColumns;
 	if (at.zoom < 1) {
 		return ui::views::waveform::PeakRead::all_past_end();
+	}
+	if (sample.peaks() == nullptr) {
+		sample.resetPeaks(); // its index could not be made when it loaded: memory may have come free since
 	}
 	DelugePeakIndex* peaks = sample.peaks();
 	const auto valid = static_cast<int64_t>(captured.value_or(sample.lengthInSamples));
@@ -157,19 +165,27 @@ PLACE_SDRAM_TEXT ui::views::waveform::PeakRead waveform_columns(Sample& sample, 
 		if (peaks == nullptr || hi > held) {
 			continue; // pending
 		}
-		// Keep level-0 values around the column's ends, so a later frame reads them instead of the samples.
-		deluge_peaks_ensure_level0(peaks, static_cast<uint64_t>(std::max<int64_t>(lo - 4096, 0)),
-		                           static_cast<uint64_t>(lo + 4096));
-		deluge_peaks_ensure_level0(peaks, static_cast<uint64_t>(std::max<int64_t>(hi - 4096, 0)),
-		                           static_cast<uint64_t>(hi + 4096));
+		if (at.zoom <= kLevel0Zoom) {
+			// Keep level-0 values around the column's ends, so a later frame reads them instead of the samples.
+			deluge_peaks_ensure_level0(peaks, static_cast<uint64_t>(std::max<int64_t>(lo - 4096, 0)),
+			                           static_cast<uint64_t>(lo + 4096));
+			deluge_peaks_ensure_level0(peaks, static_cast<uint64_t>(std::max<int64_t>(hi - 4096, 0)),
+			                           static_cast<uint64_t>(hi + 4096));
+		}
 		read.set(col, column_of(sample, peaks, static_cast<uint64_t>(lo), static_cast<uint64_t>(hi)));
 	}
 	return read;
 }
 
 PLACE_SDRAM_TEXT bool advance_peak_scan(Sample& sample) {
+	if (!sample.isLengthKnown()) {
+		return false;
+	}
+	if (sample.peaks() == nullptr) {
+		sample.resetPeaks(); // its index could not be made when it loaded: memory may have come free since
+	}
 	DelugePeakIndex* peaks = sample.peaks();
-	if (peaks == nullptr || !sample.isLengthKnown()) {
+	if (peaks == nullptr) {
 		return false;
 	}
 	const uint64_t from = deluge_peaks_next_unscanned(peaks, sample.peaksScanFrom);
@@ -182,7 +198,7 @@ PLACE_SDRAM_TEXT bool advance_peak_scan(Sample& sample) {
 			return false; // its recorder fills its index; a take's clusters are not readable yet
 		}
 	}
-	// As the overview scan: never compete with the card or the audio routine for a read.
+	// Never compete with the card or the audio routine for a read.
 	if (deluge::sync::sd_busy() || AudioEngine::audioTicksHeld()) {
 		return true;
 	}

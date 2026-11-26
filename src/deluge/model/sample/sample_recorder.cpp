@@ -95,6 +95,9 @@ void SampleRecorder::detachSample() {
 	// any undrained buffers (an abort mid-recording) plus anything sitting in the recycle ring.
 	releaseCaptureBuffers();
 
+	// The background scan passes over a sample its recorder holds; a take left incomplete (its index reset after an
+	// altering finalize, or a feed that found no room) is the scan's from here.
+	audioFileManager.peakScanAllDone = false;
 	sample->removeReason("E400");
 }
 

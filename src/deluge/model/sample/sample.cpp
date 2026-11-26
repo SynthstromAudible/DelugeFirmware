@@ -45,8 +45,8 @@
 
 namespace {
 // While a Sample's length is still unknown (mid-recording), its cluster count is the number of clusters
-// the recorder has captured so far. Mirrors the unsynchronized walk in
-// WaveformRenderer::investigateWholeCluster (waveform_renderer.cpp).
+// the recorder has captured so far. Mirrors the unsynchronized recorder walk in
+// deluge::sample::advance_peak_scan (waveform_scan.cpp).
 //
 // PRECONDITION: this unsynchronized list walk is safe only because num_clusters() reaches it just for
 // still-recording samples (isLengthKnown() == false), which are never consumed by the preemptive
@@ -238,19 +238,22 @@ void Sample::workOutBitMask() {
 void Sample::markAsUnloadable() {
 	unloadable = true;
 
-	// The on-disk audio may have changed, so the peaks can no longer be trusted.
-	resetPeaks();
-
 	// Cancel any pending loads and flag resident clusters, so a mid-flight fill won't complete with
-	// stale bytes (the residency lives in the Rust manager now).
+	// stale bytes (the residency lives in the Rust manager).
 	deluge_sample_invalidate(deluge::sample::source_id_for(*this));
+
+	// The on-disk audio may have changed, so the peaks can no longer be trusted. After the invalidation, so no fill
+	// of the old bytes folds into the new index.
+	resetPeaks();
 }
 
 void Sample::makePeaks(uint64_t frames, bool growing, uint64_t capacity) {
 	deluge_peaks_release(peaks_);
 	peaks_ = deluge_peaks_create(frames, growing, capacity);
 	peaksScanFrom = 0;
-	audioFileManager.peakScanAllDone = false;
+	if (peaks_ != nullptr) {
+		audioFileManager.peakScanAllDone = false;
+	}
 	if (stream_.resource_asset_id() != DELUGE_RESOURCE_NO_ASSET) {
 		deluge_peaks_bind_asset(stream_.resource_asset_id(), peaks_);
 	}

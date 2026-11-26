@@ -388,6 +388,27 @@ bool beginCase(const Case& c) {
 	return true;
 }
 
+/// RR-SCAN-REARM: a take whose index is reset while its recorder holds it (an altering finalize) is passed over by the
+/// background scan, which can go idle meanwhile; letting the recorder go must restart the scan. The recorder is
+/// dropped here, as its deletion does.
+bool verifyScanRearm() {
+	Sample* sample = g_case.rec->sample;
+	if (sample == nullptr) {
+		return true;
+	}
+	sample->addReason(); // keep the take past its recorder
+	sample->resetPeaks();
+	audioFileManager.peakScanAllDone = true; // the scan's pass found nothing it could scan
+	g_case.rec.reset();
+	const bool rearmed = !audioFileManager.peakScanAllDone;
+	printf("  RR-SCAN-REARM rearmed=%d\n", rearmed ? 1 : 0);
+	sample->removeReason("RRSR");
+	if (!rearmed) {
+		g_rtReport.fail("letting a take's recorder go left the background peak scan idle");
+	}
+	return rearmed;
+}
+
 /// Finish a case once its pump has reached COMPLETE.
 bool verifyCase() {
 	SampleRecorder& rec = *g_case.rec;
@@ -397,8 +418,9 @@ bool verifyCase() {
 		g_rtReport.fail("no file path recorded");
 		return false;
 	}
-	return verifyRecordedFile(g_case.path, c.channels, c.frames, c.extraMargins,
-	                          rec.sample != nullptr ? rec.sample->peaks() : nullptr);
+	const bool ok = verifyRecordedFile(g_case.path, c.channels, c.frames, c.extraMargins,
+	                                   rec.sample != nullptr ? rec.sample->peaks() : nullptr);
+	return verifyScanRearm() && ok;
 }
 
 /// Advance the case that is running by ONE step. True while it is still going.

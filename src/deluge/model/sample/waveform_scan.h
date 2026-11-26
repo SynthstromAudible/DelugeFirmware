@@ -39,8 +39,9 @@ namespace deluge::sample {
 ///        covers. PAST_END outside the frames the sample holds (a take: the frames captured, and a column not wholly
 ///        captured yet); PENDING where a block under it is not scanned yet, or the frames at its ends are not resident.
 ///
-/// A pure function of the sample's data: it keeps no state of its own. Frames read at a column's ends are folded back
-/// into the index, so the next read finds them kept.
+/// Keeps no state of its own; what it learns goes into the sample's index. Frames read at a column's ends are folded
+/// back into the index, and at deep zoom the level-0 values around them are kept, so the next read finds them. A sample
+/// whose index could not be made gets another try. Thread mode.
 /// @param sample   The sample.
 /// @param captured The frames a recorder has captured, or nullopt for a finished file.
 /// @param at       The window. A zoom below 1 answers every column PAST_END.
@@ -52,7 +53,7 @@ namespace deluge::sample {
 ///        frames through the frame reader (which requests the fill of a cluster that is not resident).
 ///
 /// A sample a recorder still holds is skipped: its recorder fills its index. Bails without reading while the card or
-/// the audio routine is busy, as the overview scan does.
+/// the audio routine is busy. A sample whose index could not be made gets another try.
 /// @param sample The sample to advance.
 /// @return True while blocks remain, false once its index is complete (or it has none).
 bool advance_peak_scan(Sample& sample);
