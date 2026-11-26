@@ -7,11 +7,27 @@ pub fn floor_div_u64(n: u64, d: u64) -> u64 {
     if d == 0 || n >= 1 << 53 {
         return u64::MAX;
     }
+    // Below 2^32 both conversions are single VFP instructions; above it they are library calls.
+    if let (Ok(n32), Ok(d32)) = (u32::try_from(n), u32::try_from(d)) {
+        return u64::from(floor_div_u32(n32, d32));
+    }
     let mut q = (n as f64 / d as f64) as u64;
     // One correction step: below 2^53 the double quotient is within one of the true one.
     if q.saturating_mul(d) > n {
         q -= 1;
     } else if (q + 1).saturating_mul(d) <= n {
+        q += 1;
+    }
+    q
+}
+
+/// `n / d` rounded down, for `d > 0`: [`floor_div_u64`]'s 32-bit path, every conversion a VFP instruction.
+fn floor_div_u32(n: u32, d: u32) -> u32 {
+    let mut q = (f64::from(n) / f64::from(d)) as u32;
+    // A double holds every u32 exactly, and the quotient is within one of the true one.
+    if u64::from(q) * u64::from(d) > u64::from(n) {
+        q -= 1;
+    } else if (u64::from(q) + 1) * u64::from(d) <= u64::from(n) {
         q += 1;
     }
     q

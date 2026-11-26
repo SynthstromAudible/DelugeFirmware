@@ -85,4 +85,13 @@ bool investigate_whole_cluster(Sample* sample, int32_t clusterIndex);
 /// @return True while more clusters remain to scan, false once the whole sample is covered.
 bool advance_overview_scan(Sample* sample, int32_t maxClusters);
 
+/// @brief The background peak scan: fold the first block of @p sample's peak index that is not complete, reading its
+///        frames through the frame reader (which requests the fill of a cluster that is not resident).
+///
+/// A sample a recorder still holds is skipped: its recorder fills its index. Bails without reading while the card or
+/// the audio routine is busy, as the overview scan does.
+/// @param sample The sample to advance.
+/// @return True while blocks remain, false once its index is complete (or it has none).
+bool advance_peak_scan(Sample& sample);
+
 } // namespace deluge::sample

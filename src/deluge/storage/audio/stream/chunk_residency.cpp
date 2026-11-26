@@ -16,6 +16,7 @@
  */
 
 #include "storage/audio/stream/chunk_residency.h"
+#include "deluge_storage_sample_peaks.h"
 
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -46,6 +47,11 @@ uint32_t deluge_streaming_define_asset(Sample* sample) {
 	stream.set_resource_asset_id(asset_id);
 	if (stream.resource_asset_id() == DELUGE_RESOURCE_NO_ASSET) {
 		FREEZE_WITH_ERROR("RSA1"); // resource asset table exhausted (raise kAssetCap)
+	}
+	// Let the fill fold each cluster's peaks into the sample's index. A sample whose length is not parsed yet has
+	// none; Sample::makePeaks binds it then.
+	if (sample->peaks() != nullptr) {
+		deluge_peaks_bind_asset(stream.resource_asset_id(), sample->peaks());
 	}
 	// Attach the async-prefetch path so CLUSTER_ENQUEUE can request (construct now, load later).
 	deluge_resource_set_construct(mgr, stream.resource_asset_id(), deluge_streaming_chunk_construct);

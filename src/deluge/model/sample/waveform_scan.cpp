@@ -17,6 +17,7 @@
 
 #include "model/sample/waveform_scan.h"
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_peaks.h"
 #include "io/debug/log.h"
 #include "model/sample/overview_cache_entry.h"
 #include "model/sample/sample.h"
@@ -435,6 +436,49 @@ bool advance_overview_scan(Sample* sample, int32_t maxClusters) {
 	}
 
 	return sample->overviewScanNextCluster < endClusters;
+}
+
+bool advance_peak_scan(Sample& sample) {
+	DelugePeakIndex* peaks = sample.peaks();
+	if (peaks == nullptr || !sample.isLengthKnown()) {
+		return false;
+	}
+	const uint64_t from = deluge_peaks_next_unscanned(peaks, sample.peaksScanFrom);
+	if (from == UINT64_MAX) {
+		return false;
+	}
+	sample.peaksScanFrom = from;
+	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder != nullptr; recorder = recorder->next) {
+		if (recorder->sample == &sample) {
+			return false; // its recorder fills its index; a take's clusters are not readable yet
+		}
+	}
+	// As the overview scan: never compete with the card or the audio routine for a read.
+	if (deluge::sync::sd_busy() || AudioEngine::audioTicksHeld()) {
+		return true;
+	}
+	constexpr uint64_t kBlockFrames = uint64_t{1} << 8;
+	const uint64_t end = std::min(from + kBlockFrames, sample.lengthInSamples);
+	const uint32_t frameBytes = sample.numChannels * sample.byteDepth;
+	SampleFrameReader reader{source_id_for(sample), from, 1, DELUGE_READ_SCAN};
+	DelugePeak block{.min = INT16_MAX, .max = INT16_MIN};
+	for (uint64_t at = from; at < end;) {
+		const DelugeFrameWindow window = reader.window();
+		if (!reader.ok() || window.frames == nullptr || window.frame_count == 0) {
+			return true; // the fill is requested; the tap folds it, or a later call reads it
+		}
+		const auto frames = static_cast<uint32_t>(std::min<uint64_t>(window.frame_count, end - at));
+		const DelugeMaybePeak p = deluge_peaks_of_frames(static_cast<const uint8_t*>(window.frames),
+		                                                 frames * frameBytes, static_cast<uint8_t>(sample.byteDepth));
+		if (p.has) {
+			block = {.min = std::min(block.min, p.peak.min), .max = std::max(block.max, p.peak.max)};
+		}
+		at += frames;
+		reader.advance(frames);
+	}
+	deluge_peaks_fold_block(peaks, from >> 8, block);
+	sample.peaksScanFrom = end;
+	return true;
 }
 
 } // namespace deluge::sample

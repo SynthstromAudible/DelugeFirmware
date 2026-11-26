@@ -36,6 +36,9 @@
 #include <array>
 #include <cstdint>
 
+/// A sample's waveform peak index (`deluge_storage_sample_peaks.h`).
+struct DelugePeakIndex;
+
 #define SAMPLE_DO_LOCKS 1 // Re-entrancy would corrupt percCacheZones, so this is on in all builds
 
 // RawDataFormat now lives in storage/audio/audio_file_format.h (a file-format facet, not a Sample one);
@@ -115,6 +118,23 @@ public:
 	// so it gets rebuilt from scratch. Call when the underlying audio data may have changed on disk.
 	void resetOverviewScan();
 	void finalizeAfterLoad(uint32_t fileSize) override;
+
+	/// @brief This sample's waveform peak index, or null if it could not be made.
+	[[nodiscard]] DelugePeakIndex* peaks() const { return peaks_; }
+
+	/// @brief Make this sample a new, empty peak index, dropping any it had, and bind it to the stream asset if there
+	///        is one. Thread mode.
+	/// @param frames   The frames the sample holds (a take: those captured so far).
+	/// @param growing  True for a take whose length is not known yet.
+	/// @param capacity The most frames the index may come to hold.
+	void makePeaks(uint64_t frames, bool growing, uint64_t capacity);
+
+	/// @brief Forget every peak: a new, empty index of the sample's length, and the scan starts over. Call when the
+	///        audio on the card may have changed.
+	void resetPeaks();
+
+	/// @brief The frame the background peak scan looks from next.
+	uint64_t peaksScanFrom{0};
 
 	/// @brief This Sample's audio-stream orchestrator.
 	///
@@ -244,6 +264,9 @@ public:
 	/// A stable-address `SegmentedVector` so a `OverviewCacheEntry&` handed out by
 	/// overviewCacheEntry() stays valid across later growth -- see `resizeOverviewCache()`.
 	deluge::SegmentedVector<OverviewCacheEntry, 256, deluge::memory::fast_allocator> overviewCache_{};
+
+	/// @brief The waveform peak index: one reference, dropped in the destructor or by `makePeaks`.
+	DelugePeakIndex* peaks_{nullptr};
 
 protected:
 	// Project-relevance hooks (the object's hard-lease 0↔1 transitions): toggle the soft-reference on

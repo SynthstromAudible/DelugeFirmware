@@ -18,6 +18,7 @@
 #include "model/sample/sample_recorder.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_peaks.h"
 #include "dsp/core/fixed_point.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -202,6 +203,8 @@ gotError:
 	                                                               // Sample::kUnknownLengthSentinel and its users
 	sample->sampleRate = kSampleRate;
 	sample->workOutBitMask();
+	// The take's peaks: room for a file of the largest size, in 24-bit frames of this many channels.
+	sample->makePeaks(0, true, ((uint64_t{1} << MAX_FILE_SIZE_MAGNITUDE) / 3) >> (newNumChannels == 2 ? 1 : 0));
 
 	pointerHeldElsewhere = true;
 	mode = newMode;
@@ -552,6 +555,12 @@ Error SampleRecorder::writeOneCompletedCluster(bool mayUseChannel) {
 	                              // called, and we need to be counting this cluster as "written", as in too late for it
 	                              // to be modified (by writing a final length to it)
 
+	// The cluster's bytes are final now: fold them into the take's peaks before the write recycles the buffer.
+	if (const std::byte* buffer = bufferTable_[writingClusterIndex]; buffer != nullptr) {
+		takePeaks_.feed(sample->peaks(), {reinterpret_cast<const uint8_t*>(buffer), Cluster::size},
+		                sample->audioDataStartPosBytes, static_cast<uint8_t>(sample->numChannels));
+	}
+
 	// writeCluster() recycles this buffer's memory back to the free-list once the write succeeds --
 	// no separate "reason" to drop; we privately own it outright.
 	return writeCluster(writingClusterIndex, Cluster::size, mayUseChannel);
@@ -604,6 +613,9 @@ Error SampleRecorder::finalizeWriteFinalPartial() {
 
 		int32_t bytesToWrite = writePos - reinterpret_cast<char*>(currentRecordBuffer);
 		if (bytesToWrite > 0) { // Will always be true
+			takePeaks_.feed(sample->peaks(),
+			                {reinterpret_cast<const uint8_t*>(currentRecordBuffer), static_cast<size_t>(bytesToWrite)},
+			                sample->audioDataStartPosBytes, static_cast<uint8_t>(sample->numChannels));
 			// Through the channel wherever the channel is usable. The header read-back that follows waits for
 			// it: `pumpInFlightWrite()` at the top of cardRoutine() settles this write before finalize runs
 			// again, and a failed one ends the take there.
@@ -759,6 +771,16 @@ Error SampleRecorder::finalizeBookkeeping() {
 				return Error::INSUFFICIENT_RAM;
 			}
 		}
+	}
+
+	// The take's peaks. An alteration rewrote the audio, and an overrun capture was truncated: either way the folded
+	// peaks no longer describe the file, so the index starts over and the background scan reads the finished file.
+	if (finalizeAltering_ || takePeaks_.frames() != sample->lengthInSamples) {
+		sample->resetPeaks();
+	}
+	else {
+		deluge_peaks_set_frames(sample->peaks(), sample->lengthInSamples, true);
+		takePeaks_.finish(sample->peaks());
 	}
 
 	if (sample->tempFilePathForRecording.empty()) {

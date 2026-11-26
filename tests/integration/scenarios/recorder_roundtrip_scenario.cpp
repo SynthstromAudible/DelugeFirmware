@@ -31,6 +31,7 @@
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness dir is globbed in), so the Embassy binary, which
 ///       links `deluge_app`, can reach it. Inert unless called.
 
+#include "deluge_storage_sample_peaks.h"
 #include "harness/level3/host_script.h"
 #include "libdeluge/file_directory.h"
 #include "libdeluge/file_stream.h"
@@ -50,6 +51,7 @@
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -216,7 +218,31 @@ bool pumpOnce(SampleRecorder& rec) {
 /// Byte-exact verification of a finished recording, factored out of runCase() so the `ticked_` cases
 /// below check the SAME things rather than a weaker copy of them. A recording in one of their shapes
 /// must be indistinguishable from one in the matrix -- that is the whole claim.
-bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t frames, bool extraMargins) {
+/// The take's peak index against the file it describes: complete, and its range the top 16 bits of every written
+/// sample. The recorder folds each cluster as it writes it, so this needs no read of the file by the index.
+bool verifyTakePeaks(const std::vector<std::byte>& bytes, uint32_t headerLen, uint32_t frameBytes, uint32_t totalFrames,
+                     DelugePeakIndex* peaks) {
+	DelugePeak want{.min = INT16_MAX, .max = INT16_MIN};
+	for (uint32_t i = 0; i < totalFrames * frameBytes; i += 3) {
+		const size_t off = headerLen + i;
+		const auto v = static_cast<int16_t>(static_cast<uint16_t>(static_cast<uint32_t>(bytes[off + 1])
+		                                                          | (static_cast<uint32_t>(bytes[off + 2]) << 8)));
+		want = {.min = std::min(want.min, v), .max = std::max(want.max, v)};
+	}
+	const uint64_t unscanned = deluge_peaks_next_unscanned(peaks, 0);
+	const DelugeMaybePeak got = deluge_peaks_range(peaks);
+	printf("  RR-PEAKS unscanned=%s range=%d/%d want=%d/%d\n", unscanned == UINT64_MAX ? "none" : "some", got.peak.min,
+	       got.peak.max, want.min, want.max);
+	if (peaks == nullptr || unscanned != UINT64_MAX || !got.has || got.peak.min != want.min
+	    || got.peak.max != want.max) {
+		g_rtReport.fail("the take's peak index is not the written file's");
+		return false;
+	}
+	return true;
+}
+
+bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t frames, bool extraMargins,
+                        DelugePeakIndex* peaks = nullptr) {
 	const Case c{/*name=*/"", channels, extraMargins, frames};
 	std::vector<std::byte> bytes;
 	if (auto read = readWholeFile(path, bytes); !read) {
@@ -297,6 +323,10 @@ bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t fram
 		}
 	}
 
+	if (peaks != nullptr && bytes.size() >= static_cast<size_t>(headerLen) + dataLen) {
+		ok = verifyTakePeaks(bytes, headerLen, frameBytes, totalFrames, peaks) && ok;
+	}
+
 	printf("  %s\n", ok ? "PASS" : "FAIL");
 	return ok;
 }
@@ -367,7 +397,8 @@ bool verifyCase() {
 		g_rtReport.fail("no file path recorded");
 		return false;
 	}
-	return verifyRecordedFile(g_case.path, c.channels, c.frames, c.extraMargins);
+	return verifyRecordedFile(g_case.path, c.channels, c.frames, c.extraMargins,
+	                          rec.sample != nullptr ? rec.sample->peaks() : nullptr);
 }
 
 /// Advance the case that is running by ONE step. True while it is still going.

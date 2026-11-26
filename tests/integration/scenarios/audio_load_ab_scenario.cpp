@@ -39,6 +39,7 @@
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
 ///       app's sources), so the Embassy host binary, which links `deluge_app`, can reach it. Inert unless called.
 
+#include "deluge_storage_sample_peaks.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 
@@ -55,6 +56,7 @@
 #include "model/output.h"
 #include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_reader_bridge.h"
 #include "model/song/song.h"
 #include "runtime/app_loop.h"                // nowUs, the stall bounds' clock
 #include "scenarios/guest_drive.h"           // the shell guest: its tick, its browser
@@ -65,6 +67,7 @@
 #include "ui/scenes/browser/browser_scene.h"
 #include "util/menu_entry.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -892,11 +895,13 @@ struct PrescanMark {
 	int32_t investigated = 0;
 };
 PrescanMark g_prescanBefore{};
+/// The previewed sample's first unscanned frame before any peak scan ran: what the fill alone folded.
+uint64_t g_peaksFilledBefore = 0;
 /// Scan ticks made, the one that ended the stage included.
 int32_t g_prescanTicks = 0;
 /// Bound on the pre-scan stage, in ticks: one cluster per tick, and the preview file holds far fewer.
-constexpr int32_t kMaxPrescanTicks = 4000;
-Wait g_prescanWait{g_report, "the overview pre-scan finishing", kMaxPrescanTicks};
+constexpr int32_t kMaxPrescanTicks = 8000;
+Wait g_prescanWait{g_report, "the overview and peak scans finishing", kMaxPrescanTicks};
 
 int32_t investigatedClusters(const Sample& sample) {
 	int32_t n = 0;
@@ -915,6 +920,13 @@ void runOnePrescanTick() {
 		                              .max = sample != nullptr ? sample->maxValueFound : 0,
 		                              .investigated = sample != nullptr ? investigatedClusters(*sample) : 0};
 		audioFileManager.overviewScanAllDone = false;
+		audioFileManager.peakScanAllDone = false;
+		g_peaksFilledBefore = sample != nullptr ? deluge_peaks_next_unscanned(sample->peaks(), 0) : uint64_t{0};
+		// The scan must build the index on its own: the clusters the preview filled are resident, so no fill
+		// folds them again.
+		if (sample != nullptr) {
+			sample->resetPeaks();
+		}
 	}
 	g_prescanTicks++;
 	audioFileManager.backgroundWaveformOverviewScan();
@@ -940,6 +952,57 @@ void finishPrescanStage() {
 		g_report.fail(
 		    "[audioLoadAB/prescan-range]: the pre-scan moved the sample's found range, so the next full-screen "
 		    "render draws its bars smaller than main's");
+	}
+}
+
+/// The peak of every frame of @p sample, read back through the frame reader: the brute force the index must equal.
+DelugeMaybePeak brutePeak(Sample& sample) {
+	std::array<uint8_t, 4096> buf{};
+	const uint32_t frameBytes = sample.numChannels * sample.byteDepth;
+	const uint32_t chunk = static_cast<uint32_t>(buf.size()) / frameBytes;
+	DelugeMaybePeak all{};
+	for (uint64_t at = 0; at < sample.lengthInSamples;) {
+		const auto want = static_cast<uint32_t>(std::min<uint64_t>(chunk, sample.lengthInSamples - at));
+		const uint32_t got = deluge::sample::SampleFrameReader::read(deluge::sample::source_id_for(sample), at, want,
+		                                                             buf.data(), buf.size());
+		if (got == 0) {
+			return DelugeMaybePeak{};
+		}
+		const DelugeMaybePeak p =
+		    deluge_peaks_of_frames(buf.data(), got * frameBytes, static_cast<uint8_t>(sample.byteDepth));
+		if (p.has) {
+			all = all.has ? DelugeMaybePeak{.has = true,
+			                                .peak = {.min = std::min(all.peak.min, p.peak.min),
+			                                         .max = std::max(all.peak.max, p.peak.max)}}
+			              : p;
+		}
+		at += got;
+	}
+	return all;
+}
+
+/// AB-PEAKS: the preview's own fills fold its first blocks into the sample's index before any peak scan runs; the
+/// scan, starting over from an empty index, completes it; and the index's range is the whole file's.
+void checkPeaks() {
+	Sample* sample = g_prescanBefore.sample;
+	if (sample == nullptr || sample != drawnSample(kPreviewPath)) {
+		g_report.fail("[audioLoadAB/peaks]: no previewed sample");
+		return;
+	}
+	const uint64_t unscanned = deluge_peaks_next_unscanned(sample->peaks(), 0);
+	const DelugeMaybePeak range = deluge_peaks_range(sample->peaks());
+	const DelugeMaybePeak brute = brutePeak(*sample);
+	printf("AB-PEAKS filled_before_scan=%llu unscanned_after=%s range=%d/%d brute=%d/%d\n",
+	       static_cast<unsigned long long>(g_peaksFilledBefore), unscanned == UINT64_MAX ? "none" : "some",
+	       range.peak.min, range.peak.max, brute.peak.min, brute.peak.max);
+	if (g_peaksFilledBefore == 0) {
+		g_report.fail("[audioLoadAB/peaks]: the preview's fills folded no peaks before the scan ran");
+	}
+	if (unscanned != UINT64_MAX) {
+		g_report.fail("[audioLoadAB/peaks]: the peak scan finished with blocks unscanned");
+	}
+	if (!range.has || !brute.has || range.peak.min != brute.peak.min || range.peak.max != brute.peak.max) {
+		g_report.fail("[audioLoadAB/peaks]: the index's range is not the file's");
 	}
 }
 
@@ -1418,7 +1481,7 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_dsStallDraws = 0;
 	g_dsStallComplete = 0;
 	g_dsStallTicks = 0;
-	g_prescanWait = Wait{g_report, "the overview pre-scan finishing", kMaxPrescanTicks};
+	g_prescanWait = Wait{g_report, "the overview and peak scans finishing", kMaxPrescanTicks};
 	g_drawStallWait = Wait{g_report, "the stalled preview arming a redraw", kMaxDrawStallTicks};
 	g_ejectStep = EjectStep::Request;
 	g_ejectWait = Wait{g_report, "the witness file loading", kMaxEjectTicks};
@@ -1495,11 +1558,12 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		}
 		else if (g_stage == Stage::PrescanRange) {
 			runOnePrescanTick();
-			switch (g_prescanWait.poll(audioFileManager.overviewScanAllDone)) {
+			switch (g_prescanWait.poll(audioFileManager.overviewScanAllDone && audioFileManager.peakScanAllDone)) {
 			case WaitState::Pending:
 				break;
 			case WaitState::Met:
 				finishPrescanStage();
+				checkPeaks();
 				g_stage = Stage::Cancel;
 				break;
 			case WaitState::Expired:

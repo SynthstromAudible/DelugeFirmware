@@ -17,6 +17,7 @@
 
 #include "model/sample/sample.h"
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_peaks.h"
 #include "deluge_storage_sample_reader.h"
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/fft/magnitude.h"
@@ -189,6 +190,7 @@ Sample::~Sample() {
 	// (see SampleStream::release_asset()'s doc); ~SampleStream() also calls it, as an idempotent
 	// backstop, once stream_ destructs below.
 	stream_.release_asset();
+	deluge_peaks_release(peaks_);
 
 	deletePercCache(true);
 
@@ -261,7 +263,25 @@ void Sample::resetOverviewScan() {
 		cacheEntry.max = -128;
 	}
 	overviewScanNextCluster = getFirstClusterIndexWithAudioData();
+	resetPeaks();
 	audioFileManager.overviewScanAllDone = false; // This sample now has work to pre-scan again (#4460)
+}
+
+void Sample::makePeaks(uint64_t frames, bool growing, uint64_t capacity) {
+	deluge_peaks_release(peaks_);
+	peaks_ = deluge_peaks_create(frames, growing, capacity);
+	peaksScanFrom = 0;
+	audioFileManager.peakScanAllDone = false;
+	if (stream_.resource_asset_id() != DELUGE_RESOURCE_NO_ASSET) {
+		deluge_peaks_bind_asset(stream_.resource_asset_id(), peaks_);
+	}
+}
+
+void Sample::resetPeaks() {
+	if (!isLengthKnown()) {
+		return; // a take still recording: its recorder keeps its index
+	}
+	makePeaks(lengthInSamples, false, lengthInSamples);
 }
 
 SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio,
@@ -1473,6 +1493,7 @@ void Sample::finalizeAfterLoad(uint32_t fileSize) {
 	audioDataLengthBytes = lengthInSamples * bytesPerSample; // Make sure it's an exact number of samples
 
 	workOutBitMask();
+	makePeaks(lengthInSamples, false, lengthInSamples);
 }
 
 // Soft-reference (on) / un-reference (off) every resource asset this sample owns: its cluster asset

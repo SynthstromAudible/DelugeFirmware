@@ -17,6 +17,7 @@
 
 #include "storage/audio/stream/sample_stream.h"
 #include "definitions_cxx.hpp"
+#include "deluge_storage_sample_peaks.h"
 #include "io/c_path.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -105,6 +106,10 @@ void SampleStream::register_fill_context() {
 }
 
 void SampleStream::release_asset() {
+	// The asset id may be given to another sample; the fill must not fold its clusters into this one's peaks.
+	if (resource_asset_id_ != DELUGE_RESOURCE_NO_ASSET) {
+		deluge_peaks_unbind_asset(resource_asset_id_);
+	}
 	if (stream_handle_ != DELUGE_HANDLE_NONE) {
 		// Closes the registry slot's efatfs read handle (if any) and releases its resource-manager
 		// asset mirror (kept in sync by set_resource_asset_id()/register_fill_context() above) in one

@@ -39,6 +39,7 @@
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
 #include "model/sample/waveform_scan.h"
 #include "storage/audio/card_reinsert.h"
 #include "util/notify.h"
@@ -1701,10 +1702,16 @@ void AudioFileManager::slowRoutine() {
 // to load clusters synchronously while the user scrolls. Heavily throttled and round-robined to stay out of
 // the way of playback streaming.
 void AudioFileManager::backgroundWaveformOverviewScan() {
+	growTakePeaks();
+	deluge_peaks_collect();
+	if (!backgroundScansEnabled_) {
+		return;
+	}
 
 	// Everything already pre-scanned: stay idle until a load/reset re-arms us, instead of re-walking all
-	// files every tick (#4460).
+	// files every tick (#4460). The peak scan follows the overview's.
 	if (overviewScanAllDone) {
+		backgroundPeakScan();
 		return;
 	}
 
@@ -1746,6 +1753,44 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 
 	// A full pass found nothing left to scan: go idle until something re-arms us.
 	overviewScanAllDone = true;
+}
+
+void AudioFileManager::growTakePeaks() {
+	// Ten seconds of room past the capture: the card routine folds behind it, and a fold past the room is dropped.
+	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder != nullptr; recorder = recorder->next) {
+		Sample* sample = recorder->sample;
+		if (sample == nullptr || sample->peaks() == nullptr || sample->isLengthKnown()) {
+			continue;
+		}
+		const uint64_t captured = recorder->numSamplesCaptured;
+		deluge_peaks_reserve(sample->peaks(), captured + uint64_t{10} * sample->sampleRate);
+		deluge_peaks_set_frames(sample->peaks(), captured, false);
+	}
+}
+
+void AudioFileManager::backgroundPeakScan() {
+	if (peakScanAllDone || cardEjected || cardDisabled) {
+		return;
+	}
+	const auto numFiles = static_cast<int32_t>(audioFiles.size());
+	for (int32_t tried = 0; tried < numFiles; tried++) {
+		if (peakScanFileIndex >= numFiles) {
+			peakScanFileIndex = 0;
+		}
+		AudioFile* audioFile = audioFiles[peakScanFileIndex];
+		peakScanFileIndex++;
+		if (!AudioFile::isSample(audioFile)) {
+			continue;
+		}
+		auto* sample = static_cast<Sample*>(audioFile);
+		if (sample->unloadable) {
+			continue;
+		}
+		if (deluge::sample::advance_peak_scan(*sample)) {
+			return;
+		}
+	}
+	peakScanAllDone = true;
 }
 
 bool AudioFileManager::cardUnavailableForStreaming() const {
