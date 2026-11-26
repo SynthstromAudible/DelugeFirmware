@@ -8,6 +8,7 @@
 #include "ui/controls/sink.h"
 #include "ui/scenes/bind/ports/audio_facts.h"
 #include "ui/scenes/bind/ports/card_facts.h"
+#include "ui/scenes/bind/ports/catalogue.h"
 #include "ui/scenes/bind/ports/clip_facts.h"
 #include "ui/scenes/bind/ports/clip_writes.h"
 #include "ui/scenes/bind/ports/device_actions.h"
@@ -55,6 +56,7 @@ struct Ports {
 	TakeActions* take_actions{nullptr};           ///< an input take's lifecycle
 	Indicators* indicators{nullptr};              ///< the indicators a scene changes outside its frames
 	ViewActions* view_actions{nullptr};           ///< the root view's actions
+	Catalogue* catalogue{nullptr};                ///< the card's file listing the browsers show
 	/// @brief Whether every port the bind dispatch reads (audio, sound, tracks and controls) is present.
 	/// @return True when all four are non-null.
 	[[nodiscard]] bool has_bind_ports() const {

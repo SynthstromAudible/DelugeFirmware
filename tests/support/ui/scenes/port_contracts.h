@@ -19,6 +19,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <tuple>
 #include <utility>
@@ -559,5 +560,55 @@ namespace deluge::ui::scenes::bind::contract {
 }
 
 /// @}
+
+/// @brief No entry is answered past the end, and erasing past the end changes nothing.
+[[nodiscard]] inline bool catalogue_ends_at_its_count(Catalogue& catalogue) {
+	const std::size_t count = catalogue.count();
+	if (catalogue.entry(count).has_value()) {
+		return false;
+	}
+	catalogue.erase(count);
+	return catalogue.count() == count;
+}
+
+/// @brief Erasing an entry moves the one after it into its place. Needs at least two entries.
+[[nodiscard]] inline bool catalogue_erase_closes_the_gap(Catalogue& catalogue) {
+	if (catalogue.count() < 2) {
+		return false;
+	}
+	const std::string after{catalogue.entry(1)->name};
+	const std::size_t count = catalogue.count();
+	catalogue.erase(0);
+	return catalogue.count() == count - 1 && catalogue.entry(0)->name == after;
+}
+
+/// @brief Clearing leaves no entry.
+[[nodiscard]] inline bool catalogue_clear_empties(Catalogue& catalogue) {
+	catalogue.clear();
+	return catalogue.count() == 0 && !catalogue.entry(0).has_value();
+}
+
+/// @brief One owner holds the claim at a time; a release by anyone else leaves the holder, and the holder's own
+///        release frees it. The caller holds no claim on entry, and none is left held.
+[[nodiscard]] inline bool catalogue_claim_is_single(Catalogue& catalogue) {
+	int first = 0;
+	int second = 0;
+	if (!catalogue.claim(&first)) {
+		return false;
+	}
+	const bool refused = !catalogue.claim(&second);
+	catalogue.release(&second);
+	const bool still_held = !catalogue.claim(&second);
+	catalogue.release(&first);
+	const bool freed = catalogue.claim(&second);
+	catalogue.release(&second);
+	return refused && still_held && freed;
+}
+
+/// @brief A name sorting after every entry is found at the count, and not exactly.
+[[nodiscard]] inline bool catalogue_search_past_the_end(Catalogue& catalogue) {
+	const SearchHit hit = catalogue.search("\x7f\x7f\x7f");
+	return hit.index == catalogue.count() && !hit.exact;
+}
 
 } // namespace deluge::ui::scenes::bind::contract

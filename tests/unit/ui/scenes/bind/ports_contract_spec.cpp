@@ -834,6 +834,29 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(read_device_flag(nullptr, battery)).to_be_true();
 		expect(read_device_flag(nullptr, device_path::feature(Feature::ENABLE_DX7_ENGINE))).to_be_false();
 	});
+	it("lists through the catalogue fake, records each listing, and holds the catalogue contract", _ {
+		test::FakeCatalogue catalogue;
+		catalogue.entries = {{"a.wav", false}, {"B", true}, {"c.wav", false}};
+		catalogue.folder = "SAMPLES";
+		catalogue.next_outcome.error = 4;
+		const ListingOutcome out = catalogue.list(ListingSpec{.step = ListingStep::UP_LEVEL, .kinds = FileKinds::AUDIO});
+		expect(out.error.value_or(0)).to_equal(4);
+		expect(catalogue.listed.size()).to_equal(1U);
+		expect(static_cast<int>(catalogue.listed[0].kinds)).to_equal(static_cast<int>(FileKinds::AUDIO));
+		expect(catalogue.dir()).to_equal(std::string_view{"SAMPLES"});
+		expect(catalogue.entry(1)->folder).to_be_true();
+		expect(catalogue.search("b").index).to_equal(1U);
+		expect(catalogue.search("b").exact).to_be_true();
+		expect(contract::catalogue_ends_at_its_count(catalogue)).to_be_true();
+		expect(contract::catalogue_search_past_the_end(catalogue)).to_be_true();
+		expect(contract::catalogue_claim_is_single(catalogue)).to_be_true();
+		expect(contract::catalogue_erase_closes_the_gap(catalogue)).to_be_true();
+		expect(catalogue.entry(0)->name).to_equal(std::string_view{"B"});
+		expect(contract::catalogue_clear_empties(catalogue)).to_be_true();
+		test::FakeHost host;
+		expect(host.ports().catalogue).to_equal(static_cast<Catalogue*>(&host.catalogue));
+	});
+
 	it("answers the waveforms as the spec set them, records every read, and holds the waveforms contract", _ {
 		using deluge::ui::views::waveform::ColumnRead;
 		using deluge::ui::views::waveform::PeakRead;

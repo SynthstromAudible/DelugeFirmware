@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -520,6 +521,22 @@ void RecordingTakeActions::orphan() {
 		audio->take.reset();
 		audio->take_path.reset();
 	}
+}
+
+SearchHit FakeCatalogue::search(std::string_view name) {
+	const auto lower = [](std::string_view s) {
+		std::string out{s};
+		std::ranges::transform(out, out.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		return out;
+	};
+	const std::string key = lower(name);
+	for (std::size_t i = 0; i < entries.size(); ++i) {
+		const std::string here = lower(entries[i].name);
+		if (here >= key) {
+			return SearchHit{.index = i, .exact = here == key};
+		}
+	}
+	return SearchHit{.index = entries.size(), .exact = false};
 }
 
 } // namespace deluge::ui::scenes::bind::test

@@ -626,6 +626,57 @@ struct RecordingViewActions final : ViewActions {
 	}
 };
 
+/// @brief A Catalogue a spec fills directly: its entries, its folder, the next listing's outcome, and every listing
+///        asked of it, in order.
+struct FakeCatalogue final : Catalogue {
+	/// @brief One entry: its name and whether it is a folder.
+	struct Entry {
+		std::string name; ///< the entry's name
+		bool folder{};    ///< whether it is a folder
+	};
+	std::vector<Entry> entries;      ///< what `entry` and `count` answer
+	std::string folder;              ///< what `dir` answers
+	ListingOutcome next_outcome;     ///< what the next `list` answers
+	std::vector<ListingSpec> listed; ///< every listing asked, in order
+	bool before{false};              ///< what `culled_before` answers
+	bool after{false};               ///< what `culled_after` answers
+	const void* holder{nullptr};     ///< who holds the claim
+
+	[[nodiscard]] bool claim(const void* owner) override {
+		if (holder != nullptr && holder != owner) {
+			return false;
+		}
+		holder = owner;
+		return true;
+	}
+	void release(const void* owner) override {
+		if (holder == owner) {
+			holder = nullptr;
+		}
+	}
+	[[nodiscard]] ListingOutcome list(const ListingSpec& spec) override {
+		listed.push_back(spec);
+		return next_outcome;
+	}
+	[[nodiscard]] std::string_view dir() const override { return folder; }
+	[[nodiscard]] std::size_t count() const override { return entries.size(); }
+	[[nodiscard]] std::optional<CatalogueEntry> entry(std::size_t index) const override {
+		if (index >= entries.size()) {
+			return std::nullopt;
+		}
+		return CatalogueEntry{.name = entries[index].name, .folder = entries[index].folder};
+	}
+	[[nodiscard]] SearchHit search(std::string_view name) override;
+	[[nodiscard]] bool culled_before() const override { return before; }
+	[[nodiscard]] bool culled_after() const override { return after; }
+	void erase(std::size_t index) override {
+		if (index < entries.size()) {
+			entries.erase(entries.begin() + static_cast<std::ptrdiff_t>(index));
+		}
+	}
+	void clear() override { entries.clear(); }
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
 	FakeAudioFacts audio;                        ///< the audio port's fake
@@ -650,6 +701,7 @@ struct FakeHost {
 	RecordingTakeActions take_actions;           ///< the take actions' recorder
 	RecordingIndicators indicators;              ///< the indicators' recorder
 	RecordingViewActions view_actions;           ///< the view actions' recorder
+	FakeCatalogue catalogue;                     ///< the card catalogue's fake
 	/// The wipe, the drum's name, the tick clear, the take's begin and the audition end, in the order they came.
 	std::vector<std::string_view> order;
 	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
@@ -685,7 +737,8 @@ struct FakeHost {
 		        .waveforms = &waveforms,
 		        .take_actions = &take_actions,
 		        .indicators = &indicators,
-		        .view_actions = &view_actions};
+		        .view_actions = &view_actions,
+		        .catalogue = &catalogue};
 	}
 };
 

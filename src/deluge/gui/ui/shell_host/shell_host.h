@@ -29,6 +29,8 @@ namespace deluge::gui::shell_host {
 [[nodiscard]] const deluge::ui::scenes::bind::AudioFacts& audio_facts();
 /// @brief The host's CardFacts.
 [[nodiscard]] const deluge::ui::scenes::bind::CardFacts& card_facts();
+/// @brief The host's Catalogue: the card's one file catalogue, `storage::FileCatalogue`.
+[[nodiscard]] deluge::ui::scenes::bind::Catalogue& catalogue();
 /// @brief The host's UiFacts.
 [[nodiscard]] const deluge::ui::scenes::bind::UiFacts& ui_facts();
 

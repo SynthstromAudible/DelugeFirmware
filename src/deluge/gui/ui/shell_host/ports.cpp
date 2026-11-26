@@ -36,6 +36,7 @@ const bind::Ports& host_ports() {
 	    .take_actions = &gui::shell_host::take_actions(),
 	    .indicators = &gui::shell_host::indicators(),
 	    .view_actions = &gui::shell_host::view_actions(),
+	    .catalogue = &gui::shell_host::catalogue(),
 	};
 	return ports;
 }
