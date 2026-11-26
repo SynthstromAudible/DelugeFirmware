@@ -264,6 +264,9 @@ pub fn start() -> ! {
     // The USB device (USB0): binds its GIC handler and ungates its clock, but stays off the bus
     // until the app calls `deluge_usb_device_start`.
     let usb_driver = unsafe { usb::init(board.usb0) };
+    // A DMA channel each for USB audio's streams; the sample rate converter's, which is not used.
+    let usb_to_host_dma = rza1_hal::dmac::Dma::new_without_interrupt(board.dma.scux_ffd0);
+    let usb_from_host_dma = rza1_hal::dmac::Dma::new_without_interrupt(board.dma.scux_ffu0);
     // SSI0 waits for the C++ init sequence's `deluge_board_init_audio`.
     board::stash_audio(
         board.audio_ssi,
@@ -322,7 +325,7 @@ pub fn start() -> ! {
         spawner.spawn(cv_gate::trigger_clock_task().unwrap());
         // The USB device, once the app starts it: its state machine and the MIDI endpoint pumps
         // (MIDI port 1).
-        spawner.spawn(usb::usb_task(usb_driver).unwrap());
+        spawner.spawn(usb::usb_task(usb_driver, usb_to_host_dma, usb_from_host_dma).unwrap());
         if bench_ran {
             // A bench image never starts the app: this task blanks the panel and the pads, then
             // parks. It owns the panel, so `oled_render` is not spawned.

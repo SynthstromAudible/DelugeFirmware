@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Reads the audio-timing probe's AUDIO-TIMING lines from stream-bench captures.
+"""Reads the audio-timing probe's AUDIO-TIMING and USB-AUDIO-TIMING lines from stream-bench captures.
 
 `report CAPTURE...` prints, per stream-bench phase, the DSP load, the worst render, the closest the
-queue came to running dry, overruns, the render task's worst wake lateness and the drive's overruns. `overhead --small A
---large B` fits each render's fixed cost and its cost per frame from two captures whose renders are
-of two sizes (the drive renders 128 frames, so one of them comes from an image whose drive renders
-another size).
+queue came to running dry, overruns, the render task's worst wake lateness and the drive's overruns,
+then each USB audio stream's frames, late services, missed microframes and longest gap (`in` to the
+host, `out` from it), and the frames lost: those sent to the host less those that came from it. That
+difference means loss only while a host that follows our implicit feedback runs both streams. Then comes
+the USB interrupt's share of real time, and, from an image that moves the streams by DMA (which has no
+services to be late), how often the DMA to the host ran dry and the fewest and most packets queued for it.
+`overhead --small A --large B` fits each render's fixed cost and its cost per frame from two captures
+whose renders are of two sizes (the drive renders 128 frames, so one of them comes from an image whose
+drive renders another size).
 
-An AUDIO-TIMING line belongs to the stream-bench phase whose STREAM-BENCH-PHASE line follows it;
+A line belongs to the stream-bench phase whose STREAM-BENCH-PHASE line follows it;
 lines before STREAM-BENCH-LOADED are the boot's and are left out.
 """
 
@@ -20,9 +25,38 @@ from dataclasses import dataclass
 from pathlib import Path
 
 SAMPLE_RATE = 44_100
-TIMING = re.compile(r"AUDIO-TIMING (.*)$")
+TIMING = re.compile(r"(?<!USB-)AUDIO-TIMING (.*)$")
+USB_TIMING = re.compile(r"USB-AUDIO-TIMING (.*)$")
 PHASE = re.compile(r"STREAM-BENCH-PHASE phase=(\S+)")
 LOADED = re.compile(r"STREAM-BENCH-LOADED ")
+
+
+@dataclass
+class UsbStream:
+    packets: int = 0
+    frames: int = 0
+    # None until a line from an image that moves the stream in its interrupt is added.
+    late: int | None = None
+    missed: int | None = None
+    max_gap_us: int | None = None
+    # None until a line from an image that moves the stream by DMA is added.
+    stops: int | None = None
+    ahead: tuple[int, int] | None = None
+
+    def add(self, f: dict[str, str], name: str) -> None:
+        self.packets += int(f.get(f"{name}_packets", 0))
+        self.frames += int(f[f"{name}_frames"])
+        if f"{name}_late" in f:
+            self.late = (self.late or 0) + int(f[f"{name}_late"])
+            self.missed = (self.missed or 0) + int(f[f"{name}_missed"])
+            self.max_gap_us = max(self.max_gap_us or 0, int(f[f"{name}_max_gap_us"]))
+        if f"{name}_stops" in f:
+            self.stops = (self.stops or 0) + int(f[f"{name}_stops"])
+        if f"{name}_ahead_min" in f:
+            low, high = int(f[f"{name}_ahead_min"]), int(f[f"{name}_ahead_max"])
+            if self.ahead is not None:
+                low, high = min(low, self.ahead[0]), max(high, self.ahead[1])
+            self.ahead = (low, high)
 
 
 @dataclass
@@ -38,6 +72,11 @@ class Phase:
     max_wake_late_us: int = 0
     # None until a line from a fixed-block drive image (which reports it) is added.
     drive_overruns: int | None = None
+    # None until a line from an image that reports the USB streams is added.
+    usb_in: UsbStream | None = None
+    usb_out: UsbStream | None = None
+    # None until a line that reports the USB interrupt's time is added.
+    usb_interrupt_us: int | None = None
 
     def add(self, f: dict[str, str]) -> None:
         self.renders += int(f["renders"])
@@ -53,6 +92,30 @@ class Phase:
         self.max_wake_late_us = max(self.max_wake_late_us, int(f["max_wake_late_us"]))
         if "drive_overruns" in f:
             self.drive_overruns = (self.drive_overruns or 0) + int(f["drive_overruns"])
+
+    def add_usb(self, f: dict[str, str]) -> None:
+        if self.usb_in is None or self.usb_out is None:
+            self.usb_in, self.usb_out = UsbStream(), UsbStream()
+        self.usb_in.add(f, "in")
+        self.usb_out.add(f, "out")
+        if "interrupt_us" in f:
+            self.usb_interrupt_us = (self.usb_interrupt_us or 0) + int(
+                f["interrupt_us"]
+            )
+
+    @property
+    def usb_interrupt_share(self) -> float | None:
+        """The USB interrupt's time over the real time the rendered frames last."""
+        if self.usb_interrupt_us is None or not self.frames:
+            return None
+        return (self.usb_interrupt_us / 1e6) / (self.frames / SAMPLE_RATE)
+
+    @property
+    def usb_lost_frames(self) -> int | None:
+        """Frames sent to the host less those that came from it (see the module docstring)."""
+        if self.usb_in is None or self.usb_out is None:
+            return None
+        return self.usb_in.frames - self.usb_out.frames
 
     @property
     def load(self) -> float:
@@ -75,11 +138,17 @@ def fields(text: str) -> dict[str, str]:
 def parse(lines) -> dict[str, Phase]:
     phases: dict[str, Phase] = {}
     pending: list[dict[str, str]] = []
+    pending_usb: list[dict[str, str]] = []
     loaded = False
     for line in lines:
         if LOADED.search(line):
             loaded = True
-            pending = []
+            pending, pending_usb = [], []
+            continue
+        m = USB_TIMING.search(line)
+        if m:
+            if loaded:
+                pending_usb.append(fields(m.group(1)))
             continue
         m = TIMING.search(line)
         if m:
@@ -91,7 +160,9 @@ def parse(lines) -> dict[str, Phase]:
             phase = phases.setdefault(m.group(1), Phase())
             for f in pending:
                 phase.add(f)
-            pending = []
+            for f in pending_usb:
+                phase.add_usb(f)
+            pending, pending_usb = [], []
     return phases
 
 
@@ -107,19 +178,80 @@ def read(path: str) -> dict[str, Phase]:
     return parse(Path(path).read_text(errors="replace").splitlines())
 
 
+def cell(v: int | None) -> str:
+    return "-" if v is None else str(v)
+
+
+def usb_columns(s: UsbStream | None) -> list[str]:
+    if s is None:
+        return ["-"] * 4
+    return [cell(v) for v in (s.frames, s.late, s.missed, s.max_gap_us)]
+
+
+def dma_columns(s: UsbStream | None) -> list[str]:
+    if s is None:
+        return ["-"] * 2
+    return [cell(s.stops), "-" if s.ahead is None else f"{s.ahead[0]}..{s.ahead[1]}"]
+
+
+def row(capture: str, name: str, p: Phase) -> str:
+    """One phase's row of the report."""
+    cells = [
+        capture,
+        name,
+        f"{p.load:.0%}",
+        str(p.renders),
+        f"{p.frames_per_render:.1f}",
+        f"{p.us_per_render:.0f}",
+        f"{p.max_us} ({p.max_us_frames})",
+        str(p.min_queued),
+        str(p.min_slack),
+        str(p.overruns),
+        str(p.max_wake_late_us),
+        "-" if p.drive_overruns is None else str(p.drive_overruns),
+        *usb_columns(p.usb_in),
+        *usb_columns(p.usb_out),
+        "-" if p.usb_lost_frames is None else str(p.usb_lost_frames),
+        "-" if p.usb_interrupt_share is None else f"{p.usb_interrupt_share:.1%}",
+        *dma_columns(p.usb_in),
+    ]
+    return f"| {' | '.join(cells)} |"
+
+
+HEADERS = [
+    "capture",
+    "phase",
+    "load",
+    "renders",
+    "frames/render",
+    "µs/render",
+    "worst µs (frames)",
+    "min queued",
+    "min slack",
+    "overruns",
+    "max wake late µs",
+    "drive overruns",
+    "in frames",
+    "in late",
+    "in missed",
+    "in max gap µs",
+    "out frames",
+    "out late",
+    "out missed",
+    "out max gap µs",
+    "lost frames",
+    "usb irq",
+    "in stops",
+    "in queued",
+]
+
+
 def report(paths: list[str]) -> None:
-    print(
-        "| capture | phase | load | renders | frames/render | µs/render | worst µs (frames) | min queued | min slack | overruns | max wake late µs | drive overruns |"
-    )
-    print("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    print(f"| {' | '.join(HEADERS)} |")
+    print("|---|---|" + "---:|" * (len(HEADERS) - 2))
     for path in paths:
         for name, p in read(path).items():
-            print(
-                f"| {Path(path).parent.name} | {name} | {p.load:.0%} | {p.renders} | {p.frames_per_render:.1f} | "
-                f"{p.us_per_render:.0f} | {p.max_us} ({p.max_us_frames}) | {p.min_queued} | {p.min_slack} | "
-                f"{p.overruns} | {p.max_wake_late_us} | "
-                f"{'-' if p.drive_overruns is None else p.drive_overruns} |"
-            )
+            print(row(Path(path).parent.name, name, p))
 
 
 def main(argv: list[str] | None = None) -> int:

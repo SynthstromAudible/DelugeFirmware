@@ -393,6 +393,7 @@ mod probe {
         });
         if s.interval_done() {
             log::info!("{}", s);
+            log::info!("{}", crate::peripherals::usb_audio::take_service_stats());
             *s = TimingStats::EMPTY;
         }
     }

@@ -10,3 +10,4 @@ pub mod host;
 pub mod render;
 pub(crate) mod ring;
 pub mod timing_probe;
+pub mod usb_service_probe;

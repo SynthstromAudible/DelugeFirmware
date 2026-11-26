@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "deluge-audio-format"
 version = "0.2.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=89303a3632391a122baded3ff12199942c046b5a#89303a3632391a122baded3ff12199942c046b5a"
 
 [[package]]
 name = "deluge-upgrade"

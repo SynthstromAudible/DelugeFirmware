@@ -121,7 +121,17 @@ the codec when a render began (`min_queued`), the fewest left when one finished 
 that finished after the codec had played everything queued), the render task's worst wake lateness (how much
 longer than one block after its previous wake it woke, `max_wake_late_us`: how long the audio tier was held off) and
 the drive's own overrun count (`drive_overruns`: blocks the codec reached unwritten, a stall that lapped the ring
-included). The drive renders fixed 128-frame blocks, three queued. Build it into a stream-bench image:
+included). The drive renders fixed 128-frame blocks, three queued.
+
+A `USB-AUDIO-TIMING` line follows it, with how late the USB interrupt serviced each audio stream (`in` to the host,
+`out` from it): packets and frames, services more than 250 µs after the one before (`late`: both hardware buffers had
+gone), the microframes those left with no packet (`missed`, an estimate, at high speed) and the longest gap. It reads
+zero until a host streams: run `arecord` and `aplay` on the device from the probe host. The report's `lost frames`, the
+frames sent less the frames received, is loss only while that host follows our implicit feedback. `interrupt_us` is the
+USB interrupt's whole time, audio and MIDI alike; the voices' measured costs leave it out
+(`deluge_work_cycle_count`).
+
+Build the feature into a stream-bench image:
 
     python3 tools/bench_image.py --define DELUGE_DSP_BENCH=OFF \
         --define DELUGE_STREAM_BENCH_SONG_A=SONGS/problem_songs/Cordae/Cordae.XML \

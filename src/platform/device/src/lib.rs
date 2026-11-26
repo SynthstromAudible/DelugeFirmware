@@ -138,6 +138,7 @@ mod sim_panel;
 mod sim_version;
 pub mod tier;
 pub mod tier_meter;
+pub mod work_cycles;
 
 pub mod audio;
 pub mod channel;
