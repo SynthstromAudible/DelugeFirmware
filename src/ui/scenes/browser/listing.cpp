@@ -139,9 +139,8 @@ void Listing::set_catalogue(bind::Catalogue* catalogue) {
 	}
 	assert(state_.load(std::memory_order_acquire) == State::Idle
 	       && "Listing::set_catalogue on a seam that is not Idle -- the pending op belongs to the old catalogue");
-	if (catalogue_ != nullptr) {
-		catalogue_->release(this);
-	}
+	// An idle seam holds no claim -- a claim lasts from an accepted request to its collect -- so the old
+	// catalogue has nothing to give back.
 	catalogue_ = catalogue;
 }
 

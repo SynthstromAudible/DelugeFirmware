@@ -511,8 +511,20 @@ public:
 	int32_t cursor() const { return edit_.cursor; }
 	/// @brief `QwertyUI::scrollPosHorizontal` -- the first character `text_edit` draws.
 	int32_t text_scroll() const { return edit_.scroll; }
-	/// @brief `FileCatalogue::currentDir` as this scene last saw it.
+	/// @brief The catalogue's folder, empty at the card's root or with no catalogue.
 	std::string_view current_dir() const;
+	/// @return The catalogue's entry at @p index, or none out of range or with no catalogue.
+	std::optional<bind::CatalogueEntry> entry_at(int32_t index) const;
+	/// @return How many entries the catalogue holds, 0 with no catalogue.
+	int32_t entry_count() const;
+	/// @return Where @p name sorts among the catalogue's entries; the first entry with no catalogue.
+	bind::SearchHit search(std::string_view name);
+	/// @return The index `search` answers for @p name.
+	int32_t search_index(std::string_view name);
+	/// @return Whether the listing left out entries before its window.
+	bool culled_before() const;
+	/// @return Whether the listing left out entries after its window.
+	bool culled_after() const;
 	/// @brief Is a listing dispatched and not yet collected?
 	bool listing_in_flight() const { return listing_.in_flight(); }
 	/// @brief `UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS`: Select is down and its release will enter the item.

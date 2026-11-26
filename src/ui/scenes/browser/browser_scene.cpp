@@ -38,10 +38,7 @@
 #include "processing/engines/audio_engine.h"
 #include "project/setting_group.h"
 #include "project/song.h"
-#include "storage/file_catalogue.h"
-#include "storage/file_item.h"
 #include "storage/flash_storage.h"
-#include "storage/storage_manager.h"
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/menu/bind_host.h"
@@ -63,7 +60,6 @@ constexpr int32_t kMainCols = deluge::ui::gfx::grid::kDelugeGrid.main_cols;
 constexpr int32_t kRows = deluge::ui::gfx::grid::kDelugeGrid.rows;
 
 using deluge::l10n::String;
-using deluge::storage::FileCatalogue;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
@@ -129,7 +125,7 @@ bool caseless_equals(std::string_view a, std::string_view b) {
 /// back to `finalChar = 0` when there is no dot at all (`Browser::renderOLED` in `browser.cpp`) -- so a folder shows
 /// its whole name, a file shows everything before its **last** dot, and an extensionless file shows
 /// its whole name too.
-/// @param name     The entry's `FileItem::filename`.
+/// @param name     The entry's name, with its extension.
 /// @param is_folder Whether the entry is a directory.
 /// @return The part of @p name legacy inks.
 std::string_view row_label(std::string_view name, bool is_folder) {
@@ -372,14 +368,14 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
     },
 }};
 
-/// @brief The entry the selection names, or null -- `Browser::getCurrentFileItem`.
-/// @param index The selected index.
-/// @return The entry, or null when nothing is selected or the index is out of range.
-const FileItem* item_at(int32_t index) {
-	if (index < 0 || index >= static_cast<int32_t>(FileCatalogue::fileItems.size())) {
-		return nullptr;
+/// @brief The path of the entry @p name in the folder @p dir, which is empty at the card's root.
+std::string join_path(std::string_view dir, std::string_view name) {
+	std::string path{dir};
+	if (!path.empty()) {
+		path += '/';
 	}
-	return &FileCatalogue::fileItems[static_cast<size_t>(index)];
+	path += name;
+	return path;
 }
 
 /// @brief One `Result` carrying a full repaint.
@@ -506,7 +502,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 
 void BrowserScene::on_exit() {
 	// `Browser::close()` empties the catalogue. Collect first: an uncollected
-	// result still holds `FileCatalogue`'s claim, and leaving it held would refuse every later
+	// result still holds the catalogue's claim, and leaving it held would refuse every later
 	// listing -- this layer's or a legacy browser's -- for the life of the process.
 	//
 	// A listing that is still *in flight* cannot be collected and is deliberately not waited for:
@@ -535,7 +531,9 @@ void BrowserScene::on_exit() {
 	// A load still out is the host's to cancel (`DxSyxBrowser::close`): it sees no browser waiting.
 	awaiting_deferred_ = false;
 	deferred_done_.reset();
-	FileCatalogue::emptyFileItems();
+	if (ctx_.ports.catalogue != nullptr) {
+		ctx_.ports.catalogue->clear();
+	}
 	// Fix the same hazard `RenameScene::on_exit` records: `open()` is the only writer of `ctx_`, and
 	// this scene is a singleton that outlives every visit, so a re-entry that forgot its `open()`
 	// must not validate `can()` against the previous song's pointers. A zeroed context fails every
@@ -548,7 +546,34 @@ void BrowserScene::on_exit() {
 }
 
 std::string_view BrowserScene::current_dir() const {
-	return FileCatalogue::currentDir;
+	return ctx_.ports.catalogue != nullptr ? ctx_.ports.catalogue->dir() : std::string_view{};
+}
+
+std::optional<bind::CatalogueEntry> BrowserScene::entry_at(int32_t index) const {
+	if (index < 0 || ctx_.ports.catalogue == nullptr) {
+		return std::nullopt;
+	}
+	return ctx_.ports.catalogue->entry(static_cast<size_t>(index));
+}
+
+int32_t BrowserScene::entry_count() const {
+	return ctx_.ports.catalogue != nullptr ? static_cast<int32_t>(ctx_.ports.catalogue->count()) : 0;
+}
+
+bind::SearchHit BrowserScene::search(std::string_view name) {
+	return ctx_.ports.catalogue != nullptr ? ctx_.ports.catalogue->search(name) : bind::SearchHit{};
+}
+
+int32_t BrowserScene::search_index(std::string_view name) {
+	return static_cast<int32_t>(search(name).index);
+}
+
+bool BrowserScene::culled_before() const {
+	return ctx_.ports.catalogue != nullptr && ctx_.ports.catalogue->culled_before();
+}
+
+bool BrowserScene::culled_after() const {
+	return ctx_.ports.catalogue != nullptr && ctx_.ports.catalogue->culled_after();
 }
 
 std::optional<ScrollRequest> BrowserScene::take_scroll() {
@@ -629,10 +654,10 @@ void BrowserScene::file_preview(int8_t direction) {
 	// `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a folder or no
 	// selection previews nothing, and stops what was previewing.
 	PreviewRequest request{.id = id_, .direction = direction};
-	const FileItem* item = item_at(file_index_);
-	if (item != nullptr && !item->isFolder) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (item.has_value() && !item->folder) {
 		const std::string_view dir = current_dir();
-		request.path = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+		request.path = join_path(dir, item->name);
 	}
 	preview_path_ = request.path;
 	preview_direction_ = direction;
@@ -698,11 +723,11 @@ Result BrowserScene::favourite_press(uint8_t position) {
 		break;
 	}
 	if (shift_) {
-		const FileItem* item = item_at(file_index_);
+		const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
 		if (favourites().is_empty(position)) {
-			if (item != nullptr && !item->isFolder) {
+			if (item.has_value() && !item->folder) {
 				const std::string_view dir = current_dir();
-				favourites().set(position, dir.empty() ? item->filename : std::string{dir} + "/" + item->filename);
+				favourites().set(position, join_path(dir, item->name));
 				favourites_changed();
 			}
 		}
@@ -844,14 +869,13 @@ Result BrowserScene::apply(const ListingResult& out) {
 
 	if (out.step == bind::ListingStep::RELOAD) {
 		// `reloadImpl`'s tail (`browser.cpp`).
-		const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+		const int32_t count = entry_count();
 		int32_t index;
 		if (reload_from_end_) {
 			index = (reload_direction_ == bind::SearchFrom::LEFT) ? count - 1 : 0;
 		}
 		else {
-			FileCatalogue::repinComparator();
-			index = FileCatalogue::searchFileItems(std::string{entered_text()}.c_str()) + reload_offset_;
+			index = search_index(entered_text()) + reload_offset_;
 		}
 		finish_select(index, reload_offset_);
 		return repaint_all();
@@ -869,7 +893,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 		name = out.entered_text;
 	}
 
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 	if (count == 0) {
 		// "No files found at all." with `mayDefaultToBrandNewNameOnEntry` false
 		// (`Browser::applyListingSelection` in `browser.cpp`): no text, no selection, top of the list.
@@ -882,13 +906,13 @@ Result BrowserScene::apply(const ListingResult& out) {
 
 	file_index_ = 0;
 	if (!name.empty()) {
-		bool exact = false;
-		FileCatalogue::repinComparator();
-		const int32_t i = FileCatalogue::searchFileItems(name.c_str(), &exact);
+		const bind::SearchHit hit = search(name);
+		const bool exact = hit.exact;
+		const int32_t i = static_cast<int32_t>(hit.index);
 		if (exact) {
 			file_index_ = i;
 		}
-		else if (FileCatalogue::numFileItemsDeletedAtStart != 0) {
+		else if (culled_before()) {
 			// `noExactFileFound`'s re-read (`Browser::applyListingSelection` in `browser.cpp`): the search string
 			// culled entries off the start of the folder and we are about to fall back to "the first one", so the
 			// window has to be read again without it. Legacy `goto`s; here it is another listing.
@@ -913,7 +937,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 
 void BrowserScene::clamp(int32_t visible_rows, bool allow_no_file_selection) {
 	// `Browser::clampFileSelectionAndScroll` (`browser.cpp`), statement for statement.
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 	if (count <= 0) {
 		file_index_ = -1;
 		scroll_ = 0;
@@ -958,12 +982,12 @@ void BrowserScene::set_entered_text(std::string_view s) {
 void BrowserScene::set_entered_text_from_current_filename() {
 	// `Browser::setEnteredTextFromCurrentFilename`: the entry's display
 	// name, with the extension cut off for a file.
-	const FileItem* item = item_at(file_index_);
-	if (item == nullptr) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (!item) {
 		entered_len_ = 0;
 		return;
 	}
-	set_entered_text(row_label(item->displayName(), item->isFolder));
+	set_entered_text(row_label(item->name, item->folder));
 }
 
 BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
@@ -972,27 +996,22 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// (enteredTextEditPos)`), which is what makes typing over a prediction search for the prefix
 	// rather than for the prediction.
 	//
-	// Re-pin the name comparator before searching, as `Browser::predictExtendedText` does by setting
-	// `shouldInterpretNoteNames` from the browser's setting and `octaveStartsFromA` to false, through
-	// `FileCatalogue::repinComparator` rather than by naming `util/name_compare.h`'s globals --
-	// `util/**` is outside this layer's include allowance (`scenes-includes-outside`). It restores
-	// what the last `sortFileItems` set, which is the only pinning under which `fileItems`' order is
-	// meaningful; relying on the last sort's pinning surviving until here would be a convention rather than a
-	// mechanism.
-	FileCatalogue::repinComparator();
+	// The catalogue port's search re-pins the name comparator to the last sort's first, as
+	// `Browser::predictExtendedText` does by setting `shouldInterpretNoteNames` and `octaveStartsFromA`: that
+	// pinning is the only one under which the entries' order means anything.
 	const size_t n = static_cast<size_t>(std::max<int32_t>(edit_.cursor, 0));
 	const std::string search{entered_, std::min<size_t>(n, entered_len_)};
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 
-	const int32_t i = FileCatalogue::searchFileItems(search.c_str());
+	const int32_t i = search_index(search);
 	// "If that search takes us off the right-hand end of the list..." (`Browser::continuePrediction`): the cached
 	// window cannot answer, so the folder has to be read again around the search string.
 	if (i >= count) {
 		return SearchOutcome::NeedsRead;
 	}
 
-	const FileItem& item = FileCatalogue::fileItems[static_cast<size_t>(i)];
-	if (!case_prefix_equal(item.displayName(), search, search.size())) {
+	const bind::CatalogueEntry item = *entry_at(i);
+	if (!case_prefix_equal(item.name, search, search.size())) {
 		// "If the search landed on the first cached item, the folder cache may be missing earlier
 		// entries" (`Browser::continuePrediction`, issue #4584).
 		if (i == 0) {
@@ -1143,14 +1162,13 @@ void BrowserScene::step_selection(int32_t offset) {
 	//       starts with `filePrefix`. Every descriptor here leaves `filePrefix` null (only the
 	//       slot-based load/save browsers set it), so legacy's own guard takes the `nonNumeric`
 	//       branch for every name either of them can show, and the arm is not ported.
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 	int32_t index;
 	if (file_index_ < 0) {
 		if (count == 0) {
 			return;
 		}
-		FileCatalogue::repinComparator();
-		index = FileCatalogue::searchFileItems(std::string{entered_text()}.c_str());
+		index = search_index(entered_text());
 		if (offset < 0) {
 			index--;
 		}
@@ -1162,26 +1180,26 @@ void BrowserScene::step_selection(int32_t offset) {
 	// From here a reload of the folder window off the card may be needed; `apply()` runs the tail
 	// once it lands, exactly as legacy's `reloadImpl` does on the fiber.
 	if (index < 0) {
-		if (FileCatalogue::numFileItemsDeletedAtStart != 0) {
+		if (culled_before()) {
 			scroll_ = 9999;
 			request_reload(/*from_end=*/false, bind::SearchFrom::BOTH, offset);
 			return;
 		}
 		scroll_ = 0;
-		if (FileCatalogue::numFileItemsDeletedAtEnd != 0) {
+		if (culled_after()) {
 			request_reload(/*from_end=*/true, bind::SearchFrom::LEFT, offset);
 			return;
 		}
 		index = count - 1;
 	}
 	else if (index >= count) {
-		if (FileCatalogue::numFileItemsDeletedAtEnd != 0) {
+		if (culled_after()) {
 			scroll_ = 0;
 			request_reload(/*from_end=*/false, bind::SearchFrom::BOTH, offset);
 			return;
 		}
 		scroll_ = 9999;
-		if (FileCatalogue::numFileItemsDeletedAtStart != 0) {
+		if (culled_before()) {
 			request_reload(/*from_end=*/true, bind::SearchFrom::RIGHT, offset);
 			return;
 		}
@@ -1212,8 +1230,8 @@ void BrowserScene::request_reload(bool from_end, bind::SearchFrom direction, int
 
 Result BrowserScene::enter_key_press(bool shift) {
 	const Descriptor& d = descriptor(id_);
-	const FileItem* item = item_at(file_index_);
-	if (item == nullptr) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (!item) {
 		// `SampleBrowser::enterKeyPress` announces
 		// `Error::FILE_NOT_FOUND`; `LoadMidiDeviceDefinitionUI::enterKeyPress` returns silently. The
 		// louder of the two is kept for both -- a select press that does nothing at all is the shape
@@ -1224,8 +1242,8 @@ Result BrowserScene::enter_key_press(bool shift) {
 		return r;
 	}
 
-	if (item->isFolder) {
-		const uint16_t refusal = d.folder_refusal != nullptr ? d.folder_refusal(current_dir(), item->filename) : 0;
+	if (item->folder) {
+		const uint16_t refusal = d.folder_refusal != nullptr ? d.folder_refusal(current_dir(), item->name) : 0;
 		if (refusal != 0) {
 			Result r;
 			r.handled = true;
@@ -1238,7 +1256,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 		edit_ = deluge::ui::widgets::oled::TextEditState{};
 		arrive_in_new_folder();
 		bind::ListingSpec req = make_request(bind::ListingStep::INTO_FOLDER);
-		req.path = item->filename;
+		req.path = item->name;
 		file_request(std::move(req));
 		return repaint_all();
 	}
@@ -1267,7 +1285,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 	if (!path.empty()) {
 		path += "/";
 	}
-	path += item->filename;
+	path += item->name;
 
 	Error error = Error::NONE;
 	switch (d.accept(ctx_, path, error)) {
@@ -1373,7 +1391,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::Oled
 
 	int32_t y = f.style.menu_base_y;
 	const Descriptor& d = descriptor(id_);
-	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
+	const int32_t count = entry_count();
 
 	// "If we're currently typing a filename which doesn't (yet?) have a file..." (`Browser::renderOLED`): one
 	// row, showing the edited text against the file icon.
@@ -1389,9 +1407,9 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::Oled
 			if (i >= count) {
 				break;
 			}
-			const FileItem& item = FileCatalogue::fileItems[static_cast<size_t>(i)];
-			is_folder = item.isFolder;
-			name = item.filename;
+			const bind::CatalogueEntry item = *entry_at(i);
+			is_folder = item.folder;
+			name = item.name;
 			is_selected = (i == file_index_);
 		}
 
@@ -1883,11 +1901,11 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// file offers to be deleted, a folder is refused.
 			Result r;
 			r.handled = true;
-			const FileItem* item = item_at(file_index_);
-			if (!event.on || mode_up() || item == nullptr) {
+			const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+			if (!event.on || mode_up() || !item) {
 				return r;
 			}
-			if (item->isFolder) {
+			if (item->folder) {
 				(void)r.actions.push_back(Action{
 				    .kind = Action::Kind::Popup,
 				    .surface = SurfaceRole::Main,
@@ -2094,12 +2112,12 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		if (!shift_) {
 			return std::nullopt;
 		}
-		const FileItem* item = item_at(file_index_);
-		if (!on || mode_up() || item == nullptr || item->isFolder) {
+		const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+		if (!on || mode_up() || !item || item->folder) {
 			return r;
 		}
 		const std::string_view dir = current_dir();
-		const std::string path = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+		const std::string path = join_path(dir, item->name);
 		if (!menu::host_release_sample_file(path)) {
 			(void)r.actions.push_back(
 			    Action{.kind = Action::Kind::Popup,
@@ -2131,16 +2149,16 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 }
 
 void BrowserScene::request_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim) {
-	const FileItem* item = item_at(file_index_);
-	if (item == nullptr) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (!item) {
 		return;
 	}
 	BrowserChoice choice{.id = id_,
 	                     .op = op,
 	                     .claim = claim,
 	                     .dir = std::string{current_dir()},
-	                     .filename = item->filename,
-	                     .is_folder = item->isFolder};
+	                     .filename = std::string{item->name},
+	                     .is_folder = item->folder};
 	choice.path = choice.dir.empty() ? choice.filename : choice.dir + "/" + choice.filename;
 	awaiting_load_ = op != BrowserChoice::Op::Enter && op != BrowserChoice::Op::DeleteFile;
 	slice_out_ = op == BrowserChoice::Op::Slice;
@@ -2161,17 +2179,17 @@ void BrowserScene::slice_ready(bool opened) {
 
 void BrowserScene::file_deleted(std::string_view path) {
 	// `Browser::currentFileDeleted`, only while the deleted file is still the one selected.
-	const FileItem* item = item_at(file_index_);
-	if (item == nullptr || item->isFolder) {
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	if (!item || item->folder) {
 		return;
 	}
 	const std::string_view dir = current_dir();
-	const std::string selected = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+	const std::string selected = join_path(dir, item->name);
 	if (selected != path) {
 		return;
 	}
-	FileCatalogue::fileItems.erase(FileCatalogue::fileItems.begin() + file_index_);
-	if (file_index_ == static_cast<int32_t>(FileCatalogue::fileItems.size())) {
+	ctx_.ports.catalogue->erase(static_cast<size_t>(file_index_));
+	if (file_index_ == entry_count()) {
 		file_index_--; // none left: no selection
 		entered_len_ = 0;
 		edit_.cursor = 0;
@@ -2206,14 +2224,14 @@ void BrowserScene::long_press_done(bool success) {
 }
 
 bool BrowserScene::current_is_folder() const {
-	const FileItem* item = item_at(file_index_);
-	return item != nullptr && item->isFolder;
+	const std::optional<bind::CatalogueEntry> item = entry_at(file_index_);
+	return item.has_value() && item->folder;
 }
 
 Result BrowserScene::long_press() {
 	Result r;
 	r.handled = true;
-	if (item_at(file_index_) == nullptr) {
+	if (!entry_at(file_index_)) {
 		return r;
 	}
 	const auto popup = [&r](String text) {

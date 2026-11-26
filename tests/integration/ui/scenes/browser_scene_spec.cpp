@@ -76,6 +76,8 @@
 
 #include "support/browser_scene_fixtures.h"
 #include "support/fake_ports.h"
+
+#include "fakes.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
 #include "support/slicer_host_open.h"
@@ -589,6 +591,29 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		expect(browser_scene().on_enter(SceneId{kBrowserSceneKind, static_cast<uint16_t>(BrowserId::Count)}))
 		    .to_be_false();
 		expect(browser_scene().last_enter_refused()).to_be_true();
+	});
+
+	it("reads its entries through the catalogue port it is opened with", _ {
+		// Declared first so it outlives the cleanup, which exits the scene through the catalogue it was opened with.
+		deluge::ui::scenes::bind::test::FakeCatalogue catalogue;
+		CleanBrowser clean;
+		spec::SongFixture f = spec::make_midi_song();
+		catalogue.entries = {{"A.XML", false}, {"B", true}, {"C.XML", false}};
+		catalogue.folder = "MIDI_DEVICES/DEFINITION";
+		MenuContext ctx = context_of(f);
+		ctx.ports.catalogue = &catalogue;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::MidiDeviceDefinition);
+		expect(catalogue.listed.size()).to_equal(std::size_t{1});
+		expect(static_cast<int>(catalogue.listed[0].kinds))
+		    .to_equal(static_cast<int>(deluge::ui::scenes::bind::FileKinds::XML));
+		expect(browser_scene().file_index()).to_equal(0);
+		expect(browser_scene().current_is_folder()).to_be_false();
+		r.turn(1, r.clock + 10);
+		r.step();
+		expect(browser_scene().file_index()).to_equal(1);
+		expect(browser_scene().current_is_folder()).to_be_true();
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"B"});
 	});
 
 	it("opens the MIDI browser on its own folder and extension", _ {

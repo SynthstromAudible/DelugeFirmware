@@ -7,6 +7,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "ui/scenes/browser/browser_scene.h"
+#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/profile.h"
 #include "ui/scenes/registry.h"
@@ -166,6 +167,11 @@ struct CleanBrowser {
 		deluge::base::notify::Notice discard;
 		while (deluge::base::notify::notices().pop(discard)) {}
 		deluge::base::notify::dirty().drain();
+		// Drop whatever ports the last example opened the scene with -- a fake on its stack among them -- for the
+		// host's, which live as long as the program.
+		MenuContext host{};
+		host.ports = deluge::ui::scenes::menu::host_ports();
+		browser_scene().open(host);
 	}
 	CleanBrowser(const CleanBrowser&) = delete;
 	CleanBrowser& operator=(const CleanBrowser&) = delete;
