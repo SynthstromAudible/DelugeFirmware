@@ -304,6 +304,12 @@ pub extern "C" fn deluge_peaks_range(index_ptr: *const DelugePeakIndex) -> Delug
     maybe(index(index_ptr).and_then(PeakIndex::range))
 }
 
+/// `deluge_peaks_frames`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_peaks_frames(index_ptr: *const DelugePeakIndex) -> u64 {
+    index(index_ptr).map_or(0, PeakIndex::frames)
+}
+
 /// `deluge_peaks_next_unscanned`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_peaks_next_unscanned(index_ptr: *const DelugePeakIndex, from: u64) -> u64 {
@@ -391,4 +397,13 @@ pub extern "C" fn deluge_peaks_take_finish(
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_peaks_take_frames(take_ptr: *mut DelugePeaksTake) -> u64 {
     take(take_ptr).map_or(0, |t| t.frames())
+}
+
+/// `deluge_peaks_widen_range` (`include/test/peaks_test_support.h`).
+#[cfg(feature = "test_support")]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub extern "C" fn deluge_peaks_widen_range(index_ptr: *mut DelugePeakIndex, peak: DelugePeak) {
+    if let Some(i) = index(index_ptr) {
+        i.widen_range(peak.into());
+    }
 }

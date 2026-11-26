@@ -151,6 +151,11 @@ DelugeMaybePeak deluge_peaks_of_frames(const uint8_t* bytes, uint32_t length, ui
 /// @return The range, or nothing before the first block completes.
 DelugeMaybePeak deluge_peaks_range(const DelugePeakIndex* index) DELUGE_NOEXCEPT;
 
+/// @brief [task] The frames the index holds: a file's length, or a take's frames captured so far.
+/// @param index The index; null answers 0.
+/// @return The frames.
+uint64_t deluge_peaks_frames(const DelugePeakIndex* index) DELUGE_NOEXCEPT;
+
 /// @brief [task] The first frame of the first incomplete block at or after `from`.
 /// @param index The index; null answers UINT64_MAX.
 /// @param from  The frame to look from.

@@ -30,6 +30,12 @@ extern "C" {
 /// @param peak  The peak every block and the range hold.
 void deluge_peaks_fill_uniform(DelugePeakIndex* index, DelugePeak peak);
 
+/// @brief Widen the range by `peak` without completing any block, for a fixture drawn at a scale its peaks do not
+///        reach.
+/// @param index The index; null is ignored.
+/// @param peak  The peak to widen the range by.
+void deluge_peaks_widen_range(DelugePeakIndex* index, DelugePeak peak);
+
 #ifdef __cplusplus
 }
 #endif

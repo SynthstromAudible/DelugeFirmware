@@ -416,6 +416,14 @@ impl PeakIndex {
         self.value(0, block)
     }
 
+    /// Widens the range by `peak` without completing any block. Test support: a fixture drawn at a scale its peaks do
+    /// not reach.
+    #[cfg(feature = "test_support")]
+    #[doc(hidden)]
+    pub fn widen_range(&self, peak: Peak) {
+        fold_into(&self.range, peak.encode());
+    }
+
     /// Makes every block of the index complete with `peak`, without storing per-block values. Test support: seeding
     /// a fixture whose sample has no frames behind it.
     #[cfg(feature = "test_support")]
