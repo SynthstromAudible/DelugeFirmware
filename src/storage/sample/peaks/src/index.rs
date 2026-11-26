@@ -50,6 +50,8 @@ pub struct PeakIndex {
     values: [Option<Directory<AtomicU32>>; MAX_LEVELS as usize],
     masks: [Option<Directory<AtomicU16>>; MAX_LEVELS as usize],
     range: AtomicU32,
+    /// How many level-1 entries are complete: what a sidecar would hold.
+    complete1: AtomicU32,
     next_free: AtomicPtr<PeakIndex>,
     /// A peak every block holds, set by `fill_uniform`: a fixture's sample with no frames behind it.
     #[cfg(feature = "test_support")]
@@ -77,6 +79,7 @@ impl PeakIndex {
             values: [const { None }; MAX_LEVELS as usize],
             masks: [const { None }; MAX_LEVELS as usize],
             range: AtomicU32::new(0),
+            complete1: AtomicU32::new(0),
             next_free: AtomicPtr::new(core::ptr::null_mut()),
             #[cfg(feature = "test_support")]
             uniform: AtomicU32::new(0),
@@ -254,7 +257,11 @@ impl PeakIndex {
         let b = 1u16 << bit;
         let old = mask.fetch_or(b, Ordering::SeqCst); // SeqCst: see `final_frames`
         let full = self.full_mask(level, entry);
-        if old != full && (old | b) == full && level + 1 < self.levels {
+        let became = old != full && (old | b) == full;
+        if became && level == 1 {
+            self.complete1.fetch_add(1, Ordering::Relaxed);
+        }
+        if became && level + 1 < self.levels {
             let v = value.load(Ordering::Acquire);
             self.complete_child(level + 1, entry >> FAN_LOG2, (entry & 15) as u32, v);
         }
@@ -317,7 +324,14 @@ impl PeakIndex {
             else {
                 continue;
             };
-            if mask.load(Ordering::SeqCst) == self.full_mask(level, last)
+            let full = self.full_mask(level, last);
+            let m = mask.load(Ordering::SeqCst);
+            // A last entry with all 16 children was counted when its last child completed it; one with fewer becomes
+            // complete only now.
+            if level == 1 && m == full && full != u16::MAX {
+                self.complete1.fetch_add(1, Ordering::Relaxed);
+            }
+            if m == full
                 && level + 1 < self.levels
                 && let Some(v) = self.values[level as usize]
                     .as_ref()
@@ -326,6 +340,60 @@ impl PeakIndex {
                 let e = v.load(Ordering::Acquire);
                 self.complete_child(level + 1, last >> FAN_LOG2, (last & 15) as u32, e);
             }
+        }
+    }
+
+    /// How many level-1 entries are complete.
+    #[must_use]
+    pub fn complete_level1(&self) -> u64 {
+        u64::from(self.complete1.load(Ordering::Relaxed))
+    }
+
+    /// How many level-1 entries the index has: one per 4,096 frames.
+    #[must_use]
+    pub fn level1_entries(&self) -> u64 {
+        entries(1, self.frames())
+    }
+
+    /// The word a sidecar stores for level-1 entry `entry`: its value if complete, else 0.
+    pub(crate) fn level1_word(&self, entry: u64) -> u32 {
+        if !self.complete(1, entry) {
+            return 0;
+        }
+        self.values[1]
+            .as_ref()
+            .and_then(|d| d.get(entry))
+            .map_or(0, |v| v.load(Ordering::Acquire))
+    }
+
+    /// Whether the index is final with `frames` frames: what a sidecar's peaks may be restored into.
+    pub(crate) fn is_final_at(&self, frames: u64) -> bool {
+        self.final_frames() == Some(frames)
+    }
+
+    /// Restores level-1 entry `entry` from a sidecar's word `e`: folds it in, sets its mask full, and propagates it
+    /// as a scan completing it would. Never allocates.
+    pub(crate) fn restore_level1(&self, entry: u64, e: u32) {
+        if e == 0 {
+            return;
+        }
+        let (Some(value), Some(mask)) = (
+            self.values[1].as_ref().and_then(|d| d.get(entry)),
+            self.masks[1].as_ref().and_then(|d| d.get(entry)),
+        ) else {
+            return;
+        };
+        fold_into(value, e);
+        let full = self.full_mask(1, entry);
+        let old = mask.fetch_or(full, Ordering::SeqCst); // SeqCst: see `final_frames`
+        if old == full {
+            return; // already complete: its parent has it
+        }
+        self.complete1.fetch_add(1, Ordering::Relaxed);
+        fold_into(&self.range, e);
+        if 2 < self.levels {
+            let v = value.load(Ordering::Acquire);
+            self.complete_child(2, entry >> FAN_LOG2, (entry & 15) as u32, v);
         }
     }
 
@@ -422,6 +490,13 @@ impl PeakIndex {
         for d in self.masks.iter().flatten() {
             d.free_all();
         }
+    }
+
+    /// The word a sidecar stores for level-1 entry `entry`.
+    #[cfg(feature = "test_support")]
+    #[must_use]
+    pub fn level1_word_for_test(&self, entry: u64) -> u32 {
+        self.level1_word(entry)
     }
 
     /// Whether level-0 block `block` is complete. Test support.

@@ -17,11 +17,13 @@
 
 pub mod abi;
 pub mod column;
+pub mod crc;
 mod dir;
 pub mod div;
 mod index;
 pub mod mem;
 mod peak;
+pub mod sidecar;
 pub mod take;
 pub mod tap;
 
