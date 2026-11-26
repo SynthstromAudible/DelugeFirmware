@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp/core/stereo_sample.h"
+#include "libdeluge/audio_ports.h"
 #include "util/functions.h"
 #include <cstddef>
 #include <cstdint>
@@ -34,13 +35,18 @@ void startDevice();
 /// Whether this USB session presents audio - the setting as it was when the device started
 bool present();
 
-/// Whether the host is currently sending us audio
+/// The render block's USB port (libdeluge/audio_ports.h), for the rest of the block: what the host sent, where our
+/// audio for it goes, and whether the host is there each way. A port with no pairs (USB audio off, or an offline
+/// export) reads silence and takes nothing.
+void beginBlock(DelugeAudioPort* port);
+
+/// Whether the host is sending us audio this block
 bool receivingFromHost();
-/// Whether the host is currently collecting our audio
+/// Whether the host is collecting our audio this block
 bool sendingToHost();
 
 /// Call before rendering a block, with where the block starts in the USB input ring (see AudioEngine::getInputReadPos)
-/// and its length. Fills that much of the ring with what has arrived from the host, or silence if nothing's streaming.
+/// and its length. Fills that much of the ring with the block's USB input, or silence if nothing's streaming.
 void fillInputRing(int32_t* at, size_t numSamples);
 
 /// The USB input ring buffer. It's the same size and layout as AudioEngine's input ring, and kept in step with it, so
@@ -48,7 +54,8 @@ void fillInputRing(int32_t* at, size_t numSamples);
 int32_t* getInputRingStart();
 int32_t* getInputRingEnd();
 
-/// Queue a block's audio for the host. Does nothing if the host isn't collecting it.
+/// The block's audio for the host, into the USB port. Does nothing if the port has no output pair; otherwise the pair
+/// is no longer silent.
 void sendToHost(std::span<const StereoSample> frames);
 
 /// The "USB input" setting: mix audio from the host straight into the Deluge's outputs, after the song's FX, when

@@ -511,11 +511,20 @@ fn render_block(live: Option<&[[f32; 2]]>) {
     // SAFETY: nothing else touches RENDER_BLOCK/INPUT_BLOCK during the render; both hold exactly
     // APP_BLOCK_FRAMES frames.
     unsafe {
-        crate::sys::deluge_app_render(
-            addr_of!(INPUT_BLOCK) as *const DelugeStereoSample,
-            addr_of_mut!(RENDER_BLOCK) as *mut DelugeStereoSample,
-            APP_BLOCK_FRAMES as u32,
-        );
+        use crate::audio::ports::{Far, Pairs, PortTable};
+        // The host has no USB device: its USB port has no pairs (the pointers are never read).
+        let pairs = Pairs {
+            codec_in: [addr_of!(INPUT_BLOCK) as *const DelugeStereoSample],
+            codec_out: [addr_of_mut!(RENDER_BLOCK) as *mut DelugeStereoSample],
+            usb_in: [core::ptr::null()],
+            usb_out: [core::ptr::null_mut()],
+        };
+        let far = Far {
+            receiving: false,
+            sending: false,
+        };
+        let mut block = PortTable::new(false).block(APP_BLOCK_FRAMES as u32, &pairs, far, 0);
+        crate::sys::deluge_app_render(&mut block);
     }
     // Discarded unless captured or the emulator plays it.
 

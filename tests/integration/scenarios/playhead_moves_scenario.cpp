@@ -29,6 +29,7 @@
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 
+#include "scenarios/support/render_block.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 
@@ -234,7 +235,7 @@ void renderBlock(bool hashing) {
 	if (playbackHandler.isExternalClockActive()) {
 		playbackHandler.inputTick();
 	}
-	deluge_app_render(silence, output, kRenderBlockFrames);
+	scenarios::renderCodecBlock(silence, output, kRenderBlockFrames);
 	if (hashing) {
 		// FNV-1a over the block's samples.
 		for (const DelugeStereoSample& frame : output) {
@@ -345,14 +346,14 @@ bool selfTestRetire() {
 	static DelugeStereoSample silence[kRenderBlockFrames]{};
 	static DelugeStereoSample output[kRenderBlockFrames]{};
 	// The render has to have run for retirement to wait on it
-	deluge_app_render(silence, output, kRenderBlockFrames);
+	scenarios::renderCodecBlock(silence, output, kRenderBlockFrames);
 	g_markerFreed = false;
 	AudioEngine::retireMemory(deluge::memory::alloc_sdram(16), &freeMarker);
-	deluge_app_render(silence, output, kRenderBlockFrames);
+	scenarios::renderCodecBlock(silence, output, kRenderBlockFrames);
 	AudioEngine::reclaimRetired();
 	const bool keptOneBlock = !g_markerFreed;
-	deluge_app_render(silence, output, kRenderBlockFrames);
-	deluge_app_render(silence, output, kRenderBlockFrames);
+	scenarios::renderCodecBlock(silence, output, kRenderBlockFrames);
+	scenarios::renderCodecBlock(silence, output, kRenderBlockFrames);
 	AudioEngine::reclaimRetired();
 	return keptOneBlock && g_markerFreed;
 }
@@ -409,7 +410,7 @@ bool selfTestPublishOutOfMemory() {
 	static DelugeStereoSample silence[kRenderBlockFrames]{};
 	static DelugeStereoSample output[kRenderBlockFrames]{};
 	for (int32_t block = 0; block < 3; block++) {
-		deluge_app_render(silence, output, kRenderBlockFrames);
+		scenarios::renderCodecBlock(silence, output, kRenderBlockFrames);
 	}
 	AudioEngine::reclaimRetired();
 	bool released = true;

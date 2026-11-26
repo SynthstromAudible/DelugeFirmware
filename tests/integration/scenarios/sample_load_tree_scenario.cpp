@@ -35,6 +35,7 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "scenarios/slot_coherence.h"
+#include "scenarios/support/render_block.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 #include "support/sound_fixtures.h"
@@ -915,7 +916,7 @@ void renderWhileArmed() {
 	static DelugeStereoSample silence[kRenderBlockFrames]{};
 	static DelugeStereoSample output[kRenderBlockFrames]{};
 	for (int32_t block = 0; block < kRenderBlocksPerTick; block++) {
-		deluge_app_render(silence, output, kRenderBlockFrames);
+		scenarios::renderCodecBlock(silence, output, kRenderBlockFrames);
 		g_crucialRendered++;
 	}
 }

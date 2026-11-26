@@ -40,7 +40,20 @@ PLACE_SDRAM_BSS int32_t inputRing[kRingFrames * NUM_MONO_INPUT_CHANNELS];
 // there's nothing more to clear until the host starts sending again
 size_t inputRingSilentFrames = 0;
 
+/// The block's USB port, and how much of its input the ring has taken.
+DelugeAudioPort* blockPort = nullptr;
+size_t blockInputTaken = 0;
+
+bool portHas(bool DelugeAudioPort::* far, uint8_t DelugeAudioPort::* pairs) {
+	return blockPort != nullptr && blockPort->*pairs != 0 && blockPort->*far;
+}
+
 } // namespace
+
+void beginBlock(DelugeAudioPort* port) {
+	blockPort = port;
+	blockInputTaken = 0;
+}
 
 void startDevice() {
 	deluge_usb_device_start(FlashStorage::usbAudioEnabled);
@@ -53,11 +66,11 @@ bool present() {
 }
 
 bool receivingFromHost() {
-	return deluge_usb_audio_receiving();
+	return portHas(&DelugeAudioPort::far_sending, &DelugeAudioPort::in_pairs);
 }
 
 bool sendingToHost() {
-	return deluge_usb_audio_sending();
+	return portHas(&DelugeAudioPort::far_receiving, &DelugeAudioPort::out_pairs);
 }
 
 int32_t* getInputRingStart() {
@@ -77,7 +90,8 @@ void fillInputRing(int32_t* at, size_t numSamples) {
 		auto const startFrame = static_cast<size_t>(at - inputRing) / NUM_MONO_INPUT_CHANNELS;
 		size_t numThisTime = std::min(numSamples, kRingFrames - startFrame);
 		if (receiving) {
-			deluge_usb_audio_read(reinterpret_cast<DelugeStereoSample*>(at), numThisTime);
+			std::memcpy(at, blockPort->in[0] + blockInputTaken, numThisTime * sizeof(StereoSample));
+			blockInputTaken += numThisTime;
 			inputRingSilentFrames = 0;
 		}
 		else {
@@ -90,7 +104,11 @@ void fillInputRing(int32_t* at, size_t numSamples) {
 }
 
 void sendToHost(std::span<const StereoSample> frames) {
-	deluge_usb_audio_write(reinterpret_cast<const DelugeStereoSample*>(frames.data()), frames.size());
+	if (blockPort == nullptr || blockPort->out_pairs == 0) {
+		return;
+	}
+	std::memcpy(blockPort->out[0], frames.data(), frames.size_bytes());
+	blockPort->out_silent &= ~1u;
 }
 
 } // namespace deluge::usb_audio

@@ -64,6 +64,59 @@ pub struct DelugeBootInfo {
     pub factory_reset_requested: bool,
 }
 
+/// `libdeluge/types.h`'s `DelugeStereoSample`.
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub struct DelugeStereoSample {
+    pub l: i32,
+    pub r: i32,
+}
+
+/// `libdeluge/audio_ports.h`'s `DelugeAudioPortFlags`: `enum DelugeAudioPortFlags : uint8_t`.
+pub type DelugeAudioPortFlags = u8;
+pub const DelugeAudioPortFlags_DELUGE_PORT_MAIN_MIX_OUT: DelugeAudioPortFlags = 1;
+pub const DelugeAudioPortFlags_DELUGE_PORT_MONITORABLE: DelugeAudioPortFlags = 2;
+pub const DelugeAudioPortFlags_DELUGE_PORT_CODEC_INPUT: DelugeAudioPortFlags = 4;
+/// `libdeluge/audio_ports.h`'s `DelugeAudioPortIndex`: `enum DelugeAudioPortIndex : uint8_t`.
+pub type DelugeAudioPortIndex = u8;
+pub const DelugeAudioPortIndex_DELUGE_PORT_CODEC: DelugeAudioPortIndex = 0;
+pub const DelugeAudioPortIndex_DELUGE_PORT_USB: DelugeAudioPortIndex = 1;
+pub const DelugeAudioPortIndex_DELUGE_PORT_COUNT: DelugeAudioPortIndex = 2;
+
+/// The sample and port types the port structs below are made of: these stand-ins in the plain host build, and `sys`'s
+/// own where the pins compare the stand-ins field for field (each is pinned by its own `abi_layout!`).
+#[cfg(not(feature = "host_app"))]
+type PortSample = DelugeStereoSample;
+#[cfg(feature = "host_app")]
+type PortSample = crate::sys::DelugeStereoSample;
+#[cfg(not(feature = "host_app"))]
+type BlockPort = DelugeAudioPort;
+#[cfg(feature = "host_app")]
+type BlockPort = crate::sys::DelugeAudioPort;
+
+/// `libdeluge/audio_ports.h`'s `DelugeAudioPort`.
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct DelugeAudioPort {
+    pub in_: *const *const PortSample,
+    pub out: *const *mut PortSample,
+    pub in_pairs: u8,
+    pub out_pairs: u8,
+    pub flags: u8,
+    pub far_receiving: bool,
+    pub far_sending: bool,
+    pub out_silent: u32,
+}
+
+/// `libdeluge/audio_ports.h`'s `DelugeAudioBlock`.
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct DelugeAudioBlock {
+    pub frames: u32,
+    pub ports: [BlockPort; 2],
+    pub platform_cycles: u32,
+}
+
 /// `libdeluge/types.h`'s `DelugeChunkBacking`, which `deluge_storage_sample_fill` defines (as the bindgen
 /// `sys` re-exports it; see `build/crate_types.rs`).
 #[allow(unused_imports)]
@@ -83,6 +136,12 @@ abi_layout!(self::DelugeColour => sys DelugeColour { r, g, b });
 abi_layout!(self::DelugeEncoderEdges => sys DelugeEncoderEdges { time_us, edges });
 abi_layout!(self::DelugeBootInfo => sys DelugeBootInfo { pic_firmware_version, oled_present,
     factory_reset_requested });
+abi_layout!(type self::DelugeAudioPortFlags => sys DelugeAudioPortFlags);
+abi_layout!(type self::DelugeAudioPortIndex => sys DelugeAudioPortIndex);
+abi_layout!(self::DelugeStereoSample => sys DelugeStereoSample { l, r });
+abi_layout!(self::DelugeAudioPort => sys DelugeAudioPort { in_, out, in_pairs, out_pairs, flags, far_receiving,
+    far_sending, out_silent });
+abi_layout!(self::DelugeAudioBlock => sys DelugeAudioBlock { frames, ports, platform_cycles });
 abi_const!(
     self::DELUGE_ENCODER_EDGE_RUNS => DELUGE_ENCODER_EDGE_RUNS,
     self::DelugeStatus_DELUGE_OK => DelugeStatus_DELUGE_OK,
@@ -97,4 +156,10 @@ abi_const!(
     self::DelugeInputEventKind_DELUGE_EVENT_BUTTON => DelugeInputEventKind_DELUGE_EVENT_BUTTON,
     self::DelugeInputEventKind_DELUGE_EVENT_ENCODER => DelugeInputEventKind_DELUGE_EVENT_ENCODER,
     self::DelugeInputEventKind_DELUGE_EVENT_NO_PRESSES => DelugeInputEventKind_DELUGE_EVENT_NO_PRESSES,
+    self::DelugeAudioPortFlags_DELUGE_PORT_MAIN_MIX_OUT => DelugeAudioPortFlags_DELUGE_PORT_MAIN_MIX_OUT,
+    self::DelugeAudioPortFlags_DELUGE_PORT_MONITORABLE => DelugeAudioPortFlags_DELUGE_PORT_MONITORABLE,
+    self::DelugeAudioPortFlags_DELUGE_PORT_CODEC_INPUT => DelugeAudioPortFlags_DELUGE_PORT_CODEC_INPUT,
+    self::DelugeAudioPortIndex_DELUGE_PORT_CODEC => DelugeAudioPortIndex_DELUGE_PORT_CODEC,
+    self::DelugeAudioPortIndex_DELUGE_PORT_USB => DelugeAudioPortIndex_DELUGE_PORT_USB,
+    self::DelugeAudioPortIndex_DELUGE_PORT_COUNT => DelugeAudioPortIndex_DELUGE_PORT_COUNT,
 );

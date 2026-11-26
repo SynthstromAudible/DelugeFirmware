@@ -1065,8 +1065,10 @@ extern "C" void deluge_app_render_skipped(void) noexcept {
 	}
 }
 
-/// The body of deluge_app_render(), which catches whatever it throws.
-static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) {
+/// The body of deluge_app_render(), which catches whatever it throws. `platformCycles` is what the platform spent on
+/// the last block's ports outside the render, which the voice budget counts with the render's own.
+static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames,
+                           uint32_t platformCycles) {
 	// The whole block is one AudioExcludedSection. On the device this is free: the render runs on the audio tier, which
 	// nothing preempts, so it never masks. On host the render is a thread like any other, and this is what gives it
 	// the device's guarantee: an interaction-tier structural edit to a container the render walks (each runs in its
@@ -1187,7 +1189,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 #endif
 
 	if (!offline) {
-		voiceBudget.end_block(deluge_cycle_count() - blockStart);
+		voiceBudget.end_block(deluge_cycle_count() - blockStart + platformCycles);
 	}
 
 	bypassCulling = false;
@@ -1235,16 +1237,27 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 #endif
 }
 
-extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) noexcept {
+extern "C" void deluge_app_render(DelugeAudioBlock* block) noexcept {
+	DelugeAudioPort& codec = block->ports[DELUGE_PORT_CODEC];
+	const DelugeStereoSample* in = codec.in_pairs != 0 ? codec.in[0] : nullptr;
+	DelugeStereoSample* out = codec.out_pairs != 0 ? codec.out[0] : nullptr;
+	// An offline export renders at its own pace: the USB port is left out of it, silent both ways.
+	bool const offline = stemExport.processStarted && stemExport.renderOffline;
+	usb_audio::beginBlock(offline ? nullptr : &block->ports[DELUGE_PORT_USB]);
+	if (out != nullptr) {
+		codec.out_silent &= ~1u;
+	}
 	try {
-		renderAppBlock(in, out, frames);
+		renderAppBlock(in, out, block->frames, block->platform_cycles);
 	} catch (...) {
 		// The render must not throw (it must not even allocate); if it does, this block is silence rather than an
-		// unwind out of the BSP's render driver. `out` may be NULL (app.h), and then there is no block to silence.
+		// unwind out of the BSP's render driver. A port with no output pair has no block to silence.
 		if (out != nullptr) {
-			memset(out, 0, frames * sizeof(DelugeStereoSample));
+			memset(out, 0, block->frames * sizeof(DelugeStereoSample));
 		}
+		block->ports[DELUGE_PORT_USB].out_silent = ~0u;
 	}
+	usb_audio::beginBlock(nullptr);
 }
 
 extern "C" bool deluge_app_audio_tick() noexcept {
