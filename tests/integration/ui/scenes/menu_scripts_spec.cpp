@@ -383,11 +383,8 @@ void install_display() {
 
 /// @name The sample fixture, lifted from `marker_scene_spec.cpp` for its reason.
 ///
-/// `deluge::sample::find_peaks_per_col` reads clusters, and a spec process has no mounted card
-/// holding the file this `Sample` claims to be. It does not have to: the scan's whole-cluster arm
-/// reuses the sample's own overview cache when a column spans two or more clusters
-/// (`waveform_scan.cpp`), so the fixture is exactly `kDisplayWidth` clusters' worth of frames with
-/// every overview entry pre-marked investigated. Halving the length turns the whole waveform black.
+/// A spec process has no mounted card holding the file this `Sample` claims to be. It does not have to: the
+/// fixture seeds the sample's peak index (`support/peak_seed.h`), so every column is answered from the index.
 /// @{
 constexpr size_t kClusterSize = 32768;
 constexpr int32_t kBytesPerFrame = 2; // 16-bit mono

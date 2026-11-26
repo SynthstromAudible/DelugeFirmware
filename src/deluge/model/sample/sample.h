@@ -22,7 +22,6 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/core/fixed_point.h"
-#include "model/sample/overview_cache_entry.h"
 #include "model/sample/sample_length_sentinel.h"
 #include "model/sample/sample_perc_cache_zone.h"
 #include "storage/audio/audio_file.h"
@@ -32,7 +31,6 @@
 #include "synth/sources/sample/perc_fill.h"
 #include "util/containers.h"
 #include "util/functions.h"
-#include "util/segmented_vector.h" // deluge::SegmentedVector, for overviewCache_
 #include <array>
 #include <cstdint>
 
@@ -73,7 +71,7 @@ public:
 	[[nodiscard]] size_t allocatedSize() const override { return sizeof(Sample); }
 
 	void workOutBitMask();
-	Error initialize(int32_t numClusters);
+	Error initialize();
 	void markAsUnloadable();
 	/// @brief Settle midiNote without scanning, if it can be: already known, a single cycle, or the note the file
 	///        names. @return Whether it is settled; false means a pitch scan must find it.
@@ -122,9 +120,6 @@ public:
 	int32_t getFoundValueCentrePoint();
 	int32_t getValueSpan();
 
-	// Discards the cached per-cluster waveform overview (issue #4460) and rewinds the background pre-scan,
-	// so it gets rebuilt from scratch. Call when the underlying audio data may have changed on disk.
-	void resetOverviewScan();
 	void finalizeAfterLoad(uint32_t fileSize) override;
 
 	/// @brief This sample's waveform peak index, or null if it could not be made.
@@ -156,19 +151,6 @@ public:
 	/// Const overload -- lets a `const Sample&` consumer reach read-only accessors without dropping
 	/// const.
 	[[nodiscard]] const deluge::audio::stream::SampleStream& stream() const { return stream_; }
-
-	/// @return The physical entry count of the waveform overview cache (`overviewCache_.size()`).
-	[[nodiscard]] size_t overviewCacheSize() const { return overviewCache_.size(); }
-	/// @brief Access the waveform overview cache entry for cluster @p index.
-	[[nodiscard]] OverviewCacheEntry& overviewCacheEntry(uint32_t index) { return overviewCache_[index]; }
-	/// @copydoc overviewCacheEntry(uint32_t)
-	[[nodiscard]] const OverviewCacheEntry& overviewCacheEntry(uint32_t index) const { return overviewCache_[index]; }
-	/// @brief Resize the waveform overview cache to exactly @p n entries.
-	///
-	/// Sized at the same hooks a sample's cluster count can change at (initialize, finalize-grow,
-	/// truncate-shrink -- see those call sites). Never grown concurrently with a reader, so no
-	/// `reserve()` pre-sizing is needed.
-	void resizeOverviewCache(size_t n) { overviewCache_.resize(n); }
 
 	// A float sample's native word, Q31, as convert_word gives an integer one's
 	[[nodiscard]] int32_t convertToNative(float value) const { return deluge::dsp::from_float<31>(value).raw(); }
@@ -226,20 +208,10 @@ public:
 
 	float midiNote; // -999 means not worked out yet. -1000 means error working out
 
-	// int32_t valueSpan; // -2147483648 means both these are uninitialized
-	int32_t minValueFound;
-	int32_t maxValueFound;
-
 	/// This object's lifetime serial, taken from one counter when it is constructed: never 0 and never taken again, so
 	/// a sample constructed later in a freed sample's memory has another. A waveform's identity
 	/// (`gui::shell_host::waveform_identity`) is this serial.
 	const uint64_t serial;
-
-	// Background "waveform overview" pre-scan cursor (issue #4460). The next cluster index that the idle
-	// pre-scan should investigate-whole-length, so that zoomed-out single-row rendering finds per-cluster
-	// min/max already cached and never has to load clusters synchronously mid-scroll. Seeded to the first
-	// audio cluster by advanceOverviewScan / resetOverviewScan (clusters aren't known at construction).
-	int32_t overviewScanNextCluster{0};
 
 	deluge::fast_vector<SampleCacheElement> caches{}; // Sorted ascending by SampleCacheElement::key()
 
@@ -266,12 +238,6 @@ public:
 	/// @note ~Sample releases the Asset explicitly, before `stream_` destructs -- see ~Sample's
 	///       definition.
 	deluge::audio::stream::SampleStream stream_{*this};
-
-	/// @brief The waveform overview cache: one `OverviewCacheEntry` per cluster of the file.
-	///
-	/// A stable-address `SegmentedVector` so a `OverviewCacheEntry&` handed out by
-	/// overviewCacheEntry() stays valid across later growth -- see `resizeOverviewCache()`.
-	deluge::SegmentedVector<OverviewCacheEntry, 256, deluge::memory::fast_allocator> overviewCache_{};
 
 	/// @brief The waveform peak index: one reference, dropped in the destructor or by `makePeaks`.
 	DelugePeakIndex* peaks_{nullptr};

@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/recorder_readback_probe.h"
+#include "deluge_storage_sample_peaks.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge_storage_sample_source.h"
@@ -67,7 +68,7 @@ void teardown() {
 	}
 }
 
-// --- Finalized multi-cluster overview-cache sizing regression probe ----------------------------
+// --- Finalized multi-cluster peak index coverage regression probe -------------------------------
 
 SampleRecorder* g_finalizedRecorder = nullptr;
 DelugeSampleSource* g_finalizedSource = nullptr;
@@ -284,16 +285,15 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t reg
 		return 0;
 	}
 
-	// The exact formula finalizeRecordedFile()'s hoisted resize uses -- the PHYSICAL waveform overview
-	// cache (overviewCacheSize(), captured right below) MUST be >= this for the grow to have fired.
-	// overviewCache_ is the structure finalizeRecordedFile() grows to the final cluster count via a
-	// grow-only guard. We deliberately read overviewCacheSize() and NOT num_clusters() here: num_clusters()
-	// is derived from this same geometric formula, so reading it would make this probe tautological
-	// and blind to a skipped grow (the exact regression this case exists to catch).
+	// The file's cluster count, and the clusters the take's peak index spans: the index's own frame count, not
+	// num_clusters(), which is derived from the same length and so could not show an index left short.
 	uint32_t idealFileSizeAfterAction =
 	    sample->audioDataStartPosBytes + static_cast<uint32_t>(sample->audioDataLengthBytes);
 	g_finalizedExpectedClusters = ((idealFileSizeAfterAction - 1) >> Cluster::size_magnitude) + 1;
-	g_finalizedTableClusters = static_cast<uint32_t>(sample->overviewCacheSize());
+	const uint64_t indexFrames = deluge_peaks_frames(sample->peaks());
+	const uint64_t indexBytes = sample->audioDataStartPosBytes + indexFrames * sample->numChannels * sample->byteDepth;
+	g_finalizedTableClusters =
+	    indexFrames == 0 ? 0 : static_cast<uint32_t>(((indexBytes - 1) >> Cluster::size_magnitude) + 1);
 
 	// Open a FRESH read handle on the finalized file -- the recorder's own write context is already
 	// closed by now (finalizeRecordedFile() closed it), and this Sample never went through

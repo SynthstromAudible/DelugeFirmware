@@ -32,7 +32,7 @@
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/fft/fft_config_manager.h"
-#include "storage/audio/audio_file_manager.h" // audioFileManager (overviewScanAllDone)
+#include "storage/audio/audio_file_manager.h" // audioFileManager (peakScanAllDone)
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 #include <atomic>
@@ -111,9 +111,6 @@ Sample::Sample() : AudioFile(AudioFileType::SAMPLE), serial(next_serial()) {
 	midiNote = MIDI_NOTE_UNSET;
 	partOfFolderBeingLoaded = false;
 
-	minValueFound = 2147483647;
-	maxValueFound = -2147483648;
-
 	percCacheMemory[0] = nullptr;
 	percCacheMemory[1] = nullptr;
 
@@ -132,17 +129,11 @@ Sample::Sample() : AudioFile(AudioFileType::SAMPLE), serial(next_serial()) {
 #endif
 }
 
-Error Sample::initialize(int32_t newNumClusters) {
+Error Sample::initialize() {
 	unloadable = false;
 	unplayable = false;
 	waveTableCycleSize = 2048; // Default
 	fileExplicitlySpecifiesSelfAsWaveTable = false;
-
-	try {
-		overviewCache_.resize(overviewCache_.size() + newNumClusters);
-	} catch (deluge::exception&) {
-		return Error::INSUFFICIENT_RAM;
-	}
 	return Error::NONE;
 }
 
@@ -247,24 +238,12 @@ void Sample::workOutBitMask() {
 void Sample::markAsUnloadable() {
 	unloadable = true;
 
-	// The on-disk audio may have changed, so the cached waveform overview can no longer be trusted.
-	resetOverviewScan();
+	// The on-disk audio may have changed, so the peaks can no longer be trusted.
+	resetPeaks();
 
 	// Cancel any pending loads and flag resident clusters, so a mid-flight fill won't complete with
 	// stale bytes (the residency lives in the Rust manager now).
 	deluge_sample_invalidate(deluge::sample::source_id_for(*this));
-}
-
-void Sample::resetOverviewScan() {
-	for (int32_t c = 0; c < static_cast<int32_t>(overviewCacheSize()); c++) {
-		OverviewCacheEntry& cacheEntry = overviewCacheEntry(c);
-		cacheEntry.investigated = false;
-		cacheEntry.min = 127;
-		cacheEntry.max = -128;
-	}
-	overviewScanNextCluster = getFirstClusterIndexWithAudioData();
-	resetPeaks();
-	audioFileManager.overviewScanAllDone = false; // This sample now has work to pre-scan again (#4460)
 }
 
 void Sample::makePeaks(uint64_t frames, bool growing, uint64_t capacity) {
@@ -1006,12 +985,10 @@ int32_t Sample::getFirstClusterIndexWithAudioData() {
 
 int32_t Sample::getFirstClusterIndexWithNoAudioData() {
 	// Pure geometric count, unclamped: for a loaded sample finalizeAfterLoad() guarantees
-	// audioDataStartPosBytes + audioDataLengthBytes <= fileSize, so this is <= the overview cache's
-	// physical size. It is also reached for a still-recording sample (via advanceOverviewScan's
-	// background scan), where audioDataLengthBytes is the kUnknownLengthSentinel; the sentinel's
-	// bit-pattern deliberately makes this expression truncate (in the uint32 geometricClusterCount())
-	// to 1 for every realistic cluster-size magnitude, so the scan stays bounded to cluster 0. Keep
-	// that property in mind before changing the sentinel value.
+	// audioDataStartPosBytes + audioDataLengthBytes <= fileSize. For a still-recording sample
+	// audioDataLengthBytes is the kUnknownLengthSentinel, whose bit-pattern makes this expression truncate
+	// (in the uint32 geometricClusterCount()) to 1 for every realistic cluster-size magnitude. Keep that
+	// property in mind before changing the sentinel value.
 	return static_cast<int32_t>(geometricClusterCount());
 }
 

@@ -889,39 +889,24 @@ void finishPreviewStage(bool drawn) {
 	checkTier("preview", g_previewTier);
 }
 
-/// The previewed sample's found range as the preview's draw left it, and how many of its clusters were investigated.
+/// The previewed sample, as the pre-scan stage began.
 struct PrescanMark {
 	Sample* sample = nullptr;
-	int32_t min = 0;
-	int32_t max = 0;
-	int32_t investigated = 0;
 };
 PrescanMark g_prescanBefore{};
 /// The previewed sample's first unscanned frame before any peak scan ran: what the fill alone folded.
 uint64_t g_peaksFilledBefore = 0;
 /// Scan ticks made, the one that ended the stage included.
 int32_t g_prescanTicks = 0;
-/// Bound on the pre-scan stage, in ticks: one cluster per tick, and the preview file holds far fewer.
+/// Bound on the pre-scan stage, in ticks: one block per tick at most, and the stage's files hold far fewer.
 constexpr int32_t kMaxPrescanTicks = 8000;
-Wait g_prescanWait{g_report, "the overview and peak scans finishing", kMaxPrescanTicks};
+Wait g_prescanWait{g_report, "the peak scan finishing", kMaxPrescanTicks};
 
-int32_t investigatedClusters(const Sample& sample) {
-	int32_t n = 0;
-	for (size_t i = 0; i < sample.overviewCacheSize(); i++) {
-		n += sample.overviewCacheEntry(static_cast<uint32_t>(i)).investigated ? 1 : 0;
-	}
-	return n;
-}
-
-/// One tick of the pre-scan stage: the background overview scan, as the idle loop runs it.
+/// One tick of the pre-scan stage: the background waveform scan, as the idle loop runs it.
 void runOnePrescanTick() {
 	if (g_prescanTicks == 0) {
 		Sample* sample = drawnSample(kPreviewPath);
-		g_prescanBefore = PrescanMark{.sample = sample,
-		                              .min = sample != nullptr ? sample->minValueFound : 0,
-		                              .max = sample != nullptr ? sample->maxValueFound : 0,
-		                              .investigated = sample != nullptr ? investigatedClusters(*sample) : 0};
-		audioFileManager.overviewScanAllDone = false;
+		g_prescanBefore = PrescanMark{.sample = sample};
 		audioFileManager.peakScanAllDone = false;
 		g_peaksFilledBefore = sample != nullptr ? deluge_peaks_next_unscanned(sample->peaks(), 0) : uint64_t{0};
 		// The scan must build the index on its own: the clusters the preview filled are resident, so no fill
@@ -931,29 +916,19 @@ void runOnePrescanTick() {
 		}
 	}
 	g_prescanTicks++;
-	audioFileManager.backgroundWaveformOverviewScan();
+	audioFileManager.backgroundWaveformScan();
 }
 
-/// AB-PRESCAN-RANGE: the background pre-scan fills the overview cache without moving the sample's found range. The
-/// full-screen waveform scales its bars to that range, and main's range holds only what a render scanned: a range
-/// widened by whole-cluster peaks draws the next render's bars smaller than main's.
+/// AB-PRESCAN-RANGE: the background peak scan, from an empty index, runs to completion over the previewed sample.
 void finishPrescanStage() {
 	Sample* sample = g_prescanBefore.sample;
 	const bool sameSample = sample != nullptr && sample == drawnSample(kPreviewPath);
-	const int32_t investigated = sameSample ? investigatedClusters(*sample) : 0;
-	const int32_t min = sameSample ? sample->minValueFound : 0;
-	const int32_t max = sameSample ? sample->maxValueFound : 0;
-	printf("AB-PRESCAN-RANGE done=%d ticks=%d scanned=%d min=%d/%d max=%d/%d\n",
-	       audioFileManager.overviewScanAllDone ? 1 : 0, g_prescanTicks, investigated - g_prescanBefore.investigated,
-	       g_prescanBefore.min, min, g_prescanBefore.max, max);
-	if (!sameSample || !audioFileManager.overviewScanAllDone || investigated <= g_prescanBefore.investigated) {
-		g_report.fail("[audioLoadAB/prescan-range]: the pre-scan must finish and investigate clusters the preview's "
-		              "draw did not, on the previewed sample, or this stage tested nothing");
-	}
-	else if (min != g_prescanBefore.min || max != g_prescanBefore.max) {
-		g_report.fail(
-		    "[audioLoadAB/prescan-range]: the pre-scan moved the sample's found range, so the next full-screen "
-		    "render draws its bars smaller than main's");
+	const bool complete = sameSample && deluge_peaks_next_unscanned(sample->peaks(), 0) == UINT64_MAX;
+	printf("AB-PRESCAN-RANGE done=%d ticks=%d complete=%d\n", audioFileManager.peakScanAllDone ? 1 : 0, g_prescanTicks,
+	       complete ? 1 : 0);
+	if (!sameSample || !audioFileManager.peakScanAllDone || !complete) {
+		g_report.fail("[audioLoadAB/prescan-range]: the peak scan must finish over the previewed sample and leave its "
+		              "index complete");
 	}
 }
 
@@ -1571,7 +1546,7 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_dsStallDraws = 0;
 	g_dsStallComplete = 0;
 	g_dsStallTicks = 0;
-	g_prescanWait = Wait{g_report, "the overview and peak scans finishing", kMaxPrescanTicks};
+	g_prescanWait = Wait{g_report, "the peak scan finishing", kMaxPrescanTicks};
 	g_drawStallWait = Wait{g_report, "the stalled preview arming a redraw", kMaxDrawStallTicks};
 	g_ejectStep = EjectStep::Request;
 	g_ejectWait = Wait{g_report, "the witness file loading", kMaxEjectTicks};
@@ -1648,7 +1623,7 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		}
 		else if (g_stage == Stage::PrescanRange) {
 			runOnePrescanTick();
-			switch (g_prescanWait.poll(audioFileManager.overviewScanAllDone && audioFileManager.peakScanAllDone)) {
+			switch (g_prescanWait.poll(audioFileManager.peakScanAllDone)) {
 			case WaitState::Pending:
 				break;
 			case WaitState::Met:

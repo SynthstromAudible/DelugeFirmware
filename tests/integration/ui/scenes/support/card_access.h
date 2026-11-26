@@ -132,7 +132,7 @@ struct NoSdRoot {
 /// An `AudioEngine::AudioTickHold`: the audio tier's `routine_task()` and `routine()` return at once while it is
 /// alive, so no render interleaves with what an example asserts. Code that defers while the routine is busy takes its
 /// deferring branch too: `View::endMIDILearn` and the port skip the settings write, and the background waveform
-/// overview scan waits (`deluge::sample::advance_overview_scan`). Holds nest, so one inside the scenario's whole-file
+/// scan waits (`deluge::sample::advance_peak_scan`). Holds nest, so one inside the scenario's whole-file
 /// hold leaves ticks held when it ends.
 ///
 /// @note A spec-side guard, held for a whole example. Shipped code holds ticks only around the edit itself: on the

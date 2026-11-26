@@ -271,7 +271,7 @@ std::string text(deluge::l10n::String s) {
 
 /// @brief A kit clip with a fresh note row at index 0, and the model stack `enterDrumCreator` takes for it.
 /// @brief A sample the marker editor can open on, without a card: `marker_scene_spec.cpp`'s fixture, cut to what the
-///        editor's open asks of it (a length, and an overview cache every column reads from).
+///        editor's open asks of it (a length, and a peak index every column reads from).
 Sample* make_marker_sample() {
 	constexpr size_t kClusterSize = 32768;
 	constexpr int32_t kBytesPerFrame = 2;

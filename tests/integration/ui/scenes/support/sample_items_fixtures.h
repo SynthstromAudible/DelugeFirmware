@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief The fixtures of the sample items: a `Sample` with a fully investigated overview cache, and the eight
+/// @brief The fixtures of the sample items: a `Sample` with its peak index seeded, and the eight
 ///        oscillator configurations the relevance predicates are asked under. The spec and the menu oracle freezer
 ///        share them.
 
@@ -27,11 +27,10 @@ namespace deluge::ui::scenes::spec::sampleitems {
 inline constexpr size_t kClusterSize = 32768;
 inline constexpr int32_t kBytesPerFrame = 2;
 
-/// @brief A `Sample` with a fully investigated overview cache, so nothing reads the card.
+/// @brief A `Sample` with its peak index seeded, so nothing reads the card.
 ///
-/// **Two clusters per display column is a cliff**, not a preference (`waveform_scan.cpp`'s `numClustersSpan >= 2`), so
-/// the samples the marker examples open are 32 and 64 clusters long -- both over the line, and different enough that
-/// `WaveformView::max_zoom()` tells them apart.
+/// The samples the marker examples open are 32 and 64 clusters long: different enough that `WaveformView::max_zoom()`
+/// tells them apart.
 inline Sample* make_sample(int32_t num_clusters) {
 	Cluster::set_size(kClusterSize);
 	const uint64_t length = static_cast<uint64_t>(kClusterSize) * num_clusters / kBytesPerFrame;

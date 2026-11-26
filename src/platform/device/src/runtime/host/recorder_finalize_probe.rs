@@ -1,10 +1,9 @@
 //! A regression gate: does a finalized multi-cluster recording read back correctly through the
 //! region port?
 //!
-//! Finalizing must grow the sample's per-cluster table (`Sample::overviewCache_`) from its single
-//! setup entry to the real cluster count, on every branch of `finalizeRecordedFile()`. The Rust
-//! cursor derives the cluster count from the finalized data length on its own, so a table left
-//! short lets `acquire(index >= 1)` run past it.
+//! Finalizing must leave the take's peak index covering every cluster of the finished file, on every
+//! branch of `finalizeRecordedFile()`; the "table" here is the clusters the index's frame count spans.
+//! The Rust cursor derives the cluster count from the finalized data length on its own.
 //!
 //! This records a real `SampleRecorder` to completion
 //! (`tests/integration/scenarios/recorder_readback_probe.h`), acquires region 1 through

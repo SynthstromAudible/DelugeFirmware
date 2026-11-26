@@ -12,6 +12,7 @@ static TABLE: [AtomicPtr<PeakIndex>; ASSET_CAP] =
     [const { AtomicPtr::new(core::ptr::null_mut()) }; ASSET_CAP];
 
 /// Binds `index` to `asset`, taking a reference; releases any index bound before. Thread mode.
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub fn bind(asset: u32, index: &PeakIndex) {
     let Some(slot) = TABLE.get(asset as usize) else {
         return;
@@ -25,6 +26,7 @@ pub fn bind(asset: u32, index: &PeakIndex) {
 }
 
 /// Unbinds `asset`, releasing its reference. Thread mode.
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub fn unbind(asset: u32) {
     let Some(slot) = TABLE.get(asset as usize) else {
         return;

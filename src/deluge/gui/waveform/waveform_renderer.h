@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "app/ports/waveforms/peak_cache.h"
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
+#include "ui/views/waveform/peaks.h"
 #include <cstdint>
 #include <optional>
 

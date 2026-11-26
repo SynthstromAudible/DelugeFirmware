@@ -41,6 +41,7 @@ impl Take {
 
     /// Folds the file's next bytes, from where the last call stopped (the first call: byte 0). Thread mode: it reserves
     /// the index's room for what it folds. With no index it still counts the bytes.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn feed(
         &mut self,
         index: Option<&PeakIndex>,
@@ -86,6 +87,7 @@ impl Take {
         self.carry_len = rest.len();
     }
 
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     fn frame(&mut self, index: Option<&PeakIndex>, frame: &[u8]) {
         for s in frame.as_chunks::<BYTE_DEPTH>().0 {
             // A 24-bit sample's top 16 bits: its second and third bytes.
@@ -105,6 +107,7 @@ impl Take {
 
     /// Folds the last, part-filled block. Call once the take's index is final. The count stays: [`Take::frames`] is
     /// still the take's length.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn finish(&self, index: Option<&PeakIndex>) {
         if self.block_frames > 0
             && let Some(index) = index

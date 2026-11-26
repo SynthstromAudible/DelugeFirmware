@@ -2212,8 +2212,6 @@ void SessionView::graphicsRoutine() {
 
 			if (clip->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
 				if (clip->type == ClipType::AUDIO) {
-					((AudioClip*)clip)->renderData.forget(); // Make sure values are recalculated
-
 					rowNeedsRenderingDependingOnSubMode(yDisplay);
 				}
 				colours[yDisplay] = 2;

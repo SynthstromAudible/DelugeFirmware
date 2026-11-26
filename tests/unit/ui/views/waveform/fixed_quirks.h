@@ -9,9 +9,6 @@
 /// computes legacy's choice and the correct one and answers the row when they differ. A domain loop compares the new
 /// types with the oracle wherever its predicate answers none, and counts the inputs it skips per row; each row's own
 /// named cases pin the correct value.
-///
-/// The cache's prelude domain has no predicate: no row falls inside it. Q1 (a forgotten cache) and Q3 (a zoom below 1)
-/// lie outside it and have named cases of their own.
 
 #include "nav_cases.h"
 #include "ui/views/waveform/peaks.h"

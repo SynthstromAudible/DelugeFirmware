@@ -85,7 +85,7 @@ constexpr size_t kClusterSize = 32768;
 constexpr int32_t kNumClusters = 32;
 constexpr uint64_t kSampleLength = static_cast<uint64_t>(kClusterSize) * kNumClusters / 2; // 16-bit mono
 
-/// A sample whose overview cache already holds every cluster's peaks, so a scan reads no card.
+/// A sample whose peak index already holds every cluster's peaks, so a read needs no card.
 /// @param clusters   How many clusters the sample holds.
 /// @param memory     Where to construct it; fresh memory when null.
 /// @param first_peak Cluster 0's overview peak, in Q8.24 pad units' top byte; cluster i's is `first_peak + 3 * i`.

@@ -186,9 +186,6 @@ public:
 	uint64_t recordSumLPlusR{};  // L and R are halved before these two are calculated
 	uint64_t recordSumLMinusR{}; // --------
 
-	int32_t recordMax{};
-	int32_t recordMin{};
-
 	uint32_t audioDataLengthBytesAsWrittenToFile{};
 	uint32_t loopEndSampleAsWrittenToFile{};
 

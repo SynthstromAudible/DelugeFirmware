@@ -62,6 +62,7 @@ impl PeakIndex {
     /// `capacity_frames`, and grows its chunks through [`PeakIndex::reserve`]. Thread mode. `None` on allocation
     /// failure.
     #[must_use]
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn create(frames: u64, growing: bool, capacity_frames: u64) -> Option<NonNull<PeakIndex>> {
         let capacity = capacity_frames.max(frames).max(1);
         let mut levels = 2;
@@ -108,6 +109,7 @@ impl PeakIndex {
     }
 
     /// Allocates the level-1-and-up chunks covering `[0, frames)`. Thread mode.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     fn reserve_upto(&self, frames: u64) -> bool {
         let mut ok = true;
         for k in 1..self.levels {
@@ -124,11 +126,13 @@ impl PeakIndex {
 
     /// Grows a take's level-1-and-up chunks to cover `frames` frames. Thread mode. A fold past the reserved chunks is
     /// dropped, and its block stays incomplete.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn reserve(&self, frames: u64) {
         let _ = self.reserve_upto(frames);
     }
 
     /// Keeps level-0 values for frames `[first, end)` from now on. Thread mode.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn ensure_level0(&self, first: u64, end: u64) {
         if let Some(d) = &self.values[0] {
             let _ = d.ensure(first >> BLOCK_FRAMES_LOG2, entries(0, end));
@@ -278,6 +282,7 @@ impl PeakIndex {
 
     /// Sets a take's frame count; `is_final` once its length is known, after which the entries at its end complete
     /// with fewer children. Thread mode.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn set_frames(&self, frames: u64, is_final: bool) {
         self.frames.store(frames, Ordering::Release);
         if !is_final {
@@ -319,6 +324,7 @@ impl PeakIndex {
     /// The first frame of the first incomplete level-0 block at or after frame `from`, or `None` if every block from
     /// there to the index's frames is complete.
     #[must_use]
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn next_unscanned(&self, from: u64) -> Option<u64> {
         let blocks = entries(0, self.frames());
         let first = from >> BLOCK_FRAMES_LOG2;
@@ -331,6 +337,7 @@ impl PeakIndex {
             .map(|b| b << BLOCK_FRAMES_LOG2)
     }
 
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     fn find_incomplete(&self, level: u32, entry: u64, first: u64, blocks: u64) -> Option<u64> {
         let span = shift(level) - BLOCK_FRAMES_LOG2;
         let (lo, hi) = (entry << span, (entry + 1) << span);
@@ -380,6 +387,7 @@ impl PeakIndex {
     }
 
     /// Frees every index whose last reference has gone. Thread mode.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn collect() {
         let mut p = FREE_LIST.swap(core::ptr::null_mut(), Ordering::Acquire);
         while let Some(index) = NonNull::new(p) {
@@ -391,6 +399,7 @@ impl PeakIndex {
         }
     }
 
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     fn free_storage(&self) {
         for d in self.values.iter().flatten() {
             d.free_all();

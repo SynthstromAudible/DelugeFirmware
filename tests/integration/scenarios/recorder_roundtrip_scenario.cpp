@@ -1084,7 +1084,7 @@ void restBegin() {
 ///
 /// After the live probe, the regression gate: a real, FINALIZED (COMPLETE) multi-cluster mono recording --
 /// finalizeRecordedFile()'s no-alteration else-branch, the only branch AudioClip recording ever takes -- must leave the
-/// overview cache sized to the real cluster count, and region index 1+ must resolve READY with correct bytes through
+/// take's peak index covering the real cluster count, and region index 1+ must resolve READY with correct bytes through
 /// the same port real playback uses.
 int32_t restTick() {
 	switch (g_rest.step) {

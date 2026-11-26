@@ -207,15 +207,6 @@ may_include = [
 ]
 
 [[library]]
-name = "app-ports-waveforms"
-root = "src/app/ports/waveforms"
-prefix = "app/ports/waveforms/"
-may_include = [
-    "base/divide.h",
-    "ui/views/waveform/peaks.h",
-]
-
-[[library]]
 name = "project"
 root = "src/project"
 prefix = "project/"
@@ -377,12 +368,6 @@ name = "scenes-no-edits"
 files = ["src/ui/scenes/**"]
 pattern = '^model/edits/'
 reason = "a scene's write leaves as a request; it names no Edit"
-
-[[rule]]
-name = "scenes-no-peak-cache"
-files = ["src/ui/scenes/**"]
-pattern = '^app/ports/waveforms/peak_cache\.h$'
-reason = "a scene asks the waveforms port for a window's columns and draws the answer; the column cache is the host's"
 
 [[rule]]
 name = "scenes-reads-outside-bind"

@@ -5,7 +5,7 @@
 /// @par The sample fixture, and why it never touches the card
 ///
 /// Identical in shape and reason to `marker_scene_spec.cpp`'s (`support/slicer_scene_fixtures.h`):
-/// every display column of the fixture's sample is an overview-cache hit, so no I/O happens.
+/// every display column of the fixture's sample is answered from its seeded peak index, so no I/O happens.
 ///
 /// @par The reference
 ///

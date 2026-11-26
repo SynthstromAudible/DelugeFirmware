@@ -543,7 +543,7 @@ bool makeTempRecordedAudioClip() {
 	auto* sample = new (memory) Sample;
 	audioFileManager.adoptAudioFileObject(sample);
 	sample->addReason();
-	if (sample->initialize(1) != Error::NONE) {
+	if (sample->initialize() != Error::NONE) {
 		return setupFailed("the Sample could not be initialised");
 	}
 	sample->byteDepth = 3;

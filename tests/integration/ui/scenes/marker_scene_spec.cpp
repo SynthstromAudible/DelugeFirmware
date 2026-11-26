@@ -4,17 +4,13 @@
 ///
 /// @par The sample fixture, and why it never touches the card
 ///
-/// `deluge::sample::find_peaks_per_col` reads clusters, and a spec process has no mounted card with
-/// the file this `Sample` claims to be. It does **not** have to: the scan's whole-cluster arm
-/// (`waveform_scan.cpp`, `investigatingAWholeCluster && sampleCluster->investigated`) reuses the
-/// sample's own **overview cache** and never opens a reader at all. So the fixture builds a sample
-/// long enough that every display column spans two or more clusters -- `kSampleLength` is exactly
-/// `kDisplayWidth` clusters' worth of frames -- and pre-marks every overview entry investigated
-/// with a chosen min/max. Every column is then a cache hit, the waveform is exactly the shape the
-/// fixture asked for, and no I/O happens.
+/// A spec process has no mounted card with the file this `Sample` claims to be. It does not have to: a column is read
+/// from the sample's **peak index** (`deluge::sample::waveform_columns`), which the fixture seeds with a chosen
+/// min/max per cluster (`support/peak_seed.h`). Every column on block boundaries is then answered from the index, the
+/// waveform is exactly the shape the fixture asked for, and no I/O happens.
 ///
-/// That is not a workaround for the harness: it is the same path a zoomed-out render takes on the
-/// device once the background pre-scan (issue #4460) has run, which is the common case.
+/// That is not a workaround for the harness: it is the path every render takes on the device once the sample's
+/// index holds the blocks under the view, which playback and the background scan fill.
 ///
 /// @par The reference
 ///
@@ -71,7 +67,6 @@
 #include "model/edits/setting_edit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
-#include "model/sample/overview_cache_entry.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"

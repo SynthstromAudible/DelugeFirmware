@@ -118,15 +118,9 @@ public:
 
 	void slowRoutine();
 
-	// Background "waveform overview" pre-scan (issue #4460): see implementation for details.
-	void backgroundWaveformOverviewScan();
-	// How many clusters to investigate per slowRoutine call. Kept small to avoid card/audio contention.
-	// One cluster per idle tick: each investigate can trigger a synchronous card read, so keep this at 1
-	// to avoid chaining reads against playback streaming (#4460).
-	static constexpr int32_t kOverviewScanClustersPerCall = 1;
-	int32_t overviewScanFileIndex = 0; // Round-robin cursor over audioFiles for the overview pre-scan
-	bool overviewScanAllDone =
-	    false;                     // Set once every loaded sample is fully pre-scanned; re-armed on load/reset (#4460)
+	/// @brief The background waveform work, once per idle tick: each take's peak index grown ahead of its capture,
+	///        released indexes freed, and one block of one sample's index scanned.
+	void backgroundWaveformScan();
 	int32_t peakScanFileIndex = 0; // Round-robin cursor over audioFiles for the peak scan
 	bool peakScanAllDone = false;  // Set once every loaded sample's peak index is complete; re-armed by a new index
 

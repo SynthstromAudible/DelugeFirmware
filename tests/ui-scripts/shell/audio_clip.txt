@@ -8,10 +8,9 @@
 # has too.
 #
 # **Why the fixture's zoom and length are 48 and 768, and why that is not decoration.**
-# `find_peaks_per_col` only takes its cached whole-cluster arm when a display column spans two or
-# more clusters (`model/sample/waveform_scan.cpp`); on any other arm it opens a
-# `SampleFrameReader`, which fails with no card and makes the whole scan return false -- and then
-# BOTH the pads and the OLED go black and a golden records nothing. `audio_clip_scene_spec.cpp`'s
+# A column whose ends fall inside a 256-frame block reads those frames (`deluge::sample::waveform_columns`), which
+# fails with no card and leaves the column pending -- and then BOTH the pads and the OLED go black and a golden
+# records nothing. `audio_clip_scene_spec.cpp`'s
 # `Sentinel` docstring carries the arithmetic; the pair used here is its own (48 ticks per column,
 # 768 ticks of clip = 32768 frames = two clusters per column). Every edit below preserves it: the
 # length edit takes 768 -> 288 and the sample's end with it (196608 frames), which is 32768 frames

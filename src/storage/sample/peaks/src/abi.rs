@@ -114,6 +114,7 @@ unsafe extern "C" fn adapt_free(p: *mut u8) {
 
 /// `deluge_peaks_init`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_init(alloc: DelugePeaksAllocFn, free: DelugePeaksFreeFn) {
     let (Some(alloc), Some(free)) = (alloc, free) else {
         return;
@@ -125,6 +126,7 @@ pub extern "C" fn deluge_peaks_init(alloc: DelugePeaksAllocFn, free: DelugePeaks
 
 /// `deluge_peaks_create`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_create(
     frames: u64,
     growing: bool,
@@ -153,12 +155,14 @@ pub extern "C" fn deluge_peaks_release(index_ptr: *mut DelugePeakIndex) {
 
 /// `deluge_peaks_collect`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_collect() {
     PeakIndex::collect();
 }
 
 /// `deluge_peaks_bind_asset`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_bind_asset(asset: u32, index_ptr: *mut DelugePeakIndex) {
     match index(index_ptr) {
         Some(i) => tap::bind(asset, i),
@@ -168,12 +172,14 @@ pub extern "C" fn deluge_peaks_bind_asset(asset: u32, index_ptr: *mut DelugePeak
 
 /// `deluge_peaks_unbind_asset`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_unbind_asset(asset: u32) {
     tap::unbind(asset);
 }
 
 /// `deluge_peaks_reserve`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_reserve(index_ptr: *mut DelugePeakIndex, frames: u64) {
     if let Some(i) = index(index_ptr) {
         i.reserve(frames);
@@ -182,6 +188,7 @@ pub extern "C" fn deluge_peaks_reserve(index_ptr: *mut DelugePeakIndex, frames: 
 
 /// `deluge_peaks_ensure_level0`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_ensure_level0(
     index_ptr: *mut DelugePeakIndex,
     first: u64,
@@ -230,6 +237,7 @@ pub extern "C" fn deluge_peaks_fold_block(
 
 /// `deluge_peaks_set_frames`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_set_frames(
     index_ptr: *mut DelugePeakIndex,
     frames: u64,
@@ -242,6 +250,7 @@ pub extern "C" fn deluge_peaks_set_frames(
 
 /// `deluge_peaks_column`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_column(
     index_ptr: *const DelugePeakIndex,
     first: u64,
@@ -300,18 +309,21 @@ pub unsafe extern "C" fn deluge_peaks_of_frames(
 
 /// `deluge_peaks_range`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_range(index_ptr: *const DelugePeakIndex) -> DelugeMaybePeak {
     maybe(index(index_ptr).and_then(PeakIndex::range))
 }
 
 /// `deluge_peaks_frames`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_frames(index_ptr: *const DelugePeakIndex) -> u64 {
     index(index_ptr).map_or(0, PeakIndex::frames)
 }
 
 /// `deluge_peaks_next_unscanned`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_next_unscanned(index_ptr: *const DelugePeakIndex, from: u64) -> u64 {
     index(index_ptr)
         .and_then(|i| i.next_unscanned(from))
@@ -341,6 +353,7 @@ fn take<'a>(p: *mut DelugePeaksTake) -> Option<&'a mut crate::take::Take> {
 
 /// `deluge_peaks_take_create`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_take_create() -> *mut DelugePeaksTake {
     let Some(p) = mem::alloc_zeroed::<crate::take::Take>(1) else {
         return core::ptr::null_mut();
@@ -352,6 +365,7 @@ pub extern "C" fn deluge_peaks_take_create() -> *mut DelugePeaksTake {
 
 /// `deluge_peaks_take_drop`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_take_drop(take_ptr: *mut DelugePeaksTake) {
     if let Some(p) = NonNull::new(take_ptr.cast::<crate::take::Take>()) {
         mem::free(p);
@@ -363,6 +377,7 @@ pub extern "C" fn deluge_peaks_take_drop(take_ptr: *mut DelugePeaksTake) {
 /// # Safety
 /// `bytes` points at `length` readable bytes, or is null.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub unsafe extern "C" fn deluge_peaks_take_feed(
     take_ptr: *mut DelugePeaksTake,
     index_ptr: *mut DelugePeakIndex,
@@ -384,6 +399,7 @@ pub unsafe extern "C" fn deluge_peaks_take_feed(
 
 /// `deluge_peaks_take_finish`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_take_finish(
     take_ptr: *mut DelugePeaksTake,
     index_ptr: *mut DelugePeakIndex,
@@ -395,6 +411,7 @@ pub extern "C" fn deluge_peaks_take_finish(
 
 /// `deluge_peaks_take_frames`.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub extern "C" fn deluge_peaks_take_frames(take_ptr: *mut DelugePeaksTake) -> u64 {
     take(take_ptr).map_or(0, |t| t.frames())
 }

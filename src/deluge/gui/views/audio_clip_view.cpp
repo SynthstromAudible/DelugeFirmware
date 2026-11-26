@@ -288,7 +288,6 @@ void AudioClipView::graphicsRoutine() {
 
 		// Linearly recording
 		if (getCurrentClip()->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
-			getCurrentAudioClip()->renderData.forget();          // Make sure values are recalculated
 			needsRenderingDependingOnSubMode();
 		}
 	}

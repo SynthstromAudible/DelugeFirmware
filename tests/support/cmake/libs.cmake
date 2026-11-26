@@ -34,7 +34,6 @@ add_subdirectory(${_deluge_src}/effects ${_deluge_libs}/effects EXCLUDE_FROM_ALL
 add_subdirectory(${_deluge_src}/host/chains ${_deluge_libs}/host-chains EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/instruments/classic ${_deluge_libs}/instruments-classic EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/project ${_deluge_libs}/project EXCLUDE_FROM_ALL)
-add_subdirectory(${_deluge_src}/app ${_deluge_libs}/app-ports EXCLUDE_FROM_ALL)
 # The host tree gets the controls and the waveform view through src/ui below.
 if(NOT DELUGE_TEST_TREE STREQUAL "host")
   add_subdirectory(${_deluge_src}/ui/controls ${_deluge_libs}/ui-controls EXCLUDE_FROM_ALL)

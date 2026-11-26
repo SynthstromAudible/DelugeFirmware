@@ -224,10 +224,9 @@ const BoardProfile& profile_64() {
 
 // --- the sample ---------------------------------------------------------------------------------
 
-/// `marker_scene_spec.cpp`'s fixture, for its reason: thirty-two clusters' worth of frames with
-/// every overview entry pre-marked investigated, so `find_peaks_per_col` takes its cached
-/// whole-cluster arm and no spec process ever reaches the card. Halving the length turns the
-/// waveform black, which is exactly the vacuous golden this file is required not to record.
+/// `marker_scene_spec.cpp`'s fixture, for its reason: thirty-two clusters' worth of frames with the sample's peak
+/// index seeded (`support/peak_seed.h`), so every column is answered from the index and no spec process ever reaches
+/// the card.
 constexpr size_t kClusterSize = 32768;
 constexpr int32_t kBytesPerFrame = 2; // 16-bit mono
 constexpr uint64_t kSampleLength = static_cast<uint64_t>(kClusterSize) * 32 / kBytesPerFrame;
@@ -474,10 +473,9 @@ uitest::RunOptions opts_for_64(SceneId id) {
 ///        at the one scroll/zoom/length triple a spec process can actually scan.
 ///
 /// @warning **The 48/768 pair is load-bearing, and getting it wrong makes the goldens vacuous.**
-///          `find_peaks_per_col` takes its cached whole-cluster arm only when a display column spans
-///          two or more clusters (`model/sample/waveform_scan.cpp`); anywhere else it opens
-///          a `SampleFrameReader`, which fails with no card and makes the whole scan return false --
-///          so both the pads and the OLED go black and every pad comparison passes on nothing.
+///          A column whose ends fall inside a 256-frame block reads those frames
+///          (`deluge::sample::waveform_columns`), which fails with no card and leaves the column
+///          pending -- so both the pads and the OLED go black and every pad comparison passes on nothing.
 ///          `audio_clip_scene_spec.cpp`'s `Sentinel` docstring carries the full arithmetic;
 ///          this is that fixture's own pair.
 void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
@@ -490,7 +488,6 @@ void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
 	f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 	f.clip->sampleControls.reversed = false;
 	f.clip->recorder = nullptr;
-	f.clip->renderData.forget();
 	f.clip->activeIfNoSolo = true;
 	f.clip->soloingInSessionMode = false;
 	f.clip->armState = ArmState::OFF;

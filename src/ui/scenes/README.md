@@ -67,8 +67,7 @@ nothing.
 * **No legacy UI.** No root-UI global or UI-stack call (`scenes-no-root-ui`: `getRootUI(`,
   `openUI(`, `sessionView`, `renameClipUI`, `loadSongUI`, …), no `display->` (`scenes-no-display`), no legacy output
   driver (`scenes-no-legacy-hid-drivers`: `uiNeedsRendering(`, `PadLEDs::`, `indicator_leds::`,
-  `uiTimerManager.`), no legacy waveform renderer or navigator (`scenes-no-legacy-waveform`), no peak cache
-  (`scenes-no-peak-cache`: `app/ports/waveforms/peak_cache.h` is the host's and the legacy views'), no stem-export process
+  `uiTimerManager.`), no legacy waveform renderer or navigator (`scenes-no-legacy-waveform`), no stem-export process
   call (`scenes-no-stem-export-process`). Where a ported item has to run a root-UI behaviour it names it for the host
   instead — see "The action seam".
 * **Drawing.** No `OledFrame`/`GridFrame` primitive (`scenes-no-frame-primitives`): pixels come from
@@ -655,17 +654,17 @@ The marker editor, the slicer, the audio clip view and the browser's preview dra
 pads. They share one read and one paint, and none of them holds the sample.
 
 * **The scenes keep no peak cache.** A frame reads its waveform's 16 columns through the waveforms port
-  (`services::read_waveform`: `peaks` at the view's window, then `info`, so the bars are scaled by the range that read
-  may have widened) and paints the PEAK columns (`services::paint_columns`, or the audio clip view's coloured bars).
-  `app/ports/waveforms/peak_cache.h` is refused under `src/ui/scenes` (`scenes-no-peak-cache`).
+  (`services::read_waveform`: `peaks` at the view's window, then `info`, whose range scales the bars) and paints the
+  PEAK columns (`services::paint_columns`, or the audio clip view's coloured bars).
 * **`src/ui/views/waveform/` holds the arithmetic** (`deluge_ui_views_waveform`, header-only, standard library only): the window
   (`Window`), the view's navigation (`WaveformView`: open, scroll, zoom and the marker pins), the column answers
   (`ColumnState`, `ColumnRead`, `PeakRead`) and the paint arithmetic (`Bar`, `bar_of`, `single_row_brightness`, in
   Q8.24 pad units), with `base/divide.h` for every division by a runtime divisor.
-* **The host answers the port.** `gui/ui/shell_host/waveforms.cpp` resolves the address to its sample and keeps each
-  file's columns in a `PeakCacheSet`, keyed by the waveform's identity (the sample's lifetime serial), and the
-  legacy column read (`sample::read_columns`, `model/sample/waveform_scan.h`) reads the columns a cache lacks. A
-  column whose cluster the card could not give now answers PENDING; a scene whose read left one pending asks again
+* **The host answers the port.** `gui/ui/shell_host/waveforms.cpp` resolves the address to its sample and reads its
+  columns from the sample's peak index (`sample::waveform_columns`, `model/sample/waveform_scan.h`; the index is the
+  `storage/sample/peaks` crate, filled by the cluster fill, the recorder and the background scan), so each column is the
+  peak of every frame it covers and the range is everything the index has scanned. A column over a block not scanned
+  yet answers PENDING and asks for that block; a scene whose read left one pending asks again
   through `services::PeakRetry`, every `kPeakRetryPollMs` (10). The marker editor, the slicer and the browser preview
   give up after `kPeakRetryGiveUpMs` (300) with none newly answered; the audio clip view asks until none is pending,
   as `main`'s does. A read at another window starts the count over.

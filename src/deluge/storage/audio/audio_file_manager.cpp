@@ -1462,8 +1462,6 @@ Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const
 		return nullptr;
 	}
 
-	const uint32_t numClusters = ((sizeBytes - 1) >> Cluster::size_magnitude) + 1;
-
 	void* audioFileMemory = deluge::memory::alloc_external(sizeof(Sample), 16);
 	if (audioFileMemory == nullptr) {
 		*error = Error::INSUFFICIENT_RAM;
@@ -1473,7 +1471,7 @@ Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const
 	Sample* sampleFile = new (audioFileMemory) Sample;
 	adoptAudioFileObject(sampleFile); // resource-manager evictable object (before addReason)
 	sampleFile->addReason();          // So it's protected while setting up. Must precede initialize().
-	*error = sampleFile->initialize(numClusters);
+	*error = sampleFile->initialize();
 	if (*error != Error::NONE) { // Very rare, only if not enough RAM
 		destroyAudioFileObject(*sampleFile);
 		return nullptr;
@@ -1513,7 +1511,6 @@ AudioFile* AudioFileManager::finishSampleFromCard(Sample* sampleFile, uint64_t s
 	}
 
 	sampleFile->finalizeAfterLoad(sizeBytes);
-	overviewScanAllDone = false;      // A newly loaded audio file may need pre-scanning (#4460)
 	sampleFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
 	return sampleFile;
 }
@@ -1613,7 +1610,6 @@ AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
 		waveTablesBuiltFromCard_++;
 
 		audioFile->finalizeAfterLoad(sizeBytes);
-		overviewScanAllDone = false; // A newly loaded audio file may need pre-scanning (#4460)
 
 		audioFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
 		return audioFile;
@@ -1690,69 +1686,21 @@ void AudioFileManager::slowRoutine() {
 	// The load trace records the load path. This scan belongs to no load: where its calls fall against a load's
 	// trace depends only on when this routine happens to run, so it runs untraced.
 	const auto loadTraceSink = deluge::storage::load_trace::setSink(nullptr);
-	backgroundWaveformOverviewScan();
+	backgroundWaveformScan();
 	(void)deluge::storage::load_trace::setSink(loadTraceSink);
 #else
-	backgroundWaveformOverviewScan();
+	backgroundWaveformScan();
 #endif
 }
 
-// Background "waveform overview" pre-scan (issue #4460). Walks loaded Samples a little at a time, off the
-// render path, caching each cluster's min/max so zoomed-out single-row rendering (song row view) never has
-// to load clusters synchronously while the user scrolls. Heavily throttled and round-robined to stay out of
-// the way of playback streaming.
-void AudioFileManager::backgroundWaveformOverviewScan() {
+// The background scans: each take's index grown ahead of its capture, released indexes freed, and one block of one
+// sample's peak index read per call, round-robin, off the render path and throttled to stay out of playback's way.
+void AudioFileManager::backgroundWaveformScan() {
 	growTakePeaks();
 	deluge_peaks_collect();
-	if (!backgroundScansEnabled_) {
-		return;
-	}
-
-	// Everything already pre-scanned: stay idle until a load/reset re-arms us, instead of re-walking all
-	// files every tick (#4460). The peak scan follows the overview's.
-	if (overviewScanAllDone) {
+	if (backgroundScansEnabled_) {
 		backgroundPeakScan();
-		return;
 	}
-
-	// Can we scan at all right now? (The finer-grained "is card I/O safe this instant?" busy-check lives in
-	// advance_overview_scan, which guards each individual cluster load - see model/sample/waveform_scan.cpp.)
-	if (cardEjected || cardDisabled) {
-		return;
-	}
-
-	int32_t numFiles = static_cast<int32_t>(audioFiles.size());
-	if (numFiles == 0) {
-		return;
-	}
-
-	// One sample's worth of work per call, round-robined so no single sample starves the others.
-	for (int32_t tried = 0; tried < numFiles; tried++) {
-		if (overviewScanFileIndex >= numFiles) {
-			overviewScanFileIndex = 0;
-		}
-		AudioFile* audioFile = audioFiles[overviewScanFileIndex];
-		overviewScanFileIndex++;
-
-		if (!AudioFile::isSample(audioFile)) {
-			continue;
-		}
-
-		// Skip samples whose clusters can never load - re-scanning them would spin forever and prevent us
-		// from ever going idle. They re-arm the scan if they become loadable again (#4460).
-		Sample* sample = (Sample*)audioFile;
-		if (sample->unloadable) {
-			continue;
-		}
-
-		// Advance this sample by a small budget. If there was real work to do, stop here for this call.
-		if (deluge::sample::advance_overview_scan(sample, kOverviewScanClustersPerCall)) {
-			return;
-		}
-	}
-
-	// A full pass found nothing left to scan: go idle until something re-arms us.
-	overviewScanAllDone = true;
 }
 
 void AudioFileManager::growTakePeaks() {

@@ -35,6 +35,7 @@ pub enum ColumnPlan {
 
 /// The column's peak: `plan`'s interior folded with `read(lo, hi)` for each range. `None` if the plan is pending or a
 /// read is unavailable (the caller answers pending).
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
 pub fn resolve(plan: ColumnPlan, mut read: impl FnMut(u64, u64) -> Option<Peak>) -> Option<Peak> {
     let ColumnPlan::Ready { interior, reads } = plan else {
         return None;
@@ -84,6 +85,7 @@ impl PeakIndex {
     /// The plan for frames `[first, end)`, which the caller has clipped to the index's frames. It neither allocates
     /// nor locks.
     #[must_use]
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     pub fn column(&self, first: u64, end: u64) -> ColumnPlan {
         let frames = self.frames();
         let end = end.min(frames);
@@ -115,6 +117,7 @@ impl PeakIndex {
         }
     }
 
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     fn visit(&self, w: &mut Walk, level: u32, entry: u64) {
         let (lo, hi) = w.span(level, entry);
         let (a, b) = (lo.max(w.first), hi.min(w.end));
@@ -146,6 +149,7 @@ impl PeakIndex {
 
     /// A level-1 entry the span covers in part, over frames `[a, b)`: fold its wholly covered, complete, valued blocks,
     /// and read the rest as one range from the first block that needs reading to the last.
+    #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_text"))]
     fn visit_edge(&self, w: &mut Walk, entry: u64, a: u64, b: u64) {
         let first_block = a >> BLOCK_FRAMES_LOG2;
         let last_block = (b - 1) >> BLOCK_FRAMES_LOG2;

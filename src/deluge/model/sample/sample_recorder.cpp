@@ -173,7 +173,7 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 
 	audioFileManager.adoptAudioFileObject(sample); // resource-manager evictable object (before addReason)
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
-	Error error = sample->initialize(1);
+	Error error = sample->initialize();
 	if (error != Error::NONE) {
 gotError:
 		audioFileManager.destroyAudioFileObject(*sample); // ~Sample + free (routed through the manager if adopted)
@@ -273,9 +273,6 @@ gotError:
 	recordSumR = 0;
 	recordSumLPlusR = 0;
 	recordSumLMinusR = 0;
-
-	recordMax = -2147483648;
-	recordMin = 2147483647;
 
 	writePos = reinterpret_cast<char*>(currentRecordBuffer);
 	clusterEndPos = reinterpret_cast<char*>(currentRecordBuffer + Cluster::size);
@@ -732,7 +729,7 @@ void SampleRecorder::finalizeDecide() {
 	}
 }
 
-/// PURE: final geometry and the overview-cache grow.
+/// PURE: final geometry, and the take's peak index finished.
 Error SampleRecorder::finalizeBookkeeping() {
 	const MonitoringAction action = finalizeAction_;
 	const uint64_t dataLengthAfterAction = finalizeDataLenAfter_;
@@ -742,38 +739,6 @@ Error SampleRecorder::finalizeBookkeeping() {
 	    sample->lengthInSamples
 	    * (sample->byteDepth
 	       * sample->numChannels); // Ensure whole number of samples (surely it already would be though?)
-
-	// Ensure the waveform overview cache (Sample::overviewCache_, one entry per cluster) is sized to
-	// the real, final cluster count once the recording's true length is known, so later zoomed-out
-	// waveform rendering can index every cluster of the finished file. This runs for BOTH finalize
-	// outcomes:
-	//   - the alterFile branch above never touches overviewCache_ -- alterFile() is a positional
-	//     file->file transform over deluge::io::Stream (read_at_via/write_at), with no overview-cache
-	//     involvement whatsoever. So overviewCache_ is still sitting at the single entry
-	//     Sample::initialize(1) set in setup() when we reach here, and this resize is an ACTUAL grow
-	//     (1 -> finalClusterCount), not a no-op.
-	//   - the common, no-alteration else-branch -- the ONLY path AudioClip recording takes -- never
-	//     touches overviewCache_ either, so without this it likewise stays that single entry.
-	//
-	// Grow-only (never shrink here): SegmentedVector::resize() to a SMALLER size destroys the
-	// removed tail, which would be wrong here -- shrinking is truncateFileDownToSize()'s job, not
-	// finalize's.
-	{
-		uint32_t idealFileSizeAfterAction =
-		    sample->audioDataStartPosBytes + static_cast<uint32_t>(sample->audioDataLengthBytes);
-		uint32_t finalClusterCount = ((idealFileSizeAfterAction - 1) >> Cluster::size_magnitude) + 1;
-		// Guard on the PHYSICAL cache size, not num_clusters(): num_clusters() is derived from this
-		// same geometric formula, so guarding on it would be tautologically false and skip this grow,
-		// leaving overviewCache_ at its initialize(1) size while derived num_clusters() reports the
-		// true count -- an OOB when later waveform rendering indexes the cache up to that count.
-		if (finalClusterCount > sample->overviewCacheSize()) {
-			try {
-				sample->resizeOverviewCache(finalClusterCount);
-			} catch (deluge::exception&) {
-				return Error::INSUFFICIENT_RAM;
-			}
-		}
-	}
 
 	// The take's peaks. An alteration rewrote the audio, and an overrun capture was truncated: either way the folded
 	// peaks no longer describe the file, so the index starts over and the background scan reads the finished file.
@@ -1889,9 +1854,6 @@ void SampleRecorder::finishCapturing() {
 	// and payload writes before it takes over as producer in finalizeRecordedFile(). See B3.
 	status.store(RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING, std::memory_order_release);
 
-	// A freshly recorded sample now has a final length and needs its waveform overview pre-scanned. Re-arm
-	// the background scan, which may have gone idle after all previously-loaded samples were scanned (#4460).
-	audioFileManager.overviewScanAllDone = false;
 	if (getRootUI()) {
 		deluge::base::notify::raise(deluge::base::notify::Dirty::SampleReady);
 	}
@@ -2015,9 +1977,6 @@ doFinishCapturing:
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<const std::byte*>(&rxL)[1], 3, writePosNow);
 
-					recordMax = std::max(rxL, recordMax);
-					recordMin = std::min(rxL, recordMin);
-
 					int32_t absL = (rxL >= 0) ? rxL : -1 - rxL;
 					recordSumL += absL;
 
@@ -2038,9 +1997,6 @@ doFinishCapturing:
 
 						// Copy the last 24 bits (lower 3 bytes) to writePosNow
 						writePosNow = std::copy_n(&reinterpret_cast<const std::byte*>(&rxR)[1], 3, writePosNow);
-
-						recordMax = std::max(rxR, recordMax);
-						recordMin = std::min(rxR, recordMin);
 
 						recordSumR += (rxR >= 0) ? rxR : -1 - rxR;
 

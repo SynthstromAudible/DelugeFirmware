@@ -2,14 +2,12 @@
 
 /// @file
 /// @brief The slicer's fixtures, which `slicer_scene_spec` and the menu oracle freezer share: a sample whose every
-///        display column is an overview-cache hit, a `Shell` over the scene opened through the app's slicer host, a
-///        `SliceOps` that records rather than acts (`fake_slice_ops.h`), and the port's own front door for a seeded
-///        slice table.
+///        display column is an answered from its peak index, a `Shell` over the scene opened through the app's slicer
+///        host, a `SliceOps` that records rather than acts (`fake_slice_ops.h`), and the port's own front door for a
+///        seeded slice table.
 ///
-/// The sample never touches the card: `deluge::sample::find_peaks_per_col`'s whole-cluster arm reuses the sample's
-/// own overview cache, so a sample long enough that every column spans two or more clusters, its every overview entry
-/// marked investigated, draws the waveform the fixture asked for with no reader opened. Halving `kSampleLength` turns
-/// the whole waveform black -- the scan only takes its cache arm at `numClustersSpan >= 2`.
+/// The sample never touches the card: its peak index is seeded (`peak_seed.h`), so every column on block boundaries is
+/// answered from the index and the waveform the fixture asked for is drawn with no reader opened.
 
 #include "peak_seed.h"
 #include "ui/scenes/menu/bind_host.h"
