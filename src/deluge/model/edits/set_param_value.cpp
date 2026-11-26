@@ -86,32 +86,34 @@ void markOwnerEdited(::Song& song, const project::ParamAddress& address) {
 }
 } // namespace
 
-ModelStackWithAutoParam* paramStackFor(::Song& song, project::ParamAddress& address, SetParamValue::Resolve resolve,
-                                       void* memory) {
+std::optional<bridge::LaneTarget> lane_for(::Song& song, project::ParamAddress& address,
+                                           SetParamValue::Resolve resolve) {
 	switch (resolve) {
 	case SetParamValue::Resolve::READ:
-		return bridge::paramStackAt(song, address, memory);
+		return bridge::lane_at(song, address);
 	case SetParamValue::Resolve::WRITE:
 	case SetParamValue::Resolve::LEARNED:
-		return bridge::paramStackForWrite(song, address, memory);
+		return bridge::lane_for_write(song, address);
 	case SetParamValue::Resolve::EXACT:
-		return bridge::paramStackExact(song, address, memory);
+		return bridge::lane_exact(song, address);
 	}
-	return nullptr;
+	return std::nullopt;
 }
 
 Error SetParamValue::apply(Context& ctx) {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithAutoParam* stack =
-	    paramStackFor(ctx.song, address_, write_ == Write::SETUP ? Resolve::EXACT : resolve_, memory);
-	if (stack == nullptr) {
+	const std::optional<bridge::LaneTarget> lane =
+	    lane_for(ctx.song, address_, write_ == Write::SETUP ? Resolve::EXACT : resolve_);
+	if (!lane) {
 		return Error::UNSPECIFIED;
 	}
+	// Recording and the notify chain take an engine stack.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* stack = bridge::stack_of(*lane, memory);
 	if (write_ == Write::SETUP) {
 		stack->autoParam->setCurrentValueWithNoReversionOrRecording(stack, newValue_);
 		return Error::NONE;
 	}
-	const Error error = write(ctx, stack);
+	const Error error = write(ctx, *lane, stack);
 	if (error == Error::NONE && copiedByReverbSidechain(*stack)) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
@@ -122,7 +124,7 @@ Error SetParamValue::apply(Context& ctx) {
 	return error;
 }
 
-Error SetParamValue::write(Context& ctx, ModelStackWithAutoParam* stack) {
+Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelStackWithAutoParam* stack) {
 	// The Edit owns its undo record: snapshot the before-state into the open Action up front, replicating the guard
 	// at the interior log site (auto_param.cpp setCurrentValueInResponseToUserInput, "record value change")
 	// evaluated pre-mutation. The interior log then dedupes via Action::containsConsequenceParamChange, so this
@@ -163,10 +165,10 @@ Error SetParamValue::write(Context& ctx, ModelStackWithAutoParam* stack) {
 	if (scalarPath && !recordingActive && ctx.model.resolveParam(address_) != nullptr) {
 		const int32_t oldValue = stack->autoParam->getCurrentValue();
 		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, address_, newValue_, 0, 0, std::nullopt);
-		stack->autoParam->projectScalarFromStore(stack, oldValue, isPlaying);
+		stack->autoParam->projectScalarFromStore(lane, oldValue, isPlaying);
 		deluge::modulation::postLaneCommand(
 		    *stack, {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = newValue_}, 0);
-		settleCableDepth(stack);
+		settleCableDepth(lane);
 		return Error::NONE;
 	}
 
@@ -191,7 +193,7 @@ Error SetParamValue::write(Context& ctx, ModelStackWithAutoParam* stack) {
 		std::optional<deluge::project::RegionWriteResult> result =
 		    deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, address_, newValue_, pos_, length_, region);
 		if (result.has_value()) {
-			stack->autoParam->projectRegionFromStore(stack, oldValue, automatedBefore, *result);
+			stack->autoParam->projectRegionFromStore(lane, oldValue, automatedBefore, *result);
 		}
 		deluge::modulation::postLaneCommand(*stack,
 		                                    {.kind = deluge::modulation::LaneCommand::Kind::REGION,
@@ -200,13 +202,14 @@ Error SetParamValue::write(Context& ctx, ModelStackWithAutoParam* stack) {
 		                                     .length = length_,
 		                                     .region = region},
 		                                    deluge::modulation::kNodesPerRecordedWrite);
-		settleCableDepth(stack);
+		settleCableDepth(lane);
 		return Error::NONE;
 	}
 
 	// A scalar write while recording automation, and a lane not yet in the project tree: the engine's own setter.
 	stack->autoParam->setValuePossiblyForRegion(newValue_, stack, pos_, length_, mayDeleteNodesInLinearRun_);
-	settleCableDepth(stack);
+	// The setter may have moved the stack to the lane it wrote; settle that one.
+	settleCableDepth(bridge::target_of(*stack, lane.owner, lane.address));
 	return Error::NONE;
 }
 

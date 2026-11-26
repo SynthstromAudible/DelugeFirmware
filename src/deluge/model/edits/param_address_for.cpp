@@ -22,6 +22,7 @@ namespace deluge::edits {
 
 #if ALPHA_OR_BETA_VERSION
 uint32_t docFallbackHits = 0;
+uint32_t lazyIdMisses = 0;
 #endif
 
 namespace {
@@ -170,22 +171,18 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	Clip* clip = static_cast<Clip*>(tc);
 	NoteRow* noteRow = modelStack.getNoteRowAllowNull();
 
-	// Ensure the owner chain this param belongs to has a durable id, minting one for a runtime owner never
-	// saved/loaded (clips always have one from construction). After this, addressFor can build a total ParamAddress.
-	// The render reads the id to address the owner, so only its write is in a section.
-	if (noteRow != nullptr) {
-		if (noteRow->drum != nullptr && !noteRow->drum->id().has_value()) {
-			const uint32_t id = modelStack.song->generateNewDrumId();
-			deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
-			noteRow->drum->setId(id);
-		}
-	}
-	else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
-	         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)
-	         && !clip->output->id().has_value()) {
-		const uint32_t id = modelStack.song->generateNewOutputId();
-		deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
-		clip->output->setId(id);
+	// Every owner has its id from when a song adopted it (Song::adoptOutput, Song::adoptDrum); one without is not this
+	// song's to address.
+	const bool unnamed = noteRow != nullptr
+	                         ? noteRow->drum != nullptr && !noteRow->drum->id().has_value()
+	                         : clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+	                               && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)
+	                               && !clip->output->id().has_value();
+	if (unnamed) {
+#if ALPHA_OR_BETA_VERSION
+		lazyIdMisses++;
+#endif
+		return nullptr;
 	}
 
 	std::optional<deluge::project::ParamAddress> address = addressFor(modelStack);

@@ -99,7 +99,6 @@ public:
 	                       int32_t effectiveLength) override {}
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSinceLast, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) override {}
-	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override {}
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override {}
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack) override {}

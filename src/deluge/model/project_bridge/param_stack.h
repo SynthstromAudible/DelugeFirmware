@@ -18,12 +18,14 @@
 #pragma once
 
 /// @file
-/// @brief An address's engine param, as the engine's own stack names it.
+/// @brief An address's engine param, as a lane target and as the engine's own stack names it.
 ///
-/// The one place on the param path where a ParamAddress becomes a ModelStack. The stack is to be retired: the Edits
+/// The one place on the param path where a ParamAddress becomes a LaneTarget and, for engine code that takes one, a
+/// ModelStack. The stack is to be retired: the Edits
 /// that still need one (undo's pre-log, recording automation, the engine's projection of a write) take it from here,
 /// below the Edit, so nothing above an Edit builds one.
 
+#include "model/project_bridge/lane_target.h"
 #include "plugin/types/param_kind.h"
 #include "project/param_address.h"
 #include "ui/controls/knob_focus.h"
@@ -40,6 +42,45 @@ enum class Polarity : uint8_t;
 }
 
 namespace deluge::bridge {
+
+/// @brief The lane @p address names in @p song, resolved as paramStackAt resolves it. Use it at once.
+/// @param song    The song holding the owner.
+/// @param address The param's address.
+/// @return The lane, or none where @p song holds no such owner or param.
+[[nodiscard]] std::optional<LaneTarget> lane_at(::Song& song, const project::ParamAddress& address);
+
+/// @brief The lane a write of @p address lands in, resolved and made as paramStackForWrite does. Use it at once.
+/// @param song    The song holding the owner.
+/// @param address The param's address; on return, the address the write lands at.
+/// @return The lane, or none where @p song holds no such owner or the param cannot be made.
+[[nodiscard]] std::optional<LaneTarget> lane_for_write(::Song& song, project::ParamAddress& address);
+
+/// @brief The lane naming exactly what @p address names, resolved as paramStackExact resolves it. Use it at once.
+/// @param song    The song holding the owner.
+/// @param address The param's address.
+/// @return The lane, or none where @p song holds no such owner or param.
+[[nodiscard]] std::optional<LaneTarget> lane_exact(::Song& song, const project::ParamAddress& address);
+
+/// @brief The lane a read of @p address shows, resolved as paramStackFollowingTake resolves it. Use it at once.
+/// @param song    The song holding the owner.
+/// @param address The param's address.
+/// @return The lane, or none where @p song holds no such owner or param.
+[[nodiscard]] std::optional<LaneTarget> lane_following_take(::Song& song, const project::ParamAddress& address);
+
+/// @brief The sound @p owner names exactly, as soundStackExact resolves it: a lane with its owner (always a Sound),
+/// clip, row and param manager, and no collection or param. Use it at once.
+/// @param song  The song holding the sound.
+/// @param owner The sound, as an address with no param.
+/// @return The sound's lane, or none where the owner does not resolve or is not a sound.
+[[nodiscard]] std::optional<LaneTarget> sound_lane_exact(::Song& song, const project::ParamAddress& owner);
+
+/// @brief The cable at @p address, made with @p polarity as cableStackAt makes it. Use it at once.
+/// @param song     The song holding the sound.
+/// @param address  The cable's depth address.
+/// @param polarity The polarity a new cable takes; an existing cable keeps its own.
+/// @return The cable's lane, or none where the sound does not resolve or its cable set is full.
+[[nodiscard]] std::optional<LaneTarget> cable_lane_at(::Song& song, const project::ParamAddress& address,
+                                                      instruments::classic::Polarity polarity);
 
 /// @brief The engine stack naming @p address's AutoParam in @p song: the clip by id, the output or drum by id, the
 /// drum's note row in that clip, the param collection the id is in, and the param by its runtime index.

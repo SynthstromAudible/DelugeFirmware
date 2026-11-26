@@ -28,9 +28,9 @@ ConsequenceInstrumentDelta::ConsequenceInstrumentDelta(deluge::project::ParamAdd
 }
 
 Error ConsequenceInstrumentDelta::revert(TimeType time, ModelStack* modelStack) {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	if (ModelStackWithThreeMainThings* sound = deluge::bridge::soundStackExact(*modelStack->song, owner_, memory)) {
-		ModMatrixHost matrix{*static_cast<Sound*>(sound->modControllable), *sound->paramManager};
+	if (const std::optional<deluge::bridge::LaneTarget> sound =
+	        deluge::bridge::sound_lane_exact(*modelStack->song, owner_)) {
+		ModMatrixHost matrix{*std::get<Sound*>(sound->owner), *sound->manager};
 		matrix.apply(edit_, time);
 	}
 	return Error::NONE;

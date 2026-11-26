@@ -14,11 +14,13 @@
 namespace deluge::edits {
 
 Error PasteParamAutomation::apply(Context& ctx) {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithAutoParam* stack = paramStackFor(ctx.song, address_, resolve_, memory);
-	if (stack == nullptr || stack->autoParam == nullptr) {
+	const std::optional<bridge::LaneTarget> lane = lane_for(ctx.song, address_, resolve_);
+	if (!lane || lane->auto_param == nullptr) {
 		return Error::UNSPECIFIED;
 	}
+	// The automation edits take an engine stack.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* stack = bridge::stack_of(*lane, memory);
 	const bool isPatchCable = stack->paramCollection->getParamKind() == modulation::params::Kind::PATCH_CABLE;
 	// Open the Action, pre-snapshot the before-state (copy, not steal), then delegate to AutoParam::paste.
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_PASTE);
@@ -39,7 +41,7 @@ Error PasteParamAutomation::apply(Context& ctx) {
 		                .nodes = std::vector<ParamNode>(copied_->nodes, copied_->nodes + copied_->numNodes)}},
 		    static_cast<size_t>(copied_->numNodes) + 2);
 	}
-	settleCableDepth(stack);
+	settleCableDepth(*lane);
 	return Error::NONE;
 }
 

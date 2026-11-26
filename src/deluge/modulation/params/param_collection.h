@@ -122,7 +122,6 @@ public:
 	                               int32_t effectiveLength) = 0;
 	virtual void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSinceLast, bool reversed,
 	                               bool didPingpong, bool mayInterpolate) = 0;
-	virtual void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) = 0;
 	virtual void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) = 0;
 	virtual void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                             ModelStackWithParamCollection* modelStack) = 0;

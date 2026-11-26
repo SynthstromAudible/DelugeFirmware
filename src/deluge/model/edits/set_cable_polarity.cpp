@@ -14,23 +14,25 @@
 namespace deluge::edits {
 
 Error SetCablePolarity::apply(Context& ctx) {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(ctx.song, cable_, memory);
-	if (stack == nullptr || stack->kind != deluge::modulation::params::Kind::PATCH_CABLE) {
+	const std::optional<bridge::LaneTarget> lane = bridge::lane_at(ctx.song, cable_);
+	Sound* const* sound = lane ? std::get_if<Sound*>(&lane->owner) : nullptr;
+	if (sound == nullptr || paramKindOf(lane->collection) != deluge::modulation::params::Kind::PATCH_CABLE) {
 		return Error::UNSPECIFIED;
 	}
-	auto* set = static_cast<PatchCableSet*>(stack->paramCollection);
+	auto* set = static_cast<PatchCableSet*>(lane->collection);
 	PatchSource source{};
 	deluge::synth::CableTarget destination{};
-	PatchCableSet::dissectParamId(stack->paramId, &destination, &source);
+	PatchCableSet::dissectParamId(lane->param_id, &destination, &source);
 	const uint8_t index = set->getPatchCableIndex(source, destination);
 	if (index == 255) {
 		return Error::UNSPECIFIED;
 	}
-	ModMatrixHost matrix{*static_cast<Sound*>(stack->modControllable), *stack->paramManager};
+	ModMatrixHost matrix{**sound, *lane->manager};
 	if (std::optional<CableEdit> edit =
 	        matrix.setPolarity(index, static_cast<deluge::synth::CablePolarity>(polarity_))) {
-		recordCableEdit(stack, std::move(*edit));
+		// The undo record is made from an engine stack.
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		recordCableEdit(bridge::owner_stack_of(*lane, memory), std::move(*edit));
 	}
 	return Error::NONE;
 }

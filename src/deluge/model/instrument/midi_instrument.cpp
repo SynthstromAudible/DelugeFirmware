@@ -30,6 +30,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/set_mod_knob_cc.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
@@ -811,7 +812,8 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 	}
 
 	AutoParamState state;
-	oldParam->swapState(&state, modelStackWithAutoParam);
+	oldParam->swapState(
+	    &state, deluge::bridge::target_of(*modelStackWithAutoParam, deluge::bridge::owner_of(*this), std::nullopt));
 
 	// Delete or clear old parameter
 	MIDIParamCollection* midiParamCollection = modelStackWithAutoParam->paramManager->getMIDIParamCollection();
@@ -847,7 +849,8 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	newParam->swapState(&state, modelStackWithAutoParam);
+	newParam->swapState(
+	    &state, deluge::bridge::target_of(*modelStackWithAutoParam, deluge::bridge::owner_of(*this), std::nullopt));
 
 	return Error::NONE;
 }

@@ -58,24 +58,26 @@ ModelStackWithAutoParam* cableDepthForEdit(ModelStackWithThreeMainThings* modelS
 	return depth != nullptr && depth->autoParam != nullptr ? depth : nullptr;
 }
 
-void settleCableDepth(ModelStackWithAutoParam const* modelStack) {
-	if (modelStack == nullptr || modelStack->autoParam == nullptr || modelStack->paramCollection == nullptr
-	    || modelStack->paramCollection->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE) {
+void settleCableDepth(const bridge::LaneTarget& lane) {
+	Sound* const* sound = std::get_if<Sound*>(&lane.owner);
+	if (sound == nullptr || lane.auto_param == nullptr || lane.collection == nullptr
+	    || lane.collection->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE) {
 		return;
 	}
 	PatchSource source;
 	deluge::synth::CableTarget target;
-	PatchCableSet::dissectParamId(modelStack->paramId, &target, &source);
-	const auto& cables = *static_cast<PatchCableSet*>(modelStack->paramCollection);
+	PatchCableSet::dissectParamId(lane.param_id, &target, &source);
+	const auto& cables = *static_cast<PatchCableSet*>(lane.collection);
 	const std::optional<size_t> index = cables.records().find(source, target);
 	if (!index) {
 		return;
 	}
-	const bool clipActive =
-	    !modelStack->timelineCounterIsSet() || static_cast<Clip*>(modelStack->getTimelineCounter())->isActiveOnOutput();
-	ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
+	const bool clipActive = lane.timeline == nullptr || static_cast<Clip*>(lane.timeline)->isActiveOnOutput();
+	ModMatrixHost matrix{**sound, *lane.manager};
 	if (std::optional<CableEdit> removed = matrix.settleDepth(*index, clipActive)) {
-		recordCableEdit(modelStack, std::move(*removed));
+		// The undo record is made from an engine stack.
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		recordCableEdit(bridge::owner_stack_of(lane, memory), std::move(*removed));
 	}
 }
 

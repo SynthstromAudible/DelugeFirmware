@@ -99,7 +99,6 @@ struct OracleOwner : public ParamCollection {
 	void trimToLength(uint32_t, ModelStackWithParamCollection*, Action*, bool) override {}
 	void shiftHorizontally(ModelStackWithParamCollection*, int32_t, int32_t) override {}
 	void processCurrentPos(ModelStackWithParamCollection*, int32_t, bool, bool, bool) override {}
-	void remotelySwapParamState(AutoParamState*, ModelStackWithParamId*) override {}
 	void deleteAllAutomation(Action*, ModelStackWithParamCollection*) override {}
 	void nudgeNonInterpolatingNodesAtPos(int32_t, int32_t, int32_t, Action*, ModelStackWithParamCollection*) override {}
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId*, bool) override { return nullptr; }

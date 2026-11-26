@@ -12,17 +12,19 @@
 namespace deluge::edits {
 
 Error SetPatchCable::apply(Context& ctx) {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithAutoParam* stack = deluge::bridge::cableStackAt(ctx.song, cable_, polarity_, memory);
-	if (stack == nullptr) {
+	const std::optional<deluge::bridge::LaneTarget> lane = deluge::bridge::cable_lane_at(ctx.song, cable_, polarity_);
+	if (!lane) {
 		return Error::UNSPECIFIED;
 	}
+	// The lane commands take an engine stack.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* stack = deluge::bridge::stack_of(*lane, memory);
 	if (write_ == Write::SETUP) {
 		// The value alone, into the record and the engine's cursor: no undo step, no automation.
 		const int32_t oldValue = stack->autoParam->getCurrentValue();
 		if (ctx.model.resolveParam(cable_) != nullptr) {
 			deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, cable_, value_, 0, 0, std::nullopt);
-			stack->autoParam->projectScalarFromStore(stack, oldValue, /*isPlaying=*/false);
+			stack->autoParam->projectScalarFromStore(*lane, oldValue, /*isPlaying=*/false);
 		}
 		else {
 			stack->autoParam->setBase(*stack->doc(), value_);

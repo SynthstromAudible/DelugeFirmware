@@ -140,7 +140,6 @@ public:
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack) override;
 
-	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
 	/// @brief The depth of the cable @p modelStack names. With @p allowCreation (the caller writes it) a missing cable
 	/// is added through the mod matrix and recorded; otherwise a missing cable gives a null autoParam.
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false) override;

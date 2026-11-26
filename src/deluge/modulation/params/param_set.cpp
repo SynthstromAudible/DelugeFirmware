@@ -399,16 +399,6 @@ void ParamSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int3
 	FOR_EACH_PARAM_END
 }
 
-void ParamSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
-
-	AutoParam* param = &params[modelStack->paramId];
-
-	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(param);
-
-	param->swapState(state, modelStackWithParam);
-	int32_t oldValue = params[modelStack->paramId].getCurrentValue();
-}
-
 void ParamSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
