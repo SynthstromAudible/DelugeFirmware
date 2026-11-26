@@ -78,19 +78,29 @@ class Violation:
     chain: list[str]
 
 
-def parse_functions(text: str) -> dict[str, Function]:
-    """Every function in @p text (llvm-objdump -d output), with its direct branch targets and its constants, in order."""
+def parse_functions(
+    text: str, sizes: dict[str, int] | None = None
+) -> dict[str, Function]:
+    """Every function in @p text (llvm-objdump -d output), with its direct branch targets and its constants, in order.
+
+    With @p sizes (symbol sizes by name), a line past a function's size is not its own: lld's trap fill between
+    functions decodes as stray branches."""
     fns: dict[str, Function] = {}
     cur: Function | None = None
+    end: int | None = None
     low: dict[str, int] = {}
     for line in text.splitlines():
         if m := HEADER.match(line):
             cur = fns.setdefault(m.group(2), Function(m.group(2), int(m.group(1), 16)))
+            size = (sizes or {}).get(cur.name, 0)
+            end = cur.address + size if size else None
             low = {}
             continue
         if cur is None or not (a := ADDRESS.match(line)):
             continue
         at = int(a.group(1), 16)
+        if end is not None and at >= end:
+            continue
         cur.insns_at.append((at, line[a.end() :].strip()))
         if m := BRANCH.match(line):
             target = m.group(1)
@@ -324,10 +334,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         config = tomllib.loads(Path(args.roots).read_text())
         nm_text = _run([args.nm, "-S", "-n", "--defined-only", args.elf])
-        fns = parse_functions(
-            compare_codegen.disassemble(args.objdump, args.elf, nm_text)
-        )
         syms = _symbols(nm_text)
+        fns = parse_functions(
+            compare_codegen.disassemble(args.objdump, args.elf, nm_text),
+            {n: size for n, (_, size) in syms.items()},
+        )
         names = sorted(set(fns) | {s for s in syms if s.startswith("_ZTV")})
         demangled = dict(
             zip(names, _run([args.cxxfilt], "\n".join(names) + "\n").splitlines())

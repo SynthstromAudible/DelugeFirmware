@@ -64,6 +64,18 @@ class ParseTests(unittest.TestCase):
         self.assertIn(0x20100080, self.fns["helper"].constants)
 
 
+class TrapFillTests(unittest.TestCase):
+    def test_bytes_past_a_functions_size_are_not_its_instructions(self):
+        text = """
+2010949e <get>:
+2010949e:      \tbl\t0x20119112 <ctor> @ imm = #0x0
+201094a2:      \tbx\tlr
+201094a4:      \tbmi\t0x20109476 <lambda> @ imm = #-0x58
+"""
+        self.assertEqual(cp.parse_functions(text)["get"].calls, {"ctor", "lambda"})
+        self.assertEqual(cp.parse_functions(text, {"get": 6})["get"].calls, {"ctor"})
+
+
 class ReachTests(unittest.TestCase):
     def test_a_thunk_leads_to_its_target(self):
         fns = cp.parse_functions(OBJDUMP)
