@@ -1,7 +1,9 @@
 # Known UI differences from `main` (tracker)
 
 Every way this branch's UI looks or behaves differently from current `main`, as found by `tools/emu_parity.py` (or
-on the device). Each one gets fixed or explicitly accepted. This file goes away when the list is empty.
+on the device). Each one gets fixed or explicitly accepted. Parity with `main` governs until the root-view program has ported the
+last legacy view (the shell is the root and the guest is gone); this file and the emulator sweep then retire, and the
+x86 snapshots become the UI's regression goldens.
 
 Status: **open** (cause unknown), **explained** (cause known, nothing changed yet), **accepted**, **fixed**, **closed**
 (does not reproduce, or was not the firmware's).
