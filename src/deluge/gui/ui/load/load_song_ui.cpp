@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/audio_recorder.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
@@ -40,6 +41,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
@@ -257,6 +259,12 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 	}
 	if (fileIndexSelected == -1) {
 		// If no song is loaded/selected yet, we have nothing to do
+		return;
+	}
+	if (stemExport.processStarted || isUIOpen(&audioRecorder)) {
+		// These wait in a yield() - which runs the MIDI task that called us - while holding pointers into the current
+		// song (the clip, output or drum being exported; the sound being recorded into). Swapping in the next song
+		// would free them.
 		return;
 	}
 	doQueueLoadNextSongIfAvailable(offset);
