@@ -3600,7 +3600,8 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 }
 
 void InstrumentClipView::displayIterance(Iterance iterance) {
-	char buffer[(display->haveOLED()) ? 29 : 5];
+	// 7-segment: room for the longest label, "CUSTOM", plus the terminator
+	char buffer[(display->haveOLED()) ? 29 : 8];
 	iterance.format_display_value(
 	    buffer, sizeof(buffer),
 	    {.step_format = display->haveOLED() ? "%d of %d" : "%dof%d",

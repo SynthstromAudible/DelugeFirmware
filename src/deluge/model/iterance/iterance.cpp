@@ -43,12 +43,18 @@ int32_t get_active_step_display_number(Iterance const& iterance) {
 	return 0;
 }
 
+// Writes prefix + value, truncated to fit buffer_size including the terminator
 void copy_with_prefix(char* buffer, size_t buffer_size, char const* prefix, char const* value) {
 	if (buffer_size == 0) {
 		return;
 	}
-	strcpy(buffer, prefix);
-	strcat(buffer, value);
+	size_t pos = 0;
+	for (char const* part : {prefix, value}) {
+		for (; *part != '\0' && pos + 1 < buffer_size; part++) {
+			buffer[pos++] = *part;
+		}
+	}
+	buffer[pos] = '\0';
 }
 
 } // namespace
