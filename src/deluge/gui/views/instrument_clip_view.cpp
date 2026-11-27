@@ -2847,6 +2847,10 @@ void InstrumentClipView::endEditPadPress(uint8_t i) {
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		if (editPadPresses[i].stolenMPE[m].num) {
 			delugeDealloc(editPadPresses[i].stolenMPE[m].nodes);
+			// Not every place that reuses this slot resets it (the automation editor's pad presses don't), so leave it
+			// empty rather than pointing at freed memory
+			editPadPresses[i].stolenMPE[m].nodes = nullptr;
+			editPadPresses[i].stolenMPE[m].num = 0;
 		}
 	}
 }
