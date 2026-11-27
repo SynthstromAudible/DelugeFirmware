@@ -1705,7 +1705,24 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			D_PRINTLN("trying the setup");
 			bool setupSuccess = setup(currentClip, item, thingIndex);
 
-			if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
+			// setup() fails before it sets currentSource, which may still point into the Sound of an earlier session
+			// (possibly deleted since), so look at the Sound this shortcut is for directly
+			Sound* shortcutSound = nullptr;
+			if (!setupSuccess && currentClip->type == ClipType::INSTRUMENT) {
+				Output* output = currentClip->output;
+				if (output->type == OutputType::SYNTH) {
+					shortcutSound = (SoundInstrument*)output;
+				}
+				else if (output->type == OutputType::KIT) {
+					Drum* selectedDrum = ((Kit*)output)->selectedDrum;
+					if (selectedDrum && selectedDrum->type == DrumType::SOUND) {
+						shortcutSound = (SoundDrum*)selectedDrum;
+					}
+				}
+			}
+
+			if (!setupSuccess && item == &modulator0Volume && shortcutSound
+			    && shortcutSound->sources[thingIndex].oscType == OscType::DX7) {
 				item = &dxParam;
 				setupSuccess = setup(currentClip, item, thingIndex);
 			}
