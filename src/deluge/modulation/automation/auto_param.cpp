@@ -2974,6 +2974,11 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 				int32_t sourceI = resultingIndexes[0];
 				int32_t stopAtI = resultingIndexes[1];
 				int32_t destI = 0;
+				// Whether the second pass (the nodes after the wrap, at the start of the array) has been done. This
+				// used to be inferred from stopAtI != numNodesToStealAfterWrap, which is wrong whenever the first
+				// pass's end index happens to equal that count - then the second pass was skipped and its part of
+				// the allocated block was left uninitialised.
+				bool doneAfterWrap = false;
 
 goAgain:
 				while (sourceI < stopAtI) {
@@ -2989,7 +2994,8 @@ goAgain:
 					destI++;
 				}
 
-				if (stopAtI != numNodesToStealAfterWrap) {
+				if (!doneAfterWrap) {
+					doneAfterWrap = true;
 					sourceI = 0;
 					stopAtI = numNodesToStealAfterWrap;
 					goto goAgain;
