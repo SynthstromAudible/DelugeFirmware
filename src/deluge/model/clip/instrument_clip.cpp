@@ -4641,7 +4641,7 @@ void InstrumentClip::recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t ve
 void InstrumentClip::yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song) {
 	if (output->type == OutputType::KIT) {
 		int32_t noteRowIndex = yDisplay + yScroll;
-		if (noteRowIndex >= 0 && noteRowIndex <= noteRows.getNumElements()) {
+		if (noteRowIndex >= 0 && noteRowIndex < noteRows.getNumElements()) {
 			NoteRow* noteRow = noteRows.getElement(noteRowIndex);
 			if (noteRow->drum) {
 				noteRow->drum->auditioned = false;
