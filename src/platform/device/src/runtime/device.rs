@@ -237,7 +237,8 @@ pub fn start() -> ! {
         board.dma.pic_tx,
         31_250,
     );
-    deluge_bsp::uart::init_midi(board.midi_uart, pins.midi, board.dma.midi_rx, 31_250);
+    // DIN receives on RXI, so each byte is stamped as it arrives; its DMA channel goes unused.
+    deluge_bsp::uart::init_midi_stamped(board.midi_uart, pins.midi, 31_250);
     // The SD slot's controller, once; `sd::init` identifies the card when it is needed.
     deluge_bsp::sd::init_hw(board.sd_card, pins.sd, board.dma.sd_tx, board.dma.sd_rx);
     // The encoders' A-pin interrupts, and their 1 ms pin poll on MTU2 ch3.

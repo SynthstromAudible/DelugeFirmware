@@ -8,8 +8,8 @@
 //! the USB class runs in packet mode (selected in [`usb::usb_task`](super::usb::usb_task)) and packets
 //! pass between its queues and the app unchanged, via [`midi_packets`](super::midi_packets).
 //!
-//! Arrival stamps (DIN and USB) are taken when the app reads the byte, not at hardware capture:
-//! fine for note input, not sample-accurate for MIDI clock in.
+//! Arrival stamps place each input on the play timeline where it happened: a DIN byte is stamped
+//! by the receive interrupt as it arrives; a USB batch when the app reads it.
 #![allow(non_upper_case_globals)]
 
 use deluge_bsp::uart;
@@ -105,15 +105,13 @@ pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_stamp: *mut u32) -> bool {
-    match uart::try_read_midi() {
-        Some(b) => {
+    match uart::try_read_midi_stamped() {
+        Some((b, ticks)) => {
             // SAFETY: the app passes valid out-pointers (arrival_stamp may be null).
             unsafe {
                 *byte = b;
                 if !arrival_stamp.is_null() {
-                    *arrival_stamp = crate::audio::capture_stamp::now_for(
-                        embassy_time::Instant::now().as_ticks(),
-                    );
+                    *arrival_stamp = crate::audio::capture_stamp::now_for(ticks);
                 }
             }
             true
