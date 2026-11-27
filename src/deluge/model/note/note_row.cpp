@@ -3258,6 +3258,10 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 // TODO: make this compatible with reverse playback
 void NoteRow::silentlyResumePlayback(ModelStackWithNoteRow* modelStack) {
 
+	if (!notes.getNumElements()) {
+		return; // No notes, so the play-pos can't be inside one (and the lookup below would have no element)
+	}
+
 	int32_t effectiveCurrentPos = modelStack->getLastProcessedPos(); // Why did we not opt for the "actual" one?
 
 	// See if our play-pos is inside of a note
