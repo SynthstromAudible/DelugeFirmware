@@ -95,6 +95,15 @@ inline constexpr std::array<Param, kParamCount> kParams{
     detail::unsigned_row(param::kSpreadOctave, "spreadOctave", "spreadOctave"),
 };
 
+/// @brief The rows' descriptors alone, for a host that reads params by descriptor.
+inline constexpr std::array<plugin::ParamInfo, kParamCount> kParamInfos = [] {
+	std::array<plugin::ParamInfo, kParamCount> infos{};
+	for (std::size_t i = 0; i < kParamCount; ++i) {
+		infos[i] = kParams[i].info;
+	}
+	return infos;
+}();
+
 /// @brief The id of the row at @p index.
 /// @param index A row index, below kParamCount.
 [[nodiscard]] constexpr plugin::ParamId id_at(std::size_t index) {

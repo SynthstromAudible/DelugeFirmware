@@ -1,6 +1,6 @@
-// arp/params.h: one table for every arp, holding today's numbers. The oracles are the tables the arp's rows leave: the
-// Deluge instrument's (a sound's arp), the host chain's (a kit's arp) and the arp's host rows (a MIDI or CV clip's arp,
-// a MIDI or gate kit row's).
+// arp/params.h: one table for every arp, holding the numbers the arp's rows had in the tables they left: the Deluge
+// instrument's (a sound's arp) and the host chain's (a kit's arp), captured here, and the arp's host rows (a MIDI or CV
+// clip's arp, a MIDI or gate kit row's).
 #include "arp/params.h"
 #include "arp/values.h"
 
@@ -8,6 +8,7 @@
 #include "instruments/classic/params.h"
 #include "plugin/types/arp.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -24,48 +25,36 @@ using deluge::plugin::ParamInfo;
 
 namespace {
 
-/// The instrument's and the host chain's id for each arp row, in the arp's order.
-constexpr std::array<ParamId, arp::kParamCount> kClassicIds{
-    classic::param::kArpGate,
-    classic::param::kArpRate,
-    classic::param::kRhythm,
-    classic::param::kSequenceLength,
-    classic::param::kChordPolyphony,
-    classic::param::kRatchetAmount,
-    classic::param::kNoteProbability,
-    classic::param::kBassProbability,
-    classic::param::kSwapProbability,
-    classic::param::kGlideProbability,
-    classic::param::kReverseProbability,
-    classic::param::kChordProbability,
-    classic::param::kRatchetProbability,
-    classic::param::kSpreadVelocity,
-    classic::param::kSpreadGate,
-    classic::param::kSpreadOctave,
-};
-constexpr std::array<ParamId, arp::kParamCount> kChainIds{
-    chains::param::kArpGate,
-    chains::param::kArpRate,
-    chains::param::kRhythm,
-    chains::param::kSequenceLength,
-    chains::param::kChordPolyphony,
-    chains::param::kRatchetAmount,
-    chains::param::kNoteProbability,
-    chains::param::kBassProbability,
-    chains::param::kSwapProbability,
-    chains::param::kGlideProbability,
-    chains::param::kReverseProbability,
-    chains::param::kChordProbability,
-    chains::param::kRatchetProbability,
-    chains::param::kSpreadVelocity,
-    chains::param::kSpreadGate,
-    chains::param::kSpreadOctave,
-};
+constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
+constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
 
-const ParamInfo& row_of(std::span<const ParamInfo> table, ParamId id) {
-	const ParamInfo* row = deluge::plugin::find_param(table, id);
-	return row != nullptr ? *row : arp::kParams[0].info;
-}
+/// The file names the instrument's and the host chain's arp rows had, in the arp's order.
+constexpr std::array<std::string_view, arp::kParamCount> kFileNames{
+    "arpGate",
+    "arpRate",
+    "rhythm",
+    "sequenceLength",
+    "chordPolyphony",
+    "ratchetAmount",
+    "noteProbability",
+    "bassProbability",
+    "swapProbability",
+    "glideProbability",
+    "reverseProbability",
+    "chordProbability",
+    "ratchetProbability",
+    "spreadVelocity",
+    "spreadGate",
+    "spreadOctave",
+};
+/// A sound's starting words, as the instrument's rows gave them (its rate the patched row's).
+constexpr std::array<int32_t, arp::kParamCount> kSoundDefaults{
+    0, 0, kMin, kMin, kMin, kMin, kMax, kMin, kMin, kMin, kMin, kMin, kMin, kMin, kMin, kMin,
+};
+/// A kit's own arp's, as the host chain's rows gave them: its gate fully open.
+constexpr std::array<int32_t, arp::kParamCount> kKitDefaults{
+    kMax, 0, kMin, kMin, kMin, kMin, kMax, kMin, kMin, kMin, kMin, kMin, kMin, kMin, kMin, kMin,
+};
 
 /// A host row's default as the param word: the fourteen unsigned rows store word + 2^31.
 int32_t host_default_word(std::size_t i) {
@@ -89,22 +78,32 @@ describe arp_params("arp/params.h", ${
 	it("names, maps and flags each row as the instrument and the host chain did", _ {
 		for (std::size_t i = 0; i < arp::kParamCount; ++i) {
 			const ParamInfo& mine = arp::kParams[i].info;
-			const ParamInfo& sound = row_of(classic::kParams, kClassicIds[i]);
-			const ParamInfo& kit = row_of(chains::kParams, kChainIds[i]);
-			expect(std::string{mine.file_name}).to_equal(std::string{sound.file_name});
-			expect(std::string{mine.file_name}).to_equal(std::string{kit.file_name});
-			expect(static_cast<int32_t>(mine.mapping)).to_equal(static_cast<int32_t>(kit.mapping));
-			expect(mine.flags == kit.flags).to_equal(true);
+			expect(std::string{mine.file_name}).to_equal(std::string{kFileNames[i]});
+			expect(static_cast<int32_t>(mine.mapping)).to_equal(static_cast<int32_t>(deluge::plugin::MappingKind::STANDARD));
+			expect(mine.flags == deluge::plugin::ParamFlags{}).to_equal(true);
 		}
 	});
 
 	it("starts each owner's arp where that owner's table did", _ {
 		for (std::size_t i = 0; i < arp::kParamCount; ++i) {
 			const auto id = arp::id_at(i);
-			expect(arp::default_value(arp::Owner::SOUND, id)).to_equal(row_of(classic::kParams, kClassicIds[i]).default_value);
-			expect(arp::default_value(arp::Owner::KIT, id)).to_equal(row_of(chains::kParams, kChainIds[i]).default_value);
+			expect(arp::default_value(arp::Owner::SOUND, id)).to_equal(kSoundDefaults[i]);
+			expect(arp::default_value(arp::Owner::KIT, id)).to_equal(kKitDefaults[i]);
 			expect(arp::default_value(arp::Owner::CLIP, id)).to_equal(host_default_word(i));
 			expect(arp::default_value(arp::Owner::ROW, id)).to_equal(host_default_word(i));
+		}
+	});
+
+	it("is the only table that holds them: the instrument's keeps only its patched arpRate", _ {
+		for (const arp::Param& p : arp::kParams) {
+			for (const ParamInfo& row : chains::kParams) {
+				expect(row.file_name == p.info.file_name).to_equal(false);
+			}
+			for (const ParamInfo& row : classic::kParams) {
+				if (row.file_name == p.info.file_name) {
+					expect(row.id == classic::param::kArpRate).to_equal(true);
+				}
+			}
 		}
 	});
 

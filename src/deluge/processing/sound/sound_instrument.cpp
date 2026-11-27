@@ -25,6 +25,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice_part.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -422,10 +423,8 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
 
-	UnpatchedParamSet* unpatchedParams = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSet();
-
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+	arpSettings->values = modelStackWithThreeMainThings->paramManager->getArpParamSet()->values();
 
 	ArpReturnInstruction instruction;
 

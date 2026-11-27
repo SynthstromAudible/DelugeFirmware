@@ -16,6 +16,7 @@
  */
 
 #include "processing/sound/sound.h"
+#include "modulation/params/arp_param_set.h"
 
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
@@ -808,11 +809,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		return;
 	}
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	if (arpSettings != nullptr) {
-		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+		arpSettings->values = paramManager->getArpParamSet()->values();
 	}
 
 	getArpBackInTimeAfterSkippingRendering(arpSettings); // Have to do this before telling the arp to noteOn()
@@ -1700,8 +1699,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		// Only the arp reads these here. With it off, noteOn() refreshes them before it uses them, so don't touch
 		// them (cold memory) every render
-		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
+		arpSettings->values = paramManager->getArpParamSet()->values();
+		uint32_t gateThreshold = arpSettings->values.unsigned_word(deluge::arp::param::kGate);
 		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
 		    deluge::synth::matrix::global_param_value<params::GLOBAL_ARP_RATE>(params.param_final_values));
 
@@ -2327,6 +2326,9 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 	patched->bindDomStore();
 	deluge::project::DocParamSet* uStore = unpatched->domStore();
 	deluge::project::DocParamSet* pStore = patched->domStore();
+	ArpParamSet* arp = paramManager->getArpParamSet(); // the arp/probability/spread params land in its store
+	arp->bindDomStore();
+	deluge::project::DocParamSet* aStore = arp->domStore();
 	char const* tagName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -2335,7 +2337,8 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 			                           *deluge::storage::treeReaderOf(reader).currentValue(), readAutomationUpToPos);
 			reader.exitTag("patchCables");
 		}
-		else if (deluge::bridge::readSoundParamTagToDoc(reader, tagName, *pStore, *uStore, readAutomationUpToPos)) {}
+		else if (deluge::bridge::readSoundParamTagToDoc(reader, tagName, *pStore, *uStore, readAutomationUpToPos,
+		                                                aStore)) {}
 		else {
 			reader.exitTag(tagName);
 		}
@@ -2343,6 +2346,7 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 	reader.match('}');
 	unpatched->projectFromStoreAfterRead(unpatchedSummary);
 	patched->projectFromStoreAfterRead(patchedSummary);
+	arp->projectFromStoreAfterRead(paramManager->getArpParamSetSummary());
 }
 
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
@@ -2430,7 +2434,7 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
 	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND),
 	                                     paramManager->getPatchCableSet()->records().records(), doc.cable_depths,
-	                                     writer, writeAutomation);
+	                                     writer, writeAutomation, doc.arp ? &*doc.arp : nullptr);
 }
 
 void Sound::deriveConfig() {

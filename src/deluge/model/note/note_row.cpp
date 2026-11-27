@@ -39,6 +39,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/working_copies.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/move_section.h"
@@ -3848,11 +3849,13 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			soundDrum->performInitialPatching(soundDrum->matrixBlock(paramManager, Sound::PresetGather::ALL));
 		}
 	}
-	// A MIDI or gate drum's row holds its own arp's set, as a sound drum's row holds its sound's.
+	// A MIDI or gate drum's row holds its own arp's set, as a sound drum's row holds its sound's, starting at its
+	// drum's values.
 	else if (newDrum != nullptr && paramManager.getArpParamSet() == nullptr) {
 		if (paramManager.setupArpOnly(deluge::arp::Owner::ROW) != Error::NONE) {
 			FREEZE_WITH_ERROR("E010"); // If there was no RAM, we're really in trouble.
 		}
+		paramManager.getArpParamSet()->set_words(newDrum->arpSettings.values);
 	}
 
 	drum = newDrum;

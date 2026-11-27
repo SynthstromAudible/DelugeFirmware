@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "arp/params.h"
 #include "definitions_cxx.hpp"
 #include "host/chains/params.h"
 #include "instruments/classic/cables.h"
@@ -29,19 +30,23 @@
 
 /// @file The param shortcuts of the pad grid and the automation view's param orders, as targets. A sound's tables hold
 /// the Deluge instrument's ids (a patch cable's as its depth id) and MPE expression targets; a global effectable's hold
-/// the host chain's table's ids.
+/// the host chain's table's ids. Both name their arp's params by ParamSpace::ARP.
 
 namespace deluge::modulation::params {
 
 namespace shortcuts_detail {
 namespace ip = deluge::instruments::classic::param;
 namespace gp = deluge::host::chains::param;
+namespace ap = deluge::arp::param;
 using deluge::project::ParamTarget;
 [[nodiscard]] constexpr ParamTarget sound(deluge::plugin::ParamId id) {
 	return deluge::project::engine_target(id.value);
 }
 [[nodiscard]] constexpr ParamTarget global(deluge::plugin::ParamId id) {
 	return deluge::project::engine_target(id.value);
+}
+[[nodiscard]] constexpr ParamTarget arp(deluge::plugin::ParamId id) {
+	return {deluge::project::ParamSpace::ARP, id};
 }
 [[nodiscard]] constexpr ParamTarget cable(PatchSource source, deluge::plugin::ParamId destination) {
 	return deluge::project::engine_target(deluge::instruments::classic::cable_depth_id(source, destination)->value);
@@ -70,11 +75,11 @@ inline constexpr TargetGrid kSoundParamShortcuts = [] {
     {{sound(ip::kEnv1Release), sound(ip::kEnv1Sustain), sound(ip::kEnv1Decay), sound(ip::kEnv1Attack), sound(ip::kLpfMorph), std::nullopt, sound(ip::kLpfResonance), sound(ip::kLpfFrequency)}},
     {{sound(ip::kEnv2Release), sound(ip::kEnv2Sustain), sound(ip::kEnv2Decay), sound(ip::kEnv2Attack), sound(ip::kHpfMorph), std::nullopt, sound(ip::kHpfResonance), sound(ip::kHpfFrequency)}},
     {{std::nullopt, std::nullopt, cable(PatchSource::SIDECHAIN, ip::kVolumePostReverbSend), std::nullopt, sound(ip::kCompressorShape), std::nullopt, sound(ip::kBass), sound(ip::kBassFreq)}},
-    {{sound(ip::kArpRate), std::nullopt, sound(ip::kArpGate), std::nullopt, std::nullopt, std::nullopt, sound(ip::kTreble), sound(ip::kTrebleFreq)}},
+    {{sound(ip::kArpRate), std::nullopt, arp(ap::kGate), std::nullopt, std::nullopt, std::nullopt, sound(ip::kTreble), sound(ip::kTrebleFreq)}},
     {{sound(ip::kLfo1Rate), std::nullopt, std::nullopt, std::nullopt, sound(ip::kModFXOffset), sound(ip::kModFXFeedback), sound(ip::kModFXDepth), sound(ip::kModFXRate)}},
     {{sound(ip::kLfo2Rate), std::nullopt, std::nullopt, sound(ip::kReverbAmount), std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
     {{sound(ip::kDelayRate), std::nullopt, std::nullopt, sound(ip::kDelayFeedback), std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
-    {{std::nullopt, sound(ip::kSpreadVelocity), std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+    {{std::nullopt, arp(ap::kSpreadVelocity), std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
 	}};
 }();
 
@@ -116,7 +121,7 @@ inline constexpr TargetGrid kGlobalParamShortcuts = [] {
     {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, global(gp::kLpfMorph), std::nullopt, global(gp::kLpfResonance), global(gp::kLpfFrequency)}},
     {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, global(gp::kHpfMorph), std::nullopt, global(gp::kHpfResonance), global(gp::kHpfFrequency)}},
     {{std::nullopt, std::nullopt, global(gp::kSidechainCompressorVolume), std::nullopt, global(gp::kCompressorShape), std::nullopt, global(gp::kBass), global(gp::kBassFreq)}},
-    {{global(gp::kArpRate), std::nullopt, global(gp::kArpGate), std::nullopt, std::nullopt, std::nullopt, global(gp::kTreble), global(gp::kTrebleFreq)}},
+    {{arp(ap::kRate), std::nullopt, arp(ap::kGate), std::nullopt, std::nullopt, std::nullopt, global(gp::kTreble), global(gp::kTrebleFreq)}},
     {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, global(gp::kModFXOffset), global(gp::kModFXFeedback), global(gp::kModFXDepth), global(gp::kModFXRate)}},
     {{std::nullopt, std::nullopt, std::nullopt, global(gp::kReverbAmount), std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
     {{global(gp::kDelayRate), std::nullopt, std::nullopt, global(gp::kDelayFeedback), std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
@@ -189,21 +194,21 @@ inline constexpr std::array<deluge::project::ParamTarget, 83> kSoundParamsForAut
     sound(ip::kModFXDepth),
     sound(ip::kModFXRate),
     sound(ip::kArpRate),
-    sound(ip::kArpGate),
-    sound(ip::kSpreadGate),
-    sound(ip::kSpreadOctave),
-    sound(ip::kSpreadVelocity),
-    sound(ip::kRatchetAmount),
-    sound(ip::kRatchetProbability),
-    sound(ip::kChordPolyphony),
-    sound(ip::kChordProbability),
-    sound(ip::kNoteProbability),
-    sound(ip::kBassProbability),
-    sound(ip::kSwapProbability),
-    sound(ip::kGlideProbability),
-    sound(ip::kReverseProbability),
-    sound(ip::kRhythm),
-    sound(ip::kSequenceLength),
+    arp(ap::kGate),
+    arp(ap::kSpreadGate),
+    arp(ap::kSpreadOctave),
+    arp(ap::kSpreadVelocity),
+    arp(ap::kRatchetAmount),
+    arp(ap::kRatchetProbability),
+    arp(ap::kChordPolyphony),
+    arp(ap::kChordProbability),
+    arp(ap::kNoteProbability),
+    arp(ap::kBassProbability),
+    arp(ap::kSwapProbability),
+    arp(ap::kGlideProbability),
+    arp(ap::kReverseProbability),
+    arp(ap::kRhythm),
+    arp(ap::kSequenceLength),
     sound(ip::kNoiseVolume),
     sound(ip::kPortamento),
     sound(ip::kStutterRate),
@@ -244,19 +249,19 @@ inline constexpr std::array<deluge::project::ParamTarget, 39> kGlobalParamsForAu
     global(gp::kModFXRate),
     global(gp::kStutterRate),
     global(gp::kCompressorThreshold),
-    global(gp::kArpRate),
-    global(gp::kArpGate),
-    global(gp::kSpreadGate),
-    global(gp::kSpreadVelocity),
-    global(gp::kRatchetAmount),
-    global(gp::kRatchetProbability),
-    global(gp::kNoteProbability),
-    global(gp::kBassProbability),
-    global(gp::kSwapProbability),
-    global(gp::kGlideProbability),
-    global(gp::kReverseProbability),
-    global(gp::kRhythm),
-    global(gp::kSequenceLength),
+    arp(ap::kRate),
+    arp(ap::kGate),
+    arp(ap::kSpreadGate),
+    arp(ap::kSpreadVelocity),
+    arp(ap::kRatchetAmount),
+    arp(ap::kRatchetProbability),
+    arp(ap::kNoteProbability),
+    arp(ap::kBassProbability),
+    arp(ap::kSwapProbability),
+    arp(ap::kGlideProbability),
+    arp(ap::kReverseProbability),
+    arp(ap::kRhythm),
+    arp(ap::kSequenceLength),
 	}};
 }();
 // clang-format on

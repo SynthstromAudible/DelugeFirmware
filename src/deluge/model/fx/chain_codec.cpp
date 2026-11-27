@@ -25,6 +25,7 @@
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
@@ -85,8 +86,10 @@ bool readGlobalParamTag(Deserializer& reader, char const* tagName, ParamManagerF
                         int32_t readAutomationUpToPos) {
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	auto* unpatchedParams = static_cast<UnpatchedParamSet*>(unpatchedParamsSummary->paramCollection);
+	// A kit's own arp params land in its arp set.
+	const bridge::LiveArp arp{.set = paramManager->getArpParamSet(), .summary = paramManager->getArpParamSetSummary()};
 	return bridge::readGlobalEffectableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
-	                                            readAutomationUpToPos);
+	                                            readAutomationUpToPos, arp);
 }
 
 void readGlobalParams(Deserializer& reader, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
@@ -161,7 +164,9 @@ Error readEffectTag(Deserializer& reader, const char* tagName, EffectsOwner owne
                     ArpeggiatorSettings* arpSettings, bool* arpRead, ::Song* song) {
 	if (paramManager != nullptr && std::strcmp(tagName, "defaultParams") == 0) {
 		if (!paramManager->containsAnyMainParamCollections()) {
-			const Error error = paramManager->setupUnpatched();
+			// An owner with an arp (a kit) holds its arp's set beside its own params.
+			const Error error = paramManager->setupUnpatched(
+			    arpSettings != nullptr ? std::optional{deluge::arp::Owner::KIT} : std::nullopt);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -220,7 +225,12 @@ void writeGlobalParamAttributes(Serializer& writer, ParamManager* paramManager, 
                                 int32_t* valuesForOverride) {
 	// Serialized from the value DOM: the global flat attributes around the shared ones and the community ones.
 	project::DocParamSet unpatched = bridge::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
-	bridge::serializeGlobalEffectableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
+	std::optional<project::DocParamSet> arp;
+	if (ArpParamSet* set = paramManager->getArpParamSet()) {
+		arp = bridge::toDocParamSetFromStore(*set);
+	}
+	bridge::serializeGlobalEffectableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride,
+	                                                 arp ? &*arp : nullptr);
 }
 
 void writeGlobalParamTags(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -238,14 +248,24 @@ void readGlobalParamsDomFirst(Deserializer& reader, ParamManagerForTimeline* par
 	ParamCollectionSummary* summary = paramManager->getUnpatchedParamSetSummary();
 	unpatched->bindDomStore();
 	project::DocParamSet* store = unpatched->domStore();
+	// A kit's own arp params land in its arp set's store.
+	ArpParamSet* arp = paramManager->getArpParamSet();
+	project::DocParamSet* arpStore = nullptr;
+	if (arp != nullptr) {
+		arp->bindDomStore();
+		arpStore = arp->domStore();
+	}
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (bridge::readGlobalEffectableParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
+		if (bridge::readGlobalEffectableParamTagToDoc(reader, tagName, *store, readAutomationUpToPos, arpStore)) {}
 		else {
 			reader.exitTag(tagName);
 		}
 	}
 	unpatched->projectFromStoreAfterRead(summary);
+	if (arp != nullptr) {
+		arp->projectFromStoreAfterRead(paramManager->getArpParamSetSummary());
+	}
 }
 
 } // namespace deluge::model

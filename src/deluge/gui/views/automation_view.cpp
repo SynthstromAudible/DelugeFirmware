@@ -328,8 +328,10 @@ void AutomationView::initializeView() {
 			}
 
 			// if we're in a kit, we want to make sure the param selected is valid for current context
-			// e.g. only UNPATCHED_GLOBAL param kind's can be used with Kit Affect Entire enabled
-			if ((outputType == OutputType::KIT) && (clip->lastSelectedParamKind != params::Kind::NONE)) {
+			// e.g. only UNPATCHED_GLOBAL param kind's can be used with Kit Affect Entire enabled. An arp param is the
+			// kit's own arp's and a drum's alike, so it leaves the setting as it is.
+			if ((outputType == OutputType::KIT) && (clip->lastSelectedParamKind != params::Kind::NONE)
+			    && (clip->lastSelectedParamKind != params::Kind::ARP)) {
 				if (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL) {
 					clip->affectEntire = true;
 				}
@@ -680,15 +682,14 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 			else if ((onArrangerView || (outputType == OutputType::AUDIO) || affectEntireKit)) {
 				if (const std::optional<ParamTarget>& cell = params::kGlobalParamShortcuts[xDisplay][yDisplay]) {
-					const int32_t paramID = globalParam(*cell).index;
+					const RuntimeParam cellParam = globalParam(*cell);
+					const int32_t paramID = cellParam.index;
+					const bool isArp = cellParam.kind == params::Kind::ARP;
 					if (onArrangerView) {
-						// don't make pitch adjust or sidechain available for automation in arranger
+						// don't make pitch adjust, sidechain or the arp available for automation in arranger
 						if ((paramID == params::UNPATCHED_PITCH_ADJUST)
 						    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
-						    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)
-						    || (paramID >= params::UNPATCHED_FIRST_ARP_PARAM
-						        && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
-						    || (paramID == params::UNPATCHED_ARP_RATE)) {
+						    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME) || isArp) {
 							pixel = colours::black; // erase pad
 							continue;
 						}
@@ -696,10 +697,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 						    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 					}
 					else {
-						if (outputType == OutputType::AUDIO
-						    && ((paramID >= params::UNPATCHED_FIRST_ARP_PARAM
-						         && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
-						        || paramID == params::UNPATCHED_ARP_RATE)) {
+						if (outputType == OutputType::AUDIO && isArp) {
 							pixel = colours::black; // erase pad
 							continue;
 						}
@@ -1809,17 +1807,13 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		params::Kind paramKind = selected.kind;
 		int32_t paramID = selected.index;
 
-		// don't allow automation of pitch adjust, or sidechain in arranger
+		// don't allow automation of pitch adjust, sidechain or the arp in arranger, nor the arp on an audio clip
 		if (onArrangerView
 		    && ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
-		        || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)
-		        || (paramID >= params::UNPATCHED_FIRST_ARP_PARAM && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
-		        || (paramID == params::UNPATCHED_ARP_RATE))) {
+		        || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME) || paramKind == params::Kind::ARP)) {
 			return; // no parameter selected, don't re-render grid;
 		}
-		else if (outputType == OutputType::AUDIO
-		         && ((paramID >= params::UNPATCHED_FIRST_ARP_PARAM && paramID <= params::UNPATCHED_LAST_ARP_PARAM)
-		             || paramID == params::UNPATCHED_ARP_RATE)) {
+		else if (outputType == OutputType::AUDIO && paramKind == params::Kind::ARP) {
 			return; // no parameter selected, don't re-render grid;
 		}
 
@@ -2570,8 +2564,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		{
 			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
 			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD
-			        || (id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
-			        || id == params::UNPATCHED_ARP_RATE)) {
+			        || kind == params::Kind::ARP)) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -2581,7 +2574,9 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 				}
 				idx = getNextSelectedParamArrayPosition(offset, currentSong->lastSelectedParamArrayPosition,
 				                                        kNumGlobalParamsForAutomation);
-				id = globalParam(params::kGlobalParamsForAutomation[idx]).index;
+				const RuntimeParam next = globalParam(params::kGlobalParamsForAutomation[idx]);
+				kind = next.kind;
+				id = next.index;
 			}
 		}
 		currentSong->lastSelectedParamID = id;
@@ -2593,8 +2588,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParam(params::kGlobalParamsForAutomation[idx]);
 		{
-			while ((id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
-			       || id == params::UNPATCHED_ARP_RATE) {
+			while (kind == params::Kind::ARP) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -2604,7 +2598,9 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 				}
 				idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 				                                        kNumGlobalParamsForAutomation);
-				id = globalParam(params::kGlobalParamsForAutomation[idx]).index;
+				const RuntimeParam next = globalParam(params::kGlobalParamsForAutomation[idx]);
+				kind = next.kind;
+				id = next.index;
 			}
 		}
 		clip->lastSelectedParamID = id;
@@ -2840,7 +2836,8 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 				if ((kind == params::Kind::PATCHED && cellIndex(sound, kind) == id)
 				    || (kind == params::Kind::UNPATCHED_SOUND && cellIndex(sound, kind) == id)
 				    || (kind == params::Kind::UNPATCHED_GLOBAL && cellIndex(global, kind) == id)
-				    || (kind == params::Kind::EXPRESSION && cellIndex(expression, kind) == id)) {
+				    || (kind == params::Kind::EXPRESSION && cellIndex(expression, kind) == id)
+				    || (kind == params::Kind::ARP && (cellIndex(sound, kind) == id || cellIndex(global, kind) == id))) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;

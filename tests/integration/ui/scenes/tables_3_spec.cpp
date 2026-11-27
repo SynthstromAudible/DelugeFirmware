@@ -550,6 +550,19 @@ describe tables_3_shape("scenes::menu settings and other roots tables: shape", $
 	});
 
 	it("gives every leaf main's own param, AFFECT ENTIRE use, edit marking, slot count and range dependence", _ {
+		// Main keeps the arp's params in the unpatched sets: a sound's at runtime indices 11 to 25 (ids 101 to 115), a
+		// kit's rate at the global index 30 (id 120). Here they are the arp's own ids.
+		const auto arp_id_of_main_index = [](std::string_view kind, int32_t index) -> std::optional<int32_t> {
+			constexpr std::array<int32_t, 15> kSoundIndexToArp{0, 2, 3, 4, 5, 6, 10, 7, 8, 9, 11, 12, 14, 15, 13};
+			const auto global = std::to_string(static_cast<int32_t>(deluge::modulation::params::Kind::UNPATCHED_GLOBAL));
+			if (kind == global && index == 30) {
+				return 1;
+			}
+			if (index >= 11 && index <= 25) {
+				return kSoundIndexToArp[static_cast<std::size_t>(index - 11)];
+			}
+			return std::nullopt;
+		};
 		size_t learned = 0;
 		for (const auto& [root, e] : every_entry()) {
 			if (e.node->kind == menu::Kind::Submenu) {
@@ -571,8 +584,23 @@ describe tables_3_shape("scenes::menu settings and other roots tables: shape", $
 			if (const std::vector<std::string>* want = table().find(e.path, "learn"); want != nullptr) {
 				const std::optional<deluge::project::OwnerParamTarget> got =
 				    menu::bindings::learn_target(*e.node, root->ctx);
+				std::string wanted = want->empty() ? std::string{"<no value>"} : want->front();
+				if (got && !want->empty()) {
+					const int32_t main_id = std::stoi(want->front());
+					const auto kind = table().find(e.path, "param_kind");
+					const std::string main_kind = kind != nullptr && !kind->empty() ? kind->front() : std::string{};
+					if (got->param.space == deluge::project::ParamSpace::ARP) {
+						if (const std::optional<int32_t> arp = arp_id_of_main_index(main_kind, main_id - 90)) {
+							wanted = std::to_string(*arp);
+						}
+					}
+					// Past the arp's ids, main's numbers sit 15 higher (16 in a chain's table, above its arp rate).
+					else if (main_id >= 116) {
+						wanted = std::to_string(main_id > 120 ? main_id - 16 : main_id - 15);
+					}
+				}
 				expect(at + " learns " + (got ? std::to_string(got->param.id.value) : std::string{"none"}))
-				    .to_equal(at + " learns " + (want->empty() ? std::string{"<no value>"} : want->front()));
+				    .to_equal(at + " learns " + wanted);
 				if (got) {
 					expect(got->owner).to_equal(menu::bindings::controls_owner(root->ctx));
 				}
@@ -590,10 +618,24 @@ describe tables_3_shape("scenes::menu settings and other roots tables: shape", $
 				}
 				continue;
 			}
-			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
+			std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
+			const std::optional<int32_t> kind = spec::int_of(table().find(e.path, "param_kind"));
+			if (e.node->bind.param.kind == deluge::plugin::ParamKind::ARP && index) {
+				// An arp param: main's row names it in an unpatched set
+				index = arp_id_of_main_index(kind ? std::to_string(*kind) : std::string{}, *index);
+				expect(at + " is an arp param in main").to_equal(at + (index ? " is an arp param in main" : " is not"));
+				expect(at + " index " + std::to_string(e.node->bind.param.index))
+				    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
+				continue;
+			}
+			// An unpatched index past main's arp block sits 15 lower here (16 past a chain's arp rate).
+			const bool unpatched_kind = e.node->bind.param.kind == deluge::plugin::ParamKind::UNPATCHED_SOUND
+			                            || e.node->bind.param.kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL;
+			if (index && unpatched_kind && *index >= 26) {
+				index = *index > 30 ? *index - 16 : *index - 15;
+			}
 			expect(at + " index " + std::to_string(e.node->bind.param.index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
-			const std::optional<int32_t> kind = spec::int_of(table().find(e.path, "param_kind"));
 			if (!kind || *kind == static_cast<int32_t>(deluge::modulation::params::Kind::NONE)) {
 				continue;
 			}

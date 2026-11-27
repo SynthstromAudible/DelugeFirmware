@@ -197,26 +197,45 @@ void MidiFollow::clearMappings() {
 
 	soundParamToCC.fill(MIDI_CC_NONE);
 	globalParamToCC.fill(MIDI_CC_NONE);
+	arpParamToCC.fill(MIDI_CC_NONE);
 }
 
 void MidiFollow::mapSound(int32_t cc, ParamTarget target) {
-	soundParamToCC[target.id.value] = cc;
+	if (target.space == deluge::project::ParamSpace::ARP) {
+		arpParamToCC[target.id.value] = cc;
+	}
+	else {
+		soundParamToCC[target.id.value] = cc;
+	}
 	ccToSoundTarget[cc] = target;
 }
 
 void MidiFollow::mapGlobal(int32_t cc, ParamTarget target) {
-	globalParamToCC[*deluge::host::chains::find_runtime_index(target.id)] = cc;
+	if (target.space == deluge::project::ParamSpace::ARP) {
+		arpParamToCC[target.id.value] = cc;
+	}
+	else {
+		globalParamToCC[*deluge::host::chains::find_runtime_index(target.id)] = cc;
+	}
 	ccToGlobalTarget[cc] = target;
 }
 
 void MidiFollow::initDefaultMappings() {
 	namespace ip = deluge::instruments::classic::param;
 	namespace gp = deluge::host::chains::param;
+	namespace ap = deluge::arp::param;
 	auto mapSound = [this](int32_t cc, deluge::plugin::ParamId id) {
 		this->mapSound(cc, deluge::project::engine_target(id.value));
 	};
 	auto mapGlobal = [this](int32_t cc, deluge::plugin::ParamId id) {
 		this->mapGlobal(cc, deluge::project::engine_target(id.value));
+	};
+	// An arp param follows on a sound and a global effectable alike, by its arp id.
+	auto mapSoundArp = [this](int32_t cc, deluge::plugin::ParamId id) {
+		this->mapSound(cc, {deluge::project::ParamSpace::ARP, id});
+	};
+	auto mapGlobalArp = [this](int32_t cc, deluge::plugin::ParamId id) {
+		this->mapGlobal(cc, {deluge::project::ParamSpace::ARP, id});
 	};
 
 	clearMappings();
@@ -244,20 +263,20 @@ void MidiFollow::initDefaultMappings() {
 	mapSound(28, ip::kOscBPhaseWidth);
 	mapSound(29, ip::kCarrier2Feedback);
 	mapSound(30, ip::kOscBWavetablePosition);
-	mapSound(36, ip::kReverseProbability);
-	mapSound(37, ip::kSpreadVelocity);
-	mapSound(39, ip::kSpreadOctave);
-	mapSound(40, ip::kSpreadGate);
+	mapSoundArp(36, ap::kReverseProbability);
+	mapSoundArp(37, ap::kSpreadVelocity);
+	mapSoundArp(39, ap::kSpreadOctave);
+	mapSoundArp(40, ap::kSpreadGate);
 	mapSound(41, ip::kNoiseVolume);
-	mapSound(42, ip::kRhythm);
-	mapSound(43, ip::kSequenceLength);
-	mapSound(44, ip::kChordPolyphony);
-	mapSound(45, ip::kRatchetAmount);
-	mapSound(46, ip::kNoteProbability);
-	mapSound(47, ip::kBassProbability);
-	mapSound(48, ip::kChordProbability);
-	mapSound(49, ip::kRatchetProbability);
-	mapSound(50, ip::kArpGate);
+	mapSoundArp(42, ap::kRhythm);
+	mapSoundArp(43, ap::kSequenceLength);
+	mapSoundArp(44, ap::kChordPolyphony);
+	mapSoundArp(45, ap::kRatchetAmount);
+	mapSoundArp(46, ap::kNoteProbability);
+	mapSoundArp(47, ap::kBassProbability);
+	mapSoundArp(48, ap::kChordProbability);
+	mapSoundArp(49, ap::kRatchetProbability);
+	mapSoundArp(50, ap::kGate);
 	mapSound(51, ip::kArpRate);
 	mapSound(52, ip::kDelayFeedback);
 	mapSound(53, ip::kDelayRate);
@@ -300,8 +319,8 @@ void MidiFollow::initDefaultMappings() {
 	mapSound(109, ip::kEnv4Release);
 	mapSound(110, ip::kLfo3Rate);
 	mapSound(111, ip::kLfo4Rate);
-	mapSound(112, ip::kSwapProbability);
-	mapSound(113, ip::kGlideProbability);
+	mapSoundArp(112, ap::kSwapProbability);
+	mapSoundArp(113, ap::kGlideProbability);
 
 	// A global effectable's params, on the CCs of their sound counterparts
 	mapGlobal(3, gp::kPitchAdjust);
@@ -311,7 +330,7 @@ void MidiFollow::initDefaultMappings() {
 	mapGlobal(17, gp::kModFXFeedback);
 	mapGlobal(18, gp::kModFXOffset);
 	mapGlobal(20, gp::kStutterRate);
-	mapGlobal(51, gp::kArpRate);
+	mapGlobalArp(51, ap::kRate);
 	mapGlobal(52, gp::kDelayFeedback);
 	mapGlobal(53, gp::kDelayRate);
 	mapGlobal(60, gp::kCompressorShape);
@@ -469,6 +488,10 @@ void MidiFollow::displayParamControlError(Target sound, Target global) {
 }
 
 std::optional<uint8_t> MidiFollow::ccOf(OwnerPlugin owner, ParamTarget target) const {
+	if (target.space == deluge::project::ParamSpace::ARP) {
+		const uint8_t cc = target.id.value < arpParamToCC.size() ? arpParamToCC[target.id.value] : MIDI_CC_NONE;
+		return cc == MIDI_CC_NONE ? std::nullopt : std::optional<uint8_t>{cc};
+	}
 	if (target.space != deluge::project::ParamSpace::ENGINE) {
 		return std::nullopt;
 	}
@@ -1478,6 +1501,10 @@ void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 			paramNameSound = params::paramNameForFile(params::Kind::PATCHED, sound->index, true);
 			writeTag = true;
 		}
+		else if (sound && sound->kind == params::Kind::ARP) {
+			paramNameSound = deluge::arp::kParams[sound->index].info.file_name.data();
+			writeTag = true;
+		}
 		else if (sound) {
 			paramNameSound =
 			    params::paramNameForFile(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_START + sound->index, true);
@@ -1490,8 +1517,10 @@ void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 		}
 		else {
 			if (global) {
-				paramNameGlobal = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
-				                                           params::UNPATCHED_START + global->index, true);
+				paramNameGlobal = global->kind == params::Kind::ARP
+				                      ? deluge::arp::kParams[global->index].info.file_name.data()
+				                      : params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
+				                                                 params::UNPATCHED_START + global->index, true);
 				// Reaching here means no sound param claimed this CC (paramNameSound is still null), so the global
 				// mapping should be written. Only compare names when a sound name actually exists, to avoid passing a
 				// null pointer to strcmp.
@@ -1800,6 +1829,16 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 					break;
 				}
 			}
+		}
+		// An arp param follows on a global effectable, and on a sound where no sound param took the name (a sound's
+		// arpRate is its own patched param)
+		if (const std::optional<deluge::plugin::ParamId> arp = deluge::arp::find_by_file_name(tag_name)) {
+			if (!foundParam) {
+				mapSound(value, {deluge::project::ParamSpace::ARP, *arp});
+			}
+			mapGlobal(value, {deluge::project::ParamSpace::ARP, *arp});
+			reader.exitTag();
+			continue;
 		}
 		// Loop through global params
 		for (uint8_t paramId = 0; paramId < params::UNPATCHED_GLOBAL_MAX_NUM; paramId++) {

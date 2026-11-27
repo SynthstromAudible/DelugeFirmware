@@ -2,6 +2,8 @@
 /// @brief `ParamPopupScene`. See `param_popup_scene.h`.
 
 #include "ui/scenes/overlay/param_popup_scene.h"
+
+#include "arp/params.h"
 #include "ui/scenes/services/source_names.h"
 
 #include "ui/widgets/oled/popup.h"
@@ -200,7 +202,8 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 		out.append(text);
 		return display_value;
 	}
-	if (deluge::instruments::classic::is_arp_rhythm_at(kind, static_cast<uint32_t>(param_id))) {
+	if (kind == plugin::ParamKind::ARP && param_id >= 0
+	    && deluge::arp::is_rhythm(deluge::arp::id_at(static_cast<std::size_t>(param_id)))) {
 		const int32_t display_value =
 		    calculate_knob_pos_for_display(kind, param_id, knob_pos + plugin::kMaxKnobPosition / 2);
 		char name[12];

@@ -224,6 +224,7 @@ root = "src/project"
 prefix = "project/"
 may_include = [
     "plugin/types/",
+    "arp/",
     # an engine's state, held without naming its type (a record owns its instrument's state)
     "plugin/state_handle.h",
     "plugin/plugin.h",
@@ -251,6 +252,7 @@ root = "src/ui/scenes/bind"
 prefix = "ui/scenes/bind/"
 may_include = [
     "project/",
+    "arp/",
     "ui/controls/",
     "plugin/",
     "instruments/classic/",

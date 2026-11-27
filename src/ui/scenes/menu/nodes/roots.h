@@ -96,6 +96,7 @@
 ///       Every `Kind::Custom` node counts as **one node** against `kMaxCustomNodes` (the cap counts nodes, not
 ///       distinct `CustomItem` instances).
 
+#include "arp/params.h"
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/actions.h" // the five action items
 #include "ui/scenes/menu/nodes/column_hooks.h"
@@ -636,10 +637,8 @@ inline constexpr Node kit_fx_actions = submenu(sid(String::STRING_FOR_ACTIONS), 
 // (`KitRate::isRelevant` in `origin/main:src/deluge/gui/menu_item/arpeggiator/rate.h`); `arpGateMenu` is shared with
 // the sound arpeggiator.
 inline constexpr Node arp_kit_rate =
-    param(sid(String::STRING_FOR_RATE),
-          {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-           deluge::host::chains::runtime_index(deluge::host::chains::param::kArpRate)},
-          Hint::Knob, param_shows::kKitEffects, sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));
+    param(sid(String::STRING_FOR_RATE), arp_param(deluge::arp::param::kRate), Hint::Knob, param_shows::kKitEffects,
+          sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));
 inline constexpr const Node* kArpBasicKitChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_kit_rate};
 inline constexpr Node arp_basic_kit = submenu(sid(String::STRING_FOR_BASIC), kArpBasicKitChildren, Layout::Horizontal,
                                               nullptr, sid(String::STRING_FOR_ARP_BASIC_MENU_TITLE));

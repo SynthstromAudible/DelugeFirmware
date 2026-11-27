@@ -21,11 +21,13 @@
 
 namespace deluge::ui::scenes::bind {
 
-/// @brief Whose table a PARAM target's id is in: a sound's (the Deluge instrument's) or a chain's (the global
-///        effectable's). The two number their params apart, so an id means a param only with its table.
+/// @brief Whose table a PARAM target's id is in: a sound's (the Deluge instrument's), a chain's (the global
+///        effectable's), or the arp's (arp/params.h), on whichever owner holds the arp. The tables number their params
+///        apart, so an id means a param only with its table.
 enum class ParamTable : uint8_t {
 	SOUND,
 	CHAIN,
+	ARP,
 };
 
 /// @brief What a node edits. A node with a target takes its value, range, choices, names and applicability from the

@@ -63,6 +63,12 @@ int32_t ArpParamSet::word(deluge::plugin::ParamId id) const {
 	return params_[id.value].getCurrentValue();
 }
 
+void ArpParamSet::set_words(const deluge::arp::Values& values) {
+	for (std::size_t i = 0; i < deluge::arp::kParamCount; ++i) {
+		set_word(deluge::arp::id_at(i), values.words[i]);
+	}
+}
+
 void ArpParamSet::set_word(deluge::plugin::ParamId id, int32_t word) {
 	params_[id.value].setBase(*docForParam(static_cast<int32_t>(id.value)), word);
 }

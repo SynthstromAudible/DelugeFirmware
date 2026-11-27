@@ -51,10 +51,7 @@ bool isParamBipolar(Kind kind, int32_t paramID) {
 }
 
 bool isParamArpRhythm(Kind kind, int32_t paramID) {
-	if (kind == Kind::ARP) {
-		return paramID >= 0 && arp::is_rhythm(arp::id_at(static_cast<std::size_t>(paramID)));
-	}
-	return instruments::classic::is_arp_rhythm_at(kind, static_cast<uint32_t>(paramID));
+	return kind == Kind::ARP && paramID >= 0 && arp::is_rhythm(arp::id_at(static_cast<std::size_t>(paramID)));
 }
 
 bool isParamStutter(Kind kind, int32_t paramID) {

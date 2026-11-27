@@ -113,31 +113,6 @@ static_assert(instrument::param::kModFXFeedback.value == params::UNPATCHED_START
 static_assert(instrument::param::kCompressorShape.value == params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE);
 static_assert(instrument::param::kCompressorThreshold.value
               == params::UNPATCHED_START + params::UNPATCHED_COMPRESSOR_THRESHOLD);
-static_assert(instrument::param::kArpGate.value == params::UNPATCHED_START + params::UNPATCHED_ARP_GATE);
-static_assert(instrument::param::kRhythm.value == params::UNPATCHED_START + params::UNPATCHED_ARP_RHYTHM);
-static_assert(instrument::param::kSequenceLength.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_SEQUENCE_LENGTH);
-static_assert(instrument::param::kChordPolyphony.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_POLYPHONY);
-static_assert(instrument::param::kRatchetAmount.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT);
-static_assert(instrument::param::kNoteProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY);
-static_assert(instrument::param::kReverseProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY);
-static_assert(instrument::param::kBassProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY);
-static_assert(instrument::param::kSwapProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_SWAP_PROBABILITY);
-static_assert(instrument::param::kGlideProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_GLIDE_PROBABILITY);
-static_assert(instrument::param::kChordProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_PROBABILITY);
-static_assert(instrument::param::kRatchetProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_PROBABILITY);
-static_assert(instrument::param::kSpreadGate.value == params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_GATE);
-static_assert(instrument::param::kSpreadOctave.value == params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE);
-static_assert(instrument::param::kSpreadVelocity.value == params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY);
 static_assert(instrument::param::kPortamento.value == params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO);
 // a global effectable's unpatched params
 static_assert(host_chain::param::kStutterRate.value == params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE);
@@ -153,36 +128,10 @@ static_assert(host_chain::param::kModFXFeedback.value == params::UNPATCHED_START
 static_assert(host_chain::param::kCompressorShape.value == params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE);
 static_assert(host_chain::param::kCompressorThreshold.value
               == params::UNPATCHED_START + params::UNPATCHED_COMPRESSOR_THRESHOLD);
-static_assert(host_chain::param::kArpGate.value == params::UNPATCHED_START + params::UNPATCHED_ARP_GATE);
-static_assert(host_chain::param::kRhythm.value == params::UNPATCHED_START + params::UNPATCHED_ARP_RHYTHM);
-static_assert(host_chain::param::kSequenceLength.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_SEQUENCE_LENGTH);
-static_assert(host_chain::param::kChordPolyphony.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_POLYPHONY);
-static_assert(host_chain::param::kRatchetAmount.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT);
-static_assert(host_chain::param::kNoteProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY);
-static_assert(host_chain::param::kReverseProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY);
-static_assert(host_chain::param::kBassProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY);
-static_assert(host_chain::param::kSwapProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_SWAP_PROBABILITY);
-static_assert(host_chain::param::kGlideProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_GLIDE_PROBABILITY);
-static_assert(host_chain::param::kChordProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_PROBABILITY);
-static_assert(host_chain::param::kRatchetProbability.value
-              == params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_PROBABILITY);
-static_assert(host_chain::param::kSpreadGate.value == params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_GATE);
-static_assert(host_chain::param::kSpreadOctave.value == params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE);
-static_assert(host_chain::param::kSpreadVelocity.value == params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY);
 static_assert(host_chain::param::kModFXRate.value == params::UNPATCHED_START + params::UNPATCHED_MOD_FX_RATE);
 static_assert(host_chain::param::kModFXDepth.value == params::UNPATCHED_START + params::UNPATCHED_MOD_FX_DEPTH);
 static_assert(host_chain::param::kDelayRate.value == params::UNPATCHED_START + params::UNPATCHED_DELAY_RATE);
 static_assert(host_chain::param::kDelayFeedback.value == params::UNPATCHED_START + params::UNPATCHED_DELAY_AMOUNT);
-static_assert(host_chain::param::kArpRate.value == params::UNPATCHED_START + params::UNPATCHED_ARP_RATE);
 static_assert(host_chain::param::kPan.value == params::UNPATCHED_START + params::UNPATCHED_PAN);
 static_assert(host_chain::param::kLpfFrequency.value == params::UNPATCHED_START + params::UNPATCHED_LPF_FREQ);
 static_assert(host_chain::param::kLpfResonance.value == params::UNPATCHED_START + params::UNPATCHED_LPF_RES);

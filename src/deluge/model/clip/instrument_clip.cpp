@@ -4271,13 +4271,14 @@ haveNoDrum:
 						}
 					}
 				}
-				// A MIDI or gate drum's row holds its own arp's set.
+				// A MIDI or gate drum's row holds its own arp's set, starting at its drum's values.
 				else if (thisNoteRow->drum->type != DrumType::SOUND
 				         && thisNoteRow->paramManager.getArpParamSet() == nullptr) {
 					error = thisNoteRow->paramManager.setupArpOnly(deluge::arp::Owner::ROW);
 					if (error != Error::NONE) {
 						return error;
 					}
+					thisNoteRow->paramManager.getArpParamSet()->set_words(thisNoteRow->drum->arpSettings.values);
 				}
 			}
 			noteRowCount++;
@@ -4321,6 +4322,12 @@ haveNoDrum:
 			Error error = paramManager.setupArpOnly(deluge::arp::Owner::CLIP);
 			if (error != Error::NONE) {
 				return error;
+			}
+		}
+		// A MIDI or CV clip's arp element held its values; its set plays them.
+		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+			if (ArpParamSet* arp = paramManager.getArpParamSet()) {
+				arp->set_words(arpSettings.values);
 			}
 		}
 

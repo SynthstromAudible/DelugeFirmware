@@ -21,6 +21,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param.h"
 #include "processing/engines/cv_engine.h"
 #include "project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
@@ -52,13 +53,17 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSa
 	// MIDI / CV arpeggiator
 	if (activeClip) {
 		InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
+		// The clip's arp plays its own set's values.
+		if (const ArpParamSet* arp = activeInstrumentClip->paramManager.getArpParamSet()) {
+			activeInstrumentClip->arpSettings.values = arp->values();
+		}
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
-			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpSettings.gate + 2147483648;
+			uint32_t gateThreshold = activeInstrumentClip->arpSettings.values.unsigned_word(deluge::arp::param::kGate);
 			// The arp's stored rate word is the knob, Q31.
 			uint32_t phaseIncrement =
 			    activeInstrumentClip->arpSettings.getPhaseIncrement(ArpeggiatorSettings::rate_from_knob(
-			        deluge::dsp::Q<31>::from_raw(activeInstrumentClip->arpSettings.rate)));
+			        deluge::dsp::Q<31>::from_raw(activeInstrumentClip->arpSettings.values[deluge::arp::param::kRate])));
 
 			ArpReturnInstruction instruction;
 

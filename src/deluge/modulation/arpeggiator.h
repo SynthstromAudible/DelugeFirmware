@@ -18,6 +18,7 @@
 #pragma once
 
 #include "algorithm"
+#include "arp/values.h"
 #include "definitions_cxx.hpp"
 #include "dsp/core/fixed_point.h"
 #include "modulation/sync.h"
@@ -52,8 +53,6 @@ enum class ArpType : uint8_t {
 class ArpeggiatorSettings {
 public:
 	ArpeggiatorSettings();
-
-	void updateParamsFromUnpatchedParamSet(UnpatchedParamSet* unpatchedParams);
 
 	void cloneFrom(ArpeggiatorSettings const* other);
 
@@ -138,23 +137,9 @@ public:
 	// Temporary flags
 	bool flagForceArpRestart{false};
 
-	// Automatable params
-	int32_t rate{0}; // Default to 25 if not set in XML
-	int32_t gate{0}; // Default to 25 if not set in XML
-	uint32_t rhythm{0};
-	uint32_t sequenceLength{0};
-	uint32_t chordPolyphony{0};
-	uint32_t ratchetAmount{0};
-	uint32_t noteProbability{4294967295u}; // Default to 25 if not set in XML
-	uint32_t bassProbability{0};
-	uint32_t swapProbability{0};
-	uint32_t glideProbability{0};
-	uint32_t reverseProbability{0};
-	uint32_t chordProbability{0};
-	uint32_t ratchetProbability{0};
-	uint32_t spreadVelocity{0};
-	uint32_t spreadGate{0};
-	uint32_t spreadOctave{0};
+	/// The values the arp plays by this block: its owner's arp set's (arp/params.h), as the owner gives them each
+	/// block.
+	deluge::arp::Values values = deluge::arp::Values::defaults(deluge::arp::Owner::CLIP);
 };
 enum class ArpNoteStatus : uint8_t {
 	OFF,

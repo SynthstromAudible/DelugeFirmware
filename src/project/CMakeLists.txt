@@ -22,6 +22,6 @@ if(DEFINED DELUGE_CXX_STANDARD)
                                                   CXX_EXTENSIONS ON)
 endif()
 
-target_link_libraries(deluge_project PUBLIC deluge_plugin_types deluge_plugin deluge_serialization deluge_music)
+target_link_libraries(deluge_project PUBLIC deluge_plugin_types deluge_plugin deluge_serialization deluge_music deluge_arp)
 
 target_compile_options(deluge_project PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})

@@ -34,7 +34,7 @@ namespace deluge::ui::controls {
 
 /// @brief The id of the instrument param a kit's sound row is never followed on: its portamento, which a kit's rows do
 /// not play.
-inline constexpr uint32_t kFollowRefusedOnKitRow = 116;
+inline constexpr uint32_t kFollowRefusedOnKitRow = 101;
 
 /// @brief MIDI follow's CC assignments: which param each CC names on a sound and on a global-effectable owner.
 struct FollowTables {

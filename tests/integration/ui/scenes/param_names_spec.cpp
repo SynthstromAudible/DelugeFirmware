@@ -72,7 +72,7 @@ describe param_names_cases("param display names", ${
 	});
 	it("names a runtime index as the id it numbers", _ {
 		select_language();
-		expect(text(l10n::param_name_at(ParamKind::UNPATCHED_SOUND, 26))).to_equal("Portamento");
+		expect(text(l10n::param_name_at(ParamKind::UNPATCHED_SOUND, 11))).to_equal("Portamento");
 		expect(text(l10n::param_name_at(ParamKind::PATCHED, 24))).to_equal("LPF frequency");
 	});
 	it("renames the morph params after what the ladder filters make them", _ {

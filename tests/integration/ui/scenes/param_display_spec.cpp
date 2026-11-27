@@ -7,6 +7,7 @@
 ///
 /// @note The SPEC may include `ui/scenes/menu/`; the library may not (`scripts/check_layer_rules.py`).
 
+#include "arp/params.h"
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "plugin/types/param.h"
@@ -94,6 +95,8 @@ const ParamInfo* row_of(ParamRef ref) {
 		return deluge::plugin::find_param(deluge::instruments::classic::kParams, id);
 	case params::Kind::UNPATCHED_GLOBAL:
 		return deluge::plugin::find_param(deluge::host::chains::kParams, id);
+	case params::Kind::ARP:
+		return deluge::plugin::find_param(deluge::arp::kParamInfos, id);
 	default:
 		return nullptr;
 	}

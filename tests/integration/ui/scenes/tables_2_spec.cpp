@@ -22,6 +22,7 @@
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
+#include "support/main_numbering.h"
 #include "support/sound_fixtures.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
@@ -75,6 +76,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <optional>
 #include <set>
@@ -309,10 +311,27 @@ describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 				expect(table().find(e.path, "param_index")).to_be_null();
 				continue;
 			}
-			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
+			std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
 			const std::string at = e.path + " " + text_of(e.node->name);
+			// Main's unpatched indices, in this tree's numbering (support/main_numbering.h).
+			const deluge::plugin::ParamKind node_kind = e.node->bind.param.kind;
+			const bool chain = node_kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL || (index && *index == 30);
+			if (index && node_kind == deluge::plugin::ParamKind::ARP) {
+				const std::optional<uint32_t> arp = spec::main_numbering::arp_id_of_index(chain, *index);
+				index = arp ? std::optional<int32_t>{static_cast<int32_t>(*arp)} : std::nullopt;
+			}
+			else if (index && (node_kind == deluge::plugin::ParamKind::UNPATCHED_SOUND || node_kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL)) {
+				index = spec::main_numbering::index_of(*index);
+			}
 			expect(at + " index " + std::to_string(e.node->bind.param.index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
+			if (node_kind == deluge::plugin::ParamKind::ARP) {
+				// Main kept it in an unpatched set: its kind is not the node's, so its kind rows are read, not compared.
+				for (const char* fixture : {"synth", "kit row"}) {
+					(void)table().find(e.path, std::string{"param_kind@"} + fixture);
+				}
+				continue;
+			}
 			for (const char* fixture : {"synth", "kit row"}) {
 				const std::optional<int32_t> kind = spec::int_of(table().find(e.path, std::string{"param_kind@"} + fixture));
 				if (!kind || *kind == static_cast<int32_t>(deluge::modulation::params::Kind::NONE)) {
@@ -397,8 +416,16 @@ describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 					continue;
 				}
 				const std::string at = e.path + " " + text_of(e.node->name) + " learns ";
-				expect(at + (got ? std::to_string(got->param.id.value) : std::string{"none"}))
-				    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
+				std::string wanted = want->empty() ? std::string{"<no value>"} : want->front();
+				// Main's unpatched ids, in this tree's numbering (support/main_numbering.h); a chain's from its arp rate.
+				if (!want->empty() && std::isdigit(static_cast<unsigned char>(wanted.front())) != 0) {
+					const uint64_t main_id = std::stoull(wanted);
+					if (main_id >= spec::main_numbering::kUnpatchedFirstId && main_id <= 132) {
+						wanted = std::to_string(
+						    spec::main_numbering::target_of_id(main_id >= 120, static_cast<uint32_t>(main_id)).id.value);
+					}
+				}
+				expect(at + (got ? std::to_string(got->param.id.value) : std::string{"none"})).to_equal(at + wanted);
 				if (got) {
 					expect(got->owner).to_equal(menu::bindings::controls_owner(fx.ctx));
 				}

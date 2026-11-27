@@ -34,6 +34,9 @@ public:
 	/// @brief Set @p id's base word, as a load or a setting write does (no automation recorded).
 	void set_word(deluge::plugin::ParamId id, int32_t word);
 
+	/// @brief Set every param's base word from @p values, as seeding an arp from its owner's loaded values does.
+	void set_words(const deluge::arp::Values& values);
+
 	/// @brief Who holds the arp.
 	[[nodiscard]] deluge::arp::Owner owner() const { return owner_; }
 

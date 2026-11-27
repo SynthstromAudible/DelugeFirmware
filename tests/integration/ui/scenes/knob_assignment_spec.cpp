@@ -24,6 +24,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "util/functions.h"
 
+#include "support/main_numbering.h"
 #include "support/recorded_knob_assignments.h"
 #include "support/song_fixture.h"
 
@@ -61,7 +62,20 @@ std::vector<std::string> disagreements(::Song& song, const bind::KnobFocus& focu
 		for (int32_t knob = 0; knob < 2; knob++) {
 			const bind::KnobAssignment port = bind::knob_assignment(song.project, focus, knob, kDelugeControls);
 			const std::string at = label + " mode " + std::to_string(mode) + " knob " + std::to_string(knob) + ": ";
-			const knob_recorded::NamedParam want = recorded[next++];
+			knob_recorded::NamedParam want = recorded[next++];
+			// Main named its unpatched params past the arp's 15 (16) higher.
+			const bool unpatched = want.kind == static_cast<int8_t>(deluge::plugin::ParamKind::UNPATCHED_SOUND)
+			                       || want.kind == static_cast<int8_t>(deluge::plugin::ParamKind::UNPATCHED_GLOBAL);
+			if (unpatched && want.space == 0
+			    && want.id >= deluge::ui::scenes::spec::main_numbering::kUnpatchedFirstId) {
+				const deluge::project::ParamTarget ours = deluge::ui::scenes::spec::main_numbering::target_of_id(
+				    want.kind == static_cast<int8_t>(deluge::plugin::ParamKind::UNPATCHED_GLOBAL), want.id);
+				want.space = static_cast<int8_t>(ours.space);
+				want.id = ours.id.value;
+				if (ours.space == deluge::project::ParamSpace::ARP) {
+					want.kind = static_cast<int8_t>(deluge::plugin::ParamKind::ARP);
+				}
+			}
 			if (const auto* named = std::get_if<deluge::project::ParamAddress>(&port.target)) {
 				// The lane is the recorded param on the owner and clip the fixture holds.
 				if (want.space != static_cast<int8_t>(named->space) || want.id != named->id.value

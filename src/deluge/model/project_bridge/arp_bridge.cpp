@@ -17,6 +17,8 @@
 
 #include "model/project_bridge/arp_bridge.h"
 
+#include "arp/params.h"
+
 #include "modulation/arpeggiator.h"
 #include "project/arp_codec.h"
 #include "storage/storage_manager.h"
@@ -41,26 +43,11 @@ project::ArpRecord arpRecordOf(const ArpeggiatorSettings& settings, bool hostVal
 	    .kit_arp = settings.includeInKitArp,
 	};
 	if (hostValues) {
-		const auto hold = [&](std::string_view name, uint32_t value) {
-			project::set_host_value(record, std::string{"arpeggiator/"} + std::string{name},
-			                        static_cast<int32_t>(value));
-		};
-		hold("gate", static_cast<uint32_t>(settings.gate));
-		hold("rate", static_cast<uint32_t>(settings.rate));
-		hold("rhythm", settings.rhythm);
-		hold("sequenceLength", settings.sequenceLength);
-		hold("chordPolyphony", settings.chordPolyphony);
-		hold("ratchetAmount", settings.ratchetAmount);
-		hold("noteProbability", settings.noteProbability);
-		hold("bassProbability", settings.bassProbability);
-		hold("swapProbability", settings.swapProbability);
-		hold("glideProbability", settings.glideProbability);
-		hold("reverseProbability", settings.reverseProbability);
-		hold("chordProbability", settings.chordProbability);
-		hold("ratchetProbability", settings.ratchetProbability);
-		hold("spreadVelocity", settings.spreadVelocity);
-		hold("spreadGate", settings.spreadGate);
-		hold("spreadOctave", settings.spreadOctave);
+		// The host values are the engine's numbers: word + 2^31 for every value but the gate and the rate.
+		for (const arp::Param& p : arp::kParams) {
+			project::set_host_value(record, std::string{"arpeggiator/"} + std::string{p.setting_name},
+			                        arp::field_of_word(p.info.id, settings.values[p.info.id]));
+		}
 	}
 	return record;
 }

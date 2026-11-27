@@ -145,6 +145,11 @@ struct ParamRef {
 	constexpr bool valid() const { return kind != deluge::plugin::ParamKind::NONE; }
 };
 
+/// @brief The reference to an arp param: its id in the arp's table (arp/params.h), on whichever owner holds the arp.
+constexpr ParamRef arp_param(deluge::plugin::ParamId id) {
+	return {.kind = deluge::plugin::ParamKind::ARP, .index = static_cast<uint8_t>(id.value)};
+}
+
 /// @brief Forward declared only -- see the file-level note. Defined in `context.h` (a later task).
 struct MenuContext;
 } // namespace deluge::ui::scenes::menu
@@ -1217,7 +1222,7 @@ constexpr bool node_uses_affect_entire(const Node& n) {
 	    n.bind.get == nullptr
 	    && (!n.bind.target.valid() || n.bind.target.kind == deluge::ui::scenes::bind::Target::Kind::PARAM);
 	return n.uses_affect_entire || n.bind.param.kind == ParamKind::PATCHED
-	       || n.bind.param.kind == ParamKind::UNPATCHED_SOUND
+	       || n.bind.param.kind == ParamKind::UNPATCHED_SOUND || n.bind.param.kind == ParamKind::ARP
 	       || (n.bind.param.kind == ParamKind::UNPATCHED_GLOBAL && edits_its_param);
 }
 
@@ -1469,8 +1474,14 @@ constexpr deluge::plugin::ParamId param_id_of(ParamRef p) {
 
 /// @brief The table @ref param_id_of names @p p's param in.
 constexpr deluge::ui::scenes::bind::ParamTable param_table_of(ParamRef p) {
-	return p.kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL ? deluge::ui::scenes::bind::ParamTable::CHAIN
-	                                                             : deluge::ui::scenes::bind::ParamTable::SOUND;
+	switch (p.kind) {
+	case deluge::plugin::ParamKind::UNPATCHED_GLOBAL:
+		return deluge::ui::scenes::bind::ParamTable::CHAIN;
+	case deluge::plugin::ParamKind::ARP:
+		return deluge::ui::scenes::bind::ParamTable::ARP;
+	default:
+		return deluge::ui::scenes::bind::ParamTable::SOUND;
+	}
 }
 
 /// @brief Where a param node shows, beyond where its owner holds the param: conditions over the owner's setting rows,
