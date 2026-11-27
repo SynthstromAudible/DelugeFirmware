@@ -68,8 +68,13 @@ uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
 			extraSize += maxAlign_;
 			requiredSize -= maxAlign_;
 		}
+		// What's left after taking off whole maxAlign_ chunks can be a power of 2 smaller than minAlign_ (1, 2 or 4),
+		// which would leave the total unaligned
+		if (requiredSize < minAlign_) {
+			requiredSize = minAlign_;
+		}
 		// if it's not a power of 2 go up to the next power of 2
-		if (!((requiredSize & (requiredSize - 1)) == 0)) {
+		else if (!((requiredSize & (requiredSize - 1)) == 0)) {
 			int magnitude = 32 - clz(requiredSize);
 			requiredSize = 1 << magnitude;
 		}
