@@ -733,7 +733,8 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	         && getCurrentInstrumentClip()->inScaleMode) {
 
 		toggleScaleModeOnButtonRelease = false;
-		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
+		// offset can be more than an octave down (a fast turn), and C's % keeps the sign, so wrap into 0..11 properly
+		int32_t newRootNote = (((currentSong->key.rootNote + offset) % kOctaveSize) + kOctaveSize) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 		bool useSharps = useSharpsForNoteNames(); // Of the new key
 
