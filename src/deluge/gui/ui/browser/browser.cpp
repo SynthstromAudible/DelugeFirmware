@@ -1033,6 +1033,7 @@ tryReadingItems:
 gotErrorAfterAllocating:
 				D_PRINTLN("error while reloading, emptying file items");
 				emptyFileItems();
+				fileIndexSelected = -1; // Nothing left to select - getCurrentFileItem() must return null now
 				return;
 				// TODO - need to close UI or something?
 			}
