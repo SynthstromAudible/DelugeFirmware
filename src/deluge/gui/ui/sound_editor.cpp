@@ -582,10 +582,21 @@ void SoundEditor::enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFro
 	// end current menu item session before beginning new menu item session
 	endScreen();
 
-	navigationDepth++;
-	menuItemNavigationRecord[navigationDepth] = newItem;
+	pushNavigationRecord(navigationDepth, newItem);
 	display->setNextTransitionDirection(1);
 	beginScreen(navigatedBackwardFrom);
+}
+
+void SoundEditor::pushNavigationRecord(int32_t parentDepth, MenuItem* newItem) {
+	// Some menus can be entered from each other in a loop (e.g. the patch cable range menus), so the depth has no
+	// natural limit. When the record is full, forget the oldest level above the root so BACK still ends at the root.
+	if (parentDepth >= kNavigationRecordSize - 1) {
+		parentDepth = kNavigationRecordSize - 2;
+		memmove(&menuItemNavigationRecord[1], &menuItemNavigationRecord[2],
+		        (kNavigationRecordSize - 2) * sizeof(menuItemNavigationRecord[0]));
+	}
+	navigationDepth = parentDepth + 1;
+	menuItemNavigationRecord[navigationDepth] = newItem;
 }
 
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -1606,8 +1617,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 							modulationItemFound = true;
 							item = nullptr; // don't open another shortcut on top of this
-							navigationDepth = newNavigationDepth + 1;
-							menuItemNavigationRecord[navigationDepth] = newMenuItem;
+							pushNavigationRecord(newNavigationDepth, newMenuItem);
 							if (!wentBack) {
 								display->setNextTransitionDirection(1);
 							}
