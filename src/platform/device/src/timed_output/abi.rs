@@ -23,6 +23,15 @@ fn queue(port: DelugeMidiPort) -> Option<usize> {
 }
 
 #[cfg(target_os = "none")]
+use super::device::display_stats;
+
+/// The host has no display bus to share.
+#[cfg(not(target_os = "none"))]
+fn display_stats() -> (u32, u32) {
+    (0, 0)
+}
+
+#[cfg(target_os = "none")]
 fn usb_connected() -> bool {
     usb_classes::midi::connected()
 }
@@ -77,14 +86,15 @@ pub extern "C" fn deluge_out_stats(out: *mut DelugeOutStats) {
         return;
     }
     let stats = service(|s| s.stats());
+    let (display_deferred, display_forced) = display_stats();
     // SAFETY: the app passes a valid out-pointer.
     unsafe {
         *out = DelugeOutStats {
             late: stats.late,
             dropped: stats.dropped,
-            cv_late_display: 0,
-            display_deferred: 0,
-            display_forced: 0,
+            cv_late: stats.cv_late,
+            display_deferred,
+            display_forced,
         };
     }
 }

@@ -71,7 +71,7 @@ void deluge_out_gate_cancel(uint8_t mask) DELUGE_NOEXCEPT;
 typedef struct DelugeOutStats {
 	uint32_t late;             ///< events sent more than a sample after their stamp
 	uint32_t dropped;          ///< events refused because a queue was full
-	uint32_t cv_late_display;  ///< CV words late because a display frame held the bus past their time
+	uint32_t cv_late;          ///< CV words among `late` (on the Deluge, held off by a display frame on the shared bus)
 	uint32_t display_deferred; ///< display frames that waited for a gap between CV writes
 	uint32_t display_forced;   ///< display frames sent without a gap after waiting their longest
 } DelugeOutStats;

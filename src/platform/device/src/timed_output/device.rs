@@ -50,16 +50,27 @@ fn clock() -> Clock {
     }
 }
 
-/// Run `f` on the service with its lock held, then send what is due and arm the output timer for
-/// the rest. Every submit and the timer's interrupt come through here.
+/// Run `f` on the service with its lock held, then send what is due, arm the output timer for the
+/// rest and reserve RSPI0 for the next CV write. Every submit and the timer's interrupt come
+/// through here.
 pub(crate) fn service<R>(f: impl FnOnce(&mut Service) -> R) -> R {
     critical_section::with(|cs| {
         let mut s = SERVICE.borrow_ref_mut(cs);
         let result = f(&mut s);
-        match s.fire(&CONFIG, clock(), &mut Hardware) {
+        let now = clock();
+        match s.fire(&CONFIG, now, &mut Hardware) {
             Some(at) => crate::peripherals::signals::output_timer_arm_at(at),
             None => crate::peripherals::signals::output_timer_cancel(),
         }
+        // The next CV write reserves RSPI0, so a display frame that wouldn't be done by then waits.
+        // The Embassy clock counts µs here (tick-hz-1_000_000), so a µs deadline is its tick.
+        deluge_bsp::bus::reserve_rspi0(s.next_cv_write(&CONFIG, now));
         result
     })
+}
+
+/// The display's share of the counts: frames that waited for a gap between CV writes, and those of
+/// them that went without one.
+pub(crate) fn display_stats() -> (u32, u32) {
+    deluge_bsp::bus::window_stats()
 }
