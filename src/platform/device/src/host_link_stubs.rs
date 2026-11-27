@@ -14,9 +14,6 @@ use crate::sys::{
     DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,
 };
 
-/// `midi_io.h`'s `DELUGE_MIDI_DIN`: the port the app writes DIN MIDI to.
-const DIN_PORT: DelugeMidiPort = 0;
-
 /// DIN bytes written while no simulator panel takes them (host specs), oldest first; drained by
 /// `deluge_host_midi_out_take`.
 static HOST_MIDI_OUT: std::sync::Mutex<Vec<u8>> = std::sync::Mutex::new(Vec::new());
@@ -73,29 +70,8 @@ pub extern "C" fn deluge_cv_init(display_shares_spi: bool) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_cv_set(channel: u8, value: u16) {
-    stub_log!("deluge_cv_set");
-    // No DAC to wait for: the write has gone out as soon as it is made.
-    CV_SENT_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-}
-
-/// How many CV writes have gone out: every one, at once, on the host.
-static CV_SENT_COUNT: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_cv_sent_count() -> u32 {
-    stub_log!("deluge_cv_sent_count");
-    CV_SENT_COUNT.load(core::sync::atomic::Ordering::Relaxed)
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn deluge_gate_init() {
     stub_log!("deluge_gate_init");
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_gate_set(channel: u8, on: bool) {
-    stub_log!("deluge_gate_set");
 }
 
 /// The app's trigger-clock handler, or 0 for none.
@@ -165,17 +141,6 @@ pub(crate) fn host_din_write(bytes: &[u8]) {
         .extend_from_slice(bytes);
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u32) -> u32 {
-    stub_log!("deluge_midi_write");
-    if port == DIN_PORT {
-        // SAFETY: the app passes `len` valid bytes.
-        host_din_write(unsafe { core::slice::from_raw_parts(src, len as usize) });
-    }
-    // Accept all, so a caller retrying on partial acceptance cannot spin forever.
-    len
-}
-
 /// Moves up to `cap` of the kept DIN bytes into `dst`, oldest first; returns how many it moved.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_host_midi_out_take(dst: *mut u8, cap: u32) -> u32 {
@@ -185,18 +150,6 @@ pub extern "C" fn deluge_host_midi_out_take(dst: *mut u8, cap: u32) -> u32 {
     unsafe { core::ptr::copy_nonoverlapping(kept.as_ptr(), dst, n) };
     kept.drain(..n);
     n as u32
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_write_space(port: DelugeMidiPort) -> u32 {
-    stub_log!("deluge_midi_write_space");
-    256
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
-    stub_log!("deluge_midi_write_pending");
-    0
 }
 
 #[unsafe(no_mangle)]
@@ -220,11 +173,6 @@ pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_stamp: *mut 
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_flush(port: DelugeMidiPort) {
-    stub_log!("deluge_midi_flush");
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_service() {
     stub_log!("deluge_midi_service");
 }
@@ -245,40 +193,6 @@ pub extern "C" fn deluge_midi_usb_peripheral_connected() -> bool {
 pub extern "C" fn deluge_midi_poll_usb_host_event() -> DelugeUsbHostEvent {
     stub_log!("deluge_midi_poll_usb_host_event");
     USB_HOST_NONE
-}
-
-/// The output timer's armed deadline on the `deluge_clock_now()` clock, or [`TIMER_DISARMED`].
-static GATE_TIMER_DEADLINE: core::sync::atomic::AtomicU64 =
-    core::sync::atomic::AtomicU64::new(TIMER_DISARMED);
-const TIMER_DISARMED: u64 = u64::MAX;
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_arm_at(deadline_us: u64) {
-    // A deadline of u64::MAX would read as disarmed; it is unreachable anyway.
-    GATE_TIMER_DEADLINE.store(
-        deadline_us.min(TIMER_DISARMED - 1),
-        core::sync::atomic::Ordering::Relaxed,
-    );
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_cancel() {
-    GATE_TIMER_DEADLINE.store(TIMER_DISARMED, core::sync::atomic::Ordering::Relaxed);
-}
-
-/// The host's stand-in for the output timer's interrupt: fires `midiAndGateTimerGoneOff()` once
-/// the armed deadline has passed. The render driver calls it after each block, on the render
-/// thread, so the app sees it at block granularity rather than mid-block.
-pub(crate) fn fire_midi_gate_timer_if_due() {
-    use core::sync::atomic::Ordering;
-    let deadline = GATE_TIMER_DEADLINE.load(Ordering::Relaxed);
-    if deadline == TIMER_DISARMED || embassy_time::Instant::now().as_micros() < deadline {
-        return;
-    }
-    // One-shot: disarmed before the handler runs, which arms again if anything is still to come.
-    GATE_TIMER_DEADLINE.store(TIMER_DISARMED, Ordering::Relaxed);
-    // SAFETY: an app-provided C symbol that `libdeluge/signals.h` documents as the timer callback.
-    unsafe { crate::sys::midiAndGateTimerGoneOff() };
 }
 
 // ── signals.h ──────────────────────────────────────────────────────────────
@@ -329,14 +243,8 @@ abi_pin!(
     deluge_battery_read_raw,
     deluge_battery_start_conversion,
     deluge_cv_init,
-    deluge_cv_sent_count,
-    deluge_cv_set,
     deluge_gate_init,
-    deluge_gate_set,
     deluge_midi_din_read_timed,
-    deluge_midi_flush,
-    deluge_midi_gate_timer_arm_at,
-    deluge_midi_gate_timer_cancel,
     deluge_midi_init,
     deluge_midi_poll_usb_host_event,
     deluge_midi_port_count,
@@ -345,9 +253,6 @@ abi_pin!(
     deluge_midi_usb_is_host,
     deluge_midi_usb_peripheral_connected,
     deluge_midi_usb_port,
-    deluge_midi_write,
-    deluge_midi_write_pending,
-    deluge_midi_write_space,
     deluge_signal_read,
     deluge_signal_write,
     deluge_trigger_clock_host_edge,

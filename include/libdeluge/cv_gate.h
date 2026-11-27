@@ -33,31 +33,12 @@ extern "C" {
 #endif
 
 /// Initialise the CV DAC (linearity calibration). `display_shares_spi` is true
-/// when the board's display shares the CV DAC's SPI bus, so the BSP serialises
-/// CV writes through the display's transfer queue rather than driving the bus
-/// directly. The setting is remembered for subsequent `deluge_cv_set`. [task]
+/// when the board's display shares the CV DAC's SPI bus. CV and gate output goes
+/// through `libdeluge/timed_output.h`. [task]
 void deluge_cv_init(bool display_shares_spi) DELUGE_NOEXCEPT;
-
-/// Set CV output `channel` (0..cv_channels-1) to a raw 16-bit DAC value. The BSP
-/// owns the DAC command format and the SPI routing. [task] [audio]
-void deluge_cv_set(uint8_t channel, uint16_t value) DELUGE_NOEXCEPT;
-
-/// Monotonically increasing count of CV writes actually dispatched to the DAC.
-///
-/// When the display shares the CV SPI bus (see deluge_cv_init), a deluge_cv_set()
-/// is queued behind display transfers and does not take effect immediately. The
-/// application polls this count (pull-based, never a callback) to tell when a
-/// queued CV write has gone out — e.g. to release a gate only after the pitch has
-/// settled. On boards that drive CV directly the count is unused. [task] [audio] [isr]
-uint32_t deluge_cv_sent_count(void) DELUGE_NOEXCEPT;
 
 /// Configure the gate output pins as outputs. [task]
 void deluge_gate_init(void) DELUGE_NOEXCEPT;
-
-/// Drive gate output `channel` (0..gate_channels-1) to electrical state `on`.
-/// (The application applies any S-trig/V-trig inversion before calling.)
-/// [task] [audio] [isr]
-void deluge_gate_set(uint8_t channel, bool on) DELUGE_NOEXCEPT;
 
 /// Callback invoked on each rising edge of the external trigger-clock input.
 /// `timestamp` is the edge's capture stamp (see `deluge_audio_stamp_to_render_offset`), widened to 64 bits. [isr]

@@ -83,7 +83,6 @@ public:
 	void sendPositionPointer(MIDISource source, uint16_t positionPointer);
 	void sendContinue(MIDISource source);
 
-	void flushMIDI();
 	void sendUsbMidi(MIDIMessage message, int32_t filter);
 	void sendSerialMidi(MIDIMessage message);
 

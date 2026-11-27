@@ -108,10 +108,6 @@ namespace encoders = deluge::hid::encoders;
 Song* currentSong = nullptr;
 Song* preLoadedSong = nullptr;
 
-extern "C" void midiAndGateTimerGoneOff(void) noexcept {
-	// The board's timed output service answers the timer: nothing of the app's is waiting for it
-}
-
 uint32_t timeNextGraphicsTick = 0;
 
 int32_t voltageReadingLastTime = 65535 * 3300;

@@ -1,9 +1,9 @@
 //! USB-MIDI event packets across the `midi_io.h` byte boundary.
 //!
-//! On a USB-MIDI port the app reads and writes whole 4-byte USB-MIDI 1.0 event packets
-//! (`[cable << 4 | CIN, midi0, midi1, midi2]`), SysEx included, and the BSP passes them to and from
-//! the USB class's packet queues unchanged. These helpers do the copying, generic over the queue,
-//! so the device's `midi` module and the host tests share them.
+//! On a USB-MIDI port the app reads whole 4-byte USB-MIDI 1.0 event packets
+//! (`[cable << 4 | CIN, midi0, midi1, midi2]`), SysEx included, and the BSP passes them from the
+//! USB class's packet queue unchanged. The reader does the copying, generic over the queue, so the
+//! device's `midi` module and the host tests share it.
 
 /// Bytes in one USB-MIDI 1.0 event packet.
 pub const PACKET_BYTES: usize = 4;
@@ -58,19 +58,4 @@ impl Default for TransferReader {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// Offers each whole packet of `src` to `send`, stopping at the first one refused (queue full).
-///
-/// A trailing partial packet is never sent. Returns the bytes accepted, a multiple of
-/// [`PACKET_BYTES`].
-pub fn write_packets(src: &[u8], mut send: impl FnMut([u8; 4]) -> bool) -> usize {
-    let mut accepted = 0;
-    for packet in src.as_chunks::<PACKET_BYTES>().0 {
-        if !send(*packet) {
-            break;
-        }
-        accepted += PACKET_BYTES;
-    }
-    accepted
 }

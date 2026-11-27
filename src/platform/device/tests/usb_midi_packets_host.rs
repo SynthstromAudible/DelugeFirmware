@@ -1,13 +1,13 @@
-//! Tests the USB-MIDI port's packet copying: whole 4-byte event packets, SysEx included, cross the
-//! `midi_io.h` boundary byte-identically in both directions.
+//! Tests the USB-MIDI port's packet reading: whole 4-byte event packets, SysEx included, cross the
+//! `midi_io.h` boundary byte-identically.
 //!
-//! The device's `deluge_midi_read_timed` / `deluge_midi_write` are these helpers over the USB class's
-//! packet queues; a bounded `VecDeque` stands in for those queues here. A read returns one
-//! transfer's packets, so the one stamp it gives is exact for all of them.
+//! The device's `deluge_midi_read_timed` is this reader over the USB class's packet queue; a bounded
+//! `VecDeque` stands in for it here. A read returns one transfer's packets, so the one stamp it
+//! gives is exact for all of them.
 
 use std::collections::VecDeque;
 
-use deluge_platform_device::peripherals::midi_packets::{TransferReader, write_packets};
+use deluge_platform_device::peripherals::midi_packets::TransferReader;
 
 /// A note-on on cable 0, channel 1.
 const NOTE_ON: [u8; 4] = [0x09, 0x90, 0x3C, 0x64];
@@ -41,11 +41,6 @@ impl Queue {
         }
         self.packets.push_back((packet, TICK));
         true
-    }
-
-    /// The queued packets, without their ticks.
-    fn sent(&self) -> Vec<[u8; 4]> {
-        self.packets.iter().map(|(p, _)| *p).collect()
     }
 }
 
@@ -115,28 +110,4 @@ fn a_held_packet_is_read_even_when_its_transfer_is_the_last() {
     );
     assert_eq!(reader.read(&mut dst, || rx.pop_front()), Some((4, 20)));
     assert_eq!(dst[..4], SYSEX[0]);
-}
-
-#[test]
-fn a_write_queues_the_packets_unchanged() {
-    let mut tx = Queue::new(32);
-    let src = concat(&[NOTE_ON, SYSEX[0]]);
-    assert_eq!(write_packets(&src, |p| tx.push(p)), 8);
-    assert_eq!(tx.sent(), [NOTE_ON, SYSEX[0]]);
-}
-
-#[test]
-fn a_write_reports_only_the_whole_packets_accepted() {
-    // A full queue takes what fits and reports it, so the caller can retry the rest.
-    let mut tx = Queue::new(2);
-    let src = concat(&[SYSEX[0], SYSEX[1], SYSEX[2]]);
-    assert_eq!(write_packets(&src, |p| tx.push(p)), 8);
-    assert_eq!(tx.sent(), [SYSEX[0], SYSEX[1]]);
-
-    // A trailing partial packet is not sent.
-    let mut tx = Queue::new(32);
-    let mut src = concat(&[NOTE_ON]);
-    src.extend_from_slice(&[0x0B, 0xB0]);
-    assert_eq!(write_packets(&src, |p| tx.push(p)), 4);
-    assert_eq!(tx.sent(), [NOTE_ON]);
 }

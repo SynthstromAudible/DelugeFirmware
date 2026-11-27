@@ -245,14 +245,6 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	}
 }
 
-// Warning - this will sometimes (not always) be called in an ISR
-void MidiEngine::flushMIDI() {
-	// USB-MIDI device ports share the controller's wire, so flushing any USB port
-	// pumps the whole USB-MIDI transport.
-	deluge_midi_flush(deluge_midi_usb_port(0, 0));
-	deluge_midi_flush(DELUGE_MIDI_DIN);
-}
-
 void MidiEngine::sendSerialMidi(MIDIMessage message) {
 
 	uint8_t statusByte = message.channel | (message.statusType << 4);

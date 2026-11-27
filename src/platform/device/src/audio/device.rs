@@ -359,24 +359,6 @@ pub extern "C" fn deluge_audio_input_resync() {
     RX_RESYNC_REQUESTED.store(true, Ordering::Release);
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_frames_until_block_offset(
-    offset_frames: u32,
-    elapsed_frames_out: *mut u32,
-) -> u32 {
-    let play_now = tx_play_frame();
-    unsafe {
-        if !elapsed_frames_out.is_null() {
-            let block_start_play = BLOCK_START_PLAY.load(Ordering::Relaxed);
-            *elapsed_frames_out = (play_now.wrapping_sub(block_start_play) & TX_MASK) as u32;
-        }
-        (BLOCK_START_WRITE
-            .wrapping_add(offset_frames as usize)
-            .wrapping_sub(play_now)
-            & TX_MASK) as u32
-    }
-}
-
 /// Returns how many samples after the next one the render produces the event stamped `stamp`
 /// takes effect at, for a constant latency from the event (see
 /// [`input_offset`](super::capture_stamp::input_offset)). Task tier.
@@ -435,7 +417,6 @@ abi_pin!(
     deluge_audio_drive,
     deluge_audio_overruns,
     deluge_audio_queue_blocks,
-    deluge_audio_frames_until_block_offset,
     deluge_audio_input_resync,
     deluge_audio_stamp_to_render_offset,
     deluge_audio_start,

@@ -127,7 +127,7 @@ const GATE_TIMER_TICKS_PER_SEC: u64 = 515_616;
 /// [`gate_timer_setup`] has run.
 static GATE_TIMER: OnceLock<OneShot<'static>> = OnceLock::new();
 
-/// MTU2 channel 2's compare match: clears and disarms the timer, then runs the app handler
+/// MTU2 channel 2's compare match: clears and disarms the timer, then runs the timed output service
 /// (which arms again if anything is still to come).
 struct GateTimerHandler;
 
@@ -140,8 +140,6 @@ impl Handler<typelevel::TGI2A> for GateTimerHandler {
             timer.disarm();
         }
         crate::timed_output::device::service(|_| ());
-        // SAFETY: an app-provided C symbol that `libdeluge/signals.h` documents as an ISR callback.
-        unsafe { crate::sys::midiAndGateTimerGoneOff() };
     }
 }
 
@@ -160,7 +158,7 @@ pub(crate) fn gate_timer_setup(timer: Peri<'static, GateTimer>) {
 }
 
 /// Timer ticks until `deadline_us`, at least one, saturating at the 16-bit compare register: a
-/// deadline beyond it fires early and the app arms again.
+/// deadline beyond it fires early and the service arms again.
 fn ticks_until(deadline_us: u64, now_us: u64) -> u16 {
     let us = deadline_us.saturating_sub(now_us);
     (us.saturating_mul(GATE_TIMER_TICKS_PER_SEC) / 1_000_000).clamp(1, u16::MAX as u64) as u16
@@ -188,21 +186,9 @@ pub(crate) fn output_timer_cancel() {
     });
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_arm_at(deadline_us: u64) {
-    output_timer_arm_at(deadline_us);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_cancel() {
-    output_timer_cancel();
-}
-
 abi_pin!(
     deluge_battery_read_raw,
     deluge_battery_start_conversion,
-    deluge_midi_gate_timer_arm_at,
-    deluge_midi_gate_timer_cancel,
     deluge_signal_read,
     deluge_signal_write,
 );

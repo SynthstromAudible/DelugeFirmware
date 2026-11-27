@@ -260,8 +260,7 @@ pub fn start() -> ! {
     deluge_bsp::jacks::init(pins.jacks);
     signals::leds_init(pins.sync_led, pins.battery_led);
     deluge_bsp::battery::init(pins.volt_sense);
-    // The sample-accurate MIDI/gate one-shot timer (MTU2 ch2), armed at render time through
-    // `deluge_midi_gate_timer_arm_at`.
+    // The sample-accurate MIDI/gate one-shot timer (MTU2 ch2), which the timed output service arms.
     signals::gate_timer_setup(board.gate_timer);
     // RSPI0, shared by the OLED and the CV DAC, then the DAC's linearity sequence on it. Both run
     // before the executor: `display::oled_render` draws as soon as the PIC is ready, and the DAC
@@ -332,8 +331,6 @@ pub fn start() -> ! {
         // Applies the host's script gestures on the rig.
         #[cfg(feature = "rig-harness")]
         spawner.spawn(crate::peripherals::rig_harness::input_task().unwrap());
-        // CV DAC writer (shares RSPI0 with the OLED).
-        spawner.spawn(cv_gate::cv_writer().unwrap());
         // Calls the app's clock-in handler once per captured edge.
         spawner.spawn(cv_gate::trigger_clock_task().unwrap());
         // The USB device, once the app starts it: its state machine and the MIDI endpoint pumps
