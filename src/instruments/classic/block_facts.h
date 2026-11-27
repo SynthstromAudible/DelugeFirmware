@@ -53,6 +53,8 @@ struct SoundBlockFacts {
 	uint8_t clipping_amount{};                                                     ///< The output stage's saturation
 	bool doing_osc_sync{};                                 ///< Source 1 is hard-synced to source 0
 	decltype(Values::dx_patch_changed) dx_patch_changed{}; ///< A DX7 source's patch changed since the last block
+	bool dx7_active_currently{};                           ///< DX7 mode: the DX7 sounds at its current level
+	bool dx7_patch_changed{}; ///< DX7 mode: the sound's DX7 patch changed since the last block
 	decltype(Values::global_source_values) global_source_values{};       ///< The sound's global patch-source values
 	bool note_tails_allowed{};                                           ///< Note-offs release the voice
 	decltype(Values::source_ever_active) source_ever_active{};           ///< Each source can sound at all

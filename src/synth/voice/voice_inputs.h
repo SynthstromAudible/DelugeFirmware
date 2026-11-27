@@ -43,6 +43,7 @@ struct VoiceBlock {
 	/// Per source: it renders in stereo (the engine renders in stereo, and the source spreads its unison or plays a
 	/// stereo sample or input).
 	std::array<bool, kNumSources> source_in_stereo{};
+	bool dx7_in_stereo{};       ///< DX7 mode: the DX7 renders in stereo (the engine does, and its unison spreads)
 	size_t num_active_voices{}; ///< The sound's voice count, which the cull order ranks by.
 	VoiceClock clock;
 };

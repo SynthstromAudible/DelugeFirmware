@@ -88,6 +88,8 @@ synth::SoundConfig DelugeSynth::derive(const State& state) noexcept {
 		                     .pitch_and_speed_independent = playback.pitch_and_speed_independent,
 		                     .reversed = playback.reversed};
 	}
+	const synth::Pitch dx7 = dx7_pitch(state);
+	config.dx7 = {.transpose = dx7.tuning.transpose, .tune = FineTune::of_cents(dx7.tuning.cents)};
 	return config;
 }
 
@@ -117,6 +119,11 @@ Parts DelugeSynth::changes(const State& before, const State& after) noexcept {
 		     (was_patch != nullptr) != (now_patch != nullptr) || (was_patch != nullptr && *was_patch != *now_patch));
 		retrigger = retrigger || source_retrigger(before, id) != source_retrigger(after, id);
 	}
+	const synth::Dx7State& was_dx7 = dx7_state(before);
+	const synth::Dx7State& now_dx7 = dx7_state(after);
+	mark(parts, Part::DX7_TUNING, was_dx7.pitch.tuning != now_dx7.pitch.tuning);
+	mark(parts, Part::DX7_PATCH, was_dx7.patch != now_dx7.patch);
+	retrigger = retrigger || was_dx7.pitch.retrigger != now_dx7.pitch.retrigger;
 	const std::array<synth::Pitch, 2> was_mods = modulators(before);
 	const std::array<synth::Pitch, 2> now_mods = modulators(after);
 	bool modulator_tuning = false;
@@ -164,6 +171,8 @@ synth::BlockValues DelugeSynth::begin_block(const synth::HostBlock& host, const 
 	    .doing_osc_sync = facts.doing_osc_sync,
 	    .engine_rendering_in_stereo = host.engine_in_stereo,
 	    .dx_patch_changed = facts.dx_patch_changed,
+	    .dx7_active_currently = facts.dx7_active_currently,
+	    .dx7_patch_changed = facts.dx7_patch_changed,
 	    .global_source_values = facts.global_source_values,
 	    .note_tails_allowed = facts.note_tails_allowed,
 	    .source_ever_active = facts.source_ever_active,

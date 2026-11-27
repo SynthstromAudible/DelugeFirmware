@@ -49,7 +49,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 			if (playable) [[likely]] {
 				guide.noteOffReceived = false;
 				guide.sequenceSyncLengthTicks = 0;
-				if (synthMode != SynthMode::FM
+				if (sound.playsSlots()
 				    && (sound.oscType(s) == OscType::SAMPLE || sound.oscType(s) == OscType::WAVETABLE)) {
 					MultiRange* range = sound.sourceResources[s].getRange(noteAfterArpeggiation + sound.getTranspose());
 					AudioFileHolder* holder = range != nullptr ? range->getAudioFileHolder() : nullptr;
@@ -77,8 +77,8 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		// A sample plays the way the sound reverses it for this note, between the bounds that sets.
 		for (int32_t s = 0; s < kNumSources && !ringModFails; s++) {
 			SourceResources& source = sound.sourceResources[s];
-			if (synthMode != SynthMode::FM && sound.oscType(s) == OscType::SAMPLE
-			    && voice.part.guides[s].audioFileHolder && flags.checkSourceEverActive(s)) {
+			if (sound.playsSlots() && sound.oscType(s) == OscType::SAMPLE && voice.part.guides[s].audioFileHolder
+			    && flags.checkSourceEverActive(s)) {
 				source.invertReversed = sound.invertReversed;
 				voice.part.guides[s].setupPlaybackBounds(sound.playsReversed(s));
 			}
@@ -113,8 +113,20 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		out.fine_tuner =
 		    sampleHolder != nullptr ? deluge::dsp::fixed::FineTune::of_cents(sampleHolder->cents) : settings.tune;
 		out.neutral_phase_increment = sampleHolder != nullptr ? sampleHolder->neutralPhaseIncrement : kMaxSampleValue;
-		if (!forNoteChange && synthMode != SynthMode::FM && sound.oscType(s) == OscType::DX7 && out.ever_active) {
+		if (!forNoteChange && sound.playsSlots() && sound.oscType(s) == OscType::DX7 && out.ever_active) {
 			out.dx_patch = source.ensureDxPatch();
+		}
+	}
+
+	if (synthMode == SynthMode::DX7) {
+		// The DX7 reads osc A's level (its own params come with the param-address work): source 0's rule
+		const deluge::synth::Dx7Config& dx7 = sound.config().dx7;
+		setup.dx7 = {.patch = nullptr,
+		             .transpose = dx7.transpose,
+		             .fine_tuner = dx7.tune,
+		             .ever_active = flags.checkSourceEverActive(0)};
+		if (!forNoteChange && setup.dx7.ever_active) {
+			setup.dx7.patch = sound.dx7Patch.ensure();
 		}
 	}
 

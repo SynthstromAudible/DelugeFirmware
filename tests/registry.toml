@@ -166,6 +166,25 @@ alone = true
 job = "storage"
 runtime_s = 600
 
+# The DX7 conversion's evidence: the upgraded DX7 presets against their originals' records.
+[[harness]]
+name = "dx7-upgrade-renders"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "gate"
+gates = "an upgraded DX7 preset plays through the DX7 engine as its original played through the slot, unless its other oscillator could sound"
+build = []
+run = ["python3", "tests/integration/corpus/dx7_upgrade_renders.py"]
+builds = ["golden-vt-render"]
+requires = ["cargo"]
+baseline = ["tests/golden/render/presets.json", "tests/golden/render/dx7_presets.json"]
+tier = "nightly"
+alone = true
+job = "storage"
+runtime_s = 60
+
 [[harness]]
 name = "upgrader"
 path = "tools/deluge-upgrade"

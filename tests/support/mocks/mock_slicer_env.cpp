@@ -371,6 +371,8 @@ DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::
 DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN15SourceResources10setOscTypeEN6deluge10instrument7OscTypeE")
 // Re-seeds the source's DOM range records from its engine ranges; the mock source has no DOM to seed.
 DELUGE_STUB_FN(stub_sourceDtor, "_ZN15SourceResourcesD1Ev")
+// A sound's DX7 voice: the slicer's sounds never make one.
+DELUGE_STUB_FN(stub_heldDxPatchDtor, "_ZN11HeldDxPatchD1Ev")
 DELUGE_STUB_FN(stub_intToString, "intToString")
 
 // Globals, merely addressed.

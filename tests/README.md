@@ -31,6 +31,7 @@ builds only `golden-vt-render`.
 | fs-differential | component | cargo | differential | gate | embedded-fatfs must agree with the reference FAT implementation on every filesystem operation | pr | storage | ~1m |
 | upgrade-differential | integration | script | differential | gate | a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded | nightly | storage | ~10s |
 | upgrade-differential-corpus | integration | script | differential | gate | the upgrader against a real card backup | nightly | storage | ~10m |
+| dx7-upgrade-renders | integration | script | differential | gate | an upgraded DX7 preset plays through the DX7 engine as its original played through the slot, unless its other oscillator could sound | nightly | storage | ~1m |
 | upgrader | unit | cargo | unit | gate | the file upgrader reads a Deluge document as the firmware's parser does, converts it as official firmware loaded it, and writes the firmware's JSON | pr | storage | ~30s |
 | load-policy | integration | scenario | regression | gate | the sample loader's candidate order, admission rule, build contract and stream paths, policies no loader state can show | pr | app | ~10s |
 | load-policy-wavetable-churn | integration | scenario | property | gate | wavetables evicted under memory pressure reload as they were built | nightly | app | ~1m |

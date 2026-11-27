@@ -254,7 +254,8 @@ Error applyChange(::Sound& sound, const deluge::instruments::classic::SoundState
 		AudioExcludedSection section;
 		sound.deriveConfig();
 		if (changed(Part::TUNING) || changed(Part::UNISON_COUNT) || changed(Part::UNISON_DETUNE)
-		    || changed(Part::MODULATOR_TUNING) || changed(Part::SOURCE_A_TUNING) || changed(Part::SOURCE_B_TUNING)) {
+		    || changed(Part::MODULATOR_TUNING) || changed(Part::SOURCE_A_TUNING) || changed(Part::SOURCE_B_TUNING)
+		    || changed(Part::DX7_TUNING)) {
 			sound.recalculateAllVoicePhaseIncrements(modelStack);
 		}
 		if (changed(Part::UNISON_COUNT)) {
@@ -308,6 +309,13 @@ Error applyChange(::Sound& sound, const deluge::instruments::classic::SoundState
 			    id, sound.sourceResources[s].heldRanges());
 			return error;
 		}
+	}
+	// The DX7 engine's voice follows the change's while the DX7 plays; one the runtime cannot make keeps what it holds
+	if (const deluge::instruments::classic::DxPatchState* wanted = deluge::instruments::classic::dx7_patch(after);
+	    wanted != nullptr && deluge::instruments::classic::synth_mode(after) == SynthMode::DX7
+	    && sound.dx7Patch.state() != *wanted && !sound.dx7Patch.assign(*wanted)) {
+		sound.recordHeldDx7Patch();
+		return Error::INSUFFICIENT_RAM;
 	}
 	return Error::NONE;
 }
