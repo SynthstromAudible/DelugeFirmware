@@ -1034,7 +1034,10 @@ ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, b
 }
 
 // used to get name of parameter assigned to mod encoder
+// parameterName must hold 30 chars. It is always written and terminated: empty if the knob has no param.
 void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName) {
+	parameterName[0] = '\0';
+	parameterName[29] = '\0'; // strncpy(..., 29) below doesn't terminate a 29-char name
 	bool noteTailsAllowedBefore;
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore);
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
