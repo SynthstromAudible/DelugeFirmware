@@ -94,6 +94,19 @@ using synth::SamplePlayback;
 /// @return The patch, valid while @p state is unchanged; null when the slot has none.
 [[nodiscard]] const DxPatchState* dx_patch(const SoundState& state, SourceId id) noexcept;
 
+/// @brief The DX7 engine's state: the one playing, or the one the sound keeps while another engine plays.
+/// @param state The sound's state.
+[[nodiscard]] const synth::Dx7State& dx7_state(const SoundState& state) noexcept;
+
+/// @brief The DX7 engine's patch (dx7_state()'s).
+/// @param state The sound's state.
+/// @return The patch, valid while @p state is unchanged; null when the DX7 has none (its runtime makes the init voice).
+[[nodiscard]] const DxPatchState* dx7_patch(const SoundState& state) noexcept;
+
+/// @brief The DX7 engine's pitch (dx7_state()'s).
+/// @param state The sound's state.
+[[nodiscard]] synth::Pitch dx7_pitch(const SoundState& state) noexcept;
+
 /// @brief The settings of the sound's own effects.
 /// @param state The sound's state.
 [[nodiscard]] const effects::EffectStates& sound_effects(const SoundState& state) noexcept;
@@ -148,5 +161,10 @@ using synth::SamplePlayback;
 /// @param id The slot.
 /// @param patch Its new patch; none drops the one it has.
 [[nodiscard]] SoundState with_dx_patch(SoundState state, SourceId id, std::optional<DxPatchState> patch);
+
+/// @brief @p state with the DX7 engine's patch replaced (dx7_state()'s).
+/// @param state The sound's state.
+/// @param patch Its new patch; none drops the one it has.
+[[nodiscard]] SoundState with_dx7_patch(SoundState state, std::optional<DxPatchState> patch);
 
 } // namespace deluge::instruments::classic

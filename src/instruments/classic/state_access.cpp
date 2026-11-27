@@ -81,6 +81,20 @@ const DxPatchState* dx_patch(const SoundState& state, SourceId id) noexcept {
 	return patch ? &*patch : nullptr;
 }
 
+const synth::Dx7State& dx7_state(const SoundState& state) noexcept {
+	const auto* dx7 = std::get_if<synth::Dx7State>(&state.plays.engine);
+	return dx7 != nullptr ? *dx7 : state.recall.dx7;
+}
+
+const DxPatchState* dx7_patch(const SoundState& state) noexcept {
+	const std::optional<DxPatchState>& patch = dx7_state(state).patch;
+	return patch ? &*patch : nullptr;
+}
+
+synth::Pitch dx7_pitch(const SoundState& state) noexcept {
+	return dx7_state(state).pitch;
+}
+
 const effects::EffectStates& sound_effects(const SoundState& state) noexcept {
 	return state.plays.fx;
 }
@@ -102,6 +116,9 @@ bool oscillator_sync(const SoundState& state) noexcept {
 		return fm->sync;
 	}
 	const synth::DualSourceState* slots = dual_of(state.plays);
+	if (slots == nullptr) {
+		return state.recall.sync; // the DX7 plays: kept with the slots it parks
+	}
 	if (std::holds_alternative<synth::SampleState>(slots->slots[1])) {
 		return state.recall.sync; // the file writes it in the second oscillator's pitch, which a sample lacks
 	}
@@ -146,6 +163,12 @@ SoundState with_ranges(SoundState state, SourceId id, std::vector<synth::SourceR
 	// A sample's ranges are its own; any other kind's are the ones the slot keeps for a sample
 	auto* sample = kind != nullptr ? std::get_if<synth::SampleState>(kind) : nullptr;
 	(sample != nullptr ? sample->ranges : memory_of(state, id).ranges) = std::move(ranges);
+	return state;
+}
+
+SoundState with_dx7_patch(SoundState state, std::optional<DxPatchState> patch) {
+	auto* dx7 = std::get_if<synth::Dx7State>(&state.plays.engine);
+	(dx7 != nullptr ? *dx7 : state.recall.dx7).patch = patch;
 	return state;
 }
 

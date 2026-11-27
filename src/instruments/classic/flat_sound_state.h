@@ -85,6 +85,15 @@ struct SourceState {
 	bool operator==(const SourceState&) const = default;
 };
 
+/// @brief The DX7 engine's settings in the file's layout: its pitch and its voice.
+struct Dx7FileState {
+	int16_t transpose{0}; ///< semitones
+	int8_t cents{0};
+	uint32_t retrigger_phase{kFreeRunningPhase};
+	std::optional<DxPatchState> patch; ///< none for a DX7 not given one (its runtime makes the init voice)
+	bool operator==(const Dx7FileState&) const = default;
+};
+
 /// @brief A sound's settings in the file's flat layout: every engine's and every source kind's fields side by side, as
 /// the codec reads and writes them. The record (SoundState) composes it into what the sound plays and what it keeps. A
 /// default is a new synth's, but for the two effect settings that follow the song (with_song_defaults).
@@ -110,6 +119,7 @@ struct FlatSoundState {
 	std::array<synth::EnvelopeState, kNumEnvelopes> envelopes{}; ///< each envelope's mode, curve and follow input
 	deluge::effects::EffectStates effects;                       ///< the sound's own effects' settings
 	std::array<SourceState, kSourceCount> sources;
+	Dx7FileState dx7; ///< the DX7 engine's: the file writes it in DX7 mode, the record keeps it in the others
 	bool operator==(const FlatSoundState&) const = default;
 };
 

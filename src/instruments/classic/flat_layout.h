@@ -60,6 +60,14 @@ struct UnpackedSlot {
 /// @brief The slot source a slot parked while FM plays makes, its pitch at zero (the carrier holds it).
 [[nodiscard]] SourceState unpark_slot(const SlotMemory& memory);
 
+/// @brief The memory of a slot parked while the DX7 plays: its kind and parts with its own pitch, whose retrigger
+/// phase word is @p phase.
+[[nodiscard]] SlotMemory park_whole_slot(const SourceState& source, uint32_t phase);
+
+/// @brief The slot source and phase word a slot parked while the DX7 plays makes (a new synth's square when it parks
+/// none).
+[[nodiscard]] UnpackedSlot unpark_whole_slot(const SlotMemory& memory);
+
 /// @brief The flat record @p flat as the state it plays and what it keeps for a switch back.
 [[nodiscard]] std::pair<ComposedState, Recall> compose(const FlatSoundState& flat);
 

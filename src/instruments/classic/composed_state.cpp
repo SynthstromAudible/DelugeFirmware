@@ -297,6 +297,31 @@ SourceState unpark_slot(const SlotMemory& memory) {
 	return unpack_slot(memory.parked.value_or(synth::VaState{}), memory).source;
 }
 
+SlotMemory park_whole_slot(const SourceState& source, uint32_t phase) {
+	PackedSlot packed = pack_slot(source, phase);
+	packed.memory.parked = std::move(packed.kind);
+	return std::move(packed.memory);
+}
+
+UnpackedSlot unpark_whole_slot(const SlotMemory& memory) {
+	return unpack_slot(memory.parked.value_or(synth::VaState{}), memory);
+}
+
+namespace {
+
+synth::Dx7State dx7_of(const Dx7FileState& file) {
+	return {.pitch = pitch_of(file.transpose, file.cents, file.retrigger_phase), .patch = file.patch};
+}
+
+Dx7FileState dx7_file_of(const synth::Dx7State& dx7) {
+	return {.transpose = dx7.pitch.tuning.transpose,
+	        .cents = dx7.pitch.tuning.cents,
+	        .retrigger_phase = phase_word(dx7.pitch.retrigger),
+	        .patch = dx7.patch};
+}
+
+} // namespace
+
 std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 	ComposedState state{
 	    .voicing = {.polyphony = f.polyphonic,
@@ -324,6 +349,16 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 		}
 		fm.sync = f.oscillator_sync;
 		state.engine = fm;
+		recall.dx7 = dx7_of(f.dx7);
+	}
+	else if (f.synth_mode == SynthMode::DX7) {
+		for (size_t s = 0; s < 2; s++) {
+			recall.slots[s] = park_whole_slot(f.sources[s], f.osc_retrigger_phase[s]);
+		}
+		recall.sync = f.oscillator_sync;
+		recall.modulators = modulators;
+		recall.modulator1_to_modulator0 = f.modulator1_to_modulator0;
+		state.engine = dx7_of(f.dx7);
 	}
 	else {
 		synth::DualSourceState dual{.slots = {}, .sync = f.oscillator_sync};
@@ -339,6 +374,7 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 		}
 		recall.modulators = modulators;
 		recall.modulator1_to_modulator0 = f.modulator1_to_modulator0;
+		recall.dx7 = dx7_of(f.dx7);
 		state.engine = synth::dual_state_for(f.synth_mode, dual);
 	}
 	return {std::move(state), std::move(recall)};
@@ -378,11 +414,24 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 			f.osc_retrigger_phase[s] = phase_word(fm->carriers[s].retrigger);
 		}
 		f.oscillator_sync = fm->sync;
+		f.dx7 = dx7_file_of(recall.dx7);
+		return f;
+	}
+	put_modulators(recall.modulators, recall.modulator1_to_modulator0);
+	if (const auto* dx7 = std::get_if<synth::Dx7State>(&state.engine)) {
+		f.synth_mode = SynthMode::DX7;
+		for (size_t s = 0; s < 2; s++) {
+			auto [source, phase] = unpark_whole_slot(recall.slots[s]);
+			f.sources[s] = std::move(source);
+			f.osc_retrigger_phase[s] = phase;
+		}
+		f.oscillator_sync = recall.sync;
+		f.dx7 = dx7_file_of(*dx7);
 		return f;
 	}
 	const synth::DualSourceState& dual = *dual_of(state);
 	f.synth_mode = synth::mode_of(state.engine);
-	put_modulators(recall.modulators, recall.modulator1_to_modulator0);
+	f.dx7 = dx7_file_of(recall.dx7);
 	for (size_t s = 0; s < 2; s++) {
 		auto [source, phase] = unpack_slot(dual.slots[s], recall.slots[s]);
 		f.sources[s] = std::move(source);

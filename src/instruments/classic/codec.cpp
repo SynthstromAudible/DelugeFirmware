@@ -40,7 +40,7 @@ using serialization::Value;
 namespace {
 
 /// The top-level keys encode writes, in file order: the sound's own, and its effects'.
-constexpr std::array<std::string_view, 30> kStateKeys{"polyphonic",
+constexpr std::array<std::string_view, 31> kStateKeys{"polyphonic",
                                                       "voicePriority",
                                                       "sideChainSend",
                                                       "mode",
@@ -54,6 +54,7 @@ constexpr std::array<std::string_view, 30> kStateKeys{"polyphonic",
                                                       "maxVoices",
                                                       "osc1",
                                                       "osc2",
+                                                      "dx7",
                                                       "lfo1",
                                                       "lfo2",
                                                       "lfo3",
@@ -79,10 +80,10 @@ struct KeyRun {
 constexpr KeyRun kHeadKeys{.first = 0, .count = 6};            ///< polyphonic … cents
 constexpr KeyRun kEffectAttributeKeys{.first = 6, .count = 5}; ///< modFXType … clippingAmount
 constexpr KeyRun kMaxVoicesKeys{.first = 11, .count = 1};      ///< maxVoices
-constexpr KeyRun kBodyKeys{.first = 12, .count = 13};          ///< osc1 … unison
-constexpr KeyRun kMidiOutputKeys{.first = 25, .count = 1};     ///< midiOutput
-constexpr KeyRun kDelayKeys{.first = 26, .count = 1};          ///< delay
-constexpr KeyRun kEffectTagKeys{.first = 27, .count = 3};      ///< sidechain, audioCompressor, stutter
+constexpr KeyRun kBodyKeys{.first = 12, .count = 14};          ///< osc1 … unison
+constexpr KeyRun kMidiOutputKeys{.first = 26, .count = 1};     ///< midiOutput
+constexpr KeyRun kDelayKeys{.first = 27, .count = 1};          ///< delay
+constexpr KeyRun kEffectTagKeys{.first = 28, .count = 3};      ///< sidechain, audioCompressor, stutter
 static_assert(kEffectTagKeys.first + kEffectTagKeys.count == kStateKeys.size());
 
 /// The keys of kStateKeys whose entries are the host's, the sound's routing (`project::encode_routing` writes them; the
@@ -229,6 +230,24 @@ void dx7_entries(Value& map, const synth::DxPatch& patch) {
 	}
 }
 
+/// The DX7 engine's entry: its pitch, its patch's bytes, and its engine mode and random detune where they are set.
+Value dx7_entry(const synth::Dx7State& dx7) {
+	auto map = Value::makeMap();
+	map.set("transpose", number(dx7.pitch.tuning.transpose));
+	map.set("cents", number(dx7.pitch.tuning.cents));
+	map.set("retrigPhase", number(phase_word(dx7.pitch.retrigger)));
+	if (dx7.patch) {
+		map.set("patch", text(hex(dx7.patch->params)));
+		if (dx7.patch->engine_mode != 0) {
+			map.set("engineMode", number(dx7.patch->engine_mode));
+		}
+		if (dx7.patch->random_detune != 0) {
+			map.set("randomDetune", number(dx7.patch->random_detune));
+		}
+	}
+	return map;
+}
+
 /// Oscillator @p s of a subtractive or ring-mod sound, by its kind.
 Value slot_entry(const synth::SlotState& slot, OscType type, size_t s, bool sync) {
 	auto map = Value::makeMap();
@@ -370,6 +389,7 @@ std::vector<std::string_view> changed_entries(const SoundState& a, const SoundSt
 	    va.max_voices != vb.max_voices,
 	    slot_differs(a, b, 0),
 	    slot_differs(a, b, 1),
+	    dx7_state(a) != dx7_state(b),
 	    lfo(a, 0) != lfo(b, 0),
 	    lfo(a, 1) != lfo(b, 1),
 	    lfo(a, 2) != lfo(b, 2),
@@ -404,8 +424,15 @@ std::optional<Value> encode_entry(const SoundState& state, std::string_view key,
 	if (std::optional<Value> scalar = scalar_entry(state, key)) {
 		return scalar;
 	}
+	const bool dx7 = synth_mode(state) == SynthMode::DX7;
 	if (key == "osc1" || key == "osc2") {
+		if (dx7) {
+			return std::nullopt; // the DX7 plays no oscillator
+		}
 		return oscillator_entry(state, key == "osc1" ? 0 : 1);
+	}
+	if (key == "dx7") {
+		return dx7 ? std::optional{dx7_entry(dx7_state(state))} : std::nullopt;
 	}
 	if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
 		return lfo_entry(lfo(state, static_cast<size_t>(key[3] - '1')), context);
@@ -646,6 +673,19 @@ std::expected<void, plugin::StateError> readRanges(const Value& list, SourceStat
 	return {};
 }
 
+/// The hex bytes of a DX7 patch, into @p patch.
+void read_patch_bytes(std::string_view hex_text, DxPatchState& patch) {
+	const auto nibble = [](char c) -> int {
+		if (c >= '0' && c <= '9') {
+			return c - '0';
+		}
+		return c >= 'A' && c <= 'F' ? c - 'A' + 10 : c - 'a' + 10;
+	};
+	for (size_t b = 0; b < patch.params.size() && 2 * b + 1 < hex_text.size(); b++) {
+		patch.params[b] = static_cast<uint8_t>((nibble(hex_text[2 * b]) << 4) | nibble(hex_text[2 * b + 1]));
+	}
+}
+
 // An oscillator element read back, one branch per key and per legacy form:
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 std::expected<void, plugin::StateError> read_source(const Value& osc, FlatSoundState& state, size_t s,
@@ -674,14 +714,7 @@ std::expected<void, plugin::StateError> read_source(const Value& osc, FlatSoundS
 			src.reversed = intOf(value) != 0;
 		}
 		else if (key == "dx7patch") {
-			DxPatchState& patch = dxPatch(src);
-			const std::string_view hexText = textOf(value);
-			for (size_t b = 0; b < patch.params.size() && 2 * b + 1 < hexText.size(); b++) {
-				auto nibble = [](char c) -> int {
-					return c >= '0' && c <= '9' ? c - '0' : c >= 'A' && c <= 'F' ? c - 'A' + 10 : c - 'a' + 10;
-				};
-				patch.params[b] = static_cast<uint8_t>((nibble(hexText[2 * b]) << 4) | nibble(hexText[2 * b + 1]));
-			}
+			read_patch_bytes(textOf(value), dxPatch(src));
 		}
 		else if (key == "dx7randomdetune") {
 			dxPatch(src).random_detune = intOf(value);
@@ -717,6 +750,39 @@ std::expected<void, plugin::StateError> read_source(const Value& osc, FlatSoundS
 		}
 	}
 	return {};
+}
+
+/// The DX7 engine's entry read back.
+void read_dx7(const Value& entry, Dx7FileState& dx7) {
+	if (!entry.isMap()) {
+		return;
+	}
+	const auto patch = [&dx7] -> DxPatchState& {
+		if (!dx7.patch) {
+			dx7.patch.emplace(DxPatchState{.params = kDx7InitVoice});
+		}
+		return *dx7.patch;
+	};
+	for (const auto& [key, value] : entry.entries()) {
+		if (key == "transpose") {
+			dx7.transpose = static_cast<int16_t>(intOf(value));
+		}
+		else if (key == "cents") {
+			dx7.cents = cents_of(value);
+		}
+		else if (key == "retrigPhase") {
+			dx7.retrigger_phase = static_cast<uint32_t>(intOf(value));
+		}
+		else if (key == "patch") {
+			read_patch_bytes(textOf(value), patch());
+		}
+		else if (key == "engineMode") {
+			patch().engine_mode = static_cast<uint8_t>(intOf(value));
+		}
+		else if (key == "randomDetune") {
+			patch().random_detune = intOf(value);
+		}
+	}
 }
 
 void read_modulator(const Value& modulator, FlatSoundState& state, size_t m) {
@@ -807,6 +873,7 @@ std::expected<void, plugin::StateError> decode_impl(const Value& element, FlatSo
 	// What reading a sound always starts with, whatever the file holds.
 	state.modulator_transpose[1] = 0;
 	state.osc_retrigger_phase = {};
+	state.dx7.retrigger_phase = 0; // as an oscillator's, which the DX7's entry carries over
 	state.modulator_retrigger_phase = {};
 	std::array<SourceReading, 2> reading{SourceReading{.refuseDuplicates = file_read},
 	                                     SourceReading{.refuseDuplicates = file_read}};
@@ -819,6 +886,9 @@ std::expected<void, plugin::StateError> decode_impl(const Value& element, FlatSo
 		}
 		else if (key == "mode") {
 			state.synth_mode = parse_synth_mode(textOf(value));
+		}
+		else if (key == "dx7") {
+			read_dx7(value, state.dx7);
 		}
 		else if (key == "modulator1" || key == "modulator2") {
 			read_modulator(value, state, key == "modulator1" ? 0 : 1);
@@ -860,6 +930,10 @@ std::expected<void, plugin::StateError> decode_impl(const Value& element, FlatSo
 		else if (key == "voicePriority") {
 			state.voice_priority = static_cast<plugin::VoicePriority>(intOf(value));
 		}
+	}
+	// A DX7 read without its own patch plays the init voice, as a DX7 oscillator does
+	if (state.synth_mode == SynthMode::DX7 && !state.dx7.patch) {
+		state.dx7.patch.emplace(DxPatchState{.params = kDx7InitVoice});
 	}
 	// What finishing a read does to each source: FM plays sines, ring modulation takes nothing past a wavetable, and a
 	// sample source's own transpose and cents move into each of its ranges.
@@ -927,6 +1001,9 @@ void keep_entry(std::string_view key, FlatSoundState& state, const FlatSoundStat
 	else if (key == "maxVoices") {
 		state.max_voice_count = from.max_voice_count;
 	}
+	else if (key == "dx7") {
+		state.dx7 = from.dx7;
+	}
 	else if (key == "osc1" || key == "osc2") {
 		const size_t s = key == "osc1" ? 0 : 1;
 		state.sources[s] = from.sources[s];
@@ -979,6 +1056,18 @@ std::expected<void, plugin::StateError> decode(const Value& element, FlatSoundSt
 }
 
 void keep_unwritten(FlatSoundState& state, const FlatSoundState& from) {
+	if (state.synth_mode == SynthMode::DX7) {
+		// The DX7 writes nothing of the slots it parks, nor FM's modulators
+		state.sources = from.sources;
+		state.osc_retrigger_phase = from.osc_retrigger_phase;
+		state.oscillator_sync = from.oscillator_sync;
+		state.modulator_transpose = from.modulator_transpose;
+		state.modulator_cents = from.modulator_cents;
+		state.modulator_retrigger_phase = from.modulator_retrigger_phase;
+		state.modulator1_to_modulator0 = from.modulator1_to_modulator0;
+		return;
+	}
+	state.dx7 = from.dx7; // written only while the DX7 plays
 	const bool fm = state.synth_mode == SynthMode::FM;
 	if (!fm) {
 		state.modulator_transpose = from.modulator_transpose;
@@ -1084,7 +1173,8 @@ std::expected<FlatSlotChange, plugin::StateError> decode_change(const Value& ele
 		const std::string_view key = s == 0 ? "osc1" : "osc2";
 		const bool ranged = type == OscType::SAMPLE || type == OscType::WAVETABLE;
 		const bool otherKind = (was == OscType::SAMPLE || was == OscType::WAVETABLE) && was != type;
-		if (sourceKept[s] || decoded.synth_mode == SynthMode::FM || !ranged || otherKind) {
+		if (sourceKept[s] || decoded.synth_mode == SynthMode::FM || decoded.synth_mode == SynthMode::DX7 || !ranged
+		    || otherKind) {
 			continue;
 		}
 		FlatSoundState carried = current;

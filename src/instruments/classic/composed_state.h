@@ -46,7 +46,8 @@ struct ComposedState {
 
 /// @brief What one oscillator slot remembers of the kinds it is not playing, so a switch back loses nothing.
 struct SlotMemory {
-	/// While FM plays: the slot's kind with its parts, as it plays again when FM goes (its pitch is the carrier's)
+	/// While FM or the DX7 plays: the slot's kind with its parts, as it plays again when that engine goes (under FM its
+	/// pitch is the carrier's; under the DX7 the kind keeps its own)
 	std::optional<synth::SlotState> parked;
 	synth::SamplePlayback playback;         ///< how a sample plays, while the slot is another kind
 	std::vector<synth::SourceRange> ranges; ///< the slot's ranges, while its kind plays none
@@ -63,12 +64,14 @@ struct Recall {
 	std::array<SlotMemory, kSourceCount> slots;
 	std::array<synth::Pitch, 2> modulators{synth::FmState{}.modulators}; ///< FM's, while another engine plays
 	bool modulator1_to_modulator0{false};                                ///< FM's, while another engine plays
-	bool sync{false}; ///< the oscillators' sync, while the second is a sample (the file writes it in its pitch)
+	/// The oscillators' sync, while the second is a sample (the file writes it in its pitch) or the DX7 plays
+	bool sync{false};
+	synth::Dx7State dx7; ///< the DX7 engine's, while another engine plays
 	bool operator==(const Recall&) const = default;
 };
 
 /// @brief The two oscillator slots a subtractive or ring-mod sound plays; null for FM, whose carriers have only a
-/// pitch.
+/// pitch, and for the DX7, which plays none.
 [[nodiscard]] const synth::DualSourceState* dual_of(const ComposedState& plays) noexcept;
 
 /// @copydoc dual_of(const ComposedState&)
