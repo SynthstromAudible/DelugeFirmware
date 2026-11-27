@@ -59,6 +59,7 @@ against drift, not a proof.
 | `ListState`, `ColumnsState`, `ScrollText`, `Blink`, `Hold`, `Timer`, `WaveformState` | `core/state.h` |
 | `Style` (every field a widget reads; `menu_base_y` is the panel-height value), `kDelugeStyle48`, `kDelugeStyle64` | `style.h` |
 | `WrappedLines`, `wrap_lines` | `text_wrap.h` |
+| `PeakCol` | `core/peaks.h` |
 
 ### OLED (`oled/`)
 
@@ -73,6 +74,8 @@ against drift, not a proof.
 | `FilterKind`, `StageKind`, `Hint`, `percent`, `knob_arc`, `unipolar_bar`, `pan`, `slider`, `length_slider`, `filter_curve`, `envelope_stage`, `sidechain_ducking`, `meter` | `meters.h` |
 | `Column`, `Paging`, `paging_of`, `column_under_button`, `page_switch`, `columns`, `title_paged`, `MeterColumn`/`meter_column`, `TextColumn`/`text_column`, `submenu_column`, `ToggleColumn`/`toggle_column` | `oled/columns.h` |
 | `DrawColumn`, `FilterGraph`, `draw_column`, `filter_graph`, `envelope_graph`, `eq_graph` | `column_drawings.h` |
+| `PageBody`, `page_body`, `LevelFn`, `curve`, `polyline`, `guide_v`, `guide_h`, `fill_line`, `Handles` | `page_drawing.h` |
+| `waveform`, `loop_marker`, `looped_waveform`, `sliced_waveform` | `oled/waveform.h` |
 | `kMaxRoutingStages`, `routing_chain`, `segmented_switch`, `cable_strength_value` | `routing.h` |
 | `PopupStyle`, `popup_rect_for`, `popup_frame`, `popup_text`, `working`, `progress` | `popup.h` |
 | `OutputNameData`, `output_name`, `segment_digits`, `vu`, `graphic`, `icon` | `oled/misc.h` |
@@ -89,7 +92,7 @@ against drift, not a proof.
 | `NoteFill`, `NoteCell`, `ClipRowData`, `row`, `clip_row` | `rows.h` |
 | `LaunchStyle`, `StatusColours`, `StatusPad`, `AuditionPad`, `status_colour`, `status_pad`, `audition_colour`, `audition_pad`, `sidebar_columns` | `sidebar.h` |
 | `MacroKind`, `MacroCell`, `macro_colour`, `macro_wants_arm_flash`, `macros`; `NoteSquare`, `VelocityData`, `velocity_colour`, `velocity_column`; `AutomationData`, `automation_colour`, `automation_column`; `vu_max_row`, `vu_row_colour`, `vu_meter`; `TickColour`, `TickSquare`, `tick_colour`, `tick_squares` | `grid/columns.h` |
-| `PeakCol`, `waveform_col_colour`, `waveform_row`, `waveform_full` | `waveform.h` |
+| `PeakCol` (core's, by its grid name), `waveform_col_colour`, `waveform_row`, `waveform_full` | `grid/waveform.h` |
 | `kMaxMarkers`, `MarkerStack`, `marker_tint`, `marker_column` | `markers.h` |
 | `KeyboardLayoutKind`, `TextKeyboardState`, `text_keyboard_char_at`, `text_keyboard_key_colour`, `text_keyboard_is_shift_pad`, `text_keyboard` | `keyboard.h` |
 | legacy bridges: `LegacyImage`, `copy_legacy_image`, `copy_legacy_column`, `keyboard<Layout>`, `control_column<Column>` | `keyboard.h` |
@@ -273,7 +276,5 @@ which byte-compares, so a fix changes the port and the oracle together.
 
 ## Known gaps
 
-- The OLED `waveform` widget: it would draw columns the scene hands it as values (as the grid's `PeakCol` does),
-  and waits for a scene that shows a waveform on the OLED. `WaveformState` in `core/state.h` is reserved for it.
 - Native keyboard layouts and control columns: the legacy `KeyboardLayout`/`ControlColumn`
   classes still render through the `grid/keyboard.h` bridges.

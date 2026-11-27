@@ -4,8 +4,11 @@
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/core/style.h"
 #include "ui/widgets/oled/meters.h"
+#include "ui/widgets/oled/page_drawing.h"
+#include "ui/widgets/oled/waveform.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace deluge::ui::widgets::oled {
@@ -17,28 +20,6 @@ float sigmoid_like_curve(float x, float x_max, float softening) {
 	const float raw = x / (x + softening);
 	const float max_val = x_max / (x_max + softening);
 	return raw / max_val;
-}
-
-/// @brief What the fill-pattern callback needs: the canvas and the curve's bottom row, both canvas-space.
-struct FillPattern {
-	gfx::oled::Canvas* canvas;
-	int32_t end_y;
-	gfx::oled::Point last{-1, -1};
-};
-
-/// @brief `draw_fill_pattern` (the lambda in `FilterContainer::render`,
-/// `origin/main:src/deluge/gui/menu_item/filter/filter_container.h`): below each third column of the curve, every third
-/// row.
-void fill_pattern(gfx::oled::Point point, void* ctx) {
-	auto* fill = static_cast<FillPattern*>(ctx);
-	if (fill->last.x != point.x && point.x % 3 == 0) {
-		for (int32_t y = point.y; y <= fill->end_y; y++) {
-			if (y % 3 == 1) {
-				fill->canvas->draw_pixel(point.x, y);
-			}
-		}
-	}
-	fill->last = point;
 }
 
 } // namespace
@@ -93,12 +74,10 @@ void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g) {
 	f.rect_rounded(gfx::oled::Rect{min_x - 1 - f.origin.x, start_y - 1 - f.origin.y, (max_x + 1) - (min_x - 1) + 1,
 	                               (end_y + 1) - (start_y - 1) + 1});
 
-	ClipScope scope{f.canvas, f.clip};
-	FillPattern fill{.canvas = &f.canvas, .end_y = end_y};
+	// The segments are in canvas coordinates, as legacy computes them; the fill's dot grid is the panel's.
+	const auto local = [&](int32_t x, int32_t y) { return gfx::oled::Point{x - f.origin.x, y - f.origin.y}; };
 	const auto segment = [&](int32_t x0, int32_t y0, int32_t x1, int32_t y1) {
-		fill.last = {-1, -1};
-		f.canvas.draw_line(x0, y0, x1, y1,
-		                   {.min_x = min_x, .max_x = max_x, .point_callback = fill_pattern, .callback_ctx = &fill});
+		fill_line(f, local(x0, y0), local(x1, y1), end_y - f.origin.y, min_x - f.origin.x, max_x - f.origin.x);
 	};
 
 	segment(left_slope_x0, end_y, left_slope_x1, center_y); // left slope
@@ -111,40 +90,6 @@ void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g) {
 
 namespace {
 
-/// @brief `drawTransitionIndicator`/`drawControlIndicator`
-/// (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`,
-/// `origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`).
-struct Indicators {
-	gfx::oled::Canvas& canvas;
-	int32_t selected_x = -1;
-	int32_t selected_y = -1;
-
-	void draw(float center_x, float center_y, bool is_selected) {
-		const auto ix = static_cast<int32_t>(center_x);
-		const auto iy = static_cast<int32_t>(center_y);
-		if (!is_selected && ix == selected_x && iy == selected_y) {
-			return; // overlap: the selected one stays on top
-		}
-		constexpr int32_t square_size = 2;
-		constexpr int32_t inner = square_size - 1;
-		for (int32_t x = ix - inner; x <= ix + inner; x++) {
-			for (int32_t y = iy - inner; y <= iy + inner; y++) {
-				canvas.clear_pixel(x, y);
-			}
-		}
-		if (is_selected) {
-			selected_x = ix;
-			selected_y = iy;
-			canvas.invert_area(ix - inner, square_size * 2 - 1, iy - inner, iy + inner);
-		}
-		canvas.draw_rectangle(ix - square_size, iy - square_size, ix + square_size, iy + square_size);
-	}
-};
-
-} // namespace
-
-namespace {
-
 /// @brief `EnvelopeCurve::rising`: 0 at @p x = 0, 1 at 1, bent by @p k octaves; 0 is a straight line.
 float rising(float k, float x) {
 	if (k == 0.f) {
@@ -154,59 +99,46 @@ float rising(float k, float x) {
 	return 1.f - ((std::exp2(-k * x) - floor) / (1.f - floor));
 }
 
+/// @brief One stage of the envelope: from one level to another, bent by `k` octaves.
+struct Stage {
+	float from;
+	float to;
+	float k;
+};
+
+float stage_level(float t, const void* ctx) {
+	const auto& s = *static_cast<const Stage*>(ctx);
+	return s.from + (s.to - s.from) * rising(s.k, t);
+}
+
 } // namespace
 
-void envelope_graph(OledFrame& panel, const EnvelopeGraph& envelope, int32_t selected) {
-	const gfx::oled::Geometry g = panel.canvas.geometry();
-	ClipScope scope{panel.canvas, panel.clip};
-	gfx::oled::Canvas& image = panel.canvas;
-
-	constexpr int32_t padding_x = 4;
-	constexpr int32_t start_x = padding_x;
-	const auto start_y = static_cast<uint8_t>(g.visible_top + gfx::oled::kTextTitleSizeY + 7);
-	const auto end_y = static_cast<uint8_t>(g.height - 6);
-	const int32_t draw_width = g.width - 2 * padding_x;
-	const auto draw_height = static_cast<uint8_t>(end_y - start_y);
-	const auto max_segment_width = static_cast<float>(draw_width / 4);
-	const int32_t base_y = start_y + draw_height;
-	const auto end_x = static_cast<float>(start_x + draw_width);
+void envelope_graph(OledFrame& f, const EnvelopeGraph& envelope, int32_t selected) {
+	const PageBody b = page_body(f);
+	const auto start_x = static_cast<float>(b.left);
+	const auto end_x = static_cast<float>(b.right);
+	const auto max_segment_width = static_cast<float>((b.right - b.left) / 4);
 
 	const auto ix = [](float v) { return static_cast<int32_t>(v); };
-	const auto level_y = [&](float level) {
-		return static_cast<int32_t>(std::round(static_cast<float>(base_y) - level * static_cast<float>(draw_height)));
-	};
 	const auto fraction = [](int32_t value) { return static_cast<float>(value) / 50.0f; };
-	// A stage from one level to another, bent like the envelope's curve
 	const auto stage = [&](float x0, float from, float x1, float to, float k) {
-		constexpr int32_t kSteps = 12;
-		int32_t last_x = ix(x0);
-		int32_t last_y = level_y(from);
-		for (int32_t i = 1; i <= kSteps; i++) {
-			const float t = static_cast<float>(i) / kSteps;
-			const auto this_x = static_cast<int32_t>(std::round(x0 + (x1 - x0) * t));
-			const int32_t this_y = level_y(from + (to - from) * rising(k, t));
-			image.draw_line(last_x, last_y, this_x, this_y);
-			last_x = this_x;
-			last_y = this_y;
-		}
+		const Stage s{.from = from, .to = to, .k = k};
+		curve(f, b, x0, x1, stage_level, &s);
 	};
-	// The vertical dotted line marking a stage transition, from the bottom of the screen up to top_y
-	const int32_t visible_height = g.height - g.visible_top;
+	// Lines close to each other look messy: a caller leaves the nearer out
 	const auto dotted = [&](float x, bool draw, int32_t top_y) {
-		for (int32_t y = visible_height + 1; draw && y >= top_y - 2; y -= 4) {
-			image.draw_pixel(ix(x), y);
+		if (draw) {
+			guide_v(f, b, ix(x), top_y);
 		}
 	};
-	Indicators marks{image};
-	const auto mark = [&](float x, int32_t y, int32_t segment) {
-		marks.draw(x, static_cast<float>(y), selected == segment);
-	};
+	Handles marks{f};
+	const auto mark = [&](float x, int32_t y, int32_t segment) { marks.draw(ix(x), y, selected == segment); };
 
 	using Mode = EnvelopeGraph::Mode;
 	const float attack_x = std::round(start_x + fraction(envelope.attack) * max_segment_width);
 	const float decay_width = sigmoid_like_curve(static_cast<float>(envelope.decay), 50.0f, 8.0f) * max_segment_width;
 	const float sustain_level = envelope.mode == Mode::AHD ? 0.f : fraction(envelope.sustain);
-	const int32_t sustain_y = level_y(sustain_level);
+	const int32_t sustain_y = b.y_at(sustain_level);
 	const float sustain_x = start_x + max_segment_width * 3;
 	const float release_x = std::round(sustain_x + fraction(envelope.release) * (end_x - sustain_x));
 
@@ -219,84 +151,73 @@ void envelope_graph(OledFrame& panel, const EnvelopeGraph& envelope, int32_t sel
 		const float hold_x = std::round(attack_x + decay_width);
 		// The decay gets the room the release would have had, so the line ends where the release knob says
 		const float decay_end_x = std::round(hold_x + fraction(envelope.release) * (end_x - hold_x));
-		image.draw_line(ix(attack_x), start_y, ix(hold_x), start_y);
+		f.line(ix(attack_x), b.top, ix(hold_x), b.top);
 		stage(hold_x, 1.f, decay_end_x, 0.f, envelope.decay_k);
-		image.draw_line(ix(decay_end_x), base_y, ix(end_x), base_y);
-		dotted(attack_x, attack_x > start_x + 3, start_y);
-		dotted(hold_x, hold_x - attack_x > 4, start_y);
-		mark(attack_x, start_y, 0);
-		mark(hold_x, start_y, 1);
-		mark(decay_end_x, base_y, 3);
+		f.line(ix(decay_end_x), b.bottom, ix(end_x), b.bottom);
+		dotted(attack_x, attack_x > start_x + 3, b.top);
+		dotted(hold_x, hold_x - attack_x > 4, b.top);
+		mark(attack_x, b.top, 0);
+		mark(hold_x, b.top, 1);
+		mark(decay_end_x, b.bottom, 3);
 		break;
 	}
 	case Mode::AR: // up to the level while held, down on release
-		image.draw_line(ix(attack_x), sustain_y, ix(sustain_x), sustain_y);
+		f.line(ix(attack_x), sustain_y, ix(sustain_x), sustain_y);
 		stage(sustain_x, sustain_level, release_x, 0.f, envelope.release_k);
-		image.draw_line(ix(release_x), base_y, ix(end_x), base_y);
+		f.line(ix(release_x), b.bottom, ix(end_x), b.bottom);
 		dotted(sustain_x, true, sustain_y);
-		mark(attack_x, level_y(attack_level), 0);
+		mark(attack_x, b.y_at(attack_level), 0);
 		mark(attack_x + (sustain_x - attack_x) / 2, sustain_y, 2);
-		mark(release_x, base_y, 3);
+		mark(release_x, b.bottom, 3);
 		break;
 	case Mode::MPE: // up to full with the input fully on, resting at the level with it off, down on release
-		image.draw_line(ix(attack_x), start_y, ix(sustain_x), start_y);
+		f.line(ix(attack_x), b.top, ix(sustain_x), b.top);
 		stage(sustain_x, 1.f, release_x, 0.f, envelope.release_k);
-		image.draw_line(ix(release_x), base_y, ix(end_x), base_y);
-		for (int32_t x = start_x; x <= ix(sustain_x); x += 3) {
-			image.draw_pixel(x, sustain_y);
-		}
-		dotted(sustain_x, true, start_y);
-		mark(attack_x, start_y, 0);
+		f.line(ix(release_x), b.bottom, ix(end_x), b.bottom);
+		guide_h(f, sustain_y, b.left, ix(sustain_x));
+		dotted(sustain_x, true, b.top);
+		mark(attack_x, b.top, 0);
 		mark(start_x + (sustain_x - start_x) / 2, sustain_y, 2);
-		mark(release_x, base_y, 3);
+		mark(release_x, b.bottom, 3);
 		break;
 	case Mode::ADSR: {
 		const float decay_x = std::round(attack_x + decay_width);
 		stage(attack_x, 1.f, decay_x, sustain_level, envelope.decay_k);
-		image.draw_line(ix(decay_x), sustain_y, ix(sustain_x), sustain_y);
+		f.line(ix(decay_x), sustain_y, ix(sustain_x), sustain_y);
 		stage(sustain_x, sustain_level, release_x, 0.f, envelope.release_k);
-		image.draw_line(ix(release_x), base_y, ix(end_x), base_y);
-		// Lines close to each other look messy: the nearer is left out
-		dotted(attack_x, attack_x > start_x + 3, start_y);
-		dotted(decay_x, decay_x - attack_x > 4, start_y);
-		dotted(sustain_x, true, sustain_y > start_y ? start_y : sustain_y);
-		mark(attack_x, start_y, 0);
+		f.line(ix(release_x), b.bottom, ix(end_x), b.bottom);
+		dotted(attack_x, attack_x > start_x + 3, b.top);
+		dotted(decay_x, decay_x - attack_x > 4, b.top);
+		dotted(sustain_x, true, sustain_y > b.top ? b.top : sustain_y);
+		mark(attack_x, b.top, 0);
 		mark(decay_x, sustain_y, 1);
 		mark(decay_x + (sustain_x - decay_x) / 2, sustain_y, 2);
-		mark(release_x, base_y, 3);
+		mark(release_x, b.bottom, 3);
 		break;
 	}
 	}
 }
 
-void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float treble_freq, int32_t selected) {
-	const gfx::oled::Geometry g = panel.canvas.geometry();
-	ClipScope scope{panel.canvas, panel.clip};
-	gfx::oled::Canvas& image = panel.canvas;
-
-	const auto start_y = static_cast<uint8_t>(g.visible_top + gfx::oled::kTextTitleSizeY + 5);
-	const auto end_y = static_cast<uint8_t>(g.height - 6);
-	const auto center_y = static_cast<uint8_t>(start_y + (end_y - start_y) / 2);
-	const auto height = static_cast<uint8_t>(end_y - start_y);
-
-	constexpr uint8_t padding_x = 4;
-	constexpr uint8_t start_x = padding_x - 1;
-	const auto end_x = static_cast<uint8_t>(g.width - padding_x);
+void eq_graph(OledFrame& f, float bass, float treble, float bass_freq, float treble_freq, int32_t selected) {
+	const PageBody b = page_body(f);
+	const int32_t center_y = b.center_y();
+	const auto start_x = static_cast<uint8_t>(b.left);
+	const auto end_x = static_cast<uint8_t>(b.right);
 	constexpr uint8_t slope_width = 12;
 	const auto bass_band_travel_width = static_cast<uint8_t>((end_x - start_x) / 2 - slope_width);
 	const auto treble_band_travel_width = static_cast<uint8_t>((end_x - start_x) * 0.75f);
 
-	constexpr uint8_t bass_x0 = start_x;
+	const uint8_t bass_x0 = start_x;
 	auto bass_x1 = static_cast<uint8_t>(std::lerp(bass_x0, bass_x0 + bass_band_travel_width, bass_freq));
 	auto bass_x2 = static_cast<uint8_t>(bass_x1 + slope_width);
-	const auto bass_y1 = static_cast<uint8_t>(std::lerp(end_y, end_y - height, bass));
-	auto bass_y2 = center_y;
+	const int32_t bass_y1 = b.y_at(bass);
+	int32_t bass_y2 = center_y;
 
 	const uint8_t treble_x0 = end_x;
 	const auto treble_x1 = static_cast<uint8_t>(std::lerp(end_x - treble_band_travel_width, end_x, treble_freq));
 	const auto treble_x2 = static_cast<uint8_t>(treble_x1 - slope_width);
-	const auto treble_y1 = static_cast<uint8_t>(std::lerp(end_y, end_y - height, treble));
-	auto treble_y2 = center_y;
+	const int32_t treble_y1 = b.y_at(treble);
+	int32_t treble_y2 = center_y;
 
 	// The treble band may push into the bass's territory (`EqMenu::renderMenuItems` in
 	// `origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`).
@@ -306,42 +227,33 @@ void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float
 		bass_x1 = static_cast<uint8_t>(bass_x1 - diff);
 	}
 
-	const auto center_between = [](uint8_t a, uint8_t b) {
-		return static_cast<uint8_t>(std::min(a, b) + std::abs(b - a) / 2);
-	};
+	const auto center_between = [](int32_t p, int32_t q) { return std::min(p, q) + std::abs(q - p) / 2; };
 	const float morph = 1.0f - static_cast<float>(treble_x2 - bass_x2) / 14.f;
 	if (morph > 0.f) {
-		const uint8_t target_y = center_between(bass_y1, treble_y1);
-		bass_y2 = static_cast<uint8_t>(std::lerp(bass_y2, target_y, morph));
-		treble_y2 = static_cast<uint8_t>(std::lerp(treble_y2, target_y, morph));
+		const int32_t target_y = center_between(bass_y1, treble_y1);
+		bass_y2 = static_cast<int32_t>(std::lerp(bass_y2, target_y, morph));
+		treble_y2 = static_cast<int32_t>(std::lerp(treble_y2, target_y, morph));
 	}
 
-	image.draw_line(bass_x0, bass_y1, bass_x1, bass_y1);
-	image.draw_line(bass_x1, bass_y1, bass_x2, bass_y2);
-	image.draw_line(bass_x2, bass_y2, treble_x2, treble_y2);
-	image.draw_line(treble_x2, treble_y2, treble_x1, treble_y1);
-	image.draw_line(treble_x1, treble_y1, treble_x0, treble_y1);
+	const std::array<gfx::oled::Point, 6> shape{{{bass_x0, bass_y1},
+	                                             {bass_x1, bass_y1},
+	                                             {bass_x2, bass_y2},
+	                                             {treble_x2, treble_y2},
+	                                             {treble_x1, treble_y1},
+	                                             {treble_x0, treble_y1}}};
+	polyline(f, shape);
 
+	const std::array<int32_t, 2> band_edges{bass_x2, treble_x2};
 	if (std::abs(center_y - bass_y1) > 1) {
-		for (uint8_t x = 0; x <= bass_x2; x++) {
-			if (x % 6 == 3 && std::abs(x - bass_x2) > 1 && std::abs(x - treble_x2) > 1) {
-				image.draw_pixel(x, center_y);
-			}
-		}
+		guide_h(f, center_y, 0, bass_x2, band_edges);
 	}
 	if (std::abs(center_y - treble_y1) > 1) {
-		for (uint8_t x = 0; x <= end_x; x++) {
-			if (x % 6 == 3 && std::abs(x - bass_x2) > 1 && std::abs(x - treble_x2) > 1) {
-				image.draw_pixel(x, center_y);
-			}
-		}
+		guide_h(f, center_y, 0, end_x, band_edges);
 	}
-	for (auto y = static_cast<uint8_t>(start_y - 1); y <= end_y + 1; y += 4) {
-		image.draw_pixel(bass_x2, y);
-		image.draw_pixel(treble_x2, y);
-	}
+	guide_v(f, b, bass_x2, b.top);
+	guide_v(f, b, treble_x2, b.top);
 
-	Indicators marks{image};
+	Handles marks{f};
 	marks.draw(center_between(bass_x0, bass_x1), bass_y1, selected == 0);
 	marks.draw(bass_x2, bass_y2, selected == 1);
 	marks.draw(treble_x2, treble_y2, selected == 2);
@@ -514,17 +426,13 @@ void recorder(OledFrame& f, gfx::oled::Rect slot, int32_t source, bool focused) 
 /// `sample::LoopPoint::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`): a dotted
 /// marker line, the loop icon beside it, mirrored for the end.
 void loop_point(OledFrame& f, gfx::oled::Rect slot, bool start) {
-	// The end marker's icon starts two pixels left of its region, as legacy draws it.
-	ClipScope scope{f.canvas, panel_frame(f).clip};
-	gfx::oled::Canvas& image = f.canvas;
-	const int32_t slot_x = f.origin.x + slot.x;
-	const int32_t slot_y = f.origin.y + slot.y;
-	const int32_t line_x = start ? slot_x + 8 : slot_x + slot.w - 12;
-	for (int32_t y = slot_y + core::kHorizontalSlotYOffset - 1; y <= slot_y + slot.h - 5; y += 2) {
-		image.draw_pixel(line_x, y);
-	}
-	const int32_t icon_x = start ? line_x + 4 : slot_x - 2;
-	image.draw_icon(gfx::oled::icons::loopPoint, icon_x, slot_y + core::kHorizontalSlotYOffset, !start);
+	// Drawn through the panel's frame: the end marker's icon starts two pixels left of its region, as legacy draws it.
+	OledFrame panel = panel_frame(f);
+	const int32_t dx = f.origin.x - panel.origin.x;
+	const int32_t dy = f.origin.y - panel.origin.y;
+	const int32_t line_x = dx + (start ? slot.x + 8 : slot.x + slot.w - 12);
+	const int32_t top = dy + slot.y + core::kHorizontalSlotYOffset;
+	loop_marker(panel, line_x, top - 1, dy + slot.y + slot.h - 5, top, start);
 }
 
 /// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu`
