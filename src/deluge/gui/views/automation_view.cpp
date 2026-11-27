@@ -112,6 +112,7 @@ using deluge::bridge::RuntimeParam;
 using deluge::modulation::params::kNoParamID;
 using deluge::modulation::params::ParamType;
 using deluge::project::ParamTarget;
+using deluge::project::PluginParam;
 
 using namespace deluge::gui;
 
@@ -146,6 +147,12 @@ namespace {
 /// The selection as the view's (kind, id) plumbing reads it: its runtime pair, NONE and kNoParamID for none.
 deluge::bridge::RuntimeParam selection(const std::optional<deluge::project::PluginParam>& selected) {
 	return deluge::bridge::runtimePairOf(selected);
+}
+
+/// The song's selected lane on @p stack, or nullptr when the song has no selection.
+ModelStackWithAutoParam* songLane(ModelStackWithThreeMainThings* stack) {
+	return currentSong->selectedParam ? currentSong->getModelStackWithParam(stack, currentSong->selectedParam->target)
+	                                  : nullptr;
 }
 
 /// Portamento, which a kit row's automation leaves out.
@@ -576,8 +583,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                          selection(currentSong->selectedParam).index);
+		modelStackWithParam = songLane(modelStackWithThreeMainThings);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -695,8 +701,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 							pixel = colours::black; // erase pad
 							continue;
 						}
-						modelStackWithParam =
-						    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
+						modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, *cell);
 					}
 					else {
 						if (outputType == OutputType::AUDIO && isArp) {
@@ -923,8 +928,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                          selection(currentSong->selectedParam).index);
+			modelStackWithParam = songLane(modelStackWithThreeMainThings);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1327,8 +1331,7 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 
 			if (onArrangerView) {
 				modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-				                                                          selection(currentSong->selectedParam).index);
+				modelStackWithParam = songLane(modelStackWithThreeMainThings);
 			}
 			else {
 				modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1429,8 +1432,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		if (onArrangerView) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                          selection(currentSong->selectedParam).index);
+			modelStackWithParam = songLane(modelStackWithThreeMainThings);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1574,8 +1576,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                          selection(currentSong->selectedParam).index);
+		modelStackWithParam = songLane(modelStackWithThreeMainThings);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2109,8 +2110,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 			int32_t shiftAmount = offset * squareSize;
 
 			if (onArrangerView) {
-				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-				                                                          selection(currentSong->selectedParam).index);
+				modelStackWithParam = songLane(modelStackWithThreeMainThings);
 			}
 			else {
 				Clip* clip = getCurrentClip();
@@ -2302,8 +2302,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                          selection(currentSong->selectedParam).index);
+		modelStackWithParam = songLane(modelStackWithThreeMainThings);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2390,8 +2389,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                          selection(currentSong->selectedParam).index);
+		modelStackWithParam = songLane(modelStackWithThreeMainThings);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2531,8 +2529,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 
 		if (onArrangerView) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                          selection(currentSong->selectedParam).index);
+			modelStackWithParam = songLane(modelStackWithThreeMainThings);
 		}
 		else {
 			modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2989,30 +2986,27 @@ void AutomationView::initInterpolation() {
 ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack,
                                                                        Clip* clip, bool forEdit, int32_t paramID,
                                                                        params::Kind paramKind) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (paramID == kNoParamID) {
-		paramID = selection(clip->selectedParam).index;
-		paramKind = selection(clip->selectedParam).kind;
+	// A MIDI output names its lanes by number, whatever the pair's kind.
+	if (clip->output->type == OutputType::MIDI_OUT) {
+		const int32_t cc = paramID == kNoParamID ? selection(clip->selectedParam).index : paramID;
+		return getModelStackWithParamForClip(modelStack, clip, forEdit, deluge::project::midi_cc_param(cc));
 	}
+	const std::optional<PluginParam> param =
+	    paramID == kNoParamID ? clip->selectedParam : deluge::bridge::pluginParamOf(paramKind, paramID);
+	return param ? getModelStackWithParamForClip(modelStack, clip, forEdit, *param) : nullptr;
+}
 
-	// check if we're in the sound menu and not the settings menu
-	// because in the settings menu, the menu mod controllable's aren't setup, so we don't want to use those
-	bool inSoundMenu = deluge::gui::ui::soundMenuOpen();
-
-	modelStackWithParam = clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(),
-	                                                           inSoundMenu, forEdit);
-
-	return modelStackWithParam;
+ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack,
+                                                                       Clip* clip, bool forEdit,
+                                                                       const PluginParam& param) {
+	// In the settings menu the menu's mod controllables aren't set up, so only the sound menu's stack is used.
+	return clip->output->getModelStackWithParam(modelStack, clip, param.target, getAffectEntire(),
+	                                            deluge::gui::ui::soundMenuOpen(), forEdit);
 }
 
 ModelStackWithAutoParam* AutomationView::laneFor(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                  OwnerPlugin owner, ParamTarget target) {
-	std::optional<RuntimeParam> param = deluge::bridge::runtimeParamOf(owner, target);
-	if (!param) {
-		return nullptr;
-	}
-	return getModelStackWithParamForClip(modelStack, clip, false, param->index, param->kind);
+	return getModelStackWithParamForClip(modelStack, clip, false, PluginParam{.plugin = owner, .target = target});
 }
 
 void AutomationView::selectParam(ModelStackWithAutoParam* modelStack, bool clipMinder, PatchSource patchSource) {

@@ -306,8 +306,10 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay(
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                          selection(currentSong->selectedParam).index);
+		modelStackWithParam =
+		    currentSong->selectedParam
+		        ? currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->selectedParam->target)
+		        : nullptr;
 	}
 	else {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);

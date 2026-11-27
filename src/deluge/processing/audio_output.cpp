@@ -29,6 +29,7 @@
 #include "model/fx/chain_codec.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
@@ -557,7 +558,7 @@ bool AudioOutput::isSkippingRendering() {
 }
 
 ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                             int32_t paramID, params::Kind paramKind, bool affectEntire,
+                                                             deluge::project::ParamTarget target, bool affectEntire,
                                                              bool useMenuStack, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
@@ -565,7 +566,8 @@ ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimel
 	    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*this), &clip->paramManager);
 
 	if (modelStackWithThreeMainThings) {
-		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+		modelStackWithParam = deluge::bridge::autoParamOf(
+		    modelStackWithThreeMainThings, deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE, target, forEdit);
 	}
 
 	return modelStackWithParam;

@@ -41,6 +41,7 @@
 #include "model/note/note_row.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/arp_param_set.h"
@@ -2071,20 +2072,20 @@ gotParamManager:
 
 /// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                     int32_t paramID, params::Kind paramKind, bool affectEntire,
+                                                     deluge::project::ParamTarget target, bool affectEntire,
                                                      bool useMenuStack, bool forEdit) {
 	if (affectEntire) {
-		return getModelStackWithParamForKit(modelStack, clip, paramID, paramKind, useMenuStack, forEdit);
+		return getModelStackWithParamForKit(modelStack, clip, target, useMenuStack, forEdit);
 	}
 	else {
-		return getModelStackWithParamForKitRow(modelStack, clip, paramID, paramKind, useMenuStack, forEdit);
+		return getModelStackWithParamForKitRow(modelStack, clip, target, useMenuStack, forEdit);
 	}
 }
 
 /// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 /// for a kit with affect entire on, we are automating information at the kit level
 ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                           int32_t paramID, params::Kind paramKind, bool useMenuStack,
+                                                           deluge::project::ParamTarget target, bool useMenuStack,
                                                            bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
@@ -2100,9 +2101,8 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelin
 	}
 
 	if (modelStackWithThreeMainThings) {
-		modelStackWithParam = paramKind == params::Kind::ARP
-		                          ? modelStackWithThreeMainThings->getArpAutoParamFromId(paramID)
-		                          : modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+		modelStackWithParam = deluge::bridge::autoParamOf(
+		    modelStackWithThreeMainThings, deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE, target, forEdit);
 	}
 
 	return modelStackWithParam;
@@ -2111,8 +2111,8 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelin
 /// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 /// for a kit with affect entire off, we are automating information at the noterow level
 ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                              int32_t paramID, params::Kind paramKind,
-                                                              bool useMenuStack, bool forEdit) {
+                                                              deluge::project::ParamTarget target, bool useMenuStack,
+                                                              bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (selectedDrum && selectedDrum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
@@ -2131,24 +2131,8 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 			}
 
 			if (modelStackWithThreeMainThings) {
-				if (paramKind == deluge::modulation::params::Kind::PATCHED) {
-					modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-				}
-
-				else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
-					modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-				}
-
-				else if (paramKind == deluge::modulation::params::Kind::ARP) {
-					modelStackWithParam = modelStackWithThreeMainThings->getArpAutoParamFromId(paramID);
-				}
-
-				else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
-					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID, forEdit);
-				}
-				else if (paramKind == params::Kind::EXPRESSION) {
-					modelStackWithParam = modelStackWithThreeMainThings->getExpressionAutoParamFromID(paramID);
-				}
+				modelStackWithParam = deluge::bridge::autoParamOf(
+				    modelStackWithThreeMainThings, deluge::bridge::OwnerPlugin::INSTRUMENT, target, forEdit);
 			}
 		}
 	}

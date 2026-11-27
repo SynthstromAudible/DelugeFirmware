@@ -466,7 +466,8 @@ public:
 	ModelStackWithThreeMainThings* addToModelStack(ModelStack* modelStack);
 	/// Gets a modelstack with the song-global unpatched param paramID.
 	/// used in performance view and in automation arranger view
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
+	                                                deluge::project::ParamTarget target);
 
 	// TimelineCounter implementation
 	[[nodiscard]] int32_t getLastProcessedPos() const override;

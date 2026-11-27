@@ -6121,14 +6121,9 @@ ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {
 	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&live.master_channel, &paramManager);
 }
 
-ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (modelStack) {
-		modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramID);
-	}
-
-	return modelStackWithParam;
+ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
+                                                      deluge::project::ParamTarget target) {
+	return deluge::bridge::autoParamOf(modelStack, deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE, target, false);
 }
 
 void Song::updateBPMFromAutomation() {

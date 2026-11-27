@@ -27,6 +27,8 @@
 #include <cstdint>
 #include <optional>
 
+class ModelStackWithAutoParam;
+class ModelStackWithThreeMainThings;
 class ParamCollection;
 
 namespace deluge::bridge {
@@ -68,6 +70,16 @@ inline constexpr char kSelectionKindAttribute[] = "lastSelectedParamKind";
 /// @param id   The file's id.
 /// @return The selection, or nullopt for no id, a value that is no kind, or a pair that names no param.
 [[nodiscard]] std::optional<deluge::project::PluginParam> songSelectionOfFile(int32_t kind, int32_t id);
+
+/// @brief The lane @p target names on @p stack, for an owner of @p owner's plugin: its patched, unpatched, cable,
+/// expression or arp param. @p forEdit states that the caller writes it: a cable depth's missing cable is then created.
+/// @param stack   The owner's model stack.
+/// @param owner   The owner's plugin.
+/// @param target  The param.
+/// @param forEdit Whether the caller writes the lane.
+/// @return The lane, or nullptr when the owner's plugin has no such param or the target is a MIDI CC.
+[[nodiscard]] ModelStackWithAutoParam* autoParamOf(ModelStackWithThreeMainThings* stack, OwnerPlugin owner,
+                                                   deluge::project::ParamTarget target, bool forEdit);
 
 /// @brief Whether @p collection is a sound's patch cables.
 /// @param collection The collection, or nullptr.

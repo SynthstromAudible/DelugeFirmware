@@ -18,6 +18,7 @@
 #include "model/project_bridge/param_selection.h"
 
 #include "definitions_cxx.hpp"
+#include "model/model_stack.h"
 #include "modulation/params/param_collection.h"
 #include "util/misc.h"
 
@@ -74,6 +75,29 @@ std::optional<PluginParam> songSelectionOfFile(int32_t kind, int32_t id) {
 		return std::nullopt;
 	}
 	return pluginParamOf(static_cast<params::Kind>(kind), id);
+}
+
+ModelStackWithAutoParam* autoParamOf(ModelStackWithThreeMainThings* stack, OwnerPlugin owner,
+                                     deluge::project::ParamTarget target, bool forEdit) {
+	const std::optional<RuntimeParam> runtime = runtimeParamOf(owner, target);
+	if (stack == nullptr || !runtime) {
+		return nullptr;
+	}
+	switch (runtime->kind) {
+	case params::Kind::PATCHED:
+		return stack->getPatchedAutoParamFromId(runtime->index);
+	case params::Kind::UNPATCHED_SOUND:
+	case params::Kind::UNPATCHED_GLOBAL:
+		return stack->getUnpatchedAutoParamFromId(runtime->index);
+	case params::Kind::PATCH_CABLE:
+		return stack->getPatchCableAutoParamFromId(runtime->index, forEdit);
+	case params::Kind::EXPRESSION:
+		return stack->getExpressionAutoParamFromID(runtime->index);
+	case params::Kind::ARP:
+		return stack->getArpAutoParamFromId(runtime->index);
+	default:
+		return nullptr;
+	}
 }
 
 bool isCableCollection(ParamCollection* collection) {

@@ -1340,9 +1340,8 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimensi
 }
 
 ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                                int32_t paramID,
-                                                                deluge::modulation::params::Kind paramKind,
-                                                                bool affectEntire, bool useMenuStack, bool forEdit) {
+                                                                deluge::project::ParamTarget target, bool affectEntire,
+                                                                bool useMenuStack, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -1353,7 +1352,9 @@ ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTi
 
 		if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
 
-			modelStackWithParam = getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
+			// A MIDI output names its lanes by number, whatever the target's space.
+			modelStackWithParam = getParamToControlFromInputMIDIChannel(static_cast<int32_t>(target.id.value),
+			                                                            modelStackWithThreeMainThings);
 		}
 	}
 

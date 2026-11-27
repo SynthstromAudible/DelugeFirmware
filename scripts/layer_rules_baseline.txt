@@ -42,14 +42,8 @@ src/deluge/model/edits/set_param_value.cpp	no-param-kind-outside-runtime	6
 src/deluge/model/favourite/favourite_manager.cpp	model-calls-display	1
 src/deluge/model/favourite/favourite_manager.cpp	model-calls-ui	2
 src/deluge/model/instrument/kit.cpp	model-calls-ui	4
-src/deluge/model/instrument/kit.cpp	no-param-kind-outside-runtime	10
-src/deluge/model/instrument/kit.h	no-param-kind-outside-runtime	3
+src/deluge/model/instrument/kit.cpp	no-param-kind-outside-runtime	1
 src/deluge/model/instrument/melodic_instrument.cpp	model-calls-ui	4
-src/deluge/model/instrument/melodic_instrument.cpp	no-param-kind-outside-runtime	6
-src/deluge/model/instrument/melodic_instrument.h	no-param-kind-outside-runtime	1
-src/deluge/model/instrument/midi_instrument.cpp	no-param-kind-outside-runtime	1
-src/deluge/model/instrument/midi_instrument.h	no-param-kind-outside-runtime	1
-src/deluge/model/output.h	no-param-kind-outside-runtime	1
 src/deluge/model/sample/sample_recorder.cpp	model-calls-ui	1
 src/deluge/model/song/song.cpp	model-calls-display	4
 src/deluge/model/song/song.cpp	model-calls-ui	12
@@ -79,8 +73,7 @@ src/deluge/playback/playback_handler.cpp	model-calls-ui	48
 src/deluge/playback/render_requests.cpp	model-calls-display	1
 src/deluge/playback/render_requests.cpp	model-calls-ui	4
 src/deluge/playback/render_requests.h	model-calls-ui	1
-src/deluge/processing/audio_output.cpp	no-param-kind-outside-runtime	2
-src/deluge/processing/audio_output.h	no-param-kind-outside-runtime	1
+src/deluge/processing/audio_output.cpp	no-param-kind-outside-runtime	1
 src/deluge/processing/engines/audio_engine.cpp	model-calls-display	1
 src/deluge/processing/engines/audio_engine.cpp	model-calls-ui	2
 src/deluge/processing/engines/audio_engine.cpp	no-param-kind-outside-runtime	5

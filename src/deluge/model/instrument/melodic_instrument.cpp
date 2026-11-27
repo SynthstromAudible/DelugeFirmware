@@ -32,6 +32,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "modulation/arpeggiator.h"
 #include "playback/mode/session.h"
@@ -770,8 +771,7 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 }
 
 ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
-                                                                   Clip* clip, int32_t paramID,
-                                                                   deluge::modulation::params::Kind paramKind,
+                                                                   Clip* clip, deluge::project::ParamTarget target,
                                                                    bool affectEntire, bool useMenuStack, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
@@ -779,25 +779,8 @@ ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWit
 	    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*this), &clip->paramManager);
 
 	if (modelStackWithThreeMainThings) {
-		if (paramKind == deluge::modulation::params::Kind::PATCHED) {
-			modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-		}
-
-		else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
-			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-		}
-
-		else if (paramKind == deluge::modulation::params::Kind::ARP) {
-			modelStackWithParam = modelStackWithThreeMainThings->getArpAutoParamFromId(paramID);
-		}
-
-		else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
-			modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID, forEdit);
-		}
-		else if (paramKind == deluge::modulation::params::Kind::EXPRESSION) {
-
-			modelStackWithParam = modelStackWithThreeMainThings->getExpressionAutoParamFromID(paramID);
-		}
+		modelStackWithParam = deluge::bridge::autoParamOf(modelStackWithThreeMainThings,
+		                                                  deluge::bridge::OwnerPlugin::INSTRUMENT, target, forEdit);
 	}
 
 	return modelStackWithParam;

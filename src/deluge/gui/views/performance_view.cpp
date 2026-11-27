@@ -41,6 +41,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_param_value.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
@@ -1379,7 +1380,11 @@ void PerformanceView::releaseStutter(ModelStackWithThreeMainThings* modelStack) 
 /// in regular performance view, this function will also update the parameter value shown on the display
 bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                         int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
-	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
+	const std::optional<deluge::project::PluginParam> param = deluge::bridge::pluginParamOf(paramKind, paramID);
+	if (!param) {
+		return false;
+	}
+	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, param->target);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -1435,7 +1440,11 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 /// update current value stored
 void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                         int32_t paramID, int32_t xDisplay, bool renderDisplay) {
-	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
+	const std::optional<deluge::project::PluginParam> param = deluge::bridge::pluginParamOf(paramKind, paramID);
+	if (!param) {
+		return;
+	}
+	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, param->target);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
