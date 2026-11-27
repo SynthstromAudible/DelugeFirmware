@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "serialization/schema/extras.h"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -49,6 +50,8 @@ struct MidiDeviceRef {
 	uint16_t vendor_id{0};  ///< HOSTED only
 	uint16_t product_id{0}; ///< HOSTED only
 
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const MidiDeviceRef&) const = default;
 };
 
@@ -65,6 +68,8 @@ struct MidiCommand {
 
 	[[nodiscard]] bool contains_something() const { return channel_or_zone != kNone; }
 
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const MidiCommand&) const = default;
 };
 

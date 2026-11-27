@@ -22,6 +22,7 @@
 #include "project/midi_command.h"
 #include "project/model_memory.h"
 #include "project/param_address.h"
+#include "serialization/schema/extras.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -73,6 +74,8 @@ struct Mapping {
 	MidiCommand source;
 	MappingTarget target;
 	bool relative{false}; ///< OwnerParamTarget only: the knob sends relative changes
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const Mapping&) const = default;
 };
 
@@ -95,6 +98,10 @@ public:
 	/// @param mapping The binding to learn.
 	/// @return The entry that now holds it.
 	Mapping& learn(Mapping mapping);
+	/// @brief Append @p mapping as it is, after the last: for a reader restoring a table it wrote, whose entries are
+	/// already what learning made them.
+	/// @param mapping The mapping.
+	void restore(Mapping mapping);
 	/// @brief Learn @p mapping, a OwnerParamTarget, in place of the entry for the same target whose source is
 	/// @p old_source, keeping that entry's place in the table; learn() it when there is no such entry. Its relative
 	/// flag is set as learn() sets it. When another knob of the target now has the same source, the two become one, at
