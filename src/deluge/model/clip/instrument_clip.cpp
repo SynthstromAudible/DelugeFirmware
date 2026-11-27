@@ -3624,7 +3624,8 @@ bool InstrumentClip::isScrollWithinRange(int32_t scrollAmount, int32_t newYNote)
 	}
 
 	else if (output->type == OutputType::CV) {
-		int32_t newVoltage = cvEngine.calculateVoltage(newYNote, ((CVInstrument*)output)->getChannel());
+		// getChannel() is 2 in "both" mode, which isn't a CV channel; pitch is on getPitchChannel()
+		int32_t newVoltage = cvEngine.calculateVoltage(newYNote, ((CVInstrument*)output)->getPitchChannel());
 		if (scrollAmount >= 0) {
 			if (newVoltage >= 65536 && newYNote > getTopYNote()) {
 				return false;
