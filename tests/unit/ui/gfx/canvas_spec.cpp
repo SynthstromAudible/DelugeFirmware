@@ -162,6 +162,24 @@ describe canvas("gfx::oled::Canvas", $ {
 		expect(lit_pixels(neu.bytes())).to_be_greater_than(0);
 	});
 
+	it("clears only the rows between an area's edges when both edges fall in one 8-row band", _ {
+		uint8_t store[768];
+		g::Canvas c(store, g::kDelugeOled);
+		std::memset(store, 0xFF, sizeof store);
+		c.clear_area_exact(10, 10, 14, 14); // rows 10..14, inside the band 8..15
+		for (int x = 9; x <= 15; x++) {
+			const bool inside = x >= 10 && x <= 14;
+			// Bits 2..6 of the band byte are rows 10..14: cleared inside the columns, the rest kept.
+			expect(static_cast<int>(store[1 * 128 + x])).to_equal(inside ? 0x83 : 0xFF);
+		}
+		c.clear_area_exact(20, 17, 20, 17); // one pixel, row 17 of the band 16..23
+		expect(static_cast<int>(store[2 * 128 + 20])).to_equal(0xFD);
+		c.clear_area_exact(30, 8, 30, 12); // from the band's top row, which the first-row step leaves to the last-row one
+		expect(static_cast<int>(store[1 * 128 + 30])).to_equal(0xE0);
+		c.clear_area_exact(40, 11, 40, 15); // to the band's bottom row
+		expect(static_cast<int>(store[1 * 128 + 40])).to_equal(0x07);
+	});
+
 	it("matches the legacy canvas on the rounded_and_invert scene", _ {
 		OldCanvas old; old.clear();
 		g::OwnedCanvas<g::kDelugeOled> neu; neu.clear();
@@ -186,7 +204,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		old.invertLeftEdgeForMenuHighlighting(104, 20, 24, 34);
 		neu.draw_vertical_line(104, 24, 34);
 		old.drawCircle(12, 12, 4, true);            neu.draw_circle(12, 12, 4, true);
-		old.clearAreaExact(10, 10, 14, 14);         neu.clear_area_exact(10, 10, 14, 14);
+		old.clearAreaExact(10, 8, 14, 14);          neu.clear_area_exact(10, 8, 14, 14);
 		OldCanvas::roundedCornersEnabled = false;
 		old.drawRectangleRounded(2, 38, 40, 46);
 		neu.draw_rectangle_rounded(2, 38, 40, 46, g::BorderRadius::Small, false);
