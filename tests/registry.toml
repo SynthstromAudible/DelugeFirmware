@@ -1870,6 +1870,22 @@ tier = "nightly"
 job = "tooling"
 runtime_s = 5
 areas = ["model", "synth", "effects", "corpus-driver", "test-support"]
+
+[[harness]]
+name = "schema-lock"
+path = "."
+level = "unit"
+runner = "script"
+kind = "regression"
+status = "gate"
+gates = "the clean format's schema changes only with a schema revision bump and a re-recorded lock"
+run = ["python3", "tests/unit/project/clean/check_schema_lock.py"]
+requires = ["cmake", "clang"]
+baseline = ["tests/golden/schema/schema.lock.json"]
+tier = "pr"
+job = "tooling"
+runtime_s = 2
+areas = ["model", "test-support"]
 [[harness]]
 name = "preset-roundtrip"
 template = "corpus"

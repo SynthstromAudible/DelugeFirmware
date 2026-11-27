@@ -1,0 +1,1974 @@
+{
+ "revision": 1,
+ "records": [
+  {
+   "name": "transport",
+   "open": true,
+   "fields": [
+    {
+     "key": "samplesPerTimerTick",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 9223372036854775807
+    },
+    {
+     "key": "insideWorldTickMagnitude",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "insideWorldTickMagnitudeOffsetFromBpm",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "syncScalingClip",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": 0,
+      "max": 4294967295
+     }
+    }
+   ]
+  },
+  {
+   "name": "groove",
+   "open": true,
+   "fields": [
+    {
+     "key": "swingAmount",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -49,
+     "max": 49
+    },
+    {
+     "key": "swingInterval",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 9
+    }
+   ]
+  },
+  {
+   "name": "scale",
+   "open": true,
+   "fields": [
+    {
+     "key": "rootNote",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "modeNotes",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4095
+    },
+    {
+     "key": "disabledPresetScales",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 65535
+    },
+    {
+     "key": "userScaleNotes",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4095
+    }
+   ]
+  },
+  {
+   "name": "reverb",
+   "open": true,
+   "fields": [
+    {
+     "key": "roomSize",
+     "kind": "scalar",
+     "form": "real"
+    },
+    {
+     "key": "hpf",
+     "kind": "scalar",
+     "form": "real"
+    },
+    {
+     "key": "lpf",
+     "kind": "scalar",
+     "form": "real"
+    },
+    {
+     "key": "damping",
+     "kind": "scalar",
+     "form": "real"
+    },
+    {
+     "key": "width",
+     "kind": "scalar",
+     "form": "real"
+    },
+    {
+     "key": "pan",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "sidechainVolume",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "sidechainShape",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "sidechainAttack",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "sidechainRelease",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "sidechainSync",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 9
+    },
+    {
+     "key": "model",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "freeverb",
+      "mutable",
+      "digital"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "section",
+   "open": true,
+   "fields": [
+    {
+     "key": "numRepetitions",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2,
+     "max": 9999
+    }
+   ]
+  },
+  {
+   "name": "sessionMacro",
+   "open": true,
+   "fields": [
+    {
+     "key": "kind",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "none",
+      "clipLaunch",
+      "outputCycle",
+      "section"
+     ]
+    },
+    {
+     "key": "clip",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": 0,
+      "max": 4294967295
+     }
+    },
+    {
+     "key": "output",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": 0,
+      "max": 4294967295
+     }
+    },
+    {
+     "key": "section",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 23
+    }
+   ]
+  },
+  {
+   "name": "arrangement",
+   "open": true,
+   "fields": [
+    {
+     "key": "sections",
+     "kind": "list",
+     "capacity": 24,
+     "element": {
+      "kind": "record",
+      "record": "section"
+     }
+    },
+    {
+     "key": "sessionMacros",
+     "kind": "list",
+     "capacity": 8,
+     "element": {
+      "kind": "record",
+      "record": "sessionMacro"
+     }
+    }
+   ]
+  },
+  {
+   "name": "soundRouting",
+   "open": true,
+   "fields": [
+    {
+     "key": "sideChainSend",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 2147483647
+    },
+    {
+     "key": "midiChannel",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": 0,
+      "max": 15
+     }
+    },
+    {
+     "key": "midiNote",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": 0,
+      "max": 127
+     }
+    }
+   ]
+  },
+  {
+   "name": "instrumentSlot",
+   "open": true,
+   "fields": [
+    {
+     "key": "plugin",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "routing",
+     "kind": "record",
+     "record": "soundRouting"
+    },
+    {
+     "key": "state",
+     "kind": "plugin",
+     "plugin": "deluge.instrument",
+     "version": 1
+    }
+   ]
+  },
+  {
+   "name": "arp",
+   "open": true,
+   "fields": [
+    {
+     "key": "arpMode",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "off",
+      "arp"
+     ]
+    },
+    {
+     "key": "octaveMode",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "up",
+      "down",
+      "upDown",
+      "alt",
+      "random"
+     ]
+    },
+    {
+     "key": "noteMode",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "up",
+      "down",
+      "upDown",
+      "random",
+      "walk1",
+      "walk2",
+      "walk3",
+      "asPlayed",
+      "pattern"
+     ]
+    },
+    {
+     "key": "mpeVelocity",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "off",
+      "z",
+      "y"
+     ]
+    },
+    {
+     "key": "numOctaves",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 1,
+     "max": 8
+    },
+    {
+     "key": "stepRepeat",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 1,
+     "max": 8
+    },
+    {
+     "key": "chordType",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 8
+    },
+    {
+     "key": "syncLevel",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 9
+    },
+    {
+     "key": "syncType",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 19
+    },
+    {
+     "key": "randomizerLock",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "kitArp",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "gate",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "rate",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "rhythm",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "sequenceLength",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "chordPolyphony",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "ratchetAmount",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "noteProbability",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "bassProbability",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "swapProbability",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "glideProbability",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "reverseProbability",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "chordProbability",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "ratchetProbability",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "spreadVelocity",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "spreadGate",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "spreadOctave",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    }
+   ]
+  },
+  {
+   "name": "paramTarget",
+   "open": false,
+   "fields": [
+    {
+     "key": "space",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "engine",
+      "expression",
+      "midiCc",
+      "arp"
+     ]
+    },
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    }
+   ]
+  },
+  {
+   "name": "controllerMapping",
+   "open": true,
+   "fields": [
+    {
+     "key": "button",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "knob",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "target",
+     "kind": "record",
+     "record": "paramTarget"
+    }
+   ]
+  },
+  {
+   "name": "soundOutput",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "colour",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "modKnobMode",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "mutedInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "soloingInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "armedForRecording",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "folder",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "defaultVelocity",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 127
+    },
+    {
+     "key": "instrument",
+     "kind": "optional",
+     "value": {
+      "kind": "record",
+      "record": "instrumentSlot"
+     }
+    },
+    {
+     "key": "arp",
+     "kind": "optional",
+     "value": {
+      "kind": "record",
+      "record": "arp"
+     }
+    },
+    {
+     "key": "controls",
+     "kind": "list",
+     "element": {
+      "kind": "record",
+      "record": "controllerMapping"
+     }
+    }
+   ]
+  },
+  {
+   "name": "soundDrum",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "instrument",
+     "kind": "optional",
+     "value": {
+      "kind": "record",
+      "record": "instrumentSlot"
+     }
+    },
+    {
+     "key": "controls",
+     "kind": "list",
+     "element": {
+      "kind": "record",
+      "record": "controllerMapping"
+     }
+    },
+    {
+     "key": "arp",
+     "kind": "optional",
+     "value": {
+      "kind": "record",
+      "record": "arp"
+     }
+    }
+   ]
+  },
+  {
+   "name": "midiDrum",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "channel",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "note",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 127
+    },
+    {
+     "key": "arp",
+     "kind": "optional",
+     "value": {
+      "kind": "record",
+      "record": "arp"
+     }
+    }
+   ]
+  },
+  {
+   "name": "gateDrum",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "channel",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "arp",
+     "kind": "optional",
+     "value": {
+      "kind": "record",
+      "record": "arp"
+     }
+    }
+   ]
+  },
+  {
+   "name": "kitOutput",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "colour",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "modKnobMode",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "mutedInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "soloingInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "armedForRecording",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "folder",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "defaultVelocity",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 127
+    },
+    {
+     "key": "controls",
+     "kind": "list",
+     "element": {
+      "kind": "record",
+      "record": "controllerMapping"
+     }
+    },
+    {
+     "key": "effects",
+     "kind": "optional",
+     "value": {
+      "kind": "plugin",
+      "plugin": "deluge.effects/track",
+      "version": 1
+     }
+    },
+    {
+     "key": "drums",
+     "kind": "list",
+     "idKey": "id",
+     "element": {
+      "kind": "variant",
+      "alternatives": [
+       {
+        "word": "sound",
+        "record": "soundDrum"
+       },
+       {
+        "word": "midiOutput",
+        "record": "midiDrum"
+       },
+       {
+        "word": "gateOutput",
+        "record": "gateDrum"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "audioTrack",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "colour",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "modKnobMode",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "mutedInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "soloingInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "armedForRecording",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "audioMode",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "player",
+      "sampler",
+      "looper"
+     ]
+    },
+    {
+     "key": "inputChannel",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "none",
+      "left",
+      "right",
+      "stereo",
+      "balanced",
+      "usb",
+      "mix",
+      "output",
+      "specificTrack"
+     ]
+    },
+    {
+     "key": "recordingFromOutput",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": 0,
+      "max": 4294967295
+     }
+    },
+    {
+     "key": "controls",
+     "kind": "list",
+     "element": {
+      "kind": "record",
+      "record": "controllerMapping"
+     }
+    },
+    {
+     "key": "effects",
+     "kind": "optional",
+     "value": {
+      "kind": "plugin",
+      "plugin": "deluge.effects/track",
+      "version": 1
+     }
+    }
+   ]
+  },
+  {
+   "name": "ccLabel",
+   "open": false,
+   "fields": [
+    {
+     "key": "cc",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "label",
+     "kind": "scalar",
+     "form": "text"
+    }
+   ]
+  },
+  {
+   "name": "modKnobCc",
+   "open": true,
+   "fields": [
+    {
+     "key": "kind",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "none",
+      "number",
+      "bend",
+      "aftertouch"
+     ]
+    },
+    {
+     "key": "number",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    }
+   ]
+  },
+  {
+   "name": "midiOutput",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "colour",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "modKnobMode",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "mutedInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "soloingInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "armedForRecording",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "folder",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "defaultVelocity",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 127
+    },
+    {
+     "key": "channel",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "channelSuffix",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "deviceDefinitionFile",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "collapseAftertouch",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "collapseMpe",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "outputMpeY",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "hideUnlabeledCc",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "ccLabels",
+     "kind": "list",
+     "idKey": "cc",
+     "element": {
+      "kind": "record",
+      "record": "ccLabel"
+     }
+    },
+    {
+     "key": "modKnobCcs",
+     "kind": "list",
+     "element": {
+      "kind": "record",
+      "record": "modKnobCc"
+     }
+    }
+   ]
+  },
+  {
+   "name": "cvOutput",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "colour",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "modKnobMode",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "mutedInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "soloingInArrangement",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "armedForRecording",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "folder",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "defaultVelocity",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 127
+    },
+    {
+     "key": "channel",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "cv2Source",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "off",
+      "pitch",
+      "mod",
+      "aftertouch",
+      "velocity"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "clipValues",
+   "open": true,
+   "fields": [
+    {
+     "key": "midiBank",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "midiSub",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "midiPGM",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "bendRange",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "bendRangeMPE",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "arp",
+     "kind": "optional",
+     "value": {
+      "kind": "record",
+      "record": "arp"
+     }
+    }
+   ]
+  },
+  {
+   "name": "noteRow",
+   "open": true,
+   "fields": [
+    {
+     "key": "y",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "loopLengthIfIndependent",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "colourOffset",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -128,
+     "max": 127
+    },
+    {
+     "key": "sequenceDirection",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "forward",
+      "reverse",
+      "pingpong",
+      "obeyParent"
+     ]
+    },
+    {
+     "key": "bendRange",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": -2147483648,
+      "max": 2147483647
+     }
+    },
+    {
+     "key": "muted",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "drum",
+     "kind": "optional",
+     "value": {
+      "kind": "scalar",
+      "form": "integer",
+      "min": 0,
+      "max": 4294967295
+     }
+    }
+   ]
+  },
+  {
+   "name": "instrumentClip",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "arrangementOnly",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "sequenceDirection",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "forward",
+      "reverse",
+      "pingpong",
+      "obeyParent"
+     ]
+    },
+    {
+     "key": "values",
+     "kind": "record",
+     "record": "clipValues"
+    },
+    {
+     "key": "loopLength",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "colourOffset",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "launchStyle",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "default",
+      "fill",
+      "once"
+     ]
+    },
+    {
+     "key": "section",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "inKit",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "noteRows",
+     "kind": "list",
+     "element": {
+      "kind": "record",
+      "record": "noteRow"
+     }
+    }
+   ]
+  },
+  {
+   "name": "audioClip",
+   "open": true,
+   "fields": [
+    {
+     "key": "id",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "arrangementOnly",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "sequenceDirection",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "forward",
+      "reverse",
+      "pingpong",
+      "obeyParent"
+     ]
+    },
+    {
+     "key": "values",
+     "kind": "record",
+     "record": "clipValues"
+    },
+    {
+     "key": "loopLength",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "colourOffset",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "launchStyle",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "default",
+      "fill",
+      "once"
+     ]
+    },
+    {
+     "key": "section",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "filePath",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "startPos",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 9223372036854775807
+    },
+    {
+     "key": "endPos",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 9223372036854775807
+    },
+    {
+     "key": "transpose",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -32768,
+     "max": 32767
+    },
+    {
+     "key": "cents",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -128,
+     "max": 127
+    },
+    {
+     "key": "interpolationMode",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "linear",
+      "smooth"
+     ]
+    },
+    {
+     "key": "pitchAndSpeedIndependent",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "reversed",
+     "kind": "scalar",
+     "form": "bool"
+    },
+    {
+     "key": "attack",
+     "kind": "scalar",
+     "form": "integer",
+     "min": -2147483648,
+     "max": 2147483647
+    },
+    {
+     "key": "voicePriority",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "low",
+      "medium",
+      "high"
+     ]
+    },
+    {
+     "key": "overdubsShouldClone",
+     "kind": "scalar",
+     "form": "bool"
+    }
+   ]
+  },
+  {
+   "name": "midiDevice",
+   "open": true,
+   "fields": [
+    {
+     "key": "port",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "din",
+      "upstreamUsb1",
+      "upstreamUsb2",
+      "upstreamUsb3",
+      "hosted"
+     ]
+    },
+    {
+     "key": "name",
+     "kind": "scalar",
+     "form": "text"
+    },
+    {
+     "key": "vendorId",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 65535
+    },
+    {
+     "key": "productId",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 65535
+    }
+   ]
+  },
+  {
+   "name": "midiCommand",
+   "open": true,
+   "fields": [
+    {
+     "key": "channelOrZone",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "noteOrCc",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "device",
+     "kind": "optional",
+     "value": {
+      "kind": "record",
+      "record": "midiDevice"
+     }
+    }
+   ]
+  },
+  {
+   "name": "ownerParamTarget",
+   "open": false,
+   "fields": [
+    {
+     "key": "ownerKind",
+     "kind": "scalar",
+     "form": "word",
+     "words": [
+      "output",
+      "drum",
+      "song"
+     ]
+    },
+    {
+     "key": "ownerId",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    },
+    {
+     "key": "param",
+     "kind": "record",
+     "record": "paramTarget"
+    }
+   ]
+  },
+  {
+   "name": "clipMuteTarget",
+   "open": false,
+   "fields": [
+    {
+     "key": "clip",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    }
+   ]
+  },
+  {
+   "name": "drumMuteTarget",
+   "open": false,
+   "fields": [
+    {
+     "key": "drum",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    }
+   ]
+  },
+  {
+   "name": "sectionLaunchTarget",
+   "open": false,
+   "fields": [
+    {
+     "key": "section",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 23
+    }
+   ]
+  },
+  {
+   "name": "trackInputTarget",
+   "open": false,
+   "fields": [
+    {
+     "key": "output",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    }
+   ]
+  },
+  {
+   "name": "laneInputTarget",
+   "open": false,
+   "fields": [
+    {
+     "key": "drum",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 4294967295
+    }
+   ]
+  },
+  {
+   "name": "mapping",
+   "open": true,
+   "fields": [
+    {
+     "key": "source",
+     "kind": "record",
+     "record": "midiCommand"
+    },
+    {
+     "key": "target",
+     "kind": "variant",
+     "alternatives": [
+      {
+       "word": "param",
+       "record": "ownerParamTarget"
+      },
+      {
+       "word": "clipMute",
+       "record": "clipMuteTarget"
+      },
+      {
+       "word": "drumMute",
+       "record": "drumMuteTarget"
+      },
+      {
+       "word": "sectionLaunch",
+       "record": "sectionLaunchTarget"
+      },
+      {
+       "word": "trackInput",
+       "record": "trackInputTarget"
+      },
+      {
+       "word": "laneInput",
+       "record": "laneInputTarget"
+      }
+     ]
+    },
+    {
+     "key": "relative",
+     "kind": "scalar",
+     "form": "bool"
+    }
+   ]
+  },
+  {
+   "name": "song",
+   "open": true,
+   "fields": [
+    {
+     "key": "transport",
+     "kind": "record",
+     "record": "transport"
+    },
+    {
+     "key": "groove",
+     "kind": "record",
+     "record": "groove"
+    },
+    {
+     "key": "scale",
+     "kind": "record",
+     "record": "scale"
+    },
+    {
+     "key": "modKnobMode",
+     "kind": "scalar",
+     "form": "integer",
+     "min": 0,
+     "max": 255
+    },
+    {
+     "key": "reverb",
+     "kind": "record",
+     "record": "reverb"
+    },
+    {
+     "key": "arrangement",
+     "kind": "record",
+     "record": "arrangement"
+    },
+    {
+     "key": "masterEffects",
+     "kind": "plugin",
+     "plugin": "deluge.effects/master",
+     "version": 1
+    },
+    {
+     "key": "outputs",
+     "kind": "list",
+     "idKey": "id",
+     "element": {
+      "kind": "variant",
+      "alternatives": [
+       {
+        "word": "sound",
+        "record": "soundOutput"
+       },
+       {
+        "word": "kit",
+        "record": "kitOutput"
+       },
+       {
+        "word": "audioTrack",
+        "record": "audioTrack"
+       },
+       {
+        "word": "midi",
+        "record": "midiOutput"
+       },
+       {
+        "word": "midiChannel",
+        "record": "midiOutput"
+       },
+       {
+        "word": "mpeZone",
+        "record": "midiOutput"
+       },
+       {
+        "word": "cvChannel",
+        "record": "cvOutput"
+       }
+      ]
+     }
+    },
+    {
+     "key": "clips",
+     "kind": "list",
+     "idKey": "id",
+     "element": {
+      "kind": "variant",
+      "alternatives": [
+       {
+        "word": "instrument",
+        "record": "instrumentClip"
+       },
+       {
+        "word": "audio",
+        "record": "audioClip"
+       }
+      ]
+     }
+    },
+    {
+     "key": "mappings",
+     "kind": "list",
+     "element": {
+      "kind": "record",
+      "record": "mapping"
+     }
+    }
+   ]
+  },
+  {
+   "name": "preset",
+   "open": true,
+   "fields": [
+    {
+     "key": "outputs",
+     "kind": "list",
+     "capacity": 1,
+     "idKey": "id",
+     "element": {
+      "kind": "variant",
+      "alternatives": [
+       {
+        "word": "sound",
+        "record": "soundOutput"
+       },
+       {
+        "word": "kit",
+        "record": "kitOutput"
+       },
+       {
+        "word": "audioTrack",
+        "record": "audioTrack"
+       },
+       {
+        "word": "midi",
+        "record": "midiOutput"
+       },
+       {
+        "word": "midiChannel",
+        "record": "midiOutput"
+       },
+       {
+        "word": "mpeZone",
+        "record": "midiOutput"
+       },
+       {
+        "word": "cvChannel",
+        "record": "cvOutput"
+       }
+      ]
+     }
+    },
+    {
+     "key": "mappings",
+     "kind": "list",
+     "element": {
+      "kind": "record",
+      "record": "mapping"
+     }
+    }
+   ]
+  }
+ ]
+}

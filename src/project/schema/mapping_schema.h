@@ -66,7 +66,7 @@ inline constexpr sch::RecordDesc kMidiCommandDesc =
 
 namespace mapping_detail {
 
-inline constexpr sch::RecordDesc kParamDesc = sch::closed_record("paramTarget", kParamFields);
+inline constexpr sch::RecordDesc kParamDesc = sch::closed_record("ownerParamTarget", kParamFields);
 inline constexpr sch::RecordDesc kClipMuteDesc = sch::closed_record("clipMuteTarget", kClipMuteFields);
 inline constexpr sch::RecordDesc kDrumMuteDesc = sch::closed_record("drumMuteTarget", kDrumMuteFields);
 inline constexpr sch::RecordDesc kSectionLaunchDesc = sch::closed_record("sectionLaunchTarget", kSectionLaunchFields);

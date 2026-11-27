@@ -11,3 +11,7 @@ set_target_properties(clean_roundtrip PROPERTIES CXX_STANDARD 23 CXX_STANDARD_RE
 add_test(NAME clean_roundtrip_synthetic
          COMMAND clean_roundtrip ${DELUGE_REPO_ROOT}/tests/golden/songs/synthetic
                  ${CMAKE_CURRENT_LIST_DIR}/../equality/model_records.XML)
+add_executable(schema_lock schema_lock.cpp ${clean_mocks})
+target_link_libraries(schema_lock PRIVATE ${clean_libraries})
+target_include_directories(schema_lock PRIVATE ${DELUGE_REPO_ROOT}/tests/support/mocks)
+set_target_properties(schema_lock PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED YES)
