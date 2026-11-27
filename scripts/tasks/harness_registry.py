@@ -826,11 +826,12 @@ def select(
     names: list[str],
     levels: list[str],
     tier: str,
+    only: bool = False,
 ) -> list[Harness]:
     """The entries a run covers.
 
-    Named entries are taken as asked for, whatever their tier or status. Otherwise every entry at `tier` or an
-    earlier one, at one of `levels` (all levels when empty), that is not marked unavailable.
+    Named entries are taken as asked for, whatever their tier or status. Otherwise every entry at `tier` (`only`) or
+    at `tier` or an earlier one, at one of `levels` (all levels when empty), that is not marked unavailable.
     """
     if names:
         by_name = {h.name: h for h in entries}
@@ -839,7 +840,7 @@ def select(
             raise ValueError(f"unknown test(s): {', '.join(unknown)}")
         return [by_name[n] for n in names]
 
-    within = TIERS[: TIERS.index(tier) + 1]
+    within = (tier,) if only else TIERS[: TIERS.index(tier) + 1]
     return [
         h
         for h in entries

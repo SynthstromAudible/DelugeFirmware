@@ -138,6 +138,16 @@ class SelectTest(unittest.TestCase):
             self.names(tier="pr", names=["i-manual", "u-pr"]), ["i-manual", "u-pr"]
         )
 
+    def test_only_a_tier_selects_that_tier_alone(self):
+        self.assertEqual(
+            [h.name for h in hr.select(self.ENTRIES, [], [], "nightly", only=True)],
+            ["c-nightly"],
+        )
+        self.assertEqual(
+            [h.name for h in hr.select(self.ENTRIES, [], [], "manual", only=True)],
+            ["i-manual"],
+        )
+
     def test_unknown_name_is_rejected(self):
         with self.assertRaises(ValueError):
             self.names(tier="pr", names=["nope"])
@@ -1758,12 +1768,14 @@ class RunnerSchedulingTest(unittest.TestCase):
             [(e.name, e.alone) for e in entries], [("alpha", False), ("gamma", True)]
         )
 
-    def test_default_jobs(self):
-        cpus = os.cpu_count()
-        self.assertEqual(tt.default_jobs(0, "pr", False), cpus)
-        self.assertEqual(tt.default_jobs(0, "nightly", False), 1)
-        self.assertEqual(tt.default_jobs(3, "pr", False), 3)
-        self.assertEqual(tt.default_jobs(0, "nightly", True), cpus)
+    def test_every_tier_runs_one_test_per_cpu_unless_told(self):
+        self.assertEqual(tt.default_jobs(0), os.cpu_count() or 1)
+        self.assertEqual(tt.default_jobs(3), 3)
+
+    def test_only_tier_refuses_tier(self):
+        self.assertEqual(
+            tt._main(["--only-tier", "nightly", "--tier", "pr", "--list"]), 2
+        )
 
     def test_schedule_splits_alone_last(self):
         a, b, c = entry("a"), entry("b"), entry("c")
