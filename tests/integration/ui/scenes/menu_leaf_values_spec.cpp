@@ -669,11 +669,11 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 		expect(nodes::record_quantize.bind.sync_name_magnitude).not_().to_be_null();
 	});
 
-	it("wraps a horizontal-page turn on the two oscillator types and turns five columns the other way", _ {
-		// The oscillator types wrap (behaviour: menu_horizontal_controls_spec). Reversed: the two HPF morphs, the
+	it("wraps a horizontal-page turn on the two oscillator types and the DX7's, and turns five columns the other way", _ {
+		// The oscillator types wrap (behaviour: menu_horizontal_controls_spec), and the DX7's column in their place. Reversed: the two HPF morphs, the
 		// audio clip's reverse and both samples' reverse.
-		expect(count_where([](const Node& n) { return n.bind.wrap_in_horizontal; })).to_equal(size_t(2));
-		for (const Node* n : {&nodes::osc0_type, &nodes::osc1_type}) {
+		expect(count_where([](const Node& n) { return n.bind.wrap_in_horizontal; })).to_equal(size_t(3));
+		for (const Node* n : {&nodes::osc0_type, &nodes::osc1_type, &nodes::dx7_engine}) {
 			expect(n->bind.wrap_in_horizontal).to_be_true();
 		}
 		expect(count_where([](const Node& n) { return n.bind.reverse_in_horizontal != nullptr; })).to_equal(size_t(5));

@@ -50,6 +50,7 @@
 
 #include "support/spec_main.h"
 
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <string>
@@ -237,17 +238,31 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(nodes::mode_chain(r.menu_context(), r.state())).to_be_null();
 	});
 
-	it("lists the DX7 page under the sound in DX7 mode, in the oscillators' place, and hides their pages", _ {
+	it("puts the DX7's page in OSC1's place in DX7 mode, its columns alone, and hides OSC2's page and the mixer", _ {
 		MenuRig r;
 		const MenuContext ctx = r.menu_context();
-		expect(menu::bindings::relevant(nodes::sound_dx7, ctx)).to_be_true();
-		for (const Node* osc : {&nodes::source0, &nodes::source1, &nodes::osc_mixer}) {
-			expect(menu::bindings::relevant(*osc, ctx)).to_be_false();
-		}
+		expect(menu::bindings::relevant(nodes::source0, ctx)).to_be_true();
+		expect(menu::bindings::relevant(nodes::source1, ctx)).to_be_false();
+		expect(menu::bindings::relevant(nodes::osc_mixer, ctx)).to_be_false();
+		std::array<const Node*, 32> listed{};
+		const size_t n = menu::bindings::listed_children(nodes::source0, ctx, listed, menu::bindings::ListFor::Columns);
+		const std::vector<const Node*> columns(listed.begin(), listed.begin() + static_cast<std::ptrdiff_t>(n));
+		expect(columns).to_equal(std::vector<const Node*>{&nodes::dx7_engine, &nodes::dx7_transpose, &nodes::dx7_amp_mod,
+		                                                  &nodes::dx7_phase, &nodes::dx7_level});
 		deluge::test::setSynthMode(*r.sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
 		const MenuContext subtractive = r.menu_context();
-		expect(menu::bindings::relevant(nodes::sound_dx7, subtractive)).to_be_false();
-		expect(menu::bindings::relevant(nodes::source0, subtractive)).to_be_true();
+		expect(menu::bindings::relevant(nodes::source1, subtractive)).to_be_true();
+		const size_t m =
+		    menu::bindings::listed_children(nodes::source0, subtractive, listed, menu::bindings::ListFor::Columns);
+		expect(std::count(listed.begin(), listed.begin() + static_cast<std::ptrdiff_t>(m), &nodes::dx7_engine))
+		    .to_equal(std::ptrdiff_t{0});
+	});
+
+	it("enters DX7 source on SELECT from the DX7 page's first column, as from main's DX7 oscillator type", _ {
+		MenuRig r;
+		r.open(nodes::source0); // the page opens on its first listed column, the DX7's
+		r.select();
+		expect(r.focused()).to_equal(&nodes::dx_menu);
 	});
 
 	it("a re-read of the engine version takes the patch's mode again", _ {

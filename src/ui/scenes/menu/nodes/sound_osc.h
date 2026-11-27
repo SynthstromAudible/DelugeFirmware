@@ -105,6 +105,7 @@
 #include "ui/scenes/menu/nodes/param_shows.h"
 #include "ui/scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 #include "ui/scenes/menu/nodes/sample.h"       // the six bespoke items this subtree's nodes point at
+#include "ui/scenes/menu/nodes/sound_dx7.h"    // the DX7's columns, OSC1's in DX7 mode
 #include "ui/scenes/menu/relevance.h"
 
 #include <cstddef>
@@ -172,6 +173,13 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 constexpr Node retrigger_phase_screen(Node n) {
 	return with_default_edit_pos(with_decimal_restart_from_negative(with_decimal_word(n, retrigger_phase_text)), 1);
 }
+
+// OSC1's place is the DX7's in DX7 mode: its page lists the DX7's columns after its own, which hide there. OSC2's page
+// hides in DX7 mode.
+#define SOURCE0_DX7_COLUMNS , &dx7_engine, &dx7_transpose, &dx7_amp_mod, &dx7_phase, &dx7_level
+#define SOURCE1_DX7_COLUMNS
+inline constexpr RelevantFn source0_relevant = nullptr;
+inline constexpr RelevantFn source1_relevant = relevance::not_dx7;
 
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
@@ -306,13 +314,18 @@ constexpr Node retrigger_phase_screen(Node n) {
 	                                     loop_end_draw),                                                               \
 	                    end_point_label);                                                                              \
 	inline constexpr const Node* kSource##i##Children[] = {                                                            \
-	    &osc##i##_type,        &file##i##_selector,       &source##i##_transpose,   &source##i##_wave_index,           \
-	    &osc##i##_pulse_width, &source##i##_feedback,     &osc##i##_phase,          &sample##i##_reverse,              \
-	    &sample##i##_repeat,   &sample##i##_time_stretch, &sample##i##_pitch_speed, &sample##i##_interpolation,        \
-	    &sample##i##_start,    &sample##i##_end};                                                                      \
-	inline constexpr Node source##i = with_page_title(                                                                 \
-	    submenu(sid(deluge::l10n::String::name_id), kSource##i##Children, Layout::Horizontal, relevance::not_dx7),     \
-	    source##i##_page_title)
+	    &osc##i##_type,           &file##i##_selector,                                                                 \
+	    &source##i##_transpose,   &source##i##_wave_index,                                                             \
+	    &osc##i##_pulse_width,    &source##i##_feedback,                                                               \
+	    &osc##i##_phase,          &sample##i##_reverse,                                                                \
+	    &sample##i##_repeat,      &sample##i##_time_stretch,                                                           \
+	    &sample##i##_pitch_speed, &sample##i##_interpolation,                                                          \
+	    &sample##i##_start,       &sample##i##_end SOURCE##i##_DX7_COLUMNS};                                           \
+	inline constexpr Node source##i =                                                                                  \
+	    with_name_text(with_page_title(submenu(sid(deluge::l10n::String::name_id), kSource##i##Children,               \
+	                                           Layout::Horizontal, source##i##_relevant),                              \
+	                                   source##i##_page_title),                                                        \
+	                   source##i##_name)
 
 /// @brief One FM modulator page's three shared leaves. Bodies in the `.cpp`.
 #define DELUGE_OSC_MODULATOR(i, modulator_path)                                                                        \

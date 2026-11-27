@@ -83,6 +83,16 @@ struct Pairing {
 
 Pairing pairing_of(const Case& c) {
 	Pairing out;
+	// A row of the port's own (port_cases) has no row of main's: its nodes are the port-own nodes bound to it.
+	if (std::ranges::any_of(port_cases(), [&](const Case& own) { return &own == &c; })) {
+		for (const Node* node : spec::kPortOwnNodes) {
+			if (node->bind.target.valid() && node->bind.target.path == c.path) {
+				out.nodes.push_back(node);
+			}
+		}
+		out.has_row = true;
+		return out;
+	}
 	const std::vector<std::string>* paths = frozen().find(case_key(c), "paths");
 	out.has_row = paths != nullptr;
 	if (paths == nullptr) {
@@ -696,6 +706,9 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		for (const std::string& path : tally().unpaired) {
 			std::fprintf(stdout, "descriptor_coherence_spec: no node for %s\n", path.c_str());
 		}
+		for (const std::string& path : tally().unresolved) {
+			std::fprintf(stdout, "descriptor_coherence_spec: unresolved %s\n", path.c_str());
+		}
 		expect(tally().compared.size()).to_be_greater_than(size_t{0});
 		expect(tally().unpaired.size()).to_equal(size_t(0));
 		expect(tally().unresolved.size()).to_equal(size_t(0));
@@ -775,8 +788,8 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		spec::OracleTable& reference = spec::OracleTable::named("tables_3");
 		for (const Node* node : all) {
 			const deluge::ui::scenes::menu::ParamRef ref = node->bind.param;
-			if (!ref.valid() || node->bind.get != nullptr || node->bind.set != nullptr) {
-				continue;
+			if (!ref.valid() || node->bind.get != nullptr || node->bind.set != nullptr || spec::port_own(*node)) {
+				continue; // a port-own node (the DX7's columns) had no item of main's to title it
 			}
 			const deluge::plugin::ParamId id = deluge::bridge::paramIdOf(ref.kind, ref.index);
 			const bool global = ref.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;

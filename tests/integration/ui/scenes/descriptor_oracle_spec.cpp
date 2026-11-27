@@ -73,18 +73,18 @@ describe descriptor_oracle_oscillators("The oscillator rows' descriptors against
 		check(self, oscillator_cases()[3], "@plugged");
 		AudioEngine::micPluggedIn = false;
 	});
-	it("drops the sample and inputs under ring mod, and DX7 off the second oscillator", _ {
+	it("drops the sample and inputs under ring mod, and DX7 off both oscillators (it is a sound's engine)", _ {
 		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, "osc1/type");
 		expect(list_of(applicable(row, Where::SYNTH_RINGMOD, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,"});
-		expect(list_of(applicable(row, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
+		expect(list_of(applicable(row, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,10,"});
 		const SettingInfo& second = *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, "osc2/type");
 		expect(list_of(applicable(second, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,10,"});
-		expect(list_of(applicable(row, Where::KIT_LANE, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
+		expect(list_of(applicable(row, Where::KIT_LANE, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,10,"});
 		const MenuContext& ctx = enter(Where::SYNTH);
 		SettingContext plugged = context_of(Where::SYNTH, Family::INSTRUMENT);
 		plugged.audio_inputs_present = true;
 		expect(list_of(applicable(row, plugged, ctx, Where::SYNTH)))
-		    .to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,11,12,"});
+		    .to_equal(std::string{"0,1,2,3,4,5,6,7,8,10,11,12,"});
 	});
 });
 
@@ -146,6 +146,11 @@ describe descriptor_oracle_applicability("Where each row's menu shows, against t
 				const SettingContext descriptor_ctx = descriptor_context(fixture, ctx, family);
 				const SpecReader owner{ctx, fixture.where, family};
 				for (const SettingInfo& row : table_of(family)) {
+					if (std::ranges::any_of(port_cases(), [&](const Case& own) {
+						    return own.family == family && own.path == row.path;
+					    })) {
+						continue; // the port's own row: main had no item to show it (settings_spec holds where it applies)
+					}
 					if (!has_item(family, row.path)) {
 						// A row no item shows says nothing of where it shows, but for a partner, which follows its row.
 						// A sound's effect rows are compared as the EFFECT family's.
@@ -203,11 +208,12 @@ describe descriptor_oracle_applicability("Where each row's menu shows, against t
 			unload_files(ctx, song_of(fixture.where));
 		}
 	});
-	it("offers DX7 to the whole kit's sounds, as `osc::Type::mayUseDx` does", _ {
+	it("offers the whole kit's sounds no DX7 oscillator, as no sound's oscillator plays one", _ {
+		// main offered DX7 there (`osc::Type::mayUseDx`); the DX7 is a sound's engine, the synth mode's to choose.
 		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instruments::classic::kSettings, "osc1/type");
 		const MenuContext& ctx = enter(Where::SYNTH);
 		const SettingContext whole_kit{.owner = Owner::KIT, .instrument = SettingContext::Instrument::KIT};
-		expect(list_of(applicable(row, whole_kit, ctx, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
+		expect(list_of(applicable(row, whole_kit, ctx, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,10,"});
 	});
 });
 
@@ -240,6 +246,9 @@ describe descriptor_oracle_coverage("Every engine and model row with a menu", $ 
 		std::set<std::string_view> covered;
 		for (const Case* c : all_cases()) {
 			covered.insert(c->path);
+		}
+		for (const Case& c : port_cases()) {
+			covered.insert(c.path);
 		}
 		using deluge::project::SettingGroupId;
 		struct OwnedRows {

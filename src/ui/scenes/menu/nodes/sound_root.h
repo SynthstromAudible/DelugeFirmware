@@ -51,7 +51,6 @@
 #include "ui/scenes/menu/nodes/sound_arp.h"
 #include "ui/scenes/menu/nodes/sound_bend.h"
 #include "ui/scenes/menu/nodes/sound_compressor.h"
-#include "ui/scenes/menu/nodes/sound_dx7.h"
 #include "ui/scenes/menu/nodes/sound_env.h"
 #include "ui/scenes/menu/nodes/sound_filters.h"
 #include "ui/scenes/menu/nodes/sound_fx.h"
@@ -75,33 +74,19 @@ inline constexpr Node patch_cables =
                       kPatchCablesChain);
 
 inline constexpr const Node* kSoundRootChildren[] = {
-    &sound_actions,
-    &sound_master,
-    &arp,
-    &randomizer,
-    &audio_comp,
-    &sound_filters,
-    &sound_fx,
-    &sidechain,
-    &sound_dx7,
-    &source0,
-    &source1,
-    &modulator0,
-    &modulator1,
-    &osc_mixer,
-    &env1,
-    &env2,
-    &env3,
-    &env4,
-    &lfo1,
-    &lfo2,
-    &lfo3,
-    &lfo4,
-    &voice,
-    &bend,
-    &drum_bend_range,
-    &patch_cables,
-    &sequence_direction,
+    &sound_actions, &sound_master,
+    &arp,           &randomizer,
+    &audio_comp,    &sound_filters,
+    &sound_fx,      &sidechain,
+    &source0,       &source1,
+    &modulator0,    &modulator1,
+    &osc_mixer,     &env1,
+    &env2,          &env3,
+    &env4,          &lfo1,
+    &lfo2,          &lfo3,
+    &lfo4,          &voice,
+    &bend,          &drum_bend_range,
+    &patch_cables,  &sequence_direction,
     &output_midi,
 };
 inline constexpr Node sound_root = submenu(sid(deluge::l10n::String::STRING_FOR_SOUND), kSoundRootChildren);

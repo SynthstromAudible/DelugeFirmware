@@ -191,6 +191,17 @@ std::string_view last_folder(std::string_view path);
 /// past the first page of a sample oscillator.
 ValueText source0_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out);
 ValueText source1_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out);
+/// @}
+
+/// @name Source pages' names (`Binding::name_text`)
+/// @{ OSC1's page is the DX7's in DX7 mode, named DX7; OSC2's keeps its own (it hides in DX7 mode).
+ValueText source0_name(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+ValueText source1_name(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// @}
+
+/// @brief The synth mode's column on the DX7's page: DX7's name, as `main` drew a DX7 oscillator's type column.
+std::optional<ui::widgets::oled::ArtColumn> dx7_engine_art(const MenuContext& ctx, int32_t value);
+/// @{
 /// `submenu::ModFxHorizontalMenu::getTitle` (`origin/main:src/deluge/gui/menu_item/submenu/mod_fx.h`): the effect's
 /// name past the first page.
 ValueText mod_fx_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out);

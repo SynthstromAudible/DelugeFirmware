@@ -387,6 +387,9 @@ constexpr SettingNames kOsc1TimeStretchAmountNames{STRING_FOR_SAMP_SPEED_MENU_TI
 constexpr SettingNames kOsc1TimeStretchEnableNames{
     STRING_FOR_PITCH_SPEED, STRING_FOR_PITCH_SPEED, kOsc1TimeStretchEnableChoices, {}};
 constexpr SettingNames kOsc1TransposeNames{STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}};
+/// The DX7's pitch, on its page (OSC1's in DX7 mode): no oscillator number in its titles.
+constexpr SettingNames kDx7TransposeNames{STRING_FOR_TRANSPOSE, STRING_FOR_TRANSPOSE, {}, {}};
+constexpr SettingNames kDx7RetrigPhaseNames{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_RETRIGGER_PHASE, {}, {}};
 constexpr SettingNames kOsc1TypeNames{STRING_FOR_OSC_TYPE_MENU_TITLE, STRING_FOR_TYPE, kOsc1TypeChoices, {}};
 constexpr SettingNames kOsc1TypeUnpluggedNames{
     STRING_FOR_OSC_TYPE_MENU_TITLE, STRING_FOR_TYPE, kOsc1TypeUnpluggedChoices, {}};
@@ -938,8 +941,8 @@ constexpr std::array<Entry, 243> kEntries{{
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/directMonitoring">, &kUsbDirectMonitoringNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/enabled">, &kUsbAudioEnabledNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/outputSource">, &kUsbOutputSourceNames},
-    Entry{plugin::kDelugeInstrument, "dx7/retrigPhase", &kOsc1RetrigPhaseNames},
-    Entry{plugin::kDelugeInstrument, "dx7/transpose", &kOsc1TransposeNames},
+    Entry{plugin::kDelugeInstrument, "dx7/retrigPhase", &kDx7RetrigPhaseNames},
+    Entry{plugin::kDelugeInstrument, "dx7/transpose", &kDx7TransposeNames},
     Entry{plugin::kDelugeInstrument, "envelope1Settings/curve", &kEnvelopeCurveNames},
     Entry{plugin::kDelugeInstrument, "envelope1Settings/follow", &kEnvelopeFollowNames},
     Entry{plugin::kDelugeInstrument, "envelope1Settings/mode", &kEnvelopeModeNames},

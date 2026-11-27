@@ -185,7 +185,7 @@ describe tables_1_shape("scenes::menu sound-subtree tables: shape", $ {
 				    .to_equal(e.path + " has a name row");
 			}
 			if (e.node->kind == menu::Kind::Submenu) {
-				expect(e.path + " kids " + std::to_string(e.node->children.size()))
+				expect(e.path + " kids " + std::to_string(spec::main_children(*e.node)))
 				    .to_equal(e.path + " kids " + table().value(e.path, "kids"));
 				submenus++;
 			}
@@ -330,7 +330,7 @@ describe tables_1_shape("scenes::menu sound-subtree tables: shape", $ {
 		}
 		// The four classes that route through `checkPermissionToBeginSessionForRangeSpecificParam` are ten nodes here.
 		expect(nodes::kRangeSpecificNodes.size()).to_equal(size_t(10));
-		expect(nodes::kHalfPrecisionNodes.size()).to_equal(size_t(3));
+		expect(nodes::kHalfPrecisionNodes.size()).to_equal(size_t(4)); // main's three, and the DX7's amp mod
 	});
 });
 
@@ -379,7 +379,7 @@ describe tables_1_values("scenes::menu sound-subtree tables: values", $ {
 			for (size_t i = 0; i < n; i++) {
 				port += std::string{got[i]} + "|";
 			}
-			expect(e.path + " " + port).to_equal(e.path + " " + joined(*want));
+			expect(e.path + " " + port).to_equal(e.path + " " + joined(spec::port_choices(*e.node, *want)));
 			compared++;
 		}
 		expect(compared).to_be_greater_than(size_t(10));
@@ -427,7 +427,7 @@ describe tables_1_values("scenes::menu sound-subtree tables: values", $ {
 		// The 21 predicates `relevance.h` declares plus the sixteen `nodes::relevant_*_iterance_step_*`
 		// rows (`relevance.cpp`'s `static_assert` is the authority; this asserts the count is
 		// deliberate). 21 + 16 = 37.
-		expect(registry.size()).to_equal(size_t(37));
+		expect(registry.size()).to_equal(size_t(39));
 		for (size_t i = 0; i < registry.size(); i++) {
 			expect(registry[i].fn).not_().to_be_null();
 			expect(registry[i].name.empty()).to_be_false();

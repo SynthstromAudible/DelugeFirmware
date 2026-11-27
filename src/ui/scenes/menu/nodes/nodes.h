@@ -119,8 +119,10 @@ inline constexpr std::span<const Node* const> kRangeSpecificNodes{kRangeSpecific
 /// `computeFinalValueForHalfPrecisionMenuItem` over `gui/menu_item/` finds exactly those two
 /// classes; every other param class keeps `patched_param::Integer`'s or
 /// `UnpatchedParam`'s standard scaling, and the two pan items (`panMenu`, `reverbPanMenu`) use
-/// `Scaling::Pan`, which is a different flag.
-inline constexpr const Node* kHalfPrecisionArray[] = {&osc0_pulse_width, &osc1_pulse_width, &comp_threshold};
+/// `Scaling::Pan`, which is a different flag. The DX7's amp mod (`dx7_amp_mod`) is oscillator A's pulse width, so it
+/// scales as the pulse width does.
+inline constexpr const Node* kHalfPrecisionArray[] = {&osc0_pulse_width, &osc1_pulse_width, &dx7_amp_mod,
+                                                      &comp_threshold};
 inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecisionArray};
 
 /// @brief Every root of the whole application menu, in `MenuContext::Root` order, plus the two

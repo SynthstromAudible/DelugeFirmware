@@ -278,7 +278,7 @@ describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 				    .to_equal(e.path + " has a name row");
 			}
 			if (e.node->kind == menu::Kind::Submenu) {
-				expect(e.path + " kids " + std::to_string(e.node->children.size()))
+				expect(e.path + " kids " + std::to_string(spec::main_children(*e.node)))
 				    .to_equal(e.path + " kids " + table().value(e.path, "kids"));
 				submenus++;
 			}
@@ -473,7 +473,7 @@ describe tables_2_values("scenes::menu sound-editor tables: values", $ {
 					port += std::string{got[i]} + "|";
 				}
 				std::string frozen;
-				for (const std::string& o : *want) {
+				for (const std::string& o : spec::port_choices(*e.node, *want)) {
 					frozen += o + "|";
 				}
 				expect(fx.name + std::string{" "} + e.path + " " + port)
@@ -863,8 +863,9 @@ describe tables_2_patch_cables("scenes::menu sound-editor tables: the patch-cabl
 			expect(text_of(n->name) + (is_patched ? " PATCHED" : " -")).to_equal(text_of(n->name)
 			                                                                    + (to_picker ? " PATCHED" : " -"));
 		}
-		expect(patched).to_equal(size_t(53));
-		expect(chained_to_picker).to_equal(size_t(53));
+		// main's 53, and the DX7's transpose, amp mod and level (OSC1's columns in DX7 mode, the port's own)
+		expect(patched).to_equal(size_t(56));
+		expect(chained_to_picker).to_equal(size_t(56));
 	});
 
 	it("reads and writes a patch cable's strength where the legacy page reads and writes it", _ {
