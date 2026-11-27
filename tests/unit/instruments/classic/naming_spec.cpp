@@ -34,6 +34,18 @@ describe naming("the Deluge instrument's names for its params", ${
 		expect(ref.second_source).to_equal(std::string_view("envelope2"));
 	});
 
+	it("names the arp rate's row by a cable to it alone: the plain name is the arp's", _ {
+		const deluge::plugin::ParamInfo* row = deluge::plugin::find_param(kParams, param::kArpRate);
+		expect(row).not_().to_be_null();
+		if (row != nullptr) {
+			expect(row->flags.has(deluge::plugin::ParamFlag::DESTINATION_ONLY)).to_be_true();
+		}
+		expect(kNaming.id_of({"arpRate"})).not_().to_have_value();
+		expect(kNaming.id_of({"arpRate", "lfo1"})->value).to_equal(depth(PatchSource::LFO_GLOBAL_1, param::kArpRate));
+		expect(kNaming.ref_of(ParamId{depth(PatchSource::LFO_GLOBAL_1, param::kArpRate)}).param)
+		    .to_equal(std::string_view("arpRate"));
+	});
+
 	it("names nothing for an unknown param or the pre-3.2 range", _ {
 		expect(kNaming.id_of({"nosuchparam"})).not_().to_have_value();
 		expect(kNaming.id_of({"range"})).not_().to_have_value();
