@@ -19,6 +19,7 @@
 
 #include "project/doc_note.h"
 #include "project/sequence_direction.h"
+#include "serialization/schema/extras.h"
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -49,12 +50,14 @@ struct DocNoteRow {
 	/// scratch -- must not permanently double note RAM). Contiguous vector (no stable-address requirement: nothing
 	/// holds a pointer into it, unlike the note-row pool).
 	std::vector<DocNote> notes;
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 
 	/// Equal when the persistent fields are; drum_id is a shadow and notes are save-time scratch.
 	bool operator==(const DocNoteRow& other) const {
 		return y == other.y && loop_length_if_independent == other.loop_length_if_independent
 		       && colour_offset == other.colour_offset && sequence_direction == other.sequence_direction
-		       && muted == other.muted;
+		       && muted == other.muted && extras == other.extras;
 	}
 };
 
