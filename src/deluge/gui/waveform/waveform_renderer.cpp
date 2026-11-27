@@ -569,6 +569,10 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			int32_t minThisCol = peak.min;
 			int32_t maxThisCol = peak.max;
 
+			// The getCluster() calls above can load from the card, which yields - and while this Sample is being
+			// recorded, the audio routine can add SampleClusters to it then, which can move the array
+			sampleCluster = sample->clusters.getElement(clusterIndexToDo);
+
 			// If we just looked at the length of one entire cluster...
 			if (investigatingAWholeCluster) {
 
