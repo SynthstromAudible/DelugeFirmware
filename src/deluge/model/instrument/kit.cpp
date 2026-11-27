@@ -21,6 +21,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "instruments/classic/params.h"
 #include "io/debug/log.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/mapping_index_stale.h"
@@ -746,7 +747,7 @@ yesTickParamManager:
 
 				// No time to call the proper function and do error checking, sorry.
 				ParamCollectionSummary* unpatchedParamsSummary = &thisNoteRow->paramManager.summaries[0];
-				if constexpr (params::UNPATCHED_SOUND_MAX_NUM > 32) {
+				if constexpr (deluge::instruments::classic::kParamBlocks[1].count > 32) {
 					if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
 					    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
 						goto yesTickParamManager;

@@ -414,7 +414,6 @@ allow = [
     "memory/memory_allocator_interface.h",
     "util/lookuptables/lookuptables.h",
     "util/misc.h",
-    "util/param_functions.h",
     "modulation/params/param.h",
     "modulation/sync.h",
     # the vocabulary definitions_cxx.hpp brings; synth-no-project-vocabulary keeps a synth file from naming it

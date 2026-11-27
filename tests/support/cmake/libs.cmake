@@ -79,27 +79,20 @@ add_library(deluge_test_dsp_closure STATIC EXCLUDE_FROM_ALL
   ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_panic.cpp)
 target_include_directories(deluge_test_dsp_closure PRIVATE
   ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src ${DELUGE_REPO_ROOT}/tests/support/mocks)
-# The synth library's: the param math, which reads the DSP library's table interpolation.
-add_library(deluge_test_synth_closure STATIC EXCLUDE_FROM_ALL
-  ${DELUGE_REPO_ROOT}/src/deluge/util/param_functions.cpp)
-target_include_directories(deluge_test_synth_closure PRIVATE ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src)
-target_link_libraries(deluge_test_synth_closure PRIVATE deluge_dsp_fixed)
-set_target_properties(deluge_test_dsp_closure deluge_test_synth_closure PROPERTIES
+set_target_properties(deluge_test_dsp_closure PROPERTIES
   CXX_STANDARD ${DELUGE_CXX_STANDARD} CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS ON)
 
 # Each library names the archives it reaches, link-only, so every link line puts them after it. The synth library
 # reaches the effects' saturation.
 target_link_libraries(deluge_dsp_fixed PRIVATE $<LINK_ONLY:deluge_test_dsp_closure>)
 target_link_libraries(deluge_dsp_float PRIVATE $<LINK_ONLY:deluge_test_dsp_closure>)
-target_link_libraries(deluge_synth PRIVATE
-  $<LINK_ONLY:deluge_test_synth_closure> $<LINK_ONLY:deluge_effects> $<LINK_ONLY:deluge_test_dsp_closure>)
+target_link_libraries(deluge_synth PRIVATE $<LINK_ONLY:deluge_effects> $<LINK_ONLY:deluge_test_dsp_closure>)
 
 # The dsp, synth and effects libraries and their closures check the standard library's preconditions, span bounds among
 # them: a read past the end of a span in their kernels fails the spec instead of going unseen at the trees' optimisation
 # levels. Each gets argon's backend (deluge_test_neon): the effects' sidechain reaches argon through the kernel core,
 # which a host without NEON reaches through SIMDe.
-foreach(library deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_effects deluge_test_dsp_closure
-                deluge_test_synth_closure)
+foreach(library deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_effects deluge_test_dsp_closure)
   deluge_test_neon(${library})
   target_compile_definitions(${library} PRIVATE _GLIBCXX_ASSERTIONS)
 endforeach()

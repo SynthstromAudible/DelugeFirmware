@@ -36,13 +36,10 @@ src/deluge/model/edits/set_param_value.cpp	model-calls-ui	1
 src/deluge/model/favourite/favourite_manager.cpp	model-calls-display	1
 src/deluge/model/favourite/favourite_manager.cpp	model-calls-ui	2
 src/deluge/model/instrument/kit.cpp	model-calls-ui	4
-src/deluge/model/instrument/kit.cpp	no-param-kind-outside-runtime	1
 src/deluge/model/instrument/melodic_instrument.cpp	model-calls-ui	4
 src/deluge/model/sample/sample_recorder.cpp	model-calls-ui	1
 src/deluge/model/song/song.cpp	model-calls-display	4
 src/deluge/model/song/song.cpp	model-calls-ui	12
-src/deluge/model/song/song.cpp	no-param-kind-outside-runtime	6
-src/deluge/model/voice/voice_setup.cpp	no-param-kind-outside-runtime	4
 src/deluge/modulation/automation/auto_param.cpp	model-calls-ui	1
 src/deluge/modulation/automation/auto_param.cpp	no-new-model-stack-in-params	32
 src/deluge/modulation/automation/auto_param.h	no-new-model-stack-in-params	20
@@ -67,11 +64,8 @@ src/deluge/playback/playback_handler.cpp	model-calls-ui	48
 src/deluge/playback/render_requests.cpp	model-calls-display	1
 src/deluge/playback/render_requests.cpp	model-calls-ui	4
 src/deluge/playback/render_requests.h	model-calls-ui	1
-src/deluge/processing/audio_output.cpp	no-param-kind-outside-runtime	1
 src/deluge/processing/engines/audio_engine.cpp	model-calls-display	1
 src/deluge/processing/engines/audio_engine.cpp	model-calls-ui	2
-src/deluge/processing/engines/audio_engine.cpp	no-param-kind-outside-runtime	5
-src/deluge/processing/engines/audio_engine.h	no-param-kind-outside-runtime	2
 src/deluge/processing/recording/foreground_recording.cpp	model-calls-display	3
 src/deluge/processing/recording/foreground_recording.cpp	model-calls-ui	5
 src/deluge/processing/sound/sound_drum.cpp	model-calls-ui	1
@@ -84,4 +78,3 @@ src/deluge/storage/audio/blocking_sample_load.cpp	model-calls-ui	1
 src/deluge/storage/flash_storage.cpp	model-calls-ui	3
 src/deluge/storage/startup_song.cpp	model-calls-ui	1
 src/deluge/util/functions.h	model-calls-ui	1
-src/deluge/util/param_functions.cpp	no-param-kind-outside-runtime	2

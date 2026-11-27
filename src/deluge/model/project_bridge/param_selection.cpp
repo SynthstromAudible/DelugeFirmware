@@ -17,6 +17,8 @@
 
 #include "model/project_bridge/param_selection.h"
 
+#include "model/project_bridge/param_reads.h"
+
 #include "definitions_cxx.hpp"
 #include "model/model_stack.h"
 #include "modulation/params/param_collection.h"
@@ -98,6 +100,15 @@ ModelStackWithAutoParam* autoParamOf(ModelStackWithThreeMainThings* stack, Owner
 	default:
 		return nullptr;
 	}
+}
+
+std::optional<deluge::project::DocParamSet>& globalEffectableStoreOf(deluge::project::DocParamManager& doc) {
+	return *storeFor(doc, params::Kind::UNPATCHED_GLOBAL);
+}
+
+const std::optional<deluge::project::DocParamSet>&
+globalEffectableStoreOf(const deluge::project::DocParamManager& doc) {
+	return *storeFor(doc, params::Kind::UNPATCHED_GLOBAL);
 }
 
 bool isCableCollection(ParamCollection* collection) {

@@ -19,8 +19,8 @@
 // The matrix's per-cable helpers on raw words, for the models that work in the legacy patcher's raw words: a source
 // value is Q31, a depth Q30, a combination and a range Q29, a neutral read at Q31.
 
+#include "synth/matrix/param_functions.h"
 #include "synth/modulation/cable_depth.h"
-#include "util/param_functions.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>

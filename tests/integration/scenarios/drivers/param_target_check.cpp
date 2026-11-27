@@ -37,6 +37,7 @@
 #include "model/fx/chain_params.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_reads.h"
 #include "model/project_bridge/param_selection.h"
 #include "model/song/song.h"
 #include "modulation/knob_target.h"
@@ -246,6 +247,31 @@ void checkEditIds(Checker& check) {
 			check.fail("control target by plugin", static_cast<int>(p), 0, 0);
 		}
 	}
+}
+
+/// Each classic or chain id a runtime read names indexes the runtime param it replaces.
+void checkReads(Checker& check) {
+	namespace classic = deluge::instruments::classic::param;
+	namespace chains = deluge::host::chains::param;
+	using deluge::bridge::patchedIndex;
+	using deluge::bridge::unpatchedIndex;
+	auto same = [&](const char* what, int32_t read, int32_t runtime) {
+		if (read != runtime) {
+			check.fail(what, read, runtime, 0);
+		}
+	};
+	same("env 1 attack", patchedIndex(classic::kEnv1Attack), params::LOCAL_ENV_0_ATTACK);
+	same("env 4 attack", patchedIndex(classic::kEnv4Attack), params::LOCAL_ENV_0_ATTACK + 3);
+	same("modulator 1 volume", patchedIndex(classic::kModulator1Volume), params::LOCAL_MODULATOR_0_VOLUME);
+	same("modulator 2 volume", patchedIndex(classic::kModulator2Volume), params::LOCAL_MODULATOR_0_VOLUME + 1);
+	same("volume post FX", patchedIndex(classic::kVolumePostFX), params::GLOBAL_VOLUME_POST_FX);
+	same("volume", patchedIndex(classic::kVolume), params::LOCAL_VOLUME);
+	same("portamento", unpatchedIndex(classic::kPortamento), params::UNPATCHED_PORTAMENTO);
+	same("chain volume", unpatchedIndex(chains::kVolume), params::UNPATCHED_VOLUME);
+	same("chain reverb", unpatchedIndex(chains::kReverbAmount), params::UNPATCHED_REVERB_SEND_AMOUNT);
+	same("chain tempo", unpatchedIndex(chains::kTempo), params::UNPATCHED_TEMPO);
+	same("sound unpatched count", static_cast<int32_t>(deluge::instruments::classic::kParamBlocks[1].count),
+	     params::UNPATCHED_SOUND_MAX_NUM);
 }
 
 using Table = param_target_tables_reference::Table;
@@ -657,6 +683,7 @@ int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	checkRoundTrip(check);
 	checkSelection(check);
 	checkEditIds(check);
+	checkReads(check);
 	checkShortcutsAndOrders(check);
 	checkMIDICCShortcuts(check);
 	checkMidiFollow(check);

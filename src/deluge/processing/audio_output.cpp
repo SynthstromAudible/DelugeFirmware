@@ -29,6 +29,7 @@
 #include "model/fx/chain_codec.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_reads.h"
 #include "model/project_bridge/param_selection.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -238,7 +239,8 @@ bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::
 		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
 		if (activeAudioClip.voiceSample) {
 
-			int32_t attackNeutralValue = deluge::synth::matrix::kParamNeutral[params::LOCAL_ENV_0_ATTACK];
+			int32_t attackNeutralValue = deluge::synth::matrix::kParamNeutral[deluge::bridge::patchedIndex(
+			    deluge::instruments::classic::param::kEnv1Attack)];
 			// The attack's neutral read at Q31 (its units are the envelope's rate); the negated knob, a quarter, is
 			// its octaves at Q26
 			int32_t attack =

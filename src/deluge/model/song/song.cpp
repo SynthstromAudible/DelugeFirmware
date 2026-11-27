@@ -62,6 +62,7 @@
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/param_reads.h"
 #include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
@@ -1234,7 +1235,7 @@ weAreInArrangementEditorOrInClipInstance:
 	// never-loaded song whose store is still empty falls back to projecting the engine (first save).
 	writer.writeOpeningTagBeginning("songParams");
 	if (const std::optional<deluge::project::DocParamSet>& songStore =
-	        *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL)) {
+	        deluge::bridge::globalEffectableStoreOf(project.master_params)) {
 		deluge::bridge::serializeGlobalEffectableParamAttributes(*songStore, writer, true, valuesForOverride);
 		writer.writeOpeningTagEnd();
 		deluge::bridge::serializeGlobalEffectableParamTags(*songStore, writer, true, valuesForOverride);
@@ -1936,7 +1937,7 @@ loadOutput:
 				UnpatchedParamSet* songUnpatched = paramManager.getUnpatchedParamSet();
 				songUnpatched->bindDomStore(); // ensure a store exists (init normally created it) before relocating
 				std::optional<deluge::project::DocParamSet>& songSlot =
-				    *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL);
+				    deluge::bridge::globalEffectableStoreOf(project.master_params);
 				songSlot = std::move(*songUnpatched->domStore());
 				deluge::project::DocParamSet& songStore = *songSlot;
 				songUnpatched->bindDomStoreExternal(&songStore);
@@ -2280,7 +2281,7 @@ skipInstance:
 	{
 		UnpatchedParamSet* unpatchedEngine = paramManager.getUnpatchedParamSet();
 		std::optional<deluge::project::DocParamSet>& songSlot =
-		    *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL);
+		    deluge::bridge::globalEffectableStoreOf(project.master_params);
 		if (!songSlot) {
 			songSlot = deluge::bridge::toDocParamSet(*unpatchedEngine);
 		}
@@ -2595,7 +2596,9 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
                                                      deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending) {
 
 	const deluge::dsp::Q<27> volumePostFX = live.master_channel.conversions().volume(
-	    paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_VOLUME), deluge::model::volume_from_knob);
+	    paramManager.getUnpatchedParamSet()->getKnob(
+	        deluge::bridge::unpatchedIndex(deluge::host::chains::param::kVolume)),
+	    deluge::model::volume_from_knob);
 	// The outputs take the halved volume's word as their reverb adjust
 	const int32_t reverbAmountAdjust = halve_floor(volumePostFX).raw();
 
@@ -3218,8 +3221,9 @@ void Song::setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction) 
 namespace {
 /// The song's tempo param's address.
 deluge::project::ParamAddress tempoAddress() {
-	return deluge::bridge::addressOf(deluge::project::OwnerId::song(), params::Kind::UNPATCHED_GLOBAL,
-	                                 params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	return deluge::project::ParamAddress{.owner = deluge::project::OwnerId::song(),
+	                                     .space = deluge::project::ParamSpace::ENGINE,
+	                                     .id = deluge::host::chains::param::kTempo};
 }
 } // namespace
 
@@ -6129,7 +6133,8 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 void Song::updateBPMFromAutomation() {
 	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
 	// that
-	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
+	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(
+	    deluge::bridge::unpatchedIndex(deluge::host::chains::param::kTempo));
 	if (currentTempo && currentTempo != intBPM) {
 		setBPMInner((float)currentTempo / 100, false);
 		intBPM = currentTempo;

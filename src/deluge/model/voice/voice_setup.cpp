@@ -17,6 +17,7 @@
 
 #include "model/voice/voice_setup.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_reads.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/voice/voice_part.h"
 #include "modulation/params/param_set.h"
@@ -85,18 +86,24 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		}
 
 		setup.porta = sound.config().voicing.polyphony != PolyphonyMode::LEGATO
-		              && paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648
+		              && paramManager->getUnpatchedParamSet()->getValue(
+		                     deluge::bridge::unpatchedIndex(deluge::instruments::classic::param::kPortamento))
+		                     != -2147483648
 		              && sound.lastNoteCode != deluge::synth::kNoLastNote;
 		for (int32_t e = 0; e < kNumEnvelopes; e++) {
 			setup.attack_is_zero[e] =
-			    paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e) == -2147483648u;
+			    paramManager->getPatchedParamSet()->getValue(
+			        deluge::bridge::patchedIndex(deluge::instruments::classic::param::kEnv1Attack) + e)
+			    == -2147483648u;
 		}
 		std::copy_n(sound.params.source_values.begin(), setup.global_source_values.size(),
 		            setup.global_source_values.begin());
 		setup.initial_patching = sound.matrixBlock(*paramManager, Sound::PresetGather::ALL);
 	}
 	else if (paramManager != nullptr) {
-		setup.porta = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648;
+		setup.porta = paramManager->getUnpatchedParamSet()->getValue(
+		                  deluge::bridge::unpatchedIndex(deluge::instruments::classic::param::kPortamento))
+		              != -2147483648;
 	}
 
 	for (int32_t s = 0; s < kNumSources; s++) {
@@ -121,7 +128,10 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 	if (synthMode == SynthMode::FM) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 			setup.modulator_audible[m] =
-			    sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, *paramManager) != -2147483648;
+			    sound.getSmoothedPatchedParamValue(
+			        deluge::bridge::patchedIndex(deluge::instruments::classic::param::kModulator1Volume) + m,
+			        *paramManager)
+			    != -2147483648;
 		}
 	}
 	setup.last_note_code = sound.lastNoteCode;
