@@ -146,6 +146,7 @@ pub mod audio;
 pub mod channel;
 pub mod peripherals;
 pub mod storage;
+pub mod timed_output;
 
 pub mod runtime;
 

@@ -49,7 +49,7 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    Before `registerJobs()`, the boot's song-less render runs `routine()` once on the task executor, and the offline
    stem export (`StemExport::driveElement`, the default mode) runs it there for as long as the export lasts, so the
    functions `routine()` reaches directly (`deluge_audio_drive`, `deluge_app_render`, `deluge_app_render_skipped`,
-   `deluge_heap_check`, and `deluge_audio_frames_until_block_offset`, which times every sub-window's MIDI) also carry
+   `deluge_heap_check`, and `deluge_audio_render_offset_to_stamp`, which stamps every sub-window's output) also carry
    `[task]`, and so do the callees of a playing voice (`deluge_sample_region_state`): the export renders every voice
    (it leaves the USB port out). The `[audio]`-only
    functions are the ones the export does not reach, such as `deluge_app_audio_tick`, which the BSP's audio tier calls

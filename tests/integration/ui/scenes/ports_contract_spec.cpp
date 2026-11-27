@@ -1,5 +1,6 @@
 #include "gui/ui/shell_host/host_ports.h"
 #include "port_contracts.h"
+#include "support/cv_gate_out_tap.h"
 #include "support/peak_seed.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
@@ -828,24 +829,21 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		const GateChannel run_gate = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN];
 		const GateChannel clock_gate = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK];
 		const bool clock_scheduled = playbackHandler.triggerClockOutTickScheduled;
-		// Nothing is waiting to go out of a gate in a spec; take anything that is, so the case starts clean.
-		(void)cvEngine.takePendingGateOutputs(true);
+		// Take anything already waiting to go out, so the case starts clean.
+		(void)spec::cv_gate_out::take();
 
-		// A CV output's volts and transpose go out at once: each write sends the output's voltage again, which the
-		// host's DAC counts as sent at once.
+		// A CV output's volts and transpose each send the output's voltage again.
 		const deluge::project::DevicePath volts = device_path::cv_volts_per_octave(1).value();
 		const deluge::project::DevicePath transpose = device_path::cv_transpose(1).value();
-		uint32_t sent = deluge_cv_sent_count();
 		expect(static_cast<int>(p.device->write(volts, 150))).to_equal(static_cast<int>(bind::DeviceWrite::STORED));
 		expect(static_cast<int>(cvEngine.cvChannels[1].voltsPerOctave)).to_equal(150);
-		expect(deluge_cv_sent_count()).to_equal(sent + 1);
+		expect(spec::cv_gate_out::count(spec::cv_gate_out::take(), "cv1=")).to_equal(size_t{1});
 		// The transpose is one number over the semitones and the cents, split as main's item splits it.
-		sent = deluge_cv_sent_count();
 		(void)p.device->write(transpose, -250);
 		expect(static_cast<int>(cvEngine.cvChannels[1].transpose)).to_equal(-2);
 		expect(static_cast<int>(cvEngine.cvChannels[1].cents)).to_equal(-50);
 		expect(p.device->read(transpose).value_or(0)).to_equal(-250);
-		expect(deluge_cv_sent_count()).to_equal(sent + 1);
+		expect(spec::cv_gate_out::count(spec::cv_gate_out::take(), "cv1=")).to_equal(size_t{1});
 		(void)p.device->write(transpose, 1234);
 		expect(static_cast<int>(cvEngine.cvChannels[1].transpose)).to_equal(12);
 		expect(static_cast<int>(cvEngine.cvChannels[1].cents)).to_equal(34);
@@ -855,13 +853,14 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		// set back to a trigger, it switches now, and no clock tick waits to go out of it.
 		const deluge::project::DevicePath clock = device_path::gate_mode(WHICH_GATE_OUTPUT_IS_CLOCK).value();
 		const deluge::project::DevicePath run = device_path::gate_mode(WHICH_GATE_OUTPUT_IS_RUN).value();
+		const std::string clock_gate_line = "gate" + std::to_string(WHICH_GATE_OUTPUT_IS_CLOCK) + "=";
 		(void)p.device->write(clock, std::to_underlying(GateType::SPECIAL));
 		expect(static_cast<int>(cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode))
 		    .to_equal(static_cast<int>(GateType::SPECIAL));
-		expect(cvEngine.isAnythingPending()).to_be_true();
 		playbackHandler.triggerClockOutTickScheduled = true;
 		(void)p.device->write(clock, std::to_underlying(GateType::V_TRIG));
-		expect(cvEngine.isAnythingPending()).to_be_false();
+		// Switching back drops the clock's edge still waiting and sends the trigger's state: one edge goes out.
+		expect(spec::cv_gate_out::count(spec::cv_gate_out::take(), clock_gate_line)).to_equal(size_t{1});
 		expect(playbackHandler.triggerClockOutTickScheduled).to_be_false();
 		// The run's gate set to carry the run signal follows playback at once: stopped, it goes off.
 		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].on = true;
@@ -900,7 +899,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN] = run_gate;
 		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK] = clock_gate;
 		playbackHandler.triggerClockOutTickScheduled = clock_scheduled;
-		(void)cvEngine.takePendingGateOutputs(true);
+		(void)spec::cv_gate_out::take();
 	});
 
 	it("keeps the MIDI settings where the MIDI engine keeps them, each write one plain store", _ {

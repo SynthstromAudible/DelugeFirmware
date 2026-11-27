@@ -166,3 +166,13 @@ mod input_offset {
         );
     }
 }
+
+#[test]
+fn a_render_offset_maps_to_the_frame_it_plays_at_and_never_to_now() {
+    // The next rendered sample plays at write_end; offset k plays k frames later.
+    assert_eq!(capture_stamp::stamp_for_offset(5_000, 0), 5_000);
+    assert_eq!(capture_stamp::stamp_for_offset(5_000, 37), 5_037);
+    // Frame 0 is a real frame; it must not read as "as soon as possible".
+    assert_eq!(capture_stamp::stamp_for_offset(0, 0), 1);
+    assert_eq!(capture_stamp::stamp_for_offset(u32::MAX, 1), 1);
+}

@@ -55,6 +55,7 @@
 #include "streaming_loader.h"
 #include "system.h"
 #include "tier.h"
+#include "timed_output.h"
 #include "types.h"
 #include "usb_audio.h"
 
