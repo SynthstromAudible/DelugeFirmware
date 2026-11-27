@@ -848,6 +848,9 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 	// save performance view layout
 	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
 		if (on) {
+			if (inCardRoutine) { // Writes a file - FatFs can't be re-entered from inside another card access
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			savePerformanceViewLayout();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
 			exitUIMode(UI_MODE_HOLDING_SAVE_BUTTON);
@@ -857,6 +860,9 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 	// load performance view layout
 	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
 		if (on) {
+			if (inCardRoutine) { // Reads a file - see above
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			loadPerformanceViewLayout();
 			renderViewDisplay();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
