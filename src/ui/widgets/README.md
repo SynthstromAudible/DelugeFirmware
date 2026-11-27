@@ -77,6 +77,7 @@ against drift, not a proof.
 | `PageBody`, `page_body`, `LevelFn`, `curve`, `polyline`, `guide_v`, `guide_h`, `fill_line`, `Handles` | `page_drawing.h` |
 | `DuckGraph`, `DuckHandles`, `duck_graph`, `DistortionGraph`, `distortion_graph`, `swing_graph` | `fx_graphs.h` |
 | `window_marks`, `LaneSpan`, `overview`, `StripNote`, `note_strip` | `timeline_strips.h` |
+| `octave`, `zone_strip` | `keys.h` |
 | `waveform`, `loop_marker`, `looped_waveform`, `sliced_waveform` | `oled/waveform.h` |
 | `kMaxRoutingStages`, `routing_chain`, `segmented_switch`, `cable_strength_value` | `routing.h` |
 | `PopupStyle`, `popup_rect_for`, `popup_frame`, `popup_text`, `working`, `progress` | `popup.h` |
