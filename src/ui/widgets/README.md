@@ -66,7 +66,7 @@ against drift, not a proof.
 | widget / helper | file |
 |---|---|
 | `ClipScope`, `OledFrame`, `root_frame` | `oled/frame.h` |
-| `Align`, `TextStyle`, `text_height_for`, `spacing_x_for`, `measure`, `text`, `title`, `title_badge` | `text.h` |
+| `Align`, `TextStyle`, `text_height_for`, `spacing_x_for`, `measure`, `text`, `title`, `title_note`, `title_badge` | `text.h` |
 | `scroll_text` | `scroll_text.h` |
 | `TextEditState`, `text_edit` | `text_edit.h` |
 | `ListRow`, `menu_rect`, `list_visible_rows`, `list_window_start`, `list`, `scrollbar` | `list.h` |

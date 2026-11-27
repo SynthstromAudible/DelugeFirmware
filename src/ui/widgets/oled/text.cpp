@@ -166,6 +166,19 @@ void title(OledFrame& f, std::string_view s, bool underline) {
 	}
 }
 
+void title_note(OledFrame& f, std::string_view s, std::string_view note) {
+	if (note.empty()) {
+		title(f, s);
+		return;
+	}
+	const int32_t w = f.bounds().w;
+	const auto note_x = static_cast<int32_t>(w - static_cast<int32_t>(note.size()) * core::kTextSpacingX);
+	f.region({0, 0, std::max(0, note_x - 4), f.style.title_height}, false,
+	         [&](OledFrame& band) { title(band, s, false); });
+	f.hline(f.style.title_height, 0, w - 1);
+	f.glyphs(note, note_x, 1, core::kTextSpacingX, core::kTextSpacingY);
+}
+
 void title_badge(OledFrame& f, const gfx::oled::Icon& i) {
 	// `OLED_MAIN_WIDTH_PIXELS - 10` against the frame's own width; `+ 1` and the row below the icon's own eight are
 	// legacy's (the `lockIcon` draw and its `invertArea` in main's `SampleMarkerEditor::renderOLED`,
