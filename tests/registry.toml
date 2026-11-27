@@ -1855,6 +1855,21 @@ tier = "nightly"
 job = "tooling"
 runtime_s = 2
 
+
+[[harness]]
+name = "clean-roundtrip-corpus"
+path = "."
+level = "unit"
+runner = "script"
+kind = "property"
+status = "gate"
+gates = "every corpus song, and each of its outputs as a preset, survives the clean format but for the fields its clean load clamps"
+run = ["tests/unit/project/clean/run_corpus.sh"]
+requires = ["song-corpus"]
+tier = "nightly"
+job = "tooling"
+runtime_s = 5
+areas = ["model", "synth", "effects", "corpus-driver", "test-support"]
 [[harness]]
 name = "preset-roundtrip"
 template = "corpus"
