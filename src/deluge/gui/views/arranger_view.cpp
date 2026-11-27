@@ -2149,14 +2149,20 @@ itsInvalid:
 
 	// Or if it has...
 	else {
+		// The ClipInstance is taken out of its old place before it's inserted in the new one, so make sure that insert
+		// can't fail first (and don't let the delete give memory back, in case it's the same array)
+		if (!newOutputToDragInto->clipInstances.ensureEnoughSpaceAllocated(1)) {
+			display->displayError(Error::INSUFFICIENT_RAM);
+			goto itsInvalid;
+		}
+
 		if (action) {
 			action->recordClipInstanceExistenceChange(pressedClipInstanceOutput, clipInstance,
 			                                          ExistenceChangeType::DELETE);
 		}
-		pressedClipInstanceOutput->clipInstances.deleteAtIndex(pressedClipInstanceIndex);
+		pressedClipInstanceOutput->clipInstances.deleteAtIndex(pressedClipInstanceIndex, 1, false);
 
-		pressedClipInstanceIndex = newOutputToDragInto->clipInstances.insertAtKey(newStartPos);
-		// TODO: error check
+		pressedClipInstanceIndex = newOutputToDragInto->clipInstances.insertAtKey(newStartPos); // Can't fail now
 		clipInstance = newOutputToDragInto->clipInstances.getElement(pressedClipInstanceIndex);
 		clipInstance->clip = clip;
 		clipInstance->length = length;
