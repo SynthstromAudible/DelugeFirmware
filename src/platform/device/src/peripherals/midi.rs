@@ -9,13 +9,18 @@
 //! pass between its queues and the app unchanged, via [`midi_packets`](super::midi_packets).
 //!
 //! Arrival stamps place each input on the play timeline where it happened: a DIN byte is stamped
-//! by the receive interrupt as it arrives; a USB batch when the app reads it.
+//! by the receive interrupt as it arrives, a USB packet when its transfer's read completed. Each USB
+//! read returns one transfer's packets, so its one stamp is exact for all of them.
 #![allow(non_upper_case_globals)]
 
 use deluge_bsp::uart;
 use usb_classes::midi as usb_midi;
 
-use super::midi_packets::{PACKET_BYTES, read_packets, write_packets};
+use core::cell::RefCell;
+
+use critical_section::Mutex;
+
+use super::midi_packets::{PACKET_BYTES, TransferReader, write_packets};
 use crate::sys::{
     DelugeMidiPort, DelugeUsbHostEvent, DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,
 };
@@ -27,6 +32,9 @@ const MAX_USB_MIDI_DEVICES: u8 = 6;
 const PORT_COUNT: u8 = USB_PORT_BASE + MAX_USB_MIDI_DEVICES;
 /// The USB-MIDI peripheral port: the single connection to a computer.
 const USB_PERIPHERAL_PORT: u8 = USB_PORT_BASE;
+
+/// The USB peripheral port's reader, which returns one transfer per read.
+static USB_READER: Mutex<RefCell<TransferReader>> = Mutex::new(RefCell::new(TransferReader::new()));
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_init() {
@@ -57,13 +65,16 @@ pub extern "C" fn deluge_midi_read_timed(
     }
     // SAFETY: the app provides `max` writable bytes at `dst`.
     let dst = unsafe { core::slice::from_raw_parts_mut(dst, max as usize) };
-    let written = read_packets(dst, usb_midi::try_recv_packet_from_host);
-    if written > 0 && !arrival_ticks.is_null() {
+    let Some((written, ticks)) = critical_section::with(|cs| {
+        USB_READER
+            .borrow_ref_mut(cs)
+            .read(dst, usb_midi::try_recv_stamped_packet_from_host)
+    }) else {
+        return 0;
+    };
+    if !arrival_ticks.is_null() {
         // SAFETY: caller passes a valid out-pointer when non-null.
-        unsafe {
-            *arrival_ticks =
-                crate::audio::capture_stamp::now_for(embassy_time::Instant::now().as_ticks())
-        };
+        unsafe { *arrival_ticks = crate::audio::capture_stamp::now_for(ticks) };
     }
     written as u32
 }

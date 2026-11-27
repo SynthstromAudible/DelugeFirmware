@@ -610,8 +610,8 @@ void MidiEngine::checkIncomingUsbMidi() {
 
 			// Drain whole 4-byte event packets from the device's port into a local
 			// buffer (one bulk transfer holds at most 64 bytes). The BSP (re)arms
-			// its own receive transfers as part of the read; one capture stamp
-			// covers the batch.
+			// its own receive transfers as part of the read; each read returns one
+			// transfer, whose capture stamp covers all its packets.
 			uint8_t received[64];
 			uint32_t rxTicks = 0;
 			uint32_t bytesReceivedHere =
