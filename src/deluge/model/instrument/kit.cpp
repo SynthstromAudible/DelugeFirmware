@@ -1751,7 +1751,8 @@ Drum* Kit::getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode) {
 	// default middle C1 note number = 36
 	// noteRowId + 36 = C1 up for kit sounds
 	// this is configurable through the default menu
-	if (noteCode >= 0) {
+	// No clip when the Kit has no active Clip (callers pass the model stack's timeline counter, which can be null)
+	if (noteCode >= 0 && clip != nullptr) {
 		int32_t index = noteCode;
 		if (index < clip->noteRows.getNumElements()) {
 			NoteRow* noteRow = clip->noteRows.getElement(index);
@@ -1777,12 +1778,10 @@ void Kit::receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithT
 void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
                              int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
                              InstrumentClip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	Drum* thisDrum = getDrumFromNoteCode(clip, note);
+	Drum* thisDrum = getDrumFromNoteCode(clip, note); // clip can be null; this Kit is its output anyway
 
 	if (thisDrum) {
-		kit->receivedNoteForDrum(modelStack, cable, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
-		                         thisDrum);
+		receivedNoteForDrum(modelStack, cable, on, channel, note, velocity, shouldRecordNotes, doingMidiThru, thisDrum);
 	}
 }
 
@@ -1800,11 +1799,11 @@ void Kit::receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimeline
 		return;
 	}
 
-	Kit* kit = (Kit*)clip->output;
-	Drum* firstDrum = kit->getDrumFromIndex(0);
+	// clip can be null (no active Clip); this Kit is its output anyway
+	Drum* firstDrum = getDrumFromIndex(0);
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+		receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 	}
 }
 
