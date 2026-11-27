@@ -101,8 +101,9 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 		ActionType actionType = (newLength < getCurrentClip()->loopLength) ? ActionType::CLIP_LENGTH_DECREASE
 		                                                                   : ActionType::CLIP_LENGTH_INCREASE;
 
-		// If we are in middle of PATTERN_PASTE Action -> Resize need to be part of preview Pattern
-		if (actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+		// If we are in middle of PATTERN_PASTE Action -> Resize need to be part of preview Pattern. (The undo log can
+		// be empty - e.g. after the revert above, or on a fresh song.)
+		if (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
 			actionType = ActionType::PATTERN_PASTE;
 		}
 
@@ -132,8 +133,8 @@ Action* ClipView::shortenClip(int32_t newLength) {
 
 	Action* action = nullptr;
 
-	// If we are in middle of pasting Pattern ACtion -> Resize is part of preview Pattern
-	if (actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+	// If we are in middle of pasting Pattern ACtion -> Resize is part of preview Pattern (the undo log can be empty)
+	if (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
 		action = actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	}
 	else {
