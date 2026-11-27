@@ -267,6 +267,62 @@ describe distortion_graph_w("ui::widgets::oled::distortion_graph", $ {
 		expect_golden(self, "ui/widgets/fx_distortion_64.pbm", r64.pbm());
 	});
 });
+describe swing_graph_w("ui::widgets::oled::swing_graph", $ {
+	// A row a step's line crosses but no guide dot does (guides dot rows b.top - 1 + 4k).
+	const auto off_guide_row = [](const PageBody& b) {
+		int32_t y = b.bottom;
+		if ((y - (b.top - 1)) % 4 == 0) {
+			y--;
+		}
+		return y;
+	};
+	const auto pitch_of = [](const PageBody& b) { return (b.right - b.left) / 8; };
+
+	it("draws every step on its straight place at 50", _ {
+		uitest::Rig48 r;
+		const PageBody b = page_body(r.frame);
+		swing_graph(r.frame, 50, -1);
+		const int32_t x1 = b.left + 2 + pitch_of(b);
+		const int32_t y = off_guide_row(b) + kTop;
+		expect(r.lit(x1, y)).to_be_true();
+		expect(r.lit(x1 + 1, y)).to_be_true();
+	});
+
+	it("pushes the odd steps late by the amount", _ {
+		uitest::Rig48 r;
+		const PageBody b = page_body(r.frame);
+		swing_graph(r.frame, 75, -1);
+		const int32_t p = pitch_of(b);
+		const int32_t x1 = b.left + 2 + p;
+		const int32_t late = x1 + static_cast<int32_t>(std::lround(0.5f * static_cast<float>(p)));
+		const int32_t y = off_guide_row(b) + kTop;
+		expect(r.lit(late, y)).to_be_true();
+		expect(r.lit(x1, y)).to_be_false();
+		expect(r.lit(b.left + 2 + 2 * p, y)).to_be_true();
+	});
+
+	it("clamps the amount to 1..99", _ {
+		uitest::Rig48 hi;
+		uitest::Rig48 hi_ref;
+		swing_graph(hi.frame, 400, 0);
+		swing_graph(hi_ref.frame, 99, 0);
+		expect(hi.pbm()).to_equal(hi_ref.pbm());
+		uitest::Rig48 lo;
+		uitest::Rig48 lo_ref;
+		swing_graph(lo.frame, -5, 0);
+		swing_graph(lo_ref.frame, 1, 0);
+		expect(lo.pbm()).to_equal(lo_ref.pbm());
+	});
+
+	it("matches its goldens", _ {
+		uitest::Rig48 r48;
+		swing_graph(r48.frame, 66, 0);
+		expect_golden(self, "ui/widgets/fx_swing_48.pbm", r48.pbm());
+		uitest::Rig64 r64;
+		swing_graph(r64.frame, 66, 0);
+		expect_golden(self, "ui/widgets/fx_swing_64.pbm", r64.pbm());
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(fx_graphs_spec, duck_graph_w, distortion_graph_w)
+DELUGE_SPEC(fx_graphs_spec, duck_graph_w, distortion_graph_w, swing_graph_w)

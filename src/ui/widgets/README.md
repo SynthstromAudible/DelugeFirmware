@@ -75,7 +75,7 @@ against drift, not a proof.
 | `Column`, `Paging`, `paging_of`, `column_under_button`, `page_switch`, `columns`, `title_paged`, `MeterColumn`/`meter_column`, `TextColumn`/`text_column`, `submenu_column`, `ToggleColumn`/`toggle_column` | `oled/columns.h` |
 | `DrawColumn`, `FilterGraph`, `draw_column`, `filter_graph`, `envelope_graph`, `eq_graph` | `column_drawings.h` |
 | `PageBody`, `page_body`, `LevelFn`, `curve`, `polyline`, `guide_v`, `guide_h`, `fill_line`, `Handles` | `page_drawing.h` |
-| `DuckGraph`, `DuckHandles`, `duck_graph`, `DistortionGraph`, `distortion_graph` | `fx_graphs.h` |
+| `DuckGraph`, `DuckHandles`, `duck_graph`, `DistortionGraph`, `distortion_graph`, `swing_graph` | `fx_graphs.h` |
 | `waveform`, `loop_marker`, `looped_waveform`, `sliced_waveform` | `oled/waveform.h` |
 | `kMaxRoutingStages`, `routing_chain`, `segmented_switch`, `cable_strength_value` | `routing.h` |
 | `PopupStyle`, `popup_rect_for`, `popup_frame`, `popup_text`, `working`, `progress` | `popup.h` |

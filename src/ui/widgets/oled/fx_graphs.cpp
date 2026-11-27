@@ -167,4 +167,31 @@ void distortion_graph(OledFrame& panel, const DistortionGraph& d, int32_t focuse
 	}
 }
 
+void swing_graph(OledFrame& panel, int32_t amount, int32_t focused) {
+	const PageBody b = page_body(panel);
+	const int32_t pitch = (b.right - b.left) / 8;
+	const int32_t late =
+	    round_i(static_cast<float>(std::clamp<int32_t>(amount, 1, 99) - 50) / 50.f * static_cast<float>(pitch));
+	const int32_t top = b.top + 5;
+	const auto xs = [&](int32_t i) { return b.left + 2 + i * pitch; };
+	const auto x_step = [&](int32_t i) { return xs(i) + (i % 2 == 1 ? late : 0); };
+	for (int32_t i = 0; i < 8; i++) {
+		guide_v(panel, b, xs(i), b.top);
+	}
+	for (int32_t i = 0; i < 8; i++) {
+		panel.vline(x_step(i), top, b.bottom);
+		panel.vline(x_step(i) + 1, top, b.bottom);
+	}
+	Handles marks{panel};
+	const int32_t hx[] = {x_step(1), xs(2)};
+	for (int32_t i = 0; i < 2; i++) {
+		if (i != focused) {
+			marks.draw(hx[i], top, false);
+		}
+	}
+	if (focused == 0 || focused == 1) {
+		marks.draw(hx[focused], top, true);
+	}
+}
+
 } // namespace deluge::ui::widgets::oled

@@ -66,4 +66,15 @@ struct DistortionGraph {
 /// @param focused The focused column, 0..3; its handle is drawn inverted, on top.
 void distortion_graph(OledFrame& panel, const DistortionGraph& d, int32_t focused);
 
+/// @brief Eight steps of swing across the page body: each straight place a dotted guide, each step a 2-px-wide
+///        solid line from `b.top + 5` to `b.bottom`, the odd steps pushed late.
+///
+/// With `b = page_body(panel)` and `pitch = (b.right - b.left) / 8`, step i's straight place is
+/// `xs(i) = b.left + 2 + i * pitch`; an odd step sits `round((amount - 50) / 50 * pitch)` later. Handles in column
+/// order: AMOUNT on step 1's top, INTERVAL on step 2's top.
+/// @param panel   The frame a menu hands a page drawing.
+/// @param amount  The song's swing, 1..99 with 50 straight; clamped.
+/// @param focused The focused column, 0..1; its handle is drawn inverted, on top.
+void swing_graph(OledFrame& panel, int32_t amount, int32_t focused);
+
 } // namespace deluge::ui::widgets::oled
