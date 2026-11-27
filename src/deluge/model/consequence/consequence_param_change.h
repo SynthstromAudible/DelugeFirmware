@@ -32,4 +32,9 @@ public:
 		ModelStackWithParamId modelStack; // TODO: yikes, is this safe? What about NoteRow pointers etc?
 	};
 	AutoParamState state;
+
+private:
+	// True if the param lives in the ParamManager of modelStack's NoteRow (kit row params, note expression)
+	bool paramsBelongToNoteRow;
+	bool refreshNoteRowPointers();
 };
