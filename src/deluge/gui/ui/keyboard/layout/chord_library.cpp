@@ -51,7 +51,7 @@ void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboard
 				if (offset == NONE) {
 					continue;
 				}
-				enableNote(noteFromCoords(pressed.x) + offset, velocity);
+				enableNote(noteFromCoords(pressed.x) + offset, velocityFor(pressed));
 			}
 		}
 	}

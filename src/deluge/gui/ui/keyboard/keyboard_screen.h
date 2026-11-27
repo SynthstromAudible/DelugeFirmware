@@ -62,6 +62,10 @@ public:
 
 	void killColumnSwitchKey(int32_t column);
 
+	/// Whether a press on (x, y) plays at the velocity it was pressed with (mic velocity): main pads, in a layout that
+	/// uses it
+	[[nodiscard]] bool padUsesVelocity(int32_t x, int32_t y) const;
+
 	// ui
 	UIType getUIType() override { return UIType::KEYBOARD_SCREEN; }
 	UIType getUIContextType() override { return UIType::INSTRUMENT_CLIP; }

@@ -70,7 +70,7 @@ void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad 
 	if (pressed.x < kChordKeyboardColumns - 1) {
 		int32_t note = noteFromCoordsRow(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
 		drawChordName(note); // TODO: print full chord played on all pads?
-		enableNote(note, velocity);
+		enableNote(note, velocityFor(pressed));
 	}
 	else if (pressed.x == kChordKeyboardColumns - 1) {
 		for (int32_t i = 0; i < 3; ++i) {
@@ -78,7 +78,7 @@ void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad 
 			if (i == 0) {
 				drawChordName(note); // TODO: print quality
 			}
-			enableNote(note, velocity);
+			enableNote(note, velocityFor(pressed));
 		}
 	}
 }
@@ -116,7 +116,7 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 		else {
 			note = root + offset + octaveDisplacement * kOctaveSize;
 		}
-		enableNote(note, velocity);
+		enableNote(note, velocityFor(pressed));
 	}
 }
 

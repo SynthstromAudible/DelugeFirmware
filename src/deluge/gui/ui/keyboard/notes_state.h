@@ -37,6 +37,8 @@ struct PressedPad : Cartesian {
 	// exception - if the pad is "used up" by switching keyboard columns it will be set dead immediately to prevent
 	// processing its release, while still being set as active
 	bool dead;
+	/// The velocity the press was measured at (mic velocity), or USE_DEFAULT_VELOCITY if it wasn't
+	uint8_t velocity;
 };
 
 struct NoteState {

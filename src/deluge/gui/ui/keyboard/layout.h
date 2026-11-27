@@ -75,6 +75,9 @@ public:
 	/// This currently includes Synth, MIDI and CV
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
+	/// Whether a press on main pad (x, y) plays at the velocity it was pressed with (mic velocity). A layout that sets
+	/// velocity some other way says no, and such presses aren't measured.
+	virtual bool usesPadVelocity(int32_t x, int32_t y) { return true; }
 	virtual RequiredScaleMode requiredScaleMode() { return RequiredScaleMode::Undefined; }
 	/// Whether this layout can operate with the given scale. Layouts that only support certain scales
 	/// (e.g. the chord keyboard) override this so the scale-mode sidebar can avoid selecting a scale
@@ -128,6 +131,11 @@ protected:
 
 public:
 	uint8_t velocity = 64;
+
+	/// The velocity a press plays at: what it was measured at (mic velocity), else the layout's
+	[[nodiscard]] uint8_t velocityFor(PressedPad const& pressed) const {
+		return pressed.velocity != USE_DEFAULT_VELOCITY ? pressed.velocity : velocity;
+	}
 
 protected:
 	NotesState currentNotesState;

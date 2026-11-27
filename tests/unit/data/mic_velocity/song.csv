@@ -1,0 +1,7 @@
+# Pad presses in song.wav: the frame each was handled at, the strength asked for (1 soft, 2 normal, 3 hard), the pad
+frame,strength,x,y
+55566,2,7,4
+62181,2,7,4
+68796,2,7,4
+75411,3,7,4
+82026,3,7,4

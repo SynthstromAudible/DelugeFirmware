@@ -44,6 +44,8 @@ public:
 	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_VELOCITY_DRUMS; }
 	bool supportsInstrument() override { return false; }
 	bool supportsKit() override { return true; }
+	/// Drums more than one pad wide take their velocity from where they're pressed
+	bool usesPadVelocity(int32_t x, int32_t y) override { return zoom_arr[getState().drums.zoom_level][0] == 1; }
 
 private:
 	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint32_t edge_size_x, uint32_t edge_size_y) {

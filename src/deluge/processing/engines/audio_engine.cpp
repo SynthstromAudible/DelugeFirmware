@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "hid/mic_velocity/mic_input.h"
 
 #include "chrono"
 #include "definitions.h"
@@ -298,6 +299,7 @@ float voiceStartTimeThisRender = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
+bool speakerOn;
 InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
 bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
@@ -1521,6 +1523,8 @@ void routine() {
 
 	audioRoutineLocked = true;
 
+	deluge::mic_velocity::input::service(); // Mic velocity: keep up with the internal mic
+
 	numRoutines = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		while (doSomeOutputting() && numRoutines < 2) {
@@ -1747,6 +1751,15 @@ bool doSomeOutputting() {
 	i2sTXBufferPos = (uint32_t)i2sTXBufferPosNow;
 
 	if (numSamplesOutputted) {
+		if (deluge::mic_velocity::input::hasConsumer()) {
+			// what's about to come out of the speaker for telling it from a pad's thump
+			// we'll cancel this out of what we  read  later
+			constexpr uint32_t kTxFrameBytes = NUM_MONO_OUTPUT_CHANNELS * sizeof(int32_t);
+			uint32_t const txQueuedBytes = (i2sTXBufferPos - (uint32_t)getTxBufferCurrentPlace())
+			                               & (SSI_TX_BUFFER_NUM_SAMPLES * kTxFrameBytes - 1);
+			deluge::mic_velocity::input::feedOutput(outputBufferForResampling.first(numSamplesOutputted),
+			                                        static_cast<int32_t>(txQueuedBytes / kTxFrameBytes));
+		}
 
 		if (doSendToUSB) {
 			usb_audio::sendToHost(std::span{toUSB}.first(numSamplesOutputted), i2sTXBufferPosNow, renderOffset);

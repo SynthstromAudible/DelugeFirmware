@@ -49,7 +49,7 @@ void SongChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWith
 		activeChordMem = pad.y;
 		auto noteCount = currentSong->chordMemNoteCount[pad.y];
 		for (int i = 0; i < noteCount && i < MAX_NOTES_CHORD_MEM; i++) {
-			currentNotesState.enableNote(currentSong->chordMem[pad.y][i], layout->velocity);
+			currentNotesState.enableNote(currentSong->chordMem[pad.y][i], layout->velocityFor(pad));
 		}
 		currentSong->chordMemNoteCount[pad.y] = noteCount;
 	}
