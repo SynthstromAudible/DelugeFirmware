@@ -23,9 +23,9 @@
 #include "io/midi/learned_midi.h"
 #include "playback/playback_handler.h"
 #include <libdeluge/scheduler.h>
+#include <libdeluge/timed_output.h>
 
 struct CriticalSectionGuard;
-struct QueuedMIDI;
 
 class MIDICable;
 class MIDIDrum;
@@ -99,19 +99,11 @@ public:
 	void sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter);
 	/// @param value Pressure amount. Saturated into 0-127
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter);
-	bool anythingInOutputBuffer();
 
-	/// MIDI sent with sendMidi() doesn't go straight to the USB / DIN outputs - it's queued along with the time it's
-	/// due, so the MIDI/gate output timer can send it then. This sets the due time given to everything sent from now
-	/// on (see outputTimeNow()).
-	void setMIDIDue(uint32_t due) { midiDue_ = due; }
-	/// Send all queued MIDI due by now, in the order it was queued, then flush the outputs. Returns whether anything
-	/// due is still queued because an output had no room for it yet (DIN's FIFO is only 16 bytes)
-	bool flushDueMIDI(uint32_t now, const CriticalSectionGuard& guard);
-	/// Send everything queued that the outputs have room for, due or not, then flush them
-	void flushAllQueuedMIDI(const CriticalSectionGuard& guard);
-	/// Get the due time of the oldest queued MIDI. Returns false if nothing's queued
-	bool nextMIDIDue(uint32_t& due, const CriticalSectionGuard& guard);
+	/// The play-timeline stamp everything sent from now on goes out at (see libdeluge/timed_output.h): MIDI, and CV
+	/// and gates too. The render sets it to where it is in its window; between renders it is the next render's start.
+	void setOutputStamp(uint32_t stamp) { outputStamp_ = stamp; }
+	[[nodiscard]] uint32_t outputStamp() const { return outputStamp_; }
 
 	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
 	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands]{};
@@ -164,13 +156,7 @@ private:
 
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
 
-	void queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN);
-	bool flushQueuedMIDI(bool all, uint32_t now, const CriticalSectionGuard& guard);
-	/// Pop the oldest queued MIDI and send it, whether it's due yet or not. Returns false if nothing was queued
-	bool sendOldestQueuedMIDI(const CriticalSectionGuard& guard);
-	void sendQueuedMIDI(const QueuedMIDI& queued);
-
-	uint32_t midiDue_{0}; ///< Due time given to MIDI as it's queued, see setMIDIDue()
+	uint32_t outputStamp_{DELUGE_STAMP_NOW}; ///< See setOutputStamp()
 };
 
 /// @brief Whether the USB stack is open; `MidiEngine::checkIncomingUsbMidi` reads USB-MIDI only while it is.

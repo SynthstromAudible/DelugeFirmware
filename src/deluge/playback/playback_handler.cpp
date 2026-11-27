@@ -1028,8 +1028,8 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 }
 
 void PlaybackHandler::doMIDIClockOutTick() {
-	// The clock is queued with its own due time (see AudioEngine's setMIDIDueAtWindowOffset()), behind any MIDI already
-	// waiting, so it neither goes out early with that MIDI nor has to wait for it to be flushed first
+	// The clock is queued with its own due time (see AudioEngine's setOutputStampAtWindowOffset()), behind any MIDI
+	// already waiting, so it neither goes out early with that MIDI nor has to wait for it to be flushed first
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
 	timeLastMIDIClockOutTickSent = AudioEngine::audioSampleTimer;

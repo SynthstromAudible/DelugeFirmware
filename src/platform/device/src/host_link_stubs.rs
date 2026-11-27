@@ -50,10 +50,13 @@ pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
     0
 }
 
-/// No play position on the host: every output goes as soon as possible.
+/// The host's render cursor counts the timeline: the block being rendered starts at it.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_render_offset_to_stamp(offset_frames: u32) -> u32 {
-    0
+    crate::audio::capture_stamp::stamp_for_offset(
+        crate::audio::host::timeline_frame(),
+        offset_frames,
+    )
 }
 
 // ── cv_gate.h ──────────────────────────────────────────────────────────────

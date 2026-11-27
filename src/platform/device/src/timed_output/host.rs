@@ -1,7 +1,9 @@
-//! The timed output service on the host: no play position, so every stamp the app makes is
-//! [`STAMP_NOW`](super::core::STAMP_NOW) and goes out in the call that submits it. DIN bytes go
-//! where the host's DIN writes always went (the simulator, or kept for specs); CV and gate writes
-//! are kept as text for specs (`deluge_host_out_take`).
+//! The timed output service on the host. Stamps count the render cursor, and the play position is
+//! the latest block's start plus the Embassy clock's time since it began: the render driver fires
+//! the service after each block, and it sends what that clock has reached. A submit only queues, so specs that
+//! take output without rendering flush first (`deluge_host_out_flush`). DIN bytes go where the
+//! host's DIN writes always went (the simulator, or kept for specs); CV and gate writes are kept as
+//! text for specs (`deluge_host_out_take`).
 
 use std::sync::Mutex;
 
@@ -13,9 +15,13 @@ const CONFIG: Config = Config {
     tolerance_micros: 22,
 };
 
+/// [`CONFIG`] with no stamp in the future: everything queued is due.
+const FLUSH: Config = Config {
+    max_ahead_frames: 0,
+    ..CONFIG
+};
+
 static SERVICE: Mutex<Service> = Mutex::new(Service::new());
-/// The armed deadline on the Embassy clock, in µs, or `u64::MAX`.
-static DEADLINE: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(u64::MAX);
 /// CV and gate writes, one per line, oldest first.
 static LOG: Mutex<String> = Mutex::new(String::new());
 
@@ -44,30 +50,32 @@ impl Outputs for Host {
 
 fn clock() -> Clock {
     Clock {
-        frame: 0,
-        micros: embassy_time::Instant::now().as_micros(),
+        frame: crate::audio::host::play_frame(),
+        micros: 0,
     }
 }
 
-/// As the device's: run `f`, send what is due, keep the deadline for [`fire`].
+/// Run `f` on the service. What it queues goes out at the next [`fire`].
 pub(crate) fn service<R>(f: impl FnOnce(&mut Service) -> R) -> R {
-    let mut s = SERVICE.lock().unwrap_or_else(|e| e.into_inner());
-    let result = f(&mut s);
-    let at = s.fire(&CONFIG, clock(), &mut Host);
-    DEADLINE.store(
-        at.unwrap_or(u64::MAX),
-        core::sync::atomic::Ordering::Relaxed,
-    );
-    result
+    f(&mut SERVICE.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
 /// The host's stand-in for the output timer's interrupt, which the render driver calls after each
-/// block: send what has come due.
+/// block: send what the codec has reached.
 pub(crate) fn fire() {
-    let at = DEADLINE.load(core::sync::atomic::Ordering::Relaxed);
-    if at != u64::MAX && embassy_time::Instant::now().as_micros() >= at {
-        service(|_| ());
-    }
+    let _ = SERVICE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .fire(&CONFIG, clock(), &mut Host);
+}
+
+/// Send everything queued, due or not: for specs, which take output without rendering.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_out_flush() {
+    let _ = SERVICE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .fire(&FLUSH, clock(), &mut Host);
 }
 
 /// Moves whole lines of the CV and gate log into `dst` (at most `cap` bytes); returns the bytes

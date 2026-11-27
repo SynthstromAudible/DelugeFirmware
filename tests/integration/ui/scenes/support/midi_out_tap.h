@@ -1,11 +1,9 @@
 #pragma once
 
 /// @file
-/// @brief The DIN MIDI the app sent, as hex: the engine's queue is flushed, then the bytes the host stub kept
-///        (`deluge_host_midi_out_take`, `src/platform/device/src/host_link_stubs.rs`) are taken.
-
-#include "io/midi/midi_engine.h"
-#include "libdeluge/system.h"
+/// @brief The DIN MIDI the app sent, as hex: the host's output service is flushed, so MIDI not yet due goes out too
+///        (`deluge_host_out_flush`, `src/platform/device/src/timed_output/host.rs`), then the bytes the host kept
+///        (`deluge_host_midi_out_take`) are taken.
 
 #include <array>
 #include <cstdint>
@@ -13,15 +11,13 @@
 #include <string_view>
 
 extern "C" uint32_t deluge_host_midi_out_take(uint8_t* dst, uint32_t cap);
+extern "C" void deluge_host_out_flush();
 
 namespace deluge::ui::scenes::spec::midi_out {
 
 /// @brief Every DIN byte sent since the last take, space-separated lower-case hex ("" when none).
 inline std::string take() {
-	{
-		CriticalSectionGuard guard;
-		midiEngine.flushAllQueuedMIDI(guard);
-	}
+	deluge_host_out_flush();
 	std::string out;
 	std::array<uint8_t, 256> chunk{};
 	while (uint32_t n = deluge_host_midi_out_take(chunk.data(), chunk.size())) {

@@ -26,7 +26,6 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
-#include "io/midi/midi_queue.h"
 #include "io/midi/sysex.h"
 #include "libdeluge/midi_io.h"
 #include "libdeluge/system.h"
@@ -80,15 +79,6 @@ MidiEngine::MidiEngine() {
 int32_t MidiEngine::getPotentialNumConnectedUSBMIDIDevices(int32_t ip) {
 	bool potentiallyAHost = deluge_midi_usb_is_host();
 	return potentiallyAHost ? MAX_NUM_USB_MIDI_DEVICES : 1;
-}
-
-bool MidiEngine::anythingInOutputBuffer() {
-	for (DelugeMidiPort port = 0; port < deluge_midi_port_count(); port++) {
-		if (deluge_midi_write_pending(port) != 0) {
-			return true;
-		}
-	}
-	return false;
 }
 
 void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter) {
@@ -192,75 +182,15 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 
 	bool sendDIN = MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter);
 	if (sendUSB || sendDIN) {
-		queueMIDI(message, filter, sendUSB, sendDIN);
+		if (sendUSB) {
+			sendUsbMidi(message, filter);
+		}
+		if (sendDIN) {
+			sendSerialMidi(message);
+		}
 	}
 
 	--eventStackTop_;
-}
-
-namespace {
-// Shared with the MIDI/gate output timer's interrupt: only touched under a CriticalSectionGuard
-PLACE_SDRAM_DATA MIDIQueue midiQueue;
-} // namespace
-
-void MidiEngine::queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN) {
-	CriticalSectionGuard guard;
-	QueuedMIDI queued{.message = message, .filter = (int16_t)filter, .usb = sendUSB, .din = sendDIN, .due = midiDue_};
-	if (midiQueue.push(queued, outputTimeNow(), guard)) [[likely]] {
-		return;
-	}
-	// Full - send the oldest early to make room, so this one still goes out after everything queued before it
-	sendOldestQueuedMIDI(guard);
-	midiQueue.push(queued, outputTimeNow(), guard);
-}
-
-bool MidiEngine::nextMIDIDue(uint32_t& due, const CriticalSectionGuard& guard) {
-	return midiQueue.nextDue(due, guard);
-}
-
-bool MidiEngine::flushQueuedMIDI(bool all, uint32_t now, const CriticalSectionGuard& guard) {
-	bool blocked = false;
-	while (const QueuedMIDI* queued = midiQueue.frontDue(now, all, guard)) {
-		// DIN takes a message only if it fits whole: its FIFO drops whatever doesn't. Leave it queued for a retry,
-		// and everything behind it too, so nothing goes out of order
-		if (queued->din) {
-			uint8_t statusByte = queued->message.channel | (queued->message.statusType << 4);
-			if (deluge_midi_write_space(DELUGE_MIDI_DIN) < bytesPerStatusMessage(statusByte)) {
-				blocked = true;
-				break;
-			}
-		}
-		sendQueuedMIDI(*queued);
-		midiQueue.pop(guard);
-	}
-	flushMIDI();
-	return blocked;
-}
-
-bool MidiEngine::sendOldestQueuedMIDI(const CriticalSectionGuard& guard) {
-	QueuedMIDI queued;
-	if (!midiQueue.popOldest(queued, guard)) {
-		return false;
-	}
-	sendQueuedMIDI(queued);
-	return true;
-}
-
-void MidiEngine::sendQueuedMIDI(const QueuedMIDI& queued) {
-	if (queued.usb) {
-		sendUsbMidi(queued.message, queued.filter);
-	}
-	if (queued.din) {
-		sendSerialMidi(queued.message);
-	}
-}
-
-bool MidiEngine::flushDueMIDI(uint32_t now, const CriticalSectionGuard& guard) {
-	return flushQueuedMIDI(false, now, guard);
-}
-
-void MidiEngine::flushAllQueuedMIDI(const CriticalSectionGuard& guard) {
-	flushQueuedMIDI(true, 0, guard);
 }
 
 uint32_t setupUSBMessage(MIDIMessage message) {
@@ -336,13 +266,8 @@ void MidiEngine::sendSerialMidi(MIDIMessage message) {
 			bytes[2] = message.data2;
 		}
 	}
-	// The MIDI/gate output timer's interrupt writes to DIN too: keep this message's bytes together
-	CriticalSectionGuard guard;
-	// Drop the whole message if it won't fit: a partial write leaves receivers parsing half-messages (#5107)
-	if (deluge_midi_write_space(DELUGE_MIDI_DIN) < static_cast<uint32_t>(messageLength)) {
-		return;
-	}
-	deluge_midi_write(DELUGE_MIDI_DIN, bytes, messageLength);
+	// Queued whole or not at all: a partial message leaves receivers parsing half-messages (#5107)
+	(void)deluge_out_midi_at(DELUGE_MIDI_DIN, bytes, messageLength, outputStamp_);
 }
 
 bool MidiEngine::checkIncomingSerialMidi() {

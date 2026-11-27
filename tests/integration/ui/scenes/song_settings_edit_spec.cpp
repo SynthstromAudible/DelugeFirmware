@@ -36,6 +36,7 @@
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/menu_engine.h"
+#include "support/midi_out_tap.h"
 #include "support/oracle_table.h"
 #include "support/printers/arp_record_printer.h"
 #include "support/printers/groove_printer.h"
@@ -93,13 +94,9 @@ void holdNote(ArpeggiatorBase& arp, ArpeggiatorSettings& settings) {
 	arp.noteOn(&settings, 60, 100, &instruction, MIDI_CHANNEL_NONE, zeroMPEValues);
 }
 
-/// @brief Whether MIDI is queued to go out, emptying the queue.
+/// @brief Whether MIDI went out on DIN since the last call.
 bool midiQueued() {
-	uint32_t due = 0;
-	CriticalSectionGuard guard;
-	const bool queued = midiEngine.nextMIDIDue(due, guard);
-	midiEngine.flushAllQueuedMIDI(guard);
-	return queued;
+	return !spec::midi_out::take().empty();
 }
 
 } // namespace
@@ -339,16 +336,9 @@ describe song_settings_edit("SetSetting", $ {
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip));
 		expect(f.clip->isActiveOnOutput()).to_be_true();
-		uint32_t due = 0;
-		{
-			CriticalSectionGuard guard;
-			midiEngine.flushAllQueuedMIDI(guard);
-			expect(midiEngine.nextMIDIDue(due, guard)).to_be_false();
-		}
+		(void)midiQueued();
 		deluge::edits::clipValueSettingFor(*f.clip, "midiPGM", Value::makeNumber(5));
-		CriticalSectionGuard guard;
-		expect(midiEngine.nextMIDIDue(due, guard)).to_be_true();
-		midiEngine.flushAllQueuedMIDI(guard);
+		expect(midiQueued()).to_be_true();
 	});
 
 	it("gives a clone the clip's program", _ {

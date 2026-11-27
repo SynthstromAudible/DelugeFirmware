@@ -20,6 +20,7 @@
 #include "io/midi/midi_engine.h"
 #include "libdeluge/midi_io.h"
 #include "libdeluge/system.h"
+#include "libdeluge/timed_output.h"
 #include "storage/storage_manager.h"
 
 void MIDICableDINPorts::writeReferenceAttributesToFile(Serializer& writer) {
@@ -40,7 +41,7 @@ void MIDICableDINPorts::sendMessage(MIDIMessage message) {
 }
 
 size_t MIDICableDINPorts::sendBufferSpace() const {
-	return deluge_midi_write_space(DELUGE_MIDI_DIN);
+	return deluge_out_midi_space(DELUGE_MIDI_DIN);
 }
 
 void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
@@ -48,10 +49,8 @@ void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 		return;
 	}
 
-	// NB: beware of MIDI_TX_BUFFER_SIZE
-	// The MIDI/gate output timer's interrupt writes to DIN too: keep the sysex's bytes together
-	CriticalSectionGuard guard;
-	deluge_midi_write(DELUGE_MIDI_DIN, data, len);
+	// In order with everything else sent now, whole or not at all
+	(void)deluge_out_midi_at(DELUGE_MIDI_DIN, data, len, midiEngine.outputStamp());
 }
 
 bool MIDICableDINPorts::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {

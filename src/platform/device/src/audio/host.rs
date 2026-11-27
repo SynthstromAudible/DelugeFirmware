@@ -37,6 +37,30 @@ static mut INPUT_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOC
 /// Total frames rendered: the host's stand-in for the device's DMA play head. "Now" is how much
 /// has been rendered.
 static CURSOR: AtomicU64 = AtomicU64::new(0);
+/// The host's write position on the play timeline: frames rendered, wrapped to 32 bits as stamps
+/// are. During a render it is the block's first frame.
+pub(crate) fn timeline_frame() -> u32 {
+    CURSOR.load(Ordering::Relaxed) as u32
+}
+
+/// The rate the host renders at, as the device does.
+const SAMPLE_RATE_HZ: u64 = 44_100;
+
+/// The Embassy clock, in µs, when the most recent render block began.
+static BLOCK_START_MICROS: AtomicU64 = AtomicU64::new(0);
+
+/// The host's play position on the timeline, for the output service: the most recent block's
+/// first frame plus the Embassy clock's time since that block began rendering, in frames. An
+/// event at offset `n` in a block plays `n` samples of clock time after the block began, as it
+/// would on the device.
+pub(crate) fn play_frame() -> u32 {
+    let elapsed_us = embassy_time::Instant::now()
+        .as_micros()
+        .saturating_sub(BLOCK_START_MICROS.load(Ordering::Relaxed));
+    let elapsed_frames = elapsed_us.saturating_mul(SAMPLE_RATE_HZ) / 1_000_000;
+    (BLOCK_START.load(Ordering::Relaxed) as u32).wrapping_add(elapsed_frames as u32)
+}
+
 /// [`CURSOR`] at the start of the most recent render block. With no separate write and play
 /// heads, it stands in for both of the device's block anchors.
 static BLOCK_START: AtomicU64 = AtomicU64::new(0);
@@ -506,6 +530,7 @@ fn f32_to_q31(s: f32) -> i32 {
 fn render_block(live: Option<&[[f32; 2]]>) {
     let block_start = CURSOR.load(Ordering::Relaxed);
     BLOCK_START.store(block_start, Ordering::Relaxed);
+    BLOCK_START_MICROS.store(embassy_time::Instant::now().as_micros(), Ordering::Relaxed);
     fill_input_block(block_start, live);
 
     // SAFETY: nothing else touches RENDER_BLOCK/INPUT_BLOCK during the render; both hold exactly
