@@ -39,6 +39,7 @@ import corpus_gate as cg
 import harness_registry as hr
 import scenario_gate as sg
 import test_builds as tb
+import test_selection as ts
 
 _spec = importlib.util.spec_from_file_location(
     "task_test", Path(__file__).parent / "task-test.py"
@@ -55,6 +56,7 @@ runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "alpha must equal beta"
+areas = ["all"]
 build = ["cargo", "build"]
 run = ["cargo", "test"]
 requires = ["cargo"]
@@ -72,6 +74,7 @@ runner = "ctest"
 kind = "unit"
 status = "gate"
 gates = "beta holds"
+areas = ["all"]
 source = "x"
 tree = "build/x"
 ctest_args = ["-C", "Debug"]
@@ -135,6 +138,16 @@ class SelectTest(unittest.TestCase):
             self.names(tier="pr", names=["i-manual", "u-pr"]), ["i-manual", "u-pr"]
         )
 
+    def test_only_a_tier_selects_that_tier_alone(self):
+        self.assertEqual(
+            [h.name for h in hr.select(self.ENTRIES, [], [], "nightly", only=True)],
+            ["c-nightly"],
+        )
+        self.assertEqual(
+            [h.name for h in hr.select(self.ENTRIES, [], [], "manual", only=True)],
+            ["i-manual"],
+        )
+
     def test_unknown_name_is_rejected(self):
         with self.assertRaises(ValueError):
             self.names(tier="pr", names=["nope"])
@@ -146,6 +159,30 @@ class LoadRegistryTest(unittest.TestCase):
         (root / "tests").mkdir()
         (root / "tests" / "registry.toml").write_text(text)
         return root
+
+    def test_an_entry_without_areas_is_refused(self):
+        text = MINIMAL.replace('areas = ["all"]\n', "")
+        with self.assertRaises(ValueError) as caught:
+            hr.load_registry(self._root_with(text))
+        self.assertEqual(str(caught.exception), "alpha: missing required field 'areas'")
+
+    def test_areas_is_a_list_of_names(self):
+        text = MINIMAL.replace('areas = ["all"]', 'areas = "all"')
+        with self.assertRaisesRegex(ValueError, "alpha: areas is a list of area names"):
+            hr.load_registry(self._root_with(text))
+
+    def test_the_area_tables_load(self):
+        text = (
+            MINIMAL
+            + '\n[area.ui]\npaths = ["src/ui/**"]\n\n[no-gate]\npaths = ["docs/**"]\n\n[every-gate]\npaths = ["dbt"]\n'
+        )
+        root = self._root_with(text)
+        self.assertEqual(hr.load_registry(root)[0].areas, ["all"])
+        areas = hr.load_areas(root)
+        self.assertEqual(
+            (areas.areas, areas.no_gate, areas.every_gate),
+            ({"ui": ["src/ui/**"]}, ["docs/**"], ["dbt"]),
+        )
 
     def test_a_long_gates_line_is_refused(self):
         text = MINIMAL.replace(
@@ -697,6 +734,7 @@ runner = "corpus"
 kind = "regression"
 status = "gate"
 gates = "delta holds"
+areas = ["all"]
 corpus_runner = "fake"
 builds = ["golden-vt-render"]
 tier = "nightly"
@@ -758,6 +796,32 @@ runtime_s = 1
         self.assertEqual(len(corpus), 17)
         self.assertTrue(all(h.job == "model" and h.alone for h in corpus))
 
+    def test_every_tracked_file_has_an_area(self):
+        root = Path(__file__).resolve().parents[2]
+        entries = hr.load_registry(root)
+        tracked = subprocess.run(
+            ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True
+        ).stdout.split()
+        problems = ts.completeness_problems(
+            [ts.Entry(h.name, h.areas, ts.own_files(h)) for h in entries],
+            hr.load_areas(root),
+            tracked,
+        )
+        self.assertEqual(problems, [])
+
+    def test_the_registrys_areas_are_consistent(self):
+        root = Path(__file__).resolve().parents[2]
+        entries = hr.load_registry(root)
+        tracked = subprocess.run(
+            ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True
+        ).stdout.split()
+        problems = ts.consistency_problems(
+            [ts.Entry(h.name, h.areas, []) for h in entries],
+            hr.load_areas(root),
+            tracked,
+        )
+        self.assertEqual(problems, [])
+
 
 class RigAndParityEntryTest(unittest.TestCase):
     def test_every_rig_entry_runs_alone(self):
@@ -793,6 +857,7 @@ runner = "scenario"
 kind = "property"
 status = "gate"
 gates = "gamma holds"
+areas = ["all"]
 scenario = "gamma"
 markers = ["GA-ONE"]
 result = "GA-RESULT failures=0"
@@ -1513,6 +1578,18 @@ class MarkdownTableTest(unittest.TestCase):
         self.assertEqual(header[header.index("Tier") + 1], "Job")
         self.assertIn("| pr | storage |", table)
 
+    def test_table_has_an_areas_column_after_gates(self):
+        text = MINIMAL.replace('areas = ["all"]', 'areas = ["ui", "codec"]')
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
+        table = hr.markdown_table(hr.load_registry(root))
+        self.assertEqual(
+            table.split("\n")[0],
+            "| Test | Level | Runner | Kind | Status | Gates | Areas | Tier | Job | Runtime |",
+        )
+        self.assertIn("| alpha must equal beta | ui, codec | pr |", table)
+
     def test_table_has_a_row_per_harness(self):
         entries = hr.load_registry(self._root())
         table = hr.markdown_table(entries)
@@ -1531,9 +1608,9 @@ class MarkdownTableTest(unittest.TestCase):
         header_row = lines[0]
         data_row = lines[2]
         # One more pipe than columns: leading, one between each pair, trailing.
-        self.assertEqual(header_row.count("|"), 10)
+        self.assertEqual(header_row.count("|"), 11)
         # The escaped pipe adds one to the data row without adding a column.
-        self.assertEqual(data_row.count("|"), 11)
+        self.assertEqual(data_row.count("|"), 12)
 
     def _root(self):
         root = Path(tempfile.mkdtemp())
@@ -1716,12 +1793,14 @@ class RunnerSchedulingTest(unittest.TestCase):
             [(e.name, e.alone) for e in entries], [("alpha", False), ("gamma", True)]
         )
 
-    def test_default_jobs(self):
-        cpus = os.cpu_count()
-        self.assertEqual(tt.default_jobs(0, "pr", False), cpus)
-        self.assertEqual(tt.default_jobs(0, "nightly", False), 1)
-        self.assertEqual(tt.default_jobs(3, "pr", False), 3)
-        self.assertEqual(tt.default_jobs(0, "nightly", True), cpus)
+    def test_every_tier_runs_one_test_per_cpu_unless_told(self):
+        self.assertEqual(tt.default_jobs(0), os.cpu_count() or 1)
+        self.assertEqual(tt.default_jobs(3), 3)
+
+    def test_only_tier_refuses_tier(self):
+        self.assertEqual(
+            tt._main(["--only-tier", "nightly", "--tier", "pr", "--list"]), 2
+        )
 
     def test_schedule_splits_alone_last(self):
         a, b, c = entry("a"), entry("b"), entry("c")
@@ -2616,6 +2695,7 @@ name = "one"
 template = "t"
 path = "a"
 gates = "one holds"
+areas = ["all"]
 run = ["cargo", "test"]
 """
 
@@ -2746,6 +2826,7 @@ runner = "scenario"
 kind = "property"
 status = "gate"
 gates = "gamma holds"
+areas = ["all"]
 scenario = "gamma"
 markers = ["GA-ONE"]
 result = "GA-RESULT failures=0"
@@ -2767,6 +2848,7 @@ runner = "script"
 kind = "unit"
 status = "gate"
 gates = "delta holds"
+areas = ["all"]
 path = "."
 run = ["true"]
 tier = "pr"
@@ -2984,7 +3066,7 @@ class VariantTest(unittest.TestCase):
     def test_a_copys_name_cannot_collide(self):
         clash = (
             '\n[[harness]]\nname = "app-asan-gamma"\nlevel = "unit"\nrunner = "script"\nkind = "unit"\n'
-            'status = "gate"\ngates = "clash"\npath = "."\nrun = ["true"]\ntier = "pr"\njob = "tooling"\nruntime_s = 1\n'
+            'status = "gate"\ngates = "clash"\nareas = ["all"]\npath = "."\nrun = ["true"]\ntier = "pr"\njob = "tooling"\nruntime_s = 1\n'
         )
         with self.assertRaisesRegex(ValueError, "duplicate test name 'app-asan-gamma'"):
             self._load(VARIANTED + clash)

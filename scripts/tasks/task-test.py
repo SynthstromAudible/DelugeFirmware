@@ -43,6 +43,7 @@ import harness_registry as hr
 import run_scratch
 import scenario_gate
 import test_builds as tb
+import test_selection as ts
 
 SHARED_TARGET_SUBDIR = tb.SHARED_TARGET_SUBDIR
 
@@ -79,6 +80,18 @@ def argparser() -> argparse.ArgumentParser:
         choices=hr.TIERS,
         default=None,
         help="Run every test up to and including this tier (default pr)",
+    )
+    parser.add_argument(
+        "--only-tier",
+        choices=hr.TIERS,
+        default=None,
+        help="Run this tier's tests alone, not the tiers before it",
+    )
+    parser.add_argument(
+        "--since",
+        metavar="REF",
+        help="Only the tier's tests the changes since REF's merge base reach, the working tree included (tests named "
+        "run whatever changed; tests/README.md, Selecting by change)",
     )
     parser.add_argument(
         "--list", action="store_true", help="List the selection instead of running it"
@@ -153,7 +166,7 @@ def argparser() -> argparse.ArgumentParser:
         "--jobs",
         type=int,
         default=0,
-        help="Run up to N tests at once (default: one per CPU for the pr tier and --capture, 1 above it). Each "
+        help="Run up to N tests at once (default: one per CPU). Each "
         "run's card is its own memory disk, so runs share nothing; tests marked `alone` run one at a time after the "
         "rest",
     )
@@ -1062,13 +1075,12 @@ def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) 
     return _summarise([outcomes[h.name] for h in selection], strict=True, out=OUT)
 
 
-def default_jobs(jobs: int, tier: str, capture: bool) -> int:
-    """The tests run at once: `jobs` when given, else one per CPU for a capture or the pr tier, else 1.
+def default_jobs(jobs: int) -> int:
+    """The tests run at once: `jobs` when given, else one per CPU.
 
-    Above the pr tier the corpus sweeps run their songs in parallel themselves (`GOLDEN_SWEEP_JOBS`)."""
-    if jobs:
-        return jobs
-    return (os.cpu_count() or 1) if capture or tier == "pr" else 1
+    The corpus sweeps, which run their songs in parallel themselves (`GOLDEN_SWEEP_JOBS`), are `alone`: they run after
+    the rest, one at a time, each with every CPU."""
+    return jobs or (os.cpu_count() or 1)
 
 
 def _write_junit(path: Path, outcome: Outcome) -> None:
@@ -1175,6 +1187,7 @@ def cmd_list(
     markdown: bool,
     entries: list[hr.Harness],
     verbose: bool = False,
+    reasons: dict[str, str] | None = None,
 ) -> int:
     if markdown:
         print(hr.markdown_table(entries), end="")
@@ -1191,6 +1204,8 @@ def cmd_list(
             f"{mark} {h.name:<{width}}  {h.level:<11} {h.status:<13} {h.tier:<7} {hr.runtime_text(h.runtime_s)}{note}"
         )
         print(f"    {' ' * width}  {h.gates}")
+        if reasons and (why := reasons.get(h.name)):
+            print(f"    {' ' * width}  reached by {why}")
         if verbose and (text := hr.explanation(root, h)):
             for line in textwrap.wrap(
                 text,
@@ -1264,6 +1279,9 @@ def _main(argv: list[str]) -> int:
         cut = argv.index("--")
         argv, passthrough = argv[:cut], argv[cut + 1 :]
     args = argparser().parse_args(argv)
+    if args.only_tier and args.tier:
+        print("test: --only-tier and --tier are exclusive", file=sys.stderr)
+        return 2
     for name in (golden_update.SWITCH, golden_update.LOG):
         if os.environ.pop(name, None) is not None:
             print(
@@ -1276,7 +1294,7 @@ def _main(argv: list[str]) -> int:
     if args.update and (why := update_refusal(args)):
         print(f"test: {why}", file=sys.stderr)
         return 2
-    tier = args.tier or "pr"
+    tier = args.only_tier or args.tier or "pr"
     root = Path(util.get_git_root()).absolute()
     entries = _load(root)
     if args.dump_expanded:
@@ -1286,7 +1304,7 @@ def _main(argv: list[str]) -> int:
     global OUT, ALONE_SWEEP_JOBS
     OUT = os.fdopen(os.dup(sys.stdout.fileno()), "w", buffering=1, errors="replace")
     # `--update` runs one test at a time, so a corpus sweep it records has every CPU.
-    args.jobs = 1 if args.update else default_jobs(args.jobs, tier, bool(args.capture))
+    args.jobs = 1 if args.update else default_jobs(args.jobs)
 
     # The corpus sweeps run songs in parallel (tests/integration/corpus/driver.py): a sweep run alongside other tests
     # shares the CPUs among them, one run alone has them all.
@@ -1310,10 +1328,31 @@ def _main(argv: list[str]) -> int:
         )
 
     try:
-        selection = hr.select(entries, args.names, args.level, tier)
+        selection = hr.select(
+            entries, args.names, args.level, tier, only=bool(args.only_tier)
+        )
     except ValueError as exc:
         print(f"test: {exc}", file=sys.stderr)
         return 1
+    reasons: dict[str, str] = {}
+    if args.since and not args.names:
+        try:
+            result = ts.since(
+                selection,
+                hr.load_areas(root),
+                ts.changed_files(root, args.since),
+                tier,
+                entries,
+            )
+        except ValueError as exc:
+            print(f"test: {exc}", file=sys.stderr)
+            return 2
+        for line in result.messages:
+            print(line, file=sys.stderr)
+        selection, reasons = result.selected, result.reasons
+        if not selection:
+            print(f"--since: no gate is reachable from the changes since {args.since}")
+            return 0
     if args.update:
         return cmd_update(root, selection, passthrough)
 
@@ -1331,7 +1370,14 @@ def _main(argv: list[str]) -> int:
         print(json.dumps(hr.ci_matrix(selection)))
         return 0
     if args.list:
-        return cmd_list(root, selection, args.markdown, entries, verbose=args.verbose)
+        return cmd_list(
+            root,
+            selection,
+            args.markdown,
+            entries,
+            verbose=args.verbose,
+            reasons=reasons,
+        )
     return cmd_run(root, selection, args, passthrough, named=bool(args.names))
 
 

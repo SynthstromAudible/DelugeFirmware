@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import test_builds
+import test_selection as ts
 import tomllib
 
 STATUSES = ("gate", "investigative", "unavailable")
@@ -196,6 +197,8 @@ class Harness:
     # The files and directories (repository paths) the test writes under `./dbt test --update`, and only they: the
     # runner snapshots them, restores them when the run fails, and fails a run that writes anywhere else.
     baseline: list[str] = field(default_factory=list)
+    # The areas ([area.<name>] tables) the test exercises, or ["all"]: what `--since` selects it by (test_selection.py).
+    areas: list[str] = field(default_factory=list)
     # A generated copy (a variant): the name of the entry it copies. Never written in the registry.
     variant_of: str = ""
 
@@ -375,10 +378,14 @@ def _copies(items: list[dict], variants: dict[str, dict]) -> list[dict]:
     return copies
 
 
+# The tables test_selection.py reads (load_areas); expand passes over them.
+AREA_TABLES = ("area", "no-gate", "every-gate")
+
+
 def expand(raw: dict) -> list[dict]:
     """The registry's entries as the runner sees them: each written entry over its template, then every variant
     copy."""
-    if stray := sorted(set(raw) - {"harness", "template", "variant"}):
+    if stray := sorted(set(raw) - {"harness", "template", "variant", *AREA_TABLES}):
         raise ValueError(f"unknown table(s) {', '.join(stray)}")
     templates = _templates(raw)
     variants = _variant_tables(raw)
@@ -594,6 +601,30 @@ def _runs_golden_vt_render(where: str, item: dict) -> None:
         )
 
 
+def load_areas(root: Path) -> ts.Areas:
+    """The registry's [area.<name>], [no-gate] and [every-gate] tables under `root`."""
+    raw = tomllib.loads((root / "tests" / "registry.toml").read_text())
+    tables = raw.get("area", {})
+    if not isinstance(tables, dict) or not all(
+        isinstance(t, dict) and isinstance(t.get("paths"), list)
+        for t in tables.values()
+    ):
+        raise ValueError(
+            "'area' is a table of [area.<name>] tables, each with a 'paths' list"
+        )
+    flat = {}
+    for key in ("no-gate", "every-gate"):
+        table = raw.get(key, {})
+        if not isinstance(table, dict) or not isinstance(table.get("paths", []), list):
+            raise ValueError(f"'{key}' is a table with a 'paths' list")  # noqa: TRY004
+        flat[key] = list(table.get("paths", []))
+    return ts.Areas(
+        areas={name: list(t["paths"]) for name, t in tables.items()},
+        no_gate=flat["no-gate"],
+        every_gate=flat["every-gate"],
+    )
+
+
 def load_registry(root: Path) -> list[Harness]:
     """Parse and validate tests/registry.toml under `root`."""
     raw = tomllib.loads((root / "tests" / "registry.toml").read_text())
@@ -616,9 +647,14 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
         "tier",
         "job",
         "runtime_s",
+        "areas",
     ):
         if required not in item or item[required] in ("", [], None):
             raise ValueError(f"{where}: missing required field '{required}'")
+    if not isinstance(item["areas"], list) or not all(
+        isinstance(a, str) and a for a in item["areas"]
+    ):
+        raise ValueError(f"{where}: areas is a list of area names")
     if not isinstance(item["gates"], str):
         raise ValueError(f"{where}: gates is a string")  # noqa: TRY004
     for command in ("build", "run"):
@@ -775,6 +811,7 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
         corpus_runner=item.get("corpus_runner", ""),
         alone=item.get("alone", False),
         baseline=baseline,
+        areas=list(item["areas"]),
         job=item["job"],
         variant_of=item.get("variant_of", ""),
     )
@@ -789,11 +826,12 @@ def select(
     names: list[str],
     levels: list[str],
     tier: str,
+    only: bool = False,
 ) -> list[Harness]:
     """The entries a run covers.
 
-    Named entries are taken as asked for, whatever their tier or status. Otherwise every entry at `tier` or an
-    earlier one, at one of `levels` (all levels when empty), that is not marked unavailable.
+    Named entries are taken as asked for, whatever their tier or status. Otherwise every entry at `tier` (`only`) or
+    at `tier` or an earlier one, at one of `levels` (all levels when empty), that is not marked unavailable.
     """
     if names:
         by_name = {h.name: h for h in entries}
@@ -802,7 +840,7 @@ def select(
             raise ValueError(f"unknown test(s): {', '.join(unknown)}")
         return [by_name[n] for n in names]
 
-    within = TIERS[: TIERS.index(tier) + 1]
+    within = (tier,) if only else TIERS[: TIERS.index(tier) + 1]
     return [
         h
         for h in entries
@@ -958,14 +996,15 @@ def runtime_text(seconds: int) -> str:
 def markdown_table(harnesses: list[Harness]) -> str:
     """The generated table for tests/README.md."""
     lines = [
-        "| Test | Level | Runner | Kind | Status | Gates | Tier | Job | Runtime |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Test | Level | Runner | Kind | Status | Gates | Areas | Tier | Job | Runtime |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for h in harnesses:
         # Escape pipes in fields to preserve table structure
         escaped_gates = h.gates.replace("|", "\\|")
         lines.append(
-            f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {h.tier} | {h.job} "
+            f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {', '.join(h.areas)} "
+            f"| {h.tier} | {h.job} "
             f"| {runtime_text(h.runtime_s)} |"
         )
     return "\n".join(lines) + "\n"
@@ -997,6 +1036,7 @@ def dump_expanded(entries: list[Harness]) -> str:
 
 
 __all__ = [
+    "AREA_TABLES",
     "BASELINES_ELSEWHERE",
     "CHECK_NOTES",
     "CORPUS_DECLARED",
@@ -1031,6 +1071,7 @@ __all__ = [
     "explanation_blocks",
     "explanation_source",
     "gates_problem",
+    "load_areas",
     "load_registry",
     "local_only",
     "markdown_table",
