@@ -2822,13 +2822,10 @@ VoiceKind Sound::voiceKind() const {
 		return VoiceKind::RINGMOD;
 	}
 	if (getSynthMode() == SynthMode::DX7) {
-		return VoiceKind::FM; // as a DX7 slot's voice
+		return VoiceKind::FM; // a whole-voice engine, as FM is
 	}
 	bool sample = false;
 	for (const deluge::synth::SourceConfig& source : synth_.config().sources) {
-		if (source.osc_type == OscType::DX7) {
-			return VoiceKind::FM;
-		}
 		sample |= source.osc_type == OscType::SAMPLE || source.osc_type == OscType::INPUT_L
 		          || source.osc_type == OscType::INPUT_R || source.osc_type == OscType::INPUT_STEREO;
 	}

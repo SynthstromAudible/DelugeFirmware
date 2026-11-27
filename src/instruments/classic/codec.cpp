@@ -897,7 +897,7 @@ std::expected<void, plugin::StateError> decode_impl(const Value& element, FlatSo
 			state.voice_priority = static_cast<plugin::VoicePriority>(intOf(value));
 		}
 	}
-	// A DX7 read without its own patch plays the init voice, as a DX7 oscillator does
+	// A DX7 read without its own patch plays the init voice, as released firmware gave one
 	if (state.synth_mode == SynthMode::DX7 && !state.dx7.patch) {
 		state.dx7.patch.emplace(DxPatchState{.params = kDx7InitVoice});
 	}

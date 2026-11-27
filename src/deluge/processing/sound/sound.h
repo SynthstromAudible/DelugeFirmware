@@ -126,7 +126,7 @@ constexpr int32_t kSampleDrumVelocityCableUserValue = 50;
 enum class VoiceKind : uint8_t {
 	OSCILLATOR, ///< Subtractive, every source an oscillator or a wavetable.
 	SAMPLE,     ///< Subtractive, at least one source a sample or a live input.
-	FM,         ///< FM, or any DX7 source.
+	FM,         ///< FM, or the DX7.
 	RINGMOD,    ///< Ring modulation.
 };
 inline constexpr size_t kNumVoiceKinds = 4;

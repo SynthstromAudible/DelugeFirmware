@@ -199,8 +199,8 @@ Error applyChange(::Sound& sound, const deluge::instruments::classic::SoundState
 	const auto changed = [&](Part part) { return parts.test(std::to_underlying(part)); };
 	const auto slotPart = [](Part a, int32_t s) { return static_cast<Part>(std::to_underlying(a) + s); };
 	const auto playsFiles = [](OscType type) {
-		return util::one_of(type, {OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::SAMPLE,
-		                           OscType::DX7, OscType::WAVETABLE});
+		return util::one_of(
+		    type, {OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::SAMPLE, OscType::WAVETABLE});
 	};
 
 	// Voices stop first, as each setting's menu stops them before it changes anything.
