@@ -796,6 +796,19 @@ runtime_s = 1
         self.assertEqual(len(corpus), 17)
         self.assertTrue(all(h.job == "model" and h.alone for h in corpus))
 
+    def test_every_tracked_file_has_an_area(self):
+        root = Path(__file__).resolve().parents[2]
+        entries = hr.load_registry(root)
+        tracked = subprocess.run(
+            ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True
+        ).stdout.split()
+        problems = ts.completeness_problems(
+            [ts.Entry(h.name, h.areas, ts.own_files(h)) for h in entries],
+            hr.load_areas(root),
+            tracked,
+        )
+        self.assertEqual(problems, [])
+
     def test_the_registrys_areas_are_consistent(self):
         root = Path(__file__).resolve().parents[2]
         entries = hr.load_registry(root)

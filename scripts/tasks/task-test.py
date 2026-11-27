@@ -1342,6 +1342,7 @@ def _main(argv: list[str]) -> int:
                 hr.load_areas(root),
                 ts.changed_files(root, args.since),
                 tier,
+                entries,
             )
         except ValueError as exc:
             print(f"test: {exc}", file=sys.stderr)

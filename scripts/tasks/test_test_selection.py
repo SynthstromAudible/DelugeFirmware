@@ -181,6 +181,14 @@ class SinceTest(unittest.TestCase):
             )
             self.assertEqual(result.messages, [message])
 
+    def test_a_file_another_tiers_gate_owns_reaches_only_all_gates_here(self):
+        nightly = Gate("nightly", ["codec"], tier="nightly", scenario="late")
+        changed = ["tests/integration/scenarios/late_scenario.cpp"]
+        result = ts.since(self.GATES, self.AREAS, changed, "pr", [*self.GATES, nightly])
+        self.assertEqual(
+            ([h.name for h in result.selected], result.messages), (["app"], [])
+        )
+
     def test_each_gate_says_what_reached_it(self):
         result = ts.since(self.GATES, self.AREAS, ["src/codec/c.cpp"])
         self.assertEqual(
@@ -190,6 +198,28 @@ class SinceTest(unittest.TestCase):
                 "app": "all: src/codec/c.cpp",
                 "sweep": "area codec: src/codec/c.cpp",
             },
+        )
+
+
+class CompletenessTest(unittest.TestCase):
+    def test_a_tracked_file_in_no_table_and_no_gates_own_files_is_a_problem(self):
+        areas = ts.Areas(
+            areas={"ui": ["src/ui/**"]}, no_gate=["docs/**"], every_gate=["dbt"]
+        )
+        entries = [ts.Entry("menu", ["ui"], ["tests/menu/**"])]
+        tracked = [
+            "src/ui/a.cpp",
+            "docs/b.md",
+            "dbt",
+            "tests/menu/c.py",
+            "src/lost/d.cpp",
+            "website/e.ts",
+        ]
+        self.assertEqual(
+            ts.completeness_problems(entries, areas, tracked),
+            [
+                "src/lost/d.cpp is in no area, no-gate or every-gate table and no gate's own files"
+            ],
         )
 
 

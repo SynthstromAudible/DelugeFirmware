@@ -144,11 +144,21 @@ class SinceResult:
 
 
 def since(
-    selection: list, areas: Areas, changed: list[str], tier: str = ""
+    selection: list,
+    areas: Areas,
+    changed: list[str],
+    tier: str = "",
+    registry: list | None = None,
 ) -> SinceResult:
     """The gates of `selection` the `changed` files reach, each with the first area or own file that reached it. An
-    every-gate file, or a file in no area and in no gate's own files, selects the whole `selection`, with a message."""
+    every-gate file, or a file in no area and in the own files of no gate of `registry` (default: `selection`), selects
+    the whole `selection`, with a message: a gate outside the selection owning the file means it reaches nothing here."""
     owned = {h.name: own_files(h) for h in selection}
+    anyone = (
+        [own_files(h) for h in registry]
+        if registry is not None
+        else list(owned.values())
+    )
     messages = []
     for path in changed:
         if any_match(areas.every_gate, path):
@@ -156,7 +166,7 @@ def since(
         elif not (
             any_match(areas.no_gate, path)
             or any(any_match(globs, path) for globs in areas.areas.values())
-            or any(any_match(globs, path) for globs in owned.values())
+            or any(any_match(globs, path) for globs in anyone)
         ):
             messages.append(
                 f"--since: {path} is in no area: running the whole {tier + ' ' if tier else ''}selection"
@@ -184,3 +194,25 @@ def since(
             selected.append(h)
             reasons[h.name] = why
     return SinceResult(selected, reasons, messages)
+
+
+# The trees whose every tracked file must be in a table or a gate's own files; outside them (docs, the website, CI
+# configuration) an unlisted file widens a `--since` run like any other, but is not reported.
+CHECKED_TREES = ("src/", "include/", "tests/", "tools/", "scripts/")
+
+
+def completeness_problems(
+    entries: list[Entry], areas: Areas, tracked: list[str]
+) -> list[str]:
+    """The tracked files under CHECKED_TREES that no table and no gate's own files name."""
+    globs = (
+        [g for gs in areas.areas.values() for g in gs]
+        + areas.no_gate
+        + areas.every_gate
+    )
+    globs += [g for e in entries for g in e.own]
+    return [
+        f"{p} is in no area, no-gate or every-gate table and no gate's own files"
+        for p in tracked
+        if p.startswith(CHECKED_TREES) and not any_match(globs, p)
+    ]

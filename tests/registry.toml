@@ -119,7 +119,7 @@ runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "embedded-fatfs must agree with the reference FAT implementation on every filesystem operation"
-areas = ["all"]
+areas = ["storage"]
 build = ["tests/component/differential/fs_differential/fixtures/mk_fixture.sh"]
 run = ["cargo", "test", "-p", "fs-differential"]
 # cargo runs a test binary in its package's directory, so the images are named from there.
@@ -140,7 +140,7 @@ runner = "script"
 kind = "differential"
 status = "gate"
 gates = "a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded"
-areas = ["all"]
+areas = ["upgrader", "platform", "host-app", "storage", "model", "synth", "effects"]
 build = []
 run = ["python3", "tests/integration/corpus/upgrade_run.py", "--part", "committed"]
 builds = ["golden-vt-render"]
@@ -159,7 +159,7 @@ runner = "script"
 kind = "differential"
 status = "gate"
 gates = "the upgrader against a real card backup"
-areas = ["all"]
+areas = ["upgrader", "platform", "host-app", "storage", "model", "synth", "effects"]
 build = []
 run = ["python3", "tests/integration/corpus/upgrade_run.py", "--part", "corpus"]
 builds = ["golden-vt-render"]
@@ -177,7 +177,7 @@ runner = "cargo"
 kind = "unit"
 status = "gate"
 gates = "the file upgrader reads a Deluge document as the firmware's parser does, converts it as official firmware loaded it, and writes the firmware's JSON"
-areas = ["all"]
+areas = ["upgrader"]
 run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
@@ -189,7 +189,7 @@ name = "load-policy"
 template = "scenario"
 kind = "regression"
 gates = "the sample loader's candidate order, admission rule, build contract and stream paths, policies no loader state can show"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "load_policy"
 markers = ["LP-ABANDON", "LP-CANDIDATES", "LP-ADMISSION", "LP-OPEN-PATH", "LP-DEFAULT", "LP-INVARIANTS", "LP-WT-PIN", "LP-PITCH-PIN", "LP-WT-ZEROBAND", "LP-WT-FAIL"]
 result = "LP-RESULT failures=0"
@@ -203,7 +203,7 @@ name = "load-policy-wavetable-churn"
 template = "scenario"
 kind = "property"
 gates = "wavetables evicted under memory pressure reload as they were built"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "load_policy"
 markers = ["LP-WT-CHURN", "LP-INVARIANTS"]
 result = "LP-RESULT failures=0"
@@ -220,7 +220,7 @@ runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "the audio-format decoder must parse every file of a real WAV/AIFF corpus as the C++ header entry points do (skipped unless DELUGE_AUDIO_CORPUS is set)"
-areas = ["all"]
+areas = ["storage"]
 build = ["cargo", "test", "--no-run", "-p", "audio_format_corpus"]
 run = ["cargo", "test", "-p", "audio_format_corpus"]
 requires = ["cargo"]
@@ -236,7 +236,7 @@ runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "the Rust cluster fill must stay byte-identical to the C++ convert/stitch reference"
-areas = ["all"]
+areas = ["storage"]
 build = ["cargo", "test", "--no-run", "-p", "region-fill-differential"]
 run = ["cargo", "test", "-p", "region-fill-differential"]
 requires = ["cargo", "clang"]
@@ -252,7 +252,7 @@ runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "the sample range-reader must resolve the same frames as the chunk-payload oracle"
-areas = ["all"]
+areas = ["storage"]
 build = ["cargo", "test", "--no-run", "-p", "region-read-differential"]
 run = ["cargo", "test", "-p", "region-read-differential"]
 requires = ["cargo"]
@@ -268,7 +268,7 @@ runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "the region cursor must resolve a chunk's payload, not its header, over real streamed backing"
-areas = ["all"]
+areas = ["storage"]
 build = ["cargo", "test", "--no-run", "-p", "region-source-differential"]
 run = ["cargo", "test", "-p", "region-source-differential"]
 requires = ["cargo"]
@@ -281,7 +281,7 @@ name = "recorder-roundtrip"
 template = "scenario"
 kind = "simulation"
 gates = "the SampleRecorder record-then-read-back round trip must be byte-exact on the Embassy host BSP"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 scenario = "recorder_roundtrip"
 markers = ["RW-BUSY", "RW-STALL", "RW-DIR-STALL", "RW-OPEN-IOERR", "TK-ABORT-OPEN"]
 result = "RW-RESULT failures=0"
@@ -302,7 +302,7 @@ name = "audio-load-ab"
 template = "scenario"
 kind = "differential"
 gates = "the async Rust audio loader must load every file the SAME way the synchronous C++ card path does, loaded in the same process as the reference"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "audio_load_ab"
 markers = ["AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB-PREVIEW-DRAW", "AB-PREVIEW-DRAW-STALL", "AB-PREVIEW-DRAW-RELEASE", "AB-READ-PROGRESS", "AB-PRESCAN-RANGE", "AB-EJECT", "AB-EJECT-SUMMARY", "AB-DEFER", "AB-SUMMARY"]
 result = "AB-RESULT failures=0"
@@ -326,7 +326,7 @@ name = "song-preview-ab"
 template = "scenario"
 kind = "differential"
 gates = "the Rust prefix channel draws the same song artwork, and reports the same decode outcome and error, as the same file decoded synchronously"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 scenario = "song_preview_ab"
 markers = ["SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMMARY", "SP-LISTING-SUMMARY", "SP-PREDICT-SUMMARY", "SP-NEWNAME", "SP-SLOT", "SP-VARIATION", "SP-ACQUIRE-SUMMARY", "SP-BYPATH", "SP-LISTING-STALL", "SP-RELOAD", "SP-RELOAD-STALL", "SP-PREVIEW-STALL", "SP-OPEN-SCROLL", "SP-DX", "SP-DX-STALL", "SP-REFERENCE", "SP-TIER"]
 result = "SP-RESULT failures=0"
@@ -363,7 +363,7 @@ runner = "script"
 kind = "sanitizer"
 status = "gate"
 gates = "Published<T> and SpscRing<E,N> must be race-free under concurrent stress"
-areas = ["all"]
+areas = ["platform"]
 build = []
 run = ["./run.sh", "10"]
 requires = ["clang-tsan"]
@@ -378,7 +378,7 @@ runner = "ctest"
 kind = "sanitizer"
 status = "gate"
 gates = "the DSP library specs (tests/unit/dsp) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan"
-areas = ["all"]
+areas = ["dsp"]
 source = "tests/trees/ubsan"
 tree = "build/test-ubsan"
 configure = ["-G", "Ninja"]
@@ -396,7 +396,7 @@ runner = "script"
 kind = "differential"
 status = "gate"
 gates = "every one of the 2^32 stored words maps to the same knob position and menu number through each plugin mapping kind as the reference arithmetic"
-areas = ["all"]
+areas = ["synth"]
 build = []
 run = ["tests/unit/plugin/param_mapping_sweep.sh"]
 markers = ["PM-SWEEP"]
@@ -413,7 +413,7 @@ runner = "script"
 kind = "differential"
 status = "gate"
 gates = "the ARM/NEON DSP fast paths must be byte-identical to the portable host fallback"
-areas = ["all"]
+areas = ["dsp"]
 build = []
 run = ["./run.sh"]
 builds = ["host-app"]
@@ -430,7 +430,7 @@ runner = "script"
 kind = "property"
 status = "gate"
 gates = "golden_vt_render refuses, with exit 2, a run that asks for the corpus fixture's card without declaring the song corpus"
-areas = ["all"]
+areas = ["host-app"]
 build = []
 run = ["python3", "tests/integration/checks/corpus_guard.py"]
 builds = ["golden-vt-render"]
@@ -461,7 +461,7 @@ name = "save-roundtrip"
 template = "scenario"
 kind = "property"
 gates = "a song saved through the real SaveSongUI ENTER gesture round-trips byte-identically through save, load and overwrite"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "save_roundtrip"
 markers = ["SR-SEAM", "SR-ROUNDTRIP"]
 result = "SR-RESULT failures=0"
@@ -475,7 +475,7 @@ name = "document-save-channel"
 template = "scenario"
 kind = "property"
 gates = "a preset saved through the real ENTER gesture is written whole, read back through the channel and stored through the byte channel's write-from"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "document_save_channel"
 result = "DS-RESULT failures=0"
 markers = ["DS-BACKMIDSAVE", "DS-EXITMIDSAVE", "DS-SAVED", "DS-FINISHED", "DS-OCCUPIED", "DS-GUARD", "DS-KITROW", "DS-KITFINISHED", "DS-GUARD-SONG", "DS-ACCOUNTED", "DS-OVERWRITE", "DS-OVERWRITE-FAIL", "DS-HELD", "DS-VERIFIED", "DS-SUMMARY"]
@@ -489,7 +489,7 @@ name = "sample-collect-channel"
 template = "scenario"
 kind = "property"
 gates = "a song saved with collect-media lands every sample it references in its own folder, byte-identical, and leaves every resident file findable"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "sample_collect"
 result = "SC-RESULT failures=0"
 markers = ["SC-SETUP", "SC-COPIED", "SC-RENAMED", "SC-ATOMIC", "SC-ORDERED", "SC-SUMMARY"]
@@ -507,7 +507,7 @@ name = "sample-load-tree"
 template = "scenario"
 kind = "property"
 gates = "a song saved with collected media loads back with each sample holder bound to its collected copy once the originals are gone"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "sample_load_tree"
 markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SYNTH", "SLT-KIT", "SLT-CRUCIAL", "SLT-CRUCIAL-SUMMARY", "SLT-ASYNC"]
 result = "SLT-RESULT failures=0"
@@ -523,7 +523,7 @@ name = "sample-claim"
 template = "scenario"
 kind = "property"
 gates = "files claimed from the sample browser, the menu's file selector and a favourite's by-path listing are bound by the Select encoder's claim"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "sample_claim"
 markers = ["SC-SETUP", "SC-SELECT", "SC-SYNTH", "SC-WAVETABLE", "SC-WAVETABLE-RESIDENT", "SC-WAVETABLE-CONVERTED", "SC-FALLBACK", "SC-GATE", "SC-STALL", "SC-SUPERSEDE", "SC-PITCH", "SC-PITCH-STALL", "SC-TIER", "SC-KIT", "SC-AUDIOCLIP", "SC-SHELL-SLICE", "SC-SHELL-SLICE-MANUAL", "SC-SHELL-SLICE-BACK", "SC-SHELL-SLICE-FAIL", "SC-OSC2", "SC-LAYOUT", "RD-ONE", "RD-ALL", "RD-TIER", "RD-GATE", "RD-STALL", "RD-CANCELSCAN", "IM-KIT", "IM-MULTI", "IM-TIER", "IM-GATE", "IM-EMPTY", "IM-STALL"]
 result = "SC-RESULT failures=0"
@@ -541,7 +541,7 @@ name = "preset-load"
 template = "scenario"
 kind = "property"
 gates = "synth and kit presets written through the firmware's serialisers, each naming samples of its own, must load through the real preset browser"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "preset_load"
 markers = ["PL-SETUP", "PL-LISTING-EDGE", "PL-SELECT", "PL-SYNTH", "PL-KIT", "PL-ROW", "PL-CLONE", "PL-TIER", "PL-RACE", "PL-SUPERSEDE", "PL-GATE", "PL-STALL", "AQ-NEW", "AQ-CHANGE", "AQ-CHANGE-TIER", "AQ-CHANGE-NAMED", "AQ-CHANGE-NEXT", "AQ-CHANGE-MISSING", "AQ-CHANGE-STALL", "AQ-NAVIGATE", "AQ-NAV-TIER", "AQ-NAV-WRAP", "AQ-NAV-ADD", "AQ-NAV-PILE", "AQ-NAV-STALL", "AQ-SUPERSEDE", "AQ-REFUSE", "AQ-CLONE", "AQ-TAP", "AQ-STALL", "AQ-SLOT", "AQ-SLOT-STALL", "AQ-EXT", "AQ-TIER", "RV-CARD", "RV-MEMORY", "RV-STALL", "MD-BROWSER", "BS-BOOT", "BS-CLEAR", "BS-EDITED", "PW-WALK-FOUND", "PW-WALK-DEPTH", "PW-WALK-PAGED", "PW-WALK-EXHAUST", "PW-WALK-TIER"]
 result = "PL-RESULT failures=0"
@@ -557,7 +557,7 @@ name = "song-save-channel"
 template = "scenario"
 kind = "property"
 gates = "a song save builds its whole document in memory, writes it through the byte channel's write-from and reads back its length, head and tail"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "song_save_channel"
 markers = ["SS-BACKMIDSAVE", "SS-EXITMIDSAVE", "SS-GREW", "SS-SAVED", "SS-VERIFIED", "SS-PARSES", "SS-INTACT", "SS-HELD", "SS-UPGRADE", "SS-SUMMARY"]
 result = "SS-RESULT failures=0"
@@ -571,7 +571,7 @@ name = "clear-song-undo"
 template = "scenario"
 kind = "property"
 gates = "Create New Song must run to completion on the tier its caller stands on, reading no card of its own"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "clear_song_undo"
 markers = ["CS-PROBE", "CS-TIER", "CS-SONG", "CS-GATE", "CS-NEXT", "UN-PROBE", "UN-SAMPLE", "UN-REDO", "UN-PLAIN", "UN-REFUSE", "UN-MISSING", "UN-MIDI"]
 result = "CS-RESULT failures=0"
@@ -585,7 +585,7 @@ name = "sound-lifetime"
 template = "scenario"
 kind = "property"
 gates = "Every deletion path must end a Sound's voices before any part of it is destroyed"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "sound_lifetime"
 markers = ["SL-SYNTH", "SL-UNEDITED", "SL-KIT", "SL-DELETEDRUM", "SL-OPPORTUNISTIC", "SL-BURST", "SL-RECLAIM"]
 result = "SL-RESULT failures=0"
@@ -599,7 +599,7 @@ name = "clip-lifetime"
 template = "scenario"
 kind = "property"
 gates = "Which clip deletions free a clip the render still points at"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "clip_lifetime"
 markers = ["CL-EPOCH0", "CL-PROBE", "CL-WINDOW", "CL-DANGLING", "CL-FREED", "CL-SESSIONDELETE", "CL-DISCARD", "CL-ARRANGERDELETE", "CL-SWAPTYPE", "CL-UNDO", "CL-UNDODELETE", "CL-ARRANGERNOUNDO", "CL-RECORDSOURCE", "CL-SYNCSCALE", "CL-SAVE", "CL-SAVEKIT", "CL-CLEARED", "CL-AFTER", "CL-SONGCLEAR", "CL-LOADED", "CL-SONGLOAD", "CL-SONGSWAP", "CL-BURST", "CL-LETGO", "CL-BURSTSONG", "CL-CLEARSAMPLE", "CL-CLEARPLAYING", "CL-RECLAIM", "CL-WONTSOUND"]
 result = "CL-RESULT failures=0"
@@ -613,7 +613,7 @@ name = "container-guard"
 template = "scenario"
 kind = "property"
 gates = "Which structural edits to the containers the audio render walks are made while the render could preempt them"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "container_guard"
 markers = ["CG-NOTEADD", "CG-NODES", "CG-NOTEDEL", "CG-ROWADD", "CG-ROWDEL", "CG-CLIPNEW", "CG-CLIPDEL", "CG-CLIPDUP", "CG-ARRANGE", "CG-AUTOMATE", "CG-PATCHCABLE", "CG-DRUM", "CG-REPLACE", "CG-UNDO", "CG-MASK", "CG-BIGROW", "CG-ROWDRAG", "CG-CLIPMOVE", "CG-OUTPUTMOVE", "CG-QUANTIZE", "CG-RENDERSET", "CG-RENDERALLOC", "CG-CHOKE", "CG-VOICEPOLY", "CG-VOICEMONO", "CG-VOICEKILL", "CG-VOICEMULTIRANGE", "CG-VOICEFAIL", "CG-RECORDKNOB", "CG-RELOCATE", "CG-CCLEARN", "CG-CABLEADD", "CG-DRUMDEL", "CG-PASTE", "CG-TRIM", "CG-STEAL", "CG-HEAP", "CG-SLAB", "CG-MODFXOOM", "CG-MODFXCLONE", "CG-MODFXSWAP", "CG-GRAINOOM", "CG-GRAINSWAP", "CG-DELAYKNOB", "CG-DELAYOOM", "CG-DELAYMARGIN", "CG-DELAYOFF", "CG-STUTTERHANDOFF", "CG-STUTTEROOM", "CG-STUTTERDELETE", "CG-STUTTERSWAP", "CG-STUTTERCLEAR"]
 result = "CG-RESULT failures=0"
@@ -627,7 +627,7 @@ name = "playhead-moves"
 template = "scenario"
 kind = "property"
 gates = "The interaction tier moves the playhead only with the render excluded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "playhead_moves"
 markers = ["PM-EFFECTS", "PM-START", "PM-RESTART", "PM-CONTINUE", "PM-SPP", "PM-TOARRANGER", "PM-TOSESSION", "PM-UNDO", "PM-CLIPLENGTH", "PM-CLIPSHIFT", "PM-ROWMUTE", "PM-ROWLENGTH", "PM-ROWDIRECTION", "PM-LATESTART", "PM-UNSOLO", "PM-INJECTSTART", "PM-INJECTAFTERMOVE", "PM-INJECTLAUNCH", "PM-ARRANGERRECORD", "PM-CLONE", "PM-RESUME", "PM-SELFREPAIR", "PM-CLIPSTOP", "PM-SPAN", "PM-SNAPSHOT"]
 result = "PM-RESULT failures=0"
@@ -641,7 +641,7 @@ name = "card-reinsert"
 template = "scenario"
 kind = "property"
 gates = "what a card swap does to the samples still in memory"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "card_reinsert"
 markers = ["CR-SETUP", "CR-RESIDENTS", "CR-SURVIVE", "CR-LOST", "CR-EVICT"]
 result = "CR-RESULT failures=0"
@@ -655,7 +655,7 @@ name = "audio-tick-hold"
 template = "scenario"
 kind = "regression"
 gates = "the audio tick's hold and re-entry guard, on the booted app"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "audio_tick_hold"
 markers = ["ATH-IDLE", "ATH-HOLD", "ATH-NESTED", "ATH-HELD", "ATH-REENTRY", "ATH-THROW"]
 result = "ATH-RESULT failures=0"
@@ -668,7 +668,7 @@ name = "stem-export"
 template = "scenario"
 kind = "property"
 gates = "an offline stem export must render byte-identical audio and write it"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 scenario = "stem_export"
 markers = ["ST-BYTES"]
 result = "ST-RESULT failures=0"
@@ -683,7 +683,7 @@ name = "song-load-channel"
 template = "scenario"
 kind = "property"
 gates = "the song load must read its bytes through the storage channel"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "song_load_channel"
 result = "SL-RESULT failures=0"
 markers = ["SL-SETUP", "SL-CANCEL-BACK", "SL-CANCEL-LASTOPENED", "SL-CANCEL", "SL-REFUSED", "SL-LOADED-LASTOPENED", "SL-LOADED", "SL-ORDER", "SL-NEXT", "SL-SUMMARY"]
@@ -697,7 +697,7 @@ name = "settings-channel"
 template = "scenario"
 kind = "property"
 gates = "a settings value written through the real consumer entry point must survive a read back, and no settings file operation may begin on the interaction tier"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "settings_channel"
 markers = ["SC-ROUNDTRIP", "SC-UNKNOWN", "SC-BURST", "SC-ORDER", "SC-HEAD", "SC-FITS", "SC-UNLINK", "SC-PERF", "SC-OVERSIZE", "SC-RESET", "SC-BUSY", "SC-FALLBACK", "SC-TIER", "SC-CHANNEL"]
 result = "SC-RESULT failures=0"
@@ -712,7 +712,7 @@ name = "favourites-channel"
 template = "scenario"
 kind = "property"
 gates = "the favourites bank must never be written with less than it held, and none of its card I/O may begin on the interaction tier"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "favourites_channel"
 markers = ["FV-SEED", "FV-ABSENT", "FV-REFUSE", "FV-ROUNDTRIP", "FV-ORDER", "FV-STALE", "FV-TIER", "FV-CHANNEL", "FV-ACCOUNTED", "FV-ILLEGAL"]
 result = "FV-RESULT failures=0"
@@ -726,7 +726,7 @@ name = "startup-failsafe"
 template = "scenario"
 kind = "property"
 gates = "no file operation in the startup song fail-safe may begin on the interaction tier"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "startup_failsafe"
 markers = ["SF-ORDER", "SF-CHANNEL", "SF-TIER", "SF-ILLEGAL", "SF-INLINE", "SF-GIVEUP"]
 result = "SF-RESULT failures=0"
@@ -740,7 +740,7 @@ name = "path-operations"
 template = "scenario"
 kind = "property"
 gates = "real SysEx path requests get their replies, no browser folder creation or delete runs on the interaction tier, and browser deletes go through the byte channel"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "path_operations"
 markers = ["PO-SYSEX", "PO-MKDIRALL", "PO-DELETE", "PO-DELETE-ABSENT", "PO-DELETE-STALL", "PO-CHANNEL", "PO-TIER", "PO-ILLEGAL", "PO-QUEUE"]
 result = "PO-RESULT failures=0"
@@ -754,7 +754,7 @@ name = "offset-io"
 template = "scenario"
 kind = "property"
 gates = "blocks written at ascending offsets through the SysEx transfer verbs all stay on the card, and a copy reproduces its source byte for byte"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "offset_io"
 markers = ["OI-TRANSFER", "OI-COPY", "OI-DIR", "OI-CHANNEL", "OI-ILLEGAL", "OI-GIVEUP", "OI-DIR-STALL", "OI-TIER"]
 result = "OI-RESULT failures=0"
@@ -768,7 +768,7 @@ name = "pattern-load"
 template = "scenario"
 kind = "property"
 gates = "a pattern file the firmware's pattern writer made loads back through the pattern browser, and as a PLAY preview, with exactly the notes written"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "pattern_load"
 markers = ["PT-SETUP", "PT-LISTED", "PT-LOAD", "PT-PREVIEW", "PT-DISCARD", "PT-SUPERSEDE", "PT-TIER"]
 result = "PT-RESULT failures=0"
@@ -781,7 +781,7 @@ name = "staging-release"
 template = "scenario"
 kind = "property"
 gates = "a staged document read its consumer abandons never writes into the buffer once it has been freed and handed out again"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "staging_release"
 markers = ["SR-ISSUED", "SR-RELEASE", "SR-INTACT", "SR-REAPED", "SR-STATUS"]
 result = "SR-RESULT failures=0"
@@ -794,7 +794,7 @@ name = "clock-input"
 template = "scenario"
 kind = "property"
 gates = "trigger-clock edges through the BSP's handler start playback with analog auto-start on, none dropped when they arrive slower than the playback routine"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "clock_input"
 markers = ["TC-INPUT", "TC-BURST"]
 result = "TC-RESULT failures=0"
@@ -807,7 +807,7 @@ name = "recorder-take"
 template = "scenario"
 kind = "property"
 gates = "an audio-input recording take must leave the rest of the app running, and must attach its sample only to the sound it was recorded for"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "recorder_take"
 check = "tests/integration/checks/recorder_take.py"
 markers = ["RT-OPEN", "RT-TAKE", "RT-ATTACH", "RT-REFUSED", "RT-CLOSED", "RT-SECOND", "RT-NULLED", "RT-REPLACED", "RT-NEXT-RUN", "RT-NEXT-ATTACH", "RT-NEXT"]
@@ -822,7 +822,7 @@ name = "stale-ui"
 template = "scenario"
 kind = "property"
 gates = "a song load takes every UI down for its whole length, and nothing acts on a UI the load took down while the UI stack is empty"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 scenario = "stale_ui"
 markers = ["SU-INERT", "SU-REPEATS", "SU-POPUP", "SU-KNOBUNDO", "SU-RETIRED", "SU-SWAPWORK", "SU-AUDITION", "SU-SWAPDROP", "SU-UNDO", "SU-HOLD", "SU-FAILED", "SU-ARRANGE", "SU-STACK", "SU-SWAP"]
 result = "SU-RESULT failures=0"
@@ -835,7 +835,7 @@ name = "ui-scripts"
 template = "scenario"
 kind = "regression"
 gates = "the level-3 UI scripts drive the whole app through the BSP's own input path on the virtual clock"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 scenario = "ui_script"
 check = "tests/integration/checks/ui_scripts.py"
 markers = ["UI-SCRIPT"]
@@ -850,7 +850,7 @@ name = "ui-menu-dump"
 template = "scenario"
 kind = "regression"
 gates = "the declarative menu tree the app dumps as JSON equals website/src/data/generated/menu-tree.json"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 scenario = "menu_dump"
 check = "tests/integration/checks/menu_dump.py"
 markers = ["MENU-DUMP"]
@@ -865,7 +865,7 @@ name = "ui-scenes-spec"
 template = "scenario"
 kind = "regression"
 gates = "the scenes' specs (tests/integration/ui/scenes) pass on golden_vt_render, one file per process from the app's own init, each on its card"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 scenario = "scenes_spec"
 check = "tests/integration/checks/scenes_spec.py"
 markers = ["SCENES-SPEC"]
@@ -881,7 +881,7 @@ name = "load-cancel"
 template = "scenario"
 kind = "property"
 gates = "a preset load can be cancelled by the ticket its request returned, and BACK in the preset browser cancels the browser's scroll-load"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 scenario = "load_cancel"
 markers = ["LC-SETUP", "LC-STAGE-BACK", "LC-STAGE", "LC-SAMPLES-BACK", "LC-SAMPLES", "LC-QUEUED-BACK", "LC-QUEUED", "LC-STALE-FINISHED", "LC-STALE-QUEUED", "LC-STALE-REPLACED", "LC-STALE", "LC-REFUSED-CANCEL", "LC-REFUSED"]
 result = "LC-RESULT failures=0"
@@ -894,7 +894,7 @@ name = "ui-timer-deadline"
 template = "scenario"
 kind = "property"
 gates = "the \"ui routine\" job runs the UI timers at their deadlines instead of polling"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 scenario = "ui_timer_deadline"
 markers = ["UT-RATE", "UT-EARLIER"]
 result = "UT-RESULT failures=0"
@@ -907,7 +907,7 @@ name = "idle-job-rates"
 template = "scenario"
 kind = "property"
 gates = "an idle app runs each job only as often as it has work"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 scenario = "idle_job_rates"
 markers = ["IR-WINDOW", "IR-JOB"]
 result = "IR-RESULT failures=0"
@@ -919,69 +919,69 @@ runtime_s = 5
 name = "render-song"
 template = "render-song"
 gates = "a song must play as the device plays it"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 
 [[harness]]
 name = "render-kit-fx"
 template = "render-song"
 gates = "a kit's effect chain renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_KIT_FX" }
 
 [[harness]]
 name = "render-kit-filters"
 template = "render-song"
 gates = "a kit's filter chain renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_KIT_FILTERS" }
 
 [[harness]]
 name = "render-audio-track-filters"
 template = "render-song"
 gates = "an audio track's filter chain renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_FILTERS" }
 
 [[harness]]
 name = "render-master-filters"
 template = "render-song"
 gates = "the song master's filter chain renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_MASTER_FILTERS" }
 
 [[harness]]
 name = "render-audio-cents"
 template = "render-song"
 gates = "an audio clip's fine tune renders as recorded, and differs from the clip untuned"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_CENTS" }
 
 [[harness]]
 name = "render-audio-stretch"
 template = "render-song"
 gates = "audio clips stretched to the song's tempo render as recorded, and differ from the same clips resampled"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH", RENDER_ALLOC_MAX = "123" }
 
 [[harness]]
 name = "render-audio-stretch-native"
 template = "render-song"
 gates = "audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_NATIVE", RENDER_ALLOC_MAX = "0" }
 
 [[harness]]
 name = "render-audio-stretch-arranged"
 template = "render-song"
 gates = "stretched audio clips render as recorded from arrangement instances that end without looping"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_ARRANGED", RENDER_ALLOC_MAX = "6" }
 
 [[harness]]
 name = "render-audio-stretch-edges"
 template = "render-song"
 gates = "audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_EDGES", RENDER_ALLOC_MAX = "487" }
 runtime_s = 8
 override = ["runtime_s"]
@@ -990,42 +990,42 @@ override = ["runtime_s"]
 name = "render-audio-stretch-marker"
 template = "render-song"
 gates = "a stretched audio clip's end marker dragged in while its voice plays renders as recorded, and differs from the clip left alone"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_MARKER", RENDER_CLIP_RESIZE = "600:end:96" }
 
 [[harness]]
 name = "render-audio-stretch-length"
 template = "render-song"
 gates = "a stretched audio clip lengthened by a stretch while its voice plays renders as recorded, and differs from the clip left alone"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_LENGTH", RENDER_CLIP_RESIZE = "600:stretch:160" }
 
 [[harness]]
 name = "render-audio-stretch-late"
 template = "render-song"
 gates = "playback started part-way through stretched arrangement instances renders as recorded, each clip starting late"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_LATE", RENDER_PLAY_FROM = "200", RENDER_UNDERRUN_WAIT_MAX = "1" }
 
 [[harness]]
 name = "render-audio-track-fx"
 template = "render-song"
 gates = "an audio track's effect chain renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_FX" }
 
 [[harness]]
 name = "render-master-fx"
 template = "render-song"
 gates = "the song master's effect chain renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_MASTER_FX" }
 
 [[harness]]
 name = "render-master-pan-stereo"
 template = "render-song"
 gates = "the song master's pan renders as recorded in stereo, where it applies"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_MASTER_PAN", RENDER_STEREO = "1" }
 
 [[harness]]
@@ -1033,7 +1033,7 @@ name = "render-master-arranger"
 template = "render-song"
 override = ["markers"]
 gates = "the song master's automation plays in the arranger"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-SONGPARAMS", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_MASTER_ARRANGER", RENDER_SONG_AUTOMATED = "1" }
 
@@ -1041,70 +1041,70 @@ env = { RENDER_GENERATED = "RS_MASTER_ARRANGER", RENDER_SONG_AUTOMATED = "1" }
 name = "render-master-grain-off"
 template = "render-song"
 gates = "the song master's granular mod FX in its soft off renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_MASTER_GRAIN_OFF" }
 
 [[harness]]
 name = "render-kit-svf-morph"
 template = "render-song"
 gates = "a kit's state-variable filters render as recorded with their morphs up"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_KIT_SVF_MORPH" }
 
 [[harness]]
 name = "render-audio-track-drive"
 template = "render-song"
 gates = "an audio track's oversampled drive filter, saturating ladder HPF and granular mod FX render as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_DRIVE" }
 
 [[harness]]
 name = "render-kit-filter-fade"
 template = "render-song"
 gates = "a kit's filters fade in as recorded when switched on"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_KIT_FILTER_FADE" }
 
 [[harness]]
 name = "render-audio-track-filter-fade"
 template = "render-song"
 gates = "an audio track's filters fade in as recorded when switched on"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_FILTER_FADE" }
 
 [[harness]]
 name = "render-audio-ducked"
 template = "render-song"
 gates = "sidechain hits duck as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_DUCKED" }
 
 [[harness]]
 name = "render-duck-shapes"
 template = "render-song"
 gates = "the sidechain envelope's attack and release shapes, and a stronger hit taken mid-attack and mid-release, render as recorded on the host owners"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_DUCK_SHAPES" }
 
 [[harness]]
 name = "render-kit-comp"
 template = "render-song"
 gates = "a kit's compressors render as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_KIT_COMP" }
 
 [[harness]]
 name = "render-kit-delay"
 template = "render-song"
 gates = "a kit's delay renders as recorded through rate changes and its end"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_KIT_DELAY" }
 
 [[harness]]
 name = "render-delay-owners"
 template = "render-song"
 gates = "a delay renders as recorded on each owner the kit and audio-track delay gates leave out"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_DELAY_OWNERS" }
 
 [[harness]]
@@ -1112,7 +1112,7 @@ name = "render-stutter-audio"
 template = "render-song"
 override = ["markers"]
 gates = "an audio track's stutter renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_STUTTER_AUDIO", RENDER_STUTTER = "100:600:audio" }
 
@@ -1121,7 +1121,7 @@ name = "render-stutter-synth"
 template = "render-song"
 override = ["markers"]
 gates = "a synth's stutter renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_STUTTER_SYNTH", RENDER_STUTTER = "100:600:synth" }
 
@@ -1130,7 +1130,7 @@ name = "render-stutter-kit"
 template = "render-song"
 override = ["markers"]
 gates = "a kit's quantized, reversed stutter renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_STUTTER_KIT", RENDER_STUTTER = "150:700:kit" }
 
@@ -1139,7 +1139,7 @@ name = "render-stutter-master"
 template = "render-song"
 override = ["markers"]
 gates = "the song master's ping-pong stutter renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_STUTTER_MASTER", RENDER_STUTTER = "100:900:master" }
 
@@ -1148,7 +1148,7 @@ name = "render-stutter-rate"
 template = "render-song"
 override = ["markers"]
 gates = "a stutter whose rate knob is turned while it plays renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_STUTTER_RATE", RENDER_STUTTER = "100:900:audio", RENDER_STUTTER_RATE = "400:0x30000000" }
 
@@ -1157,7 +1157,7 @@ name = "render-stutter-handoff"
 template = "render-song"
 override = ["markers"]
 gates = "a stutter handed from one owner to another renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_STUTTER_HANDOFF", RENDER_STUTTER = "100:400:audio,400:800:kit" }
 
@@ -1165,28 +1165,28 @@ env = { RENDER_GENERATED = "RS_STUTTER_HANDOFF", RENDER_STUTTER = "100:400:audio
 name = "render-tempo-delays"
 template = "render-song"
 gates = "five synced delays resizing together after a tempo change render as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_TEMPO_DELAYS", RENDER_TEMPO = "300:70" }
 
 [[harness]]
 name = "render-audio-track-delay"
 template = "render-song"
 gates = "an audio track's digital delay renders as recorded through rate changes"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY" }
 
 [[harness]]
 name = "render-kit-pingpong-stereo"
 template = "render-song"
 gates = "a kit's ping-pong delay renders as recorded in stereo, where its echoes cross channels"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_KIT_PINGPONG", RENDER_STEREO = "1" }
 
 [[harness]]
 name = "render-audio-track-delay-toggle"
 template = "render-song"
 gates = "an analog delay switched off and on again while it rings renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_TOGGLE" }
 
 [[harness]]
@@ -1194,7 +1194,7 @@ name = "render-audio-track-delay-switch"
 template = "render-song"
 override = ["markers", "runtime_s"]
 gates = "an analog delay switched to digital and back to analog while it rings renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-DELAY-SWITCH", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_SWITCH", RENDER_DELAY_SWITCH = "600,1000" }
 runtime_s = 40
@@ -1203,49 +1203,49 @@ runtime_s = 40
 name = "render-pingpong-stereo-sweep"
 template = "render-song"
 gates = "ping-pong delays render as recorded in stereo, crossing channels while their rates step through new buffers"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_PINGPONG_SWEEP", RENDER_STEREO = "1" }
 
 [[harness]]
 name = "render-audio-track-delay-extremes"
 template = "render-song"
 gates = "a delay renders as recorded at both ends of its rate's range"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_EXTREMES" }
 
 [[harness]]
 name = "render-low-clip"
 template = "render-song"
 gates = "a host chain's saturation below amount 3, where it does not shift back up, renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_LOW_CLIP" }
 
 [[harness]]
 name = "render-bitcrush"
 template = "render-song"
 gates = "the bitcrush paths the FX songs leave out render as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_BITCRUSH" }
 
 [[harness]]
 name = "render-eq-bands"
 template = "render-song"
 gates = "the EQ's single bands render as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_EQ_BANDS" }
 
 [[harness]]
 name = "render-reverb-duck-override"
 template = "render-song"
 gates = "the reverb's duck taken from a synth with the most reverb renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE" }
 
 [[harness]]
 name = "render-reverb-duck-override-track"
 template = "render-song"
 gates = "the reverb's duck taken from an audio track with the most reverb renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE_TRACK" }
 
 [[harness]]
@@ -1253,7 +1253,7 @@ name = "render-metronome"
 template = "render-song"
 override = ["markers"]
 gates = "the metronome's click renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-METRONOME", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_METRONOME", RENDER_METRONOME = "200" }
 
@@ -1261,49 +1261,49 @@ env = { RENDER_GENERATED = "RS_METRONOME", RENDER_METRONOME = "200" }
 name = "render-audio-track-comp-onset"
 template = "render-song"
 gates = "a compressor switched on while its audio sounds renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_ONSET" }
 
 [[harness]]
 name = "render-audio-track-comp-reset"
 template = "render-song"
 gates = "a compressor reset mid-sound renders as recorded when it comes back on"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_RESET" }
 
 [[harness]]
 name = "render-audio-track-comp-blend"
 template = "render-song"
 gates = "a blended compressor on a loud audio track renders as recorded, so its 64-bit level sum is pinned"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_BLEND" }
 
 [[harness]]
 name = "render-modfx-mono"
 template = "render-song"
 gates = "the warble and dimension mod FX, which no synth golden plays, render as recorded in mono"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_MODFX_MONO" }
 
 [[harness]]
 name = "render-modfx-stereo-a"
 template = "render-song"
 gates = "the flanger, chorus and phaser mod FX render as recorded in stereo, where the comb types read a second tap for the right channel"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_A", RENDER_STEREO = "1" }
 
 [[harness]]
 name = "render-modfx-stereo-b"
 template = "render-song"
 gates = "the stereo chorus, warble and dimension mod FX render as recorded in stereo"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_B", RENDER_STEREO = "1" }
 
 [[harness]]
 name = "render-modfx-soft-off"
 template = "render-song"
 gates = "a mod FX switched off and on again by its knob renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_MODFX_SOFT_OFF" }
 
 [[harness]]
@@ -1311,7 +1311,7 @@ name = "render-modfx-switch"
 template = "render-song"
 override = ["markers"]
 gates = "a mod FX switched to another type and back while it plays renders as recorded, its LFO re-seating each time its wave changes after it has rendered"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_MODFX_SWITCH", RENDER_MODFX_SWITCH = "600:chorus,1000:TapeWarble" }
 
@@ -1320,7 +1320,7 @@ name = "render-modfx-clear"
 template = "render-song"
 override = ["markers"]
 gates = "a mod FX's memory cleared while it plays renders as recorded, both with a delay line and without one"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_MODFX_CLEAR", RENDER_MODFX_SWITCH = "1400:phaser", RENDER_MODFX_CLEAR = "1000,1800" }
 
@@ -1328,14 +1328,14 @@ env = { RENDER_GENERATED = "RS_MODFX_CLEAR", RENDER_MODFX_SWITCH = "1400:phaser"
 name = "render-grain-mono"
 template = "render-song"
 gates = "the granular mod FX renders as recorded in mono on a host owner's chain"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_GRAIN_MONO" }
 
 [[harness]]
 name = "render-grain-stereo"
 template = "render-song"
 gates = "the granular mod FX renders as recorded in stereo, where each grain is panned"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_GRAIN_STEREO", RENDER_STEREO = "1" }
 
 [[harness]]
@@ -1343,7 +1343,7 @@ name = "render-grain-switch"
 template = "render-song"
 override = ["markers"]
 gates = "the granular mod FX switched on and off by its type, and its memory cleared, while it plays renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_GRAIN_SWITCH", RENDER_MODFX_SWITCH = "600:grainFX,1800:chorus", RENDER_MODFX_CLEAR = "1300" }
 
@@ -1352,7 +1352,7 @@ name = "render-grain-master"
 template = "render-song"
 override = ["markers"]
 gates = "the song's master chain entering and leaving the granular mod FX by its type while it plays renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_GRAIN_MASTER", RENDER_MODFX_SWITCH = "600:grainFX:master,1800:chorus:master" }
 
@@ -1360,21 +1360,21 @@ env = { RENDER_GENERATED = "RS_GRAIN_MASTER", RENDER_MODFX_SWITCH = "600:grainFX
 name = "render-reverb-freeverb"
 template = "render-song"
 gates = "the song's Freeverb reverb renders as recorded at knobs of its own, its width at half, so each channel's output takes in the other's (wet2 above 0)"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_REVERB_FREEVERB" }
 
 [[harness]]
 name = "render-reverb-mutable"
 template = "render-song"
 gates = "the song's Mutable reverb renders as recorded at knobs of its own, its room, damping, width, high-pass and low-pass away from the boot song's"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_REVERB_MUTABLE" }
 
 [[harness]]
 name = "render-reverb-digital"
 template = "render-song"
 gates = "the song's Digital reverb renders as recorded at knobs of its own, panned halfway left and rendered in stereo, so the two channels' return levels differ"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_REVERB_DIGITAL", RENDER_STEREO = "1" }
 
 [[harness]]
@@ -1382,7 +1382,7 @@ name = "render-reverb-switch"
 template = "render-song"
 override = ["markers"]
 gates = "the song's reverb switched between its models, with its knobs turned while it plays, renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-REVERB-SWITCH", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_REVERB_SWITCH", RENDER_REVERB_SWITCH = "600:model=2,800:hpf=0.2,1000:model=0,1200:width=0.25,1400:room=0.3,1600:model=1,1800:lpf=0.8" }
 
@@ -1391,7 +1391,7 @@ name = "render-grain-restart"
 template = "render-song"
 override = ["runtime_s"]
 gates = "the granular mod FX started again renders as recorded, its grains reading 0 from every slot not yet written since the restart"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_GRAIN_RESTART", RENDER_BLOCKS = "4000" }
 runtime_s = 25
 
@@ -1400,7 +1400,7 @@ name = "render-grain-owners"
 template = "render-song"
 override = ["markers"]
 gates = "the granular mod FX switched by a synth's own type setter, and cleared through each owner's own clear, while it plays renders as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
 env = { RENDER_GENERATED = "RS_GRAIN_OWNERS", RENDER_MODFX_SWITCH = "500:chorus:RSG,1200:grainFX:RSG", RENDER_MODFX_CLEAR = "1700:RSG,1800:RSK,1900:master" }
 
@@ -1409,7 +1409,7 @@ name = "render-song-corpus"
 template = "render-song"
 override = ["tier", "runtime_s"]
 gates = "the render-song checks, on a real song from the maintainer's card backup (Cordae)"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_SONG = "SONGS/Cordae.XML", GOLDEN_FIXTURE = "cordae" }
 requires = ["song-corpus"]
 tier = "nightly"
@@ -1420,7 +1420,7 @@ name = "golden-synth"
 template = "render-preset"
 kind = "differential"
 gates = "every synth golden master must render as recorded"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render"]
 baseline = ["tests/golden/render/presets.json"]
@@ -1433,7 +1433,7 @@ name = "param-dump"
 template = "render-preset"
 kind = "regression"
 gates = "the audible window's parameter dump"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 check = "tests/integration/checks/param_dump.py"
 builds = ["golden-vt-render"]
 tier = "nightly"
@@ -1445,7 +1445,7 @@ name = "golden-synth-arm"
 template = "render-preset"
 kind = "differential"
 gates = "the synth golden masters on 32-bit ARM"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render-arm"]
 tier = "nightly"
@@ -1457,7 +1457,7 @@ name = "render-audio-stretch-arm"
 template = "render-song"
 override = ["builds", "tier", "job", "baseline"]
 gates = "audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH" }
 builds = ["golden-vt-render-arm"]
 baseline = []
@@ -1469,7 +1469,7 @@ name = "render-audio-stretch-edges-arm"
 template = "render-song"
 override = ["builds", "tier", "job", "baseline"]
 gates = "audio clips at the edges of the stretcher's paths render on 32-bit ARM as recorded on x86"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 env = { RENDER_GENERATED = "RS_AUDIO_STRETCH_EDGES" }
 builds = ["golden-vt-render-arm"]
 baseline = []
@@ -1481,7 +1481,7 @@ name = "streaming-margin"
 template = "scenario"
 kind = "property"
 gates = "sample playback must keep up when storage is as slow as the device's"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
 result = "RS-RESULT failures=0"
@@ -1498,7 +1498,7 @@ override = ["status"]
 kind = "simulation"
 status = "investigative"
 gates = "nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
 result = "RS-RESULT failures=0"
@@ -1515,7 +1515,7 @@ name = "recorder-write"
 template = "scenario"
 kind = "property"
 gates = "a real recording must still read back byte-correctly"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "recorder_roundtrip"
 markers = ["CASE", "RW-SUMMARY", "TK-LEAK", "RW-BUSY", "RW-STALL", "TK-OPEN-HELD", "TK-ABORT-OPEN", "RW-OPEN-IOERR", "RW-DIR-STALL", "RW-TIER", "TK-RESULT"]
 result = "RW-RESULT failures=0"
@@ -1560,7 +1560,7 @@ runner = "ctest"
 kind = "unit"
 status = "gate"
 gates = "the DSP library, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM"
-areas = ["all"]
+areas = ["dsp", "synth", "effects", "model", "ui", "bench", "test-support"]
 source = "tests/trees/arm"
 tree = "build/test-arm"
 configure = ["-G", "Ninja"]
@@ -1579,7 +1579,7 @@ runner = "cargo"
 kind = "unit"
 status = "gate"
 gates = "every #[test] in the core libraries: the allocator, the resource manager and the sample crates"
-areas = ["all"]
+areas = ["platform", "storage"]
 run = ["cargo", "nextest", "run", "--profile", "ci", "-p", "deluge_base_alloc", "-p", "deluge_storage_resource", "-p", "deluge_test_rust", "-p", "deluge_storage_sample_source", "-p", "deluge_storage_sample_fill", "-p", "deluge_storage_sample_reader", "-p", "deluge_storage_sample_peaks", "-p", "deluge_storage_stream"]
 junit = "${CARGO_TARGET_DIR}/nextest/ci/junit.xml"
 requires = ["cargo", "cargo-nextest"]
@@ -1596,7 +1596,7 @@ runner = "cargo"
 kind = "property"
 status = "gate"
 gates = "the peak index's fold-then-publish protocol under loom: a full mask implies every child's value is folded"
-areas = ["all"]
+areas = ["storage"]
 run = ["cargo", "test", "-p", "deluge_storage_sample_peaks", "--test", "loom", "--release"]
 env = { RUSTFLAGS = "--cfg loom" }
 requires = ["cargo"]
@@ -1612,7 +1612,7 @@ runner = "cargo"
 kind = "unit"
 status = "gate"
 gates = "the Rust BSP's host tests and in-crate #[test]s"
-areas = ["all"]
+areas = ["platform"]
 run = ["cargo", "test", "--locked", "-p", "deluge_platform_device"]
 requires = ["cargo"]
 tier = "pr"
@@ -1628,7 +1628,7 @@ runner = "cargo"
 kind = "unit"
 status = "gate"
 gates = "deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles"
-areas = ["all"]
+areas = ["storage"]
 run = ["cargo", "test", "-p", "deluge_storage_sample_convert"]
 requires = ["cargo", "clang", "arm-none-eabi-gcc"]
 tier = "pr"
@@ -1643,7 +1643,7 @@ name = "param-projection"
 template = "scenario-driver"
 kind = "unit"
 gates = "the param/automation DOM leaf must agree with the engine it replaces"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "param_projection"
 tier = "pr"
 job = "model"
@@ -1654,7 +1654,7 @@ name = "param-table-check"
 template = "scenario-driver"
 kind = "unit"
 gates = "the engines' param tables agree with the runtime"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "param_table_check"
 tier = "pr"
 job = "model"
@@ -1665,7 +1665,7 @@ name = "param-target-check"
 template = "scenario-driver"
 kind = "unit"
 gates = "the host names params by target"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "param_target_check"
 tier = "pr"
 job = "model"
@@ -1676,7 +1676,7 @@ name = "param-clone"
 template = "scenario-driver"
 kind = "unit"
 gates = "cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable collections) must give deep-independent copies"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "param_clone"
 tier = "pr"
 job = "model"
@@ -1687,7 +1687,7 @@ name = "patch-routing"
 template = "scenario-driver"
 kind = "property"
 gates = "a patch-cable set's routing and save order must not change"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "patch_routing"
 tier = "pr"
 job = "model"
@@ -1698,7 +1698,7 @@ name = "document-version"
 template = "scenario-driver"
 kind = "unit"
 gates = "the firmware version a document is read as is that document's own"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "document_version"
 tier = "pr"
 job = "model"
@@ -1709,7 +1709,7 @@ name = "preset-parse"
 template = "scenario-driver"
 kind = "unit"
 gates = "a JSON synth preset reads into a kit row as an XML one does"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "preset_parse"
 tier = "pr"
 job = "model"
@@ -1720,7 +1720,7 @@ name = "effect-owners"
 template = "scenario-driver"
 kind = "unit"
 gates = "every owner of effects (a synth's sound, a kit, an audio track, the song master) keeps its effect settings in its own state, and the render's copy follows"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "effect_owners"
 tier = "pr"
 job = "model"
@@ -1735,7 +1735,7 @@ override = ["status"]
 kind = "benchmark"
 status = "investigative"
 gates = "nothing: it times SetEngineSetting on a new synth for a re-voicing scalar, a retuning scalar, an oscillator type switch and an engine switch"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "edit_cost"
 tier = "manual"
 job = "model"
@@ -1748,7 +1748,7 @@ override = ["status"]
 kind = "benchmark"
 status = "investigative"
 gates = "nothing: it prints the SRAM and SDRAM heaps' free bytes and low-water marks across a sample oscillator's switch to a saw and back"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "source_memory"
 tier = "manual"
 job = "model"
@@ -1759,7 +1759,7 @@ name = "edit-substrate"
 template = "scenario-driver"
 kind = "unit"
 gates = "the Edit substrate on its own"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "edit_substrate"
 tier = "pr"
 job = "model"
@@ -1771,7 +1771,7 @@ name = "voice-pins"
 template = "scenario-driver"
 kind = "unit"
 gates = "which voice each cull, steal and admit takes across sounds, against the record"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "voice_pins"
 baseline = ["tests/integration/scenarios/drivers/voice_pins_records.h"]
 tier = "pr"
@@ -1783,7 +1783,7 @@ name = "mapping-dispatch"
 template = "scenario"
 kind = "property"
 gates = "the mapping index matches incoming MIDI as the dispatch's scans of the engine fields do"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "mapping_dispatch"
 markers = ["DRV-OUT MAPPING-DISPATCH"]
 result = "DRV-EXIT code=0"
@@ -1796,7 +1796,7 @@ name = "xml-replay-diff"
 template = "scenario-driver"
 kind = "differential"
 gates = "ValueTreeDeserializer's XML replay must read exactly as XMLDeserializer does"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects"]
 scenario = "xml_replay_diff"
 tier = "pr"
 job = "model"
@@ -1807,7 +1807,7 @@ name = "song-roundtrip"
 template = "corpus"
 kind = "regression"
 gates = "what a song saves as must not change unexplained"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "songs"
 baseline = ["tests/golden/songs/fixtures.json"]
 runtime_s = 10
@@ -1820,7 +1820,7 @@ runner = "script"
 kind = "property"
 status = "gate"
 gates = "every corpus song's model records survive a JSON round trip unchanged, through a driver built from the model and serialization libraries only"
-areas = ["all"]
+areas = ["model", "synth", "effects", "corpus-driver", "test-support"]
 run = ["tests/unit/project/equality/run_corpus.sh"]
 requires = ["song-corpus"]
 tier = "nightly"
@@ -1832,7 +1832,7 @@ name = "preset-roundtrip"
 template = "corpus"
 kind = "regression"
 gates = "what a preset saves as must not change unexplained"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "presets"
 baseline = ["tests/golden/presets/fixtures.json"]
 runtime_s = 10
@@ -1842,7 +1842,7 @@ name = "serializer-check"
 template = "corpus"
 kind = "property"
 gates = "the tree ValueSerializer builds for every output of every corpus song equals the tree the JSON writer's text parses to"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "serializer_check"
 runtime_s = 10
 
@@ -1851,7 +1851,7 @@ name = "cable-decode"
 template = "corpus"
 kind = "property"
 gates = "the Deluge instrument decodes every song's and preset's patch cables as the app's reader does"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "cable_decode"
 baseline = ["tests/golden/cable_decode/fixtures.json"]
 runtime_s = 20
@@ -1861,7 +1861,7 @@ name = "host-effect-settings"
 template = "corpus"
 kind = "property"
 gates = "a host owner's effects go through its chain"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "host_effect_settings"
 runtime_s = 30
 
@@ -1870,7 +1870,7 @@ name = "engine-settings"
 template = "corpus"
 kind = "property"
 gates = "a sound's settings go through its slot"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "engine_settings"
 runtime_s = 30
 
@@ -1879,7 +1879,7 @@ name = "song-settings"
 template = "corpus"
 kind = "property"
 gates = "a song's settings go through SetSetting"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "song_settings"
 runtime_s = 30
 
@@ -1888,7 +1888,7 @@ name = "instrument-codec-decode"
 template = "corpus"
 kind = "property"
 gates = "the Deluge instrument reads its own state as the app's reader does"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "instrument_codec_decode"
 runtime_s = 20
 
@@ -1897,7 +1897,7 @@ name = "instrument-codec-encode"
 template = "corpus"
 kind = "property"
 gates = "the Deluge instrument writes its own state"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "instrument_codec"
 runtime_s = 20
 
@@ -1906,7 +1906,7 @@ name = "instrument-state-roundtrip"
 template = "corpus"
 kind = "property"
 gates = "the Deluge instrument's state round-trips through its codec"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "instrument_state_roundtrip"
 runtime_s = 20
 
@@ -1915,7 +1915,7 @@ name = "json-roundtrip"
 template = "corpus"
 kind = "property"
 gates = "the JSON read path must be faithful to the JSON write path"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "json_roundtrip"
 runtime_s = 10
 
@@ -1925,7 +1925,7 @@ template = "corpus"
 override = ["requires", "tier"]
 kind = "property"
 gates = "decode reads a saved song's model records exactly as the engine loader does"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "model_decode_diff"
 tier = "pr"
 runtime_s = 10
@@ -1937,7 +1937,7 @@ name = "song-edit-roundtrip"
 template = "corpus"
 kind = "property"
 gates = "a DOM-first edit must persist"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "song_edit_roundtrip"
 runtime_s = 10
 
@@ -1946,7 +1946,7 @@ name = "param-record-diff"
 template = "corpus"
 kind = "regression"
 gates = "the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record)"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "param_record"
 baseline = ["tests/golden/param_record"]
 runtime_s = 5
@@ -1956,7 +1956,7 @@ name = "arrangement-take"
 template = "scenario"
 kind = "regression"
 gates = "recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take)"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-TAKE", "RS-TAKE-PLAYED", "RS-TAKE-REPEATS", "RS-TAKE-LEFT", "RS-TAKE-STALE", "RS-KNOB", "RS-SNAPSHOT"]
 result = "RS-RESULT failures=0"
@@ -1972,7 +1972,7 @@ name = "audio-clip-edit-diff"
 template = "corpus"
 kind = "regression"
 gates = "an AudioClip's descriptor edits, their undo, and a save and reload reproduce the committed baseline byte for byte"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "audio_clip_edit"
 baseline = ["tests/golden/audio_clip_edit"]
 runtime_s = 5
@@ -1982,7 +1982,7 @@ name = "edit-undo-redo"
 template = "corpus"
 kind = "property"
 gates = "every reified Edit applied to a corpus song resolves through a live DOM address and comes back exactly through the real undo and redo"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "edit_undo_redo"
 runtime_s = 10
 
@@ -1991,7 +1991,7 @@ name = "clip-clone-roundtrip"
 template = "corpus"
 kind = "property"
 gates = "InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "synth", "effects", "corpus-driver"]
 corpus_runner = "clip_clone"
 runtime_s = 10
 
@@ -2002,7 +2002,7 @@ override = ["status"]
 kind = "benchmark"
 status = "investigative"
 gates = "nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "param_snapshot_bench"
 tier = "manual"
 job = "app"
@@ -2016,7 +2016,7 @@ runner = "script"
 kind = "unit"
 status = "gate"
 gates = "no gesture under src/deluge/gui or src/ui/scenes sets a bound sound's instrument state outside its Edit"
-areas = ["all"]
+areas = ["ui", "tooling"]
 run = ["python3", "check_setting_menus.py"]
 tier = "pr"
 job = "tooling"
@@ -2041,7 +2041,7 @@ name = "spec-discovery"
 template = "unittest"
 path = "scripts"
 gates = "a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_spec_discovery"]
 requires = ["cmake", "clang"]
 
@@ -2050,7 +2050,7 @@ name = "doc-hygiene-selftest"
 template = "unittest"
 path = "scripts"
 gates = "the UI docs lint flags history breadcrumbs, any line number in a citation, and a backticked path naming no one file or a symbol that file lacks"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_check_doc_hygiene"]
 
 [[harness]]
@@ -2058,7 +2058,7 @@ name = "spec-comparisons-selftest"
 template = "unittest"
 path = "scripts"
 gates = "the spec-comparison check finds a comparison judged by a truth matcher and nothing else, and refuses only the sites a commit adds"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_check_spec_comparisons"]
 
 [[harness]]
@@ -2066,7 +2066,7 @@ name = "fixed-point-raw-selftest"
 template = "unittest"
 path = "scripts"
 gates = "the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_check_fixed_point_raw"]
 
 [[harness]]
@@ -2105,7 +2105,7 @@ runner = "script"
 kind = "unit"
 status = "gate"
 gates = "the render presets in DX7 mode are as recorded, and none holds a DX7 on an oscillator"
-areas = ["all"]
+areas = ["synth", "render-data", "tooling"]
 run = ["python3", "scripts/check_dx7_presets.py", "--check"]
 tier = "pr"
 job = "tooling"
@@ -2116,7 +2116,7 @@ name = "dx7-presets-selftest"
 template = "unittest"
 path = "scripts"
 gates = "the DX7 preset scan lists each DX7-mode sound and finds a DX7 on either oscillator"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_check_dx7_presets"]
 
 [[harness]]
@@ -2124,7 +2124,7 @@ name = "layers-selftest"
 template = "unittest"
 path = "scripts"
 gates = "the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_check_layers"]
 
 [[harness]]
@@ -2132,7 +2132,7 @@ name = "registry-selftest"
 template = "unittest"
 path = "scripts/tasks"
 gates = "this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_harness_registry", "test_test_selection", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names", "test_cargo_workspace", "test_run_scratch", "test_check_abi_surface", "test_stretcher_coverage"]
 
 [[harness]]
@@ -2140,7 +2140,7 @@ name = "render-preset-selftest"
 template = "unittest"
 path = "tests/integration/checks"
 gates = "the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 run = ["python3", "-m", "unittest", "test_render_preset", "test_render_song"]
 
 [[harness]]
@@ -2148,7 +2148,7 @@ name = "make-sample-selftest"
 template = "unittest"
 path = "tests/golden/render/presets"
 gates = "the sample golden cases' synthetic sources are what their cases assume, and the committed WAVs are their generator's output"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_make_sample"]
 
 [[harness]]
@@ -2156,7 +2156,7 @@ name = "dsp-bench-parser"
 template = "unittest"
 path = "tools"
 gates = "the DSP bench host script's parsing of device captures"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_dsp_bench"]
 
 [[harness]]
@@ -2164,7 +2164,7 @@ name = "compare-codegen-selftest"
 template = "unittest"
 path = "tools"
 gates = "the machine-code comparison of two images names what an address points at instead of its value"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_compare_codegen"]
 requires = ["llvm-cxxfilt", "llvm-objcopy", "llvm-readelf"]
 
@@ -2173,7 +2173,7 @@ name = "relocate-selftest"
 template = "unittest"
 path = "tools"
 gates = "a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_relocate"]
 
 [[harness]]
@@ -2181,7 +2181,7 @@ name = "compare-strings-selftest"
 template = "unittest"
 path = "tools"
 gates = "the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_compare_strings"]
 requires = ["llvm-objcopy"]
 
@@ -2190,7 +2190,7 @@ name = "stream-bench-parser"
 template = "unittest"
 path = "tools"
 gates = "the streaming benchmark host script's parsing of device captures"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_stream_bench"]
 
 [[harness]]
@@ -2198,7 +2198,7 @@ name = "device-check-parser"
 template = "unittest"
 path = "tools"
 gates = "device_check's reading of a rig capture"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_device_check"]
 
 [[harness]]
@@ -2207,7 +2207,7 @@ template = "unittest"
 override = ["runtime_s"]
 path = "tools"
 gates = "rig_session's reading of the rig harness's RTT stream"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_rig_session"]
 runtime_s = 2
 
@@ -2217,7 +2217,7 @@ template = "unittest"
 override = ["runtime_s"]
 path = "tools"
 gates = "one run at a time holds the rig, every tool that opens it is refused or waits, and a holder that dies lets go"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_rig_lock"]
 runtime_s = 6
 
@@ -2226,7 +2226,7 @@ name = "device-parity"
 template = "unittest"
 path = "tools"
 gates = "emu_parity's script runner drives delugemu or the rig through the same steps and timings, and device_parity seeds delugemu's flash from the rig's settings"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_emu_parity_session", "test_device_parity", "test_stamp_preset_versions"]
 
 [[harness]]
@@ -2234,7 +2234,7 @@ name = "ui-script-cards"
 template = "unittest"
 path = "tools"
 gates = "the cards a UI script's header names, as the UI script runners read them"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_ui_script_cards"]
 
 [[harness]]
@@ -2242,7 +2242,7 @@ name = "x86-parity-tool"
 template = "unittest"
 path = "tools"
 gates = "x86_parity turns a parity script into the host app's UI script, keys its card cache by the image's mtime, and lists every file two runs disagree on"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_x86_parity"]
 
 [[harness]]
@@ -2250,7 +2250,7 @@ name = "deluge-jlink"
 template = "unittest"
 path = "tools"
 gates = "deluge_jlink's load script stops every DMA channel after the MMU is off and before the load"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_deluge_jlink"]
 
 [[harness]]
@@ -2261,7 +2261,7 @@ runner = "script"
 kind = "differential"
 status = "investigative"
 gates = "the parity scripts show the same panels on this image as on main's, in delugemu, on every card their headers name"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 build = ["./dbt", "build", "RelWithDebInfo"]
 run = ["python3", "tools/emu_parity.py", "-j", "4", "--out", ".superpowers/emu-runs/ui-parity", "tests/ui-scripts/parity"]
 requires = ["delugemu", "parity-ref", "content-card"]
@@ -2278,7 +2278,7 @@ runner = "script"
 kind = "differential"
 status = "gate"
 gates = "every parity script played twice on the same host app gives identical panels, LEDs, pads and MIDI out: the determinism a base-against-head comparison rests on"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 build = []
 run = ["python3", "tools/x86_parity.py", "--ref", "build/cargo-harness/harness/golden_vt_render", "--test", "build/cargo-harness/harness/golden_vt_render", "--out", ".superpowers/x86-runs/self", "tests/ui-scripts/parity", "tests/ui-scripts/parity-card", "tests/ui-scripts/parity-songs"]
 builds = ["golden-vt-render"]
@@ -2296,7 +2296,7 @@ runner = "script"
 kind = "differential"
 status = "investigative"
 gates = "the content-card parity scripts show the same panels on this image as on main's, in delugemu"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 build = ["./dbt", "build", "RelWithDebInfo"]
 run = ["python3", "tools/emu_parity.py", "-j", "4", "--out", ".superpowers/emu-runs/ui-parity-card", "tests/ui-scripts/parity-card"]
 requires = ["delugemu", "parity-ref", "content-card"]
@@ -2313,7 +2313,7 @@ runner = "script"
 kind = "differential"
 status = "investigative"
 gates = "eleven real songs load and play with the same panels on this image as on main's, in delugemu"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data", "ui"]
 build = ["./dbt", "build", "RelWithDebInfo"]
 run = ["python3", "tools/emu_parity.py", "-j", "4", "--out", ".superpowers/emu-runs/ui-parity-songs", "tests/ui-scripts/parity-songs"]
 requires = ["delugemu", "parity-ref", "content-card"]
@@ -2330,7 +2330,7 @@ runner = "script"
 kind = "differential"
 status = "investigative"
 gates = "the device scripts show the same panels on the Deluge on the probe rig as in delugemu running the same image"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 build = ["python3", "tools/bench_image.py", "--out", "build/rig-harness.elf", "--no-bench", "--features", "rig-harness"]
 run = ["python3", "tools/device_parity.py", "--emu-ref", "build/rig-harness.elf", "--device", "build/rig-harness.elf", "--out", ".superpowers/emu-runs/ui-device", "tests/ui-scripts/device/d01-open-close-stress.txt"]
 requires = ["delugemu", "content-card", "rig"]
@@ -2347,7 +2347,7 @@ runner = "script"
 kind = "benchmark"
 status = "investigative"
 gates = "nothing: it records the device-only scripts' snapshots and debug output on the Deluge on the probe rig"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "ui", "synth", "effects"]
 build = ["python3", "tools/bench_image.py", "--out", "build/rig-harness.elf", "--no-bench", "--features", "rig-harness"]
 run = ["python3", "tools/device_parity.py", "--record-only", "--device", "build/rig-harness.elf", "--out", ".superpowers/emu-runs/ui-device-record", "tests/ui-scripts/device/d02-playhead-moves.txt"]
 requires = ["rig"]
@@ -2364,7 +2364,7 @@ runner = "script"
 kind = "property"
 status = "gate"
 gates = "a Deluge plugged into this machine enumerates as a USB-MIDI device with three MIDI ports each way"
-areas = ["all"]
+areas = ["platform", "model"]
 run = ["python3", "-m", "pytest", "test_usb_config.py", "test_midi_config.py"]
 requires = ["deluge-usb"]
 tier = "manual"
@@ -2376,7 +2376,7 @@ name = "audible-window-tooling"
 template = "unittest"
 path = "tools/audible_window"
 gates = "the audible window's analyser and song set"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
 
 [[harness]]
@@ -2387,7 +2387,7 @@ runner = "script"
 kind = "regression"
 status = "gate"
 gates = "the audible window's reference snapshot (.superpowers/estate/audible-window/reference/, or AUDIBLE_WINDOW_REFERENCE) compared with itself reports nothing moved"
-areas = ["all"]
+areas = ["platform", "host-app", "storage", "model", "dsp", "synth", "effects", "ui-browser", "render-data"]
 run = ["python3", "audible_window.py", "identity"]
 tier = "manual"
 job = "tooling"
@@ -2398,7 +2398,7 @@ name = "bench-tooling"
 template = "unittest"
 path = "tools"
 gates = "the bench tools' host side"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_bench_tooling", "test_audio_timing"]
 
 [[harness]]
@@ -2406,5 +2406,78 @@ name = "ptm-trace-tool"
 template = "unittest"
 path = "tools/deluge_trace"
 gates = "the PTM trace tool's host side"
-areas = ["all"]
+areas = ["tooling"]
 run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
+
+# Areas: what a gate exercises, cut by how the code is tested (test_selection.py). A gate's own files (its directory,
+# the files its commands and check name, its scenario's driver, its corpus runner and its baselines) reach it without
+# being listed. `./dbt test --since REF` runs the gates the changes since REF reach; tests/README.md, Selecting by
+# change.
+[area.platform]
+paths = ["src/platform/**", "include/libdeluge/**", "src/base/**", "src/deluge/memory/**", "src/deluge/runtime/**", "src/deluge/harness/**",
+         "src/deluge/version/**", "src/deluge/deluge.*", "src/deluge/extern.h", "src/*.h", "src/*.hpp",
+         "tests/unit/base/**", "tests/unit/harness/**", "tests/component/fuzz/**"]
+# Shared by the golden_vt_render gates: the host app harness, the scenario table and its helpers, the default card.
+# Each gate's own driver, card and check reach only it.
+[area.host-app]
+paths = ["tests/harness/*.*", "tests/harness/golden_vt_render/**", "tests/harness/level3/**",
+         "tests/integration/scenarios/*.h", "tests/integration/scenarios/scenario_table.*",
+         "tests/integration/scenarios/support/**", "tests/integration/scenarios/preset_fixture_loader.cpp",
+         "tests/integration/scenarios/recorder_readback_probe.cpp", "tests/integration/scenarios/slot_coherence.cpp",
+         "tests/integration/scenarios/song_settings_coherence.cpp", "tests/integration/scenarios/streaming_scenario.cpp",
+         "tests/integration/scenarios/drivers/*.h", "tests/integration/scenarios/drivers/driver.cpp",
+         "tests/fixtures/card/**"]
+[area.storage]
+paths = ["src/storage/**", "src/deluge/storage/**", "src/deluge/io/**", "tests/unit/storage/**",
+         "tests/component/differential/**", "tests/integration/scenarios/audio_header_dump*"]
+[area.model]
+paths = ["src/deluge/model/**", "src/project/**", "src/serialization/**", "src/deluge/sequence/**",
+         "src/deluge/playback/**", "src/deluge/sync/**", "src/deluge/util/**", "src/music/**", "src/midi/**",
+         "tests/unit/project/**", "tests/unit/serialization/**", "tests/unit/music/**", "tests/unit/midi/**",
+         "tests/unit/deluge/**", "tests/unit/integration/**", "tests/fixtures/songs/**",
+         "tests/fixtures/midi-devices/**"]
+[area.synth]
+paths = ["src/synth/**", "src/instruments/**", "src/plugin/**", "src/deluge/processing/**",
+         "src/deluge/modulation/**", "tests/unit/instruments/**", "tests/unit/plugin/**"]
+[area.dsp]
+paths = ["src/dsp/**", "src/arm_neon_shim.h", "tests/unit/dsp/**"]
+[area.effects]
+paths = ["src/effects/**", "src/host/**", "tests/unit/effects/**", "tests/unit/host/**"]
+# The paths a song or preset load takes through the UI: the load and save browsers and the shell's input path.
+[area.ui-browser]
+paths = ["src/deluge/gui/ui/browser/**", "src/deluge/gui/ui/browser_host.*", "src/deluge/gui/ui/load/**",
+         "src/deluge/gui/ui/save/**", "src/ui/scenes/browser/**", "src/ui/shell/**"]
+[area.ui]
+paths = ["src/ui/**", "src/deluge/gui/**", "src/deluge/hid/**", "tests/unit/ui/**", "tests/integration/ui/**",
+         "tests/ui-scripts/**", "tests/golden/ui/**", "tests/golden/gfx/**", "tests/fixtures/scenes_spec/**",
+         "tests/fixtures/*.card"]
+# The render gates' sources and records: songs, presets, wavetable pins, the stem export's hash.
+[area.render-data]
+paths = ["tests/golden/render/**", "tests/golden/stem_export/**"]
+[area.corpus-driver]
+# The corpus sweeps' shared driver and the corpus drivers each runner names.
+paths = ["tests/integration/corpus/**", "tests/integration/scenarios/drivers/*.cpp", "tests/golden/songs/**",
+         "tests/golden/presets/**"]
+[area.bench]
+paths = ["src/deluge/bench/**"]
+[area.upgrader]
+paths = ["tools/deluge-upgrade/**", "tests/golden/upgrade/**"]
+[area.test-support]
+paths = ["tests/support/**", "tests/trees/**"]
+[area.tooling]
+paths = ["scripts/**", "tools/*.py", "tools/testdata/**", "tools/audible_window/**", "tools/deluge_trace/**",
+         "tools/envelope_records/**"]
+
+[no-gate]
+paths = ["docs/**", "website/**", ".github/**", "**/*.md", "LICENSE*", "contrib/**", "CODEOWNERS", ".editorconfig",
+         ".git-blame-ignore-revs", ".gitattributes", ".gitignore", ".clang-format", ".clang-format-ignore", ".clang-tidy",
+         ".clangd", ".pre-commit-config.yaml", "assets/**", "IDE_Configs/**"]
+
+# A change here can reach any gate: the build system and the runner itself.
+[every-gate]
+paths = ["CMakeLists.txt", "**/CMakeLists.txt", "Cargo.toml", "Cargo.lock", "**/Cargo.toml", "dbt", "dbt.cmd", "dbt.py",
+         "rust-toolchain.toml", "cmake/**", ".cargo/**", ".config/**", "toolchain/**", "lib/**", "third_party/**",
+         "Makefile",
+         "scripts/toolchain/**", "scripts/cmake/**", "scripts/tasks/task-test.py", "scripts/tasks/harness_registry.py",
+         "scripts/tasks/test_builds.py", "scripts/tasks/test_selection.py", "tests/registry.toml",
+         "tests/support/cmake/**"]
