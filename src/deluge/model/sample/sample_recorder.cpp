@@ -473,9 +473,9 @@ aborted:
 					}
 				}
 				else if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
-					if (outputRecordingFrom) {
-						name = outputRecordingFrom->name.get();
-					}
+					// The source output can already have let go of this recorder (outputRecordingFrom is then null)
+					// if capture finished before the file got created
+					name = outputRecordingFrom ? outputRecordingFrom->name.get() : inputChannelToString(mode);
 				}
 				else {
 					name = inputChannelToString(mode);
