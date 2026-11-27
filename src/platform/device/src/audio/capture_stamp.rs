@@ -41,6 +41,15 @@ pub fn stamp_at(
     play_now.wrapping_sub(back)
 }
 
+/// Returns the stamp of the sample `offset` after the next rendered one, which plays at
+/// `write_end`. Never 0, which the output service reads as "as soon as possible".
+pub fn stamp_for_offset(write_end: u32, offset: u32) -> u32 {
+    match write_end.wrapping_add(offset) {
+        0 => 1,
+        stamp => stamp,
+    }
+}
+
 /// The frames from an input event to the output sample it takes effect at: the most the write head
 /// can lead the play head just after a render (the queue and the block playing), plus one block
 /// for the task tier to read the event in.

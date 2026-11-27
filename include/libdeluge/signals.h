@@ -76,34 +76,6 @@ bool deluge_battery_read_raw(uint16_t* out) DELUGE_NOEXCEPT;
 /// Arm the next battery-voltage conversion. [task]
 void deluge_battery_start_conversion(void) DELUGE_NOEXCEPT;
 
-// ---------------------------------------------------------------------------
-// MIDI/gate output timer. A board one-shot that fires midiAndGateTimerGoneOff()
-// at a deadline on the deluge_clock_now() clock, so MIDI and gate edges land
-// sample-accurately rather than at the audio-block boundary. The app owns
-// *when* (it keeps the queue of timed output and arms for the earliest); the
-// board owns the timer hardware and its clock, so neither the timer number nor
-// its rate crosses the boundary.
-// ---------------------------------------------------------------------------
-
-/// Arm the output timer to fire midiAndGateTimerGoneOff() once deluge_clock_now()
-/// reaches `deadline_us`, replacing any deadline already armed. A deadline already
-/// past fires as soon as the timer can. One further away than the timer can count
-/// fires early: the app finds nothing due and arms again. [task] [audio] [isr]
-void deluge_midi_gate_timer_arm_at(uint64_t deadline_us) DELUGE_NOEXCEPT;
-
-/// Disarm the output timer, if armed. [task] [audio] [isr]
-void deluge_midi_gate_timer_cancel(void) DELUGE_NOEXCEPT;
-
-// ---------------------------------------------------------------------------
-// Runtime-provided callbacks (inverse direction: the app implements, the
-// BSP/HAL call up). Declared here so the timer HAL depends only on
-// <libdeluge/...>, never on the app's deluge.h. See system.h for the rationale.
-// ---------------------------------------------------------------------------
-
-/// Fired from the MIDI/gate output timer ISR once an armed deadline arrives: the
-/// app sends whatever output is due and arms for the rest. [isr]
-void midiAndGateTimerGoneOff(void) DELUGE_NOEXCEPT;
-
 #ifdef __cplusplus
 }
 #endif

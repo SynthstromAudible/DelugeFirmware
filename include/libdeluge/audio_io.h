@@ -71,15 +71,6 @@ void deluge_audio_await_block(void) DELUGE_NOEXCEPT;
 /// render. [task]
 void deluge_audio_input_resync(void) DELUGE_NOEXCEPT;
 
-/// During/after a `deluge_app_render()` call: how many frames from now until
-/// the DAC plays sample `offset_frames` of the current render block, modulo
-/// the output ring (0 means a full ring from now). Optionally reports how many
-/// frames of the block's play position have elapsed since the block's render
-/// began (`*elapsed_frames_out`, unmasked). Used to time MIDI and gate output
-/// (`deluge_midi_gate_timer_arm_at()`) sample-accurately. Single play-head poll.
-/// [task] [audio]
-uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t* elapsed_frames_out) DELUGE_NOEXCEPT;
-
 /// Convert a capture stamp into how many samples after the next one the render produces the event takes effect at.
 ///
 /// A capture stamp is the codec's play position at the moment of the event, in frames counted from the drive's first

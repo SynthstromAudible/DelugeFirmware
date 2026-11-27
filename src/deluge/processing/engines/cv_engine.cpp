@@ -20,7 +20,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "libdeluge/cv_gate.h"
-#include "libdeluge/system.h"
+#include "libdeluge/timed_output.h"
 #include "processing/engines/audio_engine.h"
 #include "util/comparison.h"
 #include "util/functions.h"
@@ -35,7 +35,6 @@ CVEngine cvEngine{};
 CVEngine::CVEngine() {
 	minGateOffTime = 10;
 	clockState = false;
-	mostRecentSwitchOffTimeOfPendingNoteOn = 0;
 }
 
 void CVEngine::init() {
@@ -46,114 +45,45 @@ void CVEngine::init() {
 	deluge_gate_init();
 	deluge::playback::installTriggerClockInput();
 
-	// Switch all gate "off" to begin with - whatever "off" means
-	updateGateOutputs();
-
 	updateClockOutput();
 	updateRunOutput();
 }
 
-// Gets called even for run and clock
-void CVEngine::updateGateOutputs() {
-	CriticalSectionGuard guard;
-	pollCVSent(guard);
-	GateOutputs outputs = takePendingGateOutputs(true);
-	if (outputs.mask == 0) {
-		return;
+uint32_t CVEngine::onStampAfterOff(uint32_t requested, uint32_t lastOff, uint32_t playNow, uint8_t minGateOffTime) {
+	// An off more than a second behind the playhead is long past any off time, and too far back to compare by signed
+	// difference for ever
+	constexpr int32_t kOffMemoryFrames = 44100;
+	if (lastOff == DELUGE_STAMP_NOW || static_cast<int32_t>(playNow - lastOff) > kOffMemoryFrames) {
+		return requested;
 	}
-	// These are newer than anything already scheduled for these channels
-	AudioEngine::cancelScheduledGates(outputs.mask, guard);
-	outputGates(outputs, guard);
-}
-
-GateOutputs CVEngine::takePendingGateOutputs(bool includeAsap) {
-	GateOutputs outputs;
-	outputs.mask = includeAsap ? pendingGates : (pendingGates & ~pendingAsapGates);
-	if (outputs.mask == 0) {
-		return outputs;
+	// 4.41 frames per 100 µs, Q16
+	uint32_t earliest = lastOff + ((static_cast<uint32_t>(minGateOffTime) * 289014) >> 16);
+	if (earliest == DELUGE_STAMP_NOW) {
+		earliest = 1; // a real frame, not "as soon as possible"
 	}
-	for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
-		if (outputs.mask & (1 << g)) {
-			outputs.levels |= gateLevel(g) << g;
-		}
+	if (requested == DELUGE_STAMP_NOW) {
+		return earliest;
 	}
-	outputs.cvWaitMask = pendingNoteOnGates & outputs.mask;
-	outputs.needsMinOffTime = ((pendingNoteOnGates | pendingAsapGates) & outputs.mask) != 0;
-
-	pendingGates &= ~outputs.mask;
-	pendingAsapGates &= ~outputs.mask;
-	pendingNoteOnGates &= ~outputs.mask;
-	return outputs;
-}
-
-// note or gate on the cv channel - if there's a cv out pending we send the gate after it finishes. This avoids a
-// situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
-// correction
-void CVEngine::outputGates(const GateOutputs& outputs, const CriticalSectionGuard&) {
-	uint8_t hold = cvOutPending ? outputs.cvWaitMask : 0;
-	for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
-		uint8_t bit = 1 << g;
-		if (!(outputs.mask & bit)) {
-			continue;
-		}
-		if (hold & bit) {
-			gatesAwaitingCV |= bit;
-			levelsAwaitingCV = (levelsAwaitingCV & ~bit) | (outputs.levels & bit);
-		}
-		else {
-			gatesAwaitingCV &= ~bit;
-			deluge_gate_set(g, (outputs.levels & bit) != 0);
-		}
-	}
+	return static_cast<int32_t>(requested - earliest) >= 0 ? requested : earliest;
 }
 
 void CVEngine::switchGateNow(int32_t channel) {
-	uint8_t bit = 1 << channel;
-	CriticalSectionGuard guard;
-	AudioEngine::cancelScheduledGates(bit, guard);
-	pendingGates &= ~bit;
-	pendingAsapGates &= ~bit;
-	pendingNoteOnGates &= ~bit;
-	gatesAwaitingCV &= ~bit;
-	physicallySwitchGate(channel);
+	(void)deluge_out_gate_now(channel, gateLevel(channel));
 }
 
 // These next two functions get called for run but not clock
 void CVEngine::switchGateOff(int32_t channel) {
 	gateChannels[channel].on = false;
 	switchGateNow(channel);
-	gateChannels[channel].timeLastSwitchedOff = AudioEngine::audioSampleTimer;
+	gateChannels[channel].offStamp = deluge_audio_play_stamp();
 }
 
-// In the future, it'd be great if manually-auditioned notes could supply doInstantlyIfPossible as true. Currently
-// there's no infrastructure for an Instrument to know whether a note is manually auditioned.
-void CVEngine::switchGateOn(int32_t channel, int32_t doInstantlyIfPossible) {
+void CVEngine::switchGateOn(int32_t channel, bool asSoonAsPossible) {
 	gateChannels[channel].on = true;
-
-	if (doInstantlyIfPossible) {
-		uint32_t timeSinceLastSwitchedOff = AudioEngine::audioSampleTimer - gateChannels[channel].timeLastSwitchedOff;
-		if (timeSinceLastSwitchedOff >= minGateOffTime * 441) {
-			switchGateNow(channel);
-			return;
-		}
-	}
-
-	uint8_t bit = 1 << channel;
-	pendingGates |= bit;
-	if (doInstantlyIfPossible) {
-		pendingAsapGates |= bit;
-		pendingNoteOnGates &= ~bit;
-	}
-	else {
-		pendingNoteOnGates |= bit;
-		pendingAsapGates &= ~bit;
-	}
-
-	// If this gate was switched off more recently than any previous gate switch-off of a pending note-on, update the
-	// running record of that
-	if ((int32_t)(gateChannels[channel].timeLastSwitchedOff - mostRecentSwitchOffTimeOfPendingNoteOn) > 0) {
-		mostRecentSwitchOffTimeOfPendingNoteOn = gateChannels[channel].timeLastSwitchedOff;
-	}
+	uint32_t requested = asSoonAsPossible ? DELUGE_STAMP_NOW : AudioEngine::cvGateStamp();
+	(void)deluge_out_gate_at(
+	    channel, gateLevel(channel),
+	    onStampAfterOff(requested, gateChannels[channel].offStamp, deluge_audio_play_stamp(), minGateOffTime));
 }
 
 // note -32768 means switch "all notes off", or switch on without changing actual CV voltage output
@@ -190,14 +120,8 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 			voltage = calculateVoltage(note, channel);
 			voltage = std::min(voltage, (int32_t)65535);
 			voltage = std::max(voltage, (int32_t)0);
-			{
-				// The MIDI/gate timer's interrupt reads the pending flag and the snapshot sendVoltageOut() takes:
-				// between the two, the last voltage's snapshot would end this one's wait at once
-				CriticalSectionGuard guard;
-				cvOutPending = true;
-				sendVoltageOut(channel, voltage);
-			}
-			switchGateOn(channel); // won't switch before the cv has been updated
+			sendVoltageOut(channel, voltage);
+			switchGateOn(channel); // at the same stamp, so the gate waits for its voltage
 		}
 		else {
 			switchGateOn(channel);
@@ -210,20 +134,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 }
 
 void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
-	// Snapshot the dispatch count *before* queuing: deluge_cv_set() may dispatch
-	// the write inline (if the SPI bus is idle), and updateGateOutputs() clears
-	// cvOutPending once the count moves past this snapshot (see pollCVSent()).
-	// Guarded with the write, as the MIDI/gate timer's interrupt polls it.
-	CriticalSectionGuard guard;
-	uint32_t sentBefore = deluge_cv_sent_count();
-	deluge_cv_set(channel, voltage);
-	// On non-OLED units the CV DAC has the SPI bus to itself, so the write has
-	// already completed; OLED units serialise it through the display queue.
-	cvSentSnapshot = sentBefore;
-}
-
-void CVEngine::physicallySwitchGate(int32_t channel) {
-	deluge_gate_set(channel, gateLevel(channel));
+	(void)deluge_out_cv_at(channel, voltage, AudioEngine::cvGateStamp());
 }
 
 void CVEngine::setCVVoltsPerOctave(uint8_t channel, uint8_t value) {
@@ -278,11 +189,6 @@ int32_t CVEngine::calculateVoltage(int32_t note, uint8_t channel) {
 }
 
 void CVEngine::analogOutTick() {
-	// If the previous clock edge was never taken for scheduled output then send it now, otherwise both would be merged
-	// into one. Edges done during the audio window are taken (with their own time) as they happen, so this is rare.
-	if (pendingGates & (1 << WHICH_GATE_OUTPUT_IS_CLOCK)) {
-		switchGateNow(WHICH_GATE_OUTPUT_IS_CLOCK);
-	}
 	clockState = !clockState;
 	updateClockOutput();
 }
@@ -335,18 +241,13 @@ void CVEngine::setGateType(uint8_t channel, GateType value) {
 }
 
 void CVEngine::updateClockOutput() {
-	constexpr uint8_t clockBit = 1 << WHICH_GATE_OUTPUT_IS_CLOCK;
-	if (pendingGates & clockBit) {
-		D_PRINTLN("update clock while clock pending");
-	}
 	if (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode != GateType::SPECIAL) {
 		return;
 	}
-
 	gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].on = clockState;
-	pendingGates |= clockBit;
-	pendingAsapGates &= ~clockBit;
-	pendingNoteOnGates &= ~clockBit;
+	// A trigger, so no minimum off time
+	(void)deluge_out_gate_at(WHICH_GATE_OUTPUT_IS_CLOCK, gateLevel(WHICH_GATE_OUTPUT_IS_CLOCK),
+	                         AudioEngine::cvGateStamp());
 }
 
 void CVEngine::updateRunOutput() {
@@ -368,24 +269,4 @@ void CVEngine::updateRunOutput() {
 
 bool CVEngine::isTriggerClockOutputEnabled() {
 	return (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL);
-}
-void CVEngine::cvOutUpdated(const CriticalSectionGuard& guard) {
-	cvOutPending = false;
-	// Only release gates whose scheduled time has already passed. Releasing every pending gate here would send them
-	// up to a whole audio buffer early whenever the CV word finished before the MIDI/gate timer fired (e.g. when an
-	// OLED refresh delayed the CV), and would also flush pending clock pulses early.
-	if (gatesAwaitingCV) {
-		GateOutputs held;
-		held.mask = gatesAwaitingCV;
-		held.levels = levelsAwaitingCV;
-		outputGates(held, guard);
-	}
-}
-
-void CVEngine::pollCVSent(const CriticalSectionGuard& guard) {
-	// The BSP counts the CV words that have reached the DAC rather than calling up into us, so the gates held for one
-	// are released wherever this is polled: the MIDI/gate output timer and every audio sub-window
-	if (cvOutPending && deluge_cv_sent_count() != cvSentSnapshot) {
-		cvOutUpdated(guard);
-	}
 }

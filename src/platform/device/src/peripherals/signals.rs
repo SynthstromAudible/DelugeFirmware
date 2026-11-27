@@ -113,11 +113,10 @@ pub extern "C" fn deluge_battery_start_conversion() {
 
 // Sample-accurate MIDI/gate timer (MTU2 channel 2 one-shot)
 //
-// The app keeps its timed MIDI and gate output in a queue and arms this one-shot for the earliest
-// deadline, on the `deluge_clock_now()` clock. The one-shot's ISR calls the app's
-// `midiAndGateTimerGoneOff()`, which sends what is due and arms again. `deluge_bsp::midi_gate`
-// drives the same channel for pure-Rust firmware, but deluge-bsp must not reference app symbols,
-// so this module builds its own `mtu2::OneShot` on the board's MTU2 channel 2.
+// The timed output service (`crate::timed_output`) arms this one-shot for its earliest deadline,
+// on the Embassy clock; its ISR runs the service, which sends what is due and arms again.
+// `deluge_bsp::midi_gate` drives the same channel for pure-Rust firmware; this module builds its
+// own `mtu2::OneShot` on the board's MTU2 channel 2.
 
 /// Prescaler P0/64 ≈ 516 kHz: 1 tick ≈ 1.94 µs, longest one-shot ≈ 127 ms.
 const GATE_TIMER_PRESCALER: u16 = 64;
@@ -128,7 +127,7 @@ const GATE_TIMER_TICKS_PER_SEC: u64 = 515_616;
 /// [`gate_timer_setup`] has run.
 static GATE_TIMER: OnceLock<OneShot<'static>> = OnceLock::new();
 
-/// MTU2 channel 2's compare match: clears and disarms the timer, then runs the app handler
+/// MTU2 channel 2's compare match: clears and disarms the timer, then runs the timed output service
 /// (which arms again if anything is still to come).
 struct GateTimerHandler;
 
@@ -140,8 +139,7 @@ impl Handler<typelevel::TGI2A> for GateTimerHandler {
             timer.clear_flag();
             timer.disarm();
         }
-        // SAFETY: an app-provided C symbol that `libdeluge/signals.h` documents as an ISR callback.
-        unsafe { crate::sys::midiAndGateTimerGoneOff() };
+        crate::timed_output::device::service(|_| ());
     }
 }
 
@@ -159,15 +157,22 @@ pub(crate) fn gate_timer_setup(timer: Peri<'static, GateTimer>) {
     }
 }
 
+/// Timer ticks per microsecond, Q32, worked out at compile time so the conversion needs no
+/// division at run time (the A9 has no divide instruction). Rounded down: a deadline fires at most
+/// a tick early, and the service arms again for what isn't due.
+const GATE_TIMER_TICKS_PER_US_Q32: u64 = (GATE_TIMER_TICKS_PER_SEC << 32) / 1_000_000;
+
 /// Timer ticks until `deadline_us`, at least one, saturating at the 16-bit compare register: a
-/// deadline beyond it fires early and the app arms again.
+/// deadline beyond it fires early and the service arms again.
 fn ticks_until(deadline_us: u64, now_us: u64) -> u16 {
-    let us = deadline_us.saturating_sub(now_us);
-    (us.saturating_mul(GATE_TIMER_TICKS_PER_SEC) / 1_000_000).clamp(1, u16::MAX as u64) as u16
+    // Past the register's reach (about 127 ms) it saturates anyway; clamping first keeps the
+    // product in range.
+    let us = deadline_us.saturating_sub(now_us).min(1 << 20);
+    ((us * GATE_TIMER_TICKS_PER_US_Q32) >> 32).clamp(1, u16::MAX as u64) as u16
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_arm_at(deadline_us: u64) {
+/// Arm the output timer for `deadline_us` on the Embassy clock, replacing any armed deadline.
+pub(crate) fn output_timer_arm_at(deadline_us: u64) {
     critical_section::with(|_| {
         let ticks = ticks_until(deadline_us, embassy_time::Instant::now().as_micros());
         // `arm` stops the channel and clears its flag before loading the new compare value, so it
@@ -178,8 +183,8 @@ pub extern "C" fn deluge_midi_gate_timer_arm_at(deadline_us: u64) {
     });
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_gate_timer_cancel() {
+/// Disarm the output timer, if armed.
+pub(crate) fn output_timer_cancel() {
     critical_section::with(|_| {
         if let Some(timer) = GATE_TIMER.try_get() {
             timer.disarm();
@@ -191,8 +196,6 @@ pub extern "C" fn deluge_midi_gate_timer_cancel() {
 abi_pin!(
     deluge_battery_read_raw,
     deluge_battery_start_conversion,
-    deluge_midi_gate_timer_arm_at,
-    deluge_midi_gate_timer_cancel,
     deluge_signal_read,
     deluge_signal_write,
 );

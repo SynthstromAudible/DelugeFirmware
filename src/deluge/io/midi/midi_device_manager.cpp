@@ -29,8 +29,8 @@
 #include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "libdeluge/midi_io.h" // deluge_midi_init/_usb_port/_write/_write_space, deluge_midi_poll_usb_host_event
-#include "libdeluge/system.h"  // CriticalSectionGuard
+#include "libdeluge/midi_io.h"      // deluge_midi_init/_usb_port, deluge_midi_poll_usb_host_event
+#include "libdeluge/timed_output.h" // deluge_out_midi_at/_space
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/byte_channel.h"
@@ -846,19 +846,14 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 	    (uint8_t)(fullMessage >> 16),
 	    (uint8_t)(fullMessage >> 24),
 	};
-	// The MIDI/gate output timer's interrupt writes to this port too: keep this packet's bytes together
-	CriticalSectionGuard guard;
-	// Drop the whole packet if it won't fit, rather than send part of it
-	if (deluge_midi_write_space(port) < sizeof(bytes)) {
-		return;
-	}
-	deluge_midi_write(port, bytes, sizeof(bytes));
+	// Queued whole or not at all, at the stamp everything sent now goes out at
+	(void)deluge_out_midi_at(port, bytes, sizeof(bytes), midiEngine.outputStamp());
 }
 
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
 	// The boundary reports transport bytes (4 per event packet); callers reason
 	// in bytes of serial MIDI (3 per packet).
-	return (int)(deluge_midi_write_space(port) / 4 * 3);
+	return (int)(deluge_out_midi_space(port) / 4 * 3);
 }
 
 void ConnectedUSBMIDIDevice::setup() {

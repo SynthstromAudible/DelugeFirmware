@@ -37,6 +37,30 @@ static mut INPUT_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOC
 /// Total frames rendered: the host's stand-in for the device's DMA play head. "Now" is how much
 /// has been rendered.
 static CURSOR: AtomicU64 = AtomicU64::new(0);
+/// The host's write position on the play timeline: frames rendered, wrapped to 32 bits as stamps
+/// are. During a render it is the block's first frame.
+pub(crate) fn timeline_frame() -> u32 {
+    CURSOR.load(Ordering::Relaxed) as u32
+}
+
+/// The rate the host renders at, as the device does.
+const SAMPLE_RATE_HZ: u64 = 44_100;
+
+/// The Embassy clock, in µs, when the most recent render block began.
+static BLOCK_START_MICROS: AtomicU64 = AtomicU64::new(0);
+
+/// The host's play position on the timeline, for the output service: the most recent block's
+/// first frame plus the Embassy clock's time since that block began rendering, in frames. An
+/// event at offset `n` in a block plays `n` samples of clock time after the block began, as it
+/// would on the device.
+pub(crate) fn play_frame() -> u32 {
+    let elapsed_us = embassy_time::Instant::now()
+        .as_micros()
+        .saturating_sub(BLOCK_START_MICROS.load(Ordering::Relaxed));
+    let elapsed_frames = elapsed_us.saturating_mul(SAMPLE_RATE_HZ) / 1_000_000;
+    (BLOCK_START.load(Ordering::Relaxed) as u32).wrapping_add(elapsed_frames as u32)
+}
+
 /// [`CURSOR`] at the start of the most recent render block. With no separate write and play
 /// heads, it stands in for both of the device's block anchors.
 static BLOCK_START: AtomicU64 = AtomicU64::new(0);
@@ -506,6 +530,7 @@ fn f32_to_q31(s: f32) -> i32 {
 fn render_block(live: Option<&[[f32; 2]]>) {
     let block_start = CURSOR.load(Ordering::Relaxed);
     BLOCK_START.store(block_start, Ordering::Relaxed);
+    BLOCK_START_MICROS.store(embassy_time::Instant::now().as_micros(), Ordering::Relaxed);
     fill_input_block(block_start, live);
 
     // SAFETY: nothing else touches RENDER_BLOCK/INPUT_BLOCK during the render; both hold exactly
@@ -532,7 +557,7 @@ fn render_block(live: Option<&[[f32; 2]]>) {
     capture_block();
     // The output timer's interrupt, which the host has no hardware for (see host_link_stubs).
     #[cfg(feature = "host_app")]
-    crate::host_link_stubs::fire_midi_gate_timer_if_due();
+    crate::timed_output::host::fire();
 
     let n = DRIVE_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
     if render_mode() {
@@ -554,28 +579,6 @@ fn render_block(live: Option<&[[f32; 2]]>) {
     if n == 1 || n.is_multiple_of(LOG_EVERY) {
         log::info!("audio: rendered {n} blocks (last on thread {thread_name:?})");
     }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_frames_until_block_offset(
-    offset_frames: u32,
-    elapsed_frames_out: *mut u32,
-) -> u32 {
-    // "Now" is the render cursor and there is no ring to mask against: plain wrapping arithmetic.
-    // Host timing need only be sane, not sample-accurate.
-    let play_now = CURSOR.load(Ordering::Relaxed);
-    let block_start = BLOCK_START.load(Ordering::Relaxed);
-
-    if !elapsed_frames_out.is_null() {
-        // SAFETY: a non-null out param is writable, per the ABI contract.
-        unsafe {
-            *elapsed_frames_out = play_now.wrapping_sub(block_start) as u32;
-        }
-    }
-
-    block_start
-        .wrapping_add(offset_frames as u64)
-        .wrapping_sub(play_now) as u32
 }
 
 /// The host drive renders the same fixed block as the device.
@@ -600,7 +603,6 @@ abi_pin!(
     deluge_audio_await_block,
     deluge_audio_block_frames,
     deluge_audio_drive,
-    deluge_audio_frames_until_block_offset,
     deluge_audio_overruns,
     deluge_audio_queue_blocks,
 );
