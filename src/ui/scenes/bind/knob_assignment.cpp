@@ -29,7 +29,7 @@ KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus
 			return {.target = CompArm{setting->file_name}};
 		}
 	}
-	return {.target = write->address, .kind = write->kind};
+	return {.target = write->address, .plugin = ui::controls::owner_plugin_of(focus)};
 }
 
 } // namespace deluge::ui::scenes::bind

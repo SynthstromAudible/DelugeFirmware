@@ -31,7 +31,6 @@ describe chain_pages("the host chains' pages", ${
 		expect(*pages[2].slots[1].param).to_equal(hc::kTreble);
 		for (const auto& page : pages) {
 			expect(page.slots[1].press).to_equal(PressAction::NEXT_PAGE);
-			expect(page.slots[1].kind).to_equal(plugin::ParamKind::UNPATCHED_GLOBAL);
 		}
 		expect(*pages[1].slots[1].param).to_equal(hc::kHpfFrequency);
 	});
@@ -189,7 +188,7 @@ describe chain_pages("the host chains' pages", ${
 						}
 					}
 				}
-				expect(record.decorate(ctx, hc::kModFXOffset).kind).to_equal(plugin::ParamKind::UNPATCHED_GLOBAL);
+				expect(*record.decorate(ctx, hc::kModFXOffset).param).to_equal(hc::kModFXOffset);
 			}
 		}
 	});

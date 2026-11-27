@@ -544,7 +544,7 @@ std::optional<deluge::project::OwnerParamTarget> learn_target(const Node& node, 
 	}
 	// An arp param is named in the arp's space on any owner.
 	const deluge::project::ParamTarget param =
-	    node.bind.param.kind == deluge::plugin::ParamKind::ARP
+	    node.bind.param.table == deluge::ui::scenes::bind::ParamTable::ARP
 	        ? deluge::project::ParamTarget{.space = deluge::project::ParamSpace::ARP,
 	                                       .id = param_id_of(node.bind.param)}
 	        : deluge::project::engine_target(param_id_of(node.bind.param).value);

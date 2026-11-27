@@ -20,7 +20,7 @@
 /// @file
 /// @brief MIDI follow: which param a followed CC names on the clip the knobs point at, as an address.
 
-#include "plugin/types/param_kind.h"
+#include "plugin/types/param.h"
 #include "plugin/types/plugin_id.h"
 #include "project/owner_plugin.h"
 #include "project/param_address.h"
@@ -60,46 +60,37 @@ struct FollowTables {
 
 /// @brief The param MIDI follow names for a knob's param, in the plugin the context follows.
 ///
-/// A sound's context follows the patched, unpatched-sound and cable params, a global effectable's the unpatched-global
-/// ones; a MIDI CC, an expression axis and an arp param follow in either. A cable's depth id is in no plugin's table;
-/// every other engine id must be in its owner's.
+/// A MIDI CC, an expression axis and an arp param follow in either context; an engine param follows only in its own
+/// plugin's context: a sound's patched, unpatched and cable params in a sound's, the chain's params in a global
+/// effectable's. A cable's depth id is in no plugin's table; every other engine id must be in its owner's.
 ///
 /// @tparam InTable Callable `bool(plugin::PluginId, plugin::ParamId)`: whether the plugin's table has the param.
-/// @param owner    Whose params the context follows.
-/// @param kind     The kind of the param the knob turned.
-/// @param id       The param's id: a MIDI CC number, an expression axis, or the owner plugin's id.
+/// @param followed Whose params the context follows.
+/// @param turned   The param the knob turned, in its plugin.
 /// @param in_table The plugin table's membership test.
-/// @return The followed target, or nullopt for a param of the other owner's plugin, a kind with no follow (none,
-///         static, or not a kind), or an id its owner's table lacks.
+/// @return The followed target, or nullopt for a param of the other owner's plugin or an id its owner's table lacks.
 // TODO(c++26): take std::function_ref<bool(plugin::PluginId, plugin::ParamId)> once the device's libstdc++ provides it
 // (arm-none-eabi GCC 16; 15.2.1 does not).
 template <class InTable>
-[[nodiscard]] std::optional<project::ParamTarget> follow_target(project::OwnerPlugin owner, plugin::ParamKind kind,
-                                                                plugin::ParamId id, const InTable& in_table) {
-	switch (kind) {
-	case plugin::ParamKind::MIDI:
-		return project::ParamTarget{.space = project::ParamSpace::MIDI_CC, .id = id};
-	case plugin::ParamKind::EXPRESSION:
-		return project::ParamTarget{.space = project::ParamSpace::EXPRESSION, .id = id};
-	case plugin::ParamKind::ARP:
-		return project::ParamTarget{.space = project::ParamSpace::ARP, .id = id};
-	case plugin::ParamKind::PATCH_CABLE:
-		return owner == project::OwnerPlugin::INSTRUMENT ? std::optional{project::engine_target(id.value)}
-		                                                 : std::nullopt;
-	case plugin::ParamKind::PATCHED:
-	case plugin::ParamKind::UNPATCHED_SOUND:
-		return owner == project::OwnerPlugin::INSTRUMENT && in_table(plugin::kDelugeInstrument, id)
-		           ? std::optional{project::engine_target(id.value)}
-		           : std::nullopt;
-	case plugin::ParamKind::UNPATCHED_GLOBAL:
-		return owner == project::OwnerPlugin::GLOBAL_EFFECTABLE && in_table(plugin::kGlobalEffectable, id)
-		           ? std::optional{project::engine_target(id.value)}
-		           : std::nullopt;
-	case plugin::ParamKind::NONE:
-	case plugin::ParamKind::STATIC:
+[[nodiscard]] std::optional<project::ParamTarget>
+follow_target(project::OwnerPlugin followed, const project::PluginParam& turned, const InTable& in_table) {
+	switch (turned.target.space) {
+	case project::ParamSpace::MIDI_CC:
+	case project::ParamSpace::EXPRESSION:
+	case project::ParamSpace::ARP:
+		return turned.target;
+	case project::ParamSpace::ENGINE:
 		break;
 	}
-	return std::nullopt; // a kind with no follow, or a value that is no kind
+	if (turned.plugin != followed) {
+		return std::nullopt;
+	}
+	if (followed == project::OwnerPlugin::INSTRUMENT && (turned.target.id.value & plugin::kCableDepthFlag) != 0) {
+		return turned.target;
+	}
+	const plugin::PluginId table =
+	    followed == project::OwnerPlugin::INSTRUMENT ? plugin::kDelugeInstrument : plugin::kGlobalEffectable;
+	return in_table(table, turned.target.id) ? std::optional{turned.target} : std::nullopt;
 }
 
 } // namespace deluge::ui::controls

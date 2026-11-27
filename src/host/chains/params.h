@@ -162,4 +162,20 @@ inline constexpr plugin::ParamBlock kParamBlock{plugin::ParamId{kFirstId}, 27};
 
 static_assert(kParams.size() == kParamBlock.count);
 
+/// @brief Does the chain's param @p id swing both ways around a middle value: is its row flagged
+/// @c ParamFlag::CENTRED?
+/// @param id A param id of the host chain.
+/// @return True for a bipolar param.
+[[nodiscard]] constexpr bool is_bipolar(plugin::ParamId id) {
+	const plugin::ParamInfo* row = plugin::find_param(kParams, id);
+	return row != nullptr && row->flags.has(plugin::ParamFlag::CENTRED);
+}
+
+/// @brief Is the chain's param @p id the stutter rate?
+/// @param id A param id of the host chain.
+/// @return True for the chain's stutter rate.
+[[nodiscard]] constexpr bool is_stutter_rate(plugin::ParamId id) {
+	return id == param::kStutterRate;
+}
+
 } // namespace deluge::host::chains

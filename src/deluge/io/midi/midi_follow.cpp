@@ -1503,8 +1503,8 @@ void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 			paramNameSound = params::paramNameForFile(params::Kind::PATCHED, sound->index, true);
 			writeTag = true;
 		}
-		else if (sound && sound->kind == params::Kind::ARP) {
-			paramNameSound = deluge::arp::kParams[sound->index].info.file_name.data();
+		else if (sound && ccToSoundTarget[ccNumber]->space == deluge::project::ParamSpace::ARP) {
+			paramNameSound = deluge::arp::row(ccToSoundTarget[ccNumber]->id).info.file_name.data();
 			writeTag = true;
 		}
 		else if (sound) {
@@ -1519,8 +1519,8 @@ void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 		}
 		else {
 			if (global) {
-				paramNameGlobal = global->kind == params::Kind::ARP
-				                      ? deluge::arp::kParams[global->index].info.file_name.data()
+				paramNameGlobal = ccToGlobalTarget[ccNumber]->space == deluge::project::ParamSpace::ARP
+				                      ? deluge::arp::row(ccToGlobalTarget[ccNumber]->id).info.file_name.data()
 				                      : params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
 				                                                 params::UNPATCHED_START + global->index, true);
 				// Reaching here means no sound param claimed this CC (paramNameSound is still null), so the global

@@ -96,12 +96,11 @@ inline constexpr Node sidechain_sync = with_affect_entire(
 // (`UpdatingReverbParams::writeCurrentValue` in
 // `origin/main:src/deluge/gui/menu_item/unpatched_param/updating_reverb_params.h`), which SetParamValue raises for the
 // param.
-inline constexpr Node sidechain_shape = with_column_name(
-    param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
-          {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kCompressorShape)},
-          Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)),
-    sid(deluge::l10n::String::STRING_FOR_SHAPE_SHORT));
+inline constexpr Node sidechain_shape =
+    with_column_name(param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
+                           sound_param(deluge::instruments::classic::param::kCompressorShape), Hint::Knob, nullptr,
+                           sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)),
+                     sid(deluge::l10n::String::STRING_FOR_SHAPE_SHORT));
 inline constexpr Node sidechain_send =
     with_affect_entire(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECHAIN), Kind::Int,
                                                {.kind = deluge::ui::scenes::bind::Target::Kind::MODEL,

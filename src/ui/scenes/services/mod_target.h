@@ -3,7 +3,7 @@
 /// @file
 /// @brief The plain results `ModKnobs` computes for a gold-knob turn and a knob's indicator, over the knobs' focus.
 
-#include "plugin/types/param_kind.h"
+#include "project/owner_plugin.h"
 #include "ui/scenes/bind/knob_focus.h"
 
 #include <cstdint>
@@ -20,10 +20,8 @@ bool is_clip_context(const bind::KnobFocus& focus);
 ///        indicator blink, the repaint) -- `View::modEncoderAction_existentParam`
 ///        (`origin/main:src/deluge/gui/views/view.cpp`).
 struct ModTurn {
-	/// The param's kind, as the popup and MIDI follow name it.
-	deluge::plugin::ParamKind kind = deluge::plugin::ParamKind::NONE;
-	/// The param's id in its kind's numbering (a cable's packed word, a CC number).
-	int32_t param_id = 0;
+	/// The param the knob turned, in its plugin, as the popup and MIDI follow name it.
+	deluge::project::PluginParam param{};
 	/// The knob position before the turn.
 	int32_t old_knob_pos = 0;
 	/// The position after it -- what the popup shows, and what was written where it differs.
@@ -51,10 +49,8 @@ struct ModTurn {
 struct ModIndicatorInfo {
 	/// The knob names a param (or a MIDI lane, shown at 0 until it is made).
 	bool has_auto_param = false;
-	/// The param's kind.
-	deluge::plugin::ParamKind kind = deluge::plugin::ParamKind::NONE;
-	/// The param's id in its kind's numbering.
-	int32_t param_id = 0;
+	/// The param, in its plugin.
+	deluge::project::PluginParam param{};
 	/// The value's knob position, at the held region or the playhead.
 	int32_t knob_pos = 0;
 	/// The param is bipolar.

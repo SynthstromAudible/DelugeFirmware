@@ -13,25 +13,25 @@ namespace params = deluge::modulation::params;
 // clang-format off
 
 // A three-node fake tree: root -> {child_a, child_b}, in declaration order.
-constexpr Node node_id_spec_child_a = param(101, ParamRef{params::Kind::PATCHED, 1}, Hint::Knob);
-constexpr Node node_id_spec_child_b = param(102, ParamRef{params::Kind::PATCHED, 2}, Hint::Knob);
+constexpr Node node_id_spec_child_a = param(101, sound_param(deluge::plugin::ParamId{1}), Hint::Knob);
+constexpr Node node_id_spec_child_b = param(102, sound_param(deluge::plugin::ParamId{2}), Hint::Knob);
 constexpr const Node* node_id_spec_kids[] = {&node_id_spec_child_a, &node_id_spec_child_b};
 constexpr Node node_id_spec_root = submenu(100, node_id_spec_kids);
 constexpr const Node* node_id_spec_roots[] = {&node_id_spec_root};
 
 // A node that is never passed to assign_node_ids -- stays unassigned throughout.
-constexpr Node node_id_spec_stray = param(999, ParamRef{params::Kind::PATCHED, 9}, Hint::Knob);
+constexpr Node node_id_spec_stray = param(999, sound_param(deluge::plugin::ParamId{9}), Hint::Knob);
 
 // The chain-target walk. `chain_only` is named by NO children span -- the shape legacy's
 // `arpOctaveModeToNoteModeMenu` and `cvSubmenu` have -- so the only edge that reaches it is
 // `chain_root`'s `chain_targets`. The hook is never called by this walk (a walk cannot supply a
 // live MenuContext), which is exactly why the static span has to exist beside it.
-constexpr Node node_id_spec_chain_only = param(201, ParamRef{params::Kind::PATCHED, 3}, Hint::Knob);
+constexpr Node node_id_spec_chain_only = param(201, sound_param(deluge::plugin::ParamId{3}), Hint::Knob);
 constexpr const Node* node_id_spec_chain_targets[] = {&node_id_spec_chain_only};
 const Node* node_id_spec_chain_fn(const MenuContext&, const MenuState&) {
 	return &node_id_spec_chain_only;
 }
-constexpr Node node_id_spec_chain_leaf = with_select_chain(param(200, ParamRef{params::Kind::PATCHED, 4}, Hint::Knob),
+constexpr Node node_id_spec_chain_leaf = with_select_chain(param(200, sound_param(deluge::plugin::ParamId{4}), Hint::Knob),
                                                            node_id_spec_chain_fn, node_id_spec_chain_targets);
 constexpr const Node* node_id_spec_chain_kids[] = {&node_id_spec_chain_leaf};
 constexpr Node node_id_spec_chain_root = submenu(202, node_id_spec_chain_kids);
@@ -73,7 +73,7 @@ describe scenes_node_id("scenes::menu node-id registry", $ {
 		static Node chain[kMaxNodes + 2]{};
 		static const Node* kid[kMaxNodes + 2][1]{};
 		for (size_t i = 0; i < kMaxNodes + 2; i++) {
-			chain[i] = param(uint16_t(3000 + i), ParamRef{params::Kind::PATCHED, 0}, Hint::Knob);
+			chain[i] = param(uint16_t(3000 + i), sound_param(deluge::plugin::ParamId{0}), Hint::Knob);
 		}
 		for (size_t i = 0; i + 1 < kMaxNodes + 2; i++) {
 			kid[i][0] = &chain[i + 1];
@@ -100,8 +100,8 @@ describe scenes_node_id("scenes::menu node-id registry", $ {
 		// `chain_targets` can loop where `children` cannot: two leaves may name each other. Nothing
 		// in the shipped tree does, so this is the only place the walk's cycle handling is
 		// exercised at all. Built at runtime -- a `constexpr` pair cannot refer to each other.
-		static Node a = param(300, ParamRef{params::Kind::PATCHED, 5}, Hint::Knob);
-		static Node b = param(301, ParamRef{params::Kind::PATCHED, 6}, Hint::Knob);
+		static Node a = param(300, sound_param(deluge::plugin::ParamId{5}), Hint::Knob);
+		static Node b = param(301, sound_param(deluge::plugin::ParamId{6}), Hint::Knob);
 		static const Node* a_targets[] = {&b};
 		static const Node* b_targets[] = {&a};
 		a.select_chain = node_id_spec_chain_fn;

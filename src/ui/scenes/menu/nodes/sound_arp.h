@@ -222,12 +222,11 @@ inline constexpr Node arp_sync = with_affect_entire(with_title(
     sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE)));
 /// Not on a MIDI or gate drum row or a kit's own effects (`arpeggiator::Rate::isRelevant`), which the kit's own
 /// shortcut table names it on.
-inline constexpr Node arp_rate = with_relevant(
-    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
-                           {deluge::plugin::ParamKind::PATCHED,
-                            deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kArpRate)},
-                           Hint::Knob, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE))),
-    relevance::not_non_audio_drum_or_kit_fx);
+inline constexpr Node arp_rate =
+    with_relevant(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
+                                         sound_param(deluge::instruments::classic::param::kArpRate), Hint::Knob,
+                                         ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE))),
+                  relevance::not_non_audio_drum_or_kit_fx);
 
 inline constexpr const Node* kArpBasicChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_rate};
 inline constexpr Node arp_basic =

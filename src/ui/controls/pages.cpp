@@ -177,23 +177,22 @@ Page midi_page(const project::Song& song, const MidiFocus& focus, uint8_t mode, 
 			continue;
 		}
 		const project::ModKnobCc& cc = output->mod_knob_ccs[at];
-		const auto in = [&slot](ParamSpace space, uint32_t id, plugin::ParamKind kind) {
+		const auto in = [&slot](ParamSpace space, uint32_t id) {
 			slot.target = project::ParamTarget{.space = space, .id = {id}};
-			slot.kind = kind;
 		};
 		switch (cc.kind) {
 		case project::ModKnobCc::Kind::BEND:
-			in(ParamSpace::EXPRESSION, 0, plugin::ParamKind::EXPRESSION);
+			in(ParamSpace::EXPRESSION, 0);
 			break;
 		case project::ModKnobCc::Kind::AFTERTOUCH:
-			in(ParamSpace::EXPRESSION, 2, plugin::ParamKind::EXPRESSION);
+			in(ParamSpace::EXPRESSION, 2);
 			break;
 		case project::ModKnobCc::Kind::NUMBER:
 			if (cc.number == project::ModKnobCc::kYAxisNumber) {
-				in(ParamSpace::EXPRESSION, 1, plugin::ParamKind::EXPRESSION);
+				in(ParamSpace::EXPRESSION, 1);
 			}
 			else if (cc.number < project::ModKnobCc::kYAxisNumber) {
-				in(ParamSpace::MIDI_CC, cc.number, plugin::ParamKind::MIDI);
+				in(ParamSpace::MIDI_CC, cc.number);
 			}
 			break;
 		case project::ModKnobCc::Kind::NONE:

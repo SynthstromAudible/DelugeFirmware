@@ -499,6 +499,29 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	return id && is_stutter_rate(kind, *id);
 }
 
+/// @brief Is the param @p id one of the sound's patched params: the ones a cable reaches and a source pad patches?
+/// @param id A param id of the instrument.
+/// @return True for an id of the patched block.
+[[nodiscard]] constexpr bool is_patched(plugin::ParamId id) {
+	return kParamBlocks[0].contains(id);
+}
+
+/// @brief Does the instrument's param @p id swing both ways around a middle value: is its row flagged
+/// @c ParamFlag::CENTRED? A cable's depth is no row; its owner asks @c is_cable_depth first.
+/// @param id A param id of the instrument.
+/// @return True for a bipolar param.
+[[nodiscard]] constexpr bool is_bipolar(plugin::ParamId id) {
+	const plugin::ParamInfo* row = plugin::find_param(kParams, id);
+	return row != nullptr && row->flags.has(plugin::ParamFlag::CENTRED);
+}
+
+/// @brief Is the instrument's param @p id the stutter rate?
+/// @param id A param id of the instrument.
+/// @return True for the sound's stutter rate.
+[[nodiscard]] constexpr bool is_stutter_rate(plugin::ParamId id) {
+	return kParamBlocks[1].contains(id) && id == host::chains::param::kStutterRate;
+}
+
 /// @brief Whether a plugin's param table has the param @p id: the global effectable's host-chain table for it, the
 /// instrument's table for any other plugin.
 /// @param plugin The plugin whose params are asked.

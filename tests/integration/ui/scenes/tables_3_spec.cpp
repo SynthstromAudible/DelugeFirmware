@@ -397,9 +397,11 @@ bool reachable_by_children(const Node* target) {
 bool raises_reverb(const Node& node) {
 	namespace params = deluge::modulation::params;
 	const auto& p = node.bind.param;
-	return ((p.kind == params::Kind::UNPATCHED_SOUND || p.kind == params::Kind::UNPATCHED_GLOBAL)
-	        && p.index == params::UNPATCHED_SIDECHAIN_SHAPE)
-	       || (p.kind == params::Kind::UNPATCHED_GLOBAL && p.index == params::UNPATCHED_SIDECHAIN_VOLUME);
+	return ((deluge::ui::scenes::spec::runtime_of(p).kind == params::Kind::UNPATCHED_SOUND
+	         || deluge::ui::scenes::spec::runtime_of(p).kind == params::Kind::UNPATCHED_GLOBAL)
+	        && deluge::ui::scenes::spec::runtime_of(p).index == params::UNPATCHED_SIDECHAIN_SHAPE)
+	       || (deluge::ui::scenes::spec::runtime_of(p).kind == params::Kind::UNPATCHED_GLOBAL
+	           && deluge::ui::scenes::spec::runtime_of(p).index == params::UNPATCHED_SIDECHAIN_VOLUME);
 }
 
 } // namespace
@@ -620,21 +622,22 @@ describe tables_3_shape("scenes::menu settings and other roots tables: shape", $
 			}
 			std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
 			const std::optional<int32_t> kind = spec::int_of(table().find(e.path, "param_kind"));
-			if (e.node->bind.param.kind == deluge::plugin::ParamKind::ARP && index) {
+			const auto runtime = spec::runtime_of(e.node->bind.param);
+			if (runtime.kind == deluge::plugin::ParamKind::ARP && index) {
 				// An arp param: main's row names it in an unpatched set
 				index = arp_id_of_main_index(kind ? std::to_string(*kind) : std::string{}, *index);
 				expect(at + " is an arp param in main").to_equal(at + (index ? " is an arp param in main" : " is not"));
-				expect(at + " index " + std::to_string(e.node->bind.param.index))
+				expect(at + " index " + std::to_string(runtime.index))
 				    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
 				continue;
 			}
 			// An unpatched index past main's arp block sits 15 lower here (16 past a chain's arp rate).
-			const bool unpatched_kind = e.node->bind.param.kind == deluge::plugin::ParamKind::UNPATCHED_SOUND
-			                            || e.node->bind.param.kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL;
+			const bool unpatched_kind = runtime.kind == deluge::plugin::ParamKind::UNPATCHED_SOUND
+			                            || runtime.kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL;
 			if (index && unpatched_kind && *index >= 26) {
 				index = *index > 30 ? *index - 16 : *index - 15;
 			}
-			expect(at + " index " + std::to_string(e.node->bind.param.index))
+			expect(at + " index " + std::to_string(runtime.index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
 			if (!kind || *kind == static_cast<int32_t>(deluge::modulation::params::Kind::NONE)) {
 				continue;
@@ -642,7 +645,7 @@ describe tables_3_shape("scenes::menu settings and other roots tables: shape", $
 			const auto want = static_cast<deluge::modulation::params::Kind>(*kind);
 			const bool unpatched = want == deluge::modulation::params::Kind::UNPATCHED_SOUND
 			                       || want == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-			const auto got = e.node->bind.param.kind;
+			const auto got = spec::runtime_of(e.node->bind.param).kind;
 			if (unpatched) {
 				expect(got).to_satisfy([](auto kind) {
 					using deluge::modulation::params::Kind;
@@ -838,7 +841,7 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 
 		install(midi->ctx, midi->song);
 		static constexpr Node kPatchedProbe =
-		    menu::param(1, {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ});
+		    menu::param(1, deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{static_cast<uint32_t>(deluge::modulation::params::LOCAL_LPF_FREQ)}));
 		expect(menu::bindings::read(kPatchedProbe, midi->ctx)).to_equal(0);
 		menu::bindings::write(kPatchedProbe, midi->ctx, 42);
 		expect(menu::bindings::read(kPatchedProbe, midi->ctx)).to_equal(0);

@@ -34,6 +34,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
+#include "model/project_bridge/param_ids.h"
 #include "ui/scenes/services/knob_presentation.h"
 #include "ui/scenes/services/mod_knobs.h"
 #include "util/functions.h"
@@ -52,18 +53,26 @@ using deluge::ui::scenes::services::ModTurn;
 /// @brief The gold knobs as the root views show them: the legacy display, `indicator_leds` and `View`, each method
 ///        the `View` code it stands for.
 class RootKnobPresentation final : public KnobPresentation {
+	/// @brief The turned param as the performance view and `View`'s popup number it.
+	static deluge::bridge::RuntimeParam runtime_of(const ModTurn& turn) {
+		return deluge::bridge::runtimeParamOf(turn.param.plugin, turn.param.target)
+		    .value_or(deluge::bridge::RuntimeParam{});
+	}
+
 public:
 	/// @brief Performance view showing this param itself (which draws its display here), or a song load in flight
 	///        (main's `View::modEncoderAction_existentParam`, `origin/main:src/deluge/gui/views/view.cpp`).
 	bool suppress_value_popup(const ModTurn& turn) override {
+		const deluge::bridge::RuntimeParam runtime = runtime_of(turn);
 		const bool performance_shows_it =
 		    getRootUI() == &performanceView
-		    && performanceView.possiblyRefreshPerformanceViewDisplay(turn.kind, turn.param_id, turn.new_knob_pos);
+		    && performanceView.possiblyRefreshPerformanceViewDisplay(runtime.kind, runtime.index, turn.new_knob_pos);
 		return performance_shows_it || loadSongUI.isLoadingSong();
 	}
 	void show_value_popup(const ModTurn& turn, PatchSource source1, PatchSource source2,
 	                      const deluge::ui::scenes::overlay::PopupContext& /*context*/, uint32_t /*now_ms*/) override {
-		view.displayModEncoderValuePopup(turn.kind, turn.param_id, turn.new_knob_pos, source1, source2);
+		const deluge::bridge::RuntimeParam runtime = runtime_of(turn);
+		view.displayModEncoderValuePopup(runtime.kind, runtime.index, turn.new_knob_pos, source1, source2);
 	}
 	void value_written() override { view.refreshKnobParamManager(); }
 	void blink_indicator(int32_t knob, bool bipolar) override { indicator_leds::blinkKnobIndicator(knob, bipolar); }

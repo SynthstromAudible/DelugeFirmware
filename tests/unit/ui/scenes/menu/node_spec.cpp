@@ -19,10 +19,10 @@ namespace params = deluge::modulation::params;
 
 // `param()` -- a ParamRef-bound item builder: `title` defaults to `name`, `kind` is always
 // `Kind::Int` (the generic ParamRef-bound number editor), and `hint` is carried through as-is.
-constexpr Node node_spec_a = param(1, ParamRef{params::Kind::PATCHED, 5}, Hint::Lpf);
+constexpr Node node_spec_a = param(1, sound_param(deluge::plugin::ParamId{5}), Hint::Lpf);
 static_assert(node_spec_a.kind == Kind::Int);
-static_assert(node_spec_a.bind.param.index == 5);
-static_assert(node_spec_a.bind.param.kind == params::Kind::PATCHED);
+static_assert(param_id_of(node_spec_a.bind.param).value == 5);
+static_assert(is_patched(node_spec_a.bind.param));
 static_assert(node_spec_a.title == 1);
 static_assert(node_spec_a.hint == deluge::ui::widgets::oled::Hint::Lpf);
 
@@ -41,18 +41,18 @@ static_assert(std::is_same_v<IntRange, deluge::ui::widgets::oled::Range>);
 // names one of the two legacy exceptions. Only `param()` takes it -- a `get`/`set` binding owns its
 // own units, so nothing scales it.
 static_assert(node_spec_a.bind.scaling == Scaling::Standard);
-constexpr Node node_spec_half = param(27, ParamRef{params::Kind::PATCHED, 20}, Hint::Knob, nullptr, /*title=*/0,
+constexpr Node node_spec_half = param(27, sound_param(deluge::plugin::ParamId{20}), Hint::Knob, nullptr, /*title=*/0,
                                       Scaling::HalfPrecision);
 static_assert(node_spec_half.bind.scaling == Scaling::HalfPrecision);
 static_assert(node_spec_half.name == 27 && node_spec_half.title == 27 && node_spec_half.kind == Kind::Int);
 
 // A title override flows through unchanged; where the node shows is its target's, never a hook.
-constexpr Node node_spec_titled = param(3, ParamRef{params::Kind::UNPATCHED_SOUND, 7}, Hint::Knob, nullptr, /*title=*/9);
+constexpr Node node_spec_titled = param(3, sound_param(deluge::instruments::classic::param_id({deluge::instruments::classic::RuntimeSet::UNPATCHED, static_cast<uint8_t>(7)})), Hint::Knob, nullptr, /*title=*/9);
 static_assert(node_spec_titled.title == 9);
 static_assert(node_spec_titled.relevant == nullptr && node_spec_titled.bind.target.valid());
 // A sound's param names its id in a sound's table, a global effectable's in a chain's.
 static_assert(node_spec_titled.bind.target.param_table == deluge::ui::scenes::bind::ParamTable::SOUND);
-static_assert(param(4, ParamRef{params::Kind::UNPATCHED_GLOBAL, 7}).bind.target.param_table
+static_assert(param(4, chain_param(deluge::plugin::ParamId{deluge::host::chains::kParamBlock.first.value + static_cast<uint32_t>(7)})).bind.target.param_table
               == deluge::ui::scenes::bind::ParamTable::CHAIN);
 
 // `int_item()`/`decimal_item()` carry a literal range through `bind.fixed_range` (see node.h's
@@ -107,10 +107,10 @@ static_assert(node_spec_dyn_submenu.dynamic_children == node_spec_children_fn);
 // `with_range_dependent()` -- the post-hoc modifier that marks the handful of items whose value
 // lives in a MultiRange rather than on the Sound. It changes exactly one
 // field and leaves the builder's own output otherwise untouched.
-constexpr Node node_spec_range_dep = with_range_dependent(param(26, ParamRef{params::Kind::PATCHED, 4}, Hint::Knob));
+constexpr Node node_spec_range_dep = with_range_dependent(param(26, sound_param(deluge::plugin::ParamId{4}), Hint::Knob));
 static_assert(node_spec_range_dep.range_dependent);
 static_assert(node_spec_range_dep.name == 26 && node_spec_range_dep.kind == Kind::Int);
-static_assert(node_spec_range_dep.bind.param.index == 4);
+static_assert(param_id_of(node_spec_range_dep.bind.param).value == 4);
 static_assert(!node_spec_a.range_dependent); // every builder leaves it false by default
 
 namespace {

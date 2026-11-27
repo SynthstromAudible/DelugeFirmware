@@ -82,12 +82,12 @@ describe instrument_pages("the Deluge instrument's pages", ${
 	it("holds the stutter from the stutter rate", _{
 		expect(instruments::classic::slot_for(ip::kStutterRate, {}).press).to_equal(plugin::PressAction::HOLD_STUTTER);
 	});
-	it("kinds a cable's depth, a patched param and an unpatched one apart", _{
+	it("names a cable's depth, a patched param and an unpatched one by their ids", _{
 		const auto depth = instruments::classic::cable_depth_id(instruments::classic::PatchSource::SIDECHAIN, ip::kVolumePostReverbSend);
-		expect(instruments::classic::slot_for(*depth, {}).kind).to_equal(plugin::ParamKind::PATCH_CABLE);
+		expect(*instruments::classic::slot_for(*depth, {}).param).to_equal(*depth);
 		expect(instruments::classic::slot_for(*depth, {}).press).to_equal(plugin::PressAction::STEP_SETTING);
-		expect(instruments::classic::slot_for(ip::kPan, {}).kind).to_equal(plugin::ParamKind::PATCHED);
-		expect(instruments::classic::slot_for(ip::kBitcrushAmount, {}).kind).to_equal(plugin::ParamKind::UNPATCHED_SOUND);
+		expect(*instruments::classic::slot_for(ip::kPan, {}).param).to_equal(ip::kPan);
+		expect(*instruments::classic::slot_for(ip::kBitcrushAmount, {}).param).to_equal(ip::kBitcrushAmount);
 	});
 	it("pins every default knob: the lower and upper param of each mod button", _{
 		const auto sidechain = *instruments::classic::cable_depth_id(instruments::classic::PatchSource::SIDECHAIN, ip::kVolumePostReverbSend);

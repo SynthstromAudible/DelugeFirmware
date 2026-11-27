@@ -39,6 +39,7 @@
 #include "ui/scenes/recorder/recorder_scene.h" // on_resume: a refused recorder push
 
 #include "base/notify/notice_queue.h"
+#include "instruments/classic/cables.h"
 #include "ui/shell/input_lowering.h" // claim_covers -- MenuScene::owns
 
 #include "base/notify/dirty_set.h"
@@ -997,8 +998,8 @@ Result MenuScene::after_render_navigation() {
 				// `PatchedParam::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`) records
 				// the param it patches. The source page reads it from the level above it, which here is the page, not
 				// the column.
-				if (column->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
-					st_.walk.patching_param = column->bind.param.index;
+				if (is_patched(column->bind.param)) {
+					st_.walk.patching_param = patched_byte(column->bind.param);
 				}
 				walk_.enter_child(core(), visit_.session, *chained);
 			}
@@ -1363,13 +1364,19 @@ std::optional<AutomationParam> automation_param(const Node& item, const MenuCont
 		if (!item.custom->is_automation_item()) {
 			return std::nullopt;
 		}
-		return AutomationParam{.kind = deluge::plugin::ParamKind::PATCH_CABLE,
-		                       .id = static_cast<int32_t>(item.custom->learn_descriptor(ctx, state).word)};
+		// A cable strength item's descriptor always carries its source, so its word is a cable's depth.
+		const deluge::plugin::ParamId depth =
+		    deluge::instruments::classic::cable_depth_of_word(item.custom->learn_descriptor(ctx, state).word);
+		return AutomationParam{.plugin = deluge::project::OwnerPlugin::INSTRUMENT,
+		                       .target = deluge::project::engine_target(depth.value)};
 	}
 	if (!item.bind.param.valid()) {
 		return std::nullopt;
 	}
-	return AutomationParam{.kind = item.bind.param.kind, .id = item.bind.param.index};
+	return AutomationParam{.plugin = item.bind.param.table == deluge::ui::scenes::bind::ParamTable::CHAIN
+	                                     ? deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE
+	                                     : deluge::project::OwnerPlugin::INSTRUMENT,
+	                       .target = deluge::project::engine_target(param_id_of(item.bind.param).value)};
 }
 
 std::optional<deluge::project::ParamAddress> automation_address(const Node& item, const MenuContext& ctx,

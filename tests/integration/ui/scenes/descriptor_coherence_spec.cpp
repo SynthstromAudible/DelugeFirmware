@@ -780,9 +780,10 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			if (!ref.valid() || node->bind.get != nullptr || node->bind.set != nullptr) {
 				continue;
 			}
-			const deluge::plugin::ParamId id = deluge::bridge::paramIdOf(ref.kind, ref.index);
-			const bool global = ref.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-			const bool arp = ref.kind == deluge::modulation::params::Kind::ARP;
+			const auto runtime = deluge::ui::scenes::spec::runtime_of(ref);
+			const deluge::plugin::ParamId id = deluge::bridge::paramIdOf(runtime.kind, runtime.index);
+			const bool global = runtime.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+			const bool arp = runtime.kind == deluge::modulation::params::Kind::ARP;
 			const std::span<const deluge::plugin::ParamInfo> table =
 			    arp      ? std::span<const deluge::plugin::ParamInfo>{deluge::arp::kParamInfos}
 			    : global ? std::span<const deluge::plugin::ParamInfo>{deluge::host::chains::kParams}

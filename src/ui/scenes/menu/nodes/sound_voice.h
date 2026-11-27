@@ -110,14 +110,11 @@ inline constexpr Node polyphony = with_affect_entire(
                          setting_item(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), Kind::Enum, kPolyphonic),
                          polyphony_chain, kPolyphonyChain)),
                      sid(deluge::l10n::String::STRING_FOR_POLYPHONY_SHORT)));
-inline constexpr Node portamento = with_column_draw(
-    with_column_name(
-        param(sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
-              {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-               deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kPortamento)},
-              Hint::None),
-        sid(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT)),
-    glide_draw);
+inline constexpr Node portamento =
+    with_column_draw(with_column_name(param(sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
+                                            sound_param(deluge::instruments::classic::param::kPortamento), Hint::None),
+                                      sid(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT)),
+                     glide_draw);
 
 inline constexpr const Node* kVoiceChildren[] = {&voice_priority, &polyphony, &voice_count, &portamento, &unison};
 inline constexpr Node voice =

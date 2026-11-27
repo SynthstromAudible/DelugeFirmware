@@ -6,7 +6,7 @@
 # The app supplies what it cannot see: the sink that applies Edits (WriteSink) and the ports
 # (ports/), one interface per domain.
 
-add_library(deluge_ui_scenes_bind STATIC dispatch.cpp slot_reader.cpp chain_reader.cpp model_reader.cpp device_reader.cpp setting_context.cpp knob_assignment.cpp page_sources.cpp
+add_library(deluge_ui_scenes_bind STATIC dispatch.cpp param_facts.cpp slot_reader.cpp chain_reader.cpp model_reader.cpp device_reader.cpp setting_context.cpp knob_assignment.cpp page_sources.cpp
                                       ports/param_info.cpp ports/device_settings.cpp)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../../cmake/optimise_for_size.cmake)
 deluge_optimise_target_for_size(deluge_ui_scenes_bind)

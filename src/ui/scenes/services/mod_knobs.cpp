@@ -32,6 +32,7 @@
 #include "ui/scenes/bind/device_reader.h"
 #include "ui/scenes/bind/knob_assignment.h"
 #include "ui/scenes/bind/page_sources.h"
+#include "ui/scenes/bind/param_facts.h"
 #include "ui/scenes/bind/ports/ports.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -53,7 +54,6 @@
 
 namespace deluge::ui::scenes::services {
 
-using Kind = deluge::plugin::ParamKind;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
 using deluge::ui::scenes::bind::port_of;
@@ -69,39 +69,6 @@ namespace {
 /// `mod0`/`mod1`).
 EncoderRole role_of(int32_t which_encoder) {
 	return which_encoder == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper;
-}
-
-/// @brief The descriptor of the param @p assignment names, from its owner's engine table; null for a cable, a MIDI
-///        CC or an expression dimension.
-const deluge::plugin::ParamInfo* info_of(const ParamAddress& address, Kind kind) {
-	if (address.space != ParamSpace::ENGINE || deluge::instruments::classic::is_cable_depth(address.id)) {
-		return nullptr;
-	}
-	return kind == Kind::UNPATCHED_GLOBAL
-	           ? deluge::plugin::find_param(deluge::host::chains::kParams, address.id)
-	           : deluge::plugin::find_param(deluge::instruments::classic::kParams, address.id);
-}
-
-/// @brief The param @p address names as the engine's collections number it, for the popup, the menu's same-param
-///        test and MIDI follow.
-int32_t legacy_id(const ParamAddress& address, Kind kind) {
-	switch (address.space) {
-	case ParamSpace::MIDI_CC:
-	case ParamSpace::EXPRESSION:
-	case ParamSpace::ARP:
-		return static_cast<int32_t>(address.id.value);
-	case ParamSpace::ENGINE:
-		break;
-	}
-	if (deluge::instruments::classic::is_cable_depth(address.id)) {
-		return static_cast<int32_t>(deluge::instruments::classic::cable_word_of(address.id));
-	}
-	if (kind == Kind::UNPATCHED_GLOBAL) {
-		return deluge::host::chains::find_runtime_index(address.id).value_or(0);
-	}
-	const std::optional<deluge::instruments::classic::RuntimeSlot> slot =
-	    deluge::instruments::classic::runtime_slot(address.id);
-	return slot ? slot->index : 0;
 }
 
 } // namespace
@@ -322,13 +289,13 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 
 	// `View::modEncoderAction_existentParam` (`origin/main:src/deluge/gui/views/view.cpp`). A knob on a param its owner
 	// does not hold yet reads 0: the write makes it.
-	const deluge::plugin::ParamInfo* info = info_of(*address, assignment.kind);
+	const deluge::project::PluginParam param = bind::plugin_param_of(assignment.plugin, *address);
+	const deluge::plugin::ParamInfo* info = bind::info_of(param);
 	const bool at_region = focus_->region.pos != 0xFFFFFFFF;
 	const std::optional<int32_t> value =
 	    facts != nullptr ? facts->param_value_at(*address, focus_->region.pos) : std::nullopt;
 	ModTurn turn;
-	turn.kind = assignment.kind;
-	turn.param_id = legacy_id(*address, assignment.kind);
+	turn.param = param;
 	turn.old_knob_pos = ui::controls::knob_pos_of(*address, info, value.value_or(0));
 	turn.new_knob_pos = ui::controls::turn(ui::controls::knob_kind(*address), turn.old_knob_pos, offset);
 
@@ -360,7 +327,7 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 	turn.should_indicate_middle_value = ui::controls::indicates_middle(*address, info, owner_stutter_quantized(),
 	                                                                   facts != nullptr && facts->stutter_active());
 
-	send_midi_follow_feedback(TurnedParam{turn.kind, *address, turn.new_knob_pos}, false);
+	send_midi_follow_feedback(TurnedParam{turn.param, *address, turn.new_knob_pos}, false);
 	if (turn.note_tails_changed) {
 		out.note_tails_changed();
 	}
@@ -371,8 +338,8 @@ void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation
 	// The two patch sources, then the popup itself.
 	PatchSource source1 = PatchSource::NONE;
 	PatchSource source2 = PatchSource::NONE;
-	if (turn.kind == Kind::PATCH_CABLE) {
-		const deluge::synth::CableTarget descriptor{static_cast<uint32_t>(turn.param_id)};
+	if (bind::is_cable(turn.param)) {
+		const deluge::synth::CableTarget descriptor{deluge::instruments::classic::cable_word_of(turn.param.target.id)};
 		source1 = descriptor.bottom_source();
 		if (!descriptor.has_just_one_source()) {
 			source2 = descriptor.top_source();
@@ -392,8 +359,8 @@ void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation
 	if (const auto* midi = std::get_if<bind::MidiFocus>(&focus_->owner); midi != nullptr && midi->clip) {
 		context.midi_clip = true;
 		const project::DocOutput* output = model_->output_structure.find(midi->track.output_id);
-		if (output != nullptr && turn.kind == Kind::MIDI) {
-			if (const auto label = output->cc_labels.find(static_cast<uint8_t>(turn.param_id));
+		if (output != nullptr && turn.param.target.space == ParamSpace::MIDI_CC) {
+			if (const auto label = output->cc_labels.find(static_cast<uint8_t>(turn.param.target.id.value));
 			    label != output->cc_labels.end()) {
 				context.cc_label = label->second;
 			}
@@ -411,7 +378,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 		return;
 	}
 	int32_t knob_pos = turn.new_knob_pos;
-	if (turn.kind == Kind::PATCH_CABLE) {
+	if (bind::is_cable(turn.param)) {
 		// A patch cable is -128..+128; fold it into the indicator's range so "the
 		// middle" is the same number the indicator blinks at.
 		knob_pos = ui::controls::fold_cable(knob_pos + plugin::kMaxKnobPosition / 2) - plugin::kMaxKnobPosition / 2;
@@ -421,8 +388,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 		// `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)`. `main`'s
 		// `pretendModKnobsUntouchedForAWhile` here writes `timeModEncoderLastTurned`, which nothing reads, so it has no
 		// port.
-		out.blink_indicator(which_encoder, deluge::instruments::classic::is_bipolar_at(
-		                                       turn.kind, static_cast<uint32_t>(turn.param_id)));
+		out.blink_indicator(which_encoder, bind::is_bipolar(turn.param));
 	}
 	else {
 		out.stop_blink_indicator(which_encoder); // `stopBlinkingKnobIndicator`
@@ -564,7 +530,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 		int32_t knob_pos = info.knob_pos;
 		// The same "never drag a position that is already below the limit up"
 		// clamp `calculateKnobPosForModEncoderTurn` uses, with the same two limits.
-		const int32_t lower_limit = info.kind == Kind::PATCH_CABLE ? std::min(-192, knob_pos) : std::min(-64, knob_pos);
+		const int32_t lower_limit = bind::is_cable(info.param) ? std::min(-192, knob_pos) : std::min(-64, knob_pos);
 		knob_pos = std::clamp(knob_pos, lower_limit, 64);
 
 		if (info.quantized_stutter && !stuttering) {
@@ -588,7 +554,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 		}
 		knob_pos += plugin::kMaxKnobPosition / 2;
 
-		if (info.kind == Kind::PATCH_CABLE) {
+		if (bind::is_cable(info.param)) {
 			knob_pos = ui::controls::fold_cable(knob_pos);
 		}
 		out.declared = true;
@@ -680,10 +646,9 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 		out.patch_cable_default = true;
 		return out;
 	}
-	const deluge::plugin::ParamInfo* info = info_of(*address, assignment.kind);
+	out.param = bind::plugin_param_of(assignment.plugin, *address);
+	const deluge::plugin::ParamInfo* info = bind::info_of(out.param);
 	out.has_auto_param = true;
-	out.kind = assignment.kind;
-	out.param_id = legacy_id(*address, assignment.kind);
 	out.knob_pos = ui::controls::knob_pos_of(*address, info, value.value_or(0));
 	out.bipolar = ui::controls::bipolar(*address, info);
 	if (info != nullptr && info->file_name == "stutterRate") {
@@ -773,8 +738,8 @@ void ModKnobs::send_midi_follow_feedback(const std::optional<TurnedParam>& param
 		const deluge::project::OwnerPlugin owner = feedback->global_effectable_context()
 		                                               ? deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE
 		                                               : deluge::project::OwnerPlugin::INSTRUMENT;
-		const std::optional<deluge::project::ParamTarget> target = deluge::ui::controls::follow_target(
-		    owner, param->kind, param->address.id, deluge::instruments::classic::has_engine_param);
+		const std::optional<deluge::project::ParamTarget> target =
+		    deluge::ui::controls::follow_target(owner, param->param, deluge::instruments::classic::has_engine_param);
 		if (const std::optional<uint8_t> cc_number = target ? feedback->cc_of(owner, *target) : std::nullopt) {
 			feedback->send(*cc_number, param->knob_pos);
 		}

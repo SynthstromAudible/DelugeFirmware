@@ -322,6 +322,26 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/shell_host/*",
 )
 
+# A param named by the runtime's numbering: a collection kind, a runtime enum value, a runtime index, or the
+# automation selection's runtime pair. Outside the runtime and the bridge a param is a plugin id (project::ParamTarget
+# with its owner's plugin); the homes below are where the runtime's numbering lives.
+PARAM_KIND_PATTERN = (
+    r"\bParamKind\b|\bparams::Kind\b|\bparams::(LOCAL|GLOBAL|UNPATCHED)_\w+|\bruntime_index\("
+    r"|\blastSelectedParam(Kind|ID)\b|\bparamInfoFor\("
+    r"|\bKind::(PATCHED|UNPATCHED_SOUND|UNPATCHED_GLOBAL|PATCH_CABLE|EXPRESSION|MIDI|STATIC)\b"
+)
+PARAM_KIND_HOMES = (
+    "src/instruments/classic/**",
+    "src/deluge/modulation/**",
+    "src/deluge/model/project_bridge/**",
+    "src/deluge/processing/sound/**",
+    "src/deluge/processing/engines/fx_section_inputs.*",
+    "src/deluge/model/fx/**",
+    "src/deluge/model/mod_controllable/delay_type.*",
+    "src/synth/**",
+    "src/plugin/types/param_kind.h",
+)
+
 RULES = [
     (
         # The symbol half of `legacy-includes-port`, for exactly the reason `scenes-no-root-ui` is
@@ -463,6 +483,15 @@ RULES = [
         "symbol",
         r"\bModelStack\w*\b",
         "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
+        # Outside the runtime and the bridge a param is named by its plugin id; the bridge alone maps it to the
+        # runtime's (kind, index). Counted per file: the count may only fall.
+        "no-param-kind-outside-runtime",
+        ("src/**", *PARAM_KIND_HOMES),
+        "symbol",
+        PARAM_KIND_PATTERN,
+        "2026-11-26-params-c5-design.md",
     ),
     (
         # The host chain's param table and pages are the deluge_host_chains library (host/chains), named for

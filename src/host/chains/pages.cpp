@@ -42,12 +42,12 @@ using plugin::RemoteSlot;
 
 /// A slot that turns the chain's param @p id.
 RemoteSlot knob(ParamId id, PressAction press = PressAction::NONE, std::optional<ParamId> press_param = std::nullopt) {
-	return {.param = id, .kind = plugin::ParamKind::UNPATCHED_GLOBAL, .press = press, .press_param = press_param};
+	return {.param = id, .press = press, .press_param = press_param};
 }
 
 /// A slot that turns a compressor setting, pressing as @p press.
 RemoteSlot comp_knob(ParamId id, PressAction press) {
-	return {.param = id, .kind = plugin::ParamKind::NONE, .press = press, .press_param = std::nullopt};
+	return {.param = id, .press = press, .press_param = std::nullopt};
 }
 
 /// A slot that turns the chain's param @p id, and whose press steps setting @p setting_id.

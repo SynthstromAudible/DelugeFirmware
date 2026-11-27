@@ -277,7 +277,7 @@ inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStren
 /// `vibratoMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
 inline const PatchCableStrengthItem kVibratoItem{
     PatchCableStrengthItem::Which::Fixed,
-    deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kPitch),
+    deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kPitch).param_index(),
     PatchSource::LFO_GLOBAL_1};
 /// @brief `PatchCableStrength`'s value text on a fixed cable's column: the notification (`getNotificationValue`,
 ///        `origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`) and the column
@@ -294,7 +294,8 @@ ValueText ducking_strength_text(const MenuContext& ctx, int32_t value, ValueText
 /// SIDECHAIN. The reverb copies this cable, so its Edit raises the reverb's recompute.
 inline const PatchCableStrengthItem kSidechainVolumeItem{
     PatchCableStrengthItem::Which::Fixed,
-    deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolumePostReverbSend),
+    deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolumePostReverbSend)
+        .param_index(),
     PatchSource::SIDECHAIN};
 /// @}
 
@@ -397,10 +398,10 @@ std::optional<deluge::ui::scenes::bind::WriteRequest> cable_request(const MenuCo
 
 /// @brief @p n with the chain every `PatchedParam`-derived legacy item has.
 ///
-/// Applied at the 29 declaration sites whose `bind.param.kind == ParamKind::PATCHED` (the macros
+/// Applied at the 29 declaration sites whose `bind.param` is a sound's patched param (`is_patched`; the macros
 /// in `sound_osc.h` / `sound_env.h` / `sound_lfo.h` expand several of them), which is **exactly 53 nodes** -- the same
 /// set as the legacy items that derive from `menu_item::PatchedParam`, verified by `dynamic_cast` over a lockstep walk.
-/// `tables_2_spec` pins both halves of that equality, so a `param(... Kind::PATCHED ...)` added without this wrapper
+/// `tables_2_spec` pins both halves of that equality, so a patched `param(...)` added without this wrapper
 /// fails there rather than silently losing its select press.
 /// @param n The patched-param node.
 /// @return @p n with the patch-cable select chain attached.

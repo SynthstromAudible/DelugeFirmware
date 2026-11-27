@@ -49,6 +49,51 @@ describe param_names_cases("param display names", ${
 		select_language();
 		expect(text(l10n::param_name(ParamKind::PATCHED, instruments::classic::param::kLpfFrequency))).to_equal("LPF frequency");
 	});
+	it("names every instrument param by plugin as by its kind", _ {
+		select_language();
+		for (const plugin::ParamInfo& row : instruments::classic::kParams) {
+			const auto slot = instruments::classic::runtime_slot(row.id);
+			const ParamKind kind = slot->set == instruments::classic::RuntimeSet::PATCHED ? ParamKind::PATCHED : ParamKind::UNPATCHED_SOUND;
+			expect(text(l10n::param_name(project::OwnerPlugin::INSTRUMENT, row.id))).to_equal(text(l10n::param_name_at(kind, slot->index)));
+			for (const effects::FilterMode lpf : {effects::FilterMode::TRANSISTOR_24DB, effects::FilterMode::SVF_BAND}) {
+				for (const effects::FilterMode hpf : {effects::FilterMode::HPLADDER, effects::FilterMode::SVF_NOTCH}) {
+					expect(text(l10n::param_name(project::OwnerPlugin::INSTRUMENT, row.id, lpf, hpf)))
+					    .to_equal(text(l10n::param_name_at(kind, slot->index, lpf, hpf)));
+				}
+			}
+		}
+	});
+	it("names every chain param by plugin as by its kind", _ {
+		select_language();
+		for (const plugin::ParamInfo& row : host::chains::kParams) {
+			const auto index = host::chains::find_runtime_index(row.id);
+			expect(text(l10n::param_name(project::OwnerPlugin::GLOBAL_EFFECTABLE, row.id))).to_equal(text(l10n::param_name_at(ParamKind::UNPATCHED_GLOBAL, *index)));
+			for (const effects::FilterMode lpf : {effects::FilterMode::TRANSISTOR_24DB, effects::FilterMode::SVF_BAND}) {
+				for (const effects::FilterMode hpf : {effects::FilterMode::HPLADDER, effects::FilterMode::SVF_NOTCH}) {
+					expect(text(l10n::param_name(project::OwnerPlugin::GLOBAL_EFFECTABLE, row.id, lpf, hpf)))
+					    .to_equal(text(l10n::param_name_at(ParamKind::UNPATCHED_GLOBAL, *index, lpf, hpf)));
+				}
+			}
+		}
+	});
+	it("names the envelope params by id as by their patched index, in every mode", _ {
+		select_language();
+		for (const synth::EnvelopeMode mode : {synth::EnvelopeMode::ADSR, synth::EnvelopeMode::AHD, synth::EnvelopeMode::AR, synth::EnvelopeMode::MPE}) {
+			const l10n::EnvelopeModes modes{mode, mode, mode, mode};
+			for (uint32_t i = 0; i < instruments::classic::kParamBlocks[0].count; i++) {
+				for (const bool brief : {false, true}) {
+					const auto by_id = l10n::envelope_param_name(plugin::ParamId{i}, modes, brief);
+					const auto by_index = l10n::envelope_param_name_at(ParamKind::PATCHED, i, modes, brief);
+					expect(by_id.has_value()).to_equal(by_index.has_value());
+					if (by_id && by_index) {
+						expect(text(*by_id)).to_equal(text(*by_index));
+					}
+				}
+			}
+		}
+		const l10n::EnvelopeModes ahd{synth::EnvelopeMode::AHD, synth::EnvelopeMode::AHD, synth::EnvelopeMode::AHD, synth::EnvelopeMode::AHD};
+		expect(l10n::envelope_param_name(instruments::classic::param::kPortamento, ahd).has_value()).to_be_false();
+	});
 	it("names an unpatched sound param, the shared ones and portamento", _ {
 		select_language();
 		expect(text(l10n::param_name(ParamKind::UNPATCHED_SOUND, instruments::classic::param::kPortamento))).to_equal("Portamento");

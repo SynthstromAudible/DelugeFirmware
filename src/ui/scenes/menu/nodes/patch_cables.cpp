@@ -62,16 +62,17 @@ using deluge::l10n::String;
 namespace {
 /// @brief The per-voice volume, one of the three volume params a patch cable reaches as one destination.
 constexpr uint8_t kLocalVolume =
-    deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolume);
+    deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolume).param_index();
 /// @brief The post-FX volume, the destination that stands for the three volumes.
 constexpr uint8_t kPostFxVolume =
-    deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolumePostFX);
+    deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolumePostFX).param_index();
 /// @brief The post-FX volume's reverb send, the third of the three volume params.
 constexpr uint8_t kPostReverbSendVolume =
-    deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolumePostReverbSend);
+    deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolumePostReverbSend)
+        .param_index();
 /// @brief The first of the sound's global patched params; the per-voice ones come before it.
 constexpr uint8_t kFirstGlobal =
-    deluge::instruments::classic::runtime_index(deluge::instruments::classic::kFirstGlobalParam);
+    deluge::instruments::classic::cable_target_of(deluge::instruments::classic::kFirstGlobalParam).param_index();
 
 /// @brief The polarity a cable made without one takes where its source fixes none: the device's setting.
 /// @param ctx The menu's context, whose device port holds the setting.
@@ -234,8 +235,7 @@ std::string_view destination_short_name(const MenuContext& ctx, uint8_t p) {
 		for (size_t e = 0; e < modes.size(); ++e) {
 			modes[e] = deluge::instruments::classic::envelope(*state, e).mode;
 		}
-		if (const auto name = deluge::l10n::envelope_param_name_at(deluge::plugin::ParamKind::PATCHED, p, modes,
-		                                                           /*brief=*/true)) {
+		if (const auto name = deluge::l10n::envelope_param_name(deluge::plugin::ParamId{p}, modes, /*brief=*/true)) {
 			return *name;
 		}
 	}
@@ -469,15 +469,15 @@ void SourceSelectionItem::on_focus(const MenuContext& ctx, MenuState& state) con
 	// The half of `PatchedParam::selectButtonPress` a `SelectChainFn` cannot do
 	// (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`: `soundEditor.patchingParamSelected = this->getP()`).
 	// The node the chain came from is `path[depth - 1]` -- `enter_child` has just pushed this page
-	// under it -- and its `bind.param.index` is `getP()`.
+	// under it -- and its `bind.param`'s id is `getP()`.
 	//
-	// Guarded on `Kind::PATCHED` so the *other* two ways into this page leave the selection alone:
+	// Guarded on a patched param so the *other* two ways into this page leave the selection alone:
 	// `patch_cables_chain` (which sets `patching_param` from the chosen cable) and a re-entry from
 	// the range picker below it.
 	if (which_ == Which::Regular && state.depth > 0) {
 		const Node* from = state.path[state.depth - 1];
-		if (from != nullptr && from->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
-			state.walk.patching_param = from->bind.param.index;
+		if (from != nullptr && is_patched(from->bind.param)) {
+			state.walk.patching_param = patched_byte(from->bind.param);
 		}
 	}
 

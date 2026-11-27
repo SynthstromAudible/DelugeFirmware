@@ -45,10 +45,10 @@ namespace deluge::ui::scenes::menu::nodes {
 /// The first of the four envelopes' ids + @p index is `source::PatchedParam::getP()`
 /// (`origin/main:src/deluge/gui/menu_item/source/patched_param.h`) written out: the four envelopes' copies of each
 /// parameter are consecutive enumerators (`instruments::classic::param::kEnv1Attack` to `kEnv4Attack`).
-constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_param, uint8_t index,
+constexpr Node envelope_segment(uint16_t name, uint16_t title, deluge::plugin::ParamId first_param, uint8_t index,
                                 ParamShows shows = {}) {
-	return with_patch_chain(param(name, {deluge::plugin::ParamKind::PATCHED, static_cast<uint8_t>(first_param + index)},
-	                              Hint::Knob, shows, title));
+	return with_patch_chain(
+	    param(name, sound_param(deluge::plugin::ParamId{first_param.value + index}), Hint::Knob, shows, title));
 }
 
 /// @brief One envelope page. A macro rather than a function because the four `Node`s have to be
@@ -58,33 +58,29 @@ constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_par
 	ValueText env##n##_decay_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);       \
 	ValueText env##n##_sustain_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);     \
 	ValueText env##n##_release_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);     \
-	inline constexpr Node env##n##_attack = with_title_arg(                                                            \
-	    envelope_segment(                                                                                              \
-	        sid(deluge::l10n::String::STRING_FOR_ATTACK), sid(deluge::l10n::String::STRING_FOR_ENV_ATTACK_MENU_TITLE), \
-	        deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kEnv1Attack), (index)),   \
-	    (n));                                                                                                          \
+	inline constexpr Node env##n##_attack =                                                                            \
+	    with_title_arg(envelope_segment(sid(deluge::l10n::String::STRING_FOR_ATTACK),                                  \
+	                                    sid(deluge::l10n::String::STRING_FOR_ENV_ATTACK_MENU_TITLE),                   \
+	                                    deluge::instruments::classic::param::kEnv1Attack, (index)),                    \
+	                   (n));                                                                                           \
 	inline constexpr Node env##n##_decay =                                                                             \
 	    with_name_text(with_title_arg(envelope_segment(sid(deluge::l10n::String::STRING_FOR_DECAY),                    \
 	                                                   sid(deluge::l10n::String::STRING_FOR_ENV_DECAY_MENU_TITLE),     \
-	                                                   deluge::instruments::classic::runtime_index(                    \
-	                                                       deluge::instruments::classic::param::kEnv1Decay),           \
-	                                                   (index), param_shows::kEnvelopeDecay[(index)]),                 \
+	                                                   deluge::instruments::classic::param::kEnv1Decay, (index),       \
+	                                                   param_shows::kEnvelopeDecay[(index)]),                          \
 	                                  (n)),                                                                            \
 	                   env##n##_decay_text);                                                                           \
 	inline constexpr Node env##n##_sustain =                                                                           \
 	    with_name_text(with_title_arg(envelope_segment(sid(deluge::l10n::String::STRING_FOR_SUSTAIN),                  \
 	                                                   sid(deluge::l10n::String::STRING_FOR_ENV_SUSTAIN_MENU_TITLE),   \
-	                                                   deluge::instruments::classic::runtime_index(                    \
-	                                                       deluge::instruments::classic::param::kEnv1Sustain),         \
-	                                                   (index), param_shows::kEnvelopeSustain[(index)]),               \
+	                                                   deluge::instruments::classic::param::kEnv1Sustain, (index),     \
+	                                                   param_shows::kEnvelopeSustain[(index)]),                        \
 	                                  (n)),                                                                            \
 	                   env##n##_sustain_text);                                                                         \
 	inline constexpr Node env##n##_release =                                                                           \
 	    with_name_text(with_title_arg(envelope_segment(sid(deluge::l10n::String::STRING_FOR_RELEASE),                  \
 	                                                   sid(deluge::l10n::String::STRING_FOR_ENV_RELEASE_MENU_TITLE),   \
-	                                                   deluge::instruments::classic::runtime_index(                    \
-	                                                       deluge::instruments::classic::param::kEnv1Release),         \
-	                                                   (index)),                                                       \
+	                                                   deluge::instruments::classic::param::kEnv1Release, (index)),    \
 	                                  (n)),                                                                            \
 	                   env##n##_release_text);                                                                         \
 	inline constexpr Node env##n##_mode = with_affect_entire(                                                          \
