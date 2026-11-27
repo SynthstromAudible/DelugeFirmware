@@ -39,6 +39,7 @@ import corpus_gate as cg
 import harness_registry as hr
 import scenario_gate as sg
 import test_builds as tb
+import test_selection as ts
 
 _spec = importlib.util.spec_from_file_location(
     "task_test", Path(__file__).parent / "task-test.py"
@@ -55,6 +56,7 @@ runner = "cargo"
 kind = "differential"
 status = "gate"
 gates = "alpha must equal beta"
+areas = ["all"]
 build = ["cargo", "build"]
 run = ["cargo", "test"]
 requires = ["cargo"]
@@ -72,6 +74,7 @@ runner = "ctest"
 kind = "unit"
 status = "gate"
 gates = "beta holds"
+areas = ["all"]
 source = "x"
 tree = "build/x"
 ctest_args = ["-C", "Debug"]
@@ -146,6 +149,30 @@ class LoadRegistryTest(unittest.TestCase):
         (root / "tests").mkdir()
         (root / "tests" / "registry.toml").write_text(text)
         return root
+
+    def test_an_entry_without_areas_is_refused(self):
+        text = MINIMAL.replace('areas = ["all"]\n', "")
+        with self.assertRaises(ValueError) as caught:
+            hr.load_registry(self._root_with(text))
+        self.assertEqual(str(caught.exception), "alpha: missing required field 'areas'")
+
+    def test_areas_is_a_list_of_names(self):
+        text = MINIMAL.replace('areas = ["all"]', 'areas = "all"')
+        with self.assertRaisesRegex(ValueError, "alpha: areas is a list of area names"):
+            hr.load_registry(self._root_with(text))
+
+    def test_the_area_tables_load(self):
+        text = (
+            MINIMAL
+            + '\n[area.ui]\npaths = ["src/ui/**"]\n\n[no-gate]\npaths = ["docs/**"]\n\n[every-gate]\npaths = ["dbt"]\n'
+        )
+        root = self._root_with(text)
+        self.assertEqual(hr.load_registry(root)[0].areas, ["all"])
+        areas = hr.load_areas(root)
+        self.assertEqual(
+            (areas.areas, areas.no_gate, areas.every_gate),
+            ({"ui": ["src/ui/**"]}, ["docs/**"], ["dbt"]),
+        )
 
     def test_a_long_gates_line_is_refused(self):
         text = MINIMAL.replace(
@@ -697,6 +724,7 @@ runner = "corpus"
 kind = "regression"
 status = "gate"
 gates = "delta holds"
+areas = ["all"]
 corpus_runner = "fake"
 builds = ["golden-vt-render"]
 tier = "nightly"
@@ -758,6 +786,19 @@ runtime_s = 1
         self.assertEqual(len(corpus), 17)
         self.assertTrue(all(h.job == "model" and h.alone for h in corpus))
 
+    def test_the_registrys_areas_are_consistent(self):
+        root = Path(__file__).resolve().parents[2]
+        entries = hr.load_registry(root)
+        tracked = subprocess.run(
+            ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True
+        ).stdout.split()
+        problems = ts.consistency_problems(
+            [ts.Entry(h.name, h.areas, []) for h in entries],
+            hr.load_areas(root),
+            tracked,
+        )
+        self.assertEqual(problems, [])
+
 
 class RigAndParityEntryTest(unittest.TestCase):
     def test_every_rig_entry_runs_alone(self):
@@ -793,6 +834,7 @@ runner = "scenario"
 kind = "property"
 status = "gate"
 gates = "gamma holds"
+areas = ["all"]
 scenario = "gamma"
 markers = ["GA-ONE"]
 result = "GA-RESULT failures=0"
@@ -2616,6 +2658,7 @@ name = "one"
 template = "t"
 path = "a"
 gates = "one holds"
+areas = ["all"]
 run = ["cargo", "test"]
 """
 
@@ -2746,6 +2789,7 @@ runner = "scenario"
 kind = "property"
 status = "gate"
 gates = "gamma holds"
+areas = ["all"]
 scenario = "gamma"
 markers = ["GA-ONE"]
 result = "GA-RESULT failures=0"
@@ -2767,6 +2811,7 @@ runner = "script"
 kind = "unit"
 status = "gate"
 gates = "delta holds"
+areas = ["all"]
 path = "."
 run = ["true"]
 tier = "pr"
@@ -2984,7 +3029,7 @@ class VariantTest(unittest.TestCase):
     def test_a_copys_name_cannot_collide(self):
         clash = (
             '\n[[harness]]\nname = "app-asan-gamma"\nlevel = "unit"\nrunner = "script"\nkind = "unit"\n'
-            'status = "gate"\ngates = "clash"\npath = "."\nrun = ["true"]\ntier = "pr"\njob = "tooling"\nruntime_s = 1\n'
+            'status = "gate"\ngates = "clash"\nareas = ["all"]\npath = "."\nrun = ["true"]\ntier = "pr"\njob = "tooling"\nruntime_s = 1\n'
         )
         with self.assertRaisesRegex(ValueError, "duplicate test name 'app-asan-gamma'"):
             self._load(VARIANTED + clash)
