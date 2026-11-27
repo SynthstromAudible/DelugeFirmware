@@ -3619,7 +3619,9 @@ void InstrumentClipView::displayFill(uint8_t mode) {
 	auto buffer_length = display->haveOLED() ? 29 : 5;
 	char buffer[buffer_length];
 
-	strncpy(buffer, getFillString(mode), buffer_length);
+	// strncpy doesn't terminate a truncated string ("NOT FILL" on 7-segment), so terminate it ourselves
+	strncpy(buffer, getFillString(mode), buffer_length - 1);
+	buffer[buffer_length - 1] = '\0';
 
 	if (display->haveOLED()) {
 		display->popupText(buffer, PopupType::FILL);
