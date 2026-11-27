@@ -1364,6 +1364,7 @@ std::optional<AutomationParam> automation_param(const Node& item, const MenuCont
 		if (!item.custom->is_automation_item()) {
 			return std::nullopt;
 		}
+		// A cable strength item's descriptor always carries its source, so its word is a cable's depth.
 		const deluge::plugin::ParamId depth =
 		    deluge::instruments::classic::cable_depth_of_word(item.custom->learn_descriptor(ctx, state).word);
 		return AutomationParam{.plugin = deluge::project::OwnerPlugin::INSTRUMENT,
