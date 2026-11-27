@@ -56,17 +56,16 @@ public:
 	/// source @p source of the sound at @p slot, which becomes a sample source.
 	/// @return Whether it was taken: false where no take at @p path is in memory or the address does not resolve.
 	virtual bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) = 0;
-	/// @brief Make @p patch the DX7 patch of source @p source of the sound at @p slot: its voice bytes, engine mode and
-	/// random detune, as the DX7 menu pages write them. Not undoable, as legacy's DX7 edits are not.
-	/// @return Whether it was taken: false where the address does not resolve or the source is not a DX7 one.
-	virtual bool write_dx_patch(project::SlotAddress slot, uint8_t source,
-	                            const instruments::classic::DxPatchState& patch) = 0;
-	/// @brief Load program @p program of the DX7 bank the last `.syx` read loaded into source @p source of the sound at
-	/// @p slot, as the cartridge page's turn does: the patch unpacked, the voices cut, and an unsaved synth renamed to
-	/// the program. Not undoable, as legacy's is not.
+	/// @brief Make @p patch the DX7 patch of the sound at @p slot, which plays the DX7 engine: its voice bytes, engine
+	/// mode and random detune, as the DX7 menu pages write them. Not undoable, as legacy's DX7 edits are not.
+	/// @return Whether it was taken: false where the address does not resolve or the sound is in another mode.
+	virtual bool write_dx_patch(project::SlotAddress slot, const instruments::classic::DxPatchState& patch) = 0;
+	/// @brief Load program @p program of the DX7 bank the last `.syx` read loaded into the DX7 of the sound at @p slot,
+	/// as the cartridge page's turn does: the patch unpacked, the voices cut, and an unsaved synth renamed to the
+	/// program. Not undoable, as legacy's is not.
 	/// @return Whether it was taken: false where no bank is loaded, @p program is not one of its programs, the address
-	/// does not resolve or the source is not a DX7 one.
-	virtual bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) = 0;
+	/// does not resolve or the sound is in another mode.
+	virtual bool load_dx_program(project::SlotAddress slot, int32_t program) = 0;
 	/// @brief Transpose source @p source of the sound @p where names -- every sound row of the kit under affect-entire
 	/// -- by @p menu_value, in cents. A sample source with ranges (not FM) takes it in its range: @p range, or range 0
 	/// on a whole kit; any other source in its own transpose and cents.

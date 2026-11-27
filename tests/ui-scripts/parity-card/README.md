@@ -52,7 +52,7 @@ load takes about 400 ms on the emulator, so the window sits well inside it on bo
 `c36-drum-creator-refused` runs on the fixture card with `SAMPLES` a file, so no sample browser can list. SHIFT + KIT's
 drum creator then falls back the way `main` does: the browser's error popup over the new kit's clip view.
 
-`c42-dx-browser-no-folder` runs on the fixture card with `EnableDX7Engine` on and no `DX7` folder. The new FM synth's
+`c42-dx-browser-no-folder` runs on the fixture card with `EnableDX7Engine` on (`main`'s feature, which the branch's built-in DX7 ignores) and no `DX7` folder. The new FM synth's
 browse row creates `DX7` and opens the `.syx` browser on it, empty; a Select turn and SELECT on the empty list do
 nothing, and BACK leaves it.
 

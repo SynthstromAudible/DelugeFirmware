@@ -101,7 +101,6 @@
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/column_hooks.h"
 #include "ui/scenes/menu/nodes/detail.h"
-#include "ui/scenes/menu/nodes/dx.h" // the type's select chain into "DX7 source"
 #include "ui/scenes/menu/nodes/fan_out_rules.h"
 #include "ui/scenes/menu/nodes/param_shows.h"
 #include "ui/scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
@@ -177,17 +176,15 @@ constexpr Node retrigger_phase_screen(Node n) {
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v);                                                 \
-	inline constexpr Node osc##i##_type =                                                                              \
-	    with_select_chain(with_wrap_in_horizontal(with_column_art(                                                     \
-	                          without_column_label(with_title_arg(                                                     \
-	                              with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,      \
-	                                                      {.kind = deluge::ui::scenes::bind::Target::Kind::SOUND,      \
-	                                                       .path = osc_path "/type",                                   \
-	                                                       .whole_kit = false}),                                       \
-	                                         sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE)),               \
-	                              (i) + 1)),                                                                           \
-	                          osc##i##_type_art)),                                                                     \
-	                      &osc##i##_type_chain, kOscTypeChain);                                                        \
+	inline constexpr Node osc##i##_type = with_wrap_in_horizontal(                                                     \
+	    with_column_art(without_column_label(with_title_arg(                                                           \
+	                        with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,            \
+	                                                {.kind = deluge::ui::scenes::bind::Target::Kind::SOUND,            \
+	                                                 .path = osc_path "/type",                                         \
+	                                                 .whole_kit = false}),                                             \
+	                                   sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE)),                     \
+	                        (i) + 1)),                                                                                 \
+	                    osc##i##_type_art));                                                                           \
 	inline constexpr Node file##i##_selector =                                                                         \
 	    with_value_text(with_column_art(with_allow_session_from_horizontal(with_range_specific(                        \
 	                                        custom(sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER),                 \
@@ -314,7 +311,8 @@ constexpr Node retrigger_phase_screen(Node n) {
 	    &sample##i##_repeat,   &sample##i##_time_stretch, &sample##i##_pitch_speed, &sample##i##_interpolation,        \
 	    &sample##i##_start,    &sample##i##_end};                                                                      \
 	inline constexpr Node source##i = with_page_title(                                                                 \
-	    submenu(sid(deluge::l10n::String::name_id), kSource##i##Children, Layout::Horizontal), source##i##_page_title)
+	    submenu(sid(deluge::l10n::String::name_id), kSource##i##Children, Layout::Horizontal, relevance::not_dx7),     \
+	    source##i##_page_title)
 
 /// @brief One FM modulator page's three shared leaves. Bodies in the `.cpp`.
 #define DELUGE_OSC_MODULATOR(i, modulator_path)                                                                        \
@@ -449,8 +447,8 @@ inline constexpr Node osc_sync = with_affect_entire(
                      sid(deluge::l10n::String::STRING_FOR_SYNC)));
 inline constexpr const Node* kMixerChildren[] = {&source0_volume,    &source1_volume, &modulator0_volume,
                                                  &modulator1_volume, &noise,          &osc_sync};
-inline constexpr Node osc_mixer =
-    submenu(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_MIXER), kMixerChildren, Layout::Horizontal);
+inline constexpr Node osc_mixer = submenu(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_MIXER), kMixerChildren,
+                                          Layout::Horizontal, relevance::not_dx7);
 
 /// @brief This file's six contributions to `kBatch1Roots`, in `origin/main:src/deluge/gui/menu_item/generate/main.py`'s
 ///        order: the recorder, both sources, both modulators, the mixer.

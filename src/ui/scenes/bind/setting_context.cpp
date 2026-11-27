@@ -1,21 +1,17 @@
 #include "ui/scenes/bind/setting_context.h"
 
-#include "project/features.h"
-#include "ui/scenes/bind/device_reader.h"
-
 #include <variant>
 
 namespace deluge::ui::scenes::bind {
 
 plugin::SettingContext setting_context(const project::Song& /*model*/, project::SlotAddress slot,
-                                       const SoundFacts& sound, const AudioFacts& audio, const DeviceSettings* device) {
+                                       const SoundFacts& sound, const AudioFacts& audio) {
 	using Owner = plugin::SettingContext::Owner;
 	using Instrument = plugin::SettingContext::Instrument;
 	const bool lane = slot.kind == project::SlotAddress::Kind::DRUM;
 	return {.owner = lane ? Owner::KIT_LANE : Owner::TRACK,
 	        .instrument = lane ? Instrument::SOUND_DRUM : Instrument::SYNTH,
 	        .audio_inputs_present = audio.audio_inputs_present(),
-	        .dx7_engine = read_device_flag(device, project::device_path::feature(project::Feature::ENABLE_DX7_ENGINE)),
 	        .loaded_sources = sound.loaded_sources(slot)};
 }
 

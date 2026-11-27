@@ -320,17 +320,12 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(subtractive.unknown.empty()).to_be_true();
 	});
 
-	it("offers DX7 as a synth mode while the device's DX7 engine is on", _ {
+	it("offers DX7 as the fourth synth mode", _ {
 		const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(kSettings, "mode");
-		const auto dx7 = static_cast<size_t>(SynthMode::DX7);
-		const SettingContext off{.owner = SettingContext::Owner::TRACK, .instrument = SettingContext::Instrument::SYNTH};
-		SettingContext on = off;
-		on.dx7_engine = true;
+		const SettingContext track{.owner = SettingContext::Owner::TRACK, .instrument = SettingContext::Instrument::SYNTH};
 		const ModeReader subtractive{static_cast<int32_t>(SynthMode::SUBTRACTIVE)};
-		expect(deluge::plugin::setting_choice_applies(row, on, subtractive.reader(), dx7)).to_be_true();
-		expect(deluge::plugin::setting_choice_applies(row, off, subtractive.reader(), dx7)).to_be_false();
-		expect(deluge::plugin::applicable_choice_count(row, on, subtractive.reader())).to_equal(4);
-		expect(deluge::plugin::applicable_choice_count(row, off, subtractive.reader())).to_equal(3);
+		expect(std::string{row.choices[std::to_underlying(SynthMode::DX7)]}).to_equal(std::string{"dx7"});
+		expect(deluge::plugin::applicable_choice_count(row, track, subtractive.reader())).to_equal(4);
 	});
 
 	it("shows the mode menu in DX7 mode whatever its parked oscillators hold", _ {

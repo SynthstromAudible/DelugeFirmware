@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief What the DX7 specs and the menu oracle freezer share: a synth whose first oscillator is DX7, the menu
+/// @brief What the DX7 specs and the menu oracle freezer share: a synth in DX7 mode, the menu
 ///        over it on a `Shell` over the fake surfaces, and the panel readers the pixel examples compare.
 ///
 /// For the spec files only: it names `gui/` objects, which the scenes library may not.
@@ -24,7 +24,6 @@
 #include "hid/display/display.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
-#include "processing/sound/source_resources.h"
 
 #include "support/menu_context.h"
 #include "support/menu_engine.h"
@@ -50,9 +49,7 @@ using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
 namespace nodes = deluge::ui::scenes::menu::nodes;
 
-/// @brief A synth whose first oscillator is DX7.
-///
-/// `setOscType` gives the source its patch, as it does on the device.
+/// @brief A synth in DX7 mode, its DX7 holding a voice.
 struct DxRig {
 	spec::SongFixture song = spec::make_synth_song();
 	Song* saved = currentSong;
@@ -61,13 +58,14 @@ struct DxRig {
 	DxRig() {
 		deluge::ui::scenes::spec::make_current(song.song);
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		deluge::test::setOscType(*sound, 0, OscType::DX7);
+		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
+		(void)sound->dx7Patch.ensure();
 	}
 	~DxRig() { deluge::ui::scenes::spec::make_current(saved); }
 	DxRig(const DxRig&) = delete;
 	DxRig& operator=(const DxRig&) = delete;
 
-	DxPatch& patch() { return *sound->sourceResources[0].ensureDxPatch(); }
+	DxPatch& patch() { return *sound->dx7Patch.ensure(); }
 
 	deluge::project::SlotAddress slot() {
 		return *spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)

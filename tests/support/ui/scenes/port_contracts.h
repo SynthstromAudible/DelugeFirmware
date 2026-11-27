@@ -115,8 +115,8 @@ namespace deluge::ui::scenes::bind::contract {
 	const instruments::classic::DxPatchState patch{};
 	return !writes.write_ranges(nowhere, 0, {}, {}) && !writes.insert_range(nowhere, 0, 0, 40, std::nullopt)
 	       && !writes.delete_range(nowhere, 0, 0, std::nullopt)
-	       && !writes.attach_recording(nowhere, 0, 0, "NOWHERE.WAV") && !writes.write_dx_patch(nowhere, 0, patch)
-	       && !writes.load_dx_program(nowhere, 0, 0)
+	       && !writes.attach_recording(nowhere, 0, 0, "NOWHERE.WAV") && !writes.write_dx_patch(nowhere, patch)
+	       && !writes.load_dx_program(nowhere, 0)
 	       && !writes.write_source_transpose(Addresses{.slot = nowhere}, 0, std::nullopt, 0);
 }
 

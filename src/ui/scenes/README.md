@@ -392,8 +392,8 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike (`nodes::dx_shortcut_fallback`).
-* **The parameter page has its own pads** while the DX7 engine feature is on (the device's
-  `features/EnableDX7Engine` row): `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut
+* **The parameter page has its own pads** (`main` gave them only while its DX7 engine feature was on; the DX7 is
+  built in here): `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut
   (`CustomItem::shortcut_pad`, asked first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of
   the blink's `dx::param_pad`), and the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
 * **The keyboard's DX column** (site 15): Shift + a column pad opens the parameter page on the operator's level, or

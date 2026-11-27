@@ -94,7 +94,6 @@ struct SettingContext {
 	Owner owner{Owner::TRACK};
 	Instrument instrument{Instrument::NONE}; ///< required but for SONG and DEVICE; see the host contract
 	bool audio_inputs_present{false};        ///< any audio input is plugged in
-	bool dx7_engine{false};                  ///< the device's DX7 engine feature is on
 	/// The owner's sound sources that hold a loaded audio file, a bit each (bit 0 the first source); 0 off a sound.
 	uint8_t loaded_sources{0};
 };
@@ -192,21 +191,20 @@ inline constexpr std::size_t kMaxSoundSources = 2;
 /// @brief One fact a setting's menu depends on. A condition holds when its subject's value is one of `values` (IS),
 /// none of them (IS_NOT), or at least its one value (AT_LEAST, a SETTING's alone). Build one with setting_is,
 /// setting_is_not, setting_at_least, owner_is, owner_is_not, instrument_is, instrument_is_not, inputs_are,
-/// dx7_engine_is, source_loaded or never.
+/// source_loaded or never.
 struct SettingCondition {
 	/// @brief What the condition reads. NEVER reads nothing and holds for no one.
-	enum class Subject : uint8_t { SETTING, OWNER, INSTRUMENT, INPUTS_PRESENT, DX7_ENGINE, LOADED_SOURCES, NEVER };
+	enum class Subject : uint8_t { SETTING, OWNER, INSTRUMENT, INPUTS_PRESENT, LOADED_SOURCES, NEVER };
 	enum class Test : uint8_t { IS, IS_NOT, AT_LEAST };
 	Subject subject{Subject::SETTING};
 	Test test{Test::IS};
 	std::string_view path; ///< SETTING: a row of the same owner (its stored value; a CHOICE row's index)
 	/// SETTING: stored values; OWNER: SettingContext::Owner values; INSTRUMENT: SettingContext::Instrument values;
-	/// INPUTS_PRESENT and DX7_ENGINE: {1} or {0}; LOADED_SOURCES: SettingContext::loaded_sources masks. Never empty but
-	/// for NEVER.
+	/// INPUTS_PRESENT: {1} or {0}; LOADED_SOURCES: SettingContext::loaded_sources masks. Never empty but for NEVER.
 	std::span<const int32_t> values;
 };
 
-/// @brief The values inputs_are and dx7_engine_is test against.
+/// @brief The values inputs_are tests against.
 inline constexpr std::array<int32_t, 1> kInputsPresentValue{1};
 inline constexpr std::array<int32_t, 1> kInputsAbsentValue{0};
 /// @brief For each source (row i), the loaded_sources masks in which it holds a loaded file: every mask of
@@ -266,14 +264,6 @@ inline constexpr auto kSourceLoadedMasks = [] {
 	        SettingCondition::Test::IS,
 	        {},
 	        present ? std::span<const int32_t>{kInputsPresentValue} : std::span<const int32_t>{kInputsAbsentValue}};
-}
-/// @brief A condition that holds when the device's DX7 engine feature is on (@p on true) or off (false).
-[[nodiscard]] constexpr SettingCondition dx7_engine_is(bool on) {
-	return {.subject = SettingCondition::Subject::DX7_ENGINE,
-	        .test = SettingCondition::Test::IS,
-	        .path = {},
-	        .values =
-	            on ? std::span<const int32_t>{kInputsPresentValue} : std::span<const int32_t>{kInputsAbsentValue}};
 }
 /// @brief A condition that holds for no owner, no setting and no context: a choice or row a menu never offers.
 [[nodiscard]] constexpr SettingCondition never() {
@@ -369,9 +359,6 @@ inline constexpr DisplayMapping kLinearMapping{};
 		break;
 	case SettingCondition::Subject::INPUTS_PRESENT:
 		subject = context.audio_inputs_present ? 1 : 0;
-		break;
-	case SettingCondition::Subject::DX7_ENGINE:
-		subject = context.dx7_engine ? 1 : 0;
 		break;
 	case SettingCondition::Subject::LOADED_SOURCES:
 		subject = context.loaded_sources;
@@ -555,10 +542,10 @@ inline constexpr DisplayMapping kLinearMapping{};
 /// @param condition The condition.
 /// @return For every subject but NEVER, at least one value (an empty IS holds for no one, which is NEVER's to say). For
 ///         SETTING: its path names a row of @p rows that is not STRUCTURED or TEXT, and each value is one that row can
-///         store. For OWNER and INSTRUMENT: no path, and each value is one of the enum's. For INPUTS_PRESENT and
-///         DX7_ENGINE: IS, no path, and each value is 0 or 1. For LOADED_SOURCES: no path, and each value is a mask of
-///         kMaxSoundSources bits. For NEVER: IS, no path and no values. AT_LEAST only on a SETTING whose row is
-///         INTEGER, with exactly one value.
+///         store. For OWNER and INSTRUMENT: no path, and each value is one of the enum's. For INPUTS_PRESENT: IS, no
+///         path, and each value is 0 or 1. For LOADED_SOURCES: no path, and each value is a mask of kMaxSoundSources
+///         bits. For NEVER: IS, no path and no values. AT_LEAST only on a SETTING whose row is INTEGER, with exactly
+///         one value.
 [[nodiscard]] constexpr bool condition_is_valid(std::span<const SettingInfo> rows, const SettingCondition& condition) {
 	const auto values_within = [&](int32_t least, int32_t greatest) {
 		return condition.path.empty() && std::ranges::all_of(condition.values, [&](int32_t value) {
@@ -585,7 +572,6 @@ inline constexpr DisplayMapping kLinearMapping{};
 	case SettingCondition::Subject::INSTRUMENT:
 		return values_within(0, kInstrumentCount - 1);
 	case SettingCondition::Subject::INPUTS_PRESENT:
-	case SettingCondition::Subject::DX7_ENGINE:
 		return condition.test == SettingCondition::Test::IS && values_within(0, 1);
 	case SettingCondition::Subject::LOADED_SOURCES:
 		return values_within(0, (1 << kMaxSoundSources) - 1);

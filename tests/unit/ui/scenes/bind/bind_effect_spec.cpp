@@ -171,7 +171,7 @@ describe bind_effect("an effect target on a sound or a chain", ${
 		expect(chain.empty()).to_be_false();
 		const auto sound = names_at(fixture, "lpfMode", {.slot = kDrum});
 		expect(sound).to_equal(table_names(deluge::plugin::kDelugeInstrument, "lpfMode",
-		                                   setting_context(fixture.song, kDrum, fixture.host.sound, fixture.host.audio, nullptr)));
+		                                   setting_context(fixture.song, kDrum, fixture.host.sound, fixture.host.audio)));
 	});
 
 	it("resolves nothing for a chain the song does not hold, or with no address", _ {

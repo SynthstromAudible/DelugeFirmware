@@ -56,7 +56,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		const auto shown = view(sound("osc2/type"), &fixture.song, at(kSynth), fixture.ports());
 		expect(shown.has_value()).to_be_true();
 		const SlotReader reader{fixture.song, kSynth, fixture.host.sound};
-		const auto shown_for = setting_context(fixture.song, kSynth, fixture.host.sound, fixture.host.audio, nullptr);
+		const auto shown_for = setting_context(fixture.song, kSynth, fixture.host.sound, fixture.host.audio);
 		const auto& row = row_at("osc2/type");
 		expect(shown->greatest + 1).to_equal(deluge::plugin::applicable_choice_count(row, shown_for, reader.reader()));
 		expect(shown->stale.has_value()).to_be_false();

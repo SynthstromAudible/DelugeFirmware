@@ -119,11 +119,9 @@ public:
 		return applied(edit);
 	}
 
-	bool write_dx_patch(project::SlotAddress slot, uint8_t source,
-	                    const instruments::classic::DxPatchState& patch) override {
+	bool write_dx_patch(project::SlotAddress slot, const instruments::classic::DxPatchState& patch) override {
 		::Sound* sound = sound_at(slot);
-		// No oscillator holds a DX7 (it is the sound's engine): a write through a source refuses
-		if (sound == nullptr || source >= kNumSources || sound->oscType(source) != OscType::DX7) {
+		if (sound == nullptr || sound->getSynthMode() != SynthMode::DX7) {
 			return false;
 		}
 		// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`,
@@ -132,11 +130,11 @@ public:
 		return true;
 	}
 
-	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override {
+	bool load_dx_program(project::SlotAddress slot, int32_t program) override {
 		::Sound* sound = sound_at(slot);
 		DX7Cartridge* bank = dxCartridgeBank();
-		if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->oscType(source) != OscType::DX7
-		    || program < 0 || program >= bank->numPatches()) {
+		if (sound == nullptr || bank == nullptr || sound->getSynthMode() != SynthMode::DX7 || program < 0
+		    || program >= bank->numPatches()) {
 			return false;
 		}
 		loadDxProgram(*sound, *bank, program);

@@ -52,7 +52,6 @@ inline constexpr std::array kNotRingMod{plugin::setting_is_not("mode", kRingMod)
 inline constexpr std::array<std::string_view, 2> kOscType{"osc1/type", "osc2/type"};
 inline constexpr std::array<int32_t, 1> kWavetable{value_of(instruments::classic::OscType::WAVETABLE)};
 inline constexpr std::array<int32_t, 1> kSupersaw{value_of(instruments::classic::OscType::SUPERSAW)};
-inline constexpr std::array<int32_t, 1> kDx7{value_of(instruments::classic::OscType::DX7)};
 inline constexpr std::array<int32_t, 4> kSampleOrInput{
     value_of(instruments::classic::OscType::SAMPLE), value_of(instruments::classic::OscType::INPUT_L),
     value_of(instruments::classic::OscType::INPUT_R), value_of(instruments::classic::OscType::INPUT_STEREO)};
@@ -79,11 +78,8 @@ inline constexpr std::array<std::array<SettingCondition, 1>, 2> kLoaded{
     {{plugin::source_loaded(0)}, {plugin::source_loaded(1)}}};
 inline constexpr std::array<std::array<Alternatives, 2>, 2> kPulseWidthAny{
     {{kNotWavetable[0], kLoaded[0]}, {kNotWavetable[1], kLoaded[1]}}};
-/// A source's carrier feedback (`origin/main:src/deluge/gui/menu_item/osc/source/feedback.h`): FM, or a DX7 oscillator.
-inline constexpr std::array<std::array<SettingCondition, 1>, 2> kDx7Osc{
-    {{plugin::setting_is(kOscType[0], kDx7)}, {plugin::setting_is(kOscType[1], kDx7)}}};
-inline constexpr std::array<std::array<Alternatives, 2>, 2> kCarrierFeedbackAny{
-    {{kIsFm, kDx7Osc[0]}, {kIsFm, kDx7Osc[1]}}};
+/// A source's carrier feedback (`origin/main:src/deluge/gui/menu_item/osc/source/feedback.h`): FM (`main`'s DX7
+/// oscillator showed it too, which the DX7 engine never reads).
 
 // The mod FX type, as the `isRelevant` overrides of main's mod FX items gate on it
 // (`origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`, `origin/main:src/deluge/gui/menu_item/mod_fx/rate.h`,
@@ -155,8 +151,7 @@ inline constexpr std::array<ParamShows, 2> kOscWaveIndex{
     {{.when = kNotFm, .any = kWaveIndexAny[0]}, {.when = kNotFm, .any = kWaveIndexAny[1]}}};
 inline constexpr std::array<ParamShows, 2> kOscPulseWidth{
     {{.when = kPulseWidth[0], .any = kPulseWidthAny[0]}, {.when = kPulseWidth[1], .any = kPulseWidthAny[1]}}};
-inline constexpr std::array<ParamShows, 2> kOscCarrierFeedback{
-    {{.any = kCarrierFeedbackAny[0]}, {.any = kCarrierFeedbackAny[1]}}};
+inline constexpr std::array<ParamShows, 2> kOscCarrierFeedback{{{.when = kIsFm}, {.when = kIsFm}}};
 inline constexpr ParamShows kModFxIsOn{.when = kModFxOn};
 inline constexpr ParamShows kModFxDepth{.when = kModFxHasDepth};
 inline constexpr ParamShows kModFxFeedback{.when = kModFxHasFeedback};

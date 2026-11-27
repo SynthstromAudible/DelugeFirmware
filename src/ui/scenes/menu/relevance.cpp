@@ -117,6 +117,13 @@ bool is_subtractive(const MenuContext& ctx) {
 	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
 	return state != nullptr && synth_mode(*state) == SynthMode::SUBTRACTIVE;
 }
+bool is_dx7(const MenuContext& ctx) {
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
+	return state != nullptr && synth_mode(*state) == SynthMode::DX7;
+}
+bool not_dx7(const MenuContext& ctx) {
+	return !is_dx7(ctx);
+}
 // ---------------------------------------------------------------------------------------------
 // Per-source
 

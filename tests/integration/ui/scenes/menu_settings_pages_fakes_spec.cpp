@@ -119,7 +119,6 @@ constexpr std::array<FeatureNode, deluge::project::kFeatureCount> kFeatureNodes{
     {&nodes::feature_norns_layout, Feature::DISPLAY_NORNS_LAYOUT},
     {&nodes::feature_sticky_shift, Feature::SHIFT_IS_STICKY},
     {&nodes::feature_light_shift, Feature::LIGHT_SHIFT_LED},
-    {&nodes::feature_dx7_engine, Feature::ENABLE_DX7_ENGINE},
     {&nodes::feature_kb_sidebar_menu_exit, Feature::ENABLE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT},
     {&nodes::feature_launch_event_playhead, Feature::ENABLE_LAUNCH_EVENT_PLAYHEAD},
     {&nodes::feature_chord_keyboard, Feature::DISPLAY_CHORD_KEYBOARD},

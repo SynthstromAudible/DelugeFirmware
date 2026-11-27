@@ -162,7 +162,7 @@ void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 	}
 	ColumnControlState& state = getState().columnControl;
 	auto* sound = (SoundInstrument*)newInstrument;
-	bool is_dx = (sound->oscType(0) == OscType::DX7);
+	const bool is_dx = sound->getSynthMode() == SynthMode::DX7;
 	if (!is_dx) {
 		if (state.rightColFunc == DX) {
 			state.rightColSetAtRuntime = false;
@@ -175,9 +175,6 @@ void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 		}
 	}
 	else {
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::Off) {
-			return;
-		}
 		// don't change column if already set
 		if (state.leftColFunc == DX || state.rightColFunc == DX || state.rightColSetAtRuntime) {
 			return;

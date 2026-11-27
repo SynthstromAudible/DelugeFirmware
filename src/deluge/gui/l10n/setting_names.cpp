@@ -709,8 +709,6 @@ constexpr SettingNames kFeatureStickyShiftNames{
     STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT, STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT, {}, {}};
 constexpr SettingNames kFeatureLightShiftNames{
     STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT, STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT, {}, {}};
-constexpr SettingNames kFeatureEnableDX7EngineNames{
-    STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE, STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE, {}, {}};
 constexpr SettingNames kFeatureEnableKeyboardViewSidebarMenuExitNames{
     STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
     STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
@@ -772,7 +770,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 244> kEntries{{
+constexpr std::array<Entry, 243> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -854,7 +852,6 @@ constexpr std::array<Entry, 244> kEntries{{
     Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/useLastClipType">, &kDefaultUseLastClipTypeNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/useSharps">, &kUseSharpsNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/velocity">, &kDefaultVelocityNames},
-    Entry{SettingGroupId::DEVICE, project::stored_text<"features/EnableDX7Engine">, &kFeatureEnableDX7EngineNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"features/altGoldenKnobDelayParams">,
           &kFeatureAltGoldenKnobDelayParamsNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"features/alternativePlaybackStartBehaviour">,

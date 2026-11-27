@@ -125,7 +125,7 @@ std::optional<Resolved> resolve(const Target& target, const project::Song* model
 		if (!reader.resolved()) {
 			return std::nullopt;
 		}
-		return Resolved{row, reader, setting_context(*model, *where.slot, *ports.sound, *ports.audio, ports.device),
+		return Resolved{row, reader, setting_context(*model, *where.slot, *ports.sound, *ports.audio),
 		                plugin::kDelugeInstrument};
 	}
 	if (effect && where.chain) {
@@ -182,8 +182,7 @@ std::optional<ResolvedParam> resolve_param(const Target& target, const project::
 		if (info == nullptr || !reader.resolved()) {
 			return std::nullopt;
 		}
-		return ResolvedParam{*address, info, reader,
-		                     setting_context(model, *where.slot, *ports.sound, *ports.audio, ports.device)};
+		return ResolvedParam{*address, info, reader, setting_context(model, *where.slot, *ports.sound, *ports.audio)};
 	}
 	const plugin::ParamInfo* info = plugin::find_param(host::chains::kParams, address->id);
 	Reader reader{ChainReader{model, *where.chain, *ports.tracks}};

@@ -85,10 +85,6 @@ int32_t choice_of(const Node& node, const MenuContext& ctx, int32_t value) {
 std::optional<ArtColumn> osc_type_art(const Node& node, const MenuContext& ctx, int32_t value) {
 	using instruments::classic::OscType;
 	const auto type = static_cast<OscType>(choice_of(node, ctx, value));
-	if (type == OscType::DX7) {
-		return ArtColumn{
-		    .text = deluge::l10n::getView(String::STRING_FOR_DX7), .face = ArtColumn::Face::Title, .dy = 5};
-	}
 	const Icon* icon = &icons::sine;
 	switch (type) {
 	case OscType::TRIANGLE:

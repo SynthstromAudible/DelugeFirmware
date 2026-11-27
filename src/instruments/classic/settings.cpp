@@ -104,10 +104,6 @@ constexpr std::array<int32_t, 1> kDx7Value{std::to_underlying(SynthMode::DX7)};
 /// The DX7's own rows apply in DX7 mode; the oscillators' outside it.
 constexpr std::array kIsDx7{plugin::setting_is("mode", kDx7Value)};
 constexpr std::array kNotDx7{plugin::setting_is_not("mode", kDx7Value)};
-/// The mode menu offers DX7 while the device's DX7 engine is on.
-constexpr std::array kDx7EngineOn{plugin::dx7_engine_is(true)};
-constexpr std::array kModeWhen{
-    plugin::ChoiceCondition{.choice = std::to_underlying(SynthMode::DX7), .when = kDx7EngineOn}};
 
 /// Ring mod mixes oscillators alone, so it offers no sample or input.
 constexpr std::array kNotRingMode{plugin::setting_is_not("mode", kRingModeValue)};
@@ -142,7 +138,7 @@ constexpr auto kRingableTypes = [] {
 constexpr std::array kModeConditions{plugin::setting_is("osc1/type", kRingableTypes),
                                      plugin::setting_is("osc2/type", kRingableTypes)};
 constexpr std::array<std::span<const plugin::SettingCondition>, 2> kModeAny{kModeConditions, kIsDx7};
-constexpr plugin::SettingDescriptorExtras kModeExtras{.applies_any = kModeAny, .choice_when = kModeWhen};
+constexpr plugin::SettingDescriptorExtras kModeExtras{.applies_any = kModeAny};
 
 /// The polyphony that has a voice count to limit.
 constexpr std::array<int32_t, 1> kPolyValue{std::to_underlying(PolyphonyMode::POLY)};

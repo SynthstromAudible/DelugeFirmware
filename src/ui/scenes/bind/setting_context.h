@@ -8,7 +8,6 @@
 #include "project/instrument_slot.h"
 #include "project/song.h"
 #include "ui/scenes/bind/ports/audio_facts.h"
-#include "ui/scenes/bind/ports/device_settings.h"
 #include "ui/scenes/bind/ports/sound_facts.h"
 #include "ui/scenes/bind/target.h"
 
@@ -19,13 +18,11 @@ namespace deluge::ui::scenes::bind {
 /// an instrument slot. context_is_coherent holds for every context this builds.
 /// @param model The song.
 /// @param slot  The sound's slot.
-/// @param sound  The sound facts: loaded sources.
-/// @param audio  The audio facts: plugged inputs.
-/// @param device The device's settings, for its DX7 engine feature; null reads the feature's default (off).
+/// @param sound The sound facts: loaded sources.
+/// @param audio The audio facts: plugged inputs.
 /// @return The context.
 [[nodiscard]] plugin::SettingContext setting_context(const project::Song& model, project::SlotAddress slot,
-                                                     const SoundFacts& sound, const AudioFacts& audio,
-                                                     const DeviceSettings* device);
+                                                     const SoundFacts& sound, const AudioFacts& audio);
 
 /// @brief The context a host passes for the chain at @p chain (the host contract in plugin/types/setting.h): a
 /// kit's chain is a KIT playing a KIT, an audio track's a TRACK playing AUDIO, the master's the SONG playing NONE. No

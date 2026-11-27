@@ -178,14 +178,13 @@ bool RecordingSoundWrites::attach_recording(project::SlotAddress slot, uint8_t s
 	return accept;
 }
 
-bool RecordingSoundWrites::write_dx_patch(project::SlotAddress slot, uint8_t source,
-                                          const instruments::classic::DxPatchState& patch) {
-	calls.push_back({.kind = Call::Kind::DX_PATCH, .slot = slot, .source = source, .dx_patch = patch});
+bool RecordingSoundWrites::write_dx_patch(project::SlotAddress slot, const instruments::classic::DxPatchState& patch) {
+	calls.push_back({.kind = Call::Kind::DX_PATCH, .slot = slot, .dx_patch = patch});
 	return accept;
 }
 
-bool RecordingSoundWrites::load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) {
-	calls.push_back({.kind = Call::Kind::DX_PROGRAM, .slot = slot, .source = source, .value = program});
+bool RecordingSoundWrites::load_dx_program(project::SlotAddress slot, int32_t program) {
+	calls.push_back({.kind = Call::Kind::DX_PROGRAM, .slot = slot, .value = program});
 	return accept;
 }
 

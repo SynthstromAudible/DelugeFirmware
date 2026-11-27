@@ -38,7 +38,7 @@ std::optional<deluge::ui::widgets::oled::ArtColumn> direction_art(const MenuCont
 /// `lfo::Type::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/lfo/type.h`): the shape's icon.
 std::optional<deluge::ui::widgets::oled::ArtColumn> lfo_type_art(const MenuContext& ctx, int32_t value);
 /// `osc::Type::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/osc/type.h`) for source 1 and 2: the
-/// shape's icon with the analog or supersaw letter, or DX7's name.
+/// shape's icon with the analog or supersaw letter.
 std::optional<deluge::ui::widgets::oled::ArtColumn> osc0_type_art(const MenuContext& ctx, int32_t value);
 std::optional<deluge::ui::widgets::oled::ArtColumn> osc1_type_art(const MenuContext& ctx, int32_t value);
 /// `sample::Repeat::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sample/repeat.h`): the mode's icon,
