@@ -185,13 +185,19 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		bool loopSong = loopSongPlaybackAllowed();
 		bool sectionPopulated[kMaxNumSections] = {};
+		int32_t newSection = SECTION_OUT_OF_RANGE;
 		if (loopSong) {
 			for (int32_t clipIndex = 0; clipIndex < currentSong->sessionClips.getNumElements(); ++clipIndex) {
 				Clip* clip = currentSong->sessionClips.getClipAtIndex(clipIndex);
 				if (clip->section < kMaxNumSections && clip->launchStyle != LaunchStyle::FILL) {
 					sectionPopulated[clip->section] = true;
-		if (oldSection < kMaxNumSections) {
-			int32_t newSection = SECTION_OUT_OF_RANGE;
+				}
+			}
+			newSection = nextSectionInSequence(oldSection, kMaxNumSections, true, [&](int32_t section) {
+				return currentSong->sections[section].num_repetitions != LAUNCH_EXCLUSIVE && sectionPopulated[section];
+			});
+		}
+		else if (oldSection < kMaxNumSections) {
 			for (int32_t c = oldSection + 1; c <= kMaxNumSections; ++c) {
 				if (currentSong->sections[c].num_repetitions != LAUNCH_EXCLUSIVE) {
 					newSection = c;
@@ -199,10 +205,6 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 				}
 			}
 		}
-		int32_t newSection = nextSectionInSequence(oldSection, kMaxNumSections, loopSong, [&](int32_t section) {
-			return currentSong->sections[section].numRepetitions != LAUNCH_EXCLUSIVE
-			       && (!loopSong || sectionPopulated[section]);
-		});
 		if (newSection >= 0) {
 			userWantsToArmClipsToStartOrSolo(newSection, nullptr, true, false, false, numRepetitions, false);
 			loopSongWrapArmed = loopSong && newSection <= oldSection;
