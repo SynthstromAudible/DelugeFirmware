@@ -18,6 +18,7 @@
 #include "model/output.h"
 #include "definitions_cxx.hpp"
 #include "drivers/usb/usb_audio.h"
+#include "gui/views/arranger_view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -461,6 +462,7 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 	if (i == -1) {
 		return Error::INSUFFICIENT_RAM;
 	}
+	arrangerView.clipInstanceInsertedElsewhere(this, i); // It may be holding a pad on one of our ClipInstances
 
 	ClipInstance* clipInstance = clipInstances.getElement(i);
 

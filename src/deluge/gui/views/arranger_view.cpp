@@ -1247,6 +1247,20 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 	view.setActiveModControllableTimelineCounter(clip);
 }
 
+// While a pad is held, the arranger keeps the pressed ClipInstance by index (pressedClipInstanceIndex) and by pointer
+// (lastInteractedClipInstance). Arrangement recording starting (playback started while the pad is held) inserts a
+// ClipInstance into the same array, which shifts the ones after it and can move the whole array.
+void ArrangerView::clipInstanceInsertedElsewhere(Output* output, int32_t index) {
+	if (output == pressedClipInstanceOutput && pressedClipInstanceIndex >= index) {
+		pressedClipInstanceIndex++;
+	}
+	if (lastInteractedClipInstance && output == currentSong->getOutputFromIndex(lastInteractedOutputIndex)) {
+		ClipInstance* clipInstance =
+		    output->clipInstances.getElement(output->clipInstances.search(lastInteractedPos, GREATER_OR_EQUAL));
+		lastInteractedClipInstance = (clipInstance && clipInstance->pos == lastInteractedPos) ? clipInstance : nullptr;
+	}
+}
+
 void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance) {
 	lastInteractedOutputIndex = yDisplay + currentSong->arrangementYScroll;
 	lastInteractedPos = clipInstance->pos;

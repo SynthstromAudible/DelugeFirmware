@@ -36,6 +36,8 @@ class ModelStackWithNoteRow;
 
 class ArrangerView final : public TimelineView {
 public:
+	// For a ClipInstance inserted at index into output->clipInstances by something other than the arranger itself
+	void clipInstanceInsertedElsewhere(Output* output, int32_t index);
 	ArrangerView();
 	bool opened() override;
 	void focusRegained() override;
