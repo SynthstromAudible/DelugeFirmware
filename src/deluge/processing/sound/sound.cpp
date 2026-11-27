@@ -3108,6 +3108,7 @@ void Sound::setupUnisonStereoSpread() {
 			int32_t sign = isOdd ? -1 : 1;
 
 			unisonPan[u] = sign * (lowestVoice + voiceSpacing * u);
+			shouldDoPanning(unisonPan[u], &unisonAmplitudeL[u], &unisonAmplitudeR[u]);
 		}
 	}
 }

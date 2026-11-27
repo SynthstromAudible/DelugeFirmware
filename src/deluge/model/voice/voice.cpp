@@ -21,6 +21,7 @@
 #include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
 #include "dsp/oscillators/sine_osc.h"
+#include "dsp/stereo_pan.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
 #include "gui/waveform/waveform_renderer.h"
@@ -1300,8 +1301,8 @@ skipAutoRelease: {}
 		// For each unison part
 		for (int32_t u = 0; u < sound.numUnison; u++) {
 
-			int32_t unisonAmplitudeL, unisonAmplitudeR;
-			shouldDoPanning((stereoUnison ? sound.unisonPan[u] : 0), &unisonAmplitudeL, &unisonAmplitudeR);
+			int32_t unisonAmplitudeL = stereoUnison ? sound.unisonAmplitudeL[u] : 1073741823;
+			int32_t unisonAmplitudeR = stereoUnison ? sound.unisonAmplitudeR[u] : 1073741823;
 
 			// Work out the phase increments of the two sources. If these are too high, sourceAmplitudes[s] is set to 0.
 			// Yes this will affect all unison parts, which seems like it's not what we want, but since we're traversing
@@ -1522,10 +1523,7 @@ noModulatorsActive:
 carriersDone: {}
 				if (stereoUnison) {
 					// double up the temp buffer
-					for (int32_t i = 0; i < numSamples; i++) {
-						oscBuffer[(i << 1)] += multiply_32x32_rshift32(fmOscBuffer[i], unisonAmplitudeL) << 2;
-						oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(fmOscBuffer[i], unisonAmplitudeR) << 2;
-					}
+					dsp::addPannedMonoToStereo(oscBuffer, fmOscBuffer, numSamples, unisonAmplitudeL, unisonAmplitudeR);
 				}
 			}
 		}
@@ -2035,8 +2033,8 @@ pitchTooHigh:
 		}
 
 		bool stereoUnison = sound.unisonStereoSpread && sound.numUnison > 1 && stereoBuffer;
-		int32_t amplitudeL, amplitudeR;
-		shouldDoPanning((stereoUnison ? sound.unisonPan[u] : 0), &amplitudeL, &amplitudeR);
+		int32_t amplitudeL = stereoUnison ? sound.unisonAmplitudeL[u] : 1073741823;
+		int32_t amplitudeR = stereoUnison ? sound.unisonAmplitudeR[u] : 1073741823;
 		// used if mono source but stereoUnison active
 
 		// If sample...
@@ -2232,7 +2230,8 @@ dontUseCache: {}
 				// for now settle for "don't pay what you don't use", i e no extra copies/maths
 				// if you don't use unison stereo on a sample - bfredl
 				renderBuffer = spareRenderingBuffer[2]; // note: 2 and 3 are used
-				memset(renderBuffer, 0, 2 * SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
+				// Only clear what render() can touch: numSamples frames, rounded up to a vector of 4
+				memset(renderBuffer, 0, numChannels * ((numSamples + 3) & ~3) * sizeof(int32_t));
 			}
 
 			// We no longer do caching when there's just time stretching with no pitch adjustment, because the time
@@ -2251,18 +2250,10 @@ dontUseCache: {}
 
 			if (stereoUnison) {
 				if (numChannels == 2) {
-					// TODO: society if renderBasicSource() took a StereoSample[] buffer already
-					for (int32_t i = 0; i < numSamples; i++) {
-						oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[(i << 1)], amplitudeL) << 2;
-						oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[(i << 1) + 1], amplitudeR) << 2;
-					}
+					dsp::addPannedStereoToStereo(oscBuffer, renderBuffer, numSamples, amplitudeL, amplitudeR);
 				}
 				else {
-					// TODO: if render buffer was typed we could use addPannedMono()
-					for (int32_t i = 0; i < numSamples; i++) {
-						oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
-						oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
-					}
+					dsp::addPannedMonoToStereo(oscBuffer, renderBuffer, numSamples, amplitudeL, amplitudeR);
 				}
 			}
 
@@ -2326,10 +2317,7 @@ dontUseCache: {}
 					source->livePitchShifter->render(renderBuffer, numSamples, phaseIncrement, sourceAmplitude,
 					                                 amplitudeIncrement, interpolationBufferSize);
 
-					for (int32_t i = 0; i < numSamples; i++) {
-						oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
-						oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
-					}
+					dsp::addPannedMonoToStereo(oscBuffer, renderBuffer, numSamples, amplitudeL, amplitudeR);
 				}
 				else {
 					source->livePitchShifter->render(oscBuffer, numSamples, phaseIncrement, sourceAmplitude,
@@ -2498,7 +2486,8 @@ dontUseCache: {}
 
 			if (stereoBuffer) {
 				renderBuffer = spareRenderingBuffer[2];
-				memset(renderBuffer, 0, SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
+				// renderOsc() accumulates in vectors of 4, so clear numSamples rounded up to that
+				memset(renderBuffer, 0, ((numSamples + 3) & ~3) * sizeof(int32_t));
 			}
 
 			int32_t* oscBufferEnd =
@@ -2521,11 +2510,7 @@ dontUseCache: {}
 			    sourceWaveIndexesLastTime[s], waveTable, &unisonParts[u].sources[s].supersawPhases);
 
 			if (stereoBuffer) {
-				// TODO: if render buffer was typed we could use addPannedMono()
-				for (int32_t i = 0; i < numSamples; i++) {
-					oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
-					oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
-				}
+				dsp::addPannedMonoToStereo(oscBuffer, renderBuffer, numSamples, amplitudeL, amplitudeR);
 			}
 		}
 	}
