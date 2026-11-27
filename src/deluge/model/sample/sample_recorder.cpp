@@ -134,6 +134,7 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 gotError:
 		sample->~Sample();
 		delugeDealloc(sample_memory);
+		sample = nullptr; // The caller destroys this recorder next, and ~SampleRecorder() detaches any sample
 		return error;
 	}
 
