@@ -133,12 +133,13 @@ constexpr auto kRingableTypes = [] {
 	}
 	return types;
 }();
-/// The synth mode menu shows while ring mod could be chosen (neither oscillator past a wavetable), and in DX7 mode,
-/// whatever its parked oscillators hold, since it is the menu that leaves it.
-constexpr std::array kModeConditions{plugin::setting_is("osc1/type", kRingableTypes),
-                                     plugin::setting_is("osc2/type", kRingableTypes)};
-constexpr std::array<std::span<const plugin::SettingCondition>, 2> kModeAny{kModeConditions, kIsDx7};
-constexpr plugin::SettingDescriptorExtras kModeExtras{.applies_any = kModeAny};
+/// The synth mode menu shows on every sound, the way into the DX7 and FM whatever the oscillators play; it offers ring
+/// mod only where neither oscillator is past a wavetable.
+constexpr std::array kRingable{plugin::setting_is("osc1/type", kRingableTypes),
+                               plugin::setting_is("osc2/type", kRingableTypes)};
+constexpr std::array kModeWhen{
+    plugin::ChoiceCondition{.choice = std::to_underlying(SynthMode::RINGMOD), .when = kRingable}};
+constexpr plugin::SettingDescriptorExtras kModeExtras{.choice_when = kModeWhen};
 
 /// The polyphony that has a voice count to limit.
 constexpr std::array<int32_t, 1> kPolyValue{std::to_underlying(PolyphonyMode::POLY)};

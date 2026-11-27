@@ -461,7 +461,11 @@ describe tables_2_values("scenes::menu sound-editor tables: values", $ {
 					    e.node->bind.target.shown_on == deluge::ui::scenes::bind::Target::ShownOn::ON_LANE;
 					const bool shown_here = (e.parent == nullptr || menu::bindings::relevant(*e.parent, fx.ctx))
 					                        && menu::bindings::relevant(*e.node, fx.ctx);
-					const bool required = std::string{fx.name} == "synth" ? !lane_only : shown_here;
+					// A node shown where main hid it (spec::kShownWhereMainHid) has no list of main's there.
+					const std::vector<std::string>* main_rel = table().find(e.path, std::string{"rel@"} + fx.name);
+					const bool main_hid_it = spec::shows_where_main_hid(
+					    *e.node, shown_here, main_rel != nullptr && !main_rel->empty() && main_rel->front() == "1");
+					const bool required = (std::string{fx.name} == "synth" ? !lane_only : shown_here) && !main_hid_it;
 					expect(e.path + (required ? " has none" : " has options")).to_equal(e.path + " has options");
 					continue;
 				}
@@ -498,8 +502,10 @@ describe tables_2_values("scenes::menu sound-editor tables: values", $ {
 					continue; // a page this context never opens (the bend ranges on a kit row)
 				}
 				const bool got = menu::bindings::relevant(*e.node, fx.ctx);
+				const bool main_shows = want->front() == "1";
 				const std::string at = std::string{fx.name} + " " + text_of(e.node->name) + " ";
-				expect(at + (got ? "shows" : "hides")).to_equal(at + (want->front() == "1" ? "shows" : "hides"));
+				expect(at + (got ? "shows" : "hides"))
+				    .to_equal(at + (main_shows || spec::shows_where_main_hid(*e.node, got, main_shows) ? "shows" : "hides"));
 				ever_true += got ? 1 : 0;
 			}
 		}

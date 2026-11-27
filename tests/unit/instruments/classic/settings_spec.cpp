@@ -323,25 +323,35 @@ describe settings("the Deluge instrument's settings schema", ${
 	it("offers DX7 as the fourth synth mode", _ {
 		const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(kSettings, "mode");
 		const SettingContext track{.owner = SettingContext::Owner::TRACK, .instrument = SettingContext::Instrument::SYNTH};
-		const ModeReader subtractive{static_cast<int32_t>(SynthMode::SUBTRACTIVE)};
+		const SoundState squares;
+		const deluge::plugin::SettingReader held{.read =
+		                                             [](const void* self, std::string_view path) {
+			                                             return held_setting(*static_cast<const SoundState*>(self), path);
+		                                             },
+		                                         .self = &squares};
 		expect(std::string{row.choices[std::to_underlying(SynthMode::DX7)]}).to_equal(std::string{"dx7"});
-		expect(deluge::plugin::applicable_choice_count(row, track, subtractive.reader())).to_equal(4);
+		expect(deluge::plugin::applicable_choice_count(row, track, held)).to_equal(4);
 	});
 
-	it("shows the mode menu in DX7 mode whatever its parked oscillators hold", _ {
+	it("shows the mode menu on every sound, offering ring mod only where both oscillators can be rung", _ {
 		const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(kSettings, "mode");
 		const SettingContext track{.owner = SettingContext::Owner::TRACK, .instrument = SettingContext::Instrument::SYNTH};
-		const SoundState dx7 = deluge::test::with(sampleState(), "mode", to_string(SynthMode::DX7));
-		const deluge::plugin::SettingReader held{
-		    .read = [](const void* self, std::string_view path) {
-			    return held_setting(*static_cast<const SoundState*>(self), path);
-		    },
-		    .self = &dx7};
-		expect(held_setting(dx7, "osc1/type").value_or(-1)).to_equal(static_cast<int32_t>(OscType::SAMPLE));
-		expect(deluge::plugin::setting_applies(row, track, held)).to_be_true();
+		const auto ring = static_cast<size_t>(SynthMode::RINGMOD);
+		const auto dx7_mode = static_cast<size_t>(SynthMode::DX7);
+		const auto held_read = +[](const void* self, std::string_view path) {
+			return held_setting(*static_cast<const SoundState*>(self), path);
+		};
 		const SoundState samples = sampleState();
-		const deluge::plugin::SettingReader subtractive{held.read, &samples};
-		expect(deluge::plugin::setting_applies(row, track, subtractive)).to_be_false();
+		const deluge::plugin::SettingReader sampled{.read = held_read, .self = &samples};
+		expect(deluge::plugin::setting_applies(row, track, sampled)).to_be_true();
+		expect(deluge::plugin::setting_choice_applies(row, track, sampled, ring)).to_be_false();
+		expect(deluge::plugin::setting_choice_applies(row, track, sampled, dx7_mode)).to_be_true();
+		const SoundState dx7 = deluge::test::with(sampleState(), "mode", to_string(SynthMode::DX7));
+		const deluge::plugin::SettingReader parked{.read = held_read, .self = &dx7};
+		expect(deluge::plugin::setting_applies(row, track, parked)).to_be_true();
+		const SoundState squares;
+		const deluge::plugin::SettingReader plain{.read = held_read, .self = &squares};
+		expect(deluge::plugin::setting_choice_applies(row, track, plain, ring)).to_be_true();
 	});
 
 	it("reads and writes the DX7's pitch in DX7 mode, and hides the oscillators' rows there", _ {

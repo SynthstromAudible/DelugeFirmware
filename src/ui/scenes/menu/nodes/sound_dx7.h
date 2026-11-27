@@ -17,8 +17,10 @@
 /// | `dx7_level` | oscillator A's volume, the DX7's level | the mixer's oscillator 1 level |
 // clang-format on
 ///
-/// @note The DX7 reads oscillator A's volume and pulse width until it has params of its own. Each column shows in DX7
-///       mode alone, and appends to OSC1's children, so no column of `main`'s moves.
+/// @note The DX7 reads oscillator A's volume and pulse width until it has params of its own. It starts each operator's
+///       phase itself, so the retrigger phase plays nothing (a retriggered DX7 renders as a free-running one,
+///       `dx7_engine_spec`); `main` showed the column for a DX7 oscillator all the same, and so does this page. Each
+///       column shows in DX7 mode alone, and appends to OSC1's children, so no column of `main`'s moves.
 
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/column_hooks.h"

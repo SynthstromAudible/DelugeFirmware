@@ -7,6 +7,8 @@
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/settings.h"
 #include "ui/scenes/menu/nodes/sound_dx7.h"
+#include "ui/scenes/menu/nodes/sound_master.h"
+#include "ui/scenes/menu/shortcuts.h"
 
 #include <algorithm>
 #include <array>
@@ -127,6 +129,29 @@ inline std::vector<std::string> port_choices(const menu::Node& node, std::vector
 		}
 	}
 	return main;
+}
+
+/// @brief A node the port shows where `main` hid it, on purpose; each is a recorded difference
+///        (tests/ui-scripts/parity/DIFFERENCES.md). The synth mode shows on every sound, the way into the DX7 and FM
+///        whatever the oscillators play: `main` hid it while an oscillator was past a wavetable (`SynthModeSelection`).
+inline constexpr std::array<const menu::Node*, 1> kShownWhereMainHid{&menu::nodes::synth_mode};
+
+/// @brief Whether the port showing @p node (@p port_shows) where `main` answered @p main_shows is a named difference:
+///        a node of kShownWhereMainHid, shown where `main` hid it.
+inline bool shows_where_main_hid(const menu::Node& node, bool port_shows, bool main_shows) {
+	return port_shows && !main_shows && std::ranges::find(kShownWhereMainHid, &node) != kShownWhereMainHid.end();
+}
+
+/// @brief Whether pad (@p x, @p y) is a sound shortcut to a node of kShownWhereMainHid, in either layout.
+inline bool pad_shown_where_main_hid(uint8_t x, uint8_t y) {
+	for (const deluge::project::ShortcutsVersion version :
+	     {deluge::project::ShortcutsVersion::V1, deluge::project::ShortcutsVersion::V3}) {
+		const menu::Node* node = menu::shortcut_node(menu::MenuContext::Root::Sound, version, false, x, y);
+		if (node != nullptr && std::ranges::find(kShownWhereMainHid, node) != kShownWhereMainHid.end()) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /// @brief The paths `main`'s dropped children (kMainOnlyChildren) have under @p root, keyed as the tables key them.

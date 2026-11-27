@@ -642,10 +642,15 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 			install(root->ctx, root->song);
 			const std::vector<std::string>* want = table().find(e.path, "options");
 			if (want == nullptr) {
-				// Only a node shown on a page the root opens has a row.
+				// Only a node shown on a page the root opens has a row; a node shown where main hid it
+				// (spec::kShownWhereMainHid) has none.
 				const bool shown_here = (e.parent == nullptr || menu::bindings::relevant(*e.parent, root->ctx))
 				                        && menu::bindings::relevant(*e.node, root->ctx);
-				expect(e.path + (shown_here ? " has none" : " has options")).to_equal(e.path + " has options");
+				const std::vector<std::string>* main_rel = table().find(e.path, "rel");
+				const bool main_hid_it = spec::shows_where_main_hid(
+				    *e.node, shown_here, main_rel != nullptr && !main_rel->empty() && main_rel->front() == "1");
+				expect(e.path + (shown_here && !main_hid_it ? " has none" : " has options"))
+				    .to_equal(e.path + " has options");
 				continue;
 			}
 			std::string_view got[menu::kMaxDynamicNames];
@@ -680,7 +685,8 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 			}
 			const bool got = menu::bindings::relevant(*e.node, root->ctx);
 			const std::string label = e.path + " " + text_of(e.node->name) + " relevant=";
-			expect(label + (got ? "1" : "0")).to_equal(label + want->front());
+			const bool named = spec::shows_where_main_hid(*e.node, got, want->front() == "1");
+			expect(label + (got ? "1" : "0")).to_equal(label + (named ? "1" : want->front()));
 			ever_true += got ? 1 : 0;
 		}
 		expect(ever_true).to_be_greater_than(size_t(700)); // 845 today -- the loop cannot go vacuous

@@ -1615,6 +1615,10 @@ inline constexpr std::string_view kKitClipDirection =
 /// (tests/ui-scripts/parity/DIFFERENCES.md), so its sound has no oscillators to show and its mode menu shows, the menu
 /// that leaves DX7 mode.
 inline constexpr std::string_view kDx7Fixture = "a synth with a DX7";
+inline constexpr std::string_view kModeShowsPastWavetable =
+    "main hid the synth mode while an oscillator was past a wavetable (ring mod cannot ring it); it shows on every "
+    "sound, "
+    "the way into the DX7 and FM, offering ring mod only where both oscillators can be rung";
 inline constexpr std::string_view kDx7ModeShows =
     "main hid the synth mode beside a DX7 oscillator, which ring mod cannot ring; DX7 mode shows it, the menu that "
     "leaves it";
@@ -1623,6 +1627,22 @@ inline constexpr std::string_view kDx7NoOscillators =
     "transpose and phase)";
 
 inline const AppliesException kAppliesExceptions[] = {
+    {plugin::kDelugeInstrument, "a kit's sound row", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a kit's sound row in FM", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a kit's sound row playing a loaded sample", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a kit's sound row with its arp on", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a kit's sound row with its own stutter", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "an FM synth whose first oscillator holds a loaded sample", "mode", false,
+     kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "an FM synth whose first oscillator holds a sample", "mode", false,
+     kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing a loaded wavetable and a sample with no file", "mode", false,
+     kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing a sample and a wavetable", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing loaded samples", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing samples with no file", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing the inputs", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing the right input", "mode", false, kModeShowsPastWavetable},
     {plugin::kDelugeInstrument, kDx7Fixture, "mode", false, kDx7ModeShows},
     {plugin::kDelugeInstrument, kDx7Fixture, "osc1/type", true, kDx7NoOscillators},
     {plugin::kDelugeInstrument, kDx7Fixture, "osc1/transpose", true, kDx7NoOscillators},

@@ -375,8 +375,12 @@ reach past the page.
 
 ### The DX7 pages (`menu/nodes/dx.h`)
 
-`dx_menu` ports `dxMenu`, "DX7 source": SELECT on oscillator 1's type set to DX7 enters it (`osc0_type_chain`), and
-MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s table). It lists the browse row,
+The DX7 is a sound's engine, the synth mode DX7, and its pages edit that engine's patch. In DX7 mode OSC1's place in the
+sound menu is the DX7's page (`source0`, named DX7; `nodes/sound_dx7.h`): the mode, drawn DX7, then transpose, amp mod,
+retrigger phase and level; OSC2's page and the mixer hide. `dx_menu` ports `dxMenu`, "DX7 source": SELECT on the synth
+mode in DX7 mode enters it (`mode_chain`, from the master page or the DX7's page, as SELECT on `main`'s oscillator 1
+type set to DX7 did), and MOD7+SYNTH opens it on a new DX7 synth (site 11 of `gui/ui/menu_entry.cpp`'s table). It
+lists the browse row,
 "DX7 parameters" (the globals and "DX7 operator N") and the engine version; both lists open the parameter page,
 `DxParamItem`. Eight points reach past the pages.
 
@@ -391,7 +395,8 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
   unsets the blink the page sets up; the param's pad after a horizontal step. Shift + a horizontal turn where legacy
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
-  and inside the menu alike (`nodes::dx_shortcut_fallback`).
+  and inside the menu alike; oscillator 1's type pad lands on the DX7's page, on the mode (`nodes::dx_shortcut_fallback`).
+  The DX7's differences from `main` are DIFFERENCES D193–D197.
 * **The parameter page has its own pads** (`main` gave them only while its DX7 engine feature was on; the DX7 is
   built in here): `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut
   (`CustomItem::shortcut_pad`, asked first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of

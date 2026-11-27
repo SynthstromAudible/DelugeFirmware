@@ -13,6 +13,7 @@
 #include "ui/scenes/menu/nodes/dx_algorithms.h"
 #include "ui/scenes/menu/nodes/dx_tables.h"
 #include "ui/scenes/menu/nodes/sound_osc.h" // modulator0_volume and osc0_type, the shortcuts with a DX7 fallback
+#include "ui/scenes/menu/relevance.h"
 #include "ui/scenes/profile.h"
 
 #include "ui/gfx/oled/font.h"
@@ -255,8 +256,7 @@ void draw_param(deluge::ui::widgets::oled::OledFrame& p, int32_t top,
 } // namespace
 
 bool sound_is_dx7(const MenuContext& ctx) {
-	const deluge::instruments::classic::SoundState* sound = sound_of(ctx);
-	return sound != nullptr && deluge::instruments::classic::synth_mode(*sound) == SynthMode::DX7;
+	return relevance::is_dx7(ctx);
 }
 
 // ---------------------------------------------------------------------------------------------
