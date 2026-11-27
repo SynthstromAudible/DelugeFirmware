@@ -849,7 +849,12 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		// the note row editor keeps the selected row auditioning while open; exitCompletely() ends that audition
 		bool onlyRowEditorAuditioning = inNoteRowEditor() && isUIModeActiveExclusively(UI_MODE_AUDITIONING);
 		if (on && (currentUIMode == UI_MODE_NONE || onlyRowEditorAuditioning)) {
-			exitCompletely();
+			// exitCompletely() may need to write settings to the card, so it can't run inside the card routine - it
+			// returns this instead. Changing the root UI regardless would tear down the UI stack under the code that's
+			// waiting for the card.
+			if (inCardRoutine || exitCompletely() == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 				changeRootUI(&arrangerView);
 			}
