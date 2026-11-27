@@ -1,4 +1,5 @@
 #include "model/edits/learn_mapping.h"
+#include "instruments/classic/cables.h"
 
 #include "io/debug/log.h"
 #include "io/midi/learned_midi.h"
@@ -69,12 +70,11 @@ std::optional<deluge::project::OwnerParamTarget> knobTargetIn(const deluge::mode
 		return std::nullopt;
 	}
 	const bool isSound = effects->sound != nullptr;
-	namespace params = deluge::modulation::params;
 	return deluge::project::OwnerParamTarget{
-	    *address,
-	    deluge::project::engine_target(deluge::bridge::controlTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND
-	                                                                                  : params::Kind::UNPATCHED_GLOBAL)
-	                                       .value)};
+	    *address, deluge::project::engine_target(
+	                  deluge::bridge::controlTargetOf(param, isSound ? deluge::bridge::OwnerPlugin::INSTRUMENT
+	                                                                 : deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE)
+	                      .value)};
 }
 
 /// The kit whose row @p drum is.
@@ -202,7 +202,7 @@ void inputLearned(Context& ctx, const project::MappingTarget& target, const std:
 
 void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const ::MIDICable& cable) {
 	const deluge::synth::CableTarget volume =
-	    deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_VOLUME);
+	    deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolume);
 	SetPatchCable write{{.owner = owner,
 	                     .space = project::ParamSpace::ENGINE,
 	                     .id = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume),

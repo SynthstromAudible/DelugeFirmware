@@ -4,6 +4,7 @@
 #include "model/action/action_logger.h"
 #include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/param_stack.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/copied_param_automation.h"
@@ -21,7 +22,7 @@ Error PasteParamAutomation::apply(Context& ctx) {
 	// The automation edits take an engine stack.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = bridge::stack_of(*lane, memory);
-	const bool isPatchCable = stack->paramCollection->getParamKind() == modulation::params::Kind::PATCH_CABLE;
+	const bool isPatchCable = bridge::isCableCollection(stack->paramCollection);
 	// Open the Action, pre-snapshot the before-state (copy, not steal), then delegate to AutoParam::paste.
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_PASTE);
 	if (action != nullptr) {

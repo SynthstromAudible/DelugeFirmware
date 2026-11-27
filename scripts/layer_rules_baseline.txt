@@ -32,13 +32,7 @@ src/deluge/model/clip/instrument_clip_minder.cpp	model-calls-ui	52
 src/deluge/model/consequence/consequence_clip_begin_linear_record.cpp	model-calls-ui	1
 src/deluge/model/drum/midi_drum.cpp	model-calls-ui	1
 src/deluge/model/drum/non_audio_drum.cpp	model-calls-ui	1
-src/deluge/model/edits/edit_cable.cpp	no-param-kind-outside-runtime	1
-src/deluge/model/edits/learn_mapping.cpp	no-param-kind-outside-runtime	3
-src/deluge/model/edits/param_address_for.cpp	no-param-kind-outside-runtime	1
-src/deluge/model/edits/paste_param_automation.cpp	no-param-kind-outside-runtime	1
-src/deluge/model/edits/set_cable_polarity.cpp	no-param-kind-outside-runtime	1
 src/deluge/model/edits/set_param_value.cpp	model-calls-ui	1
-src/deluge/model/edits/set_param_value.cpp	no-param-kind-outside-runtime	6
 src/deluge/model/favourite/favourite_manager.cpp	model-calls-display	1
 src/deluge/model/favourite/favourite_manager.cpp	model-calls-ui	2
 src/deluge/model/instrument/kit.cpp	model-calls-ui	4

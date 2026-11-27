@@ -23,6 +23,7 @@
 #include "model/consequence/consequence_instrument_delta.h"
 #include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_selection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
@@ -61,7 +62,7 @@ ModelStackWithAutoParam* cableDepthForEdit(ModelStackWithThreeMainThings* modelS
 void settleCableDepth(const bridge::LaneTarget& lane) {
 	Sound* const* sound = std::get_if<Sound*>(&lane.owner);
 	if (sound == nullptr || lane.auto_param == nullptr || lane.collection == nullptr
-	    || lane.collection->getParamKind() != deluge::modulation::params::Kind::PATCH_CABLE) {
+	    || !bridge::isCableCollection(lane.collection)) {
 		return;
 	}
 	PatchSource source;

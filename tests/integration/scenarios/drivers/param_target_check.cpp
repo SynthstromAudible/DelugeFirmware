@@ -225,6 +225,29 @@ void checkSelection(Checker& check) {
 	}
 }
 
+/// The ids the edits name are the runtime params they replace, and a knob's control target is the same by plugin as by
+/// the kind that numbers its owner's unpatched params.
+void checkEditIds(Checker& check) {
+	namespace classic = deluge::instruments::classic;
+	namespace chains = deluge::host::chains;
+	if (classic::runtime_slot(classic::param::kCompressorShape)->index != params::UNPATCHED_SIDECHAIN_SHAPE
+	    || *chains::find_runtime_index(chains::param::kCompressorShape) != params::UNPATCHED_SIDECHAIN_SHAPE
+	    || *chains::find_runtime_index(chains::param::kSidechainCompressorVolume) != params::UNPATCHED_SIDECHAIN_VOLUME
+	    || classic::param::kVolumePostReverbSend.value != params::GLOBAL_VOLUME_POST_REVERB_SEND
+	    || classic::param::kVolume.value != params::LOCAL_VOLUME) {
+		check.fail("an edit's id", 0, 0, 0);
+	}
+	for (uint32_t p = 0; p < params::UNPATCHED_START + params::UNPATCHED_GLOBAL_MAX_NUM; ++p) {
+		const deluge::modulation::KnobTarget knob = deluge::modulation::knobParam(p);
+		if (deluge::bridge::controlTargetOf(knob, OwnerPlugin::INSTRUMENT)
+		        != deluge::bridge::controlTargetOf(knob, params::Kind::UNPATCHED_SOUND)
+		    || deluge::bridge::controlTargetOf(knob, OwnerPlugin::GLOBAL_EFFECTABLE)
+		           != deluge::bridge::controlTargetOf(knob, params::Kind::UNPATCHED_GLOBAL)) {
+			check.fail("control target by plugin", static_cast<int>(p), 0, 0);
+		}
+	}
+}
+
 using Table = param_target_tables_reference::Table;
 
 /// The recorded cells of @p table, in the order recorded.
@@ -633,6 +656,7 @@ int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	checkRoundTrip(check);
 	checkSelection(check);
+	checkEditIds(check);
 	checkShortcutsAndOrders(check);
 	checkMIDICCShortcuts(check);
 	checkMidiFollow(check);

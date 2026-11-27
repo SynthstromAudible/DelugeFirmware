@@ -54,6 +54,11 @@ deluge::plugin::ParamId controlTargetOf(const deluge::modulation::KnobTarget& kn
 	return paramIdOf(params::Kind::PATCHED, p);
 }
 
+deluge::plugin::ParamId controlTargetOf(const deluge::modulation::KnobTarget& knob, OwnerPlugin owner) {
+	return controlTargetOf(knob, owner == OwnerPlugin::INSTRUMENT ? params::Kind::UNPATCHED_SOUND
+	                                                              : params::Kind::UNPATCHED_GLOBAL);
+}
+
 std::vector<ControllerMapping> controlsOf(::Sound& sound) {
 	std::vector<ControllerMapping> controls;
 	for (uint8_t button = 0; button < kNumModButtons; ++button) {
