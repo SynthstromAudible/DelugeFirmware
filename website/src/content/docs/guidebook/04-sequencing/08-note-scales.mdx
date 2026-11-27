@@ -59,16 +59,19 @@ Scale mode is automatically set when new synth, MIDI and CV clips are created. S
 
 </Steps>
 
-## Deluge analysis and selection of note scale
+## Entering scale mode with notes in the clip
 
 <Steps>
 
 1. With notes programmed into the sequence grid.
-2. Press :key[Scale] to switch it ON. Button illuminates blue. Cycle it off and on if already selected to ON.
-3. Deluge will evaluate the notes and establish a ‘best fit’ scale for the selected notes as well as the scale root note.
-4. The selected scale will be displayed flashing for a few seconds when selecting :key[Scale].
+2. Press :key[Scale] to switch it ON. Button illuminates blue.
+3. The clip takes on the song's current root note and scale. <Badge text="C1.4" variant="tip" /> Deluge no longer guesses a new key from the clip's notes, so entering scale mode never changes the scale of the rest of the song.
+4. Notes that aren't in the scale keep their pitch and become [accidentals](#accidentals).
+5. The selected scale will be displayed flashing for a few seconds when selecting :key[Scale].
 
 </Steps>
+
+To change the key, set the root note with :key[Scale + Audition Pad], choose a scale with :key[Shift + Scale], or learn a scale from your notes with :key[Learn + Scale] (see [Creating a custom scale](#creating-a-custom-scale)).
 
 <StepFocus />
 
@@ -109,18 +112,16 @@ Scale mode is automatically set when new synth, MIDI and CV clips are created. S
 </Steps>
 
 :::note
-All songs with multiple clips set to SCALE mode will always be locked to the same scale. Changes in scale settings on one clip will affect all others in scale mode. This also includes Deluge analysis and evaluation of scale algorithm when entering scale mode, where all clip notes will be evaluated. This may lead to notes being added / changes in the clips when editing scales.
+All songs with multiple clips set to SCALE mode will always be locked to the same scale. Changes in scale settings on one clip will affect all others in scale mode. Notes added outside the scale are kept as accidentals.
 :::
 
 ## Creating a custom scale
 
 <Steps>
 
-1. Exit scale mode by pressing :key[Scale]. Button should be unlit.
-2. Select the notes on the grid that will be attributed to the new scale.
-3. Press :key[Scale], Deluge will evaluate the notes and establish a best fit scale. Button will illuminate blue.
-4. If notes selected form an existing scale this will be recognised. If the notes don't form one of the seven Deluge scales a custom scale identified on the display as OTHER SCALE will be created.
-5. Other scales for the notes would indicate CUSTOM SCALE WITH MORE THAN 7 NOTES IN USE on the display if attempted to be selected when the notes don't fit.
+1. In clip view, enter the notes that make up the new scale.
+2. Press :key[Learn + Scale]. The notes in this clip and in all other scale mode clips are learned as the USER scale.
+3. The USER scale appears in the :key[Shift + Scale] list and is saved with the song. Each song has one user scale, so learning another one replaces it.
 
 </Steps>
 
@@ -134,6 +135,28 @@ All songs with multiple clips set to SCALE mode will always be locked to the sam
    - :key[Scale] will flash quickly if changes attempted are not available. For example making a sharp the same as the next note / row.
 
 </Steps>
+
+## Accidentals <Badge text="C1.4" variant="tip" />
+
+A scale mode clip can hold notes outside the scale, called accidentals, for example a passing C♯ in C major. They are kept at their own pitch and the scale is never changed to fit them.
+
+Accidentals are shown on a neighbouring scale row, in a dimmer, washed-out version of the row colour: on the row below in a key written with sharps (C♯ on the C row), or on the row above in a key written with flats (D♭ on the D row). If an in-scale note and an accidental share a pad, the in-scale note is shown.
+
+Pressing a pad that shows an accidental edits the accidental: its length, velocity, probability, nudge, deleting it and the note editor all work on it, and it auditions at its actual pitch. Copy and paste keep accidentals.
+
+<Steps>
+
+1. Ensure :key[Scale] mode is on.
+2. Hold one or more note :key[Pad]s.
+3. :key[Shift + Turn Vertical] to move the held notes up or down a semitone, out of the scale or back into it. The display shows the new note name.
+   - Nothing moves if a held note would land on top of another note.
+   - Without a note held, :key[Shift + Turn Vertical] still changes the clip colour.
+
+</Steps>
+
+When you change scale, notes move by scale degree (the 3rd goes to the new scale's 3rd, and so on), so any scale of up to 7 notes can be chosen. Notes on a degree the new scale doesn't have keep their pitch and become accidentals. Accidentals move with the scale note they are shown on, both when changing scale and when nudging the clip by scale steps (:key[Shift] + press & :key[Turn Vertical]). When a single scale note is sharpened or flattened, accidentals keep their pitch.
+
+If a change lands an accidental on a scale note, the Deluge remembers where it came from, so reversing the change (for example, changing back to the previous scale) brings the accidental back. This is saved with the song. Moving the note yourself forgets it.
 
 {/* TODO(kate): community_features: 3.36; CHANGELOG.mdx: L381 */}
 
