@@ -3588,6 +3588,9 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 
 	// New method is cloning full clip and emptying it
 	Clip* newClip = gridCloneClip(sourceClip);
+	if (newClip == nullptr) {
+		return nullptr; // Out of memory (gridCloneClip() has shown the error), as gridCreateClip() handles it
+	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
