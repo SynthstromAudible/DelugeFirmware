@@ -30,6 +30,7 @@ add_library(deluge_ui_widgets_oled STATIC
   oled/threshold_meter.cpp
   oled/column_drawings.cpp
   oled/page_drawing.cpp
+  oled/fx_graphs.cpp
   oled/waveform.cpp
   oled/columns.cpp
   oled/popup.cpp
