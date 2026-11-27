@@ -34,6 +34,7 @@ add_library(deluge_ui_widgets_oled STATIC
   oled/timeline_strips.cpp
   oled/keys.cpp
   oled/counters.cpp
+  oled/scope.cpp
   oled/waveform.cpp
   oled/columns.cpp
   oled/popup.cpp

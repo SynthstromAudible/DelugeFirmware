@@ -79,6 +79,7 @@ against drift, not a proof.
 | `window_marks`, `LaneSpan`, `overview`, `StripNote`, `note_strip` | `timeline_strips.h` |
 | `octave`, `zone_strip` | `keys.h` |
 | `amount_line`, `level_lines`, `beat_boxes`, `position_bar` | `oled/counters.h` |
+| `scope`, `scope_xy` | `scope.h` |
 | `waveform`, `loop_marker`, `looped_waveform`, `sliced_waveform` | `oled/waveform.h` |
 | `kMaxRoutingStages`, `routing_chain`, `segmented_switch`, `cable_strength_value` | `routing.h` |
 | `PopupStyle`, `popup_rect_for`, `popup_frame`, `popup_text`, `working`, `progress` | `popup.h` |
