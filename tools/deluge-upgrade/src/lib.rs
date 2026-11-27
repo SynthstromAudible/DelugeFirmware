@@ -1,5 +1,6 @@
 //! The Deluge file upgrader: reads a song or preset as the firmware reads it, converts every form the latest
-//! releases no longer write, and writes the firmware's JSON.
+//! releases no longer write and every form this firmware reads only as its own (a DX7 on an oscillator becomes the
+//! sound's DX7 engine), and writes the firmware's JSON.
 #![forbid(unsafe_code)]
 
 pub mod passes;
