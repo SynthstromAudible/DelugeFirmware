@@ -77,8 +77,7 @@ void ArpParamSet::set_words(const deluge::arp::Values& values) {
 void ArpParamSet::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue,
                                                bool automationChanged, bool automatedBefore, bool automatedNow) {
 	ParamSet::notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore, automatedNow);
-	if (owner_ != deluge::arp::Owner::SOUND || lane.param_id != static_cast<int32_t>(deluge::arp::param::kRate.value)
-	    || lane.manager == nullptr) {
+	if (owner_ != deluge::arp::Owner::SOUND || lane.param_id != static_cast<int32_t>(deluge::arp::param::kRate.value)) {
 		return;
 	}
 	// As a patched param's change reaches the matrix: only while the sound plays this clip (or there is no clip)

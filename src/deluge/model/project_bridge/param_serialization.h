@@ -132,7 +132,7 @@ void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer&
 /// @param valuesForOverride When non-null, entry [p] overrides param p's value (see writeDocAutoParam) for every
 ///                         attr except the shared arp/probability/spread ones.
 /// @param arp              A kit's arp params, which the arp attrs (arpeggiatorRate too) come from; null for an
-///                         owner whose unpatched collection still holds them.
+///                         owner with no arp (the song, an audio clip), which saves a kit's arp's starting values.
 void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                               const int32_t* valuesForOverride = nullptr,
                                               const DocParamSet* arp = nullptr);
@@ -174,8 +174,8 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 /// @param cableDepths      The lanes of the cables' depths.
 /// @param out              The serializer to write to.
 /// @param writeAutomation  Whether to write the automation nodes.
-/// @param arp              The sound's arp params, which the arp/probability/spread attrs come from (its
-///                         arpeggiatorRate is still a patched param); null while the unpatched collection holds them.
+/// @param arp              The sound's arp params, which the arp/probability/spread attrs and arpeggiatorRate come
+///                         from; null for none, which saves the arp's starting values.
 void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
                           std::span<const deluge::synth::CableRecord> cables,
                           const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation,
@@ -270,7 +270,8 @@ bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSe
 /// @param unpatched             The live unpatched set.
 /// @param unpatchedSummary      The unpatched set's summary, whose automation flag is marked.
 /// @param readAutomationUpToPos Upper bound on the automation node positions to read.
-/// @param arp                   The sound's arp set, which the arp/probability/spread attrs land in.
+/// @param arp                   The sound's arp set, which the arp/probability/spread attrs and arpeggiatorRate land
+/// in.
 /// @return true if @p tagName was a param tag and was read.
 bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched, ParamCollectionSummary& patchedSummary,
                        ParamSet& unpatched, ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos,
@@ -342,7 +343,8 @@ bool readExpressionParamTagToDoc(Deserializer& in, char const* tagName, DocParam
 /// @param patched               The patched store, pre-sized.
 /// @param unpatched             The unpatched store, pre-sized.
 /// @param readAutomationUpToPos Upper bound on the automation node positions to read.
-/// @param arp                   The sound's arp store, which the arp/probability/spread attrs land in.
+/// @param arp                   The sound's arp store, which the arp/probability/spread attrs and arpeggiatorRate land
+/// in.
 /// @return true if @p tagName was a param tag and was read.
 bool readSoundParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& patched, DocParamSet& unpatched,
                             int32_t readAutomationUpToPos, DocParamSet* arp = nullptr);

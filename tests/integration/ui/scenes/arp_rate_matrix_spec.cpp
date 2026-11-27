@@ -16,6 +16,8 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_instrument.h"
+#include "synth/matrix/descriptors.h"
+#include "synth/matrix/matrix_fixed.h"
 #include "synth/matrix/param_format.h"
 
 #include "support/song_fixture.h"
@@ -42,6 +44,15 @@ constexpr int32_t kPatchedWord = -(1 << 30);
 /// The final arp rate the matrix last computed for @p sound, as its word.
 int32_t final_arp_rate(const Sound& sound) {
 	return deluge::synth::matrix::global_param_value<params::GLOBAL_ARP_RATE>(sound.params.param_final_values).raw();
+}
+
+/// The arp rate the matrix's add chain gives @p word with no cable: the word as its base, then the destination's curve.
+int32_t uncabled_arp_rate(int32_t word) {
+	using deluge::synth::matrix::MatrixFixed;
+	const MatrixFixed::Combination base =
+	    MatrixFixed::preset_term(MatrixFixed::Source::from_raw(word), params::GLOBAL_ARP_RATE);
+	return MatrixFixed::curve(deluge::synth::matrix::CurveKind::EXPONENTIAL, params::GLOBAL_ARP_RATE,
+	                          MatrixFixed::add_step(MatrixFixed::Combination{}, base));
 }
 
 /// Set @p synth's arp rate to @p word as a knob turn does.
@@ -92,11 +103,20 @@ describe arp_rate_matrix("a sound's arp rate, from its arp's set", ${
 
 		expect(turn_arp_rate(f, kArpWord)).to_equal(Error::NONE);
 		expect(manager.getArpParamSet()->word(arp::param::kRate)).to_equal(kArpWord);
-		const int32_t turned = final_arp_rate(*synth);
-		expect(turned).not_().to_equal(at_start);
+		expect(final_arp_rate(*synth)).not_().to_equal(at_start);
+		expect(final_arp_rate(*synth)).to_equal(uncabled_arp_rate(kArpWord));
+		currentSong = before;
+	});
 
-		synth->performInitialPatching(synth->matrixBlock(manager, Sound::PresetGather::ALL));
-		expect(final_arp_rate(*synth)).to_equal(turned);
+	it("leaves the matrix alone when its rate is turned on a clip the sound is not playing", _ {
+		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
+		Song* const before = currentSong;
+		currentSong = f.song;
+		auto* synth = static_cast<SoundInstrument*>(f.instrument);
+		synth->performInitialPatching(synth->matrixBlock(f.clip->paramManager, Sound::PresetGather::ALL));
+		const int32_t at_start = final_arp_rate(*synth);
+		expect(turn_arp_rate(f, kArpWord)).to_equal(Error::NONE);
+		expect(final_arp_rate(*synth)).to_equal(at_start);
 		currentSong = before;
 	});
 

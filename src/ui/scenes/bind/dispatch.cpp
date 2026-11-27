@@ -169,8 +169,8 @@ struct ParamOn {
 };
 
 /// The param @p target names on the owner @p where names: its own on an owner of its table's kind (an arp's on any
-/// owner), else the param of the same name in the owner's table, else in its arp's (a kit's arp rate, which a sound
-/// holds as its own patched param), or nothing where neither has one.
+/// owner), else the param of the same name in the owner's table, else in its arp's (a name the arp's table shares with
+/// an owner's, such as the arp rate's), or nothing where neither has one.
 std::optional<ParamOn> param_on(const Target& target, const Addresses& where) {
 	const ParamTable owner = where.slot ? ParamTable::SOUND : ParamTable::CHAIN;
 	if (owner == target.param_table || target.param_table == ParamTable::ARP) {

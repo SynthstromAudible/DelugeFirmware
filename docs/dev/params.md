@@ -433,7 +433,8 @@ A sound's arp rate is its arp's `kRate` too, but the mod matrix computes the rat
 destination (`GLOBAL_ARP_RATE`) takes its base from the arp set (`Sound::matrixBlock`), adds its cables and applies its
 curve, and an edit of the arp's rate repatches it (`ArpParamSet::notifyParamModifiedInSomeWay`). The instrument's row 54
 (`arpRate`) is that destination only (`ParamFlag::DESTINATION_ONLY`): cables name it, and a plain `arpRate` (a learned
-knob, a MIDI follow entry) names the arp's rate. A menu item's patch destination is its binding's own
+knob, a MIDI follow entry) names the arp's rate. Its slot in a patched set stays, unread, so the patched ids keep their
+places. A menu item's patch destination is its binding's own
 (`Binding::patch_destination`), so the arp-rate item patches to row 54 while it edits the arp's rate.
 Saves keep their attributes: a sound's and a kit's in its param block, a MIDI or CV clip's and a MIDI or gate row's on
 its `<arpeggiator>` element (the unsigned values word + 2^31, `arp::word_of_field`).

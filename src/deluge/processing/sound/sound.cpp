@@ -413,10 +413,14 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 	block.program = cables.program();
 	PatchedParamSet& patched = *paramManager.getPatchedParamSet();
 	// The arp rate's base is the arp's own param; the patched slot of its destination holds nothing
-	ArpParamSet* arp = paramManager.getArpParamSet();
 	const auto preset = [&](int32_t p) {
-		return p == params::GLOBAL_ARP_RATE && arp != nullptr ? arp->getKnob(deluge::arp::param::kRate.value)
-		                                                      : patched.getKnob(p);
+		if (p != params::GLOBAL_ARP_RATE) {
+			return patched.getKnob(p);
+		}
+		// A manager with no arp plays the arp's starting rate, zero
+		static_assert(deluge::arp::default_value(deluge::arp::Owner::SOUND, deluge::arp::param::kRate) == 0);
+		ArpParamSet* arp = paramManager.getArpParamSet();
+		return arp != nullptr ? arp->getKnob(deluge::arp::param::kRate.value) : deluge::dsp::Q<31>{};
 	};
 	if (gather == PresetGather::ALL) {
 		for (int32_t p = 0; p < deluge::modulation::params::kNumParams; p++) {
