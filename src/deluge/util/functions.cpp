@@ -508,6 +508,15 @@ int32_t getExp(int32_t presetValue, int32_t adjustment) {
 	int32_t adjustedPresetValue =
 	    multiply_32x32_rshift32(presetValue, interpolateTable(adjustment & 67108863, 26, expTableSmall));
 
+	// increaseMagnitudeAndSaturate() only saturates correctly for shifts up to 20: beyond that its saturation (to 12
+	// bits at least) leaves too many bits for the shift, so the result wraps round - e.g. to a negative filter
+	// frequency, which then indexes before tanTable - and from 32 the shift is undefined. A large enough sum of patch
+	// cables gets here (magnitudeIncrease goes up to 33), so do those shifts in 64 bits and clamp.
+	if (magnitudeIncrease > 20) [[unlikely]] {
+		int64_t shifted = static_cast<int64_t>(adjustedPresetValue) << std::min<int32_t>(magnitudeIncrease, 32);
+		return static_cast<int32_t>(std::clamp<int64_t>(shifted, INT32_MIN, INT32_MAX));
+	}
+
 	return increaseMagnitudeAndSaturate(adjustedPresetValue, magnitudeIncrease);
 }
 
