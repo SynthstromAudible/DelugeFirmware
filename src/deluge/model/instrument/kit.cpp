@@ -28,6 +28,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/gate_drum.h"
@@ -214,6 +215,11 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 				// ... but, if no NoteRow has this Drum, we actually want to delete it now, so that its existence
 				// doesn't affect drumIndexes!
 				if (!song->findNoteRowForDrum(this, thisDrum)) {
+
+					// findNoteRowForDrum() doesn't see deleted Clips kept by the undo log, whose NoteRows still point
+					// at this Drum and would use it if the deletion were undone. Make the logged Actions unrevertable
+					// (nothing is freed now) before freeing the Drum.
+					actionLogger.invalidateLogs();
 
 					*prevPointer = thisDrum->next;
 
