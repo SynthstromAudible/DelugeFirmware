@@ -2348,10 +2348,13 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = getCurrentInstrument();
 
+	// Both are null for an audio clip, whose output isn't an Instrument
+	bool isKit = (instrument != nullptr && instrument->type == OutputType::KIT);
+
 	if (!rootUIIsClipMinderScreen()) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
-	else if (instrument->type == OutputType::KIT && clip->affectEntire) {
+	else if (isKit && clip->affectEntire) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(memory);
 
 		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
@@ -2359,7 +2362,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	else {
 		NoteRow* noteRow = nullptr;
 		int32_t noteRowIndex;
-		if (instrument->type == OutputType::KIT) {
+		if (isKit) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
 			if (selectedDrum) {
 				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);
