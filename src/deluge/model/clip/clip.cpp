@@ -22,6 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -75,6 +76,10 @@ Clip::Clip(ClipType newType) : type(newType) {
 }
 
 Clip::~Clip() {
+	// MIDI follow remembers which clip each held note went to, so it can send the note-off there. Clips are freed
+	// from several places (Song::deleteClipObject(), the undo log, failed creation), so forget the clip here.
+	midiFollow.removeClip(this);
+
 	// currentSong is null while the old song is being torn down in deleteOldSongBeforeLoadingNew() (it's nulled before
 	// the delete), so guard against it - getCurrentClip() dereferences currentSong.
 	if (currentSong && getCurrentClip() == this) {
