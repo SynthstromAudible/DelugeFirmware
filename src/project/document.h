@@ -30,6 +30,7 @@
 #include "project/reverb_settings.h"
 #include "project/scale_settings.h"
 #include "project/transport.h"
+#include "serialization/schema/extras.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -86,6 +87,8 @@ struct SongDocument {
 	MappingTable mappings;
 	/// The song master's effects.
 	FxChain master_effects;
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	/// The entry of the clip with @p id, or nullptr.
 	[[nodiscard]] const ClipEntry* clip_entry(uint32_t id) const;
 
