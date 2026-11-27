@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 namespace deluge::ui::widgets::oled {
 
@@ -93,6 +94,76 @@ void duck_graph(OledFrame& panel, const DuckGraph& d, DuckHandles h, int32_t foc
 		if (m.column == focused) {
 			mark(m.column, m.x, m.y);
 		}
+	}
+}
+
+namespace {
+
+/// The distortion's output row at column @p x, per `distortion_graph`'s doc.
+struct Distortion {
+	const PageBody& b;
+	float saturation, bitcrush, wavefold;
+	int32_t hold, cy, amp;
+
+	[[nodiscard]] float u(int32_t x) const {
+		return static_cast<float>(x - b.left) / static_cast<float>(b.right - b.left);
+	}
+	[[nodiscard]] int32_t clean_row(int32_t x) const {
+		return cy - round_i(static_cast<float>(amp) * std::sin(2.f * std::numbers::pi_v<float> * u(x)));
+	}
+	[[nodiscard]] int32_t row(int32_t x) const {
+		const int32_t held = b.left + ((x - b.left) / hold) * hold;
+		float v = std::sin(2.f * std::numbers::pi_v<float> * u(held));
+		const float g = 1.f + 4.f * saturation;
+		v = std::tanh(g * v) / std::tanh(g);
+		const float t = 1.f - 0.6f * wavefold;
+		if (std::abs(v) > t) {
+			v = (v > 0.f ? 1.f : -1.f) * (2.f * t - std::abs(v));
+		}
+		if (bitcrush > 0.f) {
+			const float n = std::round(2.f + (1.f - bitcrush) * 14.f);
+			v = std::round(v * n) / n;
+		}
+		return cy - round_i(static_cast<float>(amp) * v);
+	}
+};
+
+} // namespace
+
+void distortion_graph(OledFrame& panel, const DistortionGraph& d, int32_t focused) {
+	const PageBody b = page_body(panel);
+	const Distortion dist{.b = b,
+	                      .saturation = std::clamp(d.saturation, 0.f, 1.f),
+	                      .bitcrush = std::clamp(d.bitcrush, 0.f, 1.f),
+	                      .wavefold = std::clamp(d.wavefold, 0.f, 1.f),
+	                      .hold = 1 + round_i(std::clamp(d.decimation, 0.f, 1.f) * 10.f),
+	                      .cy = b.center_y(),
+	                      .amp = b.height() / 2 - 1};
+
+	for (int32_t x = b.left + (b.left & 1); x <= b.right; x += 2) { // even columns
+		panel.pixel(x, dist.clean_row(x));
+	}
+	int32_t prev = dist.row(b.left);
+	panel.pixel(b.left, prev);
+	for (int32_t x = b.left + 1; x <= b.right; x++) {
+		const int32_t y = dist.row(x);
+		panel.pixel(x, prev);
+		if (y != prev) {
+			panel.vline(x, std::min(prev, y), std::max(prev, y));
+		}
+		prev = y;
+	}
+
+	Handles marks{panel};
+	const float us[] = {0.25f, 0.10f, 0.58f, 0.75f};
+	const auto x_at = [&](float u) { return b.left + round_i(u * static_cast<float>(b.right - b.left)); };
+	for (int32_t i = 0; i < 4; i++) {
+		if (i != focused) {
+			marks.draw(x_at(us[i]), dist.row(x_at(us[i])), false);
+		}
+	}
+	if (focused >= 0 && focused < 4) {
+		marks.draw(x_at(us[focused]), dist.row(x_at(us[focused])), true);
 	}
 }
 

@@ -8,6 +8,7 @@
 #include "support/spec_main.h"
 #include <cmath>
 #include <cstdint>
+#include <vector>
 
 using namespace deluge::ui;
 using namespace deluge::ui::widgets::oled;
@@ -39,6 +40,22 @@ bool inside(uitest::Rig48& r, const PageBody& b, int32_t grow) {
 		}
 	}
 	return true;
+}
+
+/// The column at fraction @p u of the body's width.
+int32_t x_at(const PageBody& b, float u) {
+	return b.left + static_cast<int32_t>(std::lround(u * static_cast<float>(b.right - b.left)));
+}
+
+/// The rows lit in local column @p x of the 48-row rig, within the body.
+std::vector<int32_t> lit_rows(uitest::Rig48& r, const PageBody& b, int32_t x) {
+	std::vector<int32_t> rows;
+	for (int32_t y = b.top - 2; y <= b.bottom + 2; y++) {
+		if (r.lit(x, y + kTop)) {
+			rows.push_back(y);
+		}
+	}
+	return rows;
 }
 
 } // namespace
@@ -157,6 +174,99 @@ describe duck_graph_w("ui::widgets::oled::duck_graph", $ {
 		expect_golden(self, "ui/widgets/fx_duck_rise_64.pbm", q64.pbm());
 	});
 });
+describe distortion_graph_w("ui::widgets::oled::distortion_graph", $ {
+	it("draws the output on the clean cycle's crest with every effect at 0", _ {
+		uitest::Rig48 r;
+		const PageBody b = page_body(r.frame);
+		distortion_graph(r.frame, {}, -1);
+		const int32_t amp = b.height() / 2 - 1;
+		expect(r.lit(x_at(b, 0.25f) + 4, b.center_y() - amp + kTop)).to_be_true(); // clear of the handle at u = 0.25
+	});
+
+	it("holds the output flat for the decimation's run", _ {
+		uitest::Rig48 r;
+		const PageBody b = page_body(r.frame);
+		distortion_graph(r.frame, {.decimation = 1.f}, -1);
+		for (int32_t x = b.left; x <= b.left + 10; x++) {
+			expect(r.lit(x, b.center_y() + kTop)).to_be_true();
+		}
+	});
+
+	it("steps the output to the bitcrush's levels", _ {
+		uitest::Rig48 r;
+		const PageBody b = page_body(r.frame);
+		distortion_graph(r.frame, {.bitcrush = 1.f}, -1);
+		const int32_t cy = b.center_y();
+		const int32_t amp = b.height() / 2 - 1;
+		const int32_t levels[] = {cy - amp, cy - amp / 2, cy, cy + amp / 2, cy + amp};
+		for (int32_t x = b.left | 1; x <= b.right; x += 2) { // odd columns: off the dotted clean line
+			const std::vector<int32_t> rows = lit_rows(r, b, x);
+			if (rows.size() != 1) {
+				continue; // a step's vertical, or a handle
+			}
+			int32_t nearest = 99;
+			for (int32_t l : levels) {
+				nearest = std::min(nearest, std::abs(rows[0] - l));
+			}
+			expect(nearest).to_be_less_than(2);
+		}
+	});
+
+	it("folds a peak past the threshold back through the centre", _ {
+		uitest::Rig48 r;
+		const PageBody b = page_body(r.frame);
+		distortion_graph(r.frame, {.wavefold = 1.f}, -1);
+		const int32_t amp = b.height() / 2 - 1;
+		// t = 0.4: a peak of 1 folds to 2 * 0.4 - 1 = -0.2
+		const int32_t x = x_at(b, 0.25f) + 4; // clear of the handle at u = 0.25
+		expect(r.lit(x, b.center_y() + static_cast<int32_t>(std::lround(0.2f * static_cast<float>(amp))) + kTop))
+		    .to_be_true();
+		expect(r.lit(x, b.center_y() - amp + kTop)).to_be_false();
+	});
+
+	it("inverts the focused handle", _ {
+		uitest::Rig48 r;
+		const PageBody b = page_body(r.frame);
+		distortion_graph(r.frame, {.saturation = 0.4f, .bitcrush = 0.3f, .decimation = 0.3f, .wavefold = 0.5f}, 3);
+		const float us[] = {0.25f, 0.10f, 0.58f, 0.75f};
+		for (int32_t i = 0; i < 4; i++) {
+			const int32_t x = x_at(b, us[i]);
+			const std::vector<int32_t> rows = lit_rows(r, b, x);
+			// a lit pixel with the handle's outline corners two columns and two rows away is a focused centre
+			bool centre_lit = false;
+			for (int32_t y : rows) {
+				const bool outline_above = r.lit(x - 2, y - 2 + kTop) && r.lit(x + 2, y - 2 + kTop);
+				const bool outline_below = r.lit(x - 2, y + 2 + kTop) && r.lit(x + 2, y + 2 + kTop);
+				if (outline_above && outline_below) {
+					centre_lit = true;
+				}
+			}
+			if (i == 3) {
+				expect(centre_lit).to_be_true();
+			}
+			else {
+				expect(centre_lit).to_be_false();
+			}
+		}
+	});
+
+	it("clamps out-of-range values", _ {
+		uitest::Rig48 r;
+		const PageBody b = page_body(r.frame);
+		distortion_graph(r.frame, {.saturation = -1.f, .bitcrush = 3.f, .decimation = 9.f, .wavefold = -2.f}, 0);
+		expect(inside(r, b, 2)).to_be_true();
+	});
+
+	it("matches its goldens", _ {
+		const DistortionGraph d{.saturation = 0.4f, .bitcrush = 0.3f, .decimation = 0.3f, .wavefold = 0.5f};
+		uitest::Rig48 r48;
+		distortion_graph(r48.frame, d, 3);
+		expect_golden(self, "ui/widgets/fx_distortion_48.pbm", r48.pbm());
+		uitest::Rig64 r64;
+		distortion_graph(r64.frame, d, 3);
+		expect_golden(self, "ui/widgets/fx_distortion_64.pbm", r64.pbm());
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(fx_graphs_spec, duck_graph_w)
+DELUGE_SPEC(fx_graphs_spec, duck_graph_w, distortion_graph_w)
