@@ -41,7 +41,7 @@
 
 #include "ui/scenes/timeline/timeline.h"
 
-#include "definitions_cxx.hpp" // kMaxZoom
+#include "project/timeline_limits.h"
 #include "ui/gfx/grid/pad_grid.h"
 
 #include <algorithm>
@@ -289,7 +289,7 @@ ZoomOutcome TimelineState::zoom(int32_t offset, uint32_t max_zoom, uint32_t now_
 	// Constrain to zoom limits. Note that the delay above was armed BEFORE this refusal, and the zoom arm of
 	// legacy's `TimelineView::horizontalEncoderAction` arms it the same way round.
 	if ((zoomMagnitude == -1 && oldXZoom <= 3)
-	    || (zoomMagnitude == 1 && oldXZoom >= std::min<uint32_t>(clipLengthMaxZoom * 16, kMaxZoom))) {
+	    || (zoomMagnitude == 1 && oldXZoom >= std::min<uint32_t>(clipLengthMaxZoom * 16, project::kMaxZoom))) {
 		return ZoomOutcome::Refused;
 	}
 

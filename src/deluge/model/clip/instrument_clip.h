@@ -24,6 +24,7 @@
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/staged_repeat.h"
+#include "project/note_probability.h"
 #include <atomic>
 #include <string>
 
@@ -321,7 +322,7 @@ private:
 	/// @param nr The engine note row being removed.
 	void unbindNoteRowStructure(NoteRow& nr);
 
-	bool lastProbabilities[kNumProbabilityValues]{};
-	int32_t lastProbabiltyPos[kNumProbabilityValues]{};
+	bool lastProbabilities[deluge::project::kProbabilityValueCount]{};
+	int32_t lastProbabiltyPos[deluge::project::kProbabilityValueCount]{};
 	bool currentlyRecordingLinearly;
 };

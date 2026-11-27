@@ -30,5 +30,7 @@ inline constexpr int32_t kMidiChannelTranspose = 55;
 inline constexpr int32_t kMidiChannelLowerZone = 16;
 /// @brief The MIDI channel value naming the upper MPE zone.
 inline constexpr int32_t kMidiChannelUpperZone = 17;
+/// @brief How many channel values an input can follow: the sixteen channels and the two MPE zones.
+inline constexpr int32_t kMidiChannelCount = kMidiChannelUpperZone + 1;
 
 } // namespace deluge::project

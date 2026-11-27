@@ -20,8 +20,9 @@
 
 #include "ui/scenes/browser/browser_scene.h"
 
+#include "base/error.h"
 #include "base/notify/notice_queue.h"
-#include "definitions_cxx.hpp" // Error, kNumSources
+#include "instruments/classic/words.h"
 #include "ui/widgets/core/blink.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/favourites.h"
@@ -157,7 +158,7 @@ std::optional<std::string> sample_path(const menu::MenuContext& ctx) {
 		return found != clips.end() ? std::optional{found->second.file_path} : std::nullopt;
 	}
 	if (ctx.ports.sound == nullptr || !ctx.addresses.slot || ctx.range_index < 0 || ctx.source_index < 0
-	    || ctx.source_index >= kNumSources) {
+	    || static_cast<std::size_t>(ctx.source_index) >= instruments::classic::kSourceCount) {
 		return std::nullopt;
 	}
 	const deluge::instruments::classic::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);

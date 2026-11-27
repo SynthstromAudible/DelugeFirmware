@@ -3,13 +3,16 @@
 #include "ui/scenes/menu/note_bridge.h"
 
 #include "base/notify/notice_queue.h"
-#include "definitions_cxx.hpp" // FillMode, kNumProbabilityValues, the iterance presets
-#include "sequence/iterance.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <utility>
+
+using deluge::project::Iterance;
 
 namespace deluge::ui::scenes::menu::nodes {
 
@@ -25,10 +28,13 @@ size_t write_text(std::string_view text, std::span<char> out) {
 	return n;
 }
 
-/// `InstrumentClipView::getFillString` (`gui/views/instrument_clip_view.cpp`): each `FillMode`'s word, by value.
+/// `InstrumentClipView::getFillString` (`gui/views/instrument_clip_view.cpp`): each `deluge::project::FillMode`'s word,
+/// by value.
 constexpr std::array<std::string_view, 3> kFillWords{"OFF", "NOT FILL", "FILL"};
-static_assert(FillMode::OFF == 0 && FillMode::NOT_FILL == 1 && FillMode::FILL == 2,
-              "kFillWords is indexed by FillMode");
+static_assert(std::to_underlying(deluge::project::FillMode::OFF) == 0
+                  && std::to_underlying(deluge::project::FillMode::NOT_FILL) == 1
+                  && std::to_underlying(deluge::project::FillMode::FILL) == 2,
+              "kFillWords is indexed by deluge::project::FillMode");
 
 /// @brief `IteranceDivisor::readCurrentValue`/`writeCurrentValue`'s "OFF becomes 1of1" conversion
 ///        (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`,
@@ -36,9 +42,9 @@ static_assert(FillMode::OFF == 0 && FillMode::NOT_FILL == 1 && FillMode::FILL ==
 ///        step hooks -- the note version and the row version read the conversion the same way once each has its own raw
 ///        `Iterance`.
 Iterance resolved_iterance(int32_t raw) {
-	Iterance iterance = Iterance::fromInt(raw);
-	if (iterance == kDefaultIteranceValue) {
-		iterance = kCustomIteranceValue;
+	Iterance iterance = deluge::project::Iterance::from_packed(raw);
+	if (iterance == deluge::project::kIteranceOff) {
+		iterance = deluge::project::kIteranceCustom;
 	}
 	return iterance;
 }
@@ -100,9 +106,9 @@ bool iterance_has_target(const IteranceFamily& family) {
 /// `IterancePreset::readCurrentValue` converts the leftmost note's raw iterance to a preset index
 /// (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`,
 /// `origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`); the bridge hands back the raw int, so the
-/// conversion happens here, with `Iterance::fromInt(...).toPresetIndex()`.
+/// conversion happens here, with `deluge::project::Iterance::from_packed(...).preset_index()`.
 int32_t get_iterance_preset(const IteranceFamily& family) {
-	return Iterance::fromInt(iterance_raw(family)).toPresetIndex();
+	return deluge::project::Iterance::from_packed(iterance_raw(family)).preset_index();
 }
 
 /// `IterancePreset::selectButtonPress()`'s own test (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`,
@@ -114,7 +120,7 @@ bool iterance_is_custom(const IteranceFamily& family) {
 	if (note_bridge() == nullptr) {
 		return false;
 	}
-	return get_iterance_preset(family) == kCustomIterancePreset;
+	return get_iterance_preset(family) == deluge::project::kCustomIterancePreset;
 }
 
 /// `IteranceDivisor::readCurrentValue`/`writeCurrentValue`
@@ -131,35 +137,35 @@ void set_iterance_divisor(const IteranceFamily& family, int32_t value) {
 	    (1 << value)
 	    - 1; // `IteranceDivisor::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`,
 	         // `origin/main:src/deluge/gui/menu_item/note_row/iterance_divisor.h`)
-	const int32_t new_steps = (static_cast<int32_t>(iterance.toInt()) & 0xFF) & mask;
-	iterance_raw_set(family, Iterance{static_cast<uint8_t>(value), new_steps}.toInt());
+	const int32_t new_steps = (static_cast<int32_t>(iterance.packed()) & 0xFF) & mask;
+	iterance_raw_set(family, Iterance{static_cast<uint8_t>(value), new_steps}.packed());
 }
 /// @}
 
 /// `IteranceStepToggle::readCurrentValue`/`::writeCurrentValue`/`::isRelevant`
 /// (`origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`,
 /// `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`), indexed by
-/// @p index. `isRelevant` alone reads the **unconverted** iterance (it tests `kDefaultIteranceValue` directly, which
-/// `resolved_iterance` would already have converted away) and alone returns false outright with nothing to edit --
-/// legacy's own no-note (`IteranceStepToggle::isRelevant` in
+/// @p index. `isRelevant` alone reads the **unconverted** iterance (it tests `deluge::project::kIteranceOff` directly,
+/// which `resolved_iterance` would already have converted away) and alone returns false outright with nothing to edit
+/// -- legacy's own no-note (`IteranceStepToggle::isRelevant` in
 /// `origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`) / no-row (`IteranceStepToggle::isRelevant` in
 /// `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`) arm, transcribed here as
 /// `iterance_has_target`.
 /// @{
 int32_t iterance_step_get(const IteranceFamily& family, int32_t index) {
 	const Iterance iterance = resolved_iterance(iterance_raw(family));
-	return iterance.iteranceStep[static_cast<size_t>(index)] ? 1 : 0;
+	return iterance.steps[static_cast<size_t>(index)] ? 1 : 0;
 }
 void iterance_step_set(const IteranceFamily& family, int32_t index, int32_t value) {
 	Iterance iterance = resolved_iterance(iterance_raw(family));
-	int32_t new_steps = static_cast<int32_t>(iterance.toInt()) & 0xFF;
+	int32_t new_steps = static_cast<int32_t>(iterance.packed()) & 0xFF;
 	if (value != 0) {
 		new_steps |= (1 << index);
 	}
 	else {
 		new_steps &= ~(1 << index);
 	}
-	iterance_raw_set(family, Iterance{iterance.divisor, new_steps}.toInt());
+	iterance_raw_set(family, Iterance{iterance.divisor, new_steps}.packed());
 }
 bool iterance_step_relevant(const IteranceFamily& family, int32_t index) {
 	// `validate_tree`'s `EmptySubmenu`/`DuplicateName` sweeps call every reachable `relevant` under
@@ -175,8 +181,8 @@ bool iterance_step_relevant(const IteranceFamily& family, int32_t index) {
 	if (!iterance_has_target(family)) {
 		return false;
 	}
-	const Iterance iterance = Iterance::fromInt(iterance_raw(family));
-	return (iterance == kDefaultIteranceValue && index == 0) || iterance.divisor > index;
+	const Iterance iterance = deluge::project::Iterance::from_packed(iterance_raw(family));
+	return (iterance == deluge::project::kIteranceOff && index == 0) || iterance.divisor > index;
 }
 /// @}
 
@@ -210,14 +216,14 @@ bool permitted_row(const MenuContext&) {
 // -------------------------------------------------------------------------------------------
 
 /// A probability value split as the editors store it: the percentage in fives, and whether the note latches (a value
-/// past `kNumProbabilityValues` carries the latch above its low seven bits).
+/// past `deluge::project::kProbabilityValueCount` carries the latch above its low seven bits).
 struct ProbabilityShown {
 	int32_t percent;
 	bool latching;
 };
 
 ProbabilityShown probability_shown(int32_t value) {
-	const bool latching = value > kNumProbabilityValues;
+	const bool latching = value > deluge::project::kProbabilityValueCount;
 	return {.percent = (latching ? value & 127 : value) * 5, .latching = latching};
 }
 
@@ -243,19 +249,20 @@ ValueText value_text_probability(const MenuContext&, int32_t value, ValueTextUse
 }
 
 /// `IterancePreset::get_iterance_display_value` (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`):
-/// `OFF`/`CUSTOM` are the leaf's own literals for the two values `iterancePresets` has no row for; every other value is
-/// the bridge's own label (`iterance_preset_label`, itself `IterancePreset::get_iterance_display_value`'s table-lookup
-/// half). `compact` chooses the column's `"%d:%d"` (`renderInHorizontalMenu`) over the notification's `"%d of %d"`
+/// `OFF`/`CUSTOM` are the leaf's own literals for the two values `deluge::project::kIterancePresets` has no row for;
+/// every other value is the bridge's own label (`iterance_preset_label`, itself
+/// `IterancePreset::get_iterance_display_value`'s table-lookup half). `compact` chooses the column's `"%d:%d"`
+/// (`renderInHorizontalMenu`) over the notification's `"%d of %d"`
 /// (`getNotificationValue`) -- see `note_bridge.h`'s own doc on `iterance_preset_label`. `note_row::IterancePreset` is
 /// byte-identical (`origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`).
 ValueText value_text_iterance(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Label) {
 		return kValueTextFallback;
 	}
-	if (value == kDefaultIterancePreset) {
+	if (value == deluge::project::kIterancePresetOff) {
 		return ValueText{write_text("OFF", out), false};
 	}
-	if (value == kCustomIterancePreset) {
+	if (value == deluge::project::kCustomIterancePreset) {
 		return ValueText{write_text("CUSTOM", out), false};
 	}
 	if (note_bridge() == nullptr) {
@@ -274,11 +281,15 @@ ValueText value_text_fill(const MenuContext&, int32_t value, ValueTextUse use, s
 		return kValueTextFallback;
 	}
 	if (use == ValueTextUse::Column) {
-		const std::string_view text = kFillWords[value == FillMode::OFF ? FillMode::OFF : FillMode::FILL];
-		return ValueText{write_text(text, out), value == FillMode::NOT_FILL};
+		const std::string_view text = kFillWords[value == std::to_underlying(deluge::project::FillMode::OFF)
+		                                             ? std::to_underlying(deluge::project::FillMode::OFF)
+		                                             : std::to_underlying(deluge::project::FillMode::FILL)];
+		return ValueText{write_text(text, out), value == std::to_underlying(deluge::project::FillMode::NOT_FILL)};
 	}
-	const std::string_view text =
-	    value == FillMode::FILL || value == FillMode::NOT_FILL ? kFillWords[value] : kFillWords[FillMode::OFF];
+	const std::string_view text = value == std::to_underlying(deluge::project::FillMode::FILL)
+	                                      || value == std::to_underlying(deluge::project::FillMode::NOT_FILL)
+	                                  ? kFillWords[value]
+	                                  : kFillWords[std::to_underlying(deluge::project::FillMode::OFF)];
 	return ValueText{write_text(text, out), false};
 }
 

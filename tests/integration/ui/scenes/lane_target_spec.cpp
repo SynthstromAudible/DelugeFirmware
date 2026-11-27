@@ -24,6 +24,8 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/move_section.h"
+#include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -117,6 +119,53 @@ describe lane_target("a lane target", ${
 			const bridge::LaneTarget target =
 			    bridge::target_of(*original, std::nullopt);
 			expect(same_stack(*original, *bridge::stack_of(target, b))).to_be_true();
+			spec::make_current(nullptr);
+		});
+
+		it("carries its collection's param kind", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* owner = setupModelStackWithThreeMainThingsButNoNoteRow(
+			    a, f.song, deluge::model::owner_of(*f.instrument), f.clip, &f.clip->paramManager);
+			ModelStackWithAutoParam* patched = owner->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+			expect(int(bridge::target_of(*patched, std::nullopt).kind)).to_equal(int(params::Kind::PATCHED));
+			ModelStackWithAutoParam* unpatched = owner->getUnpatchedAutoParamFromId(params::UNPATCHED_STUTTER_RATE);
+			expect(int(unpatched->kind)).to_equal(int(params::Kind::UNPATCHED_SOUND), "the stack's own kind");
+			expect(int(bridge::target_of(*unpatched, std::nullopt).kind)).to_equal(int(params::Kind::UNPATCHED_SOUND));
+			spec::make_current(nullptr);
+		});
+
+		it("reads the lane's store where its stack reads it", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack =
+			    setupModelStackWithThreeMainThingsButNoNoteRow(a, f.song, deluge::model::owner_of(*f.instrument),
+			                                                   f.clip, &f.clip->paramManager)
+			        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+			deluge::project::DocAutoParam* expected = stack->doc();
+			expect(expected).not_().to_be_null();
+			expect(bridge::doc_of(bridge::target_of(*stack, std::nullopt))).to_equal(expected);
+			spec::make_current(nullptr);
+		});
+
+		it("reads the lane's store where its stack reads it inside a playhead move", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack =
+			    setupModelStackWithThreeMainThingsButNoNoteRow(a, f.song, deluge::model::owner_of(*f.instrument),
+			                                                   f.clip, &f.clip->paramManager)
+			        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+			(void)stack->doc(); // the lane is in the tree before the move
+			{
+				deluge::playback::MoveEffects::Scope move;
+				expect(deluge::playback::MoveEffects::collecting()).to_be_true();
+				deluge::project::DocAutoParam* expected = stack->doc();
+				expect(expected).not_().to_be_null();
+				expect(bridge::doc_of(bridge::target_of(*stack, std::nullopt))).to_equal(expected);
+			}
 			spec::make_current(nullptr);
 		});
 	});
@@ -275,6 +324,77 @@ describe lane_target("a lane target", ${
 			}
 			expect(deluge::edits::lazyIdMisses).to_equal(misses);
 			spec::make_current(nullptr);
+		});
+	});
+
+	context("its timing", _ {
+		it("reads what the stack reads, for a clip's lane", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack =
+			    setupModelStackWithThreeMainThingsButNoNoteRow(a, f.song, deluge::model::owner_of(*f.instrument),
+			                                                   f.clip, &f.clip->paramManager)
+			        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+			const bridge::LaneTiming timing = bridge::lane_timing(bridge::target_of(*stack, std::nullopt));
+			expect(timing.loop_length).to_equal(stack->getLoopLength());
+			expect(timing.loop_length).not_().to_equal(0, "the fixture's clip has a length");
+			expect(timing.recording_linearly).to_equal(f.clip->getCurrentlyRecordingLinearly());
+			expect(timing.backtracking_could_loop_back).to_equal(f.clip->backtrackingCouldLoopBackToEnd());
+			spec::make_current(nullptr);
+		});
+
+		it("reads the clock's facts only while the clock runs", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			spec::make_current(f.song);
+			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack =
+			    setupModelStackWithThreeMainThingsButNoNoteRow(a, f.song, deluge::model::owner_of(*f.instrument),
+			                                                   f.clip, &f.clip->paramManager)
+			        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+			const uint8_t saved = playbackHandler.playbackState;
+			playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+			const bridge::LaneTiming running = bridge::lane_timing(bridge::target_of(*stack, std::nullopt));
+			expect(running.live_pos).to_equal(stack->getLivePos());
+			expect(running.cut_pos).to_equal(stack->getPosAtWhichPlaybackWillCut());
+			expect(running.reversed).to_equal(stack->isCurrentlyPlayingReversed());
+			playbackHandler.playbackState = 0;
+			const bridge::LaneTiming stopped = bridge::lane_timing(bridge::target_of(*stack, std::nullopt));
+			expect(stopped.cut_pos).to_equal(0, "no clock, no cut");
+			playbackHandler.playbackState = saved;
+			spec::make_current(nullptr);
+		});
+
+		it("reads a row's own loop length, and the clip's reversed playback", _ {
+			spec::SongFixture f = spec::make_kit_song();
+			spec::make_current(f.song);
+			auto* drum = spec::add_drum<SoundDrum>(f);
+			const project::ParamAddress address = bridge::addressOf(
+			    project::OwnerId::drum(*drum->id()), params::Kind::PATCHED, params::LOCAL_LPF_FREQ, f.clip->id());
+			const std::optional<bridge::LaneTarget> lane = bridge::lane_exact(*f.song, address);
+			expect(lane.has_value()).to_be_true();
+			if (lane && lane->note_row != nullptr) {
+				const int32_t rowLength = f.clip->loopLength() / 2;
+				expect(rowLength).not_().to_equal(f.clip->loopLength(), "the row's length differs from its clip's");
+				lane->note_row->setLoopLengthIfIndependent(rowLength);
+				expect(bridge::lane_timing(*lane).loop_length).to_equal(rowLength);
+				lane->note_row->setLoopLengthIfIndependent(0);
+				expect(bridge::lane_timing(*lane).loop_length).to_equal(f.clip->loopLength(), "the clip's, once obeyed");
+				const uint8_t saved = playbackHandler.playbackState;
+				playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+				f.clip->currentlyPlayingReversed = true;
+				expect(bridge::lane_timing(*lane).reversed).to_be_true();
+				f.clip->currentlyPlayingReversed = false;
+				expect(bridge::lane_timing(*lane).reversed).to_be_false();
+				playbackHandler.playbackState = saved;
+			}
+			spec::make_current(nullptr);
+		});
+
+		it("has none for a lane with no timeline", _ {
+			bridge::LaneTarget lane{};
+			const bridge::LaneTiming timing = bridge::lane_timing(lane);
+			expect(timing.loop_length).to_equal(0);
 		});
 	});
 });

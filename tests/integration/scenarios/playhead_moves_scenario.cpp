@@ -48,6 +48,7 @@
 #include "model/edits/shift_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/lane_publication.h"
@@ -295,8 +296,7 @@ void automateVolume(InstrumentClip* clip) {
 	for (int32_t eighth = 1; eighth < 8; eighth += 2) {
 		(void)deluge::project::setNodeAtPos(*doc, loop * eighth / 8, (eighth - 4) << 27, eighth == 3);
 	}
-	volume->paramCollection->notifyParamModifiedInSomeWay(volume, volume->autoParam->getCurrentValue(), true, false,
-	                                                      true);
+	deluge::bridge::notify_modified(*volume, volume->autoParam->getCurrentValue(), true, false, true);
 }
 
 /// A row of four notes in @p clip.

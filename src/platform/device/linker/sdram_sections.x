@@ -97,6 +97,8 @@ SECTIONS {
          * survive to the link). An inline or template function that the GUI shares with other
          * code comes here too when the link keeps the GUI's copy. */
         *libdeluge_app_gui.a:*(.text .text.*)
+        /* The UI's strings code (gui/l10n), a library of its own, built without LTO for the same reason. */
+        *libdeluge_l10n.a:*(.text .text.*)
         __sdram_text_end = .;
         /* The placed libraries' read-only and initialised data, their vtables among them. */
         /* BEGIN placement data */

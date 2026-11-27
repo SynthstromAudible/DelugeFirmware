@@ -51,11 +51,9 @@ nothing.
 
 * **Includes.** `ui/scenes/`, `ui/shell/`, `ui/`, `ui/gfx/`, `base/`, `libdeluge/`, the standard library,
   and — as the model-aware layer — `model/`, `modulation/`, `playback/`, `processing/`, `storage/`,
-  `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin/`, `serialization/`,
-  `sequence/`, `project/`, …) and one root-level header named in that comment (`definitions_cxx.hpp`,
-  included by its bare name). Never the rest of `gui/`, never `hid/` (`scenes-includes-outside`,
-  `scenes-includes-gui`). The checker cannot see a slash-less include, so a second root-level header must be
-  justified in that comment by hand.
+  `io/`, `gui/l10n/`, the engines' and model's words (`engines/`, `plugin/`, `serialization/`, `project/`, …).
+  Never the rest of `gui/`, never `hid/` (`scenes-includes-outside`, `scenes-includes-gui`), and no root-level
+  header (`scenes-includes-root-header`, which counts a quoted include naming a file at the top of an include root).
 * **No model stack, no Edits, no engine pointers.** `model/model_stack.h` and
   `modulation/automation/auto_param.h` are not included anywhere in the layer
   (`scenes-model-stack`); a node edits through `bind::Target` and its write leaves as a request a
@@ -85,16 +83,15 @@ nothing.
 
 ## Building and testing
 
-`src/CMakeLists.txt` and `src/platform/host/CMakeLists.txt` add this directory after `deluge_app`, because
-`deluge_ui_scenes` compiles against it. The link is `$<COMPILE_ONLY:deluge_app>` (a real link of an
-OBJECT library would archive all of `deluge_app` into this one), so **every consumer of
-`deluge_ui_scenes` must link `deluge_app` itself**. The Rust BSP's build archives both into the
-firmware.
+`deluge_ui_scenes` links no part of the app (`scenes-link-app`): it links the shell, its binding to the model, the
+waveform view, `deluge_base` and the strings (`deluge_l10n`). Every tree builds it; the firmware and the host app
+archive it beside `deluge_app` (the Rust BSP's build scripts).
 
 | tree | what it holds |
 |---|---|
 | `tests/unit/ui/scenes/menu/`, `tests/unit/ui/scenes/services/` | the parts that need no model: the `Node` builders, the id registry, the validator over fake trees, view state |
 | `tests/unit/ui/scenes/bind/` | `deluge_ui_scenes_bind` against a `project::Song` with no engine runtime |
+| `tests/unit/ui/scenes/fakes/` | `deluge_scenes_fake`: the whole library, linked `WHOLE_ARCHIVE` over the ports' fakes with no app, so a symbol only the app defines fails the link; the menu's sources, the services, the overlays and every scene over the fakes |
 | `tests/integration/ui/scenes/` | the model-backed specs, linked into the host app and run one file per process by the `ui-scenes-spec` harness (`tests/registry.toml`); the table cross-checks against legacy, every scene, every service, the level-2 scripts |
 | `tests/integration/scenarios/menu_dump.cpp` | the `ui-menu-dump` gate: the app dumps every root as JSON, which must equal `website/src/data/generated/menu-tree.json`; `./dbt test --update ui-menu-dump` regenerates it |
 
@@ -104,8 +101,8 @@ Nothing under `src/ui/scenes` depends on a spec tree existing.
 
 `src/ui/shell` may not include `gui/l10n/`, so `ui::shell::deluge_profile()` leaves
 `BoardProfile::text`/`error_text` null. This layer may, and supplies them: `text_lookup` is
-`l10n::getView`, and `error_lookup` is a hand-kept copy of `getErrorMessage(Error)`'s switch
-(`hid/` cannot be called from here). `scenes::deluge_profile()` is the shell's profile copied
+`l10n::getView`, and `error_lookup` is `l10n::error_message`, the one map from an `Error` to its text, which the
+legacy display uses too. `scenes::deluge_profile()` is the shell's profile copied
 field-for-field with those two filled in. **The application and every scenes spec pass
 `scenes::deluge_profile()`**, never the shell's; `tests/integration/ui/scenes/profile_spec.cpp` asserts every
 other field stays identical to the shell's copy.
@@ -758,7 +755,7 @@ which the host's registry (`io/midi/device_registry.h`) maps to its cable.
   has no such port); each service takes `set_ports` and `set_model` (the song's record); and each overlay the one
   port it reads (`set_transport` for the count-in, `set_device` for the screensaver). `wireShellGuestServices`
   installs the services at boot and on every guest open; `gui::shell_host::install_scene_ports()` installs the
-  overlays', the slicer's and the audio clip scene's. A specification installs `&menu::host_ports()` or a set over
+  overlays', the slicer's and the audio clip scene's. A specification installs `&deluge::gui::shell_host::host_ports()` or a set over
   fakes and keeps it alive while the scene or service runs. No scene or service calls `host_ports()`.
 * **A port that is not installed reads its default and does nothing when called.** `Transport` reads not playing, no
   recording, no clocks, metronome off, count 0, undo not allowed, no overdubs and not the arrangement; `AudioFacts`
@@ -769,11 +766,11 @@ which the host's registry (`io/midi/device_registry.h`) maps to its cable.
   clocks; neither scene's `next_timer` reads live.
 * **A menu context binds exactly the ports it is given.** A caller that wants the device port passes it.
 
-* **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
+* **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `deluge::gui::shell_host::host_ports()` by
   `ports.cpp`. It is the only code that names legacy objects for the scenes.
 * **Every scene reads and writes only through the ports.** No scene file outside `bind/` includes a legacy runtime
-  header: the `scenes-reads-outside-bind` rule has no rows, and its baseline may not grow. `menu/bind_host.h`
-  declares only `host_ports()`, which the app builds the ports through; no scene calls a hook.
+  header: the `scenes-reads-outside-bind` rule has no rows, and its baseline may not grow. No scene declares anything
+  the app defines; no scene calls a hook.
 
 ### The DEVICE setting group
 

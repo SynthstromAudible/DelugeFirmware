@@ -10,6 +10,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "peak_seed.h"
+#include "project/sample_marker.h"
 #include "ui/scenes/marker/marker_scene.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -201,7 +202,7 @@ struct Rig {
 
 	/// @brief Open the editor on @p marker, the way `LoopPoint::beginSession` does.
 	/// @param sound_writes Where the scene's sound edits go; the app's when null.
-	void open(MarkerType marker, bind::SoundWrites* sound_writes = nullptr) {
+	void open(deluge::project::SampleMarker marker, bind::SoundWrites* sound_writes = nullptr) {
 		// Examples set the holder by hand before opening; record it as a load would, since an Edit starts from the
 		// record.
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
@@ -226,7 +227,7 @@ struct Rig {
 
 	/// @brief Close the editor and open it again on @p marker at range @p range_index, seeding nothing: it opens with
 	///        what the view-state store kept.
-	void reopen(MarkerType marker, int16_t range_index) {
+	void reopen(deluge::project::SampleMarker marker, int16_t range_index) {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
@@ -352,7 +353,7 @@ struct AudioRig {
 
 	/// @brief Open the scene on @p marker over the audio clip.
 	/// @param clip_writes Where the scene's clip edits go; the app's when null.
-	void open(MarkerType marker, bind::ClipWrites* clip_writes = nullptr) {
+	void open(deluge::project::SampleMarker marker, bind::ClipWrites* clip_writes = nullptr) {
 		MenuContext c = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
 		                             /*kit_global_fx=*/false);
 		if (clip_writes != nullptr) {

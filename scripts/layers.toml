@@ -218,6 +218,8 @@ may_include = [
     "serialization/",
     "music/",
     "base/panic.h",
+    # the FPU division helpers: an iterance steps its cycle with no integer divide
+    "base/divide.h",
 ]
 
 [[library]]
@@ -342,8 +344,15 @@ reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi i
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/ui/scenes/**"]
-pattern = '^(?!ui/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|sequence/|project/|music/|definitions_cxx\.hpp)(?:.*/)'
+pattern = '^(?!ui/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|project/|music/)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
+
+[[rule]]
+name = "scenes-includes-root-header"
+files = ["src/ui/scenes/**"]
+pattern = '^[^/]+$'
+root_level = true
+reason = "the scenes include no root-level header; each word they need lives in the library that owns it"
 
 [[rule]]
 name = "scenes-model-stack-outside-context"
@@ -375,7 +384,7 @@ files = ["src/ui/scenes/**"]
 exclude = ["src/ui/scenes/bind/**"]
 pattern = '^(model|modulation|io|processing|storage|playback)/'
 shrink_only = true
-reason = "the scenes read the model only through ui/scenes/bind; the baseline is empty and may not grow"
+reason = "the scenes read the model only through ui/scenes/bind; no row is allowed"
 
 [[rule]]
 name = "platform-boundary"
@@ -398,8 +407,10 @@ allow = [
     "project/arrangement.h",
     "project/drum_type.h",
     "project/launch_style.h",
+    "project/midi_channels.h",
     "project/midi_command.h",
     "project/sequence_direction.h",
+    "project/timeline_limits.h",
 ]
 transitive = true
 reason = "the synth library reaches no app layer, the legacy dsp library or the platform, directly or through another header"

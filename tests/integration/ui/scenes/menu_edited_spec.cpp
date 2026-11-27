@@ -26,8 +26,8 @@
 #include "project/mapping_table.h"
 #include "storage/storage_manager.h"
 
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/ports/write_sink.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_core.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -421,7 +421,7 @@ describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the 
 		deluge::edits::learnMappingFor(deluge::project::MidiCommand{.channel_or_zone = 1, .note_or_cc = 74}, knob);
 		expect(fx.song->project.mappings.find(knob)).not_().to_be_null();
 		fx.instrument->editedByUser = false;
-		expect(deluge::ui::scenes::menu::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
 		expect(fx.instrument->editedByUser).to_be_true();
 	});
 

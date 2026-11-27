@@ -21,7 +21,6 @@
 #include <cstddef>
 #include <cstdint>
 
-class ModelStackWithAutoParam;
 class ParamCollection;
 class ParamCollectionSummary;
 class Song;
@@ -30,13 +29,17 @@ struct RepeatArgs;
 namespace deluge::project {
 struct DocAutoParam;
 }
+namespace deluge::bridge {
+struct LaneTarget;
+}
 
 /// The lanes the render records into: a working copy of each, which the render owns and writes while a clip records,
 /// and the interaction tier copies into the model before it reads or edits lanes. The model's lanes are written by the
 /// interaction tier alone; the render plays a lane's working copy while it has one, else its published snapshot.
 ///
 /// The interaction tier makes, commits and releases copies, each with the render held off; the render only finds and
-/// writes them. A copy is keyed by its collection's address and serial and the lane's paramId.
+/// writes them. A copy is keyed by its collection's address and serial and the lane's paramId; a recorded write names
+/// its copy by the slot's handle, so the render reaches it without resolving the lane.
 namespace deluge::modulation {
 
 /// The working copies held at once: lanes a take records or latches, and MPE lanes the render wrote since the last
@@ -61,14 +64,35 @@ enum class Hold : uint8_t {
 	WRITES, ///< until a commit finds the render has not written it since the last (an MPE lane, which never latches)
 };
 
+/// A working copy's slot as the interaction tier made it: it names no copy once the slot is emptied, even when the
+/// slot holds another copy since.
+struct CopyHandle {
+	uint8_t index{0};
+	uint32_t generation{0}; ///< 0 names no copy
+};
+
+/// A working copy and the handle a recorded write names it by.
+struct WorkingCopy {
+	project::DocAutoParam* copy{nullptr};
+	CopyHandle handle{};
+};
+
 /// @brief [interaction] Make (or find) the working copy of @p lane: its model lane copied with room for @p room more
 ///        nodes, installed with the render held off. Making it first takes the lane's undo snapshot into the current
 ///        RECORD action, so whatever the render writes into the copy is undone with the take.
 /// @param lane The lane, on the interaction tier.
 /// @param room Nodes the copy has room to grow by without allocating.
 /// @param hold How long the copy is held; a copy found is held for the take if either asks for it.
-/// @return The copy, or nullptr when the table is full or out of memory (counted).
-project::DocAutoParam* makeWorkingCopy(ModelStackWithAutoParam const& lane, size_t room, Hold hold = Hold::TAKE);
+/// @return The copy and its handle; no copy when the table is full or out of memory (counted).
+WorkingCopy makeWorkingCopy(const bridge::LaneTarget& lane, size_t room, Hold hold = Hold::TAKE);
+
+/// @brief [interaction] The live working copy of lane @p paramId of @p collection, with its handle.
+/// @return It, or no copy if the lane has none.
+[[nodiscard]] WorkingCopy find_working_copy(const ParamCollection& collection, int32_t paramId);
+
+/// @brief [render] or [interaction] The live copy @p handle names.
+/// @return It, or nullptr when the slot was emptied since @p handle was made, or its copy's take ended.
+[[nodiscard]] project::DocAutoParam* copy_at(CopyHandle handle);
 
 /// @brief [render] or [interaction] The working copy of lane @p paramId of @p collection.
 /// @return It, or nullptr if the lane has none.

@@ -111,6 +111,39 @@ class NoModControllable(unittest.TestCase):
         self.assertNotIn("no-mod-controllable", counts)
 
 
+class NoNewModelStackInParams(unittest.TestCase):
+    counts = ScenesRows.counts
+
+    def test_each_stack_name_in_the_param_path_is_counted(self):
+        counts = self.counts(
+            "src/deluge/modulation/params/planted.cpp",
+            "void f(ModelStackWithAutoParam const* a, ModelStackWithParamCollection* b);\nModelStack* c;\n",
+        )
+        self.assertEqual(counts.get("no-new-model-stack-in-params"), 2)
+
+    def test_outside_the_param_path_they_are_not(self):
+        counts = self.counts(
+            "src/deluge/model/planted.cpp", "ModelStackWithAutoParam const* a;\n"
+        )
+        self.assertNotIn("no-new-model-stack-in-params", counts)
+
+    def test_the_delay_hook_and_the_move_queue_are_counted(self):
+        for rel in (
+            "src/deluge/model/mod_controllable/delay_type.cpp",
+            "src/deluge/playback/move_section.h",
+        ):
+            with self.subTest(rel=rel):
+                counts = self.counts(rel, "ModelStackWithAutoParam stack;\n")
+                self.assertEqual(counts.get("no-new-model-stack-in-params"), 1)
+
+    def test_its_include_is_not(self):
+        counts = self.counts(
+            "src/deluge/modulation/params/planted.cpp",
+            '#include "model/model_stack.h"\n',
+        )
+        self.assertNotIn("no-new-model-stack-in-params", counts)
+
+
 class LegacyEffectsOwnerRows(unittest.TestCase):
     counts = ScenesRows.counts
 
@@ -192,6 +225,44 @@ class LegacyPortSeams(unittest.TestCase):
     def test_no_legacy_file_is_a_knob_focus_seam(self):
         """The views keep the gold knobs' focus as addresses: no legacy file builds one for the scenes."""
         self.assertEqual([p for p in clr.LEGACY_PORT_SEAMS if "knob_focus" in p], [])
+
+
+class ScenesLinkApp(unittest.TestCase):
+    """`scenes-link-app`: no CMake file under src/ui/scenes names the app's target outside a comment."""
+
+    def audit(self, text: str) -> int:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "src/ui/scenes/CMakeLists.txt"
+            path.parent.mkdir(parents=True)
+            path.write_text(text)
+            saved = clr.REPO
+            clr.REPO = root
+            try:
+                return clr.audit_scenes_link()
+            finally:
+                clr.REPO = saved
+
+    def test_a_link_to_the_app_fails(self):
+        self.assertEqual(
+            self.audit(
+                "target_link_libraries(deluge_ui_scenes PUBLIC $<COMPILE_ONLY:deluge_app>)\n"
+            ),
+            1,
+        )
+
+    def test_a_comment_naming_it_does_not(self):
+        self.assertEqual(
+            self.audit(
+                "# deluge_ui_scenes links no part of deluge_app\nadd_library(x STATIC a.cpp)\n"
+            ),
+            0,
+        )
+
+    def test_a_longer_name_holding_it_does_not(self):
+        self.assertEqual(
+            self.audit("target_link_libraries(x PUBLIC deluge_app_gui_shim)\n"), 0
+        )
 
 
 if __name__ == "__main__":

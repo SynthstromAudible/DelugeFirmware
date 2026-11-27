@@ -20,6 +20,8 @@
 ///        of main's value rules, pinned against `main`'s own numbers.
 
 #include "gui/ui/menu_view_of.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
@@ -60,6 +62,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "support/menu_context.h"
@@ -526,13 +529,13 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 			expect(screen_text(*n, r.ctx, 7 | 128)).to_equal(std::string{"35% (L)"});
 		}
 		for (const Node* n : {&nodes::note_fill, &nodes::note_row_fill}) {
-			expect(screen_text(*n, r.ctx, FillMode::OFF)).to_equal(std::string{"OFF"});
-			expect(screen_text(*n, r.ctx, FillMode::FILL)).to_equal(std::string{"FILL"});
-			expect(screen_text(*n, r.ctx, FillMode::NOT_FILL)).to_equal(std::string{"NOT FILL"});
+			expect(screen_text(*n, r.ctx, std::to_underlying(deluge::project::FillMode::OFF))).to_equal(std::string{"OFF"});
+			expect(screen_text(*n, r.ctx, std::to_underlying(deluge::project::FillMode::FILL))).to_equal(std::string{"FILL"});
+			expect(screen_text(*n, r.ctx, std::to_underlying(deluge::project::FillMode::NOT_FILL))).to_equal(std::string{"NOT FILL"});
 		}
 		for (const Node* n : {&nodes::note_iterance, &nodes::note_row_iterance}) {
-			expect(screen_text(*n, r.ctx, kDefaultIterancePreset)).to_equal(std::string{"OFF"});
-			expect(screen_text(*n, r.ctx, kCustomIterancePreset)).to_equal(std::string{"CUSTOM"});
+			expect(screen_text(*n, r.ctx, deluge::project::kIterancePresetOff)).to_equal(std::string{"OFF"});
+			expect(screen_text(*n, r.ctx, deluge::project::kCustomIterancePreset)).to_equal(std::string{"CUSTOM"});
 		}
 	});
 
@@ -541,7 +544,7 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 		spec::FakeNoteBridgeGuard bridge;
 		bridge.fake.iterance_preset_label_text = "3 of 4";
 		for (const Node* n : {&nodes::note_iterance, &nodes::note_row_iterance}) {
-			for (int32_t preset = kDefaultIterancePreset + 1; preset < kCustomIterancePreset; preset++) {
+			for (int32_t preset = deluge::project::kIterancePresetOff + 1; preset < deluge::project::kCustomIterancePreset; preset++) {
 				expect(screen_text(*n, r.ctx, preset)).to_equal(std::string{"3 of 4"});
 				expect(bridge.fake.iterance_preset_label_last_preset).to_equal(preset);
 				expect(bridge.fake.iterance_preset_label_last_compact).to_be_false();

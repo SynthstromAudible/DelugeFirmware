@@ -50,7 +50,7 @@
 /// @note The spec may include `gui/` and `hid/` (it drives the legacy views); the library may not.
 ///       Same rule `marker_scene_spec.cpp` runs under.
 
-#include "ui/scenes/menu/bind_host.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/timeline/timeline.h"
 
 #include "gui/ui/ui.h"
@@ -190,7 +190,7 @@ struct Rig {
 	///        `supportsTriplets() == false` (`audio_clip_view.h`).
 	[[nodiscard]] TimelineState port() const {
 		TimelineState s;
-		s.adopt(*deluge::ui::scenes::menu::host_ports().clips->clip_navigation()); // the fixture's song is current
+		s.adopt(*deluge::gui::shell_host::host_ports().clips->clip_navigation()); // the fixture's song is current
 		s.supports_triplets = false;
 		return s;
 	}
@@ -199,7 +199,7 @@ struct Rig {
 	///        (`RootUI::supportsTriplets`, `gui/ui/root_ui.h`).
 	[[nodiscard]] TimelineState port_with_triplets() const {
 		TimelineState s;
-		s.adopt(*deluge::ui::scenes::menu::host_ports().clips->clip_navigation()); // the fixture's song is current
+		s.adopt(*deluge::gui::shell_host::host_ports().clips->clip_navigation()); // the fixture's song is current
 		s.supports_triplets = true;
 		return s;
 	}
@@ -963,7 +963,7 @@ describe timeline_spec_body(
 		        r.f.song->persistentView.tripletsLevel = 8;
 
 		        TimelineState port;
-		        port.adopt(*deluge::ui::scenes::menu::host_ports().clips->clip_navigation());
+		        port.adopt(*deluge::gui::shell_host::host_ports().clips->clip_navigation());
 		        expect(port.x_scroll).to_equal(96);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(6);
 		        expect(port.triplets_on).to_be_true();

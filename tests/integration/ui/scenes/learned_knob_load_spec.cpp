@@ -29,10 +29,10 @@
 #include <vector>
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
+#include "gui/ui/shell_host/host_ports.h"
 #include "support/indexed_knobs.h"
 #include "support/printers/param_target_printer.h"
 #include "support/song_fixture.h"
-#include "ui/scenes/menu/bind_host.h"
 
 #include "cppspec.hpp"
 #include "support/song_load.h"
@@ -293,7 +293,7 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		if (backed == nullptr) {
 			return;
 		}
-		expect(deluge::ui::scenes::menu::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
 		expect(f.song->project.mappings.find(knob)).to_be_null("the unlearned knob's mapping");
 		expect(valueOf(*backed, params::LOCAL_PITCH_ADJUST)).to_equal(kSeeded);
 		// The zeroing main's unlearn runs does reach those params: with no knob left, it zeroes the pitch adjust.

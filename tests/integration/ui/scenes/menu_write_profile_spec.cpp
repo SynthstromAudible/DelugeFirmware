@@ -3,9 +3,9 @@
 // MENU-WRITE-PROFILE lines, each phase's total per kit write; the batch Edit's shape is judged from them.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/dispatch.h"
 #include "ui/scenes/bind/ports/write_sink.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 
@@ -130,7 +130,8 @@ void write_phased(Phases& phases, Song& song, Kit& kit, std::string_view path, i
 		const auto slot =
 		    phases.time("slot_address", [&] { return deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum)); });
 		const auto shown = phases.time("view", [&] {
-			return bind::view(target, &song.project, bind::Addresses{.slot = slot}, menu::host_ports());
+			return bind::view(target, &song.project, bind::Addresses{.slot = slot},
+			                  deluge::gui::shell_host::host_ports());
 		});
 		if (!slot || !shown || !shown->applies) {
 			continue;

@@ -394,7 +394,7 @@ ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* 
 ParamCollection::~ParamCollection() = default;
 void ParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {
 }
-void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+void ParamCollection::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue,
                                                    bool automationChanged, bool automatedBefore, bool automatedNow) {
 }
 bool ParamCollection::mayParamInterpolate(int32_t paramId) {

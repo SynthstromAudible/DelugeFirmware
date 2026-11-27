@@ -3,8 +3,8 @@
 /// @file
 /// @brief `ctx_of`: the menu's context over a spec's legacy song, bound as the app binds one.
 
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/ports/ports.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/services/view_state.h"
 
@@ -29,8 +29,8 @@ namespace deluge::ui::scenes::spec {
                                               bool performance_view, bool session_or_arranger_root,
                                               bool session_view_root, bool kit_global_fx) {
 	// The device's settings act on no song, so a song the app does not play still binds the app's device port.
-	static const bind::Ports kDeviceOnly{.device = menu::host_ports().device};
-	const bind::Ports* ports = &song == currentSong ? &menu::host_ports() : &kDeviceOnly;
+	static const bind::Ports kDeviceOnly{.device = deluge::gui::shell_host::host_ports().device};
+	const bind::Ports* ports = &song == currentSong ? &deluge::gui::shell_host::host_ports() : &kDeviceOnly;
 	return menu::context_for(song.project, ports, view, source_index, performance_view, session_or_arranger_root,
 	                         session_view_root, kit_global_fx);
 }

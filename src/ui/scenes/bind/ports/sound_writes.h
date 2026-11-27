@@ -7,6 +7,7 @@
 #include "instruments/classic/sound_state.h"
 #include "midi/device_id.h"
 #include "project/instrument_slot.h"
+#include "project/sample_marker.h"
 #include "ui/scenes/bind/target.h"
 
 #include <cstdint>
@@ -24,8 +25,8 @@ struct RangesCause {
 		EDIT,   ///< a plain edit
 		MARKER, ///< a marker the marker editor moved
 	};
-	Kind kind{Kind::EDIT}; ///< why the ranges are written
-	int8_t marker{0};      ///< the moved marker's `MarkerType` value (START 0 .. END 3), for a MARKER cause
+	Kind kind{Kind::EDIT};                                      ///< why the ranges are written
+	project::SampleMarker marker{project::SampleMarker::START}; ///< the moved marker, for a MARKER cause
 	bool operator==(const RangesCause&) const = default;
 };
 

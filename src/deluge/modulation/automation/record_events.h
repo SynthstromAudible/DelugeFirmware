@@ -30,12 +30,11 @@
 
 #include "definitions_cxx.hpp"
 #include "modulation/automation/lane_command.h"
-#include "project/param_address.h"
+#include "modulation/automation/working_copies.h"
 #include "project/param_node.h"
 #include <cstddef>
 #include <cstdint>
 
-class ModelStackWithAutoParam;
 class Song;
 
 namespace deluge::modulation {
@@ -43,8 +42,8 @@ namespace deluge::modulation {
 /// @brief A value recorded into a lane while playing, with every input the live-record kernel reads that is not the
 /// lane's own nodes; or, with @ref command, an Edit's change to a lane being recorded.
 struct RecordEvent {
-	const ::Song* song{nullptr}; ///< the song @ref lane is addressed in
-	project::ParamAddress lane{};
+	const ::Song* song{nullptr}; ///< the song the lane is in
+	CopyHandle copy{};           ///< the lane's working copy, which the render writes
 	int32_t livePos{0};
 	int32_t value{0};
 	int32_t ticksToClear{0};    ///< the stretch ahead of livePos the write clears
@@ -75,15 +74,16 @@ void reserveForRecordedWrite(project::ParamNodeVector& nodes);
 /// @param lane    The lane, on the interaction tier.
 /// @param command The change, held until the render has made it.
 /// @param room    Nodes the change can add.
-void postLaneCommand(ModelStackWithAutoParam const& lane, LaneCommand command, size_t room);
+void postLaneCommand(const bridge::LaneTarget& lane, LaneCommand command, size_t room);
 
 /// @brief [task] Queue @p event for the render.
 /// @return false when the queue is full: the caller, with the render excluded, writes the queue and then its event.
 [[nodiscard]] bool postRecordEvent(const RecordEvent& event);
 
-/// @brief [audio] Write the queued events into their lanes in @p song, oldest first; an event made in another song, or
-/// whose lane no longer resolves (its clip was deleted after the write), is dropped. Bounded: at most the queue's
-/// capacity per call. [task] only with the render excluded, which makes it the queue's one consumer while it runs.
+/// @brief [audio] Write the queued events into their lanes' working copies in @p song, oldest first; an event made in
+/// another song, or whose handle names no live copy (released, its take ended, or its slot holding a later copy), is
+/// dropped. Bounded: at most the queue's capacity per call. [task] only with the render excluded, which makes it the
+/// queue's one consumer while it runs.
 void applyRecordEvents(::Song& song);
 
 /// @brief [task] Write what is still queued into the working copies of the current song's lanes, with the render

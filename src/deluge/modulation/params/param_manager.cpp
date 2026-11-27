@@ -21,6 +21,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/lane_publication.h"
@@ -441,12 +442,11 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
 	}
 }
 
-void ParamManagerForTimeline::expectEvent(ModelStackWithThreeMainThings const* modelStack) {
-	TimelineCounter* timelineCounter = modelStack->getTimelineCounterAllowNull();
-	if (playbackHandler.isEitherClockActive() && (!timelineCounter || timelineCounter->isPlayingAutomationNow())) {
+void ParamManagerForTimeline::expectEvent(TimelineCounter* timeline) {
+	if (playbackHandler.isEitherClockActive() && (!timeline || timeline->isPlayingAutomationNow())) {
 		ticksTilNextEvent = 0;
-		if (timelineCounter) {
-			timelineCounter->expectEvent();
+		if (timeline) {
+			timeline->expectEvent();
 		}
 	}
 }
@@ -477,7 +477,7 @@ void ParamManagerForTimeline::setPlayPos(uint32_t pos, ModelStackWithThreeMainTh
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 
-	expectEvent(modelStack);
+	expectEvent(modelStack->getTimelineCounterAllowNull());
 	ticksSkipped = 0;
 }
 
@@ -493,10 +493,10 @@ void ParamManagerForTimeline::grabValuesFromPos(uint32_t pos, ModelStackWithThre
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 }
 
-void ParamManager::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t currentValueChanged,
+void ParamManager::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t currentValueChanged,
                                                 bool automationChanged, bool paramAutomatedNow) {
 	if (automationChanged && paramAutomatedNow) {
-		toForTimeline()->expectEvent(modelStack);
+		toForTimeline()->expectEvent(lane.timeline);
 	}
 
 	if (currentValueChanged) {

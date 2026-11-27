@@ -6,6 +6,7 @@
 #include "model/edits/set_mod_knob_mode.h"
 #include "model/edits/setting_edit.h"
 #include "model/fx/chain_params.h"
+#include "model/project_bridge/lane_target.h"
 
 #include "board_controls.hpp"
 #include "instruments/classic/pages.h"
@@ -390,7 +391,7 @@ describe knob_records("the knob records, by Edit", ${
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* param = midi->getParamToControlFromInputMIDIChannel(
 			    74, setupModelStackWithThreeMainThingsButNoNoteRow(memory, f.song, midi, f.clip, &f.clip->paramManager));
-			param->autoParam->setValuePossiblyForRegion(1 << 28, param, 0, f.clip->loopLength() / 2);
+			param->autoParam->setValuePossiblyForRegion(1 << 28, deluge::bridge::target_of(*param, std::nullopt), 0, f.clip->loopLength() / 2);
 		}
 		MIDIParamCollection* second_ccs = second->paramManager.getMIDIParamCollection();
 		MIDIParam* plain = second_ccs->params.getOrCreateParamFromCC(75, 1234);
@@ -454,7 +455,7 @@ describe knob_records("the knob records, by Edit", ${
 				expect(param->autoParam).not_().to_be_null();
 			}
 			if (param != nullptr && param->autoParam != nullptr) {
-				param->autoParam->setValuePossiblyForRegion(1 << 28, param, 0, clip->loopLength() / 2);
+				param->autoParam->setValuePossiblyForRegion(1 << 28, deluge::bridge::target_of(*param, std::nullopt), 0, clip->loopLength() / 2);
 			}
 			expect(automated(clip, 74)).to_be_true();
 		}

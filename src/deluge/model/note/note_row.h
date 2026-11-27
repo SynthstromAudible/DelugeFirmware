@@ -27,7 +27,7 @@
 #include "modulation/params/staged_repeat.h"
 #include "processing/sound/sound_instrument.h"
 #include "project/doc_note_row.h"
-#include "sequence/iterance.h"
+#include "project/iterance.h"
 
 #define SQUARE_NEW_NOTE 1
 #define SQUARE_NOTE_HEAD 2
@@ -77,7 +77,7 @@ struct SquareInfo {
 	uint8_t squareType{};
 	int32_t averageVelocity{};
 	int32_t probability{};
-	Iterance iterance;
+	deluge::project::Iterance iterance;
 	int32_t fill{};
 	bool isValid{false};
 };
@@ -89,7 +89,7 @@ struct PendingNoteOn {
 	int32_t ticksLate{};
 	uint8_t probability{};
 	uint8_t velocity{};
-	Iterance iterance;
+	deluge::project::Iterance iterance;
 	uint8_t fill{};
 };
 
@@ -258,7 +258,7 @@ public:
 	void bindDocNoteRow(deluge::project::DocNoteRow* d) { docNoteRow_ = d; }
 	// values for whole row
 	uint8_t probabilityValue;
-	Iterance iteranceValue;
+	deluge::project::Iterance iteranceValue;
 	uint8_t fillValue;
 	// These are deprecated, and only used during loading for compatibility with old song files
 	LearnedMIDI muteMIDICommand;
@@ -286,10 +286,11 @@ public:
 	uint32_t ignoreNoteOnsBefore_;
 
 	int32_t getDefaultProbability();
-	Iterance getDefaultIterance();
+	deluge::project::Iterance getDefaultIterance();
 	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
-	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
-	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
+	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
+	                       deluge::project::Iterance iterance, int32_t fill, ModelStackWithNoteRow* modelStack,
+	                       Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);
 	Error addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,

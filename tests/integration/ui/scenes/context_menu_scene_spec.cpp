@@ -18,10 +18,10 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_action_dispatch.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/shell_host_ui.h"
 #include "hid/display/screensaver.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/profile.h"
@@ -231,7 +231,7 @@ bool has_action(const Result& r, ShellAction::Kind k) {
 /// @brief A menu context with the host's ports and nothing else: what a reset needs to reach the app.
 MenuContext host_context() {
 	MenuContext ctx{};
-	ctx.ports = deluge::ui::scenes::menu::host_ports();
+	ctx.ports = deluge::gui::shell_host::host_ports();
 	return ctx;
 }
 

@@ -45,7 +45,7 @@ public:
 		if (cause.kind == deluge::ui::scenes::bind::RangesCause::Kind::MARKER) {
 			// A marker moved: the sounding voices follow the zone, and the instrument counts as edited.
 			::Sound* sound = bridge::soundAt(*currentSong, slot);
-			bridge::zoneMoved(*sound, source, static_cast<MarkerType>(cause.marker), *currentSong);
+			bridge::zoneMoved(*sound, source, static_cast<MarkerType>(std::to_underlying(cause.marker)), *currentSong);
 			Instrument* instrument = sound->isDrum() ? static_cast<Instrument*>(static_cast<SoundDrum*>(sound)->kit)
 			                                         : static_cast<Instrument*>(static_cast<SoundInstrument*>(sound));
 			if (instrument != nullptr) {

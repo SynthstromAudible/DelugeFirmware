@@ -20,6 +20,8 @@
 /// playback-state edge), and `note_row.cpp`'s render read (it is inside `NoteRow::renderRow`).
 
 #include "gui/ui/shell_note_mode.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include "util/note_editor_open.h"
 
 #include "base/notify/notice_queue.h"
@@ -65,9 +67,12 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "support/spec_main.h"
+
+using deluge::project::Iterance;
 
 /// @name Legacy's held-button state, reached by bare `extern`
 ///
@@ -237,7 +242,8 @@ struct LegacyViewGuard {
 		(void)getCurrentInstrumentClip()->getNoteRowOnScreen(y, currentSong, &row_index);
 		ModelStackWithNoteRow* with_row =
 		    stack->addNoteRow(getCurrentInstrumentClip()->getNoteRowId(row, row_index), row);
-		(void)row->attemptNoteAdd(pos, length, /*velocity=*/80, probability, Iterance{}, FillMode::OFF, with_row,
+		(void)row->attemptNoteAdd(pos, length, /*velocity=*/80, probability, Iterance{},
+		                          std::to_underlying(deluge::project::FillMode::OFF), with_row,
 		                          /*action=*/nullptr);
 	}
 
@@ -361,7 +367,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		menu_scene().enter_submenu(nodes::note_editor_probability);
@@ -380,7 +386,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 
@@ -396,7 +402,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		menu_scene().enter_submenu(nodes::note_velocity);
@@ -416,12 +422,12 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		legacy.add_square_note(1, 0, 10);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		menu_scene().enter_submenu(nodes::note_editor_probability);
-		expect(menu_scene().state().edit_int).to_equal(int32_t{kNumProbabilityValues});
+		expect(menu_scene().state().edit_int).to_equal(int32_t{deluge::project::kProbabilityValueCount});
 
 		// Release the first pad -- the note editor remembers it -- then press the other: a fresh press
 		// replaces the remembered selection, and the item re-reads for the note now held.
@@ -441,7 +447,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		legacy.add_square_note(1, 0, 10);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
@@ -450,7 +456,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		// The second press is the later one and the rightmost; the item still reads the leftmost.
 		guest::noteModeLegacyCalls().noteEditorEditPad(1, 0, 1);
 		legacy.pressed.push_back({1, 0});
-		expect(menu_scene().state().edit_int).to_equal(int32_t{kNumProbabilityValues});
+		expect(menu_scene().state().edit_int).to_equal(int32_t{deluge::project::kProbabilityValueCount});
 	});
 
 	it("a velocity turn on the full-screen velocity item shows the item's new value and no popup -- adjustVelocity's "
@@ -459,7 +465,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues); // velocity 80
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount); // velocity 80
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		menu_scene().enter_submenu(nodes::note_velocity);
@@ -478,7 +484,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		deluge::hid::display::OLED::removePopup();
@@ -498,7 +504,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		legacy.press(0, 0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		deluge::hid::display::OLED::removePopup();
@@ -519,7 +525,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteRowEditor);
@@ -543,7 +549,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		menu_scene().enter_submenu(nodes::note_row_probability);
@@ -567,7 +573,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 
@@ -583,7 +589,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		menu_scene().enter_submenu(nodes::note_row_probability);
@@ -628,7 +634,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		legacy.add_square_note(1, 0, 10);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
@@ -639,7 +645,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(1, 0, 1)).to_be_true(); // still holding: a re-read
 		legacy.pressed.push_back({1, 0});
 		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
-		expect(menu_scene().state().edit_int).to_equal(int32_t{kNumProbabilityValues});
+		expect(menu_scene().state().edit_int).to_equal(int32_t{deluge::project::kProbabilityValueCount});
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 0)).to_be_true(); // one released, one held
 		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
@@ -822,7 +828,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		LegacyViewGuard legacy;
 		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
-		legacy.add_note(0, /*pos=*/0, /*length=*/1, kNumProbabilityValues);
+		legacy.add_note(0, /*pos=*/0, /*length=*/1, deluge::project::kProbabilityValueCount);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 1)).to_be_true(); // the toggle: into the note root
@@ -881,7 +887,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the menu
 		LegacyViewGuard legacy;
 		SongFixture fx = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
-		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.add_square_note(0, 0, deluge::project::kProbabilityValueCount);
 		legacy.press(0, 0);
 		expect(menu_on_guest_stack()).to_be_false();
 

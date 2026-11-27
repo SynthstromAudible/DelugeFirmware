@@ -191,7 +191,7 @@ fn emit_staleness_hash(app_objs_dir: &Path, hash: &str, prev: Option<&str>, stam
 /// call each other. The host tree's layout differs from the device tree's: the legacy DSP library
 /// sits under `app/`, and the DSP library's archives under `dsp/`.
 fn link_closure(build_dir: &Path, archive: &Path) {
-    const DEPS: [(&str, &str); 25] = [
+    const DEPS: [(&str, &str); 26] = [
         ("printf", "libeyalroz_printf.a"),
         ("dsp", "libdeluge-dsp-fixed.a"),
         ("dsp", "libdeluge-dsp-float.a"),
@@ -214,6 +214,7 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("base/notify", "libdeluge_base_notify.a"),
         ("ui/scenes", "libdeluge_ui_scenes.a"),
         ("ui/scenes/bind", "libdeluge_ui_scenes_bind.a"),
+        ("app/gui/l10n", "libdeluge_l10n.a"),
         ("level3", "libdeluge_ui_level3.a"),
         ("scenes_spec", "libdeluge_ui_scenes_spec.a"),
         // tests/integration/ui/scenes adds the fakes (guarded) first, so their binary dir is under scenes_spec.

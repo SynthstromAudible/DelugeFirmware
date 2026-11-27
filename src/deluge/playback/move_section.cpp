@@ -37,17 +37,18 @@ namespace {
 /// host's masked-allocation and masked-action counts show it.
 constexpr size_t kRoom = 32;
 
-/// [interaction] Recorded notifies, in order. All-zero at start: it lives in .sdram_bss.
+/// [interaction] Recorded notifies, in order. All-zero at start: it lives in .sdram_bss and is constant-initialised
+/// (constinit), so no constructor writes it at boot.
 struct Collected {
-	std::array<MoveEffects::DelayNotify, kRoom> notifies;
-	size_t count;
+	std::array<MoveEffects::DelayNotify, kRoom> notifies{};
+	size_t count{0};
 	/// Scopes the interaction tier is inside; the outermost one's end runs what they collected.
-	int32_t depth;
+	int32_t depth{0};
 };
-PLACE_SDRAM_BSS Collected g_collected;
+PLACE_SDRAM_BSS constinit Collected g_collected;
 
 void runDelayNotify(const MoveEffects::DelayNotify& notify) {
-	deluge::model::onDelayParamModified(notify.stack, notify.oldValue, notify.automatedBefore);
+	deluge::model::onDelayParamModified(notify.lane, notify.oldValue, notify.automatedBefore);
 }
 
 void (*g_runner)(const MoveEffects::DelayNotify&) = &runDelayNotify;

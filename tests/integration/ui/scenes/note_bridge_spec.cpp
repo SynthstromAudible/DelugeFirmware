@@ -58,6 +58,8 @@
 /// selection mechanics, `adjust_note_velocity`'s gate shape, `row_probability`'s row-creation body).
 
 #include "gui/ui/shell_note_bridge.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include "ui/scenes/menu/note_bridge.h"
 
 #include "gui/ui/shell_host_ui.h" // shellHostUI
@@ -86,6 +88,7 @@
 
 #include <span>
 #include <string_view>
+#include <utility>
 
 #include "support/spec_main.h"
 
@@ -124,10 +127,10 @@ struct RealNoteSelectionGuard {
 
 		ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, 0);
 		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-		(void)noteRow->attemptNoteAdd(/*pos=*/0, /*length=*/currentSong->persistentView.xZoom[NAVIGATION_CLIP],
-		                              velocity,
-		                              /*probability=*/kNumProbabilityValues, Iterance{}, FillMode::OFF,
-		                              modelStackWithNoteRow, /*action=*/nullptr);
+		(void)noteRow->attemptNoteAdd(
+		    /*pos=*/0, /*length=*/currentSong->persistentView.xZoom[NAVIGATION_CLIP], velocity,
+		    /*probability=*/deluge::project::kProbabilityValueCount, deluge::project::Iterance{},
+		    std::to_underlying(deluge::project::FillMode::OFF), modelStackWithNoteRow, /*action=*/nullptr);
 
 		// `InstrumentClipView::editPadAction`'s own callers pass `currentSong->persistentView.xZoom[NAVIGATION_CLIP]`
 		// (`InstrumentClipView::handleNoteEditorEditPadAction` in `instrument_clip_view.cpp`); square 0 is where the
@@ -344,7 +347,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		size_t n = menu::note_bridge()->iterance_preset_label(3, /*compact=*/true, std::span<char>(buf, sizeof(buf)));
 		expect(n).to_be_greater_than(0);
 		std::string_view text(buf, n);
-		// Preset 3 is `iterancePresets[2]` == `Iterance{2, 0b1}` (`util/lookuptables/preset_tables.cpp`,
+		// Preset 3 is `deluge::project::kIterancePresets[2]` == `Iterance{2, 0b1}` (`util/lookuptables/preset_tables.cpp`,
 		// after FIRST and LAST): divisor 2, step 0 active -- legacy's `"%d:%d"` with `(i + 1, divisor)` is "1:2".
 		expect(text).to_equal("1:2");
 	});
@@ -357,10 +360,10 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		expect(text).to_equal("1 of 2");
 	});
 
-	it("iterance_preset_label answers nothing outside 1..kNumIterancePresets", _ {
+	it("iterance_preset_label answers nothing outside 1..deluge::project::kIterancePresetCount", _ {
 		char buf[20] = {};
 		expect(menu::note_bridge()->iterance_preset_label(0, true, std::span<char>(buf, sizeof(buf)))).to_equal(0U);
-		expect(menu::note_bridge()->iterance_preset_label(kCustomIterancePreset, true, std::span<char>(buf, sizeof(buf))))
+		expect(menu::note_bridge()->iterance_preset_label(deluge::project::kCustomIterancePreset, true, std::span<char>(buf, sizeof(buf))))
 		    .to_equal(0U);
 	});
 });

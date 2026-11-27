@@ -266,12 +266,9 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/menu_entry.cpp",
     # The note bridge's installer. `src/ui/scenes` may include `model/**`
     # (`src/ui/scenes/CMakeLists.txt`), so `Note`/`NoteRow` are not what earns this file its place
-    # here -- it is `gui/views/instrument_clip_view.h`, which `src/ui/scenes` may NOT include, and the
-    # iterance preset table, `iterancePresets` (`util/lookuptables/lookuptables.cpp`), which
-    # `src/ui/scenes` may not reach either (it lives in a `.cpp`, not the model header the table's
-    # declaration sits in). This is the side of the wall that gets to name `instrumentClipView`
-    # itself and that table, the same reason `shell_pad_forward.cpp` above gets to name
-    # `instrumentClipView`/`keyboardScreen`/`performanceView`. It names
+    # here -- it is `gui/views/instrument_clip_view.h`, which `src/ui/scenes` may NOT include. This is the
+    # side of the wall that gets to name `instrumentClipView` itself, the same reason `shell_pad_forward.cpp`
+    # above gets to name `instrumentClipView`/`keyboardScreen`/`performanceView`. It names
     # `deluge::ui::scenes::menu::NoteBridge` and `deluge::ui::scenes::menu::set_note_bridge`
     # (`ui/scenes/menu/note_bridge.h`) to install the function pointers those legacy names sit behind.
     # Its HEADER (`shell_note_bridge.h`) is deliberately NOT listed: it names no `ui/scenes/` type,
@@ -440,6 +437,31 @@ RULES = [
         "tests/**",
         "symbol",
         r"\b(ModControllable|toModControllable|valueChangedEnoughToMatter)\b",
+        "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
+        # The engine stack names left in the param path, counted per file: the count may only fall. modulation/ still
+        # threads stacks through playback and recording (ModelStack stage 2); it moves out of src/deluge once its
+        # count is zero. The delay hook and the playhead move's deferred notify take a lane (bridge::LaneTarget) and
+        # stay at zero. One row per glob: the checker matches one glob per row.
+        "no-new-model-stack-in-params",
+        "src/deluge/modulation/**",
+        "symbol",
+        r"\bModelStack\w*\b",
+        "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
+        "no-new-model-stack-in-params",
+        "src/deluge/model/mod_controllable/delay_type.*",
+        "symbol",
+        r"\bModelStack\w*\b",
+        "2026-11-25-modelstack-stage1-design.md",
+    ),
+    (
+        "no-new-model-stack-in-params",
+        "src/deluge/playback/move_section.*",
+        "symbol",
+        r"\bModelStack\w*\b",
         "2026-11-25-modelstack-stage1-design.md",
     ),
     (
@@ -963,6 +985,30 @@ def audit_service_scope() -> int:
     return 1 if bad else 0
 
 
+def audit_scenes_link() -> int:
+    """`scenes-link-app`: fail if a CMake file under src/ui/scenes names the app's target, `deluge_app`.
+
+    The scenes library links no part of the app, and `tests/unit/ui/scenes/fakes` links it whole to prove it. This
+    keeps the link line from growing back: a `deluge_app` there, even `$<COMPILE_ONLY:deluge_app>`, would hand the
+    scenes the app's include roots and definitions again. A `#` comment may name it.
+    """
+    bad = 0
+    pattern = re.compile(r"(?<![A-Za-z0-9_])deluge_app(?![A-Za-z0-9_])")
+    for p in sorted((REPO / "src/ui/scenes").rglob("*")):
+        if not p.is_file() or not (p.name == "CMakeLists.txt" or p.suffix == ".cmake"):
+            continue
+        for number, line in enumerate(
+            p.read_text(encoding="utf-8", errors="replace").splitlines(), start=1
+        ):
+            code = line.split("#", 1)[0]
+            if pattern.search(code):
+                print(
+                    f"{p.relative_to(REPO)}:{number}: scenes-link-app: the scenes link no part of the app"
+                )
+                bad += 1
+    return 1 if bad else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--update", action="store_true")
@@ -970,8 +1016,8 @@ def main() -> int:
     ap.add_argument("--audit-symbols", action="store_true")
     a = ap.parse_args()
     if a.audit_symbols:
-        return audit_symbols() or audit_service_scope()
-    if not a.list and audit_service_scope() != 0:
+        return audit_symbols() or audit_service_scope() or audit_scenes_link()
+    if not a.list and (audit_service_scope() != 0 or audit_scenes_link() != 0):
         return 1
     cur = current()
     if a.list:

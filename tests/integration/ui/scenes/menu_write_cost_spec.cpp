@@ -4,8 +4,8 @@
 // running it).
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/ports/write_sink.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 
@@ -57,7 +57,7 @@ struct Cost {
 
 /// Times @p kWrites writes of @p path through the app's sink, alternating two menu values.
 Cost time_writes(const MenuContext& ctx, std::string_view path, int32_t a, int32_t b) {
-	bind::WriteSink& sink = *menu::host_ports().writes;
+	bind::WriteSink& sink = *deluge::gui::shell_host::host_ports().writes;
 	// The runner checks every write against the old decode; a probe times the write alone.
 	deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
 	const bool audited = audit.enabled;
@@ -79,7 +79,7 @@ Cost time_writes(const MenuContext& ctx, std::string_view path, int32_t a, int32
 
 /// Times @p kWrites writes of @p param through the app's sink, alternating two stored words.
 Cost time_param_writes(const MenuContext& ctx, deluge::plugin::ParamId param, int32_t a, int32_t b) {
-	bind::WriteSink& sink = *menu::host_ports().writes;
+	bind::WriteSink& sink = *deluge::gui::shell_host::host_ports().writes;
 	deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
 	const bool audited = audit.enabled;
 	audit.enabled = false;
@@ -197,7 +197,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			                                            .space = deluge::project::ParamSpace::ENGINE,
 			                                            .id = lpf,
 			                                            .clip_id = f.clip->id()};
-			expect(menu::host_ports().controls->param_value(on_last)).to_equal(std::optional<int32_t>{0x40000000});
+			expect(deluge::gui::shell_host::host_ports().controls->param_value(on_last)).to_equal(std::optional<int32_t>{0x40000000});
 		}
 		nullifyUIs();
 	});
@@ -211,7 +211,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		const Target cable{.kind = Target::Kind::CABLE,
 		                   .param = deluge::bridge::cable_depth(PatchSource::LFO_GLOBAL_1, pitch)};
 		report("synth", 0, "cable", time_requests([&](int32_t i) {
-			       (void)menu::host_ports().writes->write({.target = cable,
+			       (void)deluge::gui::shell_host::host_ports().writes->write({.target = cable,
 			                                            .where = ctx.addresses,
 			                                            .param_value = (i % 2) != 0 ? 0x08000000 : 0x10000000,
 			                                            .polarity = deluge::instruments::classic::Polarity::BIPOLAR});
@@ -222,7 +222,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		    .id = deluge::instruments::classic::param::kLpfFrequency,
 		    .clip_id = f.clip->id()};
 		report("synth-region", 0, "lpfFrequency", time_requests([&](int32_t i) {
-			       (void)menu::host_ports().controls_sink->write_param(lpf, (i % 2) != 0 ? 0x40000000 : -0x40000000, 0, 24, deluge::ui::controls::Resolution::KNOB);
+			       (void)deluge::gui::shell_host::host_ports().controls_sink->write_param(lpf, (i % 2) != 0 ? 0x40000000 : -0x40000000, 0, 24, deluge::ui::controls::Resolution::KNOB);
 		       }));
 		nullifyUIs();
 	});
@@ -239,10 +239,11 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		std::vector<deluge::synth::SourceRange> ranges =
 		    deluge::ui::scenes::spec::first_ranges(slot);
 		ranges[0].zone.end = 100000;
-		const bind::RangesCause marker{.kind = bind::RangesCause::Kind::MARKER, .marker = 0};
+		const bind::RangesCause marker{.kind = bind::RangesCause::Kind::MARKER,
+		                               .marker = deluge::project::SampleMarker::START};
 		report("synth", 0, "marker", time_requests([&](int32_t i) {
 			       ranges[0].zone.start = (i % 2) != 0 ? 1000 : 2000;
-			       (void)menu::host_ports().sound_writes->write_ranges(slot, 0, ranges, marker);
+			       (void)deluge::gui::shell_host::host_ports().sound_writes->write_ranges(slot, 0, ranges, marker);
 		       }));
 		expect(deluge::ui::scenes::spec::first_ranges(slot)[0].zone.end).to_equal(uint64_t{100000});
 		deluge::ui::scenes::spec::make_current(saved);

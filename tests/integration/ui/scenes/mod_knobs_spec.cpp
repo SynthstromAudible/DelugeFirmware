@@ -32,8 +32,8 @@
 #include "base/notify/notice_queue.h"
 #include "board_controls.hpp"
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "modulation/automation/record_events.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/menu/node.h"
@@ -504,7 +504,7 @@ struct KnobRig {
 	/// Point the knobs at @p s's record, over the app's ports.
 	void set_song(Song* s) {
 		song = s;
-		knobs.set_ports(&deluge::ui::scenes::menu::host_ports());
+		knobs.set_ports(&deluge::gui::shell_host::host_ports());
 		knobs.set_model(s != nullptr ? &s->project : nullptr);
 	}
 	/// Point the knobs where legacy's view would point them at @p counter.
@@ -844,7 +844,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(f.clip, false);
 		expect(std::holds_alternative<bind::ChainFocus>(rig.knobs.focus().owner)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
-		(void)menu::host_ports().controls_sink->stutter(rig.knobs.focus(), true);
+		(void)deluge::gui::shell_host::host_ports().controls_sink->stutter(rig.knobs.focus(), true);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
 		// main's `GlobalEffectableForClip::modButtonAction`: the reverb button leaves the stutter playing.
 		rig.knobs.mod_button_action(4, true);
@@ -1147,7 +1147,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		f.clip->activeIfNoSolo = true;
 		other->activeIfNoSolo = false;
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()};
-		const auto& facts = *deluge::ui::scenes::menu::host_ports().controls;
+		const auto& facts = *deluge::gui::shell_host::host_ports().controls;
 		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{f.clip->id()})).to_be_true();
 		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{other->id()})).to_be_false();
 		expect(facts.allows_note_tails(slot, std::nullopt)).to_be_true();
@@ -1209,7 +1209,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			}
 		}
 		const deluge::ui::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
-		auto& sink = *deluge::ui::scenes::menu::host_ports().controls_sink;
+		auto& sink = *deluge::gui::shell_host::host_ports().controls_sink;
 		expect(sink.midi_cc_select(focus, 1, true)).to_be_true();
 		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
 		expect(InstrumentClipMinder::editingMIDICCForWhichModKnob).to_equal(1);
@@ -1244,7 +1244,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		    {1, 0, {.kind = Cc::Kind::AFTERTOUCH}},
 		    {1, 1, {.kind = Cc::Kind::NUMBER, .number = Cc::kYAxisNumber}},
 		};
-		auto& sink = *deluge::ui::scenes::menu::host_ports().controls_sink;
+		auto& sink = *deluge::gui::shell_host::host_ports().controls_sink;
 		// One song per lane, with only that lane automated: a lane read in place of another reads no automation.
 		for (size_t automated = 0; automated < std::size(lanes); automated++) {
 			spec::SongFixture f = spec::make_midi_song();
@@ -1306,7 +1306,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		if (ccs != nullptr) {
 			expect(ccs->params.getParamFromCC(75)).to_be_null("CC 75's param");
 		}
-		auto& sink = *deluge::ui::scenes::menu::host_ports().controls_sink;
+		auto& sink = *deluge::gui::shell_host::host_ports().controls_sink;
 		const deluge::ui::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
 		for (const auto& [knob, cc] : {std::pair{0, Cc{.kind = Cc::Kind::NUMBER, .number = 75}}, std::pair{1, Cc{}}}) {
 			etl::string<30> name;
@@ -1350,7 +1350,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			expect(currentUIMode).to_equal(UI_MODE_NONE);
 		}
 		// A held horizontal encoder over the choice: the release ends the choice and keeps the encoder's mode
-		auto& sink = *deluge::ui::scenes::menu::host_ports().controls_sink;
+		auto& sink = *deluge::gui::shell_host::host_ports().controls_sink;
 		const deluge::ui::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
 		expect(sink.midi_cc_select(focus, 1, true)).to_be_true();
 		enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);

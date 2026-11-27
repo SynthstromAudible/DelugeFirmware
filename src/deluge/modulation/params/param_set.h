@@ -143,7 +143,7 @@ public:
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack) final;
 	void paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p);
-	void paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
+	void paramHasNoAutomationNow(ParamCollectionSummary* summary, int32_t p);
 
 	void shiftParamValues(int32_t p, int32_t offset);
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) final;
@@ -157,8 +157,8 @@ public:
 	int32_t getNumParams() { return numParams_; }
 
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) final;
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automationChanged,
+	                                  bool automatedBefore, bool automatedNow) override;
 
 	uint8_t topUintToRepParams;
 
@@ -196,8 +196,8 @@ public:
 	PatchedParamSet(ParamCollectionSummary* summary);
 	PatchedParamSet(PatchedParamSet const& other);
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automationChanged,
+	                                  bool automatedBefore, bool automatedNow) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCHED; }
 
@@ -210,8 +210,8 @@ public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
 	ExpressionParamSet(ExpressionParamSet const& other);
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automationChanged,
+	                                  bool automatedBefore, bool automatedNow) override;
 	bool mayParamInterpolate(int32_t paramId) override { return false; }
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;

@@ -86,7 +86,6 @@
 #include "ui/scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem
 #include "ui/scenes/menu/relevance.h"
 
-#include "definitions_cxx.hpp" // MIDI_CHANNEL_NONE
 #include "plugin/types/display_mapping.h"
 #include "project/device_settings.h"
 #include "project/features.h"
@@ -107,7 +106,8 @@ namespace deluge::ui::scenes::menu::nodes {
 
 /// @brief `midi::FollowChannel`'s read and write (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`),
 ///        with the input as an argument rather than a constructor member: the channel or zone the MIDI devices port
-///        reads, `MIDI_CHANNEL_NONE` for nothing learned, and a write through the learn port that keeps the device.
+///        reads, `kFollowChannelUnassigned` for nothing learned, and a write through the learn port that keeps the
+///        device.
 ///
 /// The nineteen nodes are nineteen distinct addresses of the two templates below -- the same
 /// device `relevance.h` uses for its `osc0_*`/`osc1_*` pairs, and for the same reason: a `Node`
@@ -142,7 +142,7 @@ bool unlearn_follow_channel(const MenuContext& ctx) {
 }
 
 /// @brief `midi::FollowChannel::selectEncoderAction`: past either end the channel becomes unassigned
-///        (`MIDI_CHANNEL_NONE`, whose write forgets the learned device), and from unassigned a turn up lands on
+///        (`kFollowChannelUnassigned`, whose write forgets the learned device), and from unassigned a turn up lands on
 ///        channel 1 and a turn down on the MPE upper zone.
 /// @param value  The channel or zone before the turn.
 /// @param offset The turn's detents.
@@ -353,9 +353,12 @@ inline constexpr const Node* kMidiClockChildren[] = {&midi_clock_out, &midi_cloc
 inline constexpr Node midi_clock = submenu(sid(String::STRING_FOR_CLOCK), kMidiClockChildren, Layout::Vertical, nullptr,
                                            sid(String::STRING_FOR_MIDI_CLOCK));
 
-// A follow channel holds a channel 0-15, the MPE lower and upper zones (16, 17) or `MIDI_CHANNEL_NONE` (255) for
+// A follow channel holds a channel 0-15, the MPE lower and upper zones (16, 17) or `kFollowChannelUnassigned` (255) for
 // unassigned; `turn_follow_channel` moves between them, so the range only has to admit them all.
-inline constexpr IntRange kFollowChannelRange{0, MIDI_CHANNEL_NONE, 1};
+/// @brief The follow-channel menu value for an input with no channel learned. A menu value only: the learn port stores
+///        no binding for it.
+inline constexpr int32_t kFollowChannelUnassigned = 255;
+inline constexpr IntRange kFollowChannelRange{0, kFollowChannelUnassigned, 1};
 
 /// One follow-channel node. `n` is its `project::FollowInput`'s value (A = 0, B = 1, C = 2, TRACK_1 = 3 .. TRACK_16 =
 /// 18), which also numbers a track's title.

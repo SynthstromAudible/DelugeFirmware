@@ -58,6 +58,7 @@
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
@@ -1489,7 +1490,7 @@ deluge::model::ReverbCandidate Sound::reverbCandidate(deluge::model::ReverbCandi
 
 // fromAutomation means whether the changes was caused by automation playing back - as opposed to the user turning the
 // knob right now
-void Sound::notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
+void Sound::notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, const deluge::bridge::LaneTarget& lane,
                                     int32_t oldValue, int32_t newValue, bool fromAutomation) {
 
 	if (skippingRendering) {
@@ -1512,10 +1513,7 @@ void Sound::notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStack
 			// If it was a different param, tell it to stop so that we can have it
 			if (paramLPF.p != p) {
 				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				copyModelStack(modelStackMemory, modelStack, sizeof(ModelStackWithThreeMainThings));
-				ModelStackWithThreeMainThings* modelStackCopy = (ModelStackWithThreeMainThings*)modelStackMemory;
-
-				stopParamLPF(modelStackCopy->addSoundFlags());
+				stopParamLPF(deluge::bridge::owner_stack_of(lane, modelStackMemory)->addSoundFlags());
 			}
 
 			// Otherwise, keep its current state, and just tell it it's going somewhere new
@@ -1534,8 +1532,7 @@ changeWhereParamLPFGoing:
 	else {
 dontDoLPF:
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		copyModelStack(modelStackMemory, modelStack, sizeof(ModelStackWithThreeMainThings));
-		ModelStackWithThreeMainThings* modelStackCopy = (ModelStackWithThreeMainThings*)modelStackMemory;
+		ModelStackWithThreeMainThings* modelStackCopy = deluge::bridge::owner_stack_of(lane, modelStackMemory);
 
 		patchedParamPresetValueChanged(p, modelStackCopy->addSoundFlags(), oldValue, newValue);
 	}

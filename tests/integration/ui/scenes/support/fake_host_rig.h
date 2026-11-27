@@ -20,7 +20,7 @@
 namespace deluge::ui::scenes::spec {
 
 /// @brief A fake of every port (`bind::test::FakeHost`) and a model song, and the contexts a menu reads them through.
-///        The ports are the fakes', never the host's (`menu::host_ports()`).
+///        The ports are the fakes', never the host's (`deluge::gui::shell_host::host_ports()`).
 struct FakeHostRig {
 	/// The synth output's durable id. Any id works: the rig's song holds no other output. It is the bind specs'
 	/// `ModelFixture` synth's, so a case reads the same on either rig.

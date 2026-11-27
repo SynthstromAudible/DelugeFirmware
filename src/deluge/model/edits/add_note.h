@@ -1,8 +1,8 @@
 #pragma once
 
 #include "model/edits/edit.h"
+#include "project/iterance.h" // deluge::project::Iterance
 #include "project/note_address.h"
-#include "sequence/iterance.h" // Iterance
 #include <cstdint>
 #include <optional>
 
@@ -17,7 +17,7 @@ namespace deluge::edits {
 class AddNote final : public Edit {
 public:
 	AddNote(std::optional<project::NoteRowAddress> address, int32_t pos, int32_t length, int32_t velocity,
-	        int32_t probability, Iterance iterance, int32_t fill, ModelStackWithNoteRow* engineStack)
+	        int32_t probability, deluge::project::Iterance iterance, int32_t fill, ModelStackWithNoteRow* engineStack)
 	    : address_(address), pos_(pos), length_(length), velocity_(velocity), probability_(probability),
 	      iterance_(iterance), fill_(fill), engineStack_(engineStack) {}
 
@@ -33,7 +33,7 @@ public:
 private:
 	std::optional<project::NoteRowAddress> address_;
 	int32_t pos_, length_, velocity_, probability_;
-	Iterance iterance_;
+	deluge::project::Iterance iterance_;
 	int32_t fill_;
 	ModelStackWithNoteRow* engineStack_; ///< Funnel-phase borrow.
 	bool added_ = false;

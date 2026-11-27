@@ -30,24 +30,20 @@ namespace {
 // in-line setter.
 // livePos/reversed are consulted by the kernel only when the clock is active (auto_param.cpp routes to
 // yesChangeCurrentValue otherwise), so they are gathered lazily and stay safe on a stopped-transport stack.
-deluge::snapshot::RegionContext gatherRegionContext(ModelStackWithAutoParam* engineStack) {
+deluge::snapshot::RegionContext gatherRegionContext(const deluge::bridge::LaneTarget& lane) {
+	const deluge::bridge::LaneTiming timing = deluge::bridge::lane_timing(lane);
 	deluge::snapshot::RegionContext r{};
-	r.effectiveLength = engineStack->getLoopLength();
+	r.effectiveLength = timing.loop_length;
 	// Interpolation flags mirror AutoParam::setValueForRegion: the automation view supplies them, else both false.
 	if (getRootUI() == &automationView) {
 		r.interpolateLeftNode = automationView.interpolationBefore;
 		r.interpolateRightNode = automationView.interpolationAfter;
 	}
-	// recordingLinearly mirrors AutoParam::homogenizeRegion's guarded Clip cast (the Song-as-timeline case is not a
-	// Clip, so it stays false there).
-	TimelineCounter* tc = engineStack->getTimelineCounterAllowNull();
-	if (tc != nullptr && tc != static_cast<TimelineCounter*>(engineStack->song)) {
-		r.recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
-	}
+	r.recordingLinearly = timing.recording_linearly;
 	r.clockActive = playbackHandler.isEitherClockActive();
 	if (r.clockActive) {
-		r.livePos = engineStack->getLivePos();
-		r.currentlyPlayingReversed = engineStack->isCurrentlyPlayingReversed();
+		r.livePos = timing.live_pos;
+		r.currentlyPlayingReversed = timing.reversed;
 	}
 	return r;
 }
@@ -167,7 +163,7 @@ Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelSt
 		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, address_, newValue_, 0, 0, std::nullopt);
 		stack->autoParam->projectScalarFromStore(lane, oldValue, isPlaying);
 		deluge::modulation::postLaneCommand(
-		    *stack, {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = newValue_}, 0);
+		    lane, {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = newValue_}, 0);
 		settleCableDepth(lane);
 		return Error::NONE;
 	}
@@ -189,13 +185,13 @@ Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelSt
 		if (action != nullptr) {
 			action->recordParamChangeIfNotAlreadySnapshotted(stack);
 		}
-		const deluge::snapshot::RegionContext region = gatherRegionContext(stack);
+		const deluge::snapshot::RegionContext region = gatherRegionContext(lane);
 		std::optional<deluge::project::RegionWriteResult> result =
 		    deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, address_, newValue_, pos_, length_, region);
 		if (result.has_value()) {
 			stack->autoParam->projectRegionFromStore(lane, oldValue, automatedBefore, *result);
 		}
-		deluge::modulation::postLaneCommand(*stack,
+		deluge::modulation::postLaneCommand(lane,
 		                                    {.kind = deluge::modulation::LaneCommand::Kind::REGION,
 		                                     .value = newValue_,
 		                                     .pos = pos_,
@@ -207,7 +203,7 @@ Error SetParamValue::write(Context& ctx, const bridge::LaneTarget& lane, ModelSt
 	}
 
 	// A scalar write while recording automation, and a lane not yet in the project tree: the engine's own setter.
-	stack->autoParam->setValuePossiblyForRegion(newValue_, stack, pos_, length_, mayDeleteNodesInLinearRun_);
+	stack->autoParam->setValuePossiblyForRegion(newValue_, lane, pos_, length_, mayDeleteNodesInLinearRun_);
 	// The setter may have moved the stack to the lane it wrote; settle that one.
 	settleCableDepth(bridge::target_of(*stack, lane.address));
 	return Error::NONE;

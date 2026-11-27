@@ -30,8 +30,8 @@
 #include "ui/widgets/oled/text.h"
 #include "ui/widgets/oled/values.h"
 
-#include "definitions_cxx.hpp" // NUM_GATE_CHANNELS, NUM_PHYSICAL_CV_CHANNELS
 #include "midi/device_id.h"
+#include "project/device_settings.h"
 
 #include <algorithm>
 #include <array>
@@ -91,7 +91,7 @@ void draw_title_for(deluge::ui::widgets::oled::OledFrame& f, const MenuState& st
 /// (`nodes/settings.cpp`) routes off that same value the same tick.
 ///
 /// @param real_output_limit How many leading @p names rows are real outputs -- `names.size()` for
-///        `cv::Selection` (both rows are), `NUM_GATE_CHANNELS` for `gate::Selection` (row 4 is the
+///        `cv::Selection` (both rows are), `project::kGateOutputCount` for `gate::Selection` (row 4 is the
 ///        minimum-off-time page). Serves only to keep `state.real_output_choice` -- see
 ///        `GateSelectionItem::on_focus_backward` for why `source_choice`/`ctx.source_index` cannot
 ///        serve that hook: routing needs the value this function just published to include the
@@ -163,7 +163,7 @@ void CvSelectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) con
 
 void CvSelectionItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
                              MenuState& state) const {
-	static_assert(std::size(kCvOutputNames) == NUM_PHYSICAL_CV_CHANNELS,
+	static_assert(std::size(kCvOutputNames) == project::kCvOutputCount,
 	              "cv::Selection::getOptions names one row per physical CV output");
 	const std::string_view names[] = {
 	    deluge::ui::scenes::text_lookup(kCvOutputNames[0]),
@@ -202,7 +202,7 @@ void GateSelectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) c
 /// Restored from `MenuState::real_output_choice`, not from `ctx.source_index` /
 /// `MenuContext::source_index` -- see that field's own doc (`menu_scene.h`) for why the two cannot
 /// be merged: `gate_selection_chain` (`nodes/settings.cpp`) legitimately reads `ctx.source_index` as
-/// `NUM_GATE_CHANNELS` while routing to the off-time page this same tick (`menu_scene.h`'s mailbox
+/// `project::kGateOutputCount` while routing to the off-time page this same tick (`menu_scene.h`'s mailbox
 /// note calls that drain order load-bearing, and `tables_3_spec.cpp` pins it), so by the time this
 /// hook runs on the way back out, `ctx.source_index` may still be sitting on that sentinel.
 /// `real_output_choice` never does -- `render` below updates it on every real-output press and
@@ -210,23 +210,23 @@ void GateSelectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) c
 void GateSelectionItem::on_focus_backward(const MenuContext& /*ctx*/, MenuState& state) const {
 	const size_t d = depth_of(state);
 	state.list[d].cursor = static_cast<int16_t>(
-	    std::clamp<int32_t>(state.real_output_choice, 0, static_cast<int32_t>(NUM_GATE_CHANNELS) - 1));
+	    std::clamp<int32_t>(state.real_output_choice, 0, static_cast<int32_t>(project::kGateOutputCount) - 1));
 }
 
 void GateSelectionItem::render(deluge::ui::widgets::oled::OledFrame& f, const MenuContext& /*ctx*/,
                                MenuState& state) const {
-	static_assert(std::size(kGateOutputNames) == NUM_GATE_CHANNELS + 1,
+	static_assert(std::size(kGateOutputNames) == project::kGateOutputCount + 1,
 	              "gate::Selection::getOptions names every gate output, then the off-time page");
 	const std::string_view names[] = {
 	    deluge::ui::scenes::text_lookup(kGateOutputNames[0]), deluge::ui::scenes::text_lookup(kGateOutputNames[1]),
 	    deluge::ui::scenes::text_lookup(kGateOutputNames[2]), deluge::ui::scenes::text_lookup(kGateOutputNames[3]),
 	    deluge::ui::scenes::text_lookup(kGateOutputNames[4]),
 	};
-	// `NUM_GATE_CHANNELS` (4), not `names.size()` (5): row 4 is the minimum-off-time page, not a
+	// `project::kGateOutputCount` (4), not `names.size()` (5): row 4 is the minimum-off-time page, not a
 	// real output, so a press on it must not become `real_output_choice` -- see
 	// `on_focus_backward` and `render_output_selection`'s own note. `source_choice` still publishes
 	// unconditionally either way; only the second field this call adds is limited.
-	render_output_selection(f, state, names, NUM_GATE_CHANNELS);
+	render_output_selection(f, state, names, project::kGateOutputCount);
 }
 
 deluge::ui::shell::Result GateSelectionItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

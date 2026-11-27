@@ -37,14 +37,17 @@
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "sequence/iterance.h"
+#include "project/iterance.h"
 #include "util/lookuptables/lookuptables.h"
 
 #include "ui/scenes/menu/note_bridge.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstring>
+
+using deluge::project::Iterance;
 
 namespace deluge::gui::ui {
 namespace {
@@ -108,15 +111,15 @@ void adjust_note_probability(int32_t offset) {
 	instrumentClipView.adjustNoteProbabilityWithOffset(offset);
 }
 
-/// @brief Leftmost pressed note's `getIterance().toInt()` (`IterancePreset::readCurrentValue` in
+/// @brief Leftmost pressed note's `getIterance().packed()` (`IterancePreset::readCurrentValue` in
 ///        `origin/main:src/deluge/gui/menu_item/note/iterance_preset.h` reads the same note's iterance, as a raw int
-///        rather than a preset index -- the scenes' leaf converts with `Iterance::toPresetIndex()` itself, since
-///        `model/iterance/` is includable from `src/ui/scenes`); a null leftmost note returns 0.
+///        rather than a preset index -- the scenes' leaf converts with `deluge::project::Iterance::preset_index()`
+///        itself, since `model/iterance/` is includable from `src/ui/scenes`); a null leftmost note returns 0.
 int32_t note_iterance() {
 	Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 	if (leftMostNote != nullptr) {
 		Iterance iterance = leftMostNote->getIterance();
-		return iterance.toInt();
+		return iterance.packed();
 	}
 	return 0;
 }
@@ -127,13 +130,13 @@ void adjust_note_iterance(int32_t offset) {
 	instrumentClipView.adjustNoteIteranceWithOffset(offset);
 }
 
-/// @brief `adjustNoteIteranceWithFinalValue(Iterance::fromInt(...))` -- the CUSTOM iterance
+/// @brief `adjustNoteIteranceWithFinalValue(deluge::project::Iterance::from_packed(...))` -- the CUSTOM iterance
 ///        editor's commit, called by `note::IteranceDivisor::writeCurrentValue`
 ///        (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`) and
 ///        `note::IteranceStepToggle::writeCurrentValue`
 ///        (`origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`).
 void set_note_iterance(int32_t iterance) {
-	instrumentClipView.adjustNoteIteranceWithFinalValue(Iterance::fromInt(iterance));
+	instrumentClipView.adjustNoteIteranceWithFinalValue(deluge::project::Iterance::from_packed(iterance));
 }
 
 /// @brief Leftmost pressed note's `getFill()` (`Fill::readCurrentValue` in
@@ -200,16 +203,16 @@ void adjust_row_probability(int32_t offset) {
 	(void)instrumentClipView.setNoteRowProbabilityWithOffset(offset);
 }
 
-/// @brief `IterancePreset::readCurrentValue`'s read, `noteRow->iteranceValue.toInt()`, as a raw int
+/// @brief `IterancePreset::readCurrentValue`'s read, `noteRow->iteranceValue.packed()`, as a raw int
 ///        rather than a preset index (`origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`, whose
-///        `toPresetIndex()` conversion the scenes' leaf performs itself); no row answers 0.
+///        `preset_index()` conversion the scenes' leaf performs itself); no row answers 0.
 int32_t row_iterance() {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	ModelStackWithNoteRow* modelStackWithNoteRow = individualNoteRow(modelStack);
 	if (NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull()) {
 		Iterance iterance = noteRow->iteranceValue;
-		return iterance.toInt();
+		return iterance.packed();
 	}
 	return 0;
 }
@@ -226,7 +229,7 @@ void adjust_row_iterance(int32_t offset) {
 ///        `note_row::IteranceStepToggle::writeCurrentValue`
 ///        (`origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`).
 void set_row_iterance(int32_t iterance) {
-	(void)instrumentClipView.setNoteRowIteranceWithFinalValue(Iterance::fromInt(iterance));
+	(void)instrumentClipView.setNoteRowIteranceWithFinalValue(deluge::project::Iterance::from_packed(iterance));
 }
 
 /// @brief `Fill::readCurrentValue`'s read, `noteRow->fillValue`
@@ -313,23 +316,22 @@ void set_row_sequence_direction(int32_t value) {
 // -----------------------------------------------------------------------------------------------
 
 /// @brief The iterance preset leaf's label (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`), restricted
-///        to presets `1..kNumIterancePresets` -- OFF and CUSTOM are the leaf's own literals, not table lookups, so they
-///        are not this function's concern. `compact` chooses the horizontal menu's short `"%d:%d"` form over the
-///        full-screen and notification `"%d of %d"` form.
+///        to presets `1..deluge::project::kIterancePresetCount` -- OFF and CUSTOM are the leaf's own literals, not
+///        table lookups, so they are not this function's concern. `compact` chooses the horizontal menu's short
+///        `1:2` form over the full-screen and notification `1 of 2` form.
 size_t iterance_preset_label(int32_t preset, bool compact, std::span<char> out) {
-	if (preset < 1 || preset > kNumIterancePresets) {
+	if (preset < 1 || preset > deluge::project::kIterancePresetCount) {
 		return 0;
 	}
 
-	char buffer[20];
-	Iterance::format_preset_display_value(
-	    preset, buffer, sizeof(buffer),
-	    {.step_format = compact ? "%d:%d" : "%d of %d",
-	     .label_type = compact ? Iterance::DisplayLabelType::SHORT : Iterance::DisplayLabelType::LONG});
+	std::array<char, 20> buffer{};
+	const size_t length = deluge::project::format_preset(preset, buffer, "", compact ? ":" : " of ",
+	                                                     compact ? deluge::project::Iterance::Label::SHORT
+	                                                             : deluge::project::Iterance::Label::LONG);
 
-	size_t n = std::min(std::strlen(buffer), out.size());
+	const size_t n = std::min(length, out.size());
 	if (n > 0) {
-		std::memcpy(out.data(), buffer, n);
+		std::memcpy(out.data(), buffer.data(), n);
 	}
 	return n;
 }

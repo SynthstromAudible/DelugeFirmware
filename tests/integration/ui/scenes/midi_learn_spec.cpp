@@ -79,6 +79,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
@@ -109,7 +110,6 @@
 #include "project/setting_group.h"
 #include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/context.h"
 
 #include "fakes.h"
@@ -417,8 +417,8 @@ struct LearnRig {
 	uint32_t now_ms = 0;
 
 	LearnRig() {
-		ml.set_ports(&menu::host_ports());
-		gc.set_ports(&menu::host_ports());
+		ml.set_ports(&deluge::gui::shell_host::host_ports());
+		gc.set_ports(&deluge::gui::shell_host::host_ports());
 		table[16] = &root;
 		reg.by_kind = std::span<Scene* const>{table};
 		(void)stack.push({SceneKind::FirstApp});
@@ -1659,7 +1659,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		deluge::ui::scenes::bind::test::RecordingLearnSink recording;
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
-		bind::Ports ports = menu::host_ports();
+		bind::Ports ports = deluge::gui::shell_host::host_ports();
 		ports.learn = &recording;
 		rig.ml.set_ports(&ports);
 		rig.ml.begin();
@@ -1680,7 +1680,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		}
 		expect(fixture.song->project.mappings.find(deluge::project::TrackInputTarget{*fixture.instrument->id()}))
 		    .to_be_null(); // only the request: nothing else wrote
-		rig.ml.set_ports(&menu::host_ports());
+		rig.ml.set_ports(&deluge::gui::shell_host::host_ports());
 	});
 
 	it("a release that deletes hands the learn port an unlearn", _ {
@@ -1688,7 +1688,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		deluge::ui::scenes::bind::test::RecordingLearnSink recording;
 		LearnRig rig;
 		rig.ml.set_model(&fixture.song->project);
-		bind::Ports ports = menu::host_ports();
+		bind::Ports ports = deluge::gui::shell_host::host_ports();
 		ports.learn = &recording;
 		rig.ml.set_ports(&ports);
 		rig.ml.begin();
@@ -1700,7 +1700,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 			    .to_equal(deluge::project::MappingTarget{deluge::project::ClipMuteTarget{fixture.clip->id()}});
 			expect(recording.calls[0].command.has_value()).to_be_false();
 		}
-		rig.ml.set_ports(&menu::host_ports());
+		rig.ml.set_ports(&deluge::gui::shell_host::host_ports());
 	});
 
 	it("an input learn on a synth records the velocity-to-level cable and the bend range", _ {
@@ -1995,7 +1995,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                                         .space = deluge::project::ParamSpace::EXPRESSION,
 		                                         .id = deluge::plugin::ParamId{0},
 		                                         .clip_id = fixture.clip->id()};
-		expect(deluge::ui::scenes::menu::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
 		const deluge::ui::scenes::menu::MenuContext ctx =
 		    deluge::ui::scenes::spec::ctx_of(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
 		const std::string before =
@@ -2033,7 +2033,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                                         .id = deluge::plugin::ParamId{0},
 		                                         .clip_id = fixture.clip->id()};
 		(void)fixture.clip->paramManager.getOrCreateExpressionParamSet(); // a played bend made it, as a note would
-		expect(deluge::ui::scenes::menu::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::ui::controls::Resolution::KNOB)).to_be_true();
 		const std::string before = recorded_row(*fixture.song, deluge::project::SettingGroupId::CLIP_VALUES,
 		                                        deluge::project::ClipAddress{fixture.clip->id()}, "bendRange");
 		const CableDefaults defaults{cables().a, 6, 0, 9};

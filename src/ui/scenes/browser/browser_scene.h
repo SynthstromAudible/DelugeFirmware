@@ -72,7 +72,7 @@
 ///          `~Listing` asserts it is not in flight. Scenes are long-lived singletons, which is what
 ///          makes that satisfiable.
 
-#include "definitions_cxx.hpp" // Error
+#include "base/error.h"
 #include "project/device_settings.h"
 #include "ui/scenes/browser/browser_kind.h"
 #include "ui/scenes/browser/listing.h"

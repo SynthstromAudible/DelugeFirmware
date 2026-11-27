@@ -17,18 +17,19 @@
 
 #pragma once
 
-#include "sequence/iterance.h"
+#include "project/iterance.h"
+#include "project/note_probability.h"
 #include <cstdint>
 
 // Decodes an iterance value from the old C1.2 / pre-1.3 probability-byte encoding.
 //
 // Old format (noteHexLength==22 and the pre-lift else path): iterance was stored in
-// the probability field as (kNumProbabilityValues + legacyPresetIndex) where
+// the probability field as (deluge::project::kProbabilityValueCount + legacyPresetIndex) where
 // legacyPresetIndex ran from 1 ("1 of 2") to 35 ("8 of 8").
 //
-// Commit 3ce3d41d prepended FIRST and LAST to iterancePresets[], shifting every
-// subsequent preset's array index by +2.  This function applies that correction.
-Iterance iteranceFromLegacyProbabilityByte(int32_t probability);
+// deluge::project::kIterancePresets[] opens with FIRST and LAST, so each legacy preset sits two entries later than its
+// legacy index. This function applies that correction.
+deluge::project::Iterance iteranceFromLegacyProbabilityByte(int32_t probability);
 
 // Decodes an iterance value from the old early-1.3-nightly preset-index encoding.
 //
@@ -36,4 +37,4 @@ Iterance iteranceFromLegacyProbabilityByte(int32_t probability);
 // era the index space was: 0=OFF, 1=1of2 … 35=8of8, 36=custom.  After FIRST and
 // LAST were prepended the mapping is: 0=OFF, 1=FIRST, 2=LAST, 3=1of2 … 37=8of8,
 // 38=custom.  This function applies the +2 correction to non-zero indices.
-Iterance iteranceFromLegacyPresetIndex(int32_t presetIndex);
+deluge::project::Iterance iteranceFromLegacyPresetIndex(int32_t presetIndex);

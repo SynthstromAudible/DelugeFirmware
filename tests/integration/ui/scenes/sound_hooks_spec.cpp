@@ -4,8 +4,8 @@
 // else the clip). Each is a request to the menu's sink; with the app's sink, the record holds the result.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/bind/ports/write_sink.h"
-#include "ui/scenes/menu/bind_host.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/nodes/sound_actions.h"
@@ -52,12 +52,12 @@ void give_sample_range(::Sound& sound) {
 
 /// @brief The sound's state, by its slot.
 const deluge::instruments::classic::SoundState* state_of(const MenuContext& ctx) {
-	return ctx.addresses.slot ? menu::host_ports().sound->sound_state(*ctx.addresses.slot) : nullptr;
+	return ctx.addresses.slot ? deluge::gui::shell_host::host_ports().sound->sound_state(*ctx.addresses.slot) : nullptr;
 }
 
 /// @brief The sound at @p slot.
 const deluge::instruments::classic::SoundState* state_at(deluge::project::SlotAddress slot) {
-	return menu::host_ports().sound->sound_state(slot);
+	return deluge::gui::shell_host::host_ports().sound->sound_state(slot);
 }
 
 } // namespace

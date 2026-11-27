@@ -16,6 +16,8 @@
  */
 
 #pragma once
+#include "base/error.h"
+#include "base/sample_rate.h"
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
 #include "effects/words.h"
@@ -25,12 +27,14 @@
 #include "project/arrangement.h"
 #include "project/drum_type.h"
 #include "project/launch_style.h"
+#include "project/midi_channels.h"
 #include "project/midi_command.h"
 #include "project/sequence_direction.h"
-#include "sequence/iterance.h"
+#include "project/timeline_limits.h"
 #include "synth/modulation/patch_source.h"
 #include "ui/gfx/oled/font.h"
 #include "ui/gfx/oled/glyphs.h"
+#include "ui/widgets/core/metrics.h"
 #include "util/misc.h"
 
 #include <cstddef>
@@ -168,15 +172,14 @@ constexpr int32_t kGreyoutSpeed = (300 * 44);
 constexpr int32_t kInitialFlashTime = 250;
 constexpr int32_t kFlashTime = 110;
 constexpr int32_t kFastFlashTime = 60;
-constexpr int32_t kSampleMarkerBlinkTime = 200;
+constexpr int32_t kSampleMarkerBlinkTime = deluge::ui::widgets::core::kSampleMarkerBlinkTime;
 
 constexpr int32_t kScrollTime = 400;
 
 constexpr int32_t USE_DEFAULT_VELOCITY = 255;
 
-constexpr int32_t kMaxSequenceLength = 1610612736; // The biggest multiple of 3 which can fit in a signed 32-bit int32_t
-constexpr int32_t kMaxZoom =
-    kMaxSequenceLength / 16; // The zoom level in which the maximum sequence length is displayed on all pads
+constexpr int32_t kMaxSequenceLength = deluge::project::kMaxSequenceLength;
+constexpr int32_t kMaxZoom = deluge::project::kMaxZoom;
 constexpr int32_t kAmountNoteOnLatenessAllowed = 2205; // In audio samples. That's 50mS. Multiply mS by 44.1
 
 enum class GateType : uint8_t {
@@ -380,69 +383,7 @@ using deluge::project::kMaxNumSections;
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
-enum class Error {
-	NONE,
-	INSUFFICIENT_RAM,
-	UNSPECIFIED,
-	SD_CARD,
-	NO_FURTHER_PRESETS,
-	FILE_CORRUPTED,
-	FILE_UNREADABLE, // Or not found, I think?
-	FILE_UNSUPPORTED,
-	FILE_FIRMWARE_VERSION_TOO_NEW,
-	RESULT_TAG_UNUSED,
-	FOLDER_DOESNT_EXIST,
-	WRITE_PROTECTED,
-	BUG,
-	WRITE_FAIL,
-	FILE_TOO_BIG,
-	PRESET_IN_USE,
-	NO_FURTHER_FILES_THIS_DIRECTION,
-	FILE_ALREADY_EXISTS,
-	FILE_NOT_FOUND,
-	/// Nothing returns it. Kept so every value after it, which crosses the libdeluge ABI as a byte, keeps its number.
-	ABORTED_BY_USER,
-	MAX_FILE_SIZE_REACHED,
-	SD_CARD_FULL,
-	FILE_NOT_LOADABLE_AS_WAVETABLE,
-	FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO,
-	NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP,
-	NO_ERROR_BUT_GET_OUT,
-	INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE,
-	SD_CARD_NOT_PRESENT,
-	SD_CARD_NO_FILESYSTEM,
-	INVALID_PATTERN_VERSION,
-	OUT_OF_BUFFER_SPACE,
-	INVALID_SYSEX_FORMAT,
-	POS_PAST_STRING,
-	FILE_NOT_SAVED,
-	TOO_MANY_OPEN_STREAMS,
-	/// @brief Not a failure: the async sample loader has been asked for this file and has not
-	///        finished yet.
-	///
-	/// A caller that gets this got no AudioFile *this* time and should ask again on a later
-	/// tick. Only produced by AudioFileManager::getAudioFileFromFilename's opt-in async path
-	/// (see libdeluge/audio_load.h); the synchronous path never returns it.
-	///
-	/// @warning Must NOT re-request, report a load failure, or write anything on the strength
-	///          of this result.
-	LOAD_IN_PROGRESS,
-	/// @brief Not a failure: a folder listing needs a directory the async directory channel has
-	///        not opened yet.
-	///
-	/// The caller got no listing *this* time and should let the browser's per-tick surface run
-	/// the attempt again. Only produced after boot, where every directory open goes through
-	/// libdeluge/file_directory.h; the synchronous path never returns it.
-	///
-	/// Deliberately NOT LOAD_IN_PROGRESS, even though the contract is word for word the same:
-	/// `addInstrumentsToFileItems` runs INSIDE a listing and can itself reach the sample loader,
-	/// so one shared enumerator would make "which of the two deferred?" unanswerable at the
-	/// catch site.
-	///
-	/// @warning Must NOT re-request, report a failure, or commit anything on the strength of
-	///          this result.
-	LISTING_DEFERRED,
-};
+using Error = deluge::Error;
 
 using deluge::instruments::classic::SampleRepeatMode;
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
@@ -652,31 +593,11 @@ enum class ArmState {
 	ON_TO_RECORD,
 };
 
-constexpr int32_t kNumProbabilityValues = 20;
-constexpr int32_t kNumIterancePresets = 37; // first, last, then 1of2 through 8of8 (indexes 3 through 37)
-constexpr int32_t kCustomIterancePreset = kNumIterancePresets + 1; // The "CUSTOM" iterance value is right after "8of8"
-constexpr Iterance kCustomIteranceValue = Iterance{1, 1};          // "1of1"
-constexpr Iterance kDefaultIteranceValue = Iterance{0, 0};         // 0, 0 means OFF
-
-constexpr int32_t kFirstIterancePreset = 1;
-constexpr int32_t kLastIterancePreset = 2;
-constexpr Iterance kFirstIteranceValue = Iterance{0, 1}; // 0, 1 means first time only
-constexpr Iterance kLastIteranceValue = Iterance{0, 2};  // 0, 2 means last time only
-
-constexpr int32_t kDefaultIterancePreset = 0; // 0 means OFF
 // these are  only used for reading old songs
 constexpr int32_t kOldFillProbabilityValue = 0;
 constexpr int32_t kOldNotFillProbabilityValue = 128; // This is like the "latched" state of Fill (zero ORed with 128)
 
 constexpr int32_t kDefaultLiftValue = 64;
-
-enum FillMode : uint8_t {
-	OFF,
-	NOT_FILL,
-	FILL,
-};
-
-constexpr int32_t kNumFillValues = FillMode::FILL;
 
 enum Navigation {
 	NAVIGATION_CLIP,
@@ -875,7 +796,7 @@ enum Expression {
 
 constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
 constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
-constexpr int32_t NUM_CHANNELS = 18;
+constexpr int32_t NUM_CHANNELS = deluge::project::kMidiChannelCount;
 constexpr int32_t MIDI_CHANNEL_NONE = 255;
 constexpr int32_t MIDI_NOTE_NONE = 255;
 constexpr int32_t MIDI_CC_NONE = 255;
@@ -954,7 +875,7 @@ constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max(
 /// is generated by a crystal, and the RZ/A1L provides only a divider on this clock.
 /// See Figure 19.1 in the RZ/A1L TRM R01UH0437EJ0600 Rev.6.00 and the rest of section 19, Serial Sound Interface for
 /// more detail.
-constexpr int32_t kSampleRate = 44100;
+constexpr int32_t kSampleRate = static_cast<int32_t>(deluge::base::kSampleRate);
 
 // The Deluge deals with 24-bit PCM audio
 constexpr int32_t kBitDepth = 24;

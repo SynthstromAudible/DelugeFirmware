@@ -41,13 +41,16 @@ if(NOT DELUGE_TEST_TREE STREQUAL "host")
 endif()
 
 if(DELUGE_TEST_TREE STREQUAL "host")
-  # The host tree's own: printf and MIDI for the app's specs; the scenes' binding to the model; the UI libraries
-  # under src/ui (gfx, widgets, controls, shell, the waveform view), which include from SHARED_INCLUDE; and the
-  # level-3 UI script runner (tests/harness/level3).
+  # The host tree's own: printf and MIDI for the app's specs; the scenes' binding to the model; the UI's strings
+  # (gui/l10n); the UI libraries under src/ui (gfx, widgets, controls, shell, the waveform view), which include from
+  # SHARED_INCLUDE; and the level-3 UI script runner (tests/harness/level3).
   add_subdirectory(${DELUGE_REPO_ROOT}/third_party/printf ${_deluge_libs}/printf EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/midi ${_deluge_libs}/midi EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/ui/scenes/bind ${_deluge_libs}/ui-scenes-bind EXCLUDE_FROM_ALL)
+  add_subdirectory(${_deluge_src}/deluge/gui/l10n ${_deluge_libs}/l10n EXCLUDE_FROM_ALL)
   add_subdirectory(${_deluge_src}/ui ${_deluge_libs}/ui EXCLUDE_FROM_ALL)
+  # The compressor's menu page and the knob push reach argon through effects/.
+  deluge_test_neon(deluge_ui_scenes)
   add_subdirectory(${DELUGE_REPO_ROOT}/tests/harness/level3 ${_deluge_libs}/level3 EXCLUDE_FROM_ALL)
 endif()
 

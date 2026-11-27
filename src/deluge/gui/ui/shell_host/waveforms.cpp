@@ -1,3 +1,4 @@
+#include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "model/clip/audio_clip.h"
@@ -13,7 +14,6 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/source_resources.h"
 #include "storage/multi_range/multisample_range.h"
-#include "ui/scenes/menu/bind_host.h"
 
 #include <cstdint>
 #include <optional>

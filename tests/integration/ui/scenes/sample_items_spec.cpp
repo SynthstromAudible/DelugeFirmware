@@ -22,6 +22,7 @@
 /// `MenuContext` built from the model state the rows were taken in.
 
 #include "gui/ui/menu_view_of.h"
+#include "project/sample_marker.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/marker/marker_scene.h"
 #include "ui/scenes/menu/bindings.h"
@@ -84,6 +85,7 @@
 #include "support/menu_context.h"
 #include "support/spec_main.h"
 
+using deluge::project::SampleMarker;
 using namespace deluge::ui::scenes;
 using namespace deluge::ui::scenes::spec::sampleitems;
 using deluge::ui::scenes::menu::MenuContext;
@@ -380,7 +382,7 @@ std::vector<Wiring> observed_wiring() {
 
 /// @brief What each node must carry, derived from the legacy class each node's item ports.
 ///
-/// `MarkerType::START` is 0 and `MarkerType::END` is 3 (`definitions_cxx.hpp`); the same
+/// `SampleMarker::START` is 0 and `SampleMarker::END` is 3 (`project/sample_marker.h`); the same
 /// two numbers are `static_assert`ed against the enum in `nodes/sample.cpp`, so this table and the
 /// items cannot drift apart silently.
 std::vector<Wiring> expected_wiring() {
@@ -397,11 +399,11 @@ std::vector<Wiring> expected_wiring() {
 	    // `sample::End` (`origin/main:src/deluge/gui/menu_item/sample/end.h`) sets `markerType = END`.
 	    {"sample0_end", 1, 0, 3},
 	    {"sample1_end", 1, 1, 3},
-	    // `audioClipSampleMarkerEditorMenuEnd` (`origin/main:src/deluge/gui/ui/menus.cpp`) -- `MarkerType::END`, and
+	    // `audioClipSampleMarkerEditorMenuEnd` (`origin/main:src/deluge/gui/ui/menus.cpp`) -- `SampleMarker::END`, and
 	    // **no** `setCurrentSource` (`audio_clip::SampleMarkerEditor::beginSession` in
 	    // `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`), which is the -1.
 	    {"audio_clip_waveform", 1, -1, 3},
-	    // `audioClipSampleMarkerEditorMenuStart`: the same, on `MarkerType::START`.
+	    // `audioClipSampleMarkerEditorMenuStart`: the same, on `SampleMarker::START`.
 	    {"audio_clip_waveform_start", 1, -1, 0},
 	    // `osc::AudioRecorder::beginSession` (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`).
 	    {"sample0_recorder", 2, 0, -1},
@@ -544,13 +546,13 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 			r.focus(nodes::sample0_start);
 			expect(r.on_stack(marker::kMarkerSceneKind)).to_be_true();
 			expect(static_cast<int>(marker::marker_scene().marker_type()))
-			    .to_equal(static_cast<int>(MarkerType::START));
+			    .to_equal(static_cast<int>(SampleMarker::START));
 		}
 		{
 			SoundRig r{true};
 			r.focus(nodes::sample0_end);
 			expect(r.on_stack(marker::kMarkerSceneKind)).to_be_true();
-			expect(static_cast<int>(marker::marker_scene().marker_type())).to_equal(static_cast<int>(MarkerType::END));
+			expect(static_cast<int>(marker::marker_scene().marker_type())).to_equal(static_cast<int>(SampleMarker::END));
 		}
 	});
 
@@ -584,7 +586,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		r.focus(nodes::audio_clip_waveform);
 
 		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_true();
-		expect(static_cast<int>(marker::marker_scene().marker_type())).to_equal(static_cast<int>(MarkerType::END));
+		expect(static_cast<int>(marker::marker_scene().marker_type())).to_equal(static_cast<int>(SampleMarker::END));
 		expect(static_cast<int64_t>(marker::marker_scene().x_zoom())).to_equal(zoom_max(48));
 	});
 
@@ -596,7 +598,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		r.focus(nodes::audio_clip_waveform_start);
 
 		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_true();
-		expect(static_cast<int>(marker::marker_scene().marker_type())).to_equal(static_cast<int>(MarkerType::START));
+		expect(static_cast<int>(marker::marker_scene().marker_type())).to_equal(static_cast<int>(SampleMarker::START));
 		expect(static_cast<int64_t>(marker::marker_scene().x_zoom())).to_equal(zoom_max(48));
 	});
 
@@ -640,7 +642,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		const bool still = r.on_stack(marker::kMarkerSceneKind);
 		const size_t depth = r.shell.stack().depth();
 		expect(landed).to_be_true();
-		expect(type).to_equal(static_cast<int>(MarkerType::START));
+		expect(type).to_equal(static_cast<int>(SampleMarker::START));
 		expect(still).to_be_false();
 		// The item sat at depth 0 (main opens it so), so BACK leaves the menu with the editor.
 		expect(depth).to_equal(size_t(0));

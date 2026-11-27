@@ -31,7 +31,7 @@
 /// A settings item's write that has a side effect this layer may not perform -- the screensaver's
 /// `Screensaver::settingsChanged()`, the pad brightness, the menu highlighting, rounded corners,
 /// sticky shift, leaving the slow cursor flash, a pad colour -- calls the host synchronously from
-/// its `Binding::set` hook (`ui/scenes/menu/bind_host.h`), as main's `writeCurrentValue` makes both
+/// its `Binding::set` hook through a port (`ui/scenes/bind/ports/`), as main's `writeCurrentValue` makes both
 /// its statements at once. So does the file selector's end of a keyboard audition.
 ///
 /// ## The shape

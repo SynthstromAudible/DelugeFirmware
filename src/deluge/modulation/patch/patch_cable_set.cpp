@@ -24,6 +24,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
@@ -618,7 +619,7 @@ void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollectio
 	int32_t oldValue = param->getCurrentValue();
 	bool shouldNotify = param->tickSamples(numSamples);
 	if (shouldNotify) { // Should always actually be true...
-		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+		deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 	}
 
 	FOR_EACH_PARAM_END
@@ -661,7 +662,7 @@ void PatchCableSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollectio
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 	bool shouldNotify = param->grabValueFromPos(pos, modelStackWithAutoParam);
 	if (shouldNotify) {
-		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+		deluge::bridge::notify_modified(*modelStackWithAutoParam, oldValue, false, true, true);
 	}
 
 	FOR_EACH_PARAM_END
@@ -996,41 +997,40 @@ void PatchCableSet::dissectParamId(uint32_t paramId, deluge::synth::CableTarget*
 }
 
 // Watch the heck out! This might delete the PatchCable, and AutoParam, in question.
-void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
+void PatchCableSet::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue,
                                                  bool automationChanged, bool automatedBefore, bool automatedNow) {
 
-	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                              automatedNow);
+	ParamCollection::notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore, automatedNow);
 
-	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		int32_t currentValue = modelStack->autoParam->getCurrentValue();
+	if (lane.timeline == nullptr || static_cast<Clip*>(lane.timeline)->isActiveOnOutput()) {
+		int32_t currentValue = lane.auto_param->getCurrentValue();
 		bool currentValueChanged = (oldValue != currentValue);
 
 		PatchSource s;
 		deluge::synth::CableTarget destination;
-		dissectParamId(modelStack->paramId, &destination, &s);
+		dissectParamId(lane.param_id, &destination, &s);
 
 		if (currentValueChanged) {
 			int32_t p =
 			    destination.param_index(); // Yes also do it if we've altered the "range" of a cable to p.... Although,
 			                               // would the call below actually cause all of that to get recalculated?
-			(&deluge::model::sound_of(modelStack->owner))
-			    ->recalculatePatchingToParam(p, (ParamManagerForTimeline*)modelStack->paramManager);
+			(&deluge::model::sound_of(lane.owner))
+			    ->recalculatePatchingToParam(p, (ParamManagerForTimeline*)lane.manager);
 		}
 	}
 
 	if (automatedBefore != automatedNow) {
 		PatchSource s;
 		deluge::synth::CableTarget destination;
-		dissectParamId(modelStack->paramId, &destination, &s);
+		dissectParamId(lane.param_id, &destination, &s);
 		int32_t c = getPatchCableIndex(s, destination);
 
 		if (automatedNow) {
-			flagCable(modelStack->summary->whichParamsAreAutomated, c);
+			flagCable(lane.summary->whichParamsAreAutomated, c);
 		}
 		else {
-			unflagCable(modelStack->summary->whichParamsAreAutomated, c);
-			unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
+			unflagCable(lane.summary->whichParamsAreAutomated, c);
+			unflagCable(lane.summary->whichParamsAreInterpolating, c);
 		}
 	}
 

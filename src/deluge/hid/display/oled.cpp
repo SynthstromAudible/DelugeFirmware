@@ -17,6 +17,7 @@
 
 #include "oled.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/error_messages.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -1226,8 +1227,6 @@ void OLED::freezeWithError(char const* text) {
 	OLED::popupText("Operation resumed. Save to new file then reboot.", false, PopupType::GENERAL);
 }
 
-extern std::string_view getErrorMessage(Error);
-
 void OLED::displayError(Error error) {
 	char const* message = nullptr;
 	switch (error) {
@@ -1251,7 +1250,7 @@ void OLED::displayError(Error error) {
 #endif
 		return;
 	default:
-		message = getErrorMessage(error).data();
+		message = l10n::error_message(error).data();
 		break;
 	}
 	displayPopup(message);
