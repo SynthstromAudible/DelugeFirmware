@@ -80,7 +80,11 @@ private:
 	void startPass();
 	ReadOutcome stepRead();
 	void finishReading();
-	void finish(float hz);
+	/// @brief End the detection with @p hz. @p decided: the analysis (or the file, or the limits) settled it, so it is
+	///        remembered on the sample; false for a give-up on the card or a buffer it could not get.
+	void finish(float hz, bool decided = true);
+	/// @brief The remembered result for this search, if the sample has one.
+	[[nodiscard]] std::optional<float> remembered() const;
 	void release();
 
 	Phase phase_{Phase::Idle};

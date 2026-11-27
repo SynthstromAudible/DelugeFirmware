@@ -1244,7 +1244,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 				// Kit clip-level FX (no noteRow): expect an OwnerId::instrument(kit output) address.
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 				ModelStackWithThreeMainThings* m3 = setupModelStackWithThreeMainThingsButNoNoteRow(
-				    buf, reloaded, static_cast<Kit*>(clip->output)->toModControllable(), clip, &clip->paramManager);
+				    buf, reloaded, deluge::model::owner_of(*static_cast<Kit*>(clip->output)), clip,
+				    &clip->paramManager);
 				if (!consistent(clip->paramManager, m3->getUnpatchedAutoParamFromId(0))) {
 					std::fprintf(io.err, "S3g FAIL: kit clip-level doc() != bound store (misclassified)\n");
 					return 3;
@@ -1259,7 +1260,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 					}
 					alignas(ModelStackWithAutoParam) char dbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* dm3 = setupModelStackWithThreeMainThingsIncludingNoteRow(
-					    dbuf, reloaded, clip, n, &nr, static_cast<SoundDrum*>(nr.drum)->toModControllable(),
+					    dbuf, reloaded, clip, n, &nr, deluge::model::owner_of(*static_cast<SoundDrum*>(nr.drum)),
 					    &nr.paramManager);
 					if (!consistent(nr.paramManager, dm3->getUnpatchedAutoParamFromId(0))) {
 						std::fprintf(io.err, "S3g FAIL: drum doc() != bound store (misclassified as kit-level)\n");

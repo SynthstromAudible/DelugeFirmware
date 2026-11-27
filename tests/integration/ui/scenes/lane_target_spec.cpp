@@ -46,10 +46,9 @@ namespace {
 /// @brief Whether @p a and @p b name the same engine lane, field by field.
 bool same_stack(const ModelStackWithAutoParam& a, const ModelStackWithAutoParam& b) {
 	return a.song == b.song && a.getTimelineCounterAllowNull() == b.getTimelineCounterAllowNull()
-	       && a.noteRowId == b.noteRowId && a.getNoteRowAllowNull() == b.getNoteRowAllowNull()
-	       && a.modControllable == b.modControllable && a.paramManager == b.paramManager
-	       && a.paramCollection == b.paramCollection && a.summary == b.summary && a.kind == b.kind
-	       && a.paramId == b.paramId && a.autoParam == b.autoParam;
+	       && a.noteRowId == b.noteRowId && a.getNoteRowAllowNull() == b.getNoteRowAllowNull() && a.owner == b.owner
+	       && a.paramManager == b.paramManager && a.paramCollection == b.paramCollection && a.summary == b.summary
+	       && a.kind == b.kind && a.paramId == b.paramId && a.autoParam == b.autoParam;
 }
 
 } // namespace
@@ -62,7 +61,8 @@ describe lane_target("a lane target", ${
 			spec::make_current(f.song);
 			const bridge::LaneOwner owner = bridge::owner_of(*f.instrument);
 			expect(std::holds_alternative<Sound*>(owner)).to_be_true();
-			expect(bridge::mod_controllable_of(owner)).to_equal(f.instrument->toModControllable());
+			Sound* const sound = static_cast<SoundInstrument*>(f.instrument);
+			expect(std::get<Sound*>(owner)).to_equal(sound);
 			spec::make_current(nullptr);
 		});
 
@@ -71,9 +71,10 @@ describe lane_target("a lane target", ${
 			spec::make_current(f.song);
 			auto* drum = spec::add_drum<SoundDrum>(f);
 			expect(std::holds_alternative<Kit*>(bridge::owner_of(*f.instrument))).to_be_true();
-			expect(bridge::mod_controllable_of(bridge::owner_of(*f.instrument))).to_equal(f.instrument->toModControllable());
+			expect(std::get<Kit*>(bridge::owner_of(*f.instrument))).to_equal(static_cast<Kit*>(f.instrument));
 			expect(std::holds_alternative<Sound*>(bridge::owner_of(*drum))).to_be_true();
-			expect(bridge::mod_controllable_of(bridge::owner_of(*drum))).to_equal(drum->toModControllable());
+			Sound* const drum_sound = drum;
+			expect(std::get<Sound*>(bridge::owner_of(*drum))).to_equal(drum_sound);
 			spec::make_current(nullptr);
 		});
 
@@ -82,7 +83,8 @@ describe lane_target("a lane target", ${
 			spec::make_current(f.song);
 			auto* drum = spec::add_drum<MIDIDrum>(f);
 			expect(std::holds_alternative<NonAudioDrum*>(bridge::owner_of(*drum))).to_be_true();
-			expect(bridge::mod_controllable_of(bridge::owner_of(*drum))).to_equal(drum->toModControllable());
+			NonAudioDrum* const non_audio = drum;
+			expect(std::get<NonAudioDrum*>(bridge::owner_of(*drum))).to_equal(non_audio);
 			spec::make_current(nullptr);
 		});
 
@@ -109,11 +111,11 @@ describe lane_target("a lane target", ${
 			alignas(ModelStackWithAutoParam) char a[MODEL_STACK_MAX_SIZE];
 			alignas(ModelStackWithAutoParam) char b[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* original =
-			    setupModelStackWithThreeMainThingsButNoNoteRow(a, f.song, f.instrument->toModControllable(), f.clip,
+			    setupModelStackWithThreeMainThingsButNoNoteRow(a, f.song, deluge::model::owner_of(*f.instrument), f.clip,
 			                                                   &f.clip->paramManager)
 			        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
 			const bridge::LaneTarget target =
-			    bridge::target_of(*original, bridge::owner_of(*f.instrument), std::nullopt);
+			    bridge::target_of(*original, std::nullopt);
 			expect(same_stack(*original, *bridge::stack_of(target, b))).to_be_true();
 			spec::make_current(nullptr);
 		});
@@ -132,7 +134,7 @@ describe lane_target("a lane target", ${
 			if (lane) {
 				ModelStackWithAutoParam* original = bridge::paramStackAt(*f.song, address, a);
 				expect(std::holds_alternative<Sound*>(lane->owner)).to_be_true();
-				expect(bridge::mod_controllable_of(lane->owner)).to_equal(original->modControllable);
+				expect(std::get<Sound*>(lane->owner)).to_equal(std::get<Sound*>(original->owner));
 				expect(same_stack(*original, *bridge::stack_of(*lane, b))).to_be_true();
 			}
 			spec::make_current(nullptr);

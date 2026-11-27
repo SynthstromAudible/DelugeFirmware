@@ -370,7 +370,8 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
 
-	auto* instrument = static_cast<MIDIInstrument*>(modelStack->modControllable); // the collection's owner
+	auto* instrument =
+	    static_cast<MIDIInstrument*>(std::get<NonAudioInstrument*>(modelStack->owner)); // the collection's owner
 	if (modelStack->song->isOutputActiveInArrangement(instrument)) {
 		instrument->ccValueChanged(modelStack->paramId, oldValue, modelStack->autoParam->getCurrentValue());
 	}

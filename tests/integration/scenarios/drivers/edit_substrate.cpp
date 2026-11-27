@@ -148,7 +148,7 @@ ModelStackWithAutoParam* songStack(char* buf, ::Song& song, int32_t paramId) {
 
 // The harness audio clip's own param @p paramId, as the engine names it.
 ModelStackWithAutoParam* clipStack(char* buf, ::Song& song, int32_t paramId) {
-	return setupModelStackWithThreeMainThingsButNoNoteRow(buf, &song, g_audioClip->output->toModControllable(),
+	return setupModelStackWithThreeMainThingsButNoNoteRow(buf, &song, deluge::model::owner_of(*g_audioClip->output),
 	                                                      g_audioClip, &g_audioClip->paramManager)
 	    ->getUnpatchedAutoParamFromId(paramId);
 }
@@ -504,9 +504,8 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	store->nodes.erase(store->nodes.begin(), store->nodes.end());
 	int32_t prev = ms->autoParam->getCurrentValue();
 	store->current_value = 0x33333333;
-	ms->autoParam->projectScalarFromStore(
-	    deluge::bridge::target_of(*ms, deluge::bridge::owner_of(*g_audioClip->output), addr), prev,
-	    /*isPlaying=*/false);
+	ms->autoParam->projectScalarFromStore(deluge::bridge::target_of(*ms, addr), prev,
+	                                      /*isPlaying=*/false);
 	check(ms->autoParam->getCurrentValue() == 0x33333333, "projectScalarFromStore: engine cursor synced from store");
 }
 
@@ -1122,7 +1121,7 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 
 	const deluge::modulation::KnobTarget drive = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 	check(sound.learnModKnob(drive, 1, 3, &ctx.song), "knob gestures: a mod knob is learned");
-	deluge::edits::recordControlsOf(sound);
+	deluge::edits::recordControlsOf(&sound);
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a learn is recorded");
 
 	// The upper knob pushed three times in the synth's own (filter) mode: its mapping cycles through the filter's
@@ -1205,7 +1204,7 @@ void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
 		check(false, "clone: two audio tracks");
 		return;
 	}
-	const auto address = deluge::bridge::controlsAddressOf(*source, ctx.song);
+	const auto address = deluge::bridge::controlsAddressOf(source, ctx.song);
 	check(address.has_value(), "clone: the source track has controls");
 	if (!address) {
 		return;
@@ -1219,7 +1218,7 @@ void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
 	                      deluge::bridge::controlTargetOf(volume, params::Kind::UNPATCHED_GLOBAL).value)}}};
 	check(deluge::edits::apply(ctx, learn) == Error::NONE && ctx.model.mappings.params_of(*address).size() == 1,
 	      "clone: the source track learns a knob");
-	const auto cloneAddress = deluge::bridge::controlsAddressOf(*clone, ctx.song);
+	const auto cloneAddress = deluge::bridge::controlsAddressOf(clone, ctx.song);
 	check(cloneAddress.has_value(), "clone: the clone has controls");
 	if (!cloneAddress) {
 		return;
@@ -1242,7 +1241,7 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 	Instrument* kit = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	ctx.song.addOutput(kit);
 	struct Owner {
-		ModControllable* owner;
+		deluge::model::LaneOwner owner;
 		ChainAddress address;
 		const char* name;
 	};
@@ -1257,9 +1256,10 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 			return deluge::edits::apply(ctx, edit);
 		};
 		check(applied("lpfMode", Value::makeScalar("SVF_Notch")) == Error::NONE, (name + ": lpfMode applied").c_str());
-		check(o.owner->effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+		check(deluge::model::effects_owner_of(o.owner)->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
 		      (name + ": the owner's filter").c_str());
-		check(o.owner->effectsOwner()->binding->renderEffects() == o.owner->effectsOwner()->effects(),
+		check(deluge::model::effects_owner_of(o.owner)->binding->renderEffects()
+		          == deluge::model::effects_owner_of(o.owner)->effects(),
 		      (name + ": its render copy").c_str());
 		deluge::project::FxChain* chain = ctx.model.resolveChain(o.address);
 		const deluge::effects::EffectStates* held =
@@ -1268,20 +1268,22 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 		      (name + ": the chain record holds it").c_str());
 		check(deluge::harness::chainIncoherence(ctx.song).empty(), (name + ": the chain is coherent").c_str());
 
-		const deluge::effects::EffectStates before = o.owner->effectsOwner()->effects();
+		const deluge::effects::EffectStates before = deluge::model::effects_owner_of(o.owner)->effects();
 		check(applied("lpfMode", Value::makeScalar("sideways")) != Error::NONE, (name + ": a refused value").c_str());
-		check(o.owner->effectsOwner()->effects() == before, (name + ": a refused value changes nothing").c_str());
+		check(deluge::model::effects_owner_of(o.owner)->effects() == before,
+		      (name + ": a refused value changes nothing").c_str());
 
 		const std::optional<deluge::project::FxChain> chainBefore =
 		    chain != nullptr ? std::optional{*chain} : std::nullopt;
-		const int32_t level = static_cast<int32_t>(o.owner->effectsOwner()->effects().delay.sync_level);
+		const int32_t level =
+		    static_cast<int32_t>(deluge::model::effects_owner_of(o.owner)->effects().delay.sync_level);
 		check(applied("delay/syncLevel", serialization::Value::makeNumber(level)) == Error::NONE,
 		      (name + ": the delay's sync level applied").c_str());
 		check(chain != nullptr && chainBefore && *chain == *chainBefore,
 		      (name + ": the same sync level leaves the chain as it was").c_str());
 
 		check(applied("modFXType", Value::makeScalar("chorus")) == Error::NONE, (name + ": modFXType applied").c_str());
-		check(o.owner->effectsOwner()->effects().mod_fx.type == ModFXType::CHORUS,
+		check(deluge::model::effects_owner_of(o.owner)->effects().mod_fx.type == ModFXType::CHORUS,
 		      (name + ": the owner renders chorus").c_str());
 		check(deluge::harness::chainIncoherence(ctx.song).empty(), (name + ": coherent after mod FX").c_str());
 	}
@@ -1430,7 +1432,7 @@ void testGestureOnUndoHeldOwner(deluge::edits::Context& ctx) {
 	auto& kit = *static_cast<Kit*>(kitOutput);
 	ctx.song.addOutput(kitOutput);
 	ctx.song.removeOutputFromMainList(kitOutput); // as an undo of its creation removes it
-	deluge::edits::changeEffect(ctx.song, kit, "lpfMode", deluge::serialization::Value::makeScalar("SVF_Notch"));
+	deluge::edits::changeEffect(ctx.song, &kit, "lpfMode", deluge::serialization::Value::makeScalar("SVF_Notch"));
 	check(kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
 	      "undo-held owner: a gesture still reaches it");
 	ctx.song.addOutput(kitOutput, true); // as its redo puts it back
@@ -1461,7 +1463,7 @@ void testTwoHostOwnersOneIdInFile() {
 	}
 	check(ids.size() == owners.size(), "read host ids: a second host owner on one id takes an id of its own");
 	const auto lpf = [](Output* owner) {
-		return owner->toModControllable()->effectsOwner()->effects().filter.lpf_mode;
+		return deluge::model::effects_owner_of(deluge::model::owner_of(*owner))->effects().filter.lpf_mode;
 	};
 	if (owners.size() == 4) {
 		check(lpf(owners[0]) != lpf(owners[1]) && lpf(owners[2]) != lpf(owners[3]),

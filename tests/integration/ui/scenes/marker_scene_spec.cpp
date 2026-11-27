@@ -754,7 +754,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
 		currentSong = f.song;
-		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
 		const bool had_none = deluge::ui::scenes::spec::first_ranges(slot).empty();

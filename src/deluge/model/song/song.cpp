@@ -2854,7 +2854,7 @@ traverseClips:
 				    modelStackWithNoteRow->addOtherTwoThings(drum, &noteRow->paramManager));
 
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				    ->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
@@ -2919,7 +2919,7 @@ traverseClips:
 		    clip->paramManager.getPatchCableSet(modelStackWithThreeMainThings);
 
 		((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-		    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		    ->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 		                    *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
@@ -2978,7 +2978,7 @@ traverseClips:
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-		patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 		                             *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
@@ -3046,7 +3046,7 @@ traverseClips:
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-		patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 		                             *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
@@ -3086,7 +3086,7 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 				PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 				patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 
-				patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 				                             *modelStackWithParamCollection->paramManager);
 			}
 		}
@@ -3115,7 +3115,7 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 					PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 					patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-					patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+					patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 					                             *modelStackWithParamCollection->paramManager);
 				}
 			}
@@ -3640,9 +3640,11 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	std::optional<deluge::model::EffectsOwner> handedOverFrom;
 	if (newOutput->type == oldOutput->type
 	    && (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT)) {
-		const std::optional<deluge::model::EffectsOwner> old = oldOutput->toModControllable()->effectsOwner();
+		const std::optional<deluge::model::EffectsOwner> old =
+		    deluge::model::effects_owner_of(deluge::model::owner_of(*oldOutput));
 		if (old && deluge::bridge::handsOverKnobs(*this, *oldOutput)) {
-			const deluge::model::EffectsOwner incoming = *newOutput->toModControllable()->effectsOwner();
+			const deluge::model::EffectsOwner incoming =
+			    *deluge::model::effects_owner_of(deluge::model::owner_of(*newOutput));
 			// Knobs the table does not hold yet (this song's own read) move here; the table's move below.
 			incoming.knobs->loaded = std::move(old->knobs->loaded);
 			old->knobs->loaded.clear();
@@ -4130,7 +4132,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 		auto itNull = live.param_backup.map.find({owner, std::nullopt});
 
-		// If a no-Clip backup already exists for this ModControllable, replace its contents with this one's
+		// If a no-Clip backup already exists for this owner, replace its contents with this one's
 		if (itNull != live.param_backup.map.end()) {
 			itNull->second.destructAndForgetParamCollections();
 			itNull->second.stealParamCollectionsFrom(&it->second);
@@ -5884,7 +5886,7 @@ void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
 	}
 	else {
 		modelStack->setTimelineCounter(nullptr);
-		modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
+		modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::LaneOwner{}, nullptr);
 	}
 }
 

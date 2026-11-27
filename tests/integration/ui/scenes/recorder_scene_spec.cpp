@@ -1221,7 +1221,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const Take take{*rec, "SAMPLES/RECORD/REC023.WAV"};
 		spec::SongFixture other = spec::make_synth_song();
 		other.instrument->setId(r.slot().id); // another song's first track can have the same output id
-		auto* other_sound = other.instrument->toModControllable()->effectsOwner()->sound;
+		auto* other_sound = deluge::model::effects_owner_of(deluge::model::owner_of(*other.instrument))->sound;
 		(void)other_sound->getOrCreateFirstRange(0);
 		const OscType before = other_sound->oscType(0);
 		currentSong = other.song;

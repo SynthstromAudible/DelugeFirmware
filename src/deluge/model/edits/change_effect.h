@@ -18,11 +18,11 @@
 #pragma once
 
 #include "model/fx/effects_owner.h"
+#include "model/lane_owner.h"
 #include "serialization/value.h"
 
 #include <string_view>
 
-class ModControllable;
 class Song;
 
 namespace deluge::edits {
@@ -35,14 +35,15 @@ namespace deluge::edits {
 /// @param owner The effect owner being edited.
 /// @param path  Path of the setting within the effects' schema.
 /// @param value The new value, in its Edit form.
-void changeEffect(ModControllable& owner, std::string_view path, deluge::serialization::Value value);
+void changeEffect(deluge::model::LaneOwner owner, std::string_view path, deluge::serialization::Value value);
 
 /// @brief changeEffect in @p song rather than the current song: for a song being loaded, which is not current yet.
 /// @param song  The song the owner belongs to.
 /// @param owner The effect owner being edited.
 /// @param path  Path of the setting within the effects' schema.
 /// @param value The new value, in its Edit form.
-void changeEffect(::Song& song, ModControllable& owner, std::string_view path, deluge::serialization::Value value);
+void changeEffect(::Song& song, deluge::model::LaneOwner owner, std::string_view path,
+                  deluge::serialization::Value value);
 
 /// @brief changeEffect for an owner named by its effects: a walk over the song's chains, a ModelStack's slot.
 /// @param owner The effect owner being edited.
@@ -66,6 +67,6 @@ void changeEffect(::Song& song, deluge::model::EffectsOwner owner, std::string_v
 /// @param owner The effect owner being edited.
 /// @param key   `modFXCurrentParam` or `currentFilterType`.
 /// @param word  The new selection, by name.
-void changeView(ModControllable& owner, std::string_view key, std::string_view word);
+void changeView(deluge::model::LaneOwner owner, std::string_view key, std::string_view word);
 
 } // namespace deluge::edits

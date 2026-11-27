@@ -589,7 +589,7 @@ void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* mode
 	for (int32_t c = 0; c < numPatchCables; c++) {
 		// The cables to the depths of p's cables go too.
 		if (patchCables[c].destination.param_index() == p) {
-			deletePatchCable(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager, c);
+			deletePatchCable(deluge::model::sound_of(modelStack->owner), *modelStack->paramManager, c);
 		}
 	}
 }
@@ -706,7 +706,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 
 	if (maySetupPatching && anyStoppedBeingAutomated) {
 		// Some cables stopped being automated: refresh which are.
-		setupPatching(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager);
+		setupPatching(deluge::model::sound_of(modelStack->owner), *modelStack->paramManager);
 	}
 
 	ticksTilNextEvent = 0;
@@ -729,7 +729,7 @@ ModelStackWithAutoParam* PatchCableSet::getAutoParamFromId(ModelStackWithParamId
 	if (index == 255 && allowCreation) {
 		// A write to a missing cable's depth adds the cable first, through the mod matrix, recorded in the open Action
 		// so one undo takes back the write and the cable together.
-		ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
+		ModMatrixHost matrix{deluge::model::sound_of(modelStack->owner), *modelStack->paramManager};
 		if (std::optional<CableEdit> added = matrix.ensureCable(s, deluge::synth::CableTarget{paramDescriptor.word})) {
 			deluge::edits::recordCableEdit(modelStack, std::move(*added));
 			index = getPatchCableIndex(s, paramDescriptor);
@@ -1014,7 +1014,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 			int32_t p =
 			    destination.param_index(); // Yes also do it if we've altered the "range" of a cable to p.... Although,
 			                               // would the call below actually cause all of that to get recalculated?
-			((Sound*)modelStack->modControllable)
+			(&deluge::model::sound_of(modelStack->owner))
 			    ->recalculatePatchingToParam(p, (ParamManagerForTimeline*)modelStack->paramManager);
 		}
 	}
@@ -1080,7 +1080,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 
 	if (anyStoppedBeingAutomated) {
 		// Some cables stopped being automated: refresh which are.
-		setupPatching(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager);
+		setupPatching(deluge::model::sound_of(modelStack->owner), *modelStack->paramManager);
 	}
 }
 

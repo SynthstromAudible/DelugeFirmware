@@ -44,12 +44,13 @@ SECTIONS {
          * SRAM, which shows as lost headroom, never as a fault. */
         *(.bss._RNv*22deluge_platform_device7channel*)
         *(.bss._RNv*22deluge_platform_device7storage6efatfs6device*)
-        /* The scenes' statics: the menu's node-id tables, the scene singletons and their buffers,
-         * which the UI tier alone touches, after the boot has zeroed this region. Matched by the
-         * `deluge::ui::scenes` namespace in the mangled name. */
-        __scenes_bss_start = .;
-        *(.bss.*6deluge2ui6scenes*)
-        __scenes_bss_end = .;
+        /* The libraries scripts/layers.toml's [[placement]] table places in SDRAM: their zero-initialised data,
+         * which their own tier touches after the boot has zeroed this region. */
+        /* BEGIN placement bss */
+        __placement_ui_bss_start = .;
+        *(.bss.*6deluge2ui*)
+        __placement_ui_bss_end = .;
+        /* END placement bss */
         __sdram_bss_end = .;
     } > SDRAM
 } INSERT BEFORE .bss;
@@ -84,12 +85,25 @@ SECTIONS {
         PROVIDE(__sdram_init_start = .);
         /* The code run from SDRAM, which the crash reporter counts as code (peripherals/fault.rs). */
         __sdram_text_start = .;
+        /* The libraries scripts/layers.toml's [[placement]] table places in SDRAM, by namespace. */
+        /* BEGIN placement text */
+        /* deluge::ui: the UI tier, at menu and input rate; it reaches the audio tier only through base/notify queues */
+        __placement_ui_text_start = .;
+        *(.text.*6deluge2ui*)
+        __placement_ui_text_end = .;
+        /* END placement text */
         *(.sdram_text .sdram_text*)
         /* The GUI's code (build/device.rs archives it apart, built without LTO so its objects
          * survive to the link). An inline or template function that the GUI shares with other
          * code comes here too when the link keeps the GUI's copy. */
         *libdeluge_app_gui.a:*(.text .text.*)
         __sdram_text_end = .;
+        /* The placed libraries' read-only and initialised data, their vtables among them. */
+        /* BEGIN placement data */
+        __placement_ui_data_start = .;
+        *(.rodata.*6deluge2ui* .data.*6deluge2ui*)
+        __placement_ui_data_end = .;
+        /* END placement data */
         *(.sdram_data .sdram_data*)
         *(.sdram_rodata .sdram_rodata*)
         /* The efatfs mount's initialised tables (open handles, the mounted volume); as above. */
@@ -105,17 +119,6 @@ SECTIONS {
          * the host's device port read; their text is `menu_tables` data, above. Matched by the struct's
          * name in the mangled name, so a rename returns them to SRAM. */
         *(.rodata.*6deluge7project11device_path*)
-        /* The scenes' menu: its node and cell tables, read by the menu scene and its shortcuts, never
-         * the audio tier or an interrupt. Matched by the `deluge::ui::scenes::menu` namespace in the
-         * mangled name, so a rename returns them to SRAM, as for the setting tables above. */
-        __scenes_menu_tables_start = .;
-        *(.rodata.*6deluge2ui6scenes4menu*)
-        __scenes_menu_tables_end = .;
-        /* The scenes' vtables outside `deluge::ui::scenes::menu`, which the pattern above already takes.
-         * Virtual calls on a scene come from the UI tier only. */
-        __scenes_vtables_start = .;
-        *(.rodata._ZTV*6deluge2ui6scenes*)
-        __scenes_vtables_end = .;
         /* The host's port objects and their vtables (`deluge::gui::shell_host`), the waveforms port's
          * column caches among them (its object is `constinit`, so `.data`), which only the
          * scenes and the GUI's own code, already here, call through. */
@@ -142,15 +145,14 @@ SECTIONS {
     ASSERT(SIZEOF(.ARM.exidx) == 0 && __sdram_exidx_end > __sdram_exidx_start,
            "sdram_sections.x: the unwind index is not all in .sdram_exidx")
 
-    /* The deflated load copy, reserved zero-filled at 15/32 of the content and written after the
-     * link; the staging fails when it does not fit. The content deflates to about 43% (the GUI's code
-     * to a little under half, the setting and menu tables to about a tenth), so the reserve keeps a
-     * margin of a few percent: every byte of it is SRAM the image carries, between its code and the
-     * RTT reserve. */
+    /* The deflated load copy, reserved zero-filled at half the content and written after the link; the
+     * staging fails when it does not fit. The content deflates to about 48% (code to about half, the setting
+     * and menu tables to about a tenth), so the reserve keeps a margin of about 2%. Every byte of it is room
+     * the image needs below the RTT reserve, though not runtime SRAM: the SRAM heap starts here. */
     .sdram_init_pack : ALIGN(16) {
         __sdram_init_pack_start = .;
         BYTE(0)
-        . = __sdram_init_pack_start + (__sdram_init_end - __sdram_init_start) * 15 / 32 + 256;
+        . = __sdram_init_pack_start + (__sdram_init_end - __sdram_init_start) / 2 + 256;
         __sdram_init_pack_end = .;
     } > RAM
 
@@ -180,17 +182,16 @@ SECTIONS {
     ASSERT(__menu_tables_end - __menu_tables_start > 8192,
            "sdram_sections.x: the setting tables fell back to SRAM (no menu_tables data in .sdram_init)")
 
-    /* The scenes' menu tables are about 119 KB: far less here means the pattern above no longer
-     * matches them and they sit in SRAM's .rodata. */
-    ASSERT(__scenes_menu_tables_end - __scenes_menu_tables_start > 65536,
-           "sdram_sections.x: the scenes' menu tables fell back to SRAM (no deluge::ui::scenes::menu data in .sdram_init)")
-
-    /* The scenes' vtables are about 1.4 KB and their statics about 13 KB; far less means a
-     * rename stopped the patterns matching them. */
-    ASSERT(__scenes_vtables_end - __scenes_vtables_start > 1024,
-           "sdram_sections.x: the scenes' vtables fell back to SRAM (no deluge::ui::scenes vtables in .sdram_init)")
-    ASSERT(__scenes_bss_end - __scenes_bss_start > 8192,
-           "sdram_sections.x: the scenes' statics fell back to SRAM (no deluge::ui::scenes .bss in .sdram_bss)")
+    /* The placed libraries' minimum sizes (scripts/layers.toml [[placement]]): far less means a rename stopped a
+     * pattern matching and the library sits in SRAM. */
+    /* BEGIN placement asserts */
+    ASSERT(__placement_ui_text_end - __placement_ui_text_start > 153600,
+           "sdram_sections.x: deluge::ui's code fell back to SRAM (scripts/layers.toml [[placement]])")
+    ASSERT(__placement_ui_data_end - __placement_ui_data_start > 65536,
+           "sdram_sections.x: deluge::ui's data fell back to SRAM (scripts/layers.toml [[placement]])")
+    ASSERT(__placement_ui_bss_end - __placement_ui_bss_start > 8192,
+           "sdram_sections.x: deluge::ui's zero-initialised data fell back to SRAM (scripts/layers.toml [[placement]])")
+    /* END placement asserts */
 
     /* The SRAM heap's floor: the on-chip memory left between the image and the RTT reserve. rza1-rt's
      * link.x refuses an image that leaves none; this refuses one that leaves less than the floor. The

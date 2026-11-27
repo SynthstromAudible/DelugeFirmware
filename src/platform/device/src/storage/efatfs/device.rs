@@ -884,6 +884,38 @@ pub extern "C" fn deluge_efatfs_file_size(
     }
 }
 
+/// C-ABI: the identity of the file behind a streaming handle (`deluge_efatfs_open`/`_open_at`), from its open
+/// context: no card access. [task]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_efatfs_file_identity(
+    handle: DelugeHandle,
+    out: *mut crate::sys::DelugeFileIdentity,
+) -> DelugeStatus {
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
+    if out.is_null() {
+        return DELUGE_ERR_PARAM;
+    }
+    let Some((_, ctx)) =
+        crate::storage::sim_block::block_on(async { HANDLES.lock().await.checkout(handle) })
+    else {
+        return DELUGE_ERR_PARAM;
+    };
+    let Some((first_cluster, size, fat_datetime)) = portable::identity_of(&ctx) else {
+        return DELUGE_ERR_PARAM;
+    };
+    // SAFETY: `out` is non-null (checked above) and the caller's to write.
+    unsafe {
+        out.write(crate::sys::DelugeFileIdentity {
+            first_cluster,
+            size,
+            fat_datetime,
+        });
+    }
+    DELUGE_OK
+}
+
 /// C-ABI: closes a task-context file handle, unconditionally from any context (see
 /// [`deluge_efatfs_close`]).
 #[unsafe(no_mangle)]
@@ -1164,6 +1196,16 @@ pub extern "C" fn deluge_efatfs_rename(
     match crate::storage::sim_block::block_on(task_rename(old, new)) {
         Ok(()) => DELUGE_OK,
         Err(st) => st,
+    }
+}
+
+/// Marks a file or directory hidden; see [`portable::set_hidden`].
+///
+/// `pub(crate)` so the byte channel's driver can await it.
+pub(crate) async fn task_set_hidden(path: &str) -> Result<(), DelugeStatus> {
+    match with_fs(async |fs| portable::set_hidden(fs, path).await).await {
+        Some(result) => result,
+        None => Err(DELUGE_ERR_NO_FILESYSTEM),
     }
 }
 
@@ -1490,6 +1532,7 @@ abi_pin!(
     deluge_efatfs_dir_open,
     deluge_efatfs_dir_read,
     deluge_efatfs_file_close,
+    deluge_efatfs_file_identity,
     deluge_efatfs_file_open,
     deluge_efatfs_file_read_exact,
     deluge_efatfs_file_seek,

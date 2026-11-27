@@ -354,6 +354,20 @@ DelugeChannelStatus deluge_file_bytes_collect_mkdir_all(const char* path, Deluge
 ///         channel was mid-update at the instant of the call; or the path is NULL or over long.
 bool deluge_file_bytes_request_set_time(const char* path, DelugeTimestamp timestamp) DELUGE_NOEXCEPT;
 
+/// @brief Request that the file or directory at `path` be marked hidden, keeping its other attributes. [task]
+///
+/// @param path NUL-terminated path. Copied out before this returns.
+/// @return true if accepted. false if REFUSED, as deluge_file_bytes_request_set_time.
+bool deluge_file_bytes_request_set_hidden(const char* path) DELUGE_NOEXCEPT;
+
+/// @brief Collect the outcome of the hide of `path`, if it has finished. [task]
+///
+/// @param path       NUL-terminated path, matched exactly against the one requested.
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_CHANNEL_PENDING, @ref DELUGE_CHANNEL_READY,
+///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
+DelugeChannelStatus deluge_file_bytes_collect_set_hidden(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
 /// @brief Collect the outcome of the timestamp write for `path`, if it has finished. [task]
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
@@ -560,6 +574,14 @@ void deluge_file_bytes_set_chunk_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 /// only by the Rust BSP's `host_app` build; never in a device image.
 /// @param ms Milliseconds of simulated delay per document write.
 void deluge_file_bytes_set_write_from_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+
+/// @brief Host harness only: make every write-from, unlink and rename fail with @p status instead of touching the
+/// card, as a full (`DELUGE_ERR_NO_SPACE`) or write-protected (`DELUGE_ERR_WRITE_PROTECTED`) card would;
+/// `DELUGE_OK` clears it. [task]
+///
+/// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
+/// @param status The status they fail with.
+void deluge_file_bytes_set_write_fault(DelugeStatus status) DELUGE_NOEXCEPT;
 #endif
 
 #ifdef __cplusplus

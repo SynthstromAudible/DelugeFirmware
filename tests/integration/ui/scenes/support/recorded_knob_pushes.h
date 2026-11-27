@@ -607,7 +607,7 @@ inline constexpr std::array<std::string_view, 189> kPushTexts = {
     "1060655596 0 ||Type: Chorus\nParam: Depth",
 };
 
-/// Recorded from `ModControllable::modEncoderButtonAction` on a synth clip: the `kPushTexts` index of each push.
+/// Recorded from main's `ModControllable::modEncoderButtonAction` on a synth clip: the `kPushTexts` index of each push.
 inline constexpr std::array<uint16_t, 188> kSynthPushes = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 8,  6,  11, 11, 11,
     11, 11, 11, 11, 11, 11, 11, 11, 11, 12, 13, 14, 15, 16, 17, 18, 17, 18, 17, 18, 17, 19, 20, 21, 22, 23, 24,
@@ -618,7 +618,7 @@ inline constexpr std::array<uint16_t, 188> kSynthPushes = {
     50, 50, 50, 50, 50, 50, 50, 50, 51, 51, 51, 51, 51, 51, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50,
 };
 
-/// Recorded from `ModControllable::modEncoderButtonAction` on a kit row: the `kPushTexts` index of each push.
+/// Recorded from main's `ModControllable::modEncoderButtonAction` on a kit row: the `kPushTexts` index of each push.
 inline constexpr std::array<uint16_t, 188> kKitRowPushes = {
     52,  52,  52,  52,  52,  52,  52,  52,  52,  52,  52,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,
     62,  60,  58,  63,  63,  63,  63,  63,  63,  63,  63,  63,  63,  63,  63,  64,  65,  66,  67,  68,  69,
@@ -631,7 +631,8 @@ inline constexpr std::array<uint16_t, 188> kKitRowPushes = {
     102, 102, 103, 103, 103, 103, 103, 103, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102,
 };
 
-/// Recorded from `ModControllable::modEncoderButtonAction` on the song chain: the `kPushTexts` index of each push.
+/// Recorded from main's `ModControllable::modEncoderButtonAction` on the song chain: the `kPushTexts` index of each
+/// push.
 inline constexpr std::array<uint16_t, 188> kSongPushes = {
     104, 104, 104, 104, 104, 104, 104, 104, 104, 104, 104, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113,
     114, 112, 110, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 116, 117, 118, 119, 120, 121,
@@ -644,7 +645,7 @@ inline constexpr std::array<uint16_t, 188> kSongPushes = {
     173, 173, 174, 174, 174, 174, 174, 174, 173, 173, 173, 173, 173, 173, 173, 173, 173, 173, 173, 173,
 };
 
-/// Recorded from `ModControllable::modEncoderButtonAction` on a kit chain: the `kPushTexts` index of each push.
+/// Recorded from main's `ModControllable::modEncoderButtonAction` on a kit chain: the `kPushTexts` index of each push.
 inline constexpr std::array<uint16_t, 188> kKitChainPushes = {
     104, 104, 104, 104, 104, 104, 104, 104, 104, 104, 104, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113,
     114, 112, 110, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 116, 117, 118, 119, 120, 121,
@@ -657,8 +658,8 @@ inline constexpr std::array<uint16_t, 188> kKitChainPushes = {
     173, 173, 174, 174, 174, 174, 174, 174, 173, 173, 173, 173, 173, 173, 173, 173, 173, 173, 173, 173,
 };
 
-/// Recorded from `ModControllable::modEncoderButtonAction` on an audio track chain: the `kPushTexts` index of each
-/// push.
+/// Recorded from main's `ModControllable::modEncoderButtonAction` on an audio track chain: the `kPushTexts` index of
+/// each push.
 inline constexpr std::array<uint16_t, 188> kAudioPushes = {
     104, 104, 104, 104, 104, 104, 104, 104, 104, 104, 104, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113,
     114, 112, 110, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 116, 117, 118, 119, 120, 121,
@@ -671,23 +672,24 @@ inline constexpr std::array<uint16_t, 188> kAudioPushes = {
     173, 173, 174, 174, 174, 174, 174, 174, 173, 173, 173, 173, 173, 173, 173, 173, 173, 173, 173, 173,
 };
 
-/// Recorded from `ModControllable::modEncoderButtonAction` on a kit chain: the `kPushTexts` index of each push.
+/// Recorded from main's `ModControllable::modEncoderButtonAction` on a kit chain: the `kPushTexts` index of each push.
 inline constexpr std::array<uint16_t, 12> kMissingKitChainPushes = {
     183, 183, 183, 184, 184, 184, 185, 186, 185, 187, 188, 187,
 };
 
-/// Recorded from `ModControllable::modEncoderButtonAction` on the song chain: the `kPushTexts` index of each push.
+/// Recorded from main's `ModControllable::modEncoderButtonAction` on the song chain: the `kPushTexts` index of each
+/// push.
 inline constexpr std::array<uint16_t, 12> kMissingSongPushes = {
     183, 183, 183, 184, 184, 184, 185, 186, 185, 187, 188, 187,
 };
 
-/// Recorded from `ModControllable::modEncoderButtonAction` on an audio track chain: the `kPushTexts` index of each
-/// push.
+/// Recorded from main's `ModControllable::modEncoderButtonAction` on an audio track chain: the `kPushTexts` index of
+/// each push.
 inline constexpr std::array<uint16_t, 12> kMissingAudioPushes = {
     183, 183, 183, 184, 184, 184, 185, 186, 185, 187, 188, 187,
 };
 
-/// Recorded from `ModControllable::modButtonAction` on a synth: the popup each mod button 0..7 shows.
+/// Recorded from main's `ModControllable::modButtonAction` on a synth: the popup each mod button 0..7 shows.
 inline constexpr std::array<std::string_view, 8> kSynthPopups = {
     "Master Level\nMaster Pan",
     "Lpf\n24dB Ladder",
@@ -699,7 +701,7 @@ inline constexpr std::array<std::string_view, 8> kSynthPopups = {
     "Decimation\nBitcrush",
 };
 
-/// Recorded from `ModControllable::modButtonAction` on the song: the popup each mod button 0..7 shows.
+/// Recorded from main's `ModControllable::modButtonAction` on the song: the popup each mod button 0..7 shows.
 inline constexpr std::array<std::string_view, 8> kSongPopups = {
     "Master level\nPan",
     "Lpf\n24dB Ladder",
@@ -711,7 +713,7 @@ inline constexpr std::array<std::string_view, 8> kSongPopups = {
     "Decimation\nBitcrush",
 };
 
-/// Recorded from `ModControllable::modButtonAction` on a kit chain: the popup each mod button 0..7 shows.
+/// Recorded from main's `ModControllable::modButtonAction` on a kit chain: the popup each mod button 0..7 shows.
 inline constexpr std::array<std::string_view, 8> kKitChainPopups = {
     "Master level\nPan",
     "Lpf\n24dB Ladder",

@@ -34,7 +34,6 @@ class AudioClip;
 class Instrument;
 class InstrumentClip;
 class MidiInstrument;
-class ModControllable;
 class ModelStackWithAutoParam;
 class ModelStackWithNoteRow;
 class ModelStackWithThreeMainThings;

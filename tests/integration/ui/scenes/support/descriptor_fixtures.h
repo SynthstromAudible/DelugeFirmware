@@ -51,7 +51,7 @@ inline void set_arp(const MenuContext& ctx, Song& song, std::string_view mode) {
 	                             Value::makeScalar(std::string{mode}));
 }
 inline void set_song_stutter(const MenuContext& ctx, Song& song, bool use) {
-	deluge::edits::effectSettingFor(*deluge::ui::scenes::spec::menu_engine(ctx, song).mod, "stutter/useSongStutter",
+	deluge::edits::effectSettingFor(deluge::ui::scenes::spec::menu_engine(ctx, song).mod, "stutter/useSongStutter",
 	                                Value::makeNumber(use ? 1 : 0));
 }
 /// A sound as `enter` leaves it, poly, its envelopes ADSR, its arp off, using the song's stutter.

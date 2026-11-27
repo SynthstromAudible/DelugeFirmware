@@ -504,7 +504,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
 		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
-		expect(deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
+		expect(deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
 		Command source = knobCc(1, 74);
 		source.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
 		expect(held(*f.song, knob)).to_equal(source);
@@ -531,9 +531,9 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
 		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		const deluge::modulation::KnobTarget pan = deluge::modulation::knobParam(params::LOCAL_PAN);
-		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)
-		                     && deluge::edits::learnKnobFor(sound, pan, &MIDIDeviceManager::dinMIDIPorts, 75, 1)
-		                     && deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1,
+		const bool learned = deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)
+		                     && deluge::edits::learnKnobFor(&sound, pan, &MIDIDeviceManager::dinMIDIPorts, 75, 1)
+		                     && deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1,
 		                                                    74, 1);
 		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
 		expect(learned).to_be_true();
@@ -561,7 +561,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
 		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		deluge::edits::learnMappingFor(knobCc(1, 74), knob);
-		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
+		const bool learned = deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
 		expect(learned).to_be_true();
 		Command fromDin = knobCc(1, 74);
@@ -586,8 +586,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
-		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)
-		                     && deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1,
+		const bool learned = deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)
+		                     && deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1,
 		                                                    74, 1);
 		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
 		expect(learned).to_be_true();
@@ -614,12 +614,12 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		fromDin.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
 		Command fromUsb = knobCc(1, 74);
 		fromUsb.device = MidiDeviceRef{.port = MidiDeviceRef::Port::UPSTREAM_USB_1};
-		bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
+		bool learned = deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 		if (learned) {
 			deluge::midi::takeoverStore().at(knob, fromDin).previous = 12345;
 		}
 		learned = learned
-		          && deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1, 74, 1);
+		          && deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1, 74, 1);
 		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
 		expect(learned).to_be_true();
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, knob.owner, 1, 74);
@@ -636,14 +636,14 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
 		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
-		expect(deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
+		expect(deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
 		Command fromDin = knobCc(1, 74);
 		fromDin.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
 		deluge::bridge::mappingNoLongerRelative(knob, fromDin, *f.song); // as an absolute controller's CC shows it
 		expect(f.song->project.mappings.find(knob)->relative).to_be_false();
 		deluge::midi::takeoverStore().at(knob, fromDin).previous = 777;
 
-		expect(deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
+		expect(deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
 		expect(f.song->project.mappings.find(knob)->relative).to_be_true();
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, knob.owner, 1, 74);
 		expect(played.size()).to_equal(size_t{1}, "the knobs on CC 74");
@@ -668,7 +668,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(static_cast<int>(f.song->project.mappings.params_of(owner).size())).to_equal(2);
 		// The knob relearned never saw a position, the one it collapses onto did: the survivor starts over.
 		deluge::midi::takeoverStore().at(knob, fromDin).previous = 5;
-		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
+		const bool learned = deluge::edits::learnKnobFor(&sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
 		expect(learned).to_be_true();
 		const std::vector<Mapping> knobs = f.song->project.mappings.params_of(owner);

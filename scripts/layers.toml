@@ -411,3 +411,18 @@ name = "synth-no-project-vocabulary"
 files = ["src/synth/**"]
 pattern = '^project/'
 reason = "the project vocabulary reaches the synth only through definitions_cxx.hpp"
+
+# Placement: the libraries whose code and data run from SDRAM (everything else stays in SRAM). Path = namespace, so
+# scripts/tasks/placement.py turns each entry into mangled-name linker patterns in
+# src/platform/device/linker/sdram_sections.x's placement blocks, and tools/check_placement.py fails the build when
+# the boot, the audio or streaming tier or an interrupt reaches the placed code by a direct call. min_text, min_data
+# and min_bss are the sizes the link must find, so a rename that stops a pattern matching fails the link.
+
+[[placement]]
+path = "src/ui"
+memory = "sdram"
+reason = "the UI tier, at menu and input rate; it reaches the audio tier only through base/notify queues"
+min_text = 153600
+# The scenes' menu node and cell tables alone are about 119 KB, the scenes' statics about 13 KB.
+min_data = 65536
+min_bss = 8192

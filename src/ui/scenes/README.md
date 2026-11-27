@@ -667,7 +667,8 @@ pads. They share one read and one paint, and none of them holds the sample.
   Q8.24 pad units), with `base/divide.h` for every division by a runtime divisor.
 * **The host answers the port.** `gui/ui/shell_host/waveforms.cpp` resolves the address to its sample and reads its
   columns from the sample's peak index (`sample::waveform_columns`, `model/sample/waveform_scan.h`; the index is the
-  `storage/sample/peaks` crate, filled by the cluster fill, the recorder and the background scan), so each column is the
+  `storage/sample/peaks` crate, filled by the cluster fill, the recorder and the background scan, and started from the
+  sample's sidecar on the card when it has one), so each column is the
   peak of every frame it covers and the range is everything the index has scanned. A column over a block not scanned
   yet answers PENDING and asks for that block; a scene whose read left one pending asks again
   through `services::PeakRetry`, every `kPeakRetryPollMs` (10). The marker editor, the slicer and the browser preview

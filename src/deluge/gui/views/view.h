@@ -33,7 +33,6 @@
 class InstrumentClip;
 class NoteRow;
 class UI;
-class ModControllable;
 class ParamManagerForTimeline;
 class RootUI;
 class ParamManagerForTimeline;
@@ -84,7 +83,7 @@ public:
 	int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos);
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter,
 	                                             bool shouldSendMidiFeedback = true);
-	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
+	void setActiveModControllableWithoutTimelineCounter(deluge::model::LaneOwner owner, ParamManager* paramManager);
 	/// @brief [interaction] Leave the mod encoders on nothing until a UI gives them something again.
 	///
 	/// For when what the knobs are on is about to go -- a song swapped out or deleted, a clip freed -- since the knobs

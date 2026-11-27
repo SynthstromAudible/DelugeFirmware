@@ -5,6 +5,11 @@
 //! fill, the recorder and the background scan fold peaks in; the waveform columns read them out as a pure function
 //! of the sample's data.
 //!
+//! An index survives on the card as a sidecar ([`sidecar`]): a header naming the file it belongs to, a table of
+//! tagged sections, and its level 1 as the `PEAK` section; levels 2 and up are rebuilt by folding, as a scan builds
+//! them. Level 0 is kept only around the windows read in the last [`KEEP_MS`] ([`PeakIndex::keep_level0`],
+//! [`PeakIndex::trim_level0`]); a trimmed chunk is freed only once no fold that could have loaded it is in flight.
+//!
 //! The tier rules:
 //! - Only thread mode allocates or frees ([`PeakIndex::create`], [`PeakIndex::reserve`],
 //!   [`PeakIndex::ensure_level0`], [`PeakIndex::collect`]), through the callbacks [`mem::install`] takes.
@@ -17,16 +22,18 @@
 
 pub mod abi;
 pub mod column;
+pub mod crc;
 mod dir;
 pub mod div;
 mod index;
 pub mod mem;
 mod peak;
+pub mod sidecar;
 pub mod take;
 pub mod tap;
 
 pub use column::{ColumnPlan, FrameReads};
-pub use index::PeakIndex;
+pub use index::{KEEP_MS, PeakIndex};
 pub use peak::{Peak, peak_of_frames};
 
 /// Frames per level-0 block, as a power of two: 256.

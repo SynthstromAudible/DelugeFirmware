@@ -5073,7 +5073,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 					}
 				}
 				else if (getRootUI() != &keyboardScreen) {
-					// Some other top-level view currently, don't overwrite the active ModControllable but do
+					// Some other top-level view currently, don't overwrite the knobs' owner but do
 					// request rendering
 					renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 				}
@@ -7381,7 +7381,7 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 				paramManager = &noteRow->paramManager; // Should be NULL currently, cos it's a NonAudioDrum.
 			}
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    modelStackWithNoteRow->addOtherTwoThings(drum->toModControllable(), paramManager);
+			    modelStackWithNoteRow->addOtherTwoThings(deluge::model::owner_of(*drum), paramManager);
 
 			drum->modEncoderAction(modelStackWithThreeMainThings, offset, whichModEncoder);
 		}

@@ -224,10 +224,6 @@ void SoundInstrument::resyncLFOs(bool reset_state) {
 	resyncGlobalLFOs(reset_state);
 }
 
-ModControllable* SoundInstrument::toModControllable() {
-	return this;
-}
-
 void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();
@@ -250,7 +246,7 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-	patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+	patchCableSet->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 	                             *modelStackWithParamCollection->paramManager);
 }
 

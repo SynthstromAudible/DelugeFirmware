@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp/fixed/timestretch/hop_planner.h"
+#include "model/sample/pitch_results.h"
 #include <optional>
 
 #include "definitions_cxx.hpp"
@@ -124,6 +125,14 @@ public:
 
 	/// @brief This sample's waveform peak index, or null if it could not be made.
 	[[nodiscard]] DelugePeakIndex* peaks() const { return peaks_; }
+	/// @brief The file's identity on its card: what keys its sidecar. Nothing until a load finishes with its stream
+	///        open.
+	[[nodiscard]] std::optional<DelugeFileIdentity> fileIdentity() const { return identity_; }
+	/// @brief The pitches detected on this sample, by search: what a detection with the same search answers.
+	[[nodiscard]] deluge::sample::PitchResults& pitchResults() { return pitchResults_; }
+	/// @brief Adopt the pitches a sidecar holds, if this sample has none yet (a detection made while the sidecar was
+	///        in flight is kept).
+	void restorePitches(std::span<const uint8_t> ptch);
 
 	/// @brief Make this sample a new, empty peak index, dropping any it had, and bind it to the stream asset if there
 	///        is one. Thread mode.
@@ -250,6 +259,16 @@ public:
 	bool peaksTried_{false};
 	/// @brief The waveform peak index: one reference, dropped in the destructor or by `makePeaks`.
 	DelugePeakIndex* peaks_{nullptr};
+	/// @brief The file's identity on its card, taken when the load finishes; nothing for a take not yet reopened.
+	std::optional<DelugeFileIdentity> identity_;
+	deluge::sample::PitchResults pitchResults_;
+
+	/// @brief Where this sample's sidecar stands (deluge::storage::PeakSidecars keeps it).
+	struct SidecarState {
+		bool looked{false};  ///< the lookup for the current index has ended, however it ended
+		uint32_t written{0}; ///< complete level-1 entries at the last successful write; 0 if none
+		uint8_t failures{0}; ///< writes that failed this session
+	} sidecar;
 
 protected:
 	// Project-relevance hooks (the object's hard-lease 0↔1 transitions): toggle the soft-reference on

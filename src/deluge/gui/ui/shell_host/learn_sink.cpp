@@ -77,8 +77,8 @@ public:
 			return false;
 		}
 		const std::optional<model::EffectsOwner> effects = bridge::effectsOwnerAt(*currentSong, target.owner);
-		::ModControllable* owner = bridge::controlsSlotAt(*currentSong, target.owner);
-		if (!effects || owner == nullptr) {
+		const model::LaneOwner owner = bridge::controlsSlotAt(*currentSong, target.owner);
+		if (!effects || model::is_none(owner)) {
 			return false;
 		}
 		namespace params = modulation::params;
@@ -91,7 +91,7 @@ public:
 		::Output* output = getCurrentOutput();
 		const int32_t mode = midi_channel >= 16 && output != nullptr ? output->modKnobMode : 0;
 		// A mod knob names no device, whose cable is null.
-		if (!edits::learnKnobOn(*owner, knob, midi::cable_of(device), which_knob, mode, midi_channel)) {
+		if (!edits::learnKnobOn(owner, knob, midi::cable_of(device), which_knob, mode, midi_channel)) {
 			return false;
 		}
 		// `SoundEditor::markInstrumentAsEdited`.

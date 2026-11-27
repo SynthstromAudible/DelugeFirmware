@@ -391,7 +391,7 @@ playingForwardNow:
 
 	if (paramManager.mightContainAutomation()) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 
 		if (didPingpong) {
 			paramManager.notifyPingpongOccurred(modelStackWithThreeMainThings);
@@ -533,7 +533,7 @@ void Clip::setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, boo
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		uint32_t pos = useLivePos ? getLivePos() : lastProcessedPos;
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 		paramManager.setPlayPos(pos, modelStackWithThreeMainThings, currentlyPlayingReversed);
 	}
 }
@@ -559,7 +559,7 @@ void Clip::reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) {
 		uint32_t actualPos = getLivePos();
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 		paramManager.setPlayPos(actualPos, modelStackWithThreeMainThings, currentlyPlayingReversed);
 	}
 }
@@ -657,7 +657,7 @@ void Clip::endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip) {
 // MIDI / CV cases - they're dealt with there
 Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
-	ModControllable* modControllable = output->toModControllable();
+	const deluge::model::LaneOwner owner = deluge::model::owner_of(*output);
 
 	bool success = modelStack->song->live.param_backup.getPreferablyWithClip(*output, this, &paramManager);
 
@@ -669,7 +669,7 @@ Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) 
 	}
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(modControllable, &paramManager);
+	    modelStack->addOtherTwoThingsButNoNoteRow(owner, &paramManager);
 
 	paramManager.trimToLength(loopLength(), modelStackWithThreeMainThings, nullptr, false);
 
@@ -712,7 +712,7 @@ TimelineCounter* Clip::getTimelineCounterToRecordTo() {
 }
 
 void Clip::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
-	modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+	modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 }
 
 void Clip::expectEvent() {
@@ -904,7 +904,7 @@ void Clip::lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldL
 	if (loopLength() < oldLength) {
 		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+			    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 			paramManager.trimToLength(loopLength(), modelStackWithThreeMainThings, action);
 		}
 
@@ -983,7 +983,7 @@ Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip*
 
 	if (!paramManager.containsAnyMainParamCollections()) {
 
-		ModControllable* modControllable = output->toModControllable();
+		const deluge::model::LaneOwner owner = deluge::model::owner_of(*output);
 
 		// If they're offering a Clip to just clone the ParamManager from...
 		if (favourClipForCloningParamManager) {
@@ -994,8 +994,7 @@ Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip*
 trimFoundParamManager:
 				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, modControllable, this,
-				                                                   &paramManager);
+				    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, owner, this, &paramManager);
 				paramManager.trimToLength(loopLength(), modelStackWithThreeMainThings, nullptr,
 				                          false); // oldLength actually has no consequence anyway
 				return Error::NONE;
@@ -1045,7 +1044,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool
 	// automation only gets cleared if clearAutomation is true
 	// MPE only gets cleared if clearSequenceAndMPE is true
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+	    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*output), &paramManager);
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager.summaries;

@@ -41,7 +41,6 @@ struct StereoSample;
 } // namespace deluge::dsp
 using StereoSample = deluge::dsp::StereoSample;
 class TimelineCounter;
-class ModControllable;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 class ModelStackWithAutoParam;
@@ -180,7 +179,6 @@ public:
 	                                bool setupWithoutActiveClipIfNeeded = true);
 	void detachActiveClip(Song* currentSong);
 
-	virtual ModControllable* toModControllable() { return nullptr; }
 	virtual bool isSkippingRendering() { return true; } // Not valid for Kits
 	bool clipHasInstance(Clip* clip);
 	void deleteAnyInstancesOfClip(Clip* clip);

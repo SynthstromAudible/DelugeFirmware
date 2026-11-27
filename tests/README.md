@@ -62,6 +62,7 @@ builds only `golden-vt-render`.
 | clip-lifetime | integration | scenario | property | gate | Which clip deletions free a clip the render still points at | platform, host-app, storage, model, ui, synth | nightly | app | ~1m |
 | container-guard | integration | scenario | property | gate | Which structural edits to the containers the audio render walks are made while the render could preempt them | platform, host-app, storage, model, ui, synth | nightly | app | ~1m |
 | playhead-moves | integration | scenario | property | gate | The interaction tier moves the playhead only with the render excluded | platform, host-app, storage, model, ui, synth | pr | app | ~30s |
+| peak-sidecars | integration | scenario | property | gate | a sample's sidecar through the card: written, restored, refused, skipped and partial | platform, host-app, storage | pr | app | ~30s |
 | card-reinsert | integration | scenario | property | gate | what a card swap does to the samples still in memory | platform, host-app, storage, model, ui, synth | nightly | app | ~6s |
 | audio-tick-hold | integration | scenario | regression | gate | the audio tick's hold and re-entry guard, on the booted app | platform, host-app, storage, model, ui, synth | pr | app | ~2s |
 | stem-export | integration | scenario | property | gate | an offline stem export must render byte-identical audio and write it | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | render | ~12s |
@@ -212,6 +213,7 @@ builds only `golden-vt-render`.
 | make-sample-selftest | unit | script | unit | gate | the sample golden cases' synthetic sources are what their cases assume, and the committed WAVs are their generator's output | tooling | pr | tooling | ~1s |
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | tooling | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | tooling | pr | tooling | ~1s |
+| placement-selftest | unit | script | unit | gate | the post-link placement gate's parse, call walk, boot prefix cuts, late-statics loads, vtable entries, known findings and hot report | tooling | pr | tooling | ~1s |
 | relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | tooling | pr | tooling | ~1s |
 | compare-strings-selftest | unit | script | unit | gate | the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change | tooling | pr | tooling | ~1s |
 | stream-bench-parser | unit | script | unit | gate | the streaming benchmark host script's parsing of device captures | tooling | pr | tooling | ~1s |

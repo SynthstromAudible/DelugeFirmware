@@ -2112,7 +2112,7 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 }
 
 // ------------------------------------
-// ModControllable implementation
+// Mod knobs and effects
 // ------------------------------------
 
 bool Sound::learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode, Song* song) {

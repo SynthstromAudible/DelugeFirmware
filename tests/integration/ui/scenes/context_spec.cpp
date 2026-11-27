@@ -65,8 +65,8 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.resolved).to_be_true();
 		expect(ctx.addresses.slot).to_equal(std::optional{instrument_slot(f)});
 		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
-		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod)
-		    .to_equal(static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument)));
+		Sound* const sound = static_cast<SoundInstrument*>(f.instrument);
+		expect(std::get<Sound*>(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod)).to_equal(sound);
 		expect(ctx.affect_entire).to_be_false();
 		expect(ctx.is_kit).to_be_false();
 		expect(ctx.source_index).to_equal(static_cast<int8_t>(0));
@@ -87,7 +87,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.affect_entire).to_be_true();
 		expect(ctx.is_kit_global_fx).to_be_true();
 		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
-		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod).not_().to_be_null();
+		expect(deluge::model::is_none(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod)).to_be_false();
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(ctx.addresses.chain.has_value()).to_be_true();
 		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::KIT);
@@ -181,7 +181,7 @@ describe menu_context("scenes::menu::context_for", $ {
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::MidiOrCv));
 		expect(ctx.addresses.slot.has_value()).to_be_false();
-		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod).to_be_null();
+		expect(deluge::model::is_none(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod)).to_be_true();
 		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
 	});
 
@@ -203,7 +203,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.is_song_view).to_be_true();
 		expect(ctx.addresses.chain.has_value()).to_be_true();
 		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::SONG);
-		expect(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod).not_().to_be_null();
+		expect(deluge::model::is_none(deluge::ui::scenes::spec::menu_engine(ctx, *f.song).mod)).to_be_false();
 	});
 
 	it("resolves a session/arranger root with no clip to the song root", _ {

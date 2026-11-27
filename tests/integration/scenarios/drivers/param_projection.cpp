@@ -2195,7 +2195,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			auto* withTC = ms->addTimelineCounter(nullptr);
 			auto* withNR = withTC->addNoteRow(0, &nr);
 			nr.setLoopLengthIfIndependent(effLen);
-			auto* with3 = withNR->addOtherTwoThings(nullptr, &pm);
+			auto* with3 = withNR->addOtherTwoThings(deluge::model::LaneOwner{}, &pm);
 			return with3->getUnpatchedAutoParamFromId(kDstParamId);
 		};
 

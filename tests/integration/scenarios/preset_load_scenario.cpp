@@ -640,9 +640,9 @@ bool writeLegacyDelay(const char* path) {
 /// @brief Whether @p owner's delay type was worked out at its load as OFF, its feedback unable to sound.
 /// @param owner The loaded sound, kit or drum to inspect.
 /// @return True if the type is resolved and OFF.
-bool delayResolvedOff(ModControllable& owner) {
-	return !owner.effectsOwner()->binding->delay_type_pending
-	       && owner.effectsOwner()->effects().delay.type == deluge::effects::DelayType::OFF;
+bool delayResolvedOff(deluge::model::LaneOwner owner) {
+	return !deluge::model::effects_owner_of(owner)->binding->delay_type_pending
+	       && deluge::model::effects_owner_of(owner)->effects().delay.type == deluge::effects::DelayType::OFF;
 }
 
 /// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).
@@ -1229,7 +1229,7 @@ void checkLeg() {
 				    "SYNTH the clip's instrument is not the loaded synth with its sample bound, or the browser "
 				    "is still open");
 			}
-			const bool off = isSynth && delayResolvedOff(*static_cast<SoundInstrument*>(instrument));
+			const bool off = isSynth && delayResolvedOff(static_cast<SoundInstrument*>(instrument));
 			printf("PL-DELAY leg=synth off=%d\n", off ? 1 : 0);
 			if (!off) {
 				g_report.fail("DELAY the loaded synth's delay type was not worked out as OFF at its load");
@@ -1281,9 +1281,9 @@ void checkLeg() {
 			g_report.fail("KIT the clip's instrument is not the loaded kit with each drum bound to its sample and a "
 			              "NoteRow, or the browser is still open");
 		}
-		bool off = isKit && delayResolvedOff(*kit);
+		bool off = isKit && delayResolvedOff(kit);
 		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
-			off = off && (drum->type != DrumType::SOUND || delayResolvedOff(*static_cast<SoundDrum*>(drum)));
+			off = off && (drum->type != DrumType::SOUND || delayResolvedOff(static_cast<SoundDrum*>(drum)));
 		}
 		printf("PL-DELAY leg=kit off=%d\n", off ? 1 : 0);
 		if (!off) {
@@ -1308,7 +1308,7 @@ void checkLeg() {
 			g_report.fail("ROW the kit row's drum is not the loaded synth, named after it with its sample bound, or "
 			              "the browser is still open");
 		}
-		const bool off = drum != nullptr && delayResolvedOff(*drum);
+		const bool off = drum != nullptr && delayResolvedOff(drum);
 		printf("PL-DELAY leg=row off=%d\n", off ? 1 : 0);
 		if (!off) {
 			g_report.fail("DELAY the loaded row drum's delay type was not worked out as OFF at its load");

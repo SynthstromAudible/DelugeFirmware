@@ -563,7 +563,7 @@ void init() {
 	        ->addParamCollectionSummary(paramManagerForSamplePreview->getPatchCableSetSummary());
 
 	((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-	    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+	    ->setupPatching(deluge::model::sound_of(modelStackWithParamCollection->owner),
 	                    *modelStackWithParamCollection->paramManager);
 	sampleForPreview->performInitialPatching(
 	    sampleForPreview->matrixBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));

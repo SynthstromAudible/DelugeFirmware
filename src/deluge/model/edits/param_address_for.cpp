@@ -26,14 +26,14 @@ uint32_t lazyIdMisses = 0;
 #endif
 
 namespace {
-/// The output or sound drum whose own param manager @p modControllable is, as an owner with no clip: an arranger row's
-/// backed-up params, named by the stack's mod controllable alone.
-std::optional<deluge::project::ParamAddress> backedOwnerOf(::Song& song, ModControllable* modControllable) {
-	if (modControllable == nullptr) {
+/// The output or sound drum whose own param manager @p owner is, as an owner with no clip: an arranger row's backed-up
+/// params, named by the stack's owner alone.
+std::optional<deluge::project::ParamAddress> backedOwnerOf(::Song& song, const deluge::model::LaneOwner& owner) {
+	if (deluge::model::is_none(owner)) {
 		return std::nullopt;
 	}
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
-		if (output->toModControllable() == modControllable) {
+		if (deluge::model::owner_of(*output) == owner) {
 			const std::optional<uint32_t> id = output->id();
 			return id ? std::optional{deluge::project::ParamAddress{.owner = deluge::project::OwnerId::instrument(*id)}}
 			          : std::nullopt;
@@ -42,7 +42,7 @@ std::optional<deluge::project::ParamAddress> backedOwnerOf(::Song& song, ModCont
 			continue;
 		}
 		for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
-			if (drum->toModControllable() == modControllable) {
+			if (deluge::model::owner_of(*drum) == owner) {
 				const std::optional<uint32_t> id = drum->id();
 				return id ? std::optional{deluge::project::ParamAddress{.owner = deluge::project::OwnerId::drum(*id)}}
 				          : std::nullopt;
@@ -60,8 +60,7 @@ std::optional<deluge::project::ParamAddress> ownerAddressFor(const ModelStackWit
 	TimelineCounter* tc = modelStack.getTimelineCounterAllowNull();
 	if (tc == nullptr) {
 		// The render plays no backed-up params, and must not walk the output lists the interaction tier edits.
-		return deluge::memory::onRenderTier() ? std::nullopt
-		                                      : backedOwnerOf(*modelStack.song, modelStack.modControllable);
+		return deluge::memory::onRenderTier() ? std::nullopt : backedOwnerOf(*modelStack.song, modelStack.owner);
 	}
 	if (tc == static_cast<TimelineCounter*>(modelStack.song)) {
 		return deluge::project::ParamAddress{.owner = deluge::project::OwnerId::song()};

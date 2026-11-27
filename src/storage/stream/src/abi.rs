@@ -40,6 +40,20 @@ pub unsafe extern "C" fn deluge_sample_stream_open_at(
     unsafe { registry::open_at(location, out_table_full) }
 }
 
+/// The identity of `handle`'s file on its card (`deluge_storage_stream.h`).
+///
+/// # Safety
+///
+/// `out` must be null or valid for one write.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
+pub unsafe extern "C" fn deluge_sample_stream_identity(
+    handle: DelugeHandle,
+    out: *mut crate::DelugeFileIdentity,
+) -> deluge_storage_sample_fill::DelugeStatus {
+    // SAFETY: this function's own contract is `registry::identity`'s.
+    unsafe { registry::identity(handle, out) }
+}
+
 /// Closes `handle`'s efatfs handle and releases its asset, if one was assigned. A no-op on `0` or
 /// an already-closed handle.
 #[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
@@ -123,6 +137,35 @@ mod tests {
             byte_depth: 2,
             num_channels: 1,
         }
+    }
+
+    #[test]
+    fn identity_answers_the_slots_own_efatfs_handle() {
+        let _serial = mock_backing::serial();
+        mock_backing::reset();
+        mock_backing::set_open_result(11, true, false);
+        let mut tf = false;
+        // SAFETY: a real `c"..."` literal path; `&mut tf` is a valid local out-param.
+        let h = unsafe { deluge_sample_stream_open(c"ID.WAV".as_ptr(), &mut tf) };
+        assert_ne!(h, 0);
+        let mut id = crate::DelugeFileIdentity::default();
+        // SAFETY: `&mut id` is a valid local out-param.
+        assert_eq!(
+            unsafe { deluge_sample_stream_identity(h, &mut id) },
+            DELUGE_OK
+        );
+        assert_eq!(id.first_cluster, 111); // the mock answers efatfs handle 11 as cluster 111
+                                           // SAFETY: as above.
+        assert_eq!(
+            unsafe { deluge_sample_stream_identity(0, &mut id) },
+            deluge_storage_sample_fill::DELUGE_ERR_PARAM
+        );
+        deluge_sample_stream_close(h);
+        // SAFETY: as above.
+        assert_eq!(
+            unsafe { deluge_sample_stream_identity(h, &mut id) },
+            deluge_storage_sample_fill::DELUGE_ERR_PARAM
+        );
     }
 
     #[test]

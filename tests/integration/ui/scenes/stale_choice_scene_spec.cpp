@@ -18,6 +18,7 @@
 #include "instruments/classic/sound_state.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
+#include "model/lane_owner.h"
 #include "processing/sound/sound_drum.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
@@ -82,7 +83,7 @@ describe stale_choice_scene("the menu scene over a stored choice that no longer 
 		// Choke shares a kit's voices among its lanes, so only a kit lane offers it; a synth track's stored choke is
 		// shown marked, past the four choices that apply.
 		spec::SongFixture f = spec::make_synth_song();
-		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		deluge::edits::settingFor(*sound, "polyphonic", deluge::serialization::Value::makeScalar("choke"));
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		LeafRig r;

@@ -117,7 +117,7 @@ struct DxSong {
 
 	DxSong() {
 		deluge::ui::scenes::spec::make_current(song.song);
-		sound = song.instrument->toModControllable()->effectsOwner()->sound;
+		sound = deluge::model::effects_owner_of(deluge::model::owner_of(*song.instrument))->sound;
 		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 		(void)sound->dx7Patch.ensure();
 	}

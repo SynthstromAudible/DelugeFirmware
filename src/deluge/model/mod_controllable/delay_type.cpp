@@ -128,7 +128,7 @@ void forEachChain(Song& song, const std::function<void(EffectsOwner, ParamManage
 	const auto audioOwnerOf = [](Output* output) -> std::optional<EffectsOwner> {
 		const bool hasChain =
 		    output->type == OutputType::SYNTH || output->type == OutputType::KIT || output->type == OutputType::AUDIO;
-		return hasChain ? output->toModControllable()->effectsOwner() : std::nullopt;
+		return hasChain ? deluge::model::effects_owner_of(deluge::model::owner_of(*output)) : std::nullopt;
 	};
 	// A backup's owner by its address, or (not yet adopted) itself.
 	const auto engineOf = [&](deluge::project::OwnerId owner) -> std::optional<EffectsOwner> {
@@ -207,7 +207,7 @@ void resolveWhere(Song& song, const std::function<bool(const EffectsOwner&)>& wa
 } // namespace
 
 DelayParamRole delayParamRole(const ModelStackWithAutoParam& modelStack) {
-	if (modelStack.modControllable == nullptr) {
+	if (deluge::model::is_none(modelStack.owner)) {
 		return DelayParamRole::NONE;
 	}
 	const bool rate =
@@ -242,7 +242,7 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 	if (role == DelayParamRole::NONE) {
 		return;
 	}
-	const EffectsOwner effects = *modelStack.modControllable->effectsOwner();
+	const EffectsOwner effects = *deluge::model::effects_owner_of(modelStack.owner);
 	if (role == DelayParamRole::RATE) {
 		if (currentSong != nullptr && effects.effects().delay.type != deluge::effects::DelayType::OFF) {
 			refreshDelayReserve(*currentSong, effects);

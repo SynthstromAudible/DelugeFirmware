@@ -598,7 +598,7 @@ describe menu_entry_node_arg("openMenu can name a node, not only a root", $ {
 	it("site 11 opens DX7 source on the new FM synth, keeping the undo log", _ {
 		// `InstrumentClipMinder::createNewInstrument`'s `soundEditor.setup(clip, &dxMenu, 0)`: a named item, so no wipe.
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
-		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 		expect(entry::openMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
@@ -616,7 +616,7 @@ describe menu_entry_node_arg("openMenu can name a node, not only a root", $ {
 	it("site 15 opens the DX7 parameter page on the column's operator, its pad blinking, keeping the undo log", _ {
 		// `DXColumn::handlePad`'s Shift arm: `openForOpOrGlobal`'s `setup(getCurrentClip(), &dxParam, 0)`.
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
-		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 		f.song->setCurrentClip(f.clip);
 		expect(entry::openMenu(nullptr, 0, false, false, false, false)).to_be_true();
@@ -766,7 +766,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		// `potentialShortcutPadAction`'s fallback: modulator 1's volume does not apply to a sound that is not FM, so
 		// `setup()` refuses it, and on a DX7 source `setup(clip, &dxParam, 0)` opens the page as `dxParam.param` stands.
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
-		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 		deluge::ui::scenes::menu_scene().land_dx(menu::DxState{.param = 3 * 21 + 2});
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 4, 0)).to_equal(&nodes::modulator0_volume);
@@ -1452,7 +1452,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		expect(ctx.is_drum).to_be_false();
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(ctx.addresses.chain.has_value()).to_be_true();
-		expect(entry::soundMenuModControllable()).to_equal(f.instrument->toModControllable());
+		expect(std::get<Kit*>(entry::sound_menu_owner())).to_equal(static_cast<Kit*>(f.instrument));
 		// The automation view under it agrees: the kit's own context.
 		expect(automationView.getAffectEntire()).to_be_true();
 		(void)shellHostUI.exitUI();
@@ -1518,7 +1518,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		// One tick: the press, then the drains that hand the move to the automation view. The editor is on the kit's
 		// own effects by then, as legacy's `setup()` re-points it before the view refreshes.
 		(void)shellHostUI.timerCallback();
-		expect(entry::soundMenuModControllable()).to_equal(k.f.instrument->toModControllable());
+		expect(std::get<Kit*>(entry::sound_menu_owner())).to_equal(static_cast<Kit*>(k.f.instrument));
 		expect(automationView.getAffectEntire()).to_be_true();
 		(void)shellHostUI.padAction(8, 7, 0);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
@@ -1847,7 +1847,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		PopupSpy spy;
 		DisplayGuard shown{spy};
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
-		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 5, 0)).to_equal(&nodes::modulator1_volume);
 		setRootUILowLevel(&instrumentClipView);
@@ -2013,7 +2013,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `setup()`'s MUST_SELECT_RANGE arm: `multiRangeMenu.menuItemHeadingTo = item; newItem = &multiRangeMenu`.
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
-		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		sound->sourceResources[0].ranges.insertMultiRange(0);
 		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0);
@@ -2070,7 +2070,7 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(entry::soundMenuModControllable()).to_equal(static_cast<ModControllable*>(drum));
+		expect(std::get<Sound*>(entry::sound_menu_owner())).to_equal(static_cast<Sound*>(drum));
 		expect(entry::soundMenuParamManager()).to_equal(&row->paramManager);
 		closeGuest();
 	});
@@ -2091,7 +2091,8 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		expect(param).not_().to_be_null();
 		if (param != nullptr) {
 			expect(param->paramManager).to_equal(&row->paramManager);
-			expect(param->modControllable).to_equal(static_cast<ModControllable*>(drum));
+			Sound* const sound = drum;
+			expect(std::get<Sound*>(param->owner)).to_equal(sound);
 		}
 		closeGuest();
 	});
@@ -2118,7 +2119,7 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		if (param != nullptr) {
 			expect(param->paramManager).to_equal(&static_cast<InstrumentClip*>(k.f.clip)->paramManager);
 			expect(param->paramManager).not_().to_equal(&row->paramManager);
-			expect(param->modControllable).to_equal(k.f.instrument->toModControllable());
+			expect(std::get<Kit*>(param->owner)).to_equal(static_cast<Kit*>(k.f.instrument));
 		}
 		closeGuest();
 	});
@@ -2151,12 +2152,12 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		SoundDrum* drum = deluge::ui::scenes::spec::add_drum<SoundDrum>(kit);
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(entry::soundMenuModControllable()).to_equal(static_cast<ModControllable*>(drum));
+		expect(std::get<Sound*>(entry::sound_menu_owner())).to_equal(static_cast<Sound*>(drum));
 
 		deluge::base::notify::DirtySet dirty;
 		dirty.raise(deluge::base::notify::Dirty::SongSwapped);
 		deluge::ui::scenes::menu_scene().on_model_changed(dirty);
-		expect(entry::soundMenuModControllable()).to_be_null();
+		expect(deluge::model::is_none(entry::sound_menu_owner())).to_be_true();
 		expect(entry::soundMenuParamManager()).to_be_null();
 		closeGuest();
 	});
@@ -2168,10 +2169,10 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		SoundDrum* drum = deluge::ui::scenes::spec::add_drum<SoundDrum>(kit);
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(entry::soundMenuModControllable()).to_equal(static_cast<ModControllable*>(drum));
+		expect(std::get<Sound*>(entry::sound_menu_owner())).to_equal(static_cast<Sound*>(drum));
 
 		entry::forgetMenuContext();
-		expect(entry::soundMenuModControllable()).to_be_null();
+		expect(deluge::model::is_none(entry::sound_menu_owner())).to_be_true();
 		expect(entry::soundMenuParamManager()).to_be_null();
 		closeGuest();
 	});
@@ -2185,10 +2186,10 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		SoundDrum* drum = deluge::ui::scenes::spec::add_drum<SoundDrum>(kit);
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(entry::soundMenuModControllable()).to_equal(static_cast<ModControllable*>(drum));
+		expect(std::get<Sound*>(entry::sound_menu_owner())).to_equal(static_cast<Sound*>(drum));
 
 		deluge::ui::scenes::menu_scene().open(nodes::root_song, menu::MenuContext{});
-		expect(entry::soundMenuModControllable()).to_be_null();
+		expect(deluge::model::is_none(entry::sound_menu_owner())).to_be_true();
 		expect(entry::soundMenuParamManager()).to_be_null();
 		closeGuest();
 	});
@@ -2290,7 +2291,7 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 		deluge::ui::scenes::spec::UiModeGuard mode;
 		(void)quiet_audio();
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
-		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		give_drum_a_sample(f, *sound, make_marker_sample());
 		setRootUILowLevel(&keyboardScreen);
 		currentUIMode = UI_MODE_AUDITIONING;
@@ -2304,7 +2305,7 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 		deluge::ui::scenes::spec::UiModeGuard mode;
 		(void)quiet_audio();
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
-		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		give_drum_a_sample(f, *sound, make_marker_sample());
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_AUDITIONING;

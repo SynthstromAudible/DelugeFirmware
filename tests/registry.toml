@@ -304,7 +304,7 @@ kind = "differential"
 gates = "the async Rust audio loader must load every file the SAME way the synchronous C++ card path does, loaded in the same process as the reference"
 areas = ["platform", "host-app", "storage", "model", "ui", "synth"]
 scenario = "audio_load_ab"
-markers = ["AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB-PREVIEW-DRAW", "AB-PREVIEW-DRAW-STALL", "AB-PREVIEW-DRAW-RELEASE", "AB-READ-PROGRESS", "AB-PRESCAN-RANGE", "AB-EJECT", "AB-EJECT-SUMMARY", "AB-DEFER", "AB-SUMMARY"]
+markers = ["AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB-PREVIEW-DRAW", "AB-PREVIEW-DRAW-STALL", "AB-PREVIEW-DRAW-RELEASE", "AB-READ-PROGRESS", "AB-IDENTITY", "AB-PITCH", "AB-PRESCAN-RANGE", "AB-EJECT", "AB-EJECT-SUMMARY", "AB-DEFER", "AB-SUMMARY"]
 result = "AB-RESULT failures=0"
 check = "tests/integration/checks/audio_load_ab.py"
 tier = "pr"
@@ -632,6 +632,20 @@ scenario = "playhead_moves"
 markers = ["PM-EFFECTS", "PM-START", "PM-RESTART", "PM-CONTINUE", "PM-SPP", "PM-TOARRANGER", "PM-TOSESSION", "PM-UNDO", "PM-CLIPLENGTH", "PM-CLIPSHIFT", "PM-ROWMUTE", "PM-ROWLENGTH", "PM-ROWDIRECTION", "PM-LATESTART", "PM-UNSOLO", "PM-INJECTSTART", "PM-INJECTAFTERMOVE", "PM-INJECTLAUNCH", "PM-ARRANGERRECORD", "PM-CLONE", "PM-RESUME", "PM-SELFREPAIR", "PM-CLIPSTOP", "PM-SPAN", "PM-SNAPSHOT"]
 result = "PM-RESULT failures=0"
 check = "tests/integration/checks/playhead_moves.py"
+tier = "pr"
+job = "app"
+runtime_s = 30
+
+[[harness]]
+name = "peak-sidecars"
+template = "scenario"
+kind = "property"
+gates = "a sample's sidecar through the card: written, restored, refused, skipped and partial"
+areas = ["platform", "host-app", "storage"]
+scenario = "peak_sidecars"
+markers = ["PS-WRITE", "PS-HIDDEN", "PS-PITCH-WRITE", "PS-RELOAD", "PS-PITCH", "PS-REWRITE", "PS-REWRITE-WRITTEN", "PS-CORRUPT", "PS-CORRUPT-REMOVED", "PS-FULL", "PS-PROTECT", "PS-TMP", "PS-PARTIAL-HOLD", "PS-PARTIAL", "PS-TRIM"]
+result = "PS-RESULT failures=0"
+check = "tests/integration/checks/peak_sidecars.py"
 tier = "pr"
 job = "app"
 runtime_s = 30
@@ -2133,7 +2147,7 @@ template = "unittest"
 path = "scripts/tasks"
 gates = "this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams"
 areas = ["tooling"]
-run = ["python3", "-m", "unittest", "test_harness_registry", "test_test_selection", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names", "test_cargo_workspace", "test_run_scratch", "test_check_abi_surface", "test_stretcher_coverage"]
+run = ["python3", "-m", "unittest", "test_harness_registry", "test_test_selection", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names", "test_cargo_workspace", "test_run_scratch", "test_check_abi_surface", "test_stretcher_coverage", "test_placement"]
 
 [[harness]]
 name = "render-preset-selftest"
@@ -2167,6 +2181,14 @@ gates = "the machine-code comparison of two images names what an address points 
 areas = ["tooling"]
 run = ["python3", "-m", "unittest", "test_compare_codegen"]
 requires = ["llvm-cxxfilt", "llvm-objcopy", "llvm-readelf"]
+
+[[harness]]
+name = "placement-selftest"
+template = "unittest"
+path = "tools"
+gates = "the post-link placement gate's parse, call walk, boot prefix cuts, late-statics loads, vtable entries, known findings and hot report"
+areas = ["tooling"]
+run = ["python3", "-m", "unittest", "test_check_placement"]
 
 [[harness]]
 name = "relocate-selftest"

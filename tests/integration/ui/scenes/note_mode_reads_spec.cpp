@@ -102,11 +102,11 @@ using Root = MenuContext::Root;
 
 /// @brief Whether the view's knobs move @p controllable: its focus's owner stack, resolved only while the focus is
 ///        on the current song.
-/// @param controllable The mod controllable to look for.
-bool knobs_move(ModControllable* controllable) {
+/// @param controllable The owner to look for.
+bool knobs_move(const deluge::model::LaneOwner& controllable) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	const ModelStackWithThreeMainThings* owner = view.knobOwnerStack(memory);
-	return owner != nullptr && owner->modControllable == controllable;
+	return owner != nullptr && owner->owner == controllable;
 }
 
 /// @brief Hold one legacy button for an example's lifetime, by writing only what `isButtonPressed`
@@ -808,12 +808,12 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		view.setActiveModControllableTimelineCounter(fx.clip, false);
-		expect(knobs_move(row0->toModControllable())).to_be_true();
+		expect(knobs_move(deluge::model::owner_of(*row0))).to_be_true();
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(kDisplayWidth + 1, 1, 1)).to_be_true();
 
 		expect(kit->selectedDrum).to_equal(row1);
-		expect(knobs_move(row1->toModControllable())).to_be_true();
+		expect(knobs_move(deluge::model::owner_of(*row1))).to_be_true();
 	});
 
 	it("nudging a held note out of its square goes up one level -- nudgeNotes' goUpOneLevel", _ {

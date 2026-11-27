@@ -26,8 +26,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use embedded_fatfs::{
-    Date, DateTime, File, FileContext, FileSystem, OemCpConverter, ReadWriteSeek, Time,
-    TimeProvider,
+    Date, DateTime, File, FileAttributes, FileContext, FileSystem, OemCpConverter, ReadWriteSeek,
+    Time, TimeProvider,
 };
 // embedded-fatfs keeps its own `io` traits `pub(crate)`; `File` implements the public
 // `embedded_io_async` ones.
@@ -743,6 +743,25 @@ where
     Some((f.detach(), filled))
 }
 
+/// An open file's identity on its card, from its context alone: its first cluster (0 for an empty file), its size
+/// and its directory entry's modify date and time as `date << 16 | time`. `None` for a context with no directory
+/// entry (the root).
+pub fn identity_of(ctx: &FileContext) -> Option<(u32, u32, u32)> {
+    const HAS_ENTRY: u8 = 1 << 2;
+    let bytes = ctx.to_bytes();
+    if bytes[1] & HAS_ENTRY == 0 {
+        return None;
+    }
+    // The 32-byte short entry sits at bytes 24..56: modify time at its offset 22, modify date at 24.
+    let time = u16::from_le_bytes([bytes[24 + 22], bytes[24 + 23]]);
+    let date = u16::from_le_bytes([bytes[24 + 24], bytes[24 + 25]]);
+    Some((
+        ctx.first_cluster().unwrap_or(0),
+        ctx.size()?,
+        (u32::from(date) << 16) | u32::from(time),
+    ))
+}
+
 /// Returns the file length in bytes, via `Seek(End(0))` since `File::size` is private to
 /// embedded-fatfs. `None` on any FS error.
 ///
@@ -909,6 +928,28 @@ where
 {
     let root = fs.root_dir();
     root.rename(old, &root, new)
+        .await
+        .map_err(|e| error_to_status(&e))
+}
+
+/// Marks the file or directory at `path` hidden, keeping its other attributes. Errors map through
+/// [`error_to_status`].
+pub async fn set_hidden<IO, TP, OCC>(
+    fs: &FileSystem<IO, TP, OCC>,
+    path: &str,
+) -> Result<(), DelugeStatus>
+where
+    IO: ReadWriteSeek,
+    TP: TimeProvider,
+    OCC: OemCpConverter,
+{
+    let root = fs.root_dir();
+    let attrs = root
+        .open_meta(path)
+        .await
+        .map_err(|e| error_to_status(&e))?
+        .attributes();
+    root.set_attributes(path, attrs | FileAttributes::HIDDEN)
         .await
         .map_err(|e| error_to_status(&e))
 }

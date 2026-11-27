@@ -3385,7 +3385,7 @@ Clip* makeDxClip() {
 	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::SYNTH) {
 		return nullptr;
 	}
-	auto* sound = clip->output->toModControllable()->effectsOwner()->sound;
+	auto* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*clip->output))->sound;
 	deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 	currentSong->setCurrentClip(clip);
 	return clip;

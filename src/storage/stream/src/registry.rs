@@ -150,6 +150,27 @@ unsafe fn claim(
 
 /// Closes `handle`'s efatfs handle and releases its asset, if one was assigned. A no-op on an
 /// invalid or already-closed handle.
+/// `handle`'s file identity, written through `out`: `DELUGE_OK`, or `DELUGE_ERR_PARAM` for an invalid handle.
+///
+/// # Safety
+///
+/// `out` must be null or valid for one write.
+pub unsafe fn identity(handle: u32, out: *mut crate::DelugeFileIdentity) -> DelugeStatus {
+    let Some(index) = slot_index(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
+    let Some(efatfs) =
+        REGISTRY.lock(|table| table.borrow()[index].as_ref().map(|s| s.efatfs_handle))
+    else {
+        return DELUGE_ERR_PARAM;
+    };
+    if out.is_null() {
+        return DELUGE_ERR_PARAM;
+    }
+    // SAFETY: a live efatfs handle, and `out` per this function's contract.
+    unsafe { crate::deluge_efatfs_file_identity(efatfs, out) }
+}
+
 pub fn close(handle: u32) {
     let Some(index) = slot_index(handle) else {
         return;
