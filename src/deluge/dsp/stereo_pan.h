@@ -17,33 +17,29 @@
 
 #pragma once
 
-#include "arm_neon_shim.h"
 #include "util/fixedpoint.h"
+#include <argon.hpp>
+#include <array>
 #include <cstdint>
 
 namespace deluge::dsp {
-
-// Vector form of (multiply_32x32_rshift32(x, amplitude) << 2), bit-exact for amplitude >= 0 (pan amplitudes are in
-// [0, 2^30]). vqdmulh gives floor(2xa / 2^32), which only saturates when x == a == INT32_MIN, and halving that again
-// rounds down to floor(xa / 2^32).
-[[gnu::always_inline]] inline int32x4_t panAmplitudeVector(int32x4_t x, int32x4_t amplitude) {
-	return vshlq_n_s32(vshrq_n_s32(vqdmulhq_s32(x, amplitude), 1), 2);
-}
 
 // shouldDoPanning()'s full-level amplitude. Every pan has it on at least one side (both, when centred).
 constexpr int32_t kPanUnityAmplitude = 1073741823;
 
 namespace detail {
-// One channel of the pan: the sample itself on a unity side, otherwise (sample * amplitude) >> 30. Adding the sample
-// directly differs from (multiply_32x32_rshift32(x, kPanUnityAmplitude) << 2) by -1..+5 LSB (about -172 dBFS), which
-// saves three of the four vector operations for that channel.
+// One channel of the pan, (sample * amplitude) >> 30, or the sample itself on a unity side.
+// MultiplyFixedQMax (vqdmulh) gives floor(2xa / 2^32), which only saturates when x == a == INT32_MIN, and halving that
+// again rounds down to floor(xa / 2^32), so with amplitude >= 0 (pan amplitudes are in [0, 2^30]) this is exactly
+// (multiply_32x32_rshift32(x, amplitude) << 2). Adding the sample directly on a unity side differs from that by
+// -1..+5 LSB (about -172 dBFS), and saves three of the four vector operations for the channel.
 template <bool unity>
-[[gnu::always_inline]] inline int32x4_t panChannelVector(int32x4_t x, int32x4_t amplitude) {
+[[gnu::always_inline]] inline Argon<int32_t> panChannel(Argon<int32_t> x, Argon<int32_t> amplitude) {
 	if constexpr (unity) {
 		return x;
 	}
 	else {
-		return panAmplitudeVector(x, amplitude);
+		return x.MultiplyFixedQMax(amplitude).ShiftRight<1>().ShiftLeft<2>();
 	}
 }
 template <bool unity>
@@ -59,15 +55,18 @@ template <bool unity>
 template <bool unityL, bool unityR>
 [[gnu::always_inline]] inline void addPannedMonoToStereo(int32_t* __restrict__ stereo, const int32_t* __restrict__ mono,
                                                          int32_t numSamples, int32_t amplitudeL, int32_t amplitudeR) {
-	int32x4_t ampL = vdupq_n_s32(amplitudeL);
-	int32x4_t ampR = vdupq_n_s32(amplitudeR);
+	constexpr int32_t kLanes = Argon<int32_t>::lanes;
+	// Broadcast once: with a scalar operand GCC re-inserts the amplitude into a lane on every iteration
+	Argon<int32_t> const ampL{amplitudeL};
+	Argon<int32_t> const ampR{amplitudeR};
 	int32_t i = 0;
-	for (; i + 4 <= numSamples; i += 4) {
-		int32x4_t in = vld1q_s32(mono + i);
-		int32x4x2_t out = vld2q_s32(stereo + 2 * i);
-		out.val[0] = vaddq_s32(out.val[0], panChannelVector<unityL>(in, ampL));
-		out.val[1] = vaddq_s32(out.val[1], panChannelVector<unityR>(in, ampR));
-		vst2q_s32(stereo + 2 * i, out);
+	for (; i + kLanes <= numSamples; i += kLanes) {
+		auto in = Argon<int32_t>::Load(mono + i);
+		auto [l, r] = Argon<int32_t>::LoadInterleaved<2>(stereo + 2 * i);
+		argon::store_interleaved<2>(stereo + 2 * i, std::array<Argon<int32_t>, 2>{
+		                                                l + panChannel<unityL>(in, ampL),
+		                                                r + panChannel<unityR>(in, ampR),
+		                                            });
 	}
 	for (; i < numSamples; i++) {
 		stereo[2 * i] += panChannel<unityL>(mono[i], amplitudeL);
@@ -78,15 +77,18 @@ template <bool unityL, bool unityR>
 template <bool unityL, bool unityR>
 [[gnu::always_inline]] inline void addPannedStereoToStereo(int32_t* __restrict__ stereo, const int32_t* __restrict__ in,
                                                            int32_t numSamples, int32_t amplitudeL, int32_t amplitudeR) {
-	int32x4_t ampL = vdupq_n_s32(amplitudeL);
-	int32x4_t ampR = vdupq_n_s32(amplitudeR);
+	constexpr int32_t kLanes = Argon<int32_t>::lanes;
+	// Broadcast once: with a scalar operand GCC re-inserts the amplitude into a lane on every iteration
+	Argon<int32_t> const ampL{amplitudeL};
+	Argon<int32_t> const ampR{amplitudeR};
 	int32_t i = 0;
-	for (; i + 4 <= numSamples; i += 4) {
-		int32x4x2_t x = vld2q_s32(in + 2 * i);
-		int32x4x2_t out = vld2q_s32(stereo + 2 * i);
-		out.val[0] = vaddq_s32(out.val[0], panChannelVector<unityL>(x.val[0], ampL));
-		out.val[1] = vaddq_s32(out.val[1], panChannelVector<unityR>(x.val[1], ampR));
-		vst2q_s32(stereo + 2 * i, out);
+	for (; i + kLanes <= numSamples; i += kLanes) {
+		auto [inL, inR] = Argon<int32_t>::LoadInterleaved<2>(in + 2 * i);
+		auto [l, r] = Argon<int32_t>::LoadInterleaved<2>(stereo + 2 * i);
+		argon::store_interleaved<2>(stereo + 2 * i, std::array<Argon<int32_t>, 2>{
+		                                                l + panChannel<unityL>(inL, ampL),
+		                                                r + panChannel<unityR>(inR, ampR),
+		                                            });
 	}
 	for (; i < numSamples; i++) {
 		stereo[2 * i] += panChannel<unityL>(in[2 * i], amplitudeL);
@@ -97,7 +99,7 @@ template <bool unityL, bool unityR>
 
 // stereo[2i] += mono[i] * amplitudeL, stereo[2i + 1] += mono[i] * amplitudeR (amplitudes are Q2.30), for i <
 // numSamples. StereoSample::addPannedMono() per sample, except that a kPanUnityAmplitude side adds the sample directly
-// (see panChannelVector()). Reads and writes exactly numSamples frames. Out of line: it runs once per unison part, and
+// (see panChannel()). Reads and writes exactly numSamples frames. Out of line: it runs once per unison part, and
 // inlining its call sites cost more in I-cache misses than the call.
 [[gnu::noinline]] inline void addPannedMonoToStereo(int32_t* __restrict__ stereo, const int32_t* __restrict__ mono,
                                                     int32_t numSamples, int32_t amplitudeL, int32_t amplitudeR) {
