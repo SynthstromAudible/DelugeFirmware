@@ -1,17 +1,17 @@
 RS-TAKE clips=7
 RS-TAKE clip=0 type=1 len=384
-RS-TAKE clip=0 row=-1 kind=3 lane=39 base=0 nodes=0,0,s 288,805306368,s 
+RS-TAKE clip=0 row=-1 kind=3 lane=23 base=0 nodes=0,0,s 288,805306368,s 
 RS-TAKE clip=1 type=1 len=384
-RS-TAKE clip=1 row=-1 kind=3 lane=39 base=0 nodes=0,0,s 288,805306368,s 
+RS-TAKE clip=1 row=-1 kind=3 lane=23 base=0 nodes=0,0,s 288,805306368,s 
 RS-TAKE clip=2 type=1 len=384
-RS-TAKE clip=2 row=-1 kind=3 lane=39 base=0 nodes=0,0,s 288,805306368,s 
+RS-TAKE clip=2 row=-1 kind=3 lane=23 base=0 nodes=0,0,s 288,805306368,s 
 RS-TAKE clip=3 type=1 len=384
-RS-TAKE clip=3 row=-1 kind=3 lane=39 base=0 nodes=0,0,s 288,805306368,s 
+RS-TAKE clip=3 row=-1 kind=3 lane=23 base=0 nodes=0,0,s 288,805306368,s 
 RS-TAKE clip=4 type=1 len=384
-RS-TAKE clip=4 row=-1 kind=3 lane=32 base=536870912 nodes=0,2147483647,s 334,536870912,s 372,536870912,i 
-RS-TAKE clip=4 row=-1 kind=3 lane=39 base=0 nodes=0,0,s 288,805306368,s 
+RS-TAKE clip=4 row=-1 kind=3 lane=16 base=536870912 nodes=0,2147483647,s 334,536870912,s 372,536870912,i 
+RS-TAKE clip=4 row=-1 kind=3 lane=23 base=0 nodes=0,0,s 288,805306368,s 
 RS-TAKE clip=5 type=0 len=1920
-RS-TAKE clip=5 row=-1 kind=3 lane=39 base=536870912 nodes=0,0,s 278,-536870912,s 354,-536870912,i 763,536870912,s 
+RS-TAKE clip=5 row=-1 kind=3 lane=23 base=536870912 nodes=0,0,s 278,-536870912,s 354,-536870912,i 763,536870912,s 
 RS-TAKE clip=5 row=0 kind=1 lane=24 base=2147483647 nodes=0,2147483647,s 192,536870912,s 384,2147483647,s 576,536870912,s 768,2147483647,s 960,536870912,s 1152,2147483647,s 1200,1073741824,s 1248,2147483647,s 1344,536870912,s 1536,2147483647,s 1584,1073741824,s 1632,2147483647,s 1728,536870912,s 
 RS-TAKE clip=5 row=1 kind=1 lane=24 base=2147483647 nodes=0,2147483647,s 96,805306368,s 192,2147483647,s 288,805306368,s 384,2147483647,s 480,805306368,s 576,2147483647,s 672,805306368,s 768,2147483647,s 864,805306368,s 960,2147483647,s 1056,805306368,s 1152,2147483647,s 1248,805306368,s 1344,2147483647,s 1440,805306368,s 1536,2147483647,s 1632,805306368,s 
 RS-TAKE clip=6 type=0 len=1920

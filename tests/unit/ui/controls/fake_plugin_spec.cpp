@@ -139,11 +139,11 @@ project::Song fake_song(uint8_t mode) {
 	project::Song song{};
 	project::DocOutput& output = song.output_structure.getOrCreate(3);
 	output.mod_knob_mode = mode;
-	output.controls = {{.control = {.button = 0, .knob = 0}, .target = kGain},
-	                   {.control = {.button = 0, .knob = 1}, .target = kTone},
-	                   {.control = {.button = 1, .knob = 0}, .target = kShape},
-	                   {.control = {.button = 1, .knob = 1}, .target = kWidth},
-	                   {.control = {.button = 2, .knob = 0}, .target = kRepeat}};
+	output.controls = {{.control = {.button = 0, .knob = 0}, .target = project::engine_target(kGain.value)},
+	                   {.control = {.button = 0, .knob = 1}, .target = project::engine_target(kTone.value)},
+	                   {.control = {.button = 1, .knob = 0}, .target = project::engine_target(kShape.value)},
+	                   {.control = {.button = 1, .knob = 1}, .target = project::engine_target(kWidth.value)},
+	                   {.control = {.button = 2, .knob = 0}, .target = project::engine_target(kRepeat.value)}};
 	output.instrument = project::InstrumentSlot{.plugin = std::string(Fake::descriptor().id.name),
 	                                            .state = plugin::StateHandle::of<Fake>({.gain = 7})};
 	return song;

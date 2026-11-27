@@ -4,7 +4,9 @@
 // settings, knob mappings, chain views, reverb, stutter and text after every push. And the mod button's popup, as the
 // engine showed it.
 
+#include "arp/params.h"
 #include "board_controls.hpp"
+#include "gui/l10n/param_names.h"
 #include "ui/scenes/services/knob_push.h"
 
 #include "gui/ui/shell_host/host_ports.h"
@@ -30,6 +32,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "util/functions.h"
 
+#include "support/main_numbering.h"
 #include "support/recorded_knob_pushes.h"
 #include "support/song_fixture.h"
 
@@ -162,7 +165,7 @@ std::string canonical(const Outcome& o) {
 	     o.stuttering});
 	for (const deluge::project::ControllerMapping& m : o.controls) {
 		text += std::to_string(m.control.button) + "." + std::to_string(m.control.knob) + ">"
-		        + std::to_string(m.target.value) + ",";
+		        + std::to_string(m.target.id.value) + ",";
 	}
 	return text + "|" + o.text;
 }
@@ -215,6 +218,36 @@ services::PushInputs inputs_of(const Side& side, bool held) {
 
 /// @brief Push knob @p knob on @p side (press and release), and where its outcome first differs from the recorded
 ///        one, or empty.
+/// @brief @p recorded with main's unpatched ids (each `>id` from 90 up to main's last, 132) as this tree numbers them
+///        (support/main_numbering.h); a chain's when @p chain.
+std::string in_our_numbering(std::string_view recorded, bool chain) {
+	std::string out;
+	size_t at = 0;
+	while (at < recorded.size()) {
+		const size_t arrow = recorded.find('>', at);
+		if (arrow == std::string_view::npos) {
+			out.append(recorded.substr(at));
+			break;
+		}
+		out.append(recorded.substr(at, arrow + 1 - at));
+		size_t end = arrow + 1;
+		while (end < recorded.size() && recorded[end] >= '0' && recorded[end] <= '9') {
+			end++;
+		}
+		const std::string digits{recorded.substr(arrow + 1, end - arrow - 1)};
+		const uint64_t id = digits.empty() ? 0 : std::stoull(digits);
+		if (id >= deluge::ui::scenes::spec::main_numbering::kUnpatchedFirstId && id <= 132) {
+			out += std::to_string(
+			    deluge::ui::scenes::spec::main_numbering::target_of_id(chain, static_cast<uint32_t>(id)).id.value);
+		}
+		else {
+			out += digits;
+		}
+		at = end;
+	}
+	return out;
+}
+
 std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, std::string_view recorded) {
 	(void)last_notice();
 	hold_mod_button(mode, held);
@@ -237,7 +270,8 @@ std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, std::str
 	hold_mod_button(mode, false);
 	(void)last_notice();
 
-	if (const std::string why = first_difference(recorded, canonical(pushed)); !why.empty()) {
+	const std::string ours = in_our_numbering(recorded, !std::holds_alternative<bind::SoundFocus>(side.focus.owner));
+	if (const std::string why = first_difference(ours, canonical(pushed)); !why.empty()) {
 		return "mode " + std::to_string(mode) + " knob " + std::to_string(knob) + (held ? " held" : "") + ": " + why;
 	}
 	return {};
@@ -534,6 +568,33 @@ describe knob_push("what a gold knob's push and a mod button do, from the record
 		}
 		report(found);
 		expect(found.empty()).to_be_true();
+		currentSong = before;
+	});
+
+	it("names a synth's knobs on its arp's params by the arp's names", _ {
+		Song* const before = currentSong;
+		deluge::ui::scenes::spec::SongFixture a = deluge::ui::scenes::spec::make_synth_song();
+		Side side = synth_side(a);
+		currentSong = side.song;
+		deluge::project::DocOutput* record = side.song->project.output_structure.find(*a.instrument->id());
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			using deluge::project::ParamSpace;
+			using deluge::project::ParamTarget;
+			for (deluge::project::ControllerMapping& m : record->controls) {
+				if (m.control.button == 0) {
+					m.target = ParamTarget{.space = ParamSpace::ARP,
+					                       .id = m.control.knob == 1 ? deluge::arp::param::kGate : deluge::arp::param::kRate};
+				}
+			}
+			StubDisplay stub;
+			display = &stub;
+			(void)deluge::edits::modKnobModeFor(side.mode_owner, 0);
+			const std::string shown = services::mod_button_popup(side.song->project, side.focus, 0, inputs_of(side, true));
+			display = nullptr;
+			expect(shown).to_equal(std::string{deluge::l10n::arp_param_name(deluge::arp::param::kGate)} + "\n"
+			                       + std::string{deluge::l10n::arp_param_name(deluge::arp::param::kRate)});
+		}
 		currentSong = before;
 	});
 

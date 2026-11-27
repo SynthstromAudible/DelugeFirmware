@@ -25,6 +25,7 @@
 //     target and back through the bridge, ids resolve only in their owner's plugin, and every table that names params
 //     by target gives cell by cell the runtime param its recorded characterisation holds
 
+#include "arp/params.h"
 #include "board_controls.hpp"
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
@@ -36,6 +37,8 @@
 #include "model/fx/chain_params.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_reads.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/song/song.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
@@ -47,8 +50,10 @@
 #include "scenarios/drivers/midi_follow_xml_reference.h"
 #include "scenarios/drivers/param_target_tables_reference.h"
 #include "storage/storage_manager.h"
+#include "support/main_numbering.h"
 #include "ui/controls/knob_focus.h"
 #include "ui/scenes/bind/knob_assignment.h"
+#include "util/misc.h"
 
 #include <array>
 #include <cstdio>
@@ -132,6 +137,143 @@ void checkRoundTrip(Checker& check) {
 	}
 }
 
+/// The automation selection's crossings: every pair the views select comes back from its PluginParam, and a clip's or
+/// the song's file attributes read as their selections (a MIDI clip's CC, whatever kind it kept).
+void checkSelection(Checker& check) {
+	using deluge::bridge::clipSelectionOfFile;
+	using deluge::bridge::pluginParamOf;
+	using deluge::bridge::runtimePairOf;
+	using deluge::bridge::songSelectionOfFile;
+	using deluge::project::midi_cc_param;
+	using deluge::project::ParamSpace;
+	auto trip = [&](params::Kind kind, int32_t index) {
+		const RuntimeParam back = runtimePairOf(pluginParamOf(kind, index));
+		if (back.kind != kind || back.index != index) {
+			check.fail("selection round trip", static_cast<int>(kind), index, static_cast<int>(back.kind));
+		}
+	};
+	for (int32_t p = 0; p < params::kNumParams; ++p) {
+		trip(params::Kind::PATCHED, p);
+	}
+	for (int32_t u = 0; u < params::UNPATCHED_SOUND_MAX_NUM; ++u) {
+		trip(params::Kind::UNPATCHED_SOUND, u);
+	}
+	for (int32_t u = 0; u < params::UNPATCHED_GLOBAL_MAX_NUM; ++u) {
+		trip(params::Kind::UNPATCHED_GLOBAL, u);
+	}
+	for (int32_t e = 0; e < kNumExpressionDimensions; ++e) {
+		trip(params::Kind::EXPRESSION, e);
+	}
+	for (int32_t a = 0; a < static_cast<int32_t>(deluge::arp::kParamCount); ++a) {
+		trip(params::Kind::ARP, a);
+	}
+	for (int32_t cc = 0; cc < kNumCCExpression; ++cc) {
+		trip(params::Kind::MIDI, cc);
+	}
+	for (const auto& column : params::kSoundParamShortcuts) {
+		for (const auto& cell : column) {
+			if (!cell) {
+				continue;
+			}
+			const std::optional<RuntimeParam> runtime = deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, *cell);
+			if (runtime && runtime->kind == params::Kind::PATCH_CABLE) {
+				trip(params::Kind::PATCH_CABLE, runtime->index);
+			}
+		}
+	}
+
+	const RuntimeParam none = runtimePairOf(std::nullopt);
+	if (pluginParamOf(params::Kind::NONE, 5) || none.kind != params::Kind::NONE
+	    || none.index != static_cast<int32_t>(params::kNoParamID)) {
+		check.fail("no selection", static_cast<int>(none.kind), none.index, 0);
+	}
+
+	constexpr int32_t kExpression = util::to_underlying(params::Kind::EXPRESSION);
+	constexpr int32_t kPatched = util::to_underlying(params::Kind::PATCHED);
+	constexpr int32_t kGlobal = util::to_underlying(params::Kind::UNPATCHED_GLOBAL);
+	if (clipSelectionOfFile(0, 74) != midi_cc_param(74)) {
+		check.fail("a MIDI clip's CC, kind none", 0, 74, 0);
+	}
+	if (clipSelectionOfFile(kExpression, 74) != midi_cc_param(74)) {
+		check.fail("a MIDI clip's CC, kind expression", kExpression, 74, 0);
+	}
+	const std::optional<deluge::project::PluginParam> y = clipSelectionOfFile(kExpression, 1);
+	if (!y || y->target.space != ParamSpace::EXPRESSION || y->target.id.value != 1) {
+		check.fail("an expression lane", kExpression, 1, 0);
+	}
+	if (clipSelectionOfFile(kPatched, 24) != pluginParamOf(params::Kind::PATCHED, 24)) {
+		check.fail("a patched param", kPatched, 24, 0);
+	}
+	for (int32_t kind = 0; kind <= util::to_underlying(params::Kind::ARP); ++kind) {
+		if (clipSelectionOfFile(kind, -1) || songSelectionOfFile(kind, -1)) {
+			check.fail("no id", kind, -1, 0);
+		}
+	}
+	if (clipSelectionOfFile(99, 3) || songSelectionOfFile(99, 3)) {
+		check.fail("no kind", 99, 3, 0);
+	}
+	const int32_t tempoIndex = *deluge::host::chains::find_runtime_index(deluge::host::chains::param::kTempo);
+	const std::optional<deluge::project::PluginParam> tempo = songSelectionOfFile(kGlobal, tempoIndex);
+	if (!tempo || tempo->plugin != OwnerPlugin::GLOBAL_EFFECTABLE
+	    || tempo->target != deluge::project::engine_target(deluge::host::chains::param::kTempo.value)) {
+		check.fail("the song's tempo", kGlobal, tempoIndex, 0);
+	}
+	if (songSelectionOfFile(0, tempoIndex)) {
+		check.fail("the song's kind none", 0, tempoIndex, 0);
+	}
+	if (deluge::bridge::isCableCollection(nullptr)) {
+		check.fail("no collection is a cable set", 0, 0, 0);
+	}
+}
+
+/// The ids the edits name are the runtime params they replace, and a knob's control target is the same by plugin as by
+/// the kind that numbers its owner's unpatched params.
+void checkEditIds(Checker& check) {
+	namespace classic = deluge::instruments::classic;
+	namespace chains = deluge::host::chains;
+	if (classic::runtime_slot(classic::param::kCompressorShape)->index != params::UNPATCHED_SIDECHAIN_SHAPE
+	    || *chains::find_runtime_index(chains::param::kCompressorShape) != params::UNPATCHED_SIDECHAIN_SHAPE
+	    || *chains::find_runtime_index(chains::param::kSidechainCompressorVolume) != params::UNPATCHED_SIDECHAIN_VOLUME
+	    || classic::param::kVolumePostReverbSend.value != params::GLOBAL_VOLUME_POST_REVERB_SEND
+	    || classic::param::kVolume.value != params::LOCAL_VOLUME) {
+		check.fail("an edit's id", 0, 0, 0);
+	}
+	for (uint32_t p = 0; p < params::UNPATCHED_START + params::UNPATCHED_GLOBAL_MAX_NUM; ++p) {
+		const deluge::modulation::KnobTarget knob = deluge::modulation::knobParam(p);
+		if (deluge::bridge::controlTargetOf(knob, OwnerPlugin::INSTRUMENT)
+		        != deluge::bridge::controlTargetOf(knob, params::Kind::UNPATCHED_SOUND)
+		    || deluge::bridge::controlTargetOf(knob, OwnerPlugin::GLOBAL_EFFECTABLE)
+		           != deluge::bridge::controlTargetOf(knob, params::Kind::UNPATCHED_GLOBAL)) {
+			check.fail("control target by plugin", static_cast<int>(p), 0, 0);
+		}
+	}
+}
+
+/// Each classic or chain id a runtime read names indexes the runtime param it replaces.
+void checkReads(Checker& check) {
+	namespace classic = deluge::instruments::classic::param;
+	namespace chains = deluge::host::chains::param;
+	using deluge::bridge::patchedIndex;
+	using deluge::bridge::unpatchedIndex;
+	auto same = [&](const char* what, int32_t read, int32_t runtime) {
+		if (read != runtime) {
+			check.fail(what, read, runtime, 0);
+		}
+	};
+	same("env 1 attack", patchedIndex(classic::kEnv1Attack), params::LOCAL_ENV_0_ATTACK);
+	same("env 4 attack", patchedIndex(classic::kEnv4Attack), params::LOCAL_ENV_0_ATTACK + 3);
+	same("modulator 1 volume", patchedIndex(classic::kModulator1Volume), params::LOCAL_MODULATOR_0_VOLUME);
+	same("modulator 2 volume", patchedIndex(classic::kModulator2Volume), params::LOCAL_MODULATOR_0_VOLUME + 1);
+	same("volume post FX", patchedIndex(classic::kVolumePostFX), params::GLOBAL_VOLUME_POST_FX);
+	same("volume", patchedIndex(classic::kVolume), params::LOCAL_VOLUME);
+	same("portamento", unpatchedIndex(classic::kPortamento), params::UNPATCHED_PORTAMENTO);
+	same("chain volume", unpatchedIndex(chains::kVolume), params::UNPATCHED_VOLUME);
+	same("chain reverb", unpatchedIndex(chains::kReverbAmount), params::UNPATCHED_REVERB_SEND_AMOUNT);
+	same("chain tempo", unpatchedIndex(chains::kTempo), params::UNPATCHED_TEMPO);
+	same("sound unpatched count", static_cast<int32_t>(deluge::instruments::classic::kParamBlocks[1].count),
+	     params::UNPATCHED_SOUND_MAX_NUM);
+}
+
 using Table = param_target_tables_reference::Table;
 
 /// The recorded cells of @p table, in the order recorded.
@@ -165,8 +307,30 @@ void checkCell(Checker& check, const char* table, OwnerPlugin owner, std::option
 		}
 		return;
 	}
+	// The cells are main's: its unpatched params past the arp's sit 15 (16) higher, and the arp's own (a sound's arp
+	// rate, its patched 54, among them) are ours by arp id (support/main_numbering.h).
+	params::Kind kind = cell.kind;
+	int32_t index = cell.index;
+	if (kind == params::Kind::PATCHED) {
+		if (const std::optional<uint32_t> arp =
+		        deluge::ui::scenes::spec::main_numbering::arp_id_of_patched(static_cast<uint32_t>(index))) {
+			kind = params::Kind::ARP;
+			index = static_cast<int32_t>(*arp);
+		}
+	}
+	else if (kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
+		namespace numbering = deluge::ui::scenes::spec::main_numbering;
+		if (const std::optional<uint32_t> arp =
+		        numbering::arp_id_of_index(kind == params::Kind::UNPATCHED_GLOBAL, index)) {
+			kind = params::Kind::ARP;
+			index = static_cast<int32_t>(*arp);
+		}
+		else {
+			index = numbering::index_of(index);
+		}
+	}
 	std::optional<RuntimeParam> runtime = target ? deluge::bridge::runtimeParamOf(owner, *target) : std::nullopt;
-	if (!runtime || runtime->kind != cell.kind || runtime->index != cell.index) {
+	if (!runtime || runtime->kind != kind || runtime->index != index) {
 		check.fail(table, cell.cell, static_cast<int>(cell.kind), cell.index);
 	}
 }
@@ -234,6 +398,9 @@ void checkMIDICCShortcuts(Checker& check) {
 					else if (param.kind == params::Kind::UNPATCHED_SOUND) {
 						cc = follow.soundParamToCC[params::UNPATCHED_START + param.index];
 					}
+					else if (param.kind == params::Kind::ARP) {
+						cc = follow.soundArpParamToCC[param.index];
+					}
 					if (cc != MIDI_CC_NONE) {
 						expected = cc;
 					}
@@ -299,20 +466,41 @@ void checkMidiFollow(Checker& check) {
 	for (const auto& cell : recorded(Table::FOLLOW_SOUND_TO_CC)) {
 		// the cell is the param's flat id, which is its instrument id; the gap between the patched and unpatched
 		// params names no param
-		const ParamTarget target = deluge::project::engine_target(static_cast<uint32_t>(cell.cell));
+		// The cell is main's id; the controlling CC is main's for that id, the CC asked is ours for its param.
+		const auto main_id = static_cast<uint32_t>(cell.cell);
+		const bool unpatched = main_id >= deluge::ui::scenes::spec::main_numbering::kUnpatchedFirstId;
+		const std::optional<uint32_t> arp_rate =
+		    unpatched ? std::nullopt : deluge::ui::scenes::spec::main_numbering::arp_id_of_patched(main_id);
+		const ParamTarget target = unpatched ? deluge::ui::scenes::spec::main_numbering::target_of_id(false, main_id)
+		                           : arp_rate
+		                               ? ParamTarget{.space = deluge::project::ParamSpace::ARP, .id = {*arp_rate}}
+		                               : deluge::project::engine_target(main_id);
 		std::optional<RuntimeParam> param = deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, target);
 		if (!param) {
 			continue;
 		}
-		const int expected = controlling(Table::FOLLOW_CC_TO_SOUND, param->kind, param->index);
+		// Main's record names the param by its own kind: a sound's arp rate as patched
+		const int expected =
+		    unpatched  ? controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::UNPATCHED_SOUND,
+		                             static_cast<int32_t>(main_id - params::UNPATCHED_START))
+		    : arp_rate ? controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::PATCHED, static_cast<int32_t>(main_id))
+		               : controlling(Table::FOLLOW_CC_TO_SOUND, param->kind, param->index);
 		std::optional<uint8_t> cc = follow.ccOf(OwnerPlugin::INSTRUMENT, target);
 		if (ccNumber(cc) != expected || ccNumber(cc) != cell.index) {
 			check.fail("follow sound CC", cell.cell, ccNumber(cc), cell.index);
 		}
 	}
 	for (const auto& cell : recorded(Table::FOLLOW_GLOBAL_TO_CC)) {
-		std::optional<ParamTarget> target =
-		    deluge::bridge::targetOf(OwnerPlugin::GLOBAL_EFFECTABLE, params::Kind::UNPATCHED_GLOBAL, cell.cell);
+		// The cell is main's unpatched index, as this tree names it (support/main_numbering.h).
+		std::optional<ParamTarget> target;
+		if (const std::optional<uint32_t> arp =
+		        deluge::ui::scenes::spec::main_numbering::arp_id_of_index(true, cell.cell)) {
+			target = ParamTarget{.space = deluge::project::ParamSpace::ARP, .id = deluge::plugin::ParamId{*arp}};
+		}
+		else {
+			target = deluge::bridge::targetOf(OwnerPlugin::GLOBAL_EFFECTABLE, params::Kind::UNPATCHED_GLOBAL,
+			                                  deluge::ui::scenes::spec::main_numbering::index_of(cell.cell));
+		}
 		const int expected = controlling(Table::FOLLOW_CC_TO_GLOBAL, params::Kind::UNPATCHED_GLOBAL, cell.cell);
 		std::optional<uint8_t> cc = target ? follow.ccOf(OwnerPlugin::GLOBAL_EFFECTABLE, *target) : std::nullopt;
 		// the recorded map is kept but for the EQ, whose feedback went out on the filters' CCs
@@ -507,6 +695,9 @@ void checkKnobWords(Checker& check) {
 int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	checkRoundTrip(check);
+	checkSelection(check);
+	checkEditIds(check);
+	checkReads(check);
 	checkShortcutsAndOrders(check);
 	checkMIDICCShortcuts(check);
 	checkMidiFollow(check);

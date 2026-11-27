@@ -16,6 +16,8 @@
  */
 
 #include "processing/sound/sound.h"
+#include "arp/params.h"
+#include "modulation/params/arp_param_set.h"
 
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
@@ -225,7 +227,6 @@ void Sound::initParams(ParamManager* paramManager) {
 	                     params::LOCAL_PITCH_ADJUST,
 	                     params::GLOBAL_REVERB_AMOUNT,
 	                     params::GLOBAL_DELAY_RATE,
-	                     params::GLOBAL_ARP_RATE,
 	                     params::GLOBAL_DELAY_FEEDBACK,
 	                     params::LOCAL_CARRIER_0_FEEDBACK,
 	                     params::LOCAL_CARRIER_1_FEEDBACK,
@@ -412,9 +413,19 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 	PatchCableSet& cables = *paramManager.getPatchCableSet();
 	block.program = cables.program();
 	PatchedParamSet& patched = *paramManager.getPatchedParamSet();
+	// The arp rate's base is the arp's own param; the patched slot of its destination holds nothing
+	const auto preset = [&](int32_t p) {
+		if (p != params::GLOBAL_ARP_RATE) {
+			return patched.getKnob(p);
+		}
+		// A manager with no arp plays the arp's starting rate, zero
+		static_assert(deluge::arp::default_value(deluge::arp::Owner::SOUND, deluge::arp::param::kRate) == 0);
+		ArpParamSet* arp = paramManager.getArpParamSet();
+		return arp != nullptr ? arp->getKnob(deluge::arp::param::kRate.value) : deluge::dsp::Q<31>{};
+	};
 	if (gather == PresetGather::ALL) {
 		for (int32_t p = 0; p < deluge::modulation::params::kNumParams; p++) {
-			block.preset_values[p] = patched.getKnob(p);
+			block.preset_values[p] = preset(p);
 		}
 	}
 	else if (block.program != nullptr) {
@@ -422,7 +433,7 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 		for (const deluge::synth::matrix::ScopeView& scope : block.program->scopes) {
 			for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; k++) {
 				const int32_t p = scope.destinations[k].param;
-				block.preset_values[p] = patched.getKnob(p);
+				block.preset_values[p] = preset(p);
 			}
 		}
 	}
@@ -511,13 +522,15 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			if (!strcmp(tagName, "modKnob")) {
 				reader.match('{');
 				uint8_t p = params::GLOBAL_NONE;
+				std::optional<deluge::plugin::ParamId> arp; // the name's arp param, for a knob with no source
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "controlsParam")) {
-						p = params::fileStringToParam(params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(),
-						                              true);
+						char const* name = reader.readTagOrAttributeValue();
+						arp = deluge::arp::find_by_file_name(name);
+						p = params::fileStringToParam(params::Kind::UNPATCHED_SOUND, name, true);
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
 						s = stringToSource(reader.readTagOrAttributeValue());
@@ -531,7 +544,13 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 				if (k < kNumModButtons) { // Ensure we're not loading more than actually fit in our array
 					// A knob only controls a real param: "range" names no param a knob can move.
-					if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
+					// A plain arp name is the arp's param (a sound's arpRate too, whose patched row is its cable
+					// destination alone); with a source it names the cable to that row
+					if (arp && s == PatchSource::NOT_AVAILABLE) {
+						modKnobs[k][w].target =
+						    deluge::project::ParamTarget{.space = deluge::project::ParamSpace::ARP, .id = *arp};
+					}
+					else if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 						ModKnob& new_knob = modKnobs[k][w];
 
 						if (s == PatchSource::NOT_AVAILABLE) {
@@ -808,11 +827,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		return;
 	}
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	if (arpSettings != nullptr) {
-		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
+		arpSettings->values = paramManager->getArpParamSet()->values();
 	}
 
 	getArpBackInTimeAfterSkippingRendering(arpSettings); // Have to do this before telling the arp to noteOn()
@@ -1700,8 +1717,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		// Only the arp reads these here. With it off, noteOn() refreshes them before it uses them, so don't touch
 		// them (cold memory) every render
-		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
+		arpSettings->values = paramManager->getArpParamSet()->values();
+		uint32_t gateThreshold = arpSettings->values.unsigned_word(deluge::arp::param::kGate);
 		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
 		    deluge::synth::matrix::global_param_value<params::GLOBAL_ARP_RATE>(params.param_final_values));
 
@@ -2140,8 +2157,8 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 }
 
 bool Sound::learnedKnobTurns(Song* song, int32_t p) {
-	const deluge::project::ParamTarget param = deluge::project::engine_target(
-	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).value);
+	const deluge::project::ParamTarget param =
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND);
 	using Kind = deluge::project::ControlsAddress::Kind;
 	const std::optional<uint32_t> id =
 	    isDrum() ? static_cast<SoundDrum*>(this)->id() : static_cast<SoundInstrument*>(this)->id();
@@ -2327,6 +2344,9 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 	patched->bindDomStore();
 	deluge::project::DocParamSet* uStore = unpatched->domStore();
 	deluge::project::DocParamSet* pStore = patched->domStore();
+	ArpParamSet* arp = paramManager->getArpParamSet(); // the arp/probability/spread params land in its store
+	arp->bindDomStore();
+	deluge::project::DocParamSet* aStore = arp->domStore();
 	char const* tagName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -2335,7 +2355,8 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 			                           *deluge::storage::treeReaderOf(reader).currentValue(), readAutomationUpToPos);
 			reader.exitTag("patchCables");
 		}
-		else if (deluge::bridge::readSoundParamTagToDoc(reader, tagName, *pStore, *uStore, readAutomationUpToPos)) {}
+		else if (deluge::bridge::readSoundParamTagToDoc(reader, tagName, *pStore, *uStore, readAutomationUpToPos,
+		                                                aStore)) {}
 		else {
 			reader.exitTag(tagName);
 		}
@@ -2343,6 +2364,7 @@ void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* pa
 	reader.match('}');
 	unpatched->projectFromStoreAfterRead(unpatchedSummary);
 	patched->projectFromStoreAfterRead(patchedSummary);
+	arp->projectFromStoreAfterRead(paramManager->getArpParamSetSummary());
 }
 
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
@@ -2430,7 +2452,7 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
 	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND),
 	                                     paramManager->getPatchCableSet()->records().records(), doc.cable_depths,
-	                                     writer, writeAutomation);
+	                                     writer, writeAutomation, doc.arp ? &*doc.arp : nullptr);
 }
 
 void Sound::deriveConfig() {
@@ -2621,8 +2643,14 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
 			// the controller mappings' runtime copy, as the file's descriptor words name it
-			const deluge::synth::CableTarget word = deluge::modulation::knobWord(modKnobs[k][w].target);
+			const deluge::modulation::KnobTarget& target = modKnobs[k][w].target;
 			writer.writeOpeningTagBeginning("modKnob", true);
+			if (target && target->space == deluge::project::ParamSpace::ARP) {
+				writer.writeAttribute("controlsParam", deluge::arp::row(target->id).info.file_name.data(), false);
+				writer.closeTag(true);
+				continue;
+			}
+			const deluge::synth::CableTarget word = deluge::modulation::knobWord(target);
 			writer.writeAttribute("controlsParam",
 			                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND, word.param_index()), false);
 			if (!word.is_param()) {

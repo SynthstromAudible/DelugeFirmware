@@ -1,5 +1,7 @@
 #include "ui/scenes/bind/param_facts.h"
 
+#include "arp/params.h"
+
 #include "host/chains/params.h"
 #include "instruments/classic/cables.h"
 #include "instruments/classic/params.h"
@@ -19,6 +21,9 @@ bool is_chain(const project::PluginParam& p) {
 } // namespace
 
 const plugin::ParamInfo* info_of(const project::PluginParam& p) {
+	if (p.target.space == project::ParamSpace::ARP) {
+		return plugin::find_param(arp::kParamInfos, p.target.id); // an arp param's row, on any owner
+	}
 	if (!is_engine(p) || is_cable(p)) {
 		return nullptr;
 	}
@@ -37,6 +42,7 @@ bool is_patched(const project::PluginParam& p) {
 bool is_bipolar(const project::PluginParam& p) {
 	switch (p.target.space) {
 	case project::ParamSpace::MIDI_CC:
+	case project::ParamSpace::ARP:
 		return false;
 	case project::ParamSpace::EXPRESSION:
 		return p.target.id == instruments::classic::kExpressionPitchBend;
@@ -58,7 +64,7 @@ bool is_stutter_rate(const project::PluginParam& p) {
 }
 
 bool is_arp_rhythm(const project::PluginParam& p) {
-	return is_engine(p) && !is_chain(p) && instruments::classic::is_arp_rhythm(p.target.id);
+	return p.target.space == project::ParamSpace::ARP && arp::is_rhythm(p.target.id);
 }
 
 } // namespace deluge::ui::scenes::bind

@@ -21,6 +21,7 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "project/owner_plugin.h"
 
 #include <cstdint>
 #include <string>
@@ -69,7 +70,7 @@ ModelStackWithAutoParam* kitRowLane(spec::SongFixture& f, int32_t index, int32_t
 ModelStackWithAutoParam* ccLane(spec::SongFixture& f, int32_t cc, void* memory) {
 	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, f.clip);
 	return static_cast<MIDIInstrument*>(f.instrument)
-	    ->getModelStackWithParam(stack, f.clip, cc, params::Kind::MIDI, /*affectEntire=*/false,
+	    ->getModelStackWithParam(stack, f.clip, deluge::project::midi_cc_param(cc).target, /*affectEntire=*/false,
 	                             /*useMenuStack=*/false, /*forEdit=*/true);
 }
 

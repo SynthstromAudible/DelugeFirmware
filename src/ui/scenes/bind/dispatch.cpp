@@ -1,5 +1,7 @@
 #include "ui/scenes/bind/dispatch.h"
 
+#include "arp/params.h"
+
 #include "effects/settings.h"
 #include "gui/l10n/setting_names.h"
 #include "host/chains/params.h"
@@ -149,21 +151,41 @@ struct ResolvedParam {
 
 /// The param table of @p table.
 std::span<const plugin::ParamInfo> params_of(ParamTable table) {
-	return table == ParamTable::SOUND ? std::span<const plugin::ParamInfo>{instruments::classic::kParams}
-	                                  : std::span<const plugin::ParamInfo>{host::chains::kParams};
+	switch (table) {
+	case ParamTable::SOUND:
+		return instruments::classic::kParams;
+	case ParamTable::CHAIN:
+		return host::chains::kParams;
+	case ParamTable::ARP:
+		return arp::kParamInfos;
+	}
+	return {};
 }
 
-/// The id @p target's param has on the owner @p where names: its own on an owner of its table's kind, else the id
-/// of the param of the same name in the owner's table, or nothing where that table has none.
-std::optional<plugin::ParamId> param_id_on(const Target& target, const Addresses& where) {
+/// A param on an owner: its id and the table the id is in.
+struct ParamOn {
+	plugin::ParamId id;
+	ParamTable table;
+};
+
+/// The param @p target names on the owner @p where names: its own on an owner of its table's kind (an arp's on any
+/// owner), else the param of the same name in the owner's table, else in its arp's (a name the arp's table shares with
+/// an owner's, such as the arp rate's), or nothing where neither has one.
+std::optional<ParamOn> param_on(const Target& target, const Addresses& where) {
 	const ParamTable owner = where.slot ? ParamTable::SOUND : ParamTable::CHAIN;
-	if (owner == target.param_table) {
-		return target.param;
+	if (owner == target.param_table || target.param_table == ParamTable::ARP) {
+		return ParamOn{target.param, target.param_table};
 	}
 	const plugin::ParamInfo* named = plugin::find_param(params_of(target.param_table), target.param);
-	const plugin::ParamInfo* there =
-	    named != nullptr ? plugin::find_param(params_of(owner), named->file_name) : nullptr;
-	return there != nullptr ? std::optional{there->id} : std::nullopt;
+	if (named == nullptr) {
+		return std::nullopt;
+	}
+	for (const ParamTable table : {owner, ParamTable::ARP}) {
+		if (const plugin::ParamInfo* there = plugin::find_param(params_of(table), named->file_name)) {
+			return ParamOn{there->id, table};
+		}
+	}
+	return std::nullopt;
 }
 
 std::optional<ResolvedParam> resolve_param(const Target& target, const project::Song& model, const Addresses& where,
@@ -177,14 +199,16 @@ std::optional<ResolvedParam> resolve_param(const Target& target, const project::
 		return std::nullopt;
 	}
 	if (where.slot) {
-		const plugin::ParamInfo* info = plugin::find_param(instruments::classic::kParams, address->id);
+		const plugin::ParamInfo* info = plugin::find_param(
+		    params_of(address->space == project::ParamSpace::ARP ? ParamTable::ARP : ParamTable::SOUND), address->id);
 		Reader reader{SlotReader{model, *where.slot, *ports.sound}};
 		if (info == nullptr || !reader.resolved()) {
 			return std::nullopt;
 		}
 		return ResolvedParam{*address, info, reader, setting_context(model, *where.slot, *ports.sound, *ports.audio)};
 	}
-	const plugin::ParamInfo* info = plugin::find_param(host::chains::kParams, address->id);
+	const plugin::ParamInfo* info = plugin::find_param(
+	    params_of(address->space == project::ParamSpace::ARP ? ParamTable::ARP : ParamTable::CHAIN), address->id);
 	Reader reader{ChainReader{model, *where.chain, *ports.tracks}};
 	if (info == nullptr || !reader.resolved()) {
 		return std::nullopt;
@@ -311,11 +335,12 @@ std::optional<project::ParamAddress> param_address(const Target& target, const A
 	if (target.kind != Target::Kind::PARAM && !(target.kind == Target::Kind::CABLE && where.slot)) {
 		return std::nullopt;
 	}
-	const std::optional<plugin::ParamId> id = param_id_on(target, where);
-	if (!id) {
+	const std::optional<ParamOn> on = param_on(target, where);
+	if (!on) {
 		return std::nullopt;
 	}
-	project::ParamAddress address{.space = project::ParamSpace::ENGINE, .id = *id};
+	project::ParamAddress address{
+	    .space = on->table == ParamTable::ARP ? project::ParamSpace::ARP : project::ParamSpace::ENGINE, .id = on->id};
 	if (where.slot) {
 		if (!where.clip) {
 			return std::nullopt;

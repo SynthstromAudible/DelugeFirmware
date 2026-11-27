@@ -486,7 +486,8 @@ describe knob_records("the knob records, by Edit", ${
 		for (const deluge::plugin::RemotePage& page : deluge::instruments::classic::kDevicePages) {
 			for (uint8_t knob = 0; knob < 2; knob++) {
 				if (const auto& param = page.slots[knob].param) {
-					expected.push_back({deluge::project::ModKnobControl{static_cast<uint8_t>(page.section), knob}, *param});
+					expected.push_back({deluge::project::ModKnobControl{static_cast<uint8_t>(page.section), knob},
+				                    deluge::project::engine_target(param->value)});
 				}
 			}
 		}

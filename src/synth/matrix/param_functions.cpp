@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "util/param_functions.h"
+#include "synth/matrix/param_functions.h"
 #include "dsp/core/fixed_point.h"
 #include "dsp/fixed/curves/param_curve.h"
 #include "modulation/params/param.h"

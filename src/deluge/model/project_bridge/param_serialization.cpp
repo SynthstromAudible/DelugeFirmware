@@ -16,6 +16,8 @@
  */
 
 #include "model/project_bridge/param_serialization.h"
+
+#include "arp/params.h"
 #include "instruments/classic/cable_codec.h"
 
 #include "host/chains/params.h"
@@ -97,18 +99,39 @@ constexpr DocParamAttr kModControllableOverrideAttrs[] = {
     {"bitCrush", ip::kBitcrushAmount},     {"modFXOffset", ip::kModFXOffset},
     {"modFXFeedback", ip::kModFXFeedback}, {"compressorThreshold", ip::kCompressorThreshold},
 };
-// The remaining shared effects attrs (arp / probability / spread) are written without override —
-// the engine omits valuesForOverride for these.
-constexpr DocParamAttr kModControllableArpAttrs[] = {
-    {"arpeggiatorGate", ip::kArpGate},           {"noteProbability", ip::kNoteProbability},
-    {"bassProbability", ip::kBassProbability},   {"swapProbability", ip::kSwapProbability},
-    {"glideProbability", ip::kGlideProbability}, {"reverseProbability", ip::kReverseProbability},
-    {"chordProbability", ip::kChordProbability}, {"ratchetProbability", ip::kRatchetProbability},
-    {"ratchetAmount", ip::kRatchetAmount},       {"sequenceLength", ip::kSequenceLength},
-    {"chordPolyphony", ip::kChordPolyphony},     {"rhythm", ip::kRhythm},
-    {"spreadVelocity", ip::kSpreadVelocity},     {"spreadGate", ip::kSpreadGate},
-    {"spreadOctave", ip::kSpreadOctave},
+// The arp / probability / spread attrs, by the arp's ids (arp/params.h), written without override.
+constexpr DocParamAttr kArpAttrs[] = {
+    {"arpeggiatorGate", arp::param::kGate},
+    {"noteProbability", arp::param::kNoteProbability},
+    {"bassProbability", arp::param::kBassProbability},
+    {"swapProbability", arp::param::kSwapProbability},
+    {"glideProbability", arp::param::kGlideProbability},
+    {"reverseProbability", arp::param::kReverseProbability},
+    {"chordProbability", arp::param::kChordProbability},
+    {"ratchetProbability", arp::param::kRatchetProbability},
+    {"ratchetAmount", arp::param::kRatchetAmount},
+    {"sequenceLength", arp::param::kSequenceLength},
+    {"chordPolyphony", arp::param::kChordPolyphony},
+    {"rhythm", arp::param::kRhythm},
+    {"spreadVelocity", arp::param::kSpreadVelocity},
+    {"spreadGate", arp::param::kSpreadGate},
+    {"spreadOctave", arp::param::kSpreadOctave},
 };
+// An arp's rate: a kit's, and a sound's (the base of its matrix's arp-rate destination).
+constexpr DocParamAttr kArpRateAttr[] = {{"arpeggiatorRate", arp::param::kRate}};
+
+/// @brief The arp params as a global effectable with no arp (the song, an audio clip) saves them: a kit's arp's
+///        starting values, which nothing plays.
+const DocParamSet& arpDefaultsForSave() {
+	static const DocParamSet defaults = [] {
+		DocParamSet doc{.first = ParamId{0}, .params = std::vector<DocAutoParam>(arp::kParamCount)};
+		for (std::size_t i = 0; i < arp::kParamCount; ++i) {
+			doc.params[i].current_value = arp::default_value(arp::Owner::KIT, arp::id_at(i));
+		}
+		return doc;
+	}();
+	return defaults;
+}
 constexpr DocParamAttr kEqualizerGroup[] = {
     {"bass", ip::kBass},
     {"treble", ip::kTreble},
@@ -127,13 +150,14 @@ void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const 
 }
 
 void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
-                                             const int32_t* valuesForOverride) {
+                                             const int32_t* valuesForOverride, const DocParamSet* arp) {
 	for (const DocParamAttr& a : kModControllableOverrideAttrs) {
 		writeDocParamAsAttribute(unpatched, a.name, a.id, out, writeAutomation, false, valuesForOverride);
 	}
 	// The arp/probability/spread attrs are always written without the override (engine parity).
-	for (const DocParamAttr& a : kModControllableArpAttrs) {
-		writeDocParamAsAttribute(unpatched, a.name, a.id, out, writeAutomation);
+	const DocParamSet& arpParams = arp != nullptr ? *arp : arpDefaultsForSave();
+	for (const DocParamAttr& a : kArpAttrs) {
+		writeDocParamAsAttribute(arpParams, a.name, a.id, out, writeAutomation && arp != nullptr);
 	}
 }
 
@@ -164,7 +188,7 @@ constexpr DocParamAttr kGlobalHpfGroup[] = {
 } // namespace
 
 void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
-                                              const int32_t* ovr) {
+                                              const int32_t* ovr, const DocParamSet* arp) {
 	// Byte-for-byte what main's `GlobalEffectable::writeParamAttributesToFile` writes (the file format). The flat
 	// global attrs wrap the shared effects attrs; pitchAdjust and sidechainCompressorVolume are written only when they
 	// contain something (with their own neutral values), the rest unconditionally.
@@ -185,13 +209,14 @@ void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Seri
 	writeDocParamAsAttribute(unpatched, "modFXDepth", gp::kModFXDepth, out, writeAutomation, false, ovr);
 	writeDocParamAsAttribute(unpatched, "modFXRate", gp::kModFXRate, out, writeAutomation, false, ovr);
 
-	serializeModControllableParamAttributes(unpatched, out, writeAutomation, ovr);
+	serializeModControllableParamAttributes(unpatched, out, writeAutomation, ovr, arp);
 
 	// Community Firmware parameters (always written after the official ones, just before the parent closes).
 	writeDocParamAsAttribute(unpatched, "lpfMorph", gp::kLpfMorph, out, writeAutomation, false, ovr);
 	writeDocParamAsAttribute(unpatched, "hpfMorph", gp::kHpfMorph, out, writeAutomation, false, ovr);
 	writeDocParamAsAttribute(unpatched, "tempo", gp::kTempo, out, writeAutomation, false, ovr);
-	writeDocParamAsAttribute(unpatched, "arpeggiatorRate", gp::kArpRate, out, writeAutomation, false, ovr);
+	writeDocParamAsAttribute(arp != nullptr ? *arp : arpDefaultsForSave(), "arpeggiatorRate", arp::param::kRate, out,
+	                         writeAutomation && arp != nullptr);
 }
 
 void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
@@ -266,7 +291,8 @@ constexpr DocParamAttr kEnvelope4[] = {
 
 void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
                           std::span<const deluge::synth::CableRecord> cables,
-                          const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation) {
+                          const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation,
+                          const DocParamSet* arp) {
 	// Byte-for-byte reproduction of Sound::writeParamsToFile. Two unpatched flat attrs lead, then the
 	// patched flat attrs; the pitchAdjust family is onlyIfContainsSomething; the shared effects
 	// attrs sit before the community attrs (lpfMorph/hpfMorph/waveFold).
@@ -317,9 +343,10 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 
 	writeDocParamAsAttribute(patched, "reverbAmount", ip::kReverbAmount, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "arpeggiatorRate", ip::kArpRate, out, writeAutomation);
+	writeDocParamAsAttribute(arp != nullptr ? *arp : arpDefaultsForSave(), "arpeggiatorRate", arp::param::kRate, out,
+	                         writeAutomation && arp != nullptr);
 
-	serializeModControllableParamAttributes(unpatched, out, writeAutomation);
+	serializeModControllableParamAttributes(unpatched, out, writeAutomation, nullptr, arp);
 
 	// Community Firmware parameters (always written after the official ones, just before the parent closes).
 	writeDocParamAsAttribute(patched, "lpfMorph", ip::kLpfMorph, out, writeAutomation);
@@ -508,13 +535,13 @@ bool readLiveParamGroup(Deserializer& in, char const* tagName, const char* group
 } // namespace
 
 bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
-                                 ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos) {
+                                 ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos, LiveArp arp) {
 	return readLiveParamGroup(in, tagName, "equalizer", kEqualizerGroup, unpatched, unpatchedSummary,
 	                          readAutomationUpToPos)
 	       || readLiveParamFromTable(in, tagName, kModControllableOverrideAttrs, unpatched, unpatchedSummary,
 	                                 readAutomationUpToPos)
-	       || readLiveParamFromTable(in, tagName, kModControllableArpAttrs, unpatched, unpatchedSummary,
-	                                 readAutomationUpToPos);
+	       || (arp.set != nullptr
+	           && readLiveParamFromTable(in, tagName, kArpAttrs, *arp.set, *arp.summary, readAutomationUpToPos));
 }
 
 namespace {
@@ -532,7 +559,6 @@ constexpr DocParamAttr kGlobalEffectableFlatAttrs[] = {
     {"lpfMorph", gp::kLpfMorph},
     {"hpfMorph", gp::kHpfMorph},
     {"tempo", gp::kTempo},
-    {"arpeggiatorRate", gp::kArpRate},
 };
 // Read-side <lpf>/<hpf> groups: as the writer writes them (each filter's morph is flat, lpfMorph / hpfMorph).
 constexpr DocParamAttr kGlobalLpfReadGroup[] = {
@@ -546,16 +572,19 @@ constexpr DocParamAttr kGlobalHpfReadGroup[] = {
 } // namespace
 
 bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
-                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos) {
-	return readLiveParamGroup(in, tagName, "delay", kGlobalDelayGroup, unpatched, unpatchedSummary,
-	                          readAutomationUpToPos)
+                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos,
+                                  LiveArp arp) {
+	return (arp.set != nullptr
+	        && readLiveParamFromTable(in, tagName, kArpRateAttr, *arp.set, *arp.summary, readAutomationUpToPos))
+	       || readLiveParamGroup(in, tagName, "delay", kGlobalDelayGroup, unpatched, unpatchedSummary,
+	                             readAutomationUpToPos)
 	       || readLiveParamGroup(in, tagName, "lpf", kGlobalLpfReadGroup, unpatched, unpatchedSummary,
 	                             readAutomationUpToPos)
 	       || readLiveParamGroup(in, tagName, "hpf", kGlobalHpfReadGroup, unpatched, unpatchedSummary,
 	                             readAutomationUpToPos)
 	       || readLiveParamFromTable(in, tagName, kGlobalEffectableFlatAttrs, unpatched, unpatchedSummary,
 	                                 readAutomationUpToPos)
-	       || readModControllableParamTag(in, tagName, unpatched, unpatchedSummary, readAutomationUpToPos);
+	       || readModControllableParamTag(in, tagName, unpatched, unpatchedSummary, readAutomationUpToPos, arp);
 }
 
 namespace {
@@ -594,19 +623,20 @@ bool readDocParamGroup(Deserializer& in, char const* tagName, const char* groupN
 } // namespace
 
 bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
-                                      int32_t readAutomationUpToPos) {
+                                      int32_t readAutomationUpToPos, DocParamSet* arp) {
 	return readDocParamGroup(in, tagName, "equalizer", kEqualizerGroup, doc, readAutomationUpToPos)
 	       || readDocParamFromTable(in, tagName, kModControllableOverrideAttrs, doc, readAutomationUpToPos)
-	       || readDocParamFromTable(in, tagName, kModControllableArpAttrs, doc, readAutomationUpToPos);
+	       || (arp != nullptr && readDocParamFromTable(in, tagName, kArpAttrs, *arp, readAutomationUpToPos));
 }
 
 bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
-                                       int32_t readAutomationUpToPos) {
-	return readDocParamGroup(in, tagName, "delay", kGlobalDelayGroup, doc, readAutomationUpToPos)
+                                       int32_t readAutomationUpToPos, DocParamSet* arp) {
+	return (arp != nullptr && readDocParamFromTable(in, tagName, kArpRateAttr, *arp, readAutomationUpToPos))
+	       || readDocParamGroup(in, tagName, "delay", kGlobalDelayGroup, doc, readAutomationUpToPos)
 	       || readDocParamGroup(in, tagName, "lpf", kGlobalLpfReadGroup, doc, readAutomationUpToPos)
 	       || readDocParamGroup(in, tagName, "hpf", kGlobalHpfReadGroup, doc, readAutomationUpToPos)
 	       || readDocParamFromTable(in, tagName, kGlobalEffectableFlatAttrs, doc, readAutomationUpToPos)
-	       || readModControllableParamTagToDoc(in, tagName, doc, readAutomationUpToPos);
+	       || readModControllableParamTagToDoc(in, tagName, doc, readAutomationUpToPos, arp);
 }
 
 namespace {
@@ -650,7 +680,6 @@ constexpr DocParamAttr kSoundPatchedAttrs[] = {
     {"delayRate", ip::kDelayRate},
     {"delayFeedback", ip::kDelayFeedback},
     {"reverbAmount", ip::kReverbAmount},
-    {"arpeggiatorRate", ip::kArpRate},
     {"lpfMorph", ip::kLpfMorph},
     {"hpfMorph", ip::kHpfMorph},
     {"waveFold", ip::kWaveFold},
@@ -658,25 +687,29 @@ constexpr DocParamAttr kSoundPatchedAttrs[] = {
 } // namespace
 
 bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched, ParamCollectionSummary& patchedSummary,
-                       ParamSet& unpatched, ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos) {
+                       ParamSet& unpatched, ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos,
+                       LiveArp arp) {
 	return readLiveParamFromTable(in, tagName, kSoundUnpatchedAttrs, unpatched, unpatchedSummary, readAutomationUpToPos)
 	       || readLiveParamFromTable(in, tagName, kSoundPatchedAttrs, patched, patchedSummary, readAutomationUpToPos)
+	       || (arp.set != nullptr
+	           && readLiveParamFromTable(in, tagName, kArpRateAttr, *arp.set, *arp.summary, readAutomationUpToPos))
 	       || readLiveParamGroup(in, tagName, "envelope1", kEnvelope1, patched, patchedSummary, readAutomationUpToPos)
 	       || readLiveParamGroup(in, tagName, "envelope2", kEnvelope2, patched, patchedSummary, readAutomationUpToPos)
 	       || readLiveParamGroup(in, tagName, "envelope3", kEnvelope3, patched, patchedSummary, readAutomationUpToPos)
 	       || readLiveParamGroup(in, tagName, "envelope4", kEnvelope4, patched, patchedSummary, readAutomationUpToPos)
-	       || readModControllableParamTag(in, tagName, unpatched, unpatchedSummary, readAutomationUpToPos);
+	       || readModControllableParamTag(in, tagName, unpatched, unpatchedSummary, readAutomationUpToPos, arp);
 }
 
 bool readSoundParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& patched, DocParamSet& unpatched,
-                            int32_t readAutomationUpToPos) {
+                            int32_t readAutomationUpToPos, DocParamSet* arp) {
 	return readDocParamFromTable(in, tagName, kSoundUnpatchedAttrs, unpatched, readAutomationUpToPos)
 	       || readDocParamFromTable(in, tagName, kSoundPatchedAttrs, patched, readAutomationUpToPos)
+	       || (arp != nullptr && readDocParamFromTable(in, tagName, kArpRateAttr, *arp, readAutomationUpToPos))
 	       || readDocParamGroup(in, tagName, "envelope1", kEnvelope1, patched, readAutomationUpToPos)
 	       || readDocParamGroup(in, tagName, "envelope2", kEnvelope2, patched, readAutomationUpToPos)
 	       || readDocParamGroup(in, tagName, "envelope3", kEnvelope3, patched, readAutomationUpToPos)
 	       || readDocParamGroup(in, tagName, "envelope4", kEnvelope4, patched, readAutomationUpToPos)
-	       || readModControllableParamTagToDoc(in, tagName, unpatched, readAutomationUpToPos);
+	       || readModControllableParamTagToDoc(in, tagName, unpatched, readAutomationUpToPos, arp);
 }
 
 bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& expression,

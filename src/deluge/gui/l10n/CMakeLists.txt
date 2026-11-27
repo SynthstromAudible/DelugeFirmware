@@ -39,7 +39,7 @@ add_library(deluge_l10n STATIC
   ${CMAKE_CURRENT_LIST_DIR}/short_label.cpp)
 add_dependencies(deluge_l10n deluge_strings)
 target_include_directories(deluge_l10n PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_CURRENT_LIST_DIR}/../../..)
-target_link_libraries(deluge_l10n PUBLIC deluge_base deluge_project deluge_effects deluge_instruments_classic
+target_link_libraries(deluge_l10n PUBLIC deluge_base deluge_project deluge_effects deluge_instruments_classic deluge_arp
                                          deluge_host_chains deluge_synth)
 target_compile_options(deluge_l10n PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 include(${CMAKE_CURRENT_LIST_DIR}/../../../../cmake/optimise_for_size.cmake)

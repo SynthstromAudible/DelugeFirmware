@@ -4,6 +4,7 @@
 /// @brief A param as the UI names it, built from the runtime's numbering that main's reference rows record.
 
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_selection.h"
 #include "modulation/params/param.h"
 #include "project/owner_plugin.h"
 
@@ -17,10 +18,10 @@ namespace deluge::ui::scenes::spec {
 /// @param index The runtime index (a cable's packed word for a patch cable).
 /// @return The plugin param; an ENGINE id 0 where the pair names nothing.
 inline project::PluginParam plugin_param(plugin::ParamKind kind, int32_t index) {
-	const project::OwnerPlugin plugin = kind == plugin::ParamKind::UNPATCHED_GLOBAL
-	                                        ? project::OwnerPlugin::GLOBAL_EFFECTABLE
-	                                        : project::OwnerPlugin::INSTRUMENT;
-	return {.plugin = plugin, .target = bridge::targetOf(plugin, kind, index).value_or(project::ParamTarget{})};
+	return bridge::pluginParamOf(kind, index)
+	    .value_or(project::PluginParam{.plugin = kind == plugin::ParamKind::UNPATCHED_GLOBAL
+	                                                 ? project::OwnerPlugin::GLOBAL_EFFECTABLE
+	                                                 : project::OwnerPlugin::INSTRUMENT});
 }
 
 /// @brief @p param in the runtime's numbering, as main's reference rows record it.

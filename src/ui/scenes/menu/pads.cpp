@@ -125,9 +125,9 @@ SourcePress answer_at(MenuCore core, uint8_t depth, PatchSource source, bool pre
 	if (node->custom != nullptr) {
 		return node->custom->source_press(ctx, st, source, previous_held, open);
 	}
-	if (is_patched(node->bind.param)) {
+	if (node->bind.patch_destination.has_value()) {
 		const uint8_t previous = st.walk.patching_param;
-		st.walk.patching_param = patched_byte(node->bind.param);
+		st.walk.patching_param = *node->bind.patch_destination;
 		const SourcePress r = nodes::kSourceSelectionRegularItem.source_press(ctx, st, source, previous_held, open);
 		if (r != SourcePress::Open) {
 			st.walk.patching_param = previous;

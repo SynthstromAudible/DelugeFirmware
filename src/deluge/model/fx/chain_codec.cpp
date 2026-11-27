@@ -16,6 +16,8 @@
  */
 
 #include "model/fx/chain_codec.h"
+
+#include "arp/params.h"
 #include "effects/codec.h"
 #include "model/fx/chain_params.h"
 #include "model/project_bridge/controls_bridge.h"
@@ -25,6 +27,7 @@
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
@@ -52,21 +55,21 @@ namespace {
 /// @param writer        Where the item goes.
 /// @param attributes    The knob's channel and CC.
 /// @param relative      Whether the knob sends relative changes.
-/// @param descriptor    The param (and patch sources) the knob turns.
-/// @param unpatchedKind Whose unpatched params @p descriptor names (a sound's or a host chain's).
+/// @param paramName     The file name of the param the knob turns (a cable's: the param its depth patches).
+/// @param cable         The cable whose depth the knob turns, or nullptr for a param.
 /// @param hasDevice     Whether the knob names a device.
 /// @param writeDevice   Writes the device element; called only when @p hasDevice.
 template <typename WriteDevice>
-void writeMidiKnob(Serializer& writer, LearnedMIDI attributes, bool relative, synth::CableTarget descriptor,
-                   params::Kind unpatchedKind, bool hasDevice, WriteDevice writeDevice) {
+void writeMidiKnob(Serializer& writer, LearnedMIDI attributes, bool relative, char const* paramName,
+                   const synth::CableTarget* cable, bool hasDevice, WriteDevice writeDevice) {
 	writer.writeOpeningTagBeginning("midiKnob", true);
 	attributes.writeAttributesToFile(writer, MIDI_MESSAGE_CC);
 	writer.writeAttribute("relative", relative);
-	writer.writeAttribute("controlsParam", params::paramNameForFile(unpatchedKind, descriptor.param_index()));
-	if (!descriptor.is_param()) { // only a sound's knob can turn a patch cable's depth
-		writer.writeAttribute("patchAmountFromSource", sourceToString(descriptor.top_source()));
-		if (descriptor.has_second_source()) {
-			writer.writeAttribute("patchAmountFromSecondSource", sourceToString(descriptor.second_source_from_top()));
+	writer.writeAttribute("controlsParam", paramName);
+	if (cable != nullptr) { // only a sound's knob can turn a patch cable's depth
+		writer.writeAttribute("patchAmountFromSource", sourceToString(cable->top_source()));
+		if (cable->has_second_source()) {
+			writer.writeAttribute("patchAmountFromSecondSource", sourceToString(cable->second_source_from_top()));
 		}
 	}
 	// The device is an element of its own, so it closes the knob's attributes.
@@ -85,8 +88,10 @@ bool readGlobalParamTag(Deserializer& reader, char const* tagName, ParamManagerF
                         int32_t readAutomationUpToPos) {
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	auto* unpatchedParams = static_cast<UnpatchedParamSet*>(unpatchedParamsSummary->paramCollection);
+	// A kit's own arp params land in its arp set.
+	const bridge::LiveArp arp{.set = paramManager->getArpParamSet(), .summary = paramManager->getArpParamSetSummary()};
 	return bridge::readGlobalEffectableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
-	                                            readAutomationUpToPos);
+	                                            readAutomationUpToPos, arp);
 }
 
 void readGlobalParams(Deserializer& reader, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
@@ -136,9 +141,10 @@ void writeMidiKnobs(Serializer& writer, EffectsOwner owner, ::Song* song,
 	if (!saved) {
 		return;
 	}
-	// The file names engine params only.
+	// The file names engine and arp params only.
 	std::erase_if(*saved, [](const project::Mapping& knob) {
-		return std::get<project::OwnerParamTarget>(knob.target).param.space != project::ParamSpace::ENGINE;
+		const project::ParamSpace space = std::get<project::OwnerParamTarget>(knob.target).param.space;
+		return space != project::ParamSpace::ENGINE && space != project::ParamSpace::ARP;
 	});
 	if (saved->empty()) {
 		return;
@@ -148,10 +154,16 @@ void writeMidiKnobs(Serializer& writer, EffectsOwner owner, ::Song* song,
 	for (const project::Mapping& knob : *saved) {
 		const LearnedMIDI attributes =
 		    bridge::learned_of({.channel_or_zone = knob.source.channel_or_zone, .note_or_cc = knob.source.note_or_cc});
-		const synth::CableTarget descriptor =
-		    modulation::knobWord(bridge::knobOfControl(std::get<project::OwnerParamTarget>(knob.target).param, kind));
-		writeMidiKnob(writer, attributes, knob.relative, descriptor, kind, knob.source.device.has_value(),
-		              [&] { bridge::write_reference(writer, "device", *knob.source.device); });
+		const project::ParamTarget& param = std::get<project::OwnerParamTarget>(knob.target).param;
+		const auto writeDevice = [&] { bridge::write_reference(writer, "device", *knob.source.device); };
+		if (param.space == project::ParamSpace::ARP) { // an arp param, by the arp's file name
+			writeMidiKnob(writer, attributes, knob.relative, arp::row(param.id).info.file_name.data(), nullptr,
+			              knob.source.device.has_value(), writeDevice);
+			continue;
+		}
+		const synth::CableTarget descriptor = modulation::knobWord(bridge::knobOfControl(param, kind));
+		writeMidiKnob(writer, attributes, knob.relative, params::paramNameForFile(kind, descriptor.param_index()),
+		              descriptor.is_param() ? nullptr : &descriptor, knob.source.device.has_value(), writeDevice);
 	}
 	writer.writeArrayEnding("midiKnobs");
 }
@@ -161,7 +173,9 @@ Error readEffectTag(Deserializer& reader, const char* tagName, EffectsOwner owne
                     ArpeggiatorSettings* arpSettings, bool* arpRead, ::Song* song) {
 	if (paramManager != nullptr && std::strcmp(tagName, "defaultParams") == 0) {
 		if (!paramManager->containsAnyMainParamCollections()) {
-			const Error error = paramManager->setupUnpatched();
+			// An owner with an arp (a kit) holds its arp's set beside its own params.
+			const Error error = paramManager->setupUnpatched(
+			    arpSettings != nullptr ? std::optional{deluge::arp::Owner::KIT} : std::nullopt);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -220,7 +234,12 @@ void writeGlobalParamAttributes(Serializer& writer, ParamManager* paramManager, 
                                 int32_t* valuesForOverride) {
 	// Serialized from the value DOM: the global flat attributes around the shared ones and the community ones.
 	project::DocParamSet unpatched = bridge::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
-	bridge::serializeGlobalEffectableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
+	std::optional<project::DocParamSet> arp;
+	if (ArpParamSet* set = paramManager->getArpParamSet()) {
+		arp = bridge::toDocParamSetFromStore(*set);
+	}
+	bridge::serializeGlobalEffectableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride,
+	                                                 arp ? &*arp : nullptr);
 }
 
 void writeGlobalParamTags(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -238,14 +257,24 @@ void readGlobalParamsDomFirst(Deserializer& reader, ParamManagerForTimeline* par
 	ParamCollectionSummary* summary = paramManager->getUnpatchedParamSetSummary();
 	unpatched->bindDomStore();
 	project::DocParamSet* store = unpatched->domStore();
+	// A kit's own arp params land in its arp set's store.
+	ArpParamSet* arp = paramManager->getArpParamSet();
+	project::DocParamSet* arpStore = nullptr;
+	if (arp != nullptr) {
+		arp->bindDomStore();
+		arpStore = arp->domStore();
+	}
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (bridge::readGlobalEffectableParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
+		if (bridge::readGlobalEffectableParamTagToDoc(reader, tagName, *store, readAutomationUpToPos, arpStore)) {}
 		else {
 			reader.exitTag(tagName);
 		}
 	}
 	unpatched->projectFromStoreAfterRead(summary);
+	if (arp != nullptr) {
+		arp->projectFromStoreAfterRead(paramManager->getArpParamSetSummary());
+	}
 }
 
 } // namespace deluge::model

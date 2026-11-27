@@ -332,8 +332,10 @@ PARAM_KIND_PATTERN = (
 )
 PARAM_KIND_HOMES = (
     "src/instruments/classic/**",
+    "src/host/chains/params.h",
     "src/deluge/modulation/**",
     "src/deluge/model/project_bridge/**",
+    "src/deluge/model/model_stack.h",
     "src/deluge/processing/sound/**",
     "src/deluge/processing/engines/fx_section_inputs.*",
     "src/deluge/model/fx/**",

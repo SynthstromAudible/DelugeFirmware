@@ -986,7 +986,7 @@ mod driver {
         /// Fills `buf` from absolute `offset` of the file behind `handle`; `false` if the whole
         /// buffer could not be read.
         ///
-        /// `HeaderParser` clamps every request to the size [`LoadOps::size_of`] reported, so a
+        /// The parse driver cuts every read short at the size [`LoadOps::size_of`] reported, so a
         /// `false` is always a real read failure, never end of file.
         async fn read_at(&self, handle: u32, offset: u32, buf: &mut [u8]) -> bool;
 
@@ -1066,23 +1066,44 @@ mod driver {
         result
     }
 
+    /// The card's sector, which every header read starts on.
+    const SECTOR_BYTES: u32 = 512;
+
+    /// How much of the file one header read takes: two sectors, so a request (at most
+    /// `MAX_WINDOW_BYTES`) that starts anywhere in the first always ends inside the window.
+    const HEADER_WINDOW_BYTES: u32 = 2 * SECTOR_BYTES;
+    const _: () = assert!(MAX_WINDOW_BYTES <= HEADER_WINDOW_BYTES - SECTOR_BYTES);
+
     /// Drives the header windows of an open, sized file to a verdict. Never closes `handle`.
+    ///
+    /// Each read is the two sectors from the one holding the parser's request, cut short where the
+    /// file ends, and the parser answers every further request those bytes cover before asking
+    /// again. A typical header is one read, plus one per chunk after the audio. Each read is a trip
+    /// through the filesystem (or, for whole sectors, the card), so reading only what each request
+    /// names costs one trip per chunk. Whole sectors at a sector are what
+    /// [`read_at`](LoadOps::read_at) can take straight from the card.
     async fn parse_open_file<O: LoadOps>(ops: &O, handle: u32, size_bytes: u32) -> LoadResult {
         let mut parser = HeaderParser::new(size_bytes);
-        let mut window = [0u8; MAX_WINDOW_BYTES as usize];
+        let mut window = [0u8; HEADER_WINDOW_BYTES as usize];
         while let Some((start, len)) = parser.pending() {
-            let len = len as usize;
-            if len > window.len() {
+            if len > MAX_WINDOW_BYTES {
                 // Unreachable: the parser never asks for more than `MAX_WINDOW_BYTES`. Refuse
                 // rather than panic, which would take the executor down.
                 return LoadResult::failed(DELUGE_ERROR_FILE_CORRUPTED);
             }
+            let window_start = start / SECTOR_BYTES * SECTOR_BYTES;
+            let window_len = size_bytes
+                .saturating_sub(window_start)
+                .min(HEADER_WINDOW_BYTES) as usize;
             // A zero-length window (a walk at end of file) must still be read and fed: the parser
             // resolves end of file inside `feed`, so skipping it would loop forever.
-            if !ops.read_at(handle, start, &mut window[..len]).await {
+            if !ops
+                .read_at(handle, window_start, &mut window[..window_len])
+                .await
+            {
                 return LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE);
             }
-            match parser.feed(&window[..len], start) {
+            match parser.feed(&window[..window_len], window_start) {
                 Ok(FeedResult::Done(header)) => {
                     return LoadResult::succeeded(
                         LoadGeometry::from(&header),

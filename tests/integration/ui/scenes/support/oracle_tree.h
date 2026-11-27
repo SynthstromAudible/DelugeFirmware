@@ -83,6 +83,9 @@ inline RuntimeParam runtime_of(const menu::ParamRef& p) {
 	if (p.table == deluge::ui::scenes::bind::ParamTable::CHAIN) {
 		return {plugin::ParamKind::UNPATCHED_GLOBAL, host::chains::find_runtime_index(*p.id).value_or(255)};
 	}
+	if (p.table == deluge::ui::scenes::bind::ParamTable::ARP) { // an arp's set holds its params by their ids
+		return {plugin::ParamKind::ARP, static_cast<uint8_t>(p.id->value)};
+	}
 	const std::optional<instruments::classic::RuntimeSlot> slot = instruments::classic::runtime_slot(*p.id);
 	if (!slot) {
 		return {};

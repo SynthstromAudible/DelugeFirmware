@@ -373,16 +373,16 @@ describe setting_names_spec_body("The host's name table", $ {
 		const ParamNameContext state{};
 		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{0}, state)).to_equal(none);
 		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{89}, state)).to_equal(none);
-		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{133}, state)).to_equal(none);
-		for (uint32_t id = 117; id <= 132; ++id) {
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{117}, state)).to_equal(none);
+		for (uint32_t id = 102; id <= 116; ++id) {
 			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state)).to_equal(none);
 		}
 		for (uint32_t id = 55; id < 90; ++id) {
 			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state)).to_equal(none);
 		}
-		expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{116}, state))
+		expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{101}, state))
 		    .to_equal(deluge::l10n::String::STRING_FOR_PORTAMENTO);
-		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{116}, state))
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{101}, state))
 		    .to_equal(deluge::l10n::String::STRING_FOR_MOD_FX_RATE);
 		expect(deluge::l10n::param_name(plugin::PluginId{"other.engine"}, ParamId{90}, state)).to_equal(none);
 	});

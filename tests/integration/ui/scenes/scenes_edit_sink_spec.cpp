@@ -321,7 +321,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		const deluge::project::ModKnobControl upper{.button = 1, .knob = 1};
 		for (deluge::project::ControllerMapping& mapping : controls) {
 			if (mapping.control == upper) {
-				mapping.target = deluge::instruments::classic::param::kHpfFrequency;
+				mapping.target = deluge::project::engine_target(deluge::instruments::classic::param::kHpfFrequency.value);
 			}
 		}
 		const deluge::project::ControlsAddress synth{.kind = deluge::project::ControlsAddress::Kind::OUTPUT, .id = id};

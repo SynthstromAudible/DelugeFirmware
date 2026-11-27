@@ -25,6 +25,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/song/song.h"
 #include <string_view>
 
@@ -32,7 +33,7 @@ PLACE_SDRAM_BSS RenameMidiCCUI renameMidiCCUI{"CC Name"};
 
 bool RenameMidiCCUI::canRename() const {
 	Clip* clip = getCurrentClip();
-	int32_t cc = clip->lastSelectedParamID;
+	int32_t cc = deluge::bridge::runtimePairOf(clip->selectedParam).index;
 	// if we're not dealing with a real cc number
 	// then don't allow user to edit the name
 	return cc >= 0 && cc != CC_EXTERNAL_MOD_WHEEL && cc < kNumRealCCNumbers;
@@ -41,7 +42,7 @@ bool RenameMidiCCUI::canRename() const {
 std::string_view RenameMidiCCUI::getCurrentName() const {
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-	int32_t cc = clip->lastSelectedParamID;
+	int32_t cc = deluge::bridge::runtimePairOf(clip->selectedParam).index;
 	return midiInstrument->getNameFromCC(cc);
 }
 
@@ -49,7 +50,7 @@ bool RenameMidiCCUI::trySetName(std::string_view name) {
 
 	Clip* clip = getCurrentClip();
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-	int32_t cc = clip->lastSelectedParamID;
+	int32_t cc = deluge::bridge::runtimePairOf(clip->selectedParam).index;
 
 	// The label's Edit marks the track edited, so the label is saved with the song or preset.
 	deluge::edits::trackSettingFor(*midiInstrument, "ccLabels/" + std::to_string(cc),

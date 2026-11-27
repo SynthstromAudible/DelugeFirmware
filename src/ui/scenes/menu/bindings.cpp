@@ -50,7 +50,7 @@
 ///     deliberately NOT `MenuContext::affect_entire`: that is the *clip's*
 ///     `InstrumentClip::affectEntire` setting, which is true on the kit-row grid-shortcut path
 ///     (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) where legacy edits one row only.
-///   * `getRootUI() == &automationView` and the `lastSelectedParamID`/`Kind` match inside
+///   * `getRootUI() == &automationView` and the `selectedParam` matches inside
 ///     `possiblyRefreshAutomationEditorGrid` (`Integer::writeCurrentValue` in
 ///     `origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp`, `automation_view.cpp`). The notify design
 ///     replaces "am I in the automation view, and is this the param it is showing?" with unconditional facts. See
@@ -362,7 +362,7 @@ bool write(const Node& asked, const MenuContext& ctx, int32_t value) {
 			//    for exactly this; the mapping file itself is left alone.
 			//
 			//    Coarser than legacy on purpose: `possiblyRefreshAutomationEditorGrid` repaints only when the
-			//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`gui/views/automation_view.cpp`),
+			//    edited param *is* the view's `selectedParam` (`gui/views/automation_view.cpp`),
 			//    a comparison this layer cannot make -- it may not read `automationView` or the root UI. So
 			//    every param write asks for one grid repaint the drain already coalesces, rather than
 			//    silently dropping the one that mattered.
@@ -542,8 +542,13 @@ std::optional<deluge::project::OwnerParamTarget> learn_target(const Node& node, 
 	if (!node.bind.param.valid() || !owner) {
 		return std::nullopt;
 	}
-	return deluge::project::OwnerParamTarget{
-	    .owner = *owner, .param = deluge::project::engine_target(param_id_of(node.bind.param).value)};
+	// An arp param is named in the arp's space on any owner.
+	const deluge::project::ParamTarget param =
+	    node.bind.param.table == deluge::ui::scenes::bind::ParamTable::ARP
+	        ? deluge::project::ParamTarget{.space = deluge::project::ParamSpace::ARP,
+	                                       .id = param_id_of(node.bind.param)}
+	        : deluge::project::engine_target(param_id_of(node.bind.param).value);
+	return deluge::project::OwnerParamTarget{.owner = *owner, .param = param};
 }
 
 // ---------------------------------------------------------------------------------------------

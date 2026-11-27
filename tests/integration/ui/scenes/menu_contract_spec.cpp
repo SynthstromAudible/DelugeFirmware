@@ -149,7 +149,8 @@ uint16_t last_notice_string() {
 }
 
 /// @brief The param mod knob @p knob moves in knob mode @p mode on @p owner, from the song's model; none if none.
-std::optional<deluge::plugin::ParamId> knob_param(deluge::project::ControlsAddress owner, uint8_t mode, uint8_t knob) {
+std::optional<deluge::project::ParamTarget> knob_param(deluge::project::ControlsAddress owner, uint8_t mode,
+                                                       uint8_t knob) {
 	const std::vector<deluge::project::ControllerMapping>* controls = currentSong->project.resolveControls(owner);
 	if (controls == nullptr) {
 		return std::nullopt;
@@ -367,12 +368,12 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 			return;
 		}
 		const uint8_t mode = r.song.clip->output->modKnobMode;
-		expect(knob_param(target->owner, mode, 1)).not_().to_equal(std::optional{target->param.id});
+		expect(knob_param(target->owner, mode, 1)).not_().to_equal(std::optional{target->param});
 		(void)last_notice_string();
 		(void)button(ButtonId::Learn, true);
 		expect(gold(deluge::ui::widgets::core::EncoderRole::GoldUpper).handled).to_be_true();
 		(void)button(ButtonId::Learn, false);
-		expect(knob_param(target->owner, mode, 1)).to_equal(std::optional{target->param.id});
+		expect(knob_param(target->owner, mode, 1)).to_equal(std::optional{target->param});
 		expect(last_notice_string()).to_equal(uint16_t(deluge::l10n::String::STRING_FOR_LEARNED));
 	});
 
@@ -500,11 +501,42 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 
 		// A mod knob: no device, a channel of 16 or more, and a knob that did not turn the param now turns it.
 		const uint8_t mode = r.song.clip->output->modKnobMode;
-		const uint8_t knob = knob_param(target->owner, mode, 0) == std::optional{target->param.id} ? 1 : 0;
-		expect(knob_param(target->owner, mode, knob)).not_().to_equal(std::optional{target->param.id});
+		const uint8_t knob = knob_param(target->owner, mode, 0) == std::optional{target->param} ? 1 : 0;
+		expect(knob_param(target->owner, mode, knob)).not_().to_equal(std::optional{target->param});
 		expect(learns->learn_knob(*target, deluge::midi::DeviceId{}, knob, 255)).to_be_true();
-		expect(knob_param(target->owner, mode, knob)).to_equal(std::optional{target->param.id});
+		expect(knob_param(target->owner, mode, knob)).to_equal(std::optional{target->param});
 		expect(ctx.model->mappings.find(*target)).to_be_null(); // a mod knob is not a MIDI mapping
+	});
+
+	it("the app's learn port binds a MIDI knob and a mod knob to a sound's arp param, its gate and its rate", _ {
+		// A sound's arp params are its arp's (ParamSpace::ARP): a MIDI knob learns into the song's table and a mod knob
+		// into the sound's controls, as main learns them on its arp items.
+		select_language();
+		for (const Node* item : {&nodes::arp_gate, &nodes::arp_rate}) {
+			Rig r;
+			r.open(nodes::sound_root, *item);
+			r.shell.tick(0);
+			const std::optional<deluge::project::OwnerParamTarget> target = menu_scene().learn_target();
+			const MenuContext ctx = r.menu_context();
+			deluge::ui::scenes::bind::LearnSink* const learns = deluge::gui::shell_host::host_ports().learn;
+			expect(target.has_value()).to_be_true();
+			expect(learns).not_().to_be_null();
+			if (!target || learns == nullptr) {
+				return;
+			}
+			expect(target->param.space).to_equal(deluge::project::ParamSpace::ARP);
+			expect(learns->learn_knob(*target, deluge::midi::kDin, 75, 3)).to_be_true();
+			const deluge::project::Mapping* learned = ctx.model->mappings.find(*target);
+			expect(learned).not_().to_be_null();
+			if (learned != nullptr) {
+				expect(int(learned->source.note_or_cc)).to_equal(75);
+			}
+			expect(learns->learn(*target, std::nullopt, std::nullopt)).to_be_true();
+
+			const uint8_t mode = r.song.clip->output->modKnobMode;
+			expect(learns->learn_knob(*target, deluge::midi::DeviceId{}, 1, 255)).to_be_true();
+			expect(knob_param(target->owner, mode, 1)).to_equal(std::optional{target->param});
+		}
 	});
 
 	it("outside learn mode leaves a gold turn to the knobs", _ {
@@ -544,7 +576,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 			return;
 		}
 		const uint8_t mode = kit.clip->output->modKnobMode;
-		const std::optional<deluge::plugin::ParamId> before = knob_param(target->owner, mode, 1);
+		const std::optional<deluge::project::ParamTarget> before = knob_param(target->owner, mode, 1);
 		(void)last_notice_string();
 		(void)button(ButtonId::Learn, true);
 		expect(menu_scene().select_release_blocked()).to_be_true(); // learn mode

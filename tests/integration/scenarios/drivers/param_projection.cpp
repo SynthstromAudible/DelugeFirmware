@@ -27,6 +27,7 @@
 #include "modulation/automation/copied_param_automation.h" // engine clipboard type for the copy/paste oracle
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -1034,7 +1035,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(111);
 		unp->params[params::UNPATCHED_BITCRUSHING].setPlayed(222);
-		setNodeIn(*unp->docForParam(params::UNPATCHED_ARP_GATE), 0, 50, true);
+		ArpParamSet* arpSet = pm.getArpParamSet();
+		setNodeIn(*arpSet->docForParam(static_cast<int32_t>(deluge::arp::param::kGate.value)), 0, 50, true);
 		unp->params[params::UNPATCHED_BASS].setPlayed(-333); // equalizer group
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
@@ -1046,12 +1048,14 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.reset();
 		{
 			deluge::project::DocParamSet engine = deluge::bridge::toDocParamSet(*pm.getUnpatchedParamSet());
-			deluge::bridge::serializeModControllableParamAttributes(engine, smSerializer, true);
+			deluge::project::DocParamSet engineArp = deluge::bridge::toDocParamSet(*arpSet);
+			deluge::bridge::serializeModControllableParamAttributes(engine, smSerializer, true, nullptr, &engineArp);
 		}
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeModControllableParamAttributes(*unpatchedStore(doc), smSerializer, true);
+		deluge::bridge::serializeModControllableParamAttributes(*unpatchedStore(doc), smSerializer, true, nullptr,
+		                                                        &*doc.arp);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
 		      "shared param attributes byte-identical");
@@ -1080,18 +1084,22 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(111);
 		unp->params[params::UNPATCHED_BITCRUSHING].setPlayed(222);
-		setNodeIn(*unp->docForParam(params::UNPATCHED_ARP_GATE), 0, 50, true); // automated
-		setNodeIn(*unp->docForParam(params::UNPATCHED_ARP_GATE), 48, -99, false);
+		ArpParamSet* arpSet = pm.getArpParamSet();
+		const auto gate = static_cast<int32_t>(deluge::arp::param::kGate.value);
+		const auto spreadOctave = static_cast<int32_t>(deluge::arp::param::kSpreadOctave.value);
+		setNodeIn(*arpSet->docForParam(gate), 0, 50, true); // automated
+		setNodeIn(*arpSet->docForParam(gate), 48, -99, false);
 		unp->params[params::UNPATCHED_BASS].setPlayed(-333); // equalizer group
-		unp->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setPlayed(444);
+		arpSet->params[spreadOctave].setPlayed(444);
 
 		deluge::project::DocParamSet doc = deluge::bridge::toDocParamSet(*unp);
+		deluge::project::DocParamSet arpDoc = deluge::bridge::toDocParamSet(*arpSet);
 
 		static char rtBuf[16384];
 		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("params");
-		deluge::bridge::serializeModControllableParamAttributes(doc, smSerializer, true);
+		deluge::bridge::serializeModControllableParamAttributes(doc, smSerializer, true, nullptr, &arpDoc);
 		smSerializer.writeOpeningTagEnd();
 		deluge::bridge::serializeModControllableParamTags(doc, smSerializer, true);
 		smSerializer.writeClosingTag("params");
@@ -1102,24 +1110,26 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(pm2.setupWithPatching() == Error::NONE, "mca-rt setup2");
 		UnpatchedParamSet* unp2 = pm2.getUnpatchedParamSet();
 		ParamCollectionSummary* sum2 = pm2.getUnpatchedParamSetSummary();
+		ArpParamSet* arp2 = pm2.getArpParamSet();
+		ParamCollectionSummary* arpSum2 = pm2.getArpParamSetSummary();
 		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
 		reader.openXMLFile("params");
 		const char* tag;
 		while (*(tag = reader.readNextTagOrAttributeName())) {
-			if (!deluge::bridge::readModControllableParamTag(reader, tag, *unp2, *sum2, 2147483647)) {
+			if (!deluge::bridge::readModControllableParamTag(reader, tag, *unp2, *sum2, 2147483647,
+			                                                 {.set = arp2, .summary = arpSum2})) {
 				reader.exitTag();
 			}
 		}
 
-		const int32_t ids[] = {params::UNPATCHED_STUTTER_RATE, params::UNPATCHED_BITCRUSHING,
-		                       params::UNPATCHED_ARP_GATE, params::UNPATCHED_BASS, params::UNPATCHED_ARP_SPREAD_OCTAVE};
+		const int32_t ids[] = {params::UNPATCHED_STUTTER_RATE, params::UNPATCHED_BITCRUSHING, params::UNPATCHED_BASS};
 		for (int32_t id : ids) {
 			expectSameParamInSet(unp2, unp, id, "mca-rt param");
 		}
-		check(
-		    (sum2->whichParamsAreAutomated[params::UNPATCHED_ARP_GATE >> 5] & (1u << (params::UNPATCHED_ARP_GATE & 31)))
-		        != 0,
-		    "mca-rt automation flag set");
+		for (int32_t id : {gate, spreadOctave}) {
+			expectSameParamInSet(arp2, arpSet, id, "mca-rt arp param");
+		}
+		check((arpSum2->whichParamsAreAutomated[0] & (1u << gate)) != 0, "mca-rt arp automation flag set");
 	}
 
 	// The host chain param block (global flat attrs wrapping the shared effects
@@ -1151,7 +1161,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true);
+		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true, nullptr,
+		                                                         doc.arp ? &*doc.arp : nullptr);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
 		      "host chain attributes byte-identical");
@@ -1378,7 +1389,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), pcs->records().records(),
-		                                     doc.cable_depths, smSerializer, true);
+		                                     doc.cable_depths, smSerializer, true, doc.arp ? &*doc.arp : nullptr);
 		int32_t domLen = smSerializer.bytesWritten();
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
@@ -1449,9 +1460,6 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		setNodeIn(*up->docForParam(params::UNPATCHED_VOLUME), 0, 4242, true); // automated ⇒ override applies
 		up->params[params::UNPATCHED_PAN].setPlayed(555);                     // not automated ⇒ override ignored
 		setNodeIn(*up->docForParam(params::UNPATCHED_BASS), 0, 7, false);     // automated, equalizer group
-		// An automated shared arp attr: the engine writes it WITHOUT the override (only the
-		// first six shared effects attrs honour valuesForOverride), so the override value must be ignored here.
-		setNodeIn(*up->docForParam(params::UNPATCHED_ARP_GATE), 0, 13, true);
 		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21,
 		          true);           // override-eligible shared effects attr
 		authorStoreFromEngine(pm); // model::writeGlobalParamAttributes reads the store
@@ -1463,7 +1471,6 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ovr[params::UNPATCHED_VOLUME] = -123456; // distinct from currentValue (0) so the path is observable
 		ovr[params::UNPATCHED_PAN] = 999;        // would differ, but PAN isn't automated ⇒ must be ignored
 		ovr[params::UNPATCHED_BASS] = -77;
-		ovr[params::UNPATCHED_ARP_GATE] = -555;     // must be ignored (arp attr, no override)
 		ovr[params::UNPATCHED_STUTTER_RATE] = -999; // must apply (override-eligible shared effects attr)
 
 		static char engBuf[16384];
@@ -1475,7 +1482,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true, ovr.data());
+		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true, ovr.data(),
+		                                                         doc.arp ? &*doc.arp : nullptr);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
 		      "host chain override attributes byte-identical");

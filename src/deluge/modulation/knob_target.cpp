@@ -23,8 +23,8 @@
 namespace deluge::modulation {
 
 deluge::synth::CableTarget knobWord(const KnobTarget& target) {
-	if (!target) {
-		return {};
+	if (!target || target->space != deluge::project::ParamSpace::ENGINE) {
+		return {}; // an arp param's knob has no descriptor word: the word names the sound's own params
 	}
 	if (deluge::instruments::classic::is_cable_depth(target->id)) {
 		return {deluge::bridge::cableWordOf(target->id)};

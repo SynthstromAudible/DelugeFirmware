@@ -155,6 +155,11 @@ constexpr ParamRef chain_param(deluge::plugin::ParamId id) {
 	return {.table = deluge::ui::scenes::bind::ParamTable::CHAIN, .id = id};
 }
 
+/// @brief The arp param @p id: an `arp::param` constant, on whichever owner holds the arp.
+constexpr ParamRef arp_param(deluge::plugin::ParamId id) {
+	return {.table = deluge::ui::scenes::bind::ParamTable::ARP, .id = id};
+}
+
 /// @brief Whether @p p is one of a sound's patched params: the ones a cable reaches and a source pad patches.
 constexpr bool is_patched(ParamRef p) {
 	return p.table == deluge::ui::scenes::bind::ParamTable::SOUND && p.id
@@ -538,6 +543,11 @@ struct Binding {
 	///        written. It is the menu's own half of a setting it lays itself out by, which no host store may reach
 	///        (the horizontal-menus feature). Null for every other node.
 	SetFn after_write = nullptr;
+
+	/// @brief The patched param a cable from a source pad reaches while this node is focused, which `with_patch_chain`
+	///        sets: the node's own patched param, or the matrix destination whose base the node's param is (a sound's
+	///        arp rate, kept in its arp's set). Empty on every other node.
+	std::optional<uint8_t> patch_destination{};
 };
 
 /// @brief Forward declared only -- see the file-level note. Defined alongside the interpreter's own
@@ -1238,7 +1248,9 @@ constexpr bool node_uses_affect_entire(const Node& n) {
 	const bool edits_its_param =
 	    n.bind.get == nullptr
 	    && (!n.bind.target.valid() || n.bind.target.kind == deluge::ui::scenes::bind::Target::Kind::PARAM);
-	return n.uses_affect_entire || (n.bind.param.valid() && n.bind.param.table == ParamTable::SOUND)
+	return n.uses_affect_entire
+	       || (n.bind.param.valid()
+	           && (n.bind.param.table == ParamTable::SOUND || n.bind.param.table == ParamTable::ARP))
 	       || (n.bind.param.valid() && n.bind.param.table == ParamTable::CHAIN && edits_its_param);
 }
 

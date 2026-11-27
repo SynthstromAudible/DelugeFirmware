@@ -303,7 +303,7 @@ deluge::project::ParamTarget knobParam(int32_t p, std::optional<params::Kind> un
 	return deluge::project::engine_target(
 	    deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
 	                                    unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND))
-	        .value);
+	        .id.value);
 }
 
 /// One match: what it reaches, and its position (a section's number, a clip's session index, a knob's place in its

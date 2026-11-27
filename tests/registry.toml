@@ -1626,6 +1626,18 @@ job = "model"
 runtime_s = 5
 
 [[harness]]
+name = "heap-footprint"
+template = "scenario-driver"
+override = ["status"]
+kind = "benchmark"
+status = "investigative"
+gates = "nothing: it prints the param managers, unpatched and arp sets, each set's size and the SRAM and SDRAM heaps' bytes the load took of the song DRV_ARGS names"
+scenario = "heap_footprint"
+tier = "manual"
+job = "model"
+runtime_s = 5
+
+[[harness]]
 name = "edit-substrate"
 template = "scenario-driver"
 kind = "unit"

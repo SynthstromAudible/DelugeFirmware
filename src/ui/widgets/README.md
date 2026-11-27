@@ -70,7 +70,7 @@ against drift, not a proof.
 | `scroll_text` | `scroll_text.h` |
 | `TextEditState`, `text_edit` | `text_edit.h` |
 | `ListRow`, `menu_rect`, `list_visible_rows`, `list_window_start`, `list`, `scrollbar` | `list.h` |
-| `Range`, `ValueStyle`, `int_value`, `decimal_value`, `enum_value`, `toggle` | `values.h` |
+| `Range`, `ValueStyle`, `int_value`, `decimal_value`, `enum_value`, `toggle` | `oled/values.h` |
 | `FilterKind`, `StageKind`, `Hint`, `percent`, `knob_arc`, `unipolar_bar`, `pan`, `slider`, `length_slider`, `filter_curve`, `envelope_stage`, `sidechain_ducking`, `meter` | `meters.h` |
 | `Column`, `Paging`, `paging_of`, `column_under_button`, `page_switch`, `columns`, `title_paged`, `MeterColumn`/`meter_column`, `TextColumn`/`text_column`, `submenu_column`, `ToggleColumn`/`toggle_column` | `oled/columns.h` |
 | `DrawColumn`, `FilterGraph`, `draw_column`, `filter_graph`, `envelope_graph`, `eq_graph` | `column_drawings.h` |

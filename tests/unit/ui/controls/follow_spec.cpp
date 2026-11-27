@@ -88,7 +88,7 @@ describe follow("MIDI follow's params", ${
 	});
 	it("refuses a kit row its portamento, and a synth not", _{
 		expect(name(resolve_follow(kKitRow, view, kPortaCc))).to_equal(std::string{"none"});
-		expect(name(resolve_follow(kSynth, view, kPortaCc))).to_equal(std::string{"I1@11#116"});
+		expect(name(resolve_follow(kSynth, view, kPortaCc))).to_equal(std::string{"I1@11#101"});
 	});
 	it("names an audio track's param on its clip, from the global table", _{
 		expect(name(resolve_follow(kAudio, view, kSoundCc))).to_equal(std::string{"C13#8"});

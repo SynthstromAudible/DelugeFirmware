@@ -58,6 +58,11 @@ struct Playing {
 	}
 };
 
+/// Whether a knob over @p param turns a param of its owner: an engine param or the owner's arp's.
+bool turns_param(const project::ParamTarget& param) {
+	return param.space == project::ParamSpace::ENGINE || param.space == project::ParamSpace::ARP;
+}
+
 /// The plugin whose descriptor rows a playing output's own params have: a synth's are a sound's, a kit's and an audio
 /// track's are their effects'.
 plugin::PluginId plugin_of(PlayingOutput::Kind kind) {
@@ -67,8 +72,8 @@ plugin::PluginId plugin_of(PlayingOutput::Kind kind) {
 /// Move the param of one learned knob @p hit as the CC @p message says. @p playing is the output (none for the song).
 void move_knob(const LearnedHit& hit, const Owner& owner, Playing* playing, const Facts& facts, Sink& sink,
                TakeoverStore& takeovers, const LearnedMessage& message) {
-	// A knob turns only its owner's engine params: one over any other asks for no take.
-	if (hit.target.param.space != project::ParamSpace::ENGINE) {
+	// A knob turns only its owner's engine and arp params: one over any other asks for no take.
+	if (!turns_param(hit.target.param)) {
 		return;
 	}
 	bool relative = hit.relative;
@@ -106,8 +111,8 @@ void move_knob(const LearnedHit& hit, const Owner& owner, Playing* playing, cons
 /// @return Whether its param was written.
 bool move_bend(const LearnedHit& hit, const Owner& owner, Playing& playing, const Facts& facts, Sink& sink,
                const LearnedMessage& message) {
-	// A knob turns only its owner's engine params: one over any other asks for no take.
-	if (hit.target.param.space != project::ParamSpace::ENGINE) {
+	// A knob turns only its owner's engine and arp params: one over any other asks for no take.
+	if (!turns_param(hit.target.param)) {
 		return false;
 	}
 	const std::optional<StepRegion> region = playing.region_then_take(facts, sink);
@@ -172,7 +177,7 @@ std::optional<int32_t> move_by_cc(const CcMove& move, TakeoverState& state, cons
 
 std::optional<ParamAddress> resolve_learned(const project::OwnerParamTarget& target, OwnerId param_owner,
                                             std::optional<uint32_t> clip_id) {
-	if (target.param.space != project::ParamSpace::ENGINE) {
+	if (!turns_param(target.param)) {
 		return std::nullopt;
 	}
 	switch (param_owner.kind) {

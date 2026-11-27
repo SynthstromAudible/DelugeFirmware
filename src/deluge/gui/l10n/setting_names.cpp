@@ -1117,58 +1117,42 @@ constexpr std::array<ParamName, 56> kInstrumentParamNames{{
     ParamName{ParamId{52}, STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1},              // lfo1Rate
     ParamName{ParamId{53}, STRING_FOR_PARAM_GLOBAL_LFO_FREQ_2},              // lfo3Rate
     ParamName{ParamId{54}, STRING_FOR_PARAM_GLOBAL_ARP_RATE},                // arpRate
-    ParamName{ParamId{116}, STRING_FOR_PORTAMENTO},                          // portamento
+    ParamName{ParamId{101}, STRING_FOR_PORTAMENTO},                          // portamento
 }};
 
 /// The global effectable's own params, sorted by id: the shared ones aside.
-constexpr std::array<ParamName, 17> kGlobalEffectableParamNames{{
-    ParamName{ParamId{116}, STRING_FOR_MOD_FX_RATE},         // modFXRate
-    ParamName{ParamId{117}, STRING_FOR_MOD_FX_DEPTH},        // modFXDepth
-    ParamName{ParamId{118}, STRING_FOR_DELAY_RATE},          // delayRate
-    ParamName{ParamId{119}, STRING_FOR_DELAY_AMOUNT},        // delayFeedback
-    ParamName{ParamId{120}, STRING_FOR_ARP_RATE_MENU_TITLE}, // arpRate
-    ParamName{ParamId{121}, STRING_FOR_PAN},                 // pan
-    ParamName{ParamId{122}, STRING_FOR_LPF_FREQUENCY},       // lpfFrequency
-    ParamName{ParamId{123}, STRING_FOR_LPF_RESONANCE},       // lpfResonance
-    ParamName{ParamId{124}, STRING_FOR_LPF_MORPH},           // lpfMorph
-    ParamName{ParamId{125}, STRING_FOR_HPF_FREQUENCY},       // hpfFrequency
-    ParamName{ParamId{126}, STRING_FOR_HPF_RESONANCE},       // hpfResonance
-    ParamName{ParamId{127}, STRING_FOR_HPF_MORPH},           // hpfMorph
-    ParamName{ParamId{128}, STRING_FOR_REVERB_AMOUNT},       // reverbAmount
-    ParamName{ParamId{129}, STRING_FOR_MASTER_LEVEL},        // volume
-    ParamName{ParamId{130}, STRING_FOR_SIDECHAIN_LEVEL},     // sidechainCompressorVolume
-    ParamName{ParamId{131}, STRING_FOR_MASTER_PITCH},        // pitchAdjust
-    ParamName{ParamId{132}, STRING_FOR_TEMPO},               // tempo
+constexpr std::array<ParamName, 16> kGlobalEffectableParamNames{{
+    ParamName{ParamId{101}, STRING_FOR_MOD_FX_RATE},     // modFXRate
+    ParamName{ParamId{102}, STRING_FOR_MOD_FX_DEPTH},    // modFXDepth
+    ParamName{ParamId{103}, STRING_FOR_DELAY_RATE},      // delayRate
+    ParamName{ParamId{104}, STRING_FOR_DELAY_AMOUNT},    // delayFeedback
+    ParamName{ParamId{105}, STRING_FOR_PAN},             // pan
+    ParamName{ParamId{106}, STRING_FOR_LPF_FREQUENCY},   // lpfFrequency
+    ParamName{ParamId{107}, STRING_FOR_LPF_RESONANCE},   // lpfResonance
+    ParamName{ParamId{108}, STRING_FOR_LPF_MORPH},       // lpfMorph
+    ParamName{ParamId{109}, STRING_FOR_HPF_FREQUENCY},   // hpfFrequency
+    ParamName{ParamId{110}, STRING_FOR_HPF_RESONANCE},   // hpfResonance
+    ParamName{ParamId{111}, STRING_FOR_HPF_MORPH},       // hpfMorph
+    ParamName{ParamId{112}, STRING_FOR_REVERB_AMOUNT},   // reverbAmount
+    ParamName{ParamId{113}, STRING_FOR_MASTER_LEVEL},    // volume
+    ParamName{ParamId{114}, STRING_FOR_SIDECHAIN_LEVEL}, // sidechainCompressorVolume
+    ParamName{ParamId{115}, STRING_FOR_MASTER_PITCH},    // pitchAdjust
+    ParamName{ParamId{116}, STRING_FOR_TEMPO},           // tempo
 }};
 
 /// The params both engines have under one id and name, sorted by id: each engine's lookup falls through to them.
-constexpr std::array<ParamName, 26> kSharedParamNames{{
-    ParamName{ParamId{90}, STRING_FOR_STUTTER_RATE},                        // stutterRate
-    ParamName{ParamId{91}, STRING_FOR_BASS},                                // bass
-    ParamName{ParamId{92}, STRING_FOR_TREBLE},                              // treble
-    ParamName{ParamId{93}, STRING_FOR_BASS_FREQUENCY},                      // bassFreq
-    ParamName{ParamId{94}, STRING_FOR_TREBLE_FREQUENCY},                    // trebleFreq
-    ParamName{ParamId{95}, STRING_FOR_DECIMATION},                          // sampleRateReduction
-    ParamName{ParamId{96}, STRING_FOR_BITCRUSH},                            // bitcrushAmount
-    ParamName{ParamId{97}, STRING_FOR_MODFX_OFFSET},                        // modFXOffset
-    ParamName{ParamId{98}, STRING_FOR_MODFX_FEEDBACK},                      // modFXFeedback
-    ParamName{ParamId{99}, STRING_FOR_SIDECHAIN_SHAPE},                     // compressorShape
-    ParamName{ParamId{100}, STRING_FOR_THRESHOLD},                          // compressorThreshold
-    ParamName{ParamId{101}, STRING_FOR_ARP_GATE_MENU_TITLE},                // arpGate
-    ParamName{ParamId{102}, STRING_FOR_ARP_RHYTHM_MENU_TITLE},              // rhythm
-    ParamName{ParamId{103}, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE},     // sequenceLength
-    ParamName{ParamId{104}, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE},     // chordPolyphony
-    ParamName{ParamId{105}, STRING_FOR_ARP_RATCHETS_MENU_TITLE},            // ratchetAmount
-    ParamName{ParamId{106}, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE},        // noteProbability
-    ParamName{ParamId{107}, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE},     // reverseProbability
-    ParamName{ParamId{108}, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE},    // bassProbability
-    ParamName{ParamId{109}, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE},    // swapProbability
-    ParamName{ParamId{110}, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE},   // glideProbability
-    ParamName{ParamId{111}, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE},   // chordProbability
-    ParamName{ParamId{112}, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE}, // ratchetProbability
-    ParamName{ParamId{113}, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE},         // spreadGate
-    ParamName{ParamId{114}, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE},       // spreadOctave
-    ParamName{ParamId{115}, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE},         // spreadVelocity
+constexpr std::array<ParamName, 11> kSharedParamNames{{
+    ParamName{ParamId{90}, STRING_FOR_STUTTER_RATE},     // stutterRate
+    ParamName{ParamId{91}, STRING_FOR_BASS},             // bass
+    ParamName{ParamId{92}, STRING_FOR_TREBLE},           // treble
+    ParamName{ParamId{93}, STRING_FOR_BASS_FREQUENCY},   // bassFreq
+    ParamName{ParamId{94}, STRING_FOR_TREBLE_FREQUENCY}, // trebleFreq
+    ParamName{ParamId{95}, STRING_FOR_DECIMATION},       // sampleRateReduction
+    ParamName{ParamId{96}, STRING_FOR_BITCRUSH},         // bitcrushAmount
+    ParamName{ParamId{97}, STRING_FOR_MODFX_OFFSET},     // modFXOffset
+    ParamName{ParamId{98}, STRING_FOR_MODFX_FEEDBACK},   // modFXFeedback
+    ParamName{ParamId{99}, STRING_FOR_SIDECHAIN_SHAPE},  // compressorShape
+    ParamName{ParamId{100}, STRING_FOR_THRESHOLD},       // compressorThreshold
 }};
 
 constexpr auto id_of(const ParamName& param) {

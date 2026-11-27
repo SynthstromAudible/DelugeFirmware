@@ -28,12 +28,14 @@
 ///     (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`), both view-side and not ported; only the *arming* is
 ///     compared here.
 
+#include "arp/params.h"
 #include "base/notify/dirty_set.h"
 #include "base/notify/notice_queue.h"
 #include "board_controls.hpp"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/host_ports.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/params/arp_param_set.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/menu/node.h"
@@ -644,7 +646,8 @@ struct FakeKnobs {
 		    fakes.model.output_structure.getOrCreate(spec::FakeHostRig::kSynthOutputId);
 		output.mod_knob_mode = 1;
 		output.controls = {
-		    {.control = {.button = 1, .knob = 1}, .target = deluge::instruments::classic::param::kLpfFrequency}};
+		    {.control = {.button = 1, .knob = 1},
+		     .target = deluge::project::engine_target(deluge::instruments::classic::param::kLpfFrequency.value)}};
 		fakes.host.midi_feedback.ccs.emplace_back(
 		    deluge::project::OwnerPlugin::INSTRUMENT,
 		    deluge::project::engine_target(deluge::instruments::classic::param::kLpfFrequency.value), kLpfFrequencyCc);
@@ -758,6 +761,46 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		// A gold-knob turn is consumed here, exactly as `interpretEncoders` consumes it.
 		expect(r.handled).to_be_true();
+	});
+
+	it("turns a knob on a sound's arp param in its arp's set", _ {
+		StubDisplay stub;
+		display = &stub;
+		AudioEngine::audioSampleTimer = 0;
+
+		spec::SongFixture f = spec::make_synth_song();
+		const uint8_t mode = f.instrument->modKnobMode;
+		deluge::project::DocOutput* record = f.song->project.output_structure.find(*f.instrument->id());
+		expect(record).not_().to_be_null();
+		if (record == nullptr) {
+			return;
+		}
+		// The lower knob of the current mode on the arp's gate
+		const deluge::project::ModKnobControl lower{.button = mode, .knob = 0};
+		const deluge::project::ParamTarget gate{.space = deluge::project::ParamSpace::ARP,
+		                                        .id = deluge::arp::param::kGate};
+		bool placed = false;
+		for (deluge::project::ControllerMapping& mapping : record->controls) {
+			if (mapping.control == lower) {
+				mapping.target = gate;
+				placed = true;
+			}
+		}
+		if (!placed) {
+			record->controls.push_back({.control = lower, .target = gate});
+		}
+		ArpParamSet& arp = *f.clip->paramManager.getArpParamSet();
+		const int32_t before = arp.word(deluge::arp::param::kGate);
+		const std::vector<int32_t> others = param_snapshot(f.clip->paramManager);
+
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region();
+		DirectCtx c{1000};
+		expect(rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx).handled).to_be_true();
+		expect(arp.word(deluge::arp::param::kGate)).not_().to_equal(before);
+		expect(param_snapshot(f.clip->paramManager)).to_equal(others);
 	});
 
 	it("blinks one indicator at a time: centring the other knob re-levels the first, as the recorded view does", _ {
@@ -879,8 +922,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
 
 		const std::vector<int32_t> after = param_snapshot(song.clip->paramManager);
-		// Recorded from `View::modEncoderAction` on an audio clip, the same turn.
-		expect(sole_change(before, after)).to_equal("31=167772160");
+		// Recorded from `View::modEncoderAction` on an audio clip, the same turn: main's pan at index 31, here 15.
+		expect(sole_change(before, after)).to_equal("15=167772160");
 		display = nullptr;
 		currentSong = nullptr;
 	});
@@ -2362,10 +2405,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		std::optional<deluge::plugin::ParamId> lower_target;
 		for (const deluge::project::ControllerMapping& mapping : record->controls) {
 			if (mapping.control == upper) {
-				upper_target = mapping.target;
+				upper_target = mapping.target.id;
 			}
 			if (mapping.control == lower) {
-				lower_target = mapping.target;
+				lower_target = mapping.target.id;
 			}
 		}
 		expect(upper_target).to_equal(std::optional{deluge::instruments::classic::param::kHpfFrequency});

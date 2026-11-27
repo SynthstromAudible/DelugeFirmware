@@ -26,6 +26,7 @@
 #include "effects/mod_fx.h"
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
+#include "model/project_bridge/param_reads.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "plugin/types/param.h"
@@ -36,18 +37,7 @@
 
 namespace deluge::model {
 
-static_assert(host::chains::kFirstId == modulation::params::UNPATCHED_START
-                  && instruments::classic::kUnpatchedFirstId == modulation::params::UNPATCHED_START,
-              "both owners keep their unpatched params from the runtime's first unpatched id");
-
-/// @brief The runtime's index of an owner's unpatched param.
-/// @param id The owner's id: one of its unpatched ids.
-/// @return The index into the owner's UnpatchedParamSet.
-[[nodiscard]] constexpr int32_t unpatchedIndex(plugin::ParamId id) {
-	assert(id.value >= modulation::params::UNPATCHED_START
-	       && id.value < modulation::params::UNPATCHED_START + modulation::params::kMaxNumUnpatchedParams);
-	return static_cast<int32_t>(id.value - modulation::params::UNPATCHED_START);
-}
+using bridge::unpatchedIndex;
 
 /// @brief The filters' words, in effects::Filter::Words order.
 /// @param set The owner's unpatched params.

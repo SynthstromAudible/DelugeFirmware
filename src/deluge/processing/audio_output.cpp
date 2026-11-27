@@ -29,6 +29,8 @@
 #include "model/fx/chain_codec.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_reads.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
@@ -237,7 +239,8 @@ bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::
 		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
 		if (activeAudioClip.voiceSample) {
 
-			int32_t attackNeutralValue = deluge::synth::matrix::kParamNeutral[params::LOCAL_ENV_0_ATTACK];
+			int32_t attackNeutralValue = deluge::synth::matrix::kParamNeutral[deluge::bridge::patchedIndex(
+			    deluge::instruments::classic::param::kEnv1Attack)];
 			// The attack's neutral read at Q31 (its units are the envelope's rate); the negated knob, a quarter, is
 			// its octaves at Q26
 			int32_t attack =
@@ -557,7 +560,7 @@ bool AudioOutput::isSkippingRendering() {
 }
 
 ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                             int32_t paramID, params::Kind paramKind, bool affectEntire,
+                                                             deluge::project::ParamTarget target, bool affectEntire,
                                                              bool useMenuStack, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
@@ -565,7 +568,8 @@ ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimel
 	    modelStack->addOtherTwoThingsButNoNoteRow(deluge::model::owner_of(*this), &clip->paramManager);
 
 	if (modelStackWithThreeMainThings) {
-		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+		modelStackWithParam = deluge::bridge::autoParamOf(
+		    modelStackWithThreeMainThings, deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE, target, forEdit);
 	}
 
 	return modelStackWithParam;

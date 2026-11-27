@@ -16,6 +16,8 @@
 /// its path from the settings root; a note editor, a stem export option or a skipped row's node in `subtrees` or
 /// `skipped_nodes`.
 
+#include "arp/params.h"
+#include "gui/l10n/param_names.h"
 #include "support/descriptor_cases.h"
 
 #include "host/chains/params.h"
@@ -778,11 +780,14 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			if (!ref.valid() || node->bind.get != nullptr || node->bind.set != nullptr) {
 				continue;
 			}
-			const deluge::plugin::ParamId id = deluge::bridge::paramIdOf(deluge::ui::scenes::spec::runtime_of(ref).kind, deluge::ui::scenes::spec::runtime_of(ref).index);
-			const bool global = deluge::ui::scenes::spec::runtime_of(ref).kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+			const auto runtime = deluge::ui::scenes::spec::runtime_of(ref);
+			const deluge::plugin::ParamId id = deluge::bridge::paramIdOf(runtime.kind, runtime.index);
+			const bool global = runtime.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+			const bool arp = runtime.kind == deluge::modulation::params::Kind::ARP;
 			const std::span<const deluge::plugin::ParamInfo> table =
-			    global ? std::span<const deluge::plugin::ParamInfo>{deluge::host::chains::kParams}
-			           : std::span<const deluge::plugin::ParamInfo>{deluge::instruments::classic::kParams};
+			    arp      ? std::span<const deluge::plugin::ParamInfo>{deluge::arp::kParamInfos}
+			    : global ? std::span<const deluge::plugin::ParamInfo>{deluge::host::chains::kParams}
+			             : std::span<const deluge::plugin::ParamInfo>{deluge::instruments::classic::kParams};
 			const deluge::plugin::ParamInfo* row = deluge::plugin::find_param(table, id);
 			expect(row).not_().to_be_null();
 			if (row == nullptr) {
@@ -791,8 +796,9 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			const deluge::l10n::ParamNameContext state{.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH,
 			                                           .hpf_mode = deluge::effects::FilterMode::SVF_BAND};
 			const std::string table_name =
-			    deluge::l10n::get(deluge::l10n::param_name(global ? plugin::kGlobalEffectable : plugin::kDelugeInstrument,
-			                                               id, state));
+			    arp ? std::string{deluge::l10n::param_name(deluge::plugin::ParamKind::ARP, id)}
+			        : deluge::l10n::get(deluge::l10n::param_name(
+			              global ? plugin::kGlobalEffectable : plugin::kDelugeInstrument, id, state));
 			if (folded(node_text(node->title)) == folded(table_name)) {
 				++same;
 				continue;

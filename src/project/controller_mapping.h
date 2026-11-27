@@ -21,6 +21,7 @@
 #include "plugin/types/param_naming.h"
 #include "project/fx_chain.h"
 #include "project/instrument_slot.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 #include <span>
@@ -35,11 +36,11 @@ struct ModKnobControl {
 	[[nodiscard]] constexpr bool operator==(const ModKnobControl&) const = default;
 };
 
-/// @brief A mod knob and the param of its owner's plugin it moves. A MIDI-learned knob is a binding of the song's
-/// MappingTable.
+/// @brief A mod knob and the param it moves: one of its owner's plugin's (ENGINE), or of its arp's (ARP). A
+/// MIDI-learned knob is a binding of the song's MappingTable.
 struct ControllerMapping {
 	ModKnobControl control;
-	deluge::plugin::ParamId target{};
+	ParamTarget target{};
 	[[nodiscard]] bool operator==(const ControllerMapping&) const = default;
 };
 

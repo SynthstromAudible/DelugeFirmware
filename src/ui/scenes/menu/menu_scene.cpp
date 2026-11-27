@@ -998,8 +998,8 @@ Result MenuScene::after_render_navigation() {
 				// `PatchedParam::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`) records
 				// the param it patches. The source page reads it from the level above it, which here is the page, not
 				// the column.
-				if (is_patched(column->bind.param)) {
-					st_.walk.patching_param = patched_byte(column->bind.param);
+				if (column->bind.patch_destination.has_value()) {
+					st_.walk.patching_param = *column->bind.patch_destination;
 				}
 				walk_.enter_child(core(), visit_.session, *chained);
 			}

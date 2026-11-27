@@ -1,6 +1,7 @@
 // The facts the UI reads about a param it names by plugin and target, held against the runtime numbering's
 // kind-keyed answers for every row of both tables.
 
+#include "arp/params.h"
 #include "host/chains/params.h"
 #include "instruments/classic/cables.h"
 #include "instruments/classic/params.h"
@@ -37,7 +38,7 @@ describe param_facts("a param's facts by plugin and id", ${
 			expect(bind::is_cable(p)).to_be_false();
 			expect(bind::is_bipolar(p)).to_equal(classic::is_bipolar_at(kind, slot->index));
 			expect(bind::is_stutter_rate(p)).to_equal(classic::is_stutter_rate_at(kind, slot->index));
-			expect(bind::is_arp_rhythm(p)).to_equal(classic::is_arp_rhythm_at(kind, slot->index));
+			expect(bind::is_arp_rhythm(p)).to_be_false(); // the rhythm is the arp's own param
 			expect(bind::info_of(p)).to_equal(classic::param_row_at(kind, slot->index));
 		}
 	});
@@ -52,6 +53,18 @@ describe param_facts("a param's facts by plugin and id", ${
 			expect(bind::is_stutter_rate(p)).to_equal(classic::is_stutter_rate_at(ParamKind::UNPATCHED_GLOBAL, *index));
 			expect(bind::is_arp_rhythm(p)).to_be_false();
 			expect(bind::info_of(p)).to_equal(classic::param_row_at(ParamKind::UNPATCHED_GLOBAL, *index));
+		}
+	});
+	it("answers an arp param on either owner from the arp's table", _ {
+		for (const OwnerPlugin owner : {OwnerPlugin::INSTRUMENT, OwnerPlugin::GLOBAL_EFFECTABLE}) {
+			for (const deluge::arp::Param& row : deluge::arp::kParams) {
+				const PluginParam p{.plugin = owner, .target = {.space = ParamSpace::ARP, .id = row.info.id}};
+				expect(bind::info_of(p)).to_equal(&deluge::arp::kParamInfos[row.info.id.value]);
+				expect(bind::is_arp_rhythm(p)).to_equal(row.info.id == deluge::arp::param::kRhythm);
+				expect(bind::is_patched(p)).to_be_false();
+				expect(bind::is_cable(p)).to_be_false();
+				expect(bind::is_bipolar(p)).to_be_false();
+			}
 		}
 	});
 	it("holds a cable's depth bipolar, unpatched and rowless", _ {

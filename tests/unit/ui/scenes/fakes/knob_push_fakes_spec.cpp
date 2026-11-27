@@ -67,10 +67,11 @@ struct Rig {
 		    .state = deluge::plugin::StateHandle::of<deluge::instruments::classic::DelugeSynth>(state)};
 		output.mod_knob_mode = kDelayButton;
 		// A new sound's delay knobs: the rate on the upper knob, the feedback on the lower.
-		output.controls = {{.control = {.button = kDelayButton, .knob = kUpperKnob},
-		                    .target = deluge::instruments::classic::param::kDelayRate},
-		                   {.control = {.button = kDelayButton, .knob = 0},
-		                    .target = deluge::instruments::classic::param::kDelayFeedback}};
+		output.controls = {
+		    {.control = {.button = kDelayButton, .knob = kUpperKnob},
+		     .target = deluge::project::engine_target(deluge::instruments::classic::param::kDelayRate.value)},
+		    {.control = {.button = kDelayButton, .knob = 0},
+		     .target = deluge::project::engine_target(deluge::instruments::classic::param::kDelayFeedback.value)}};
 	}
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;

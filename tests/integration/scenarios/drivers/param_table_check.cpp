@@ -42,6 +42,7 @@
 #include "instruments/classic/params.h"
 #include "model/fx/chain_params.h"
 #include "model/project_bridge/param_ids.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -49,6 +50,7 @@
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/param_defaults_reference.h"
 #include "scenarios/drivers/param_names_reference.h"
+#include "support/main_numbering.h"
 #include "synth/matrix/descriptors.h"
 #include "util/functions.h"
 
@@ -207,9 +209,16 @@ struct Checker {
 		if ((info.scope == ParamScope::PER_VOICE) != perVoice) {
 			fail(table, info, "its scope is not the runtime's");
 		}
-		if (info.flags != reference_predicates::flagsOf(kind, index)) {
+		// Main's flags, and on main's patched arp rate the one ours adds: its row is the matrix's destination alone
+		const bool destination_only =
+		    kind == params::Kind::PATCHED
+		    && deluge::ui::scenes::spec::main_numbering::arp_id_of_patched(static_cast<uint32_t>(index)).has_value();
+		const deluge::plugin::ParamFlags flags =
+		    destination_only ? reference_predicates::flagsOf(kind, index) | deluge::plugin::ParamFlag::DESTINATION_ONLY
+		                     : reference_predicates::flagsOf(kind, index);
+		if (info.flags != flags) {
 			std::fprintf(io.err, "%s %u: flags %#x, the runtime's predicates give %#x\n", table, info.id.value,
-			             info.flags.bits, reference_predicates::flagsOf(kind, index).bits);
+			             info.flags.bits, flags.bits);
 			fail(table, info, "its flags are not the runtime's");
 		}
 		if (info.mapping != reference_predicates::mappingOf(kind, index)) {
@@ -233,7 +242,8 @@ struct Checker {
 		const deluge::plugin::ParamNaming& naming = kind == params::Kind::UNPATCHED_GLOBAL
 		                                                ? deluge::host::chains::kNaming
 		                                                : deluge::instruments::classic::kNaming;
-		if (!unnamed && naming.id_of({name}) != std::optional<ParamId>{info.id}) {
+		// A destination-only row's plain name is its base's param, not the row
+		if (!unnamed && naming.id_of({name}) != (destination_only ? std::nullopt : std::optional<ParamId>{info.id})) {
 			fail(table, info, "its naming does not give the runtime's name this id");
 		}
 	}
@@ -272,13 +282,23 @@ void checkCables(Checker& check) {
 /// paramNameForFile and fileStringToParam against the recorded names: every kind,
 /// both file vocabularies, every runtime index; and every name, "range" and an unknown name read back.
 void checkNames(Checker& check) {
-	auto expected = [](int32_t kind, bool midiFollow, int32_t index) -> std::string_view {
+	auto main_name = [](int32_t kind, bool midiFollow, int32_t index) -> std::string_view {
 		for (const param_names_reference::Name& n : param_names_reference::kNames) {
 			if (n.kind == kind && n.midi_follow == midiFollow && n.index == index) {
 				return n.name;
 			}
 		}
 		return "none";
+	};
+	// The names were recorded from main, which kept the arp's params in the unpatched sets (indices 11 to 25, and a
+	// chain's arp rate at 30): an unpatched index here past 10 is main's 15 higher, past 14 main's 16 higher.
+	auto expected = [&](int32_t kind, bool midiFollow, int32_t index) -> std::string_view {
+		if (index < params::UNPATCHED_START) {
+			return main_name(kind, midiFollow, index);
+		}
+		const int32_t ours = index - params::UNPATCHED_START;
+		const int32_t main = ours <= 10 ? ours : (ours <= 14 ? ours + 15 : ours + 16);
+		return main_name(kind, midiFollow, params::UNPATCHED_START + main);
 	};
 	for (int32_t kind = 0; kind <= static_cast<int32_t>(params::Kind::EXPRESSION); ++kind) {
 		for (bool midiFollow : {false, true}) {
@@ -367,6 +387,8 @@ int32_t recordedDefault(param_defaults_reference::Table table, ParamId id) {
 }
 
 /// Each row's default, and what the engine's init gives a fresh manager's param, against the recorded default.
+namespace numbering = deluge::ui::scenes::spec::main_numbering;
+
 void checkDefaults(Checker& check) {
 	ParamManagerForTimeline sound;
 	sound.setupWithPatching();
@@ -377,7 +399,11 @@ void checkDefaults(Checker& check) {
 		                    ? static_cast<ParamSet*>(sound.getPatchedParamSet())
 		                    : static_cast<ParamSet*>(sound.getUnpatchedParamSet());
 		int32_t value = set->docForParam(slot.index)->current_value;
-		int32_t recorded = recordedDefault(param_defaults_reference::Table::INSTRUMENT, info.id);
+		// Recorded by main, whose unpatched ids past the arp's sit 15 higher (support/main_numbering.h).
+		const ParamId main_id = info.id.value >= numbering::kUnpatchedFirstId
+		                            ? ParamId{numbering::main_id_of(false, info.id.value)}
+		                            : info.id;
+		int32_t recorded = recordedDefault(param_defaults_reference::Table::INSTRUMENT, main_id);
 		if (value != recorded || info.default_value != recorded) {
 			std::fprintf(check.io.err, "default instrument %u %.*s: table %d, runtime %d, recorded %d\n", info.id.value,
 			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value,
@@ -392,12 +418,40 @@ void checkDefaults(Checker& check) {
 		int32_t value = global.getUnpatchedParamSet()
 		                    ->docForParam(*deluge::host::chains::find_runtime_index(info.id))
 		                    ->current_value;
-		int32_t recorded = recordedDefault(param_defaults_reference::Table::HOST_CHAIN, info.id);
+		int32_t recorded = recordedDefault(param_defaults_reference::Table::HOST_CHAIN,
+		                                   ParamId{numbering::main_id_of(true, info.id.value)});
 		if (value != recorded || info.default_value != recorded) {
 			std::fprintf(check.io.err, "default host-chain %u %.*s: table %d, runtime %d, recorded %d\n", info.id.value,
 			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value,
 			             recorded);
 			++check.disagreements;
+		}
+	}
+	// The arp's starting values are main's for its rows: a sound's arp the instrument's (its rate a patched param
+	// there, so not compared), a kit's the host chain's.
+	for (const bool chain : {false, true}) {
+		ParamManagerForTimeline owner;
+		if (chain) {
+			owner.setupUnpatched(deluge::arp::Owner::KIT);
+		}
+		else {
+			owner.setupWithPatching();
+		}
+		const ArpParamSet* arp = owner.getArpParamSet();
+		for (const deluge::arp::Param& row : deluge::arp::kParams) {
+			const std::optional<uint32_t> main_id = numbering::main_id_of_arp(chain, row.info.id.value);
+			if (!main_id) {
+				continue;
+			}
+			const int32_t recorded = recordedDefault(chain ? param_defaults_reference::Table::HOST_CHAIN
+			                                               : param_defaults_reference::Table::INSTRUMENT,
+			                                         ParamId{*main_id});
+			const int32_t value = arp != nullptr ? arp->word(row.info.id) : 0;
+			if (arp == nullptr || value != recorded) {
+				std::fprintf(check.io.err, "default %s arp %.*s: set %d, recorded %d\n", chain ? "kit" : "sound",
+				             static_cast<int>(row.info.file_name.size()), row.info.file_name.data(), value, recorded);
+				++check.disagreements;
+			}
 		}
 	}
 }

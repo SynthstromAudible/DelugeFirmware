@@ -611,12 +611,13 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 // Sets up the ratchet state if the probability is met
 void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	isRatcheting = isPlayRatchetForCurrentStep
-	               && settings->ratchetAmount > 0
+	               && settings->values.unsigned_word(deluge::arp::param::kRatchetAmount) > 0
 	               // For the highest sync we can't divide the time any more, so not possible to ratchet
 	               && !(settings->syncType == SYNC_TYPE_EVEN && settings->syncLevel == SYNC_LEVEL_256TH);
 	if (isRatcheting) {
-		ratchetNotesMultiplier =
-		    ratchet_doublings(settings->syncLevel, getRandomWeighted2BitsAmount(settings->ratchetAmount));
+		ratchetNotesMultiplier = ratchet_doublings(
+		    settings->syncLevel,
+		    getRandomWeighted2BitsAmount(settings->values.unsigned_word(deluge::arp::param::kRatchetAmount)));
 		ratchetNotesCount = 1 << ratchetNotesMultiplier;
 		if (ratchetNotesMultiplier == 0) {
 			// Ratchet probability evaluated to "no ratchet", so we update the status as if ratchet didn't happen
@@ -814,8 +815,10 @@ void ArpeggiatorBase::increaseSequenceIndexes(uint32_t maxSequenceLength, uint32
 void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,
                                       bool isRatchet) {
 	// Get params
-	uint32_t maxSequenceLength = computeCurrentValueForUnsignedMenuItem(settings->sequenceLength);
-	uint32_t rhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
+	uint32_t maxSequenceLength =
+	    computeCurrentValueForUnsignedMenuItem(settings->values.unsigned_word(deluge::arp::param::kSequenceLength));
+	uint32_t rhythm =
+	    computeCurrentValueForUnsignedMenuItem(settings->values.unsigned_word(deluge::arp::param::kRhythm));
 
 	// Probabilities
 	bool shouldCarryOnRhythmNote;
@@ -950,75 +953,104 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 	if (settings->randomizerLock) {
 		// Store generated randomized values in an array so we can repeat the sequence
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedNoteProbabilityParameterValue != settings->noteProbability) {
+		    || settings->lastLockedNoteProbabilityParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kNoteProbability)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedNoteProbabilityValues[i] = getRandomProbabilityResult(settings->noteProbability);
+				settings->lockedNoteProbabilityValues[i] =
+				    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kNoteProbability));
 			}
-			settings->lastLockedNoteProbabilityParameterValue = settings->noteProbability;
+			settings->lastLockedNoteProbabilityParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kNoteProbability);
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedBassProbabilityParameterValue != settings->bassProbability) {
+		    || settings->lastLockedBassProbabilityParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kBassProbability)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedBassProbabilityValues[i] = getRandomProbabilityResult(settings->bassProbability);
+				settings->lockedBassProbabilityValues[i] =
+				    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kBassProbability));
 			}
-			settings->lastLockedBassProbabilityParameterValue = settings->bassProbability;
+			settings->lastLockedBassProbabilityParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kBassProbability);
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedSwapProbabilityParameterValue != settings->swapProbability) {
+		    || settings->lastLockedSwapProbabilityParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kSwapProbability)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSwapProbabilityValues[i] = getRandomProbabilityResult(settings->swapProbability);
+				settings->lockedSwapProbabilityValues[i] =
+				    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kSwapProbability));
 			}
-			settings->lastLockedSwapProbabilityParameterValue = settings->swapProbability;
+			settings->lastLockedSwapProbabilityParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kSwapProbability);
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedGlideProbabilityParameterValue != settings->glideProbability) {
+		    || settings->lastLockedGlideProbabilityParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kGlideProbability)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedGlideProbabilityValues[i] = getRandomProbabilityResult(settings->glideProbability);
+				settings->lockedGlideProbabilityValues[i] =
+				    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kGlideProbability));
 			}
-			settings->lastLockedGlideProbabilityParameterValue = settings->glideProbability;
+			settings->lastLockedGlideProbabilityParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kGlideProbability);
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedReverseProbabilityParameterValue != settings->reverseProbability) {
+		    || settings->lastLockedReverseProbabilityParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kReverseProbability)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedReverseProbabilityValues[i] = getRandomProbabilityResult(settings->reverseProbability);
+				settings->lockedReverseProbabilityValues[i] =
+				    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kReverseProbability));
 			}
-			settings->lastLockedReverseProbabilityParameterValue = settings->reverseProbability;
+			settings->lastLockedReverseProbabilityParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kReverseProbability);
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedChordProbabilityParameterValue != settings->chordProbability) {
+		    || settings->lastLockedChordProbabilityParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kChordProbability)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedChordProbabilityValues[i] = getRandomProbabilityResult(settings->chordProbability);
+				settings->lockedChordProbabilityValues[i] =
+				    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kChordProbability));
 			}
-			settings->lastLockedChordProbabilityParameterValue = settings->chordProbability;
+			settings->lastLockedChordProbabilityParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kChordProbability);
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedRatchetProbabilityParameterValue != settings->ratchetProbability) {
+		    || settings->lastLockedRatchetProbabilityParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kRatchetProbability)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedRatchetProbabilityValues[i] = getRandomProbabilityResult(settings->ratchetProbability);
+				settings->lockedRatchetProbabilityValues[i] =
+				    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kRatchetProbability));
 			}
-			settings->lastLockedRatchetProbabilityParameterValue = settings->ratchetProbability;
+			settings->lastLockedRatchetProbabilityParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kRatchetProbability);
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedSpreadVelocityParameterValue != settings->spreadVelocity) {
+		    || settings->lastLockedSpreadVelocityParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kSpreadVelocity)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSpreadVelocityValues[i] =
-				    getRandomBipolarProbabilityAmount(settings->spreadVelocity); // negative
+				settings->lockedSpreadVelocityValues[i] = getRandomBipolarProbabilityAmount(
+				    settings->values.unsigned_word(deluge::arp::param::kSpreadVelocity)); // negative
 			}
-			settings->lastLockedSpreadVelocityParameterValue = settings->spreadVelocity;
+			settings->lastLockedSpreadVelocityParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kSpreadVelocity);
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedSpreadGateParameterValue != settings->spreadGate) {
+		    || settings->lastLockedSpreadGateParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kSpreadGate)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSpreadGateValues[i] = getRandomBipolarProbabilityAmount(settings->spreadGate);
+				settings->lockedSpreadGateValues[i] =
+				    getRandomBipolarProbabilityAmount(settings->values.unsigned_word(deluge::arp::param::kSpreadGate));
 			}
-			settings->lastLockedSpreadGateParameterValue = settings->spreadGate;
+			settings->lastLockedSpreadGateParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kSpreadGate);
 		}
 		if (resetLockedRandomizerValuesNextTime
-		    || settings->lastLockedSpreadOctaveParameterValue != settings->spreadOctave) {
+		    || settings->lastLockedSpreadOctaveParameterValue
+		           != settings->values.unsigned_word(deluge::arp::param::kSpreadOctave)) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSpreadOctaveValues[i] = getRandomWeighted2BitsAmount(settings->spreadOctave);
+				settings->lockedSpreadOctaveValues[i] =
+				    getRandomWeighted2BitsAmount(settings->values.unsigned_word(deluge::arp::param::kSpreadOctave));
 			}
-			settings->lastLockedSpreadOctaveParameterValue = settings->spreadOctave;
+			settings->lastLockedSpreadOctaveParameterValue =
+			    settings->values.unsigned_word(deluge::arp::param::kSpreadOctave);
 		}
 		resetLockedRandomizerValuesNextTime = false;
 
@@ -1052,16 +1084,26 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 	}
 	else {
 		// Lively create new randomized values on the fly each time a note is played
-		isPlayNoteForCurrentStep = getRandomProbabilityResult(settings->noteProbability);
-		isPlayBassForCurrentStep = getRandomProbabilityResult(settings->bassProbability);
-		isPlayRandomStepForCurrentStep = getRandomProbabilityResult(settings->swapProbability);
-		isPlayGlideForCurrentStep = getRandomProbabilityResult(settings->glideProbability);
-		isPlayReverseForCurrentStep = getRandomProbabilityResult(settings->reverseProbability);
-		isPlayChordForCurrentStep = getRandomProbabilityResult(settings->chordProbability);
-		isPlayRatchetForCurrentStep = getRandomProbabilityResult(settings->ratchetProbability);
-		spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(settings->spreadVelocity);
-		spreadGateForCurrentStep = getRandomBipolarProbabilityAmount(settings->spreadGate);
-		spreadOctaveForCurrentStep = getRandomWeighted2BitsAmount(settings->spreadOctave);
+		isPlayNoteForCurrentStep =
+		    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kNoteProbability));
+		isPlayBassForCurrentStep =
+		    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kBassProbability));
+		isPlayRandomStepForCurrentStep =
+		    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kSwapProbability));
+		isPlayGlideForCurrentStep =
+		    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kGlideProbability));
+		isPlayReverseForCurrentStep =
+		    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kReverseProbability));
+		isPlayChordForCurrentStep =
+		    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kChordProbability));
+		isPlayRatchetForCurrentStep =
+		    getRandomProbabilityResult(settings->values.unsigned_word(deluge::arp::param::kRatchetProbability));
+		spreadVelocityForCurrentStep =
+		    getRandomBipolarProbabilityAmount(settings->values.unsigned_word(deluge::arp::param::kSpreadVelocity));
+		spreadGateForCurrentStep =
+		    getRandomBipolarProbabilityAmount(settings->values.unsigned_word(deluge::arp::param::kSpreadGate));
+		spreadOctaveForCurrentStep =
+		    getRandomWeighted2BitsAmount(settings->values.unsigned_word(deluge::arp::param::kSpreadOctave));
 		// Rest locked values
 		resetLockedRandomizerValuesNextTime = true;
 	}
@@ -1313,8 +1355,10 @@ void Arpeggiator::rebuildNotesByPatternIfStale() {
 }
 void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {
 	// Get params
-	uint32_t maxSequenceLength = computeCurrentValueForUnsignedMenuItem(settings->sequenceLength);
-	uint32_t rhythm = computeCurrentValueForUnsignedMenuItem(settings->rhythm);
+	uint32_t maxSequenceLength =
+	    computeCurrentValueForUnsignedMenuItem(settings->values.unsigned_word(deluge::arp::param::kSequenceLength));
+	uint32_t rhythm =
+	    computeCurrentValueForUnsignedMenuItem(settings->values.unsigned_word(deluge::arp::param::kRhythm));
 
 	// Probabilities
 	bool shouldCarryOnRhythmNote;
@@ -1443,8 +1487,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			// Play chord!
 			// Limitation: we will only try to play chords for notes in the scale, and if scale has at least 5 notes
 			const int8_t base_offset = musical_key.modeNotes[degree % musical_key.modeNotes.count()];
-			const uint8_t num_additional_notes_in_chord =
-			    std::min(3_i8, getRandomWeighted2BitsAmount(settings->chordPolyphony));
+			const uint8_t num_additional_notes_in_chord = std::min(
+			    3_i8,
+			    getRandomWeighted2BitsAmount(settings->values.unsigned_word(deluge::arp::param::kChordPolyphony)));
 			if (num_additional_notes_in_chord > 0) {
 				std::array<int8_t, 3> degree_offsets = {0, 0, 0};
 				switch (num_additional_notes_in_chord) {
@@ -1671,23 +1716,7 @@ void ArpeggiatorSettings::cloneFrom(ArpeggiatorSettings const* other) {
 	syncType = other->syncType;
 	syncLevel = other->syncLevel;
 	mpeVelocity = other->mpeVelocity;
-	// Automatable params
-	rate = other->rate;
-	gate = other->gate;
-	rhythm = other->rhythm;
-	sequenceLength = other->sequenceLength;
-	chordPolyphony = other->chordPolyphony;
-	ratchetAmount = other->ratchetAmount;
-	noteProbability = other->noteProbability;
-	bassProbability = other->bassProbability;
-	swapProbability = other->swapProbability;
-	glideProbability = other->glideProbability;
-	reverseProbability = other->reverseProbability;
-	chordProbability = other->chordProbability;
-	ratchetProbability = other->ratchetProbability;
-	spreadVelocity = other->spreadVelocity;
-	spreadGate = other->spreadGate;
-	spreadOctave = other->spreadOctave;
+	values = other->values;
 }
 
 bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char const* tagName,
@@ -1833,58 +1862,12 @@ bool ArpeggiatorSettings::readCommonTagsFromFile(Deserializer& reader, char cons
 }
 
 bool ArpeggiatorSettings::readNonAudioTagsFromFile(Deserializer& reader, char const* tagName) {
-	if (!strcmp(tagName, "rate")) {
-		rate = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "gate")) {
-		gate = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "noteProbability")) {
-		noteProbability = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "bassProbability")) {
-		bassProbability = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "swapProbability")) {
-		swapProbability = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "glideProbability")) {
-		glideProbability = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "reverseProbability")) {
-		reverseProbability = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "chordProbability")) {
-		chordProbability = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "ratchetProbability")) {
-		ratchetProbability = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "ratchetAmount")) {
-		ratchetAmount = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "sequenceLength")) {
-		sequenceLength = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "chordPolyphony")) {
-		chordPolyphony = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "rhythm")) {
-		rhythm = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "spreadVelocity")) {
-		spreadVelocity = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "spreadGate")) {
-		spreadGate = reader.readTagOrAttributeValueInt();
-	}
-	else if (!strcmp(tagName, "spreadOctave")) {
-		spreadOctave = reader.readTagOrAttributeValueInt();
-	}
-	else {
+	// A MIDI or CV arp's attributes hold the engine's numbers: word + 2^31 for every value but the gate and the rate.
+	const std::optional<deluge::plugin::ParamId> id = deluge::arp::find_by_setting_name(tagName);
+	if (!id) {
 		return false;
 	}
-
+	values.set(*id, deluge::arp::word_of_field(*id, reader.readTagOrAttributeValueInt()));
 	reader.exitTag(tagName);
 	return true;
 }
@@ -1962,23 +1945,6 @@ void ArpeggiatorSettings::updatePresetFromCurrentSettings() {
 	else {
 		preset = ArpPreset::CUSTOM;
 	}
-}
-
-void ArpeggiatorSettings::updateParamsFromUnpatchedParamSet(UnpatchedParamSet* unpatchedParams) {
-	rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-	sequenceLength = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-	chordPolyphony = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_POLYPHONY) + 2147483648;
-	ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-	noteProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_NOTE_PROBABILITY) + 2147483648;
-	bassProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_PROBABILITY) + 2147483648;
-	swapProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SWAP_PROBABILITY) + 2147483648;
-	glideProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GLIDE_PROBABILITY) + 2147483648;
-	reverseProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_REVERSE_PROBABILITY) + 2147483648;
-	chordProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_CHORD_PROBABILITY) + 2147483648;
-	ratchetProbability = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
-	spreadVelocity = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_SPREAD_VELOCITY) + 2147483648;
-	spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
-	spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
 }
 
 void ArpeggiatorSettings::updateSettingsFromCurrentPreset() {

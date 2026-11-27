@@ -36,6 +36,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "host/chains/params.h"
 #include "io/debug/log.h"
 #include "io/midi/learned_dispatch.h"
 #include "io/midi/mapping_index.h"
@@ -61,6 +62,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -2569,7 +2571,8 @@ void PlaybackHandler::getTempoParamsFromTimePer(uint64_t timePer, int32_t* magni
 float PlaybackHandler::getTempoBPMAtArrangementPos(int32_t pos) {
 	alignas(ModelStackWithAutoParam) char model_stack_memory[MODEL_STACK_MAX_SIZE];
 	auto* model_stack = currentSong->setupModelStackWithSongAsTimelineCounter(model_stack_memory);
-	auto* tempo_param = currentSong->getModelStackWithParam(model_stack, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	auto* tempo_param = currentSong->getModelStackWithParam(
+	    model_stack, deluge::project::engine_target(deluge::host::chains::param::kTempo.value));
 
 	if (tempo_param && tempo_param->autoParam) {
 		return tempo_param->autoParam->getValuePossiblyAtPos(pos, tempo_param) / 100.0f;

@@ -26,6 +26,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -81,7 +82,7 @@ project::ParamTarget depthOf(int32_t p, PatchSource source) {
 	    deluge::bridge::controlTargetOf(
 	        deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(static_cast<uint8_t>(p), source)),
 	        params::Kind::UNPATCHED_SOUND)
-	        .value);
+	        .id.value);
 }
 
 /// @brief The address of the filter's frequency or resonance on @p f's synth, in @p clip.
@@ -393,7 +394,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		const ParamAddress lpf = filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip);
 		const project::ParamTarget volume = project::engine_target(
 		    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_VOLUME),
-		                                    params::Kind::UNPATCHED_GLOBAL).value);
+		                                    params::Kind::UNPATCHED_GLOBAL).id.value);
 		const ParamAddress songVolume{.owner = OwnerId::song(), .space = volume.space, .id = volume.id};
 		const auto lane = [&](const ParamAddress& address) {
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -403,12 +404,9 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		};
 		const auto [lpfId, lpfKind] = lane(lpf);
 		const auto [volId, volKind] = lane(songVolume);
-		f.clip->lastSelectedParamID = lpfId;
-		f.clip->lastSelectedParamKind = lpfKind;
-		other.clip->lastSelectedParamID = lpfId;
-		other.clip->lastSelectedParamKind = lpfKind;
-		f.song->lastSelectedParamID = volId;
-		f.song->lastSelectedParamKind = volKind;
+		f.clip->selectedParam = deluge::bridge::pluginParamOf(lpfKind, lpfId);
+		other.clip->selectedParam = deluge::bridge::pluginParamOf(lpfKind, lpfId);
+		f.song->selectedParam = deluge::bridge::pluginParamOf(volKind, volId);
 		// What a follow does: the editor's grid marked for rendering, the performance display drawn.
 		struct Seen {
 			bool grid;

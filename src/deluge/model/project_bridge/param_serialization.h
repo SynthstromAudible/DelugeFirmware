@@ -105,8 +105,11 @@ void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const 
 /// @param out              The serializer to write to.
 /// @param writeAutomation  Whether to write the automation nodes.
 /// @param valuesForOverride When non-null, its entries override the first six attrs' values (see writeDocAutoParam).
+/// @param arp              The owner's arp params, which the arp/probability/spread attrs come from; null for an
+///                         owner whose unpatched collection still holds them.
 void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
-                                             const int32_t* valuesForOverride = nullptr);
+                                             const int32_t* valuesForOverride = nullptr,
+                                             const DocParamSet* arp = nullptr);
 /// @brief Serialize the shared effects param block's tags (the `<equalizer>` group; what
 /// what a sound's and a host chain's writers write).
 ///
@@ -128,8 +131,11 @@ void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer&
 /// @param writeAutomation  Whether to write the automation nodes.
 /// @param valuesForOverride When non-null, entry [p] overrides param p's value (see writeDocAutoParam) for every
 ///                         attr except the shared arp/probability/spread ones.
+/// @param arp              A kit's arp params, which the arp attrs (arpeggiatorRate too) come from; null for an
+///                         owner with no arp (the song, an audio clip), which saves a kit's arp's starting values.
 void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
-                                              const int32_t* valuesForOverride = nullptr);
+                                              const int32_t* valuesForOverride = nullptr,
+                                              const DocParamSet* arp = nullptr);
 /// @brief Serialize the host chain param block's tags from the unpatched collection (what
 /// `model::writeGlobalParamTags` writes): the `<delay>` / `<lpf>` / `<hpf>` groups, then the shared
 /// effects tags.
@@ -168,9 +174,12 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 /// @param cableDepths      The lanes of the cables' depths.
 /// @param out              The serializer to write to.
 /// @param writeAutomation  Whether to write the automation nodes.
+/// @param arp              The sound's arp params, which the arp/probability/spread attrs and arpeggiatorRate come
+///                         from; null for none, which saves the arp's starting values.
 void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
                           std::span<const deluge::synth::CableRecord> cables,
-                          const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation);
+                          const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation,
+                          const DocParamSet* arp = nullptr);
 
 /// @brief Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
@@ -210,6 +219,12 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos);
 // returns false so the engine's remaining (legacy-only) dispatch can handle it. Driven by the same `DocParamAttr`
 // tables the serializers use.
 
+/// @brief Where a live read lands an arp's params: the owner's arp set, or none (they land in the unpatched set).
+struct LiveArp {
+	ParamSet* set{nullptr};
+	ParamCollectionSummary* summary{nullptr};
+};
+
 /// @brief Read one shared effects-block tag (the `<equalizer>` group + the flat shared attrs) into the
 /// live collection.
 ///
@@ -218,9 +233,11 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos);
 /// @param unpatched             The live unpatched set.
 /// @param unpatchedSummary      The unpatched set's summary, whose automation flag is marked.
 /// @param readAutomationUpToPos Upper bound on the automation node positions to read.
+/// @param arp                   The owner's arp set, which the arp/probability/spread attrs land in.
 /// @return true if @p tagName was a param tag and was read.
 bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
-                                 ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
+                                 ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos,
+                                 LiveArp arp = {});
 
 /// @brief Read one host chain param-block tag into the live collection: the `<delay>`/`<lpf>`/`<hpf>` groups +
 /// the host chain flat attrs, then the shared effects block.
@@ -233,9 +250,11 @@ bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet
 /// @param unpatched             The live unpatched set.
 /// @param unpatchedSummary      The unpatched set's summary, whose automation flag is marked.
 /// @param readAutomationUpToPos Upper bound on the automation node positions to read.
+/// @param arp                   A kit's arp set, which the arp attrs (arpeggiatorRate too) land in.
 /// @return true if @p tagName was a param tag and was read.
 bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
-                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
+                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos,
+                                  LiveArp arp = {});
 
 /// @brief Read one Sound param-block tag into the live collections: the two unpatched flat attrs (portamento /
 /// compressorShape), the patched flat attrs (osc / filter / LFO / FM / pitchAdjust family / community attrs), the
@@ -251,9 +270,12 @@ bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSe
 /// @param unpatched             The live unpatched set.
 /// @param unpatchedSummary      The unpatched set's summary, whose automation flag is marked.
 /// @param readAutomationUpToPos Upper bound on the automation node positions to read.
+/// @param arp                   The sound's arp set, which the arp/probability/spread attrs and arpeggiatorRate land
+/// in.
 /// @return true if @p tagName was a param tag and was read.
 bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched, ParamCollectionSummary& patchedSummary,
-                       ParamSet& unpatched, ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
+                       ParamSet& unpatched, ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos,
+                       LiveArp arp = {});
 
 /// @brief Read one ExpressionParamSet (MPE) tag (pitchBend / yExpression / pressure) into the live expression
 /// collection.
@@ -281,9 +303,10 @@ bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& exp
 /// @param tagName               The tag just opened.
 /// @param doc                   The unpatched store, pre-sized.
 /// @param readAutomationUpToPos Upper bound on the automation node positions to read.
+/// @param arp                   The owner's arp store, which the arp/probability/spread attrs land in.
 /// @return true if @p tagName was a param tag and was read.
 bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
-                                      int32_t readAutomationUpToPos);
+                                      int32_t readAutomationUpToPos, DocParamSet* arp = nullptr);
 
 /// @brief Read one host chain param-block tag into @p doc: the `<delay>`/`<lpf>`/`<hpf>` groups + host chain flat
 /// attrs (incl. the legacy nested `morph` members) + the shared effects block.
@@ -292,9 +315,10 @@ bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, Doc
 /// @param tagName               The tag just opened.
 /// @param doc                   The unpatched store, pre-sized.
 /// @param readAutomationUpToPos Upper bound on the automation node positions to read.
+/// @param arp                   A kit's arp store, which the arp attrs (arpeggiatorRate too) land in.
 /// @return true if @p tagName was a param tag and was read.
 bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
-                                       int32_t readAutomationUpToPos);
+                                       int32_t readAutomationUpToPos, DocParamSet* arp = nullptr);
 
 /// @brief Read one ExpressionParamSet (MPE) tag (pitchBend / yExpression / pressure) into @p doc, incl. the legacy
 /// `channelPressure` alias (pressure / dimension 2) that the engine reader keeps as a caller tail.
@@ -319,8 +343,10 @@ bool readExpressionParamTagToDoc(Deserializer& in, char const* tagName, DocParam
 /// @param patched               The patched store, pre-sized.
 /// @param unpatched             The unpatched store, pre-sized.
 /// @param readAutomationUpToPos Upper bound on the automation node positions to read.
+/// @param arp                   The sound's arp store, which the arp/probability/spread attrs and arpeggiatorRate land
+/// in.
 /// @return true if @p tagName was a param tag and was read.
 bool readSoundParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& patched, DocParamSet& unpatched,
-                            int32_t readAutomationUpToPos);
+                            int32_t readAutomationUpToPos, DocParamSet* arp = nullptr);
 
 } // namespace deluge::bridge

@@ -18,7 +18,7 @@ struct Pinned {
 	std::string_view name;
 };
 /// Every row, forever: an id never changes its name, and a name never changes its id.
-constexpr std::array<Pinned, 43> kPinned{{
+constexpr std::array<Pinned, 27> kPinned{{
     {90, "stutterRate"},
     {91, "bass"},
     {92, "treble"},
@@ -30,43 +30,27 @@ constexpr std::array<Pinned, 43> kPinned{{
     {98, "modFXFeedback"},
     {99, "compressorShape"},
     {100, "compressorThreshold"},
-    {101, "arpGate"},
-    {102, "rhythm"},
-    {103, "sequenceLength"},
-    {104, "chordPolyphony"},
-    {105, "ratchetAmount"},
-    {106, "noteProbability"},
-    {107, "reverseProbability"},
-    {108, "bassProbability"},
-    {109, "swapProbability"},
-    {110, "glideProbability"},
-    {111, "chordProbability"},
-    {112, "ratchetProbability"},
-    {113, "spreadGate"},
-    {114, "spreadOctave"},
-    {115, "spreadVelocity"},
-    {116, "modFXRate"},
-    {117, "modFXDepth"},
-    {118, "delayRate"},
-    {119, "delayFeedback"},
-    {120, "arpRate"},
-    {121, "pan"},
-    {122, "lpfFrequency"},
-    {123, "lpfResonance"},
-    {124, "lpfMorph"},
-    {125, "hpfFrequency"},
-    {126, "hpfResonance"},
-    {127, "hpfMorph"},
-    {128, "reverbAmount"},
-    {129, "volume"},
-    {130, "sidechainCompressorVolume"},
-    {131, "pitchAdjust"},
-    {132, "tempo"},
+    {101, "modFXRate"},
+    {102, "modFXDepth"},
+    {103, "delayRate"},
+    {104, "delayFeedback"},
+    {105, "pan"},
+    {106, "lpfFrequency"},
+    {107, "lpfResonance"},
+    {108, "lpfMorph"},
+    {109, "hpfFrequency"},
+    {110, "hpfResonance"},
+    {111, "hpfMorph"},
+    {112, "reverbAmount"},
+    {113, "volume"},
+    {114, "sidechainCompressorVolume"},
+    {115, "pitchAdjust"},
+    {116, "tempo"},
 }};
 namespace plugin = deluge::plugin;
 
 /// The rows written out field for field: the oracle the table's rows must equal, however the table builds them.
-constexpr std::array<plugin::ParamInfo, 43> kRecordedRows{{
+constexpr std::array<plugin::ParamInfo, 27> kRecordedRows{{
 
     {.id = param::kStutterRate, .file_name = "stutterRate"},
     {.id = param::kBass, .file_name = "bass", .flags = plugin::ParamFlag::MIDDLE_DETENT},
@@ -81,35 +65,6 @@ constexpr std::array<plugin::ParamInfo, 43> kRecordedRows{{
     {.id = param::kModFXFeedback, .file_name = "modFXFeedback", .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kCompressorShape, .file_name = "compressorShape", .default_value = -601295438},
     {.id = param::kCompressorThreshold, .file_name = "compressorThreshold", .mapping = plugin::MappingKind::UNIPOLAR},
-    {.id = param::kArpGate, .file_name = "arpGate", .default_value = std::numeric_limits<int32_t>::max()},
-    {.id = param::kRhythm, .file_name = "rhythm", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSequenceLength, .file_name = "sequenceLength", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kChordPolyphony, .file_name = "chordPolyphony", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kRatchetAmount, .file_name = "ratchetAmount", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kNoteProbability,
-     .file_name = "noteProbability",
-     .default_value = std::numeric_limits<int32_t>::max()},
-    {.id = param::kReverseProbability,
-     .file_name = "reverseProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kBassProbability,
-     .file_name = "bassProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSwapProbability,
-     .file_name = "swapProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kGlideProbability,
-     .file_name = "glideProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kChordProbability,
-     .file_name = "chordProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kRatchetProbability,
-     .file_name = "ratchetProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSpreadGate, .file_name = "spreadGate", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSpreadOctave, .file_name = "spreadOctave", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSpreadVelocity, .file_name = "spreadVelocity", .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kModFXRate, .file_name = "modFXRate", .default_value = -536870912},
     {.id = param::kModFXDepth, .file_name = "modFXDepth"},
     {.id = param::kDelayRate, .file_name = "delayRate", .flags = plugin::ParamFlag::MIDDLE_DETENT},
@@ -117,7 +72,6 @@ constexpr std::array<plugin::ParamInfo, 43> kRecordedRows{{
      .file_name = "delayFeedback",
      .default_value = std::numeric_limits<int32_t>::min(),
      .flags = plugin::ParamFlag::MIDDLE_DETENT},
-    {.id = param::kArpRate, .file_name = "arpRate"},
     {.id = param::kPan,
      .file_name = "pan",
      .mapping = plugin::MappingKind::PAN,
@@ -165,11 +119,11 @@ describe params("the host chain's param table", ${
 			expect(param_id(static_cast<uint8_t>(row.id - 90)).value).to_equal(row.id);
 		}
 		expect(find_runtime_index(ParamId{89})).not_().to_have_value();
-		expect(find_runtime_index(ParamId{133})).not_().to_have_value();
+		expect(find_runtime_index(ParamId{117})).not_().to_have_value();
 	});
 
 	it("shares the instrument's ids for the params both have", _ {
-		for (uint32_t id = 90; id <= 115; ++id) {
+		for (uint32_t id = 90; id <= 100; ++id) {
 			expect(deluge::plugin::find_param(kParams, ParamId{id})->file_name)
 			    .to_equal(deluge::plugin::find_param(deluge::instruments::classic::kParams, ParamId{id})->file_name);
 		}
@@ -177,15 +131,13 @@ describe params("the host chain's param table", ${
 
 	it("marks pan and pitch centred, and nothing else", _ {
 		for (const auto& row : kParams) {
-			expect(row.flags.has(deluge::plugin::ParamFlag::CENTRED)).to_equal(row.id.value == 121 || row.id.value == 131);
+			expect(row.flags.has(deluge::plugin::ParamFlag::CENTRED)).to_equal(row.id.value == 105 || row.id.value == 115);
 			expect(static_cast<int>(row.scope)).to_equal(static_cast<int>(ParamScope::PER_SOUND));
 		}
 	});
 
 	it("starts a new instance with its params' defaults", _ {
 		expect(deluge::plugin::find_param(kParams, param::kModFXRate)->default_value).to_equal(-536870912);
-		expect(deluge::plugin::find_param(kParams, param::kArpGate)->default_value)
-		    .to_equal(std::numeric_limits<int32_t>::max());
 		expect(deluge::plugin::find_param(kParams, param::kPan)->default_value).to_equal(0);
 	});
 
@@ -202,9 +154,9 @@ describe params("the host chain's param table", ${
 	});
 
 	it("names each effect's params by their ids, in the effect's order", _ {
-		expect(kFilterIds[0].value).to_equal(122U);
-		expect(kFilterIds[5].value).to_equal(127U);
-		expect(kModFxIds[0].value).to_equal(116U);
+		expect(kFilterIds[0].value).to_equal(106U);
+		expect(kFilterIds[5].value).to_equal(111U);
+		expect(kModFxIds[0].value).to_equal(101U);
 		expect(kModFxIds[2].value).to_equal(97U);
 		expect(kEqIds[3].value).to_equal(94U);
 		expect(kBitcrushIds[0].value).to_equal(96U);

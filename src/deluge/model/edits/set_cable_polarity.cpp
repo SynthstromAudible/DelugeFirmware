@@ -2,6 +2,7 @@
 
 #include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/param_stack.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable.h"
@@ -16,7 +17,7 @@ namespace deluge::edits {
 Error SetCablePolarity::apply(Context& ctx) {
 	const std::optional<bridge::LaneTarget> lane = bridge::lane_at(ctx.song, cable_);
 	Sound* const* sound = lane ? std::get_if<Sound*>(&lane->owner) : nullptr;
-	if (sound == nullptr || paramKindOf(lane->collection) != deluge::modulation::params::Kind::PATCH_CABLE) {
+	if (sound == nullptr || !bridge::isCableCollection(lane->collection)) {
 		return Error::UNSPECIFIED;
 	}
 	auto* set = static_cast<PatchCableSet*>(lane->collection);

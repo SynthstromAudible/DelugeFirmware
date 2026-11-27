@@ -249,6 +249,16 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFro
 	return modelStackWithParam;
 }
 
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getArpAutoParamFromId(int32_t newParamId) {
+	ParamCollectionSummary* summary = paramManager != nullptr ? paramManager->getArpParamSetSummary() : nullptr;
+	if (summary == nullptr) {
+		return nullptr;
+	}
+	ModelStackWithParamId* modelStackWithParamId =
+	    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
+	return summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+}
+
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {

@@ -34,7 +34,7 @@ namespace deluge::ui::controls {
 
 /// @brief The id of the instrument param a kit's sound row is never followed on: its portamento, which a kit's rows do
 /// not play.
-inline constexpr uint32_t kFollowRefusedOnKitRow = 116;
+inline constexpr uint32_t kFollowRefusedOnKitRow = 101;
 
 /// @brief MIDI follow's CC assignments: which param each CC names on a sound and on a global-effectable owner.
 struct FollowTables {
@@ -60,9 +60,9 @@ struct FollowTables {
 
 /// @brief The param MIDI follow names for a knob's param, in the plugin the context follows.
 ///
-/// A MIDI CC and an expression axis follow in either context; an engine param follows only in its own plugin's
-/// context: a sound's patched, unpatched and cable params in a sound's, the chain's params in a global effectable's. A
-/// cable's depth id is in no plugin's table; every other engine id must be in its owner's.
+/// A MIDI CC, an expression axis and an arp param follow in either context; an engine param follows only in its own
+/// plugin's context: a sound's patched, unpatched and cable params in a sound's, the chain's params in a global
+/// effectable's. A cable's depth id is in no plugin's table; every other engine id must be in its owner's.
 ///
 /// @tparam InTable Callable `bool(plugin::PluginId, plugin::ParamId)`: whether the plugin's table has the param.
 /// @param followed Whose params the context follows.
@@ -77,6 +77,7 @@ follow_target(project::OwnerPlugin followed, const project::PluginParam& turned,
 	switch (turned.target.space) {
 	case project::ParamSpace::MIDI_CC:
 	case project::ParamSpace::EXPRESSION:
+	case project::ParamSpace::ARP:
 		return turned.target;
 	case project::ParamSpace::ENGINE:
 		break;

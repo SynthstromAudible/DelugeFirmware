@@ -103,26 +103,11 @@ inline constexpr ParamId kModFXOffset{97};
 inline constexpr ParamId kModFXFeedback{98};
 inline constexpr ParamId kCompressorShape{99};
 inline constexpr ParamId kCompressorThreshold{100};
-inline constexpr ParamId kArpGate{101};
-inline constexpr ParamId kRhythm{102};
-inline constexpr ParamId kSequenceLength{103};
-inline constexpr ParamId kChordPolyphony{104};
-inline constexpr ParamId kRatchetAmount{105};
-inline constexpr ParamId kNoteProbability{106};
-inline constexpr ParamId kReverseProbability{107};
-inline constexpr ParamId kBassProbability{108};
-inline constexpr ParamId kSwapProbability{109};
-inline constexpr ParamId kGlideProbability{110};
-inline constexpr ParamId kChordProbability{111};
-inline constexpr ParamId kRatchetProbability{112};
-inline constexpr ParamId kSpreadGate{113};
-inline constexpr ParamId kSpreadOctave{114};
-inline constexpr ParamId kSpreadVelocity{115};
-inline constexpr ParamId kPortamento{116};
+inline constexpr ParamId kPortamento{101};
 } // namespace param
 
-/// @brief The first id of the params the runtime keeps unpatched (the sound's own effects and arpeggiator, its
-/// portamento). Ids below it are the runtime's patched params, numbered as the runtime numbers them.
+/// @brief The first id of the params the runtime keeps unpatched (the sound's own effects, its portamento). Ids below
+/// it are the runtime's patched params, numbered as the runtime numbers them.
 inline constexpr uint32_t kUnpatchedFirstId = 90;
 
 namespace detail {
@@ -131,7 +116,7 @@ inline constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
 
 /// @brief Every param the Deluge instrument has, in id order. An effect's row is its effect param (effects/params.h)
 /// at the instrument's id, default and scope.
-inline constexpr std::array<plugin::ParamInfo, 82> kParams{{
+inline constexpr std::array<plugin::ParamInfo, 67> kParams{{
     {.id = param::kOscAVolume,
      .file_name = "oscAVolume",
      .scope = plugin::ParamScope::PER_VOICE,
@@ -284,7 +269,7 @@ inline constexpr std::array<plugin::ParamInfo, 82> kParams{{
     effects::row(param::kModFXRate, effects::params::kModFxRate),
     {.id = param::kLfo1Rate, .file_name = "lfo1Rate", .default_value = 429496702},
     {.id = param::kLfo3Rate, .file_name = "lfo3Rate", .default_value = 429496702},
-    {.id = param::kArpRate, .file_name = "arpRate"},
+    {.id = param::kArpRate, .file_name = "arpRate", .flags = plugin::ParamFlag::DESTINATION_ONLY},
     effects::row(param::kStutterRate, effects::params::kStutterRate),
     effects::row(param::kBass, effects::params::kBass),
     effects::row(param::kTreble, effects::params::kTreble),
@@ -296,35 +281,6 @@ inline constexpr std::array<plugin::ParamInfo, 82> kParams{{
     effects::row(param::kModFXFeedback, effects::params::kModFxFeedback),
     effects::row(param::kCompressorShape, effects::params::kSidechainShape, {.default_value = -601295438}),
     effects::row(param::kCompressorThreshold, effects::params::kCompressorThreshold),
-    {.id = param::kArpGate, .file_name = "arpGate"},
-    {.id = param::kRhythm, .file_name = "rhythm", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSequenceLength, .file_name = "sequenceLength", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kChordPolyphony, .file_name = "chordPolyphony", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kRatchetAmount, .file_name = "ratchetAmount", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kNoteProbability,
-     .file_name = "noteProbability",
-     .default_value = std::numeric_limits<int32_t>::max()},
-    {.id = param::kReverseProbability,
-     .file_name = "reverseProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kBassProbability,
-     .file_name = "bassProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSwapProbability,
-     .file_name = "swapProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kGlideProbability,
-     .file_name = "glideProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kChordProbability,
-     .file_name = "chordProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kRatchetProbability,
-     .file_name = "ratchetProbability",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSpreadGate, .file_name = "spreadGate", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSpreadOctave, .file_name = "spreadOctave", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kSpreadVelocity, .file_name = "spreadVelocity", .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kPortamento, .file_name = "portamento", .default_value = std::numeric_limits<int32_t>::min()},
 }};
 
@@ -339,8 +295,8 @@ static_assert(effects::built_from(kParams, kBitcrushIds, effects::params::kBitcr
 
 /// @brief The two runs of ids the instrument's params are stored in: its patched params, then its unpatched ones.
 inline constexpr std::array<plugin::ParamBlock, 2> kParamBlocks{{
-    {plugin::ParamId{0}, 55},
-    {plugin::ParamId{kUnpatchedFirstId}, 27},
+    {.first = plugin::ParamId{0}, .count = 55},
+    {.first = plugin::ParamId{kUnpatchedFirstId}, .count = 12},
 }};
 
 /// @brief Which of the runtime's two param sets holds a param.
@@ -422,6 +378,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::STATIC:
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::EXPRESSION:
+	case plugin::ParamKind::ARP:
 		break;
 	}
 	return plugin::ParamId{index};
@@ -445,6 +402,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::PATCH_CABLE:
 	case plugin::ParamKind::EXPRESSION:
+	case plugin::ParamKind::ARP:
 		break;
 	}
 	return nullptr;
@@ -476,20 +434,13 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::PATCH_CABLE:
 	case plugin::ParamKind::EXPRESSION:
+	case plugin::ParamKind::ARP:
 		return nullptr;
 	}
 	if (at < table.size() && table[at].id == *id) {
 		return &table[at];
 	}
 	return param_row(kind, *id);
-}
-
-/// @brief Is the param the arpeggiator's rhythm? It is a sound's unpatched param.
-/// @param kind The runtime collection kind.
-/// @param id   The param id, as @c runtime_param_id numbers it.
-/// @return True for the sound's rhythm param.
-[[nodiscard]] constexpr bool is_arp_rhythm(plugin::ParamKind kind, plugin::ParamId id) {
-	return kind == plugin::ParamKind::UNPATCHED_SOUND && id == param::kRhythm;
 }
 
 /// @brief Is the param the stutter rate? A sound and a global effectable both have it, under their own kind.
@@ -533,18 +484,10 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::STATIC:
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::EXPRESSION:
+	case plugin::ParamKind::ARP:
 		break;
 	}
 	return is_bipolar_at(kind, id.value);
-}
-
-/// @brief @c is_arp_rhythm for the param at @p index of a @p kind collection.
-/// @param kind  The runtime collection kind.
-/// @param index The param's index in its collection.
-/// @return True for the sound's rhythm param.
-[[nodiscard]] constexpr bool is_arp_rhythm_at(plugin::ParamKind kind, uint32_t index) {
-	const std::optional<plugin::ParamId> id = runtime_param_id(kind, index);
-	return id && is_arp_rhythm(kind, *id);
 }
 
 /// @brief @c is_stutter_rate for the param at @p index of a @p kind collection.
@@ -577,13 +520,6 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 /// @return True for the sound's stutter rate.
 [[nodiscard]] constexpr bool is_stutter_rate(plugin::ParamId id) {
 	return kParamBlocks[1].contains(id) && id == host::chains::param::kStutterRate;
-}
-
-/// @brief Is the instrument's param @p id the arpeggiator's rhythm?
-/// @param id A param id of the instrument.
-/// @return True for the sound's rhythm param.
-[[nodiscard]] constexpr bool is_arp_rhythm(plugin::ParamId id) {
-	return id == param::kRhythm;
 }
 
 /// @brief Whether a plugin's param table has the param @p id: the global effectable's host-chain table for it, the

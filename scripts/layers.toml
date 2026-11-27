@@ -32,6 +32,9 @@ path = "project"
 path = "effects"
 
 [[directory]]
+path = "arp"
+
+[[directory]]
 path = "app"
 
 [[directory]]
@@ -118,6 +121,15 @@ prefix = "plugin/"
 may_include = [
     "serialization/",
     "base/panic.h",
+]
+
+# The arpeggiator's params: one table for every arp's owner, and the values an arp plays by.
+[[library]]
+name = "arp"
+root = "src/arp"
+prefix = "arp/"
+may_include = [
+    "plugin/types/",
 ]
 
 [[library]]
@@ -212,6 +224,7 @@ root = "src/project"
 prefix = "project/"
 may_include = [
     "plugin/types/",
+    "arp/",
     # an engine's state, held without naming its type (a record owns its instrument's state)
     "plugin/state_handle.h",
     "plugin/plugin.h",
@@ -239,6 +252,7 @@ root = "src/ui/scenes/bind"
 prefix = "ui/scenes/bind/"
 may_include = [
     "project/",
+    "arp/",
     "ui/controls/",
     "plugin/",
     "instruments/classic/",
@@ -344,7 +358,7 @@ reason = "the shell knows no model: it includes the toolkit, gfx, notify, midi i
 [[rule]]
 name = "scenes-includes-outside"
 files = ["src/ui/scenes/**"]
-pattern = '^(?!ui/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|project/|music/)(?:.*/)'
+pattern = '^(?!ui/|base/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|host/chains/|instruments/|synth/modulation/|plugin/|serialization/|project/|music/|arp/)(?:.*/)'
 reason = "the scenes include the UI stack, the model and its ports, never the legacy UI or the app's internals"
 
 [[rule]]
@@ -400,7 +414,6 @@ allow = [
     "memory/memory_allocator_interface.h",
     "util/lookuptables/lookuptables.h",
     "util/misc.h",
-    "util/param_functions.h",
     "modulation/params/param.h",
     "modulation/sync.h",
     # the vocabulary definitions_cxx.hpp brings; synth-no-project-vocabulary keeps a synth file from naming it
@@ -426,6 +439,12 @@ reason = "the project vocabulary reaches the synth only through definitions_cxx.
 # src/platform/device/linker/sdram_sections.x's placement blocks, and tools/check_placement.py fails the build when
 # the boot, the audio or streaming tier or an interrupt reaches the placed code by a direct call. min_text, min_data
 # and min_bss are the sizes the link must find, so a rename that stops a pattern matching fails the link.
+
+[[placement]]
+path = "src/arp"
+memory = "sdram"
+reason = "the arp's param table, read when an arp's set is made, loaded or saved; the engine reads the set's words"
+min_data = 512
 
 [[placement]]
 path = "src/ui"

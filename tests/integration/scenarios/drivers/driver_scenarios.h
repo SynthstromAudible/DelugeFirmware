@@ -29,6 +29,7 @@
 /// | clip_clone_roundtrip | InstrumentClip::clone() on a loaded song, checked deep-independent         |
 /// | edit_cost            | a settings Edit's host cost on a new synth, timed                          |
 /// | source_memory        | a sample synth's heap across an oscillator switch away and back           |
+/// | heap_footprint       | a loaded song's param managers, unpatched and arp sets, and heaps' use    |
 /// | edit_substrate       | the Edit dispatcher and the SetParamValue edit, self-checking              |
 /// | voice_pins           | which voice each cull, steal and admit takes, against its record           |
 /// | edit_undo_redo       | reified Edits applied, undone and redone over a loaded song, self-checking |
@@ -59,6 +60,7 @@ DELUGE_SCENARIO_DECLARE(clip_clone_roundtrip);
 DELUGE_SCENARIO_DECLARE(document_version);
 DELUGE_SCENARIO_DECLARE(edit_cost);
 DELUGE_SCENARIO_DECLARE(source_memory);
+DELUGE_SCENARIO_DECLARE(heap_footprint);
 DELUGE_SCENARIO_DECLARE(edit_substrate);
 DELUGE_SCENARIO_DECLARE(voice_pins);
 DELUGE_SCENARIO_DECLARE(effect_owners);

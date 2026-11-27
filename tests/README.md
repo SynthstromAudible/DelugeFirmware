@@ -171,6 +171,7 @@ builds only `golden-vt-render`.
 | effect-owners | integration | scenario | unit | gate | every owner of effects (a synth's sound, a kit, an audio track, the song master) keeps its effect settings in its own state, and the render's copy follows | pr | model | ~1s |
 | edit-cost | integration | scenario | benchmark | investigative | nothing: it times SetEngineSetting on a new synth for a re-voicing scalar, a retuning scalar, an oscillator type switch and an engine switch | manual | model | ~5s |
 | source-memory | integration | scenario | benchmark | investigative | nothing: it prints the SRAM and SDRAM heaps' free bytes and low-water marks across a sample oscillator's switch to a saw and back | manual | model | ~5s |
+| heap-footprint | integration | scenario | benchmark | investigative | nothing: it prints the param managers, unpatched and arp sets, each set's size and the SRAM and SDRAM heaps' bytes the load took of the song DRV_ARGS names | manual | model | ~5s |
 | edit-substrate | integration | scenario | unit | gate | the Edit substrate on its own | pr | model | ~1s |
 | voice-pins | integration | scenario | unit | gate | which voice each cull, steal and admit takes across sounds, against the record | pr | model | ~1s |
 | mapping-dispatch | integration | scenario | property | gate | the mapping index matches incoming MIDI as the dispatch's scans of the engine fields do | pr | app | ~5s |

@@ -12,7 +12,8 @@ collection `Kind` and index) maps to ids through `model/project_bridge/param_ids
 `params::paramInfoFor(kind, index)` returns a runtime param's row.
 
 Only the runtime and the bridge hold that numbering: the instrument's tables (`instruments/classic`), the runtime's
-collections (`modulation/`), the bridge (`model/project_bridge/`), the Sound and effects runtime's own reads and the
+collections (`modulation/`) and the model stack's storage kind (`model/model_stack.h`), the host chain's own map
+(`host/chains/params.h`), the bridge (`model/project_bridge/`), the Sound and effects runtime's own reads and the
 synth's param planes. The `no-param-kind-outside-runtime` count (`scripts/check_layer_rules.py`) holds every other file
 to its number of runtime-numbered names, and may only fall; `src/ui` holds none.
 
@@ -42,15 +43,27 @@ What names params by target:
   (`getLearningThing()`);
 - the cable set and the patch-cable menus, by `synth::CableTarget` word.
 
-A clip's and the song's automation selection (`lastSelectedParamKind`, `lastSelectedParamID`) stays the runtime pair:
-it is what the files record, a MIDI clip's keeping whatever kind was there with its CC.
+A clip's and the song's automation selection is `selectedParam`, a `std::optional<project::PluginParam>`: a kit's
+selection carries its plugin because it decides Affect Entire. The files keep the runtime pair in their
+`lastSelectedParamKind` and `lastSelectedParamID` attributes, read through `bridge::clipSelectionOfFile` and
+`songSelectionOfFile` and written through `bridge::selectionPairOf` (`model/project_bridge/param_selection.h`). A MIDI
+clip's CC is a MIDI_CC target and saves as kind MIDI; an older file's CC (kind none, or the kind an expression left
+behind, with an id past the expression dimensions) loads as that CC.
+
+The model's own API names params by target. `Output::getModelStackWithParam` and `Song::getModelStackWithParam` take a
+`ParamTarget`, each output knowing its plugin, and `bridge::autoParamOf` turns it into the lane on a model stack. The
+edits name instrument or chain ids, and ask `bridge::isCableCollection` whether a store is a sound's cables. A runtime
+read outside the runtime's own files names the id and reads the set at `bridge::patchedIndex` or `unpatchedIndex`
+(`model/project_bridge/param_reads.h`). The legacy views keep their `(kind, index)` plumbing and cross at their edges:
+the automation view reads the selection's runtime pair through `bridge::runtimePairOf` and turns a pair back into a
+param through `bridge::pluginParamOf`.
 
 The UI names a param as a `project::PluginParam` (`src/project/owner_plugin.h`): its owner's plugin and its target. A
 menu item's `ParamRef` is its table and id; a gold knob's turn, the popup and MIDI follow carry the plugin param, the
 knobs taking the plugin from their focus (`ui::controls::owner_plugin_of`). What the UI shows a param by comes from its
 plugin and id: `ui/scenes/bind/param_facts.h` (its row, and whether it is a cable, patched, bipolar, the stutter rate or
-the arpeggiator's rhythm) and `l10n`'s plugin-keyed names. Where the app hands a plugin param to the legacy views or to
-the automation view's selection, it turns it into the runtime pair through `bridge::runtimeParamOf`.
+the arpeggiator's rhythm) and `l10n`'s plugin-keyed names. Where the app hands a plugin param to the legacy views, it turns it into the runtime pair through
+`bridge::runtimeParamOf`; the automation view's selection takes the plugin param as it is.
 
 param_target_check round-trips every runtime param of both plugins and every cable word through the bridge, and holds
 each of these tables to its recorded runtime cells
@@ -306,9 +319,9 @@ them with a pure `params_from(words)` (`Filter`, `ModFx`) or `final_value(param,
 
 An owner's table gives each effect param its id, default and scope: `effects::row(id, param, {default, scope,
 extra_flags})` (`effects/param_row.h`) makes the row, taking the name, mapping and flags from the effect. The host
-chain's table (`host/chains/params.h`, ids 90–132) and the Deluge instrument's effect rows (its shared
-unpatched prefix and its patched filter, mod FX, delay and reverb rows) are built this way; the arpeggiator's rows and
-the channel's (pan, volume, pitch adjust, tempo) are the tables' own. Where a reader gathers several params of one
+chain's table (`host/chains/params.h`, ids 90–116) and the Deluge instrument's effect rows (its shared
+unpatched prefix and its patched filter, mod FX, delay and reverb rows) are built this way; the channel's rows (pan,
+volume, pitch adjust, tempo) are the tables' own. Where a reader gathers several params of one
 effect, the table names their ids in the effect's order (`host::chains::kFilterIds`, `kModFxIds`, `kEqIds`,
 `kBitcrushIds`; `instruments::classic::kEqIds`, `kBitcrushIds`), and `effects::built_from` checks each list against the effect's
 params at compile time.
@@ -420,9 +433,32 @@ The instrument's patching (`synth::matrix::kParamRules`, `src/synth/matrix/descr
 chain, curve, `patching_bipolar` rule, neutral and range. They are not published: a host never sees how cables
 combine.
 
+## The arpeggiator's params
+
+An arp's sixteen values (gate, rate, rhythm, sequence length, chord polyphony, ratchet amount, the probabilities, the
+spreads) are its own params: one table, `arp::kParams` (`src/arp/params.h`), for every owner. A param is
+`ParamTarget{ParamSpace::ARP, id}` on a sound, a kit, a kit row, or a MIDI or CV clip alike; at run time it is
+`Kind::ARP` in the owner's `ArpParamSet` (`modulation/params/arp_param_set.h`), the last main collection of the owner's
+`ParamManager` (a MIDI or gate kit row's and a CV clip's manager holds it alone, which counts as no main collection).
+The owner's starting values differ only for a kit's own arp, whose gate starts fully open (`arp::default_value`). The
+engine plays a per-block snapshot of the set (`ArpeggiatorSettings::values`).
+A sound's arp rate is its arp's `kRate` too, but the mod matrix computes the rate a sound's arp plays: its arp-rate
+destination (`GLOBAL_ARP_RATE`) takes its base from the arp set (`Sound::matrixBlock`), adds its cables and applies its
+curve, and an edit of the arp's rate repatches it (`ArpParamSet::notifyParamModifiedInSomeWay`). The instrument's row 54
+(`arpRate`) is that destination only (`ParamFlag::DESTINATION_ONLY`): cables name it, and a plain `arpRate` (a learned
+knob, a MIDI follow entry) names the arp's rate. Its slot in a patched set stays, unread, so the patched ids keep their
+places. A menu item's patch destination is its binding's own
+(`Binding::patch_destination`), so the arp-rate item patches to row 54 while it edits the arp's rate.
+A knob may move an arp param on any owner: a MIDI knob is a song mapping to its `ParamTarget`, and a mod knob's target
+(`ControllerMapping::target`, the sound's `ModKnob::target`) is the arp's `ParamTarget` too, saved by the arp's file name.
+The instrument's knob pairs (`KnobPairs`) name the plugin's own params alone; `writeKnobPairs` keeps an arp knob its
+change leaves alone, and a page puts it in its slot as it is (`sound_page`).
+Saves keep their attributes: a sound's and a kit's in its param block, a MIDI or CV clip's and a MIDI or gate row's on
+its `<arpeggiator>` element (the unsigned values word + 2^31, `arp::word_of_field`).
+
 ## Not yet descriptor-driven
 
 Display names (l10n, the menus), the codec's attribute names (`model/project_bridge/param_serialization.cpp`, grouped
 by element), the identity enums and `Kind` in the model's API and the legacy views (the count above), edits and undo
-by address, ModelStack, and the
-arpeggiator's rows (params in sounds and kits, `ArpeggiatorSettings` fields for MIDI and CV tracks).
+by address, ModelStack, and a MIDI or CV arp's menu rows, which still edit its values as settings (the setting
+projection writes them into the arp's set).

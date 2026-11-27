@@ -476,8 +476,8 @@ void SourceSelectionItem::on_focus(const MenuContext& ctx, MenuState& state) con
 	// the range picker below it.
 	if (which_ == Which::Regular && state.depth > 0) {
 		const Node* from = state.path[state.depth - 1];
-		if (from != nullptr && is_patched(from->bind.param)) {
-			state.walk.patching_param = patched_byte(from->bind.param);
+		if (from != nullptr && from->bind.patch_destination.has_value()) {
+			state.walk.patching_param = *from->bind.patch_destination;
 		}
 	}
 

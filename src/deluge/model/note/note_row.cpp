@@ -39,6 +39,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/working_copies.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/move_section.h"
@@ -3733,8 +3734,9 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		    *drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
 	}
-	else if (!backupOldParamManager) {
-		// Not backing up, so nothing else owns the main collections - free them rather than leaking them
+	else {
+		// Nothing else will own the main collections (or a MIDI or gate row's arp set, which is not backed up) - free
+		// them rather than leaking them
 		paramManager.destructAndForgetMainParamCollections();
 	}
 	paramManager.forgetParamCollections();
@@ -3846,6 +3848,14 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		if (clip->isActiveOnOutput()) {
 			soundDrum->performInitialPatching(soundDrum->matrixBlock(paramManager, Sound::PresetGather::ALL));
 		}
+	}
+	// A MIDI or gate drum's row holds its own arp's set, as a sound drum's row holds its sound's, starting at its
+	// drum's values.
+	else if (newDrum != nullptr && paramManager.getArpParamSet() == nullptr) {
+		if (paramManager.setupArpOnly(deluge::arp::Owner::ROW) != Error::NONE) {
+			FREEZE_WITH_ERROR("E010"); // If there was no RAM, we're really in trouble.
+		}
+		paramManager.getArpParamSet()->set_words(newDrum->arpSettings.values);
 	}
 
 	drum = newDrum;
