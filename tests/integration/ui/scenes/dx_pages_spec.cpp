@@ -515,6 +515,14 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 4)).to_be_null();
 	});
 
+	it("lands oscillator 1's type shortcut on the DX7's column on a DX7 sound, as main's type showed its DX7", _ {
+		MenuRig r;
+		expect(nodes::dx_shortcut_fallback(nodes::osc0_type, r.menu_context(), 2)).to_equal(&nodes::dx7_engine);
+		expect(nodes::dx_shortcut_fallback(nodes::osc1_type, r.menu_context(), 3)).to_be_null();
+		deluge::test::setSynthMode(*r.sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
+		expect(nodes::dx_shortcut_fallback(nodes::osc0_type, r.menu_context(), 2)).to_be_null();
+	});
+
 	it("goes up from the parameter page on SELECT and on BACK", _ {
 		MenuRig r;
 		r.open(nodes::dx_global_params);

@@ -12,7 +12,7 @@
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/menu/nodes/dx_algorithms.h"
 #include "ui/scenes/menu/nodes/dx_tables.h"
-#include "ui/scenes/menu/nodes/sound_osc.h" // modulator0_volume, the one shortcut with a DX7 fallback
+#include "ui/scenes/menu/nodes/sound_osc.h" // modulator0_volume and osc0_type, the shortcuts with a DX7 fallback
 #include "ui/scenes/profile.h"
 
 #include "ui/gfx/oled/font.h"
@@ -614,7 +614,14 @@ const Node* mode_chain(const MenuContext& ctx, const MenuState& /*state*/) {
 const Node* dx_shortcut_fallback(const Node& refused, const MenuContext& ctx, uint8_t x) {
 	// Legacy tests `soundEditor.currentSource`, which the refused `setup()` has not yet set, so it is the source the
 	// previous menu left; this tests the pad's own source, oscillator 1's being the DX7's (DIFFERENCES D90).
-	return &refused == &modulator0_volume && (x & 1) == 0 && sound_is_dx7(ctx) ? &dx_param : nullptr;
+	if ((x & 1) != 0 || !sound_is_dx7(ctx)) {
+		return nullptr;
+	}
+	if (&refused == &modulator0_volume) {
+		return &dx_param;
+	}
+	// Oscillator 1's type on main showed the DX7 there, its SELECT entering "DX7 source": the DX7's column does.
+	return &refused == &osc0_type ? &dx7_engine : nullptr;
 }
 
 } // namespace deluge::ui::scenes::menu::nodes

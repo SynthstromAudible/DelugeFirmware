@@ -197,12 +197,14 @@ bool sound_is_dx7(const MenuContext& ctx);
 const Node* mode_chain(const MenuContext& ctx, const MenuState& state);
 
 /// @brief `potentialShortcutPadAction`'s fallback (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) for a shortcut
-///        whose node does not apply: modulator 1's volume, refused on a DX7-mode sound, opens the DX7 parameter page
-///        instead, on the param it showed last, from oscillator 1's column (`x` even) as `main`'s DX7 oscillator 1.
+///        whose node does not apply, from oscillator 1's column (`x` even) on a DX7-mode sound, as on `main`'s DX7
+///        oscillator 1: modulator 1's volume opens the DX7 parameter page alone, on the param it showed last;
+///        oscillator 1's type lands on the DX7's column (`dx7_engine`), whose SELECT enters "DX7 source" as the type's
+///        did.
 /// @param refused The node the pad names, which does not apply.
 /// @param ctx     What the menu edits.
 /// @param x       The pad's column; its low bit names the source.
-/// @return `dx_param`, or nothing where legacy shows "PARAMETER NOT APPLICABLE".
+/// @return `dx_param` or `dx7_engine`, or nothing where legacy shows "PARAMETER NOT APPLICABLE".
 const Node* dx_shortcut_fallback(const Node& refused, const MenuContext& ctx, uint8_t x);
 inline constexpr const Node* kModeChainArray[] = {&dx_menu};
 inline constexpr std::span<const Node* const> kModeChain{kModeChainArray};
