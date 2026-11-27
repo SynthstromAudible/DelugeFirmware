@@ -996,14 +996,15 @@ def runtime_text(seconds: int) -> str:
 def markdown_table(harnesses: list[Harness]) -> str:
     """The generated table for tests/README.md."""
     lines = [
-        "| Test | Level | Runner | Kind | Status | Gates | Tier | Job | Runtime |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Test | Level | Runner | Kind | Status | Gates | Areas | Tier | Job | Runtime |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for h in harnesses:
         # Escape pipes in fields to preserve table structure
         escaped_gates = h.gates.replace("|", "\\|")
         lines.append(
-            f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {h.tier} | {h.job} "
+            f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {', '.join(h.areas)} "
+            f"| {h.tier} | {h.job} "
             f"| {runtime_text(h.runtime_s)} |"
         )
     return "\n".join(lines) + "\n"

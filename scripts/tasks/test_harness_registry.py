@@ -1578,6 +1578,18 @@ class MarkdownTableTest(unittest.TestCase):
         self.assertEqual(header[header.index("Tier") + 1], "Job")
         self.assertIn("| pr | storage |", table)
 
+    def test_table_has_an_areas_column_after_gates(self):
+        text = MINIMAL.replace('areas = ["all"]', 'areas = ["ui", "codec"]')
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
+        table = hr.markdown_table(hr.load_registry(root))
+        self.assertEqual(
+            table.split("\n")[0],
+            "| Test | Level | Runner | Kind | Status | Gates | Areas | Tier | Job | Runtime |",
+        )
+        self.assertIn("| alpha must equal beta | ui, codec | pr |", table)
+
     def test_table_has_a_row_per_harness(self):
         entries = hr.load_registry(self._root())
         table = hr.markdown_table(entries)
@@ -1596,9 +1608,9 @@ class MarkdownTableTest(unittest.TestCase):
         header_row = lines[0]
         data_row = lines[2]
         # One more pipe than columns: leading, one between each pair, trailing.
-        self.assertEqual(header_row.count("|"), 10)
+        self.assertEqual(header_row.count("|"), 11)
         # The escaped pipe adds one to the data row without adding a column.
-        self.assertEqual(data_row.count("|"), 11)
+        self.assertEqual(data_row.count("|"), 12)
 
     def _root(self):
         root = Path(tempfile.mkdtemp())

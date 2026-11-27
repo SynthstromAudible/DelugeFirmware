@@ -7,6 +7,8 @@ runner, tier and prerequisites. `./dbt test` runs any selection of them:
     ./dbt test                          # the pr tier: what a pull request runs
     ./dbt test --level integration      # one level: unit, component or integration
     ./dbt test --tier nightly           # everything up to and including nightly
+    ./dbt test --only-tier nightly      # the nightly tier alone
+    ./dbt test --since next             # only the pr tier's tests the changes since next reach
     ./dbt test <name> [<name> ...]      # by name, whatever the tier
     ./dbt test unit -- -R stitch_spec   # arguments after -- go to ctest
     ./dbt test --list                   # what exists, and what you can run right now
@@ -26,219 +28,255 @@ builds only `golden-vt-render`.
     ./dbt test --update-readme
 
 <!-- BEGIN GENERATED TABLE -->
-| Test | Level | Runner | Kind | Status | Gates | Tier | Job | Runtime |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| fs-differential | component | cargo | differential | gate | embedded-fatfs must agree with the reference FAT implementation on every filesystem operation | pr | storage | ~1m |
-| upgrade-differential | integration | script | differential | gate | a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded | nightly | storage | ~10s |
-| upgrade-differential-corpus | integration | script | differential | gate | the upgrader against a real card backup | nightly | storage | ~10m |
-| upgrader | unit | cargo | unit | gate | the file upgrader reads a Deluge document as the firmware's parser does, converts it as official firmware loaded it, and writes the firmware's JSON | pr | storage | ~30s |
-| load-policy | integration | scenario | regression | gate | the sample loader's candidate order, admission rule, build contract and stream paths, policies no loader state can show | pr | app | ~10s |
-| load-policy-wavetable-churn | integration | scenario | property | gate | wavetables evicted under memory pressure reload as they were built | nightly | app | ~1m |
-| audio-format-corpus | component | cargo | differential | gate | the audio-format decoder must parse every file of a real WAV/AIFF corpus as the C++ header entry points do (skipped unless DELUGE_AUDIO_CORPUS is set) | pr | unit | ~20s |
-| region-fill-differential | component | cargo | differential | gate | the Rust cluster fill must stay byte-identical to the C++ convert/stitch reference | pr | storage | ~1m |
-| region-read-differential | component | cargo | differential | gate | the sample range-reader must resolve the same frames as the chunk-payload oracle | pr | storage | ~1m |
-| region-source-differential | component | cargo | differential | gate | the region cursor must resolve a chunk's payload, not its header, over real streamed backing | pr | storage | ~1m |
-| recorder-roundtrip | integration | scenario | simulation | gate | the SampleRecorder record-then-read-back round trip must be byte-exact on the Embassy host BSP | nightly | render | ~5m |
-| audio-load-ab | integration | scenario | differential | gate | the async Rust audio loader must load every file the SAME way the synchronous C++ card path does, loaded in the same process as the reference | pr | app | ~5m |
-| song-preview-ab | integration | scenario | differential | gate | the Rust prefix channel draws the same song artwork, and reports the same decode outcome and error, as the same file decoded synchronously | nightly | render | ~5m |
-| preemptive-race-tsan | integration | script | sanitizer | gate | every cross-tier race site seen during sustained playback-while-record under ThreadSanitizer must have an entry in races.txt (the second invariant's inventory) | manual | unit | ~30m |
-| snapshot-primitive-tsan | component | script | sanitizer | gate | Published<T> and SpscRing<E,N> must be race-free under concurrent stress | pr | unit | ~3m |
-| dsp-ubsan | unit | ctest | sanitizer | gate | the DSP library specs (tests/unit/dsp) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan | pr | unit-cpp-variants | ~5s |
-| param-mapping-sweep | component | script | differential | gate | every one of the 2^32 stored words maps to the same knob position and menu number through each plugin mapping kind as the reference arithmetic | nightly | unit | ~40s |
-| dsp-diff | component | script | differential | gate | the ARM/NEON DSP fast paths must be byte-identical to the portable host fallback | nightly | unit | ~5m |
-| corpus-guard | integration | script | property | gate | golden_vt_render refuses, with exit 2, a run that asks for the corpus fixture's card without declaring the song corpus | pr | unit | ~1s |
-| embassy-layout-invariance | integration | script | property | gate | the Embassy host's cordae MIXDOWN must not depend on any allocation address | nightly | unit | ~45s |
-| save-roundtrip | integration | scenario | property | gate | a song saved through the real SaveSongUI ENTER gesture round-trips byte-identically through save, load and overwrite | nightly | model | ~5m |
-| document-save-channel | integration | scenario | property | gate | a preset saved through the real ENTER gesture is written whole, read back through the channel and stored through the byte channel's write-from | nightly | app | ~10m |
-| sample-collect-channel | integration | scenario | property | gate | a song saved with collect-media lands every sample it references in its own folder, byte-identical, and leaves every resident file findable | nightly | app | ~10m |
-| sample-load-tree | integration | scenario | property | gate | a song saved with collected media loads back with each sample holder bound to its collected copy once the originals are gone | nightly | app | ~5m |
-| sample-claim | integration | scenario | property | gate | files claimed from the sample browser, the menu's file selector and a favourite's by-path listing are bound by the Select encoder's claim | nightly | app | ~3m |
-| preset-load | integration | scenario | property | gate | synth and kit presets written through the firmware's serialisers, each naming samples of its own, must load through the real preset browser | nightly | app | ~3m |
-| song-save-channel | integration | scenario | property | gate | a song save builds its whole document in memory, writes it through the byte channel's write-from and reads back its length, head and tail | nightly | app | ~12m |
-| clear-song-undo | integration | scenario | property | gate | Create New Song must run to completion on the tier its caller stands on, reading no card of its own | nightly | app | ~1m |
-| sound-lifetime | integration | scenario | property | gate | Every deletion path must end a Sound's voices before any part of it is destroyed | nightly | app | ~1m |
-| clip-lifetime | integration | scenario | property | gate | Which clip deletions free a clip the render still points at | nightly | app | ~1m |
-| container-guard | integration | scenario | property | gate | Which structural edits to the containers the audio render walks are made while the render could preempt them | nightly | app | ~1m |
-| playhead-moves | integration | scenario | property | gate | The interaction tier moves the playhead only with the render excluded | pr | app | ~30s |
-| card-reinsert | integration | scenario | property | gate | what a card swap does to the samples still in memory | nightly | app | ~6s |
-| audio-tick-hold | integration | scenario | regression | gate | the audio tick's hold and re-entry guard, on the booted app | pr | app | ~2s |
-| stem-export | integration | scenario | property | gate | an offline stem export must render byte-identical audio and write it | nightly | render | ~12s |
-| song-load-channel | integration | scenario | property | gate | the song load must read its bytes through the storage channel | nightly | app | ~10m |
-| settings-channel | integration | scenario | property | gate | a settings value written through the real consumer entry point must survive a read back, and no settings file operation may begin on the interaction tier | nightly | app | ~4m |
-| favourites-channel | integration | scenario | property | gate | the favourites bank must never be written with less than it held, and none of its card I/O may begin on the interaction tier | nightly | app | ~5m |
-| startup-failsafe | integration | scenario | property | gate | no file operation in the startup song fail-safe may begin on the interaction tier | nightly | app | ~4m |
-| path-operations | integration | scenario | property | gate | real SysEx path requests get their replies, no browser folder creation or delete runs on the interaction tier, and browser deletes go through the byte channel | nightly | app | ~4m |
-| offset-io | integration | scenario | property | gate | blocks written at ascending offsets through the SysEx transfer verbs all stay on the card, and a copy reproduces its source byte for byte | nightly | app | ~4m |
-| pattern-load | integration | scenario | property | gate | a pattern file the firmware's pattern writer made loads back through the pattern browser, and as a PLAY preview, with exactly the notes written | nightly | app | ~1m |
-| staging-release | integration | scenario | property | gate | a staged document read its consumer abandons never writes into the buffer once it has been freed and handed out again | nightly | app | ~1m |
-| clock-input | integration | scenario | property | gate | trigger-clock edges through the BSP's handler start playback with analog auto-start on, none dropped when they arrive slower than the playback routine | pr | app | ~1m |
-| recorder-take | integration | scenario | property | gate | an audio-input recording take must leave the rest of the app running, and must attach its sample only to the sound it was recorded for | pr | app | ~5s |
-| stale-ui | integration | scenario | property | gate | a song load takes every UI down for its whole length, and nothing acts on a UI the load took down while the UI stack is empty | pr | app | ~5s |
-| ui-scripts | integration | scenario | regression | gate | the level-3 UI scripts drive the whole app through the BSP's own input path on the virtual clock | pr | app | ~1m |
-| ui-menu-dump | integration | scenario | regression | gate | the declarative menu tree the app dumps as JSON equals website/src/data/generated/menu-tree.json | pr | app | ~2s |
-| ui-scenes-spec | integration | scenario | regression | gate | the scenes' specs (tests/integration/ui/scenes) pass on golden_vt_render, one file per process from the app's own init, each on its card | pr | app | ~10s |
-| load-cancel | integration | scenario | property | gate | a preset load can be cancelled by the ticket its request returned, and BACK in the preset browser cancels the browser's scroll-load | pr | app | ~5s |
-| ui-timer-deadline | integration | scenario | property | gate | the "ui routine" job runs the UI timers at their deadlines instead of polling | pr | app | ~1m |
-| idle-job-rates | integration | scenario | property | gate | an idle app runs each job only as often as it has work | pr | app | ~5s |
-| render-song | integration | scenario | property | gate | a song must play as the device plays it | pr | render | ~20s |
-| render-kit-fx | integration | scenario | property | gate | a kit's effect chain renders as recorded | pr | render | ~20s |
-| render-kit-filters | integration | scenario | property | gate | a kit's filter chain renders as recorded | pr | render | ~20s |
-| render-audio-track-filters | integration | scenario | property | gate | an audio track's filter chain renders as recorded | pr | render | ~20s |
-| render-master-filters | integration | scenario | property | gate | the song master's filter chain renders as recorded | pr | render | ~20s |
-| render-audio-cents | integration | scenario | property | gate | an audio clip's fine tune renders as recorded, and differs from the clip untuned | pr | render | ~20s |
-| render-audio-stretch | integration | scenario | property | gate | audio clips stretched to the song's tempo render as recorded, and differ from the same clips resampled | pr | render | ~20s |
-| render-audio-stretch-native | integration | scenario | property | gate | audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops | pr | render | ~20s |
-| render-audio-stretch-arranged | integration | scenario | property | gate | stretched audio clips render as recorded from arrangement instances that end without looping | pr | render | ~20s |
-| render-audio-stretch-edges | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded | pr | render | ~8s |
-| render-audio-stretch-marker | integration | scenario | property | gate | a stretched audio clip's end marker dragged in while its voice plays renders as recorded, and differs from the clip left alone | pr | render | ~20s |
-| render-audio-stretch-length | integration | scenario | property | gate | a stretched audio clip lengthened by a stretch while its voice plays renders as recorded, and differs from the clip left alone | pr | render | ~20s |
-| render-audio-stretch-late | integration | scenario | property | gate | playback started part-way through stretched arrangement instances renders as recorded, each clip starting late | pr | render | ~20s |
-| render-audio-track-fx | integration | scenario | property | gate | an audio track's effect chain renders as recorded | pr | render | ~20s |
-| render-master-fx | integration | scenario | property | gate | the song master's effect chain renders as recorded | pr | render | ~20s |
-| render-master-pan-stereo | integration | scenario | property | gate | the song master's pan renders as recorded in stereo, where it applies | pr | render | ~20s |
-| render-master-arranger | integration | scenario | property | gate | the song master's automation plays in the arranger | pr | render | ~20s |
-| render-master-grain-off | integration | scenario | property | gate | the song master's granular mod FX in its soft off renders as recorded | pr | render | ~20s |
-| render-kit-svf-morph | integration | scenario | property | gate | a kit's state-variable filters render as recorded with their morphs up | pr | render | ~20s |
-| render-audio-track-drive | integration | scenario | property | gate | an audio track's oversampled drive filter, saturating ladder HPF and granular mod FX render as recorded | pr | render | ~20s |
-| render-kit-filter-fade | integration | scenario | property | gate | a kit's filters fade in as recorded when switched on | pr | render | ~20s |
-| render-audio-track-filter-fade | integration | scenario | property | gate | an audio track's filters fade in as recorded when switched on | pr | render | ~20s |
-| render-audio-ducked | integration | scenario | property | gate | sidechain hits duck as recorded | pr | render | ~20s |
-| render-duck-shapes | integration | scenario | property | gate | the sidechain envelope's attack and release shapes, and a stronger hit taken mid-attack and mid-release, render as recorded on the host owners | pr | render | ~20s |
-| render-kit-comp | integration | scenario | property | gate | a kit's compressors render as recorded | pr | render | ~20s |
-| render-kit-delay | integration | scenario | property | gate | a kit's delay renders as recorded through rate changes and its end | pr | render | ~20s |
-| render-delay-owners | integration | scenario | property | gate | a delay renders as recorded on each owner the kit and audio-track delay gates leave out | pr | render | ~20s |
-| render-stutter-audio | integration | scenario | property | gate | an audio track's stutter renders as recorded | pr | render | ~20s |
-| render-stutter-synth | integration | scenario | property | gate | a synth's stutter renders as recorded | pr | render | ~20s |
-| render-stutter-kit | integration | scenario | property | gate | a kit's quantized, reversed stutter renders as recorded | pr | render | ~20s |
-| render-stutter-master | integration | scenario | property | gate | the song master's ping-pong stutter renders as recorded | pr | render | ~20s |
-| render-stutter-rate | integration | scenario | property | gate | a stutter whose rate knob is turned while it plays renders as recorded | pr | render | ~20s |
-| render-stutter-handoff | integration | scenario | property | gate | a stutter handed from one owner to another renders as recorded | pr | render | ~20s |
-| render-tempo-delays | integration | scenario | property | gate | five synced delays resizing together after a tempo change render as recorded | pr | render | ~20s |
-| render-audio-track-delay | integration | scenario | property | gate | an audio track's digital delay renders as recorded through rate changes | pr | render | ~20s |
-| render-kit-pingpong-stereo | integration | scenario | property | gate | a kit's ping-pong delay renders as recorded in stereo, where its echoes cross channels | pr | render | ~20s |
-| render-audio-track-delay-toggle | integration | scenario | property | gate | an analog delay switched off and on again while it rings renders as recorded | pr | render | ~20s |
-| render-audio-track-delay-switch | integration | scenario | property | gate | an analog delay switched to digital and back to analog while it rings renders as recorded | pr | render | ~40s |
-| render-pingpong-stereo-sweep | integration | scenario | property | gate | ping-pong delays render as recorded in stereo, crossing channels while their rates step through new buffers | pr | render | ~20s |
-| render-audio-track-delay-extremes | integration | scenario | property | gate | a delay renders as recorded at both ends of its rate's range | pr | render | ~20s |
-| render-low-clip | integration | scenario | property | gate | a host chain's saturation below amount 3, where it does not shift back up, renders as recorded | pr | render | ~20s |
-| render-bitcrush | integration | scenario | property | gate | the bitcrush paths the FX songs leave out render as recorded | pr | render | ~20s |
-| render-eq-bands | integration | scenario | property | gate | the EQ's single bands render as recorded | pr | render | ~20s |
-| render-reverb-duck-override | integration | scenario | property | gate | the reverb's duck taken from a synth with the most reverb renders as recorded | pr | render | ~20s |
-| render-reverb-duck-override-track | integration | scenario | property | gate | the reverb's duck taken from an audio track with the most reverb renders as recorded | pr | render | ~20s |
-| render-metronome | integration | scenario | property | gate | the metronome's click renders as recorded | pr | render | ~20s |
-| render-audio-track-comp-onset | integration | scenario | property | gate | a compressor switched on while its audio sounds renders as recorded | pr | render | ~20s |
-| render-audio-track-comp-reset | integration | scenario | property | gate | a compressor reset mid-sound renders as recorded when it comes back on | pr | render | ~20s |
-| render-audio-track-comp-blend | integration | scenario | property | gate | a blended compressor on a loud audio track renders as recorded, so its 64-bit level sum is pinned | pr | render | ~20s |
-| render-modfx-mono | integration | scenario | property | gate | the warble and dimension mod FX, which no synth golden plays, render as recorded in mono | pr | render | ~20s |
-| render-modfx-stereo-a | integration | scenario | property | gate | the flanger, chorus and phaser mod FX render as recorded in stereo, where the comb types read a second tap for the right channel | pr | render | ~20s |
-| render-modfx-stereo-b | integration | scenario | property | gate | the stereo chorus, warble and dimension mod FX render as recorded in stereo | pr | render | ~20s |
-| render-modfx-soft-off | integration | scenario | property | gate | a mod FX switched off and on again by its knob renders as recorded | pr | render | ~20s |
-| render-modfx-switch | integration | scenario | property | gate | a mod FX switched to another type and back while it plays renders as recorded, its LFO re-seating each time its wave changes after it has rendered | pr | render | ~20s |
-| render-modfx-clear | integration | scenario | property | gate | a mod FX's memory cleared while it plays renders as recorded, both with a delay line and without one | pr | render | ~20s |
-| render-grain-mono | integration | scenario | property | gate | the granular mod FX renders as recorded in mono on a host owner's chain | pr | render | ~20s |
-| render-grain-stereo | integration | scenario | property | gate | the granular mod FX renders as recorded in stereo, where each grain is panned | pr | render | ~20s |
-| render-grain-switch | integration | scenario | property | gate | the granular mod FX switched on and off by its type, and its memory cleared, while it plays renders as recorded | pr | render | ~20s |
-| render-grain-master | integration | scenario | property | gate | the song's master chain entering and leaving the granular mod FX by its type while it plays renders as recorded | pr | render | ~20s |
-| render-reverb-freeverb | integration | scenario | property | gate | the song's Freeverb reverb renders as recorded at knobs of its own, its width at half, so each channel's output takes in the other's (wet2 above 0) | pr | render | ~20s |
-| render-reverb-mutable | integration | scenario | property | gate | the song's Mutable reverb renders as recorded at knobs of its own, its room, damping, width, high-pass and low-pass away from the boot song's | pr | render | ~20s |
-| render-reverb-digital | integration | scenario | property | gate | the song's Digital reverb renders as recorded at knobs of its own, panned halfway left and rendered in stereo, so the two channels' return levels differ | pr | render | ~20s |
-| render-reverb-switch | integration | scenario | property | gate | the song's reverb switched between its models, with its knobs turned while it plays, renders as recorded | pr | render | ~20s |
-| render-grain-restart | integration | scenario | property | gate | the granular mod FX started again renders as recorded, its grains reading 0 from every slot not yet written since the restart | pr | render | ~25s |
-| render-grain-owners | integration | scenario | property | gate | the granular mod FX switched by a synth's own type setter, and cleared through each owner's own clear, while it plays renders as recorded | pr | render | ~20s |
-| render-song-corpus | integration | scenario | property | gate | the render-song checks, on a real song from the maintainer's card backup (Cordae) | nightly | render | ~30s |
-| golden-synth | integration | scenario | differential | gate | every synth golden master must render as recorded | pr | render | ~20s |
-| param-dump | integration | scenario | regression | gate | the audible window's parameter dump | nightly | render | ~5s |
-| golden-synth-arm | integration | scenario | differential | gate | the synth golden masters on 32-bit ARM | nightly | unit | ~1m |
-| render-audio-stretch-arm | integration | scenario | property | gate | audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86 | nightly | unit | ~20s |
-| render-audio-stretch-edges-arm | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths render on 32-bit ARM as recorded on x86 | nightly | unit | ~20s |
-| streaming-margin | integration | scenario | property | gate | sample playback must keep up when storage is as slow as the device's | nightly | render | ~30s |
-| streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
-| recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
-| unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree (the DSP library specs among them), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
-| unit-arm | unit | ctest | unit | gate | the DSP library, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
-| crates | unit | cargo | unit | gate | every #[test] in the core libraries: the allocator, the resource manager and the sample crates | pr | unit | ~20s |
-| peaks-loom | unit | cargo | property | gate | the peak index's fold-then-publish protocol under loom: a full mask implies every child's value is folded | nightly | unit | ~30s |
-| bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
-| sample-convert | unit | cargo | unit | gate | deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
-| param-projection | integration | scenario | unit | gate | the param/automation DOM leaf must agree with the engine it replaces | pr | model | ~1s |
-| param-table-check | integration | scenario | unit | gate | the engines' param tables agree with the runtime | pr | model | ~1s |
-| param-target-check | integration | scenario | unit | gate | the host names params by target | pr | model | ~1s |
-| param-clone | integration | scenario | unit | gate | cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable collections) must give deep-independent copies | pr | model | ~1s |
-| patch-routing | integration | scenario | property | gate | a patch-cable set's routing and save order must not change | pr | model | ~2s |
-| document-version | integration | scenario | unit | gate | the firmware version a document is read as is that document's own | pr | model | ~1s |
-| preset-parse | integration | scenario | unit | gate | a JSON synth preset reads into a kit row as an XML one does | pr | model | ~1s |
-| effect-owners | integration | scenario | unit | gate | every owner of effects (a synth's sound, a kit, an audio track, the song master) keeps its effect settings in its own state, and the render's copy follows | pr | model | ~1s |
-| edit-cost | integration | scenario | benchmark | investigative | nothing: it times SetEngineSetting on a new synth for a re-voicing scalar, a retuning scalar, an oscillator type switch and an engine switch | manual | model | ~5s |
-| source-memory | integration | scenario | benchmark | investigative | nothing: it prints the SRAM and SDRAM heaps' free bytes and low-water marks across a sample oscillator's switch to a saw and back | manual | model | ~5s |
-| edit-substrate | integration | scenario | unit | gate | the Edit substrate on its own | pr | model | ~1s |
-| voice-pins | integration | scenario | unit | gate | which voice each cull, steal and admit takes across sounds, against the record | pr | model | ~1s |
-| mapping-dispatch | integration | scenario | property | gate | the mapping index matches incoming MIDI as the dispatch's scans of the engine fields do | pr | app | ~5s |
-| xml-replay-diff | integration | scenario | differential | gate | ValueTreeDeserializer's XML replay must read exactly as XMLDeserializer does | pr | model | ~1s |
-| song-roundtrip | integration | corpus | regression | gate | what a song saves as must not change unexplained | nightly | model | ~10s |
-| model-equality-corpus | unit | script | property | gate | every corpus song's model records survive a JSON round trip unchanged, through a driver built from the model and serialization libraries only | nightly | tooling | ~2s |
-| preset-roundtrip | integration | corpus | regression | gate | what a preset saves as must not change unexplained | nightly | model | ~10s |
-| serializer-check | integration | corpus | property | gate | the tree ValueSerializer builds for every output of every corpus song equals the tree the JSON writer's text parses to | nightly | model | ~10s |
-| cable-decode | integration | corpus | property | gate | the Deluge instrument decodes every song's and preset's patch cables as the app's reader does | nightly | model | ~20s |
-| host-effect-settings | integration | corpus | property | gate | a host owner's effects go through its chain | nightly | model | ~30s |
-| engine-settings | integration | corpus | property | gate | a sound's settings go through its slot | nightly | model | ~30s |
-| song-settings | integration | corpus | property | gate | a song's settings go through SetSetting | nightly | model | ~30s |
-| instrument-codec-decode | integration | corpus | property | gate | the Deluge instrument reads its own state as the app's reader does | nightly | model | ~20s |
-| instrument-codec-encode | integration | corpus | property | gate | the Deluge instrument writes its own state | nightly | model | ~20s |
-| instrument-state-roundtrip | integration | corpus | property | gate | the Deluge instrument's state round-trips through its codec | nightly | model | ~20s |
-| json-roundtrip | integration | corpus | property | gate | the JSON read path must be faithful to the JSON write path | nightly | model | ~10s |
-| model-decode-diff | integration | corpus | property | gate | decode reads a saved song's model records exactly as the engine loader does | pr | model | ~10s |
-| song-edit-roundtrip | integration | corpus | property | gate | a DOM-first edit must persist | nightly | model | ~10s |
-| param-record-diff | integration | corpus | regression | gate | the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record) | nightly | model | ~5s |
-| arrangement-take | integration | scenario | regression | gate | recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take) | nightly | render | ~20s |
-| audio-clip-edit-diff | integration | corpus | regression | gate | an AudioClip's descriptor edits, their undo, and a save and reload reproduce the committed baseline byte for byte | nightly | model | ~5s |
-| edit-undo-redo | integration | corpus | property | gate | every reified Edit applied to a corpus song resolves through a live DOM address and comes back exactly through the real undo and redo | nightly | model | ~10s |
-| clip-clone-roundtrip | integration | corpus | property | gate | InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores | nightly | model | ~10s |
-| param-snapshot-bench | integration | scenario | benchmark | investigative | nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits | manual | app | ~2s |
-| setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/ui/scenes sets a bound sound's instrument state outside its Edit | pr | tooling | ~1s |
-| test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ holds a path tests/support/ also holds | pr | tooling | ~1s |
-| spec-discovery | unit | script | unit | gate | a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one | pr | tooling | ~1s |
-| doc-hygiene-selftest | unit | script | unit | gate | the UI docs lint flags history breadcrumbs, any line number in a citation, and a backticked path naming no one file or a symbol that file lacks | pr | tooling | ~1s |
-| spec-comparisons-selftest | unit | script | unit | gate | the spec-comparison check finds a comparison judged by a truth matcher and nothing else, and refuses only the sites a commit adds | pr | tooling | ~1s |
-| fixed-point-raw-selftest | unit | script | unit | gate | the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments | pr | tooling | ~1s |
-| fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
-| spec-comparisons | unit | script | unit | gate | no C++ spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy(), so every failed comparison prints its values | pr | tooling | ~2s |
-| dx7-presets | unit | script | unit | gate | the render presets in DX7 mode are as recorded, and none holds a DX7 on an oscillator | pr | tooling | ~1s |
-| dx7-presets-selftest | unit | script | unit | gate | the DX7 preset scan lists each DX7-mode sound and finds a DX7 on either oscillator | pr | tooling | ~1s |
-| layers-selftest | unit | script | unit | gate | the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth | pr | tooling | ~1s |
-| registry-selftest | unit | script | unit | gate | this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams | pr | tooling | ~1s |
-| render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
-| make-sample-selftest | unit | script | unit | gate | the sample golden cases' synthetic sources are what their cases assume, and the committed WAVs are their generator's output | pr | tooling | ~1s |
-| dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
-| compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
-| relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | pr | tooling | ~1s |
-| compare-strings-selftest | unit | script | unit | gate | the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change | pr | tooling | ~1s |
-| stream-bench-parser | unit | script | unit | gate | the streaming benchmark host script's parsing of device captures | pr | tooling | ~1s |
-| device-check-parser | unit | script | unit | gate | device_check's reading of a rig capture | pr | tooling | ~1s |
-| rig-session | unit | script | unit | gate | rig_session's reading of the rig harness's RTT stream | pr | tooling | ~2s |
-| rig-lock | unit | script | unit | gate | one run at a time holds the rig, every tool that opens it is refused or waits, and a holder that dies lets go | pr | tooling | ~6s |
-| device-parity | unit | script | unit | gate | emu_parity's script runner drives delugemu or the rig through the same steps and timings, and device_parity seeds delugemu's flash from the rig's settings | pr | tooling | ~1s |
-| ui-script-cards | unit | script | unit | gate | the cards a UI script's header names, as the UI script runners read them | pr | tooling | ~1s |
-| x86-parity-tool | unit | script | unit | gate | x86_parity turns a parity script into the host app's UI script, keys its card cache by the image's mtime, and lists every file two runs disagree on | pr | tooling | ~1s |
-| deluge-jlink | unit | script | unit | gate | deluge_jlink's load script stops every DMA channel after the MMU is off and before the load | pr | tooling | ~1s |
-| ui-parity | integration | script | differential | investigative | the parity scripts show the same panels on this image as on main's, in delugemu, on every card their headers name | manual | tooling | ~20m |
-| x86-parity | integration | script | differential | gate | every parity script played twice on the same host app gives identical panels, LEDs, pads and MIDI out: the determinism a base-against-head comparison rests on | manual | tooling | ~1m |
-| ui-parity-card | integration | script | differential | investigative | the content-card parity scripts show the same panels on this image as on main's, in delugemu | manual | tooling | ~5m |
-| ui-parity-songs | integration | script | differential | investigative | eleven real songs load and play with the same panels on this image as on main's, in delugemu | manual | tooling | ~90s |
-| ui-device | integration | script | differential | investigative | the device scripts show the same panels on the Deluge on the probe rig as in delugemu running the same image | manual | tooling | ~3m |
-| ui-device-record | integration | script | benchmark | investigative | nothing: it records the device-only scripts' snapshots and debug output on the Deluge on the probe rig | manual | tooling | ~3m |
-| usbmidi | integration | script | property | gate | a Deluge plugged into this machine enumerates as a USB-MIDI device with three MIDI ports each way | manual | tooling | ~5s |
-| audible-window-tooling | unit | script | unit | gate | the audible window's analyser and song set | pr | tooling | ~1s |
-| audible-window-identity | integration | script | regression | gate | the audible window's reference snapshot (.superpowers/estate/audible-window/reference/, or AUDIBLE_WINDOW_REFERENCE) compared with itself reports nothing moved | manual | tooling | ~1m |
-| bench-tooling | unit | script | unit | gate | the bench tools' host side | pr | tooling | ~1s |
-| ptm-trace-tool | unit | script | unit | gate | the PTM trace tool's host side | pr | tooling | ~1s |
-| app-asan-sample-load-tree | integration | scenario | sanitizer | gate | the sample-load-tree gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
-| app-asan-sample-claim | integration | scenario | sanitizer | gate | the sample-claim gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~15m |
-| app-asan-preset-load | integration | scenario | sanitizer | gate | the preset-load gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
-| app-asan-recorder-take | integration | scenario | sanitizer | gate | the recorder-take gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
-| app-asan-ui-scenes-spec | integration | scenario | sanitizer | gate | the ui-scenes-spec gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
-| app-asan-effect-owners | integration | scenario | sanitizer | gate | the effect-owners gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~20s |
-| app-asan-edit-substrate | integration | scenario | sanitizer | gate | the edit-substrate gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
+| Test | Level | Runner | Kind | Status | Gates | Areas | Tier | Job | Runtime |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| fs-differential | component | cargo | differential | gate | embedded-fatfs must agree with the reference FAT implementation on every filesystem operation | storage | pr | storage | ~1m |
+| upgrade-differential | integration | script | differential | gate | a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded | upgrader, platform, host-app, storage, model, synth, effects | nightly | storage | ~10s |
+| upgrade-differential-corpus | integration | script | differential | gate | the upgrader against a real card backup | upgrader, platform, host-app, storage, model, synth, effects | nightly | storage | ~10m |
+| upgrader | unit | cargo | unit | gate | the file upgrader reads a Deluge document as the firmware's parser does, converts it as official firmware loaded it, and writes the firmware's JSON | upgrader | pr | storage | ~30s |
+| load-policy | integration | scenario | regression | gate | the sample loader's candidate order, admission rule, build contract and stream paths, policies no loader state can show | platform, host-app, storage, model, ui, synth | pr | app | ~10s |
+| load-policy-wavetable-churn | integration | scenario | property | gate | wavetables evicted under memory pressure reload as they were built | platform, host-app, storage, model, ui, synth | nightly | app | ~1m |
+| audio-format-corpus | component | cargo | differential | gate | the audio-format decoder must parse every file of a real WAV/AIFF corpus as the C++ header entry points do (skipped unless DELUGE_AUDIO_CORPUS is set) | storage | pr | unit | ~20s |
+| region-fill-differential | component | cargo | differential | gate | the Rust cluster fill must stay byte-identical to the C++ convert/stitch reference | storage | pr | storage | ~1m |
+| region-read-differential | component | cargo | differential | gate | the sample range-reader must resolve the same frames as the chunk-payload oracle | storage | pr | storage | ~1m |
+| region-source-differential | component | cargo | differential | gate | the region cursor must resolve a chunk's payload, not its header, over real streamed backing | storage | pr | storage | ~1m |
+| recorder-roundtrip | integration | scenario | simulation | gate | the SampleRecorder record-then-read-back round trip must be byte-exact on the Embassy host BSP | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | render | ~5m |
+| audio-load-ab | integration | scenario | differential | gate | the async Rust audio loader must load every file the SAME way the synchronous C++ card path does, loaded in the same process as the reference | platform, host-app, storage, model, ui, synth | pr | app | ~5m |
+| song-preview-ab | integration | scenario | differential | gate | the Rust prefix channel draws the same song artwork, and reports the same decode outcome and error, as the same file decoded synchronously | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | render | ~5m |
+| preemptive-race-tsan | integration | script | sanitizer | gate | every cross-tier race site seen during sustained playback-while-record under ThreadSanitizer must have an entry in races.txt (the second invariant's inventory) | all | manual | unit | ~30m |
+| snapshot-primitive-tsan | component | script | sanitizer | gate | Published<T> and SpscRing<E,N> must be race-free under concurrent stress | platform | pr | unit | ~3m |
+| dsp-ubsan | unit | ctest | sanitizer | gate | the DSP library specs (tests/unit/dsp) run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UBSan | dsp | pr | unit-cpp-variants | ~5s |
+| param-mapping-sweep | component | script | differential | gate | every one of the 2^32 stored words maps to the same knob position and menu number through each plugin mapping kind as the reference arithmetic | synth | nightly | unit | ~40s |
+| dsp-diff | component | script | differential | gate | the ARM/NEON DSP fast paths must be byte-identical to the portable host fallback | dsp | nightly | unit | ~5m |
+| corpus-guard | integration | script | property | gate | golden_vt_render refuses, with exit 2, a run that asks for the corpus fixture's card without declaring the song corpus | host-app | pr | unit | ~1s |
+| embassy-layout-invariance | integration | script | property | gate | the Embassy host's cordae MIXDOWN must not depend on any allocation address | all | nightly | unit | ~45s |
+| save-roundtrip | integration | scenario | property | gate | a song saved through the real SaveSongUI ENTER gesture round-trips byte-identically through save, load and overwrite | platform, host-app, storage, model, synth, effects | nightly | model | ~5m |
+| document-save-channel | integration | scenario | property | gate | a preset saved through the real ENTER gesture is written whole, read back through the channel and stored through the byte channel's write-from | platform, host-app, storage, model, ui, synth | nightly | app | ~10m |
+| sample-collect-channel | integration | scenario | property | gate | a song saved with collect-media lands every sample it references in its own folder, byte-identical, and leaves every resident file findable | platform, host-app, storage, model, ui, synth | nightly | app | ~10m |
+| sample-load-tree | integration | scenario | property | gate | a song saved with collected media loads back with each sample holder bound to its collected copy once the originals are gone | platform, host-app, storage, model, ui, synth | nightly | app | ~5m |
+| sample-claim | integration | scenario | property | gate | files claimed from the sample browser, the menu's file selector and a favourite's by-path listing are bound by the Select encoder's claim | platform, host-app, storage, model, ui, synth | nightly | app | ~3m |
+| preset-load | integration | scenario | property | gate | synth and kit presets written through the firmware's serialisers, each naming samples of its own, must load through the real preset browser | platform, host-app, storage, model, ui, synth | nightly | app | ~3m |
+| song-save-channel | integration | scenario | property | gate | a song save builds its whole document in memory, writes it through the byte channel's write-from and reads back its length, head and tail | platform, host-app, storage, model, ui, synth | nightly | app | ~12m |
+| clear-song-undo | integration | scenario | property | gate | Create New Song must run to completion on the tier its caller stands on, reading no card of its own | platform, host-app, storage, model, ui, synth | nightly | app | ~1m |
+| sound-lifetime | integration | scenario | property | gate | Every deletion path must end a Sound's voices before any part of it is destroyed | platform, host-app, storage, model, ui, synth | nightly | app | ~1m |
+| clip-lifetime | integration | scenario | property | gate | Which clip deletions free a clip the render still points at | platform, host-app, storage, model, ui, synth | nightly | app | ~1m |
+| container-guard | integration | scenario | property | gate | Which structural edits to the containers the audio render walks are made while the render could preempt them | platform, host-app, storage, model, ui, synth | nightly | app | ~1m |
+| playhead-moves | integration | scenario | property | gate | The interaction tier moves the playhead only with the render excluded | platform, host-app, storage, model, ui, synth | pr | app | ~30s |
+| card-reinsert | integration | scenario | property | gate | what a card swap does to the samples still in memory | platform, host-app, storage, model, ui, synth | nightly | app | ~6s |
+| audio-tick-hold | integration | scenario | regression | gate | the audio tick's hold and re-entry guard, on the booted app | platform, host-app, storage, model, ui, synth | pr | app | ~2s |
+| stem-export | integration | scenario | property | gate | an offline stem export must render byte-identical audio and write it | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | render | ~12s |
+| song-load-channel | integration | scenario | property | gate | the song load must read its bytes through the storage channel | platform, host-app, storage, model, ui, synth | nightly | app | ~10m |
+| settings-channel | integration | scenario | property | gate | a settings value written through the real consumer entry point must survive a read back, and no settings file operation may begin on the interaction tier | platform, host-app, storage, model, ui, synth | nightly | app | ~4m |
+| favourites-channel | integration | scenario | property | gate | the favourites bank must never be written with less than it held, and none of its card I/O may begin on the interaction tier | platform, host-app, storage, model, ui, synth | nightly | app | ~5m |
+| startup-failsafe | integration | scenario | property | gate | no file operation in the startup song fail-safe may begin on the interaction tier | platform, host-app, storage, model, ui, synth | nightly | app | ~4m |
+| path-operations | integration | scenario | property | gate | real SysEx path requests get their replies, no browser folder creation or delete runs on the interaction tier, and browser deletes go through the byte channel | platform, host-app, storage, model, ui, synth | nightly | app | ~4m |
+| offset-io | integration | scenario | property | gate | blocks written at ascending offsets through the SysEx transfer verbs all stay on the card, and a copy reproduces its source byte for byte | platform, host-app, storage, model, ui, synth | nightly | app | ~4m |
+| pattern-load | integration | scenario | property | gate | a pattern file the firmware's pattern writer made loads back through the pattern browser, and as a PLAY preview, with exactly the notes written | platform, host-app, storage, model, ui, synth | nightly | app | ~1m |
+| staging-release | integration | scenario | property | gate | a staged document read its consumer abandons never writes into the buffer once it has been freed and handed out again | platform, host-app, storage, model, ui, synth | nightly | app | ~1m |
+| clock-input | integration | scenario | property | gate | trigger-clock edges through the BSP's handler start playback with analog auto-start on, none dropped when they arrive slower than the playback routine | platform, host-app, storage, model, ui, synth | pr | app | ~1m |
+| recorder-take | integration | scenario | property | gate | an audio-input recording take must leave the rest of the app running, and must attach its sample only to the sound it was recorded for | platform, host-app, storage, model, ui, synth | pr | app | ~5s |
+| stale-ui | integration | scenario | property | gate | a song load takes every UI down for its whole length, and nothing acts on a UI the load took down while the UI stack is empty | platform, host-app, storage, model, ui, synth, effects | pr | app | ~5s |
+| ui-scripts | integration | scenario | regression | gate | the level-3 UI scripts drive the whole app through the BSP's own input path on the virtual clock | platform, host-app, storage, model, ui, synth, effects | pr | app | ~1m |
+| ui-menu-dump | integration | scenario | regression | gate | the declarative menu tree the app dumps as JSON equals website/src/data/generated/menu-tree.json | platform, host-app, storage, model, ui, synth, effects | pr | app | ~2s |
+| ui-scenes-spec | integration | scenario | regression | gate | the scenes' specs (tests/integration/ui/scenes) pass on golden_vt_render, one file per process from the app's own init, each on its card | platform, host-app, storage, model, ui, synth, effects | pr | app | ~10s |
+| load-cancel | integration | scenario | property | gate | a preset load can be cancelled by the ticket its request returned, and BACK in the preset browser cancels the browser's scroll-load | platform, host-app, storage, model, ui, synth, effects | pr | app | ~5s |
+| ui-timer-deadline | integration | scenario | property | gate | the "ui routine" job runs the UI timers at their deadlines instead of polling | platform, host-app, storage, model, ui, synth, effects | pr | app | ~1m |
+| idle-job-rates | integration | scenario | property | gate | an idle app runs each job only as often as it has work | platform, host-app, storage, model, ui, synth, effects | pr | app | ~5s |
+| render-song | integration | scenario | property | gate | a song must play as the device plays it | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-kit-fx | integration | scenario | property | gate | a kit's effect chain renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-kit-filters | integration | scenario | property | gate | a kit's filter chain renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-filters | integration | scenario | property | gate | an audio track's filter chain renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-master-filters | integration | scenario | property | gate | the song master's filter chain renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-cents | integration | scenario | property | gate | an audio clip's fine tune renders as recorded, and differs from the clip untuned | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-stretch | integration | scenario | property | gate | audio clips stretched to the song's tempo render as recorded, and differ from the same clips resampled | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-stretch-native | integration | scenario | property | gate | audio clips at their native tempo render as recorded, a fudged stretch crossfading their loops | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-stretch-arranged | integration | scenario | property | gate | stretched audio clips render as recorded from arrangement instances that end without looping | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-stretch-edges | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths (short pre-margins, odd rates, tied, past the end) render as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~8s |
+| render-audio-stretch-marker | integration | scenario | property | gate | a stretched audio clip's end marker dragged in while its voice plays renders as recorded, and differs from the clip left alone | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-stretch-length | integration | scenario | property | gate | a stretched audio clip lengthened by a stretch while its voice plays renders as recorded, and differs from the clip left alone | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-stretch-late | integration | scenario | property | gate | playback started part-way through stretched arrangement instances renders as recorded, each clip starting late | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-fx | integration | scenario | property | gate | an audio track's effect chain renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-master-fx | integration | scenario | property | gate | the song master's effect chain renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-master-pan-stereo | integration | scenario | property | gate | the song master's pan renders as recorded in stereo, where it applies | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-master-arranger | integration | scenario | property | gate | the song master's automation plays in the arranger | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-master-grain-off | integration | scenario | property | gate | the song master's granular mod FX in its soft off renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-kit-svf-morph | integration | scenario | property | gate | a kit's state-variable filters render as recorded with their morphs up | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-drive | integration | scenario | property | gate | an audio track's oversampled drive filter, saturating ladder HPF and granular mod FX render as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-kit-filter-fade | integration | scenario | property | gate | a kit's filters fade in as recorded when switched on | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-filter-fade | integration | scenario | property | gate | an audio track's filters fade in as recorded when switched on | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-ducked | integration | scenario | property | gate | sidechain hits duck as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-duck-shapes | integration | scenario | property | gate | the sidechain envelope's attack and release shapes, and a stronger hit taken mid-attack and mid-release, render as recorded on the host owners | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-kit-comp | integration | scenario | property | gate | a kit's compressors render as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-kit-delay | integration | scenario | property | gate | a kit's delay renders as recorded through rate changes and its end | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-delay-owners | integration | scenario | property | gate | a delay renders as recorded on each owner the kit and audio-track delay gates leave out | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-stutter-audio | integration | scenario | property | gate | an audio track's stutter renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-stutter-synth | integration | scenario | property | gate | a synth's stutter renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-stutter-kit | integration | scenario | property | gate | a kit's quantized, reversed stutter renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-stutter-master | integration | scenario | property | gate | the song master's ping-pong stutter renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-stutter-rate | integration | scenario | property | gate | a stutter whose rate knob is turned while it plays renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-stutter-handoff | integration | scenario | property | gate | a stutter handed from one owner to another renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-tempo-delays | integration | scenario | property | gate | five synced delays resizing together after a tempo change render as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-delay | integration | scenario | property | gate | an audio track's digital delay renders as recorded through rate changes | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-kit-pingpong-stereo | integration | scenario | property | gate | a kit's ping-pong delay renders as recorded in stereo, where its echoes cross channels | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-delay-toggle | integration | scenario | property | gate | an analog delay switched off and on again while it rings renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-delay-switch | integration | scenario | property | gate | an analog delay switched to digital and back to analog while it rings renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~40s |
+| render-pingpong-stereo-sweep | integration | scenario | property | gate | ping-pong delays render as recorded in stereo, crossing channels while their rates step through new buffers | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-delay-extremes | integration | scenario | property | gate | a delay renders as recorded at both ends of its rate's range | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-low-clip | integration | scenario | property | gate | a host chain's saturation below amount 3, where it does not shift back up, renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-bitcrush | integration | scenario | property | gate | the bitcrush paths the FX songs leave out render as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-eq-bands | integration | scenario | property | gate | the EQ's single bands render as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-reverb-duck-override | integration | scenario | property | gate | the reverb's duck taken from a synth with the most reverb renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-reverb-duck-override-track | integration | scenario | property | gate | the reverb's duck taken from an audio track with the most reverb renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-metronome | integration | scenario | property | gate | the metronome's click renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-comp-onset | integration | scenario | property | gate | a compressor switched on while its audio sounds renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-comp-reset | integration | scenario | property | gate | a compressor reset mid-sound renders as recorded when it comes back on | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-audio-track-comp-blend | integration | scenario | property | gate | a blended compressor on a loud audio track renders as recorded, so its 64-bit level sum is pinned | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-modfx-mono | integration | scenario | property | gate | the warble and dimension mod FX, which no synth golden plays, render as recorded in mono | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-modfx-stereo-a | integration | scenario | property | gate | the flanger, chorus and phaser mod FX render as recorded in stereo, where the comb types read a second tap for the right channel | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-modfx-stereo-b | integration | scenario | property | gate | the stereo chorus, warble and dimension mod FX render as recorded in stereo | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-modfx-soft-off | integration | scenario | property | gate | a mod FX switched off and on again by its knob renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-modfx-switch | integration | scenario | property | gate | a mod FX switched to another type and back while it plays renders as recorded, its LFO re-seating each time its wave changes after it has rendered | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-modfx-clear | integration | scenario | property | gate | a mod FX's memory cleared while it plays renders as recorded, both with a delay line and without one | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-grain-mono | integration | scenario | property | gate | the granular mod FX renders as recorded in mono on a host owner's chain | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-grain-stereo | integration | scenario | property | gate | the granular mod FX renders as recorded in stereo, where each grain is panned | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-grain-switch | integration | scenario | property | gate | the granular mod FX switched on and off by its type, and its memory cleared, while it plays renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-grain-master | integration | scenario | property | gate | the song's master chain entering and leaving the granular mod FX by its type while it plays renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-reverb-freeverb | integration | scenario | property | gate | the song's Freeverb reverb renders as recorded at knobs of its own, its width at half, so each channel's output takes in the other's (wet2 above 0) | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-reverb-mutable | integration | scenario | property | gate | the song's Mutable reverb renders as recorded at knobs of its own, its room, damping, width, high-pass and low-pass away from the boot song's | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-reverb-digital | integration | scenario | property | gate | the song's Digital reverb renders as recorded at knobs of its own, panned halfway left and rendered in stereo, so the two channels' return levels differ | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-reverb-switch | integration | scenario | property | gate | the song's reverb switched between its models, with its knobs turned while it plays, renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-grain-restart | integration | scenario | property | gate | the granular mod FX started again renders as recorded, its grains reading 0 from every slot not yet written since the restart | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~25s |
+| render-grain-owners | integration | scenario | property | gate | the granular mod FX switched by a synth's own type setter, and cleared through each owner's own clear, while it plays renders as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| render-song-corpus | integration | scenario | property | gate | the render-song checks, on a real song from the maintainer's card backup (Cordae) | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | render | ~30s |
+| golden-synth | integration | scenario | differential | gate | every synth golden master must render as recorded | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | render | ~20s |
+| param-dump | integration | scenario | regression | gate | the audible window's parameter dump | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | render | ~5s |
+| golden-synth-arm | integration | scenario | differential | gate | the synth golden masters on 32-bit ARM | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | unit | ~1m |
+| render-audio-stretch-arm | integration | scenario | property | gate | audio clips stretched to the song's tempo render on 32-bit ARM as recorded on x86 | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | unit | ~20s |
+| render-audio-stretch-edges-arm | integration | scenario | property | gate | audio clips at the edges of the stretcher's paths render on 32-bit ARM as recorded on x86 | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | unit | ~20s |
+| streaming-margin | integration | scenario | property | gate | sample playback must keep up when storage is as slow as the device's | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | render | ~30s |
+| streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | manual | render | ~1m |
+| recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | platform, host-app, storage, model, ui, synth | nightly | app | ~10m |
+| unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree (the DSP library specs among them), and the gfx-layer and layer-rules checks, on the -m32 host | all | pr | unit-cpp | ~5s |
+| unit-arm | unit | ctest | unit | gate | the DSP library, NEON, model, effects, instrument, music, waveform view, serialization, plugin, host-chain and bench specs and model equality hold on ARM | dsp, synth, effects, model, ui, bench, test-support | pr | unit-cpp-variants | ~5s |
+| crates | unit | cargo | unit | gate | every #[test] in the core libraries: the allocator, the resource manager and the sample crates | platform, storage | pr | unit | ~20s |
+| peaks-loom | unit | cargo | property | gate | the peak index's fold-then-publish protocol under loom: a full mask implies every child's value is folded | storage | nightly | unit | ~30s |
+| bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | platform | pr | unit | ~30s |
+| sample-convert | unit | cargo | unit | gate | deluge_storage_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | storage | pr | storage | ~1m |
+| param-projection | integration | scenario | unit | gate | the param/automation DOM leaf must agree with the engine it replaces | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| param-table-check | integration | scenario | unit | gate | the engines' param tables agree with the runtime | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| param-target-check | integration | scenario | unit | gate | the host names params by target | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| param-clone | integration | scenario | unit | gate | cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable collections) must give deep-independent copies | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| patch-routing | integration | scenario | property | gate | a patch-cable set's routing and save order must not change | platform, host-app, storage, model, synth, effects | pr | model | ~2s |
+| document-version | integration | scenario | unit | gate | the firmware version a document is read as is that document's own | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| preset-parse | integration | scenario | unit | gate | a JSON synth preset reads into a kit row as an XML one does | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| effect-owners | integration | scenario | unit | gate | every owner of effects (a synth's sound, a kit, an audio track, the song master) keeps its effect settings in its own state, and the render's copy follows | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| edit-cost | integration | scenario | benchmark | investigative | nothing: it times SetEngineSetting on a new synth for a re-voicing scalar, a retuning scalar, an oscillator type switch and an engine switch | platform, host-app, storage, model, synth, effects | manual | model | ~5s |
+| source-memory | integration | scenario | benchmark | investigative | nothing: it prints the SRAM and SDRAM heaps' free bytes and low-water marks across a sample oscillator's switch to a saw and back | platform, host-app, storage, model, synth, effects | manual | model | ~5s |
+| edit-substrate | integration | scenario | unit | gate | the Edit substrate on its own | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| voice-pins | integration | scenario | unit | gate | which voice each cull, steal and admit takes across sounds, against the record | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| mapping-dispatch | integration | scenario | property | gate | the mapping index matches incoming MIDI as the dispatch's scans of the engine fields do | platform, host-app, storage, model, synth, effects | pr | app | ~5s |
+| xml-replay-diff | integration | scenario | differential | gate | ValueTreeDeserializer's XML replay must read exactly as XMLDeserializer does | platform, host-app, storage, model, synth, effects | pr | model | ~1s |
+| song-roundtrip | integration | corpus | regression | gate | what a song saves as must not change unexplained | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~10s |
+| model-equality-corpus | unit | script | property | gate | every corpus song's model records survive a JSON round trip unchanged, through a driver built from the model and serialization libraries only | model, synth, effects, corpus-driver, test-support | nightly | tooling | ~2s |
+| preset-roundtrip | integration | corpus | regression | gate | what a preset saves as must not change unexplained | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~10s |
+| serializer-check | integration | corpus | property | gate | the tree ValueSerializer builds for every output of every corpus song equals the tree the JSON writer's text parses to | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~10s |
+| cable-decode | integration | corpus | property | gate | the Deluge instrument decodes every song's and preset's patch cables as the app's reader does | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~20s |
+| host-effect-settings | integration | corpus | property | gate | a host owner's effects go through its chain | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~30s |
+| engine-settings | integration | corpus | property | gate | a sound's settings go through its slot | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~30s |
+| song-settings | integration | corpus | property | gate | a song's settings go through SetSetting | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~30s |
+| instrument-codec-decode | integration | corpus | property | gate | the Deluge instrument reads its own state as the app's reader does | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~20s |
+| instrument-codec-encode | integration | corpus | property | gate | the Deluge instrument writes its own state | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~20s |
+| instrument-state-roundtrip | integration | corpus | property | gate | the Deluge instrument's state round-trips through its codec | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~20s |
+| json-roundtrip | integration | corpus | property | gate | the JSON read path must be faithful to the JSON write path | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~10s |
+| model-decode-diff | integration | corpus | property | gate | decode reads a saved song's model records exactly as the engine loader does | platform, host-app, storage, model, synth, effects, corpus-driver | pr | model | ~10s |
+| song-edit-roundtrip | integration | corpus | property | gate | a DOM-first edit must persist | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~10s |
+| param-record-diff | integration | corpus | regression | gate | the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record) | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~5s |
+| arrangement-take | integration | scenario | regression | gate | recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take) | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | nightly | render | ~20s |
+| audio-clip-edit-diff | integration | corpus | regression | gate | an AudioClip's descriptor edits, their undo, and a save and reload reproduce the committed baseline byte for byte | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~5s |
+| edit-undo-redo | integration | corpus | property | gate | every reified Edit applied to a corpus song resolves through a live DOM address and comes back exactly through the real undo and redo | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~10s |
+| clip-clone-roundtrip | integration | corpus | property | gate | InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores | platform, host-app, storage, model, synth, effects, corpus-driver | nightly | model | ~10s |
+| param-snapshot-bench | integration | scenario | benchmark | investigative | nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits | platform, host-app, storage, model, ui, synth | manual | app | ~2s |
+| setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/ui/scenes sets a bound sound's instrument state outside its Edit | ui, tooling | pr | tooling | ~1s |
+| test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ holds a path tests/support/ also holds | all | pr | tooling | ~1s |
+| spec-discovery | unit | script | unit | gate | a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one | tooling | pr | tooling | ~1s |
+| doc-hygiene-selftest | unit | script | unit | gate | the UI docs lint flags history breadcrumbs, any line number in a citation, and a backticked path naming no one file or a symbol that file lacks | tooling | pr | tooling | ~1s |
+| spec-comparisons-selftest | unit | script | unit | gate | the spec-comparison check finds a comparison judged by a truth matcher and nothing else, and refuses only the sites a commit adds | tooling | pr | tooling | ~1s |
+| fixed-point-raw-selftest | unit | script | unit | gate | the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments | tooling | pr | tooling | ~1s |
+| fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | all | pr | tooling | ~2s |
+| spec-comparisons | unit | script | unit | gate | no C++ spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy(), so every failed comparison prints its values | all | pr | tooling | ~2s |
+| dx7-presets | unit | script | unit | gate | the render presets in DX7 mode are as recorded, and none holds a DX7 on an oscillator | synth, render-data, tooling | pr | tooling | ~1s |
+| dx7-presets-selftest | unit | script | unit | gate | the DX7 preset scan lists each DX7-mode sound and finds a DX7 on either oscillator | tooling | pr | tooling | ~1s |
+| layers-selftest | unit | script | unit | gate | the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth | tooling | pr | tooling | ~1s |
+| registry-selftest | unit | script | unit | gate | this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams | tooling | pr | tooling | ~1s |
+| render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | pr | tooling | ~1s |
+| make-sample-selftest | unit | script | unit | gate | the sample golden cases' synthetic sources are what their cases assume, and the committed WAVs are their generator's output | tooling | pr | tooling | ~1s |
+| dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | tooling | pr | tooling | ~1s |
+| compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | tooling | pr | tooling | ~1s |
+| relocate-selftest | unit | script | unit | gate | a library move respells the includes resolving into it, rewrites its paths, namespaces and targets, and refuses an ambiguous move | tooling | pr | tooling | ~1s |
+| compare-strings-selftest | unit | script | unit | gate | the string comparison of two images equates strings that differ only by the renamed paths and crates, and reports any other change | tooling | pr | tooling | ~1s |
+| stream-bench-parser | unit | script | unit | gate | the streaming benchmark host script's parsing of device captures | tooling | pr | tooling | ~1s |
+| device-check-parser | unit | script | unit | gate | device_check's reading of a rig capture | tooling | pr | tooling | ~1s |
+| rig-session | unit | script | unit | gate | rig_session's reading of the rig harness's RTT stream | tooling | pr | tooling | ~2s |
+| rig-lock | unit | script | unit | gate | one run at a time holds the rig, every tool that opens it is refused or waits, and a holder that dies lets go | tooling | pr | tooling | ~6s |
+| device-parity | unit | script | unit | gate | emu_parity's script runner drives delugemu or the rig through the same steps and timings, and device_parity seeds delugemu's flash from the rig's settings | tooling | pr | tooling | ~1s |
+| ui-script-cards | unit | script | unit | gate | the cards a UI script's header names, as the UI script runners read them | tooling | pr | tooling | ~1s |
+| x86-parity-tool | unit | script | unit | gate | x86_parity turns a parity script into the host app's UI script, keys its card cache by the image's mtime, and lists every file two runs disagree on | tooling | pr | tooling | ~1s |
+| deluge-jlink | unit | script | unit | gate | deluge_jlink's load script stops every DMA channel after the MMU is off and before the load | tooling | pr | tooling | ~1s |
+| ui-parity | integration | script | differential | investigative | the parity scripts show the same panels on this image as on main's, in delugemu, on every card their headers name | platform, host-app, storage, model, ui, synth, effects | manual | tooling | ~20m |
+| x86-parity | integration | script | differential | gate | every parity script played twice on the same host app gives identical panels, LEDs, pads and MIDI out: the determinism a base-against-head comparison rests on | platform, host-app, storage, model, ui, synth, effects | manual | tooling | ~1m |
+| ui-parity-card | integration | script | differential | investigative | the content-card parity scripts show the same panels on this image as on main's, in delugemu | platform, host-app, storage, model, ui, synth, effects | manual | tooling | ~5m |
+| ui-parity-songs | integration | script | differential | investigative | eleven real songs load and play with the same panels on this image as on main's, in delugemu | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data, ui | manual | tooling | ~90s |
+| ui-device | integration | script | differential | investigative | the device scripts show the same panels on the Deluge on the probe rig as in delugemu running the same image | platform, host-app, storage, model, ui, synth, effects | manual | tooling | ~3m |
+| ui-device-record | integration | script | benchmark | investigative | nothing: it records the device-only scripts' snapshots and debug output on the Deluge on the probe rig | platform, host-app, storage, model, ui, synth, effects | manual | tooling | ~3m |
+| usbmidi | integration | script | property | gate | a Deluge plugged into this machine enumerates as a USB-MIDI device with three MIDI ports each way | platform, model | manual | tooling | ~5s |
+| audible-window-tooling | unit | script | unit | gate | the audible window's analyser and song set | tooling | pr | tooling | ~1s |
+| audible-window-identity | integration | script | regression | gate | the audible window's reference snapshot (.superpowers/estate/audible-window/reference/, or AUDIBLE_WINDOW_REFERENCE) compared with itself reports nothing moved | platform, host-app, storage, model, dsp, synth, effects, ui-browser, render-data | manual | tooling | ~1m |
+| bench-tooling | unit | script | unit | gate | the bench tools' host side | tooling | pr | tooling | ~1s |
+| ptm-trace-tool | unit | script | unit | gate | the PTM trace tool's host side | tooling | pr | tooling | ~1s |
+| app-asan-sample-load-tree | integration | scenario | sanitizer | gate | the sample-load-tree gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | platform, host-app, storage, model, ui, synth | nightly | unit | ~5m |
+| app-asan-sample-claim | integration | scenario | sanitizer | gate | the sample-claim gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | platform, host-app, storage, model, ui, synth | nightly | unit | ~15m |
+| app-asan-preset-load | integration | scenario | sanitizer | gate | the preset-load gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | platform, host-app, storage, model, ui, synth | nightly | unit | ~5m |
+| app-asan-recorder-take | integration | scenario | sanitizer | gate | the recorder-take gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | platform, host-app, storage, model, ui, synth | nightly | unit | ~5m |
+| app-asan-ui-scenes-spec | integration | scenario | sanitizer | gate | the ui-scenes-spec gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | platform, host-app, storage, model, ui, synth, effects | nightly | unit | ~5m |
+| app-asan-effect-owners | integration | scenario | sanitizer | gate | the effect-owners gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | platform, host-app, storage, model, synth, effects | nightly | unit | ~20s |
+| app-asan-edit-substrate | integration | scenario | sanitizer | gate | the edit-substrate gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | platform, host-app, storage, model, synth, effects | nightly | unit | ~5m |
 <!-- END GENERATED TABLE -->
+
+## Selecting by change
+
+`./dbt test --since REF` runs the tests of the tier asked for that the changes since REF reach: `--since REF` alone the
+pr tier's, `--tier nightly --since REF` the pr and nightly tiers', `--only-tier nightly --since REF` the nightly tier's.
+The changes are the files that differ from the merge base of REF and HEAD, the working tree included: committed,
+staged, unstaged and untracked (not ignored), and both paths of a rename. Tests named on the command line run whatever
+changed. `--list --since REF` prints the selection, each test with what reached it.
+
+What reaches a test is written in `registry.toml`:
+
+- **`[area.<name>]`** tables, each a `paths` list of globs relative to the repository root (`**` any number of
+  directories, `*` and `?` within one path component), cut by how the code is tested: `platform`, `storage`, `model`,
+  `synth`, `dsp`, `effects`, `ui`, `ui-browser`, `host-app`, `corpus-driver`, `render-data`, `upgrader`, `bench`,
+  `test-support`, `tooling`.
+- **`areas`** on every entry: the areas it exercises, or `["all"]` for a test of the whole app with no narrower claim.
+  A variant copy takes its base's. The field is required; "everything" is always written.
+- **A test's own files** reach it without being listed: its `path` directory (when not `.`), the files its `build`,
+  `run` and `check` name, its scenario's driver (`tests/integration/scenarios/**/<scenario>*`), its corpus runner and
+  its `baseline` paths.
+- **`[no-gate]`**: files no test measures (docs, the website, CI and editor configuration). Changes only there select
+  nothing: `--since: no gate is reachable from the changes since REF`, exit 0.
+- **`[every-gate]`**: files any test can depend on, the build system and the runner itself (`CMakeLists.txt`,
+  the Cargo manifests, `dbt`, `cmake/`, the toolchain, `registry.toml`). A change there selects the whole tier:
+  `--since: <file> reaches every gate`.
+
+A changed file in no table and in no test's own files selects the whole tier too, naming it: `--since: <file> is in
+no area: running the whole <tier> selection`. `registry-selftest` keeps that rare: every entry's areas exist, every
+area is used and every glob matches a tracked file, and every tracked file under `src/`, `include/`, `tests/`,
+`tools/` and `scripts/` is in a table or some test's own files.
+
+Every tier runs one test per CPU unless `-j` says otherwise; tests marked `alone` (the corpus sweeps among them) run
+after the rest, one at a time, each with every CPU.
+
+`--since` is for local runs. CI runs whole tiers (`--tier pr` on a pull request, `--tier nightly` on a push to
+`next`), and is the net for an area drawn too narrow.
 
 ## Where things live, and why
 
@@ -325,6 +363,8 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
   `./dbt test --list --verbose <name>` prints the explanation. Every entry has one, unless its gates line says
   everything: such an entry is listed in `NO_EXPLANATION` (`scripts/tasks/test_harness_registry.py`), and
   `registry-selftest` fails on any other entry without an explanation, and on a block whose entry is gone.
+- **`areas`** names the areas the test exercises (Selecting by change). A test that adds a directory adds it to an
+  area, to `[no-gate]` or to the test's own files, or `registry-selftest` names its files.
 - **`runtime_s`** is the whole seconds a run takes with its build products already built. A cold build's cost goes in
   a comment above it. A test with no natural end states its usual run, and a comment says so.
 - **`path`** belongs only to `cargo` and `script` entries: the directory their commands run in. A ctest entry runs in
