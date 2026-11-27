@@ -6,6 +6,7 @@
 
 #include "support/spec_main.h"
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -250,6 +251,67 @@ describe quantize_graph_w("ui::widgets::oled::quantize_graph", $ {
 		expect_golden(self, "ui/widgets/quantize_64.pbm", r64.pbm());
 	});
 });
+describe automation_lane_w("ui::widgets::oled::automation_lane", $ {
+	// r = {0, 14, 128, 28}: a tick per column at length 128; value 0 on row 41, 127 on row 14
+	const Rect area{0, 14, 128, 28};
+
+	it("holds then steps between non-interpolating nodes", _ {
+		uitest::Rig48 r;
+		const std::array<LaneNode, 2> nodes{{{.pos = 0, .value = 0, .interpolate = false},
+		                                     {.pos = 64, .value = 127, .interpolate = false}}};
+		automation_lane(r.frame, area, 128, nodes, 0, 0, 0, -1);
+		expect(r.lit(32, 41 + kTop)).to_be_true();
+		expect(r.lit(32, 27 + kTop)).to_be_false();
+		expect(r.lit(64, 27 + kTop)).to_be_true();  // the step
+		expect(r.lit(96, 14 + kTop)).to_be_true();  // held after the last node
+	});
+
+	it("ramps into an interpolating node", _ {
+		uitest::Rig48 r;
+		const std::array<LaneNode, 2> nodes{{{.pos = 0, .value = 0, .interpolate = false},
+		                                     {.pos = 64, .value = 127, .interpolate = true}}};
+		automation_lane(r.frame, area, 128, nodes, 0, 0, 0, -1);
+		bool mid = false;
+		for (int32_t y = 26; y <= 29; y++) {
+			mid = mid || r.lit(32, y + kTop);
+		}
+		expect(mid).to_be_true();
+		expect(r.lit(32, 41 + kTop)).to_be_false();
+	});
+
+	it("holds the first node's value before it", _ {
+		uitest::Rig48 r;
+		const std::array<LaneNode, 1> nodes{{{.pos = 64, .value = 127, .interpolate = true}}};
+		automation_lane(r.frame, area, 128, nodes, 0, 0, 0, -1);
+		expect(r.lit(10, 14 + kTop)).to_be_true();
+	});
+
+	it("draws a dotted line at the empty value for no nodes", _ {
+		uitest::Rig48 r;
+		automation_lane(r.frame, area, 128, {}, 127, 0, 0, -1);
+		expect(r.lit(0, 14 + kTop)).to_be_true();
+		expect(r.lit(1, 14 + kTop)).to_be_false();
+		expect(r.lit(2, 14 + kTop)).to_be_true();
+	});
+
+	it("matches its goldens", _ {
+		// the canvas sketch's lane: two swells, the second at half depth, a step up for the last quarter
+		std::vector<LaneNode> nodes;
+		for (int32_t i = 0; i < 16; i++) {
+			const int32_t x = i * 8;
+			const float u = static_cast<float>(x) / 128.f;
+			const float swell = (1.f + std::sin(u * 6.28f * 2.f + 0.6f)) * (x < 64 ? 1.f : 0.5f);
+			nodes.push_back({.pos = x * 24, .value = static_cast<int32_t>(swell * 50.f) + (x >= 96 ? 25 : 0),
+			                 .interpolate = x != 96});
+		}
+		uitest::Rig48 r48;
+		automation_lane(r48.frame, area, 128 * 24, nodes, 64, 32 * 24, 32 * 24, 40 * 24);
+		expect_golden(self, "ui/widgets/automation_lane_48.pbm", r48.pbm());
+		uitest::Rig64 r64;
+		automation_lane(r64.frame, {0, 16, 128, 46}, 128 * 24, nodes, 64, 32 * 24, 32 * 24, 40 * 24);
+		expect_golden(self, "ui/widgets/automation_lane_64.pbm", r64.pbm());
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(timeline_strips_spec, window_marks_w, overview_w, note_strip_w, quantize_graph_w)
+DELUGE_SPEC(timeline_strips_spec, window_marks_w, overview_w, note_strip_w, quantize_graph_w, automation_lane_w)

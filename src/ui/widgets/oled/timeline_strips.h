@@ -65,4 +65,22 @@ void note_strip(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, std::span
 void quantize_graph(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, int32_t grid_ticks,
                     std::span<const int32_t> note_ticks, float amount);
 
+/// @brief One automation node: its position in ticks, its value 0..127, and whether the lane ramps into it (else it
+///        holds the previous value and steps).
+struct LaneNode {
+	int32_t pos;
+	int32_t value;
+	bool interpolate;
+};
+
+/// @brief A parameter's whole lane over a clip, in @p r.
+///
+/// A tick t is column `x + t * w / length_ticks` of @p r; value 0 is the rect's bottom row and 127 its top (values
+/// clamped). Into each node after the first, a line from the previous node if the node interpolates, else held flat
+/// at the previous value then a vertical step; before the first node and after the last, held flat at the nearest
+/// node's value. No nodes: a dotted line (every 2nd column) at @p empty_value. Then `window_marks` for the pads'
+/// window and the playhead, in ticks (playhead < 0: none), as `note_strip` does. Nodes are in position order.
+void automation_lane(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, std::span<const LaneNode> nodes,
+                     int32_t empty_value, int32_t window_start, int32_t window_len, int32_t playhead);
+
 } // namespace deluge::ui::widgets::oled

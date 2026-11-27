@@ -76,7 +76,7 @@ against drift, not a proof.
 | `DrawColumn`, `FilterGraph`, `draw_column`, `filter_graph`, `envelope_graph`, `eq_graph` | `column_drawings.h` |
 | `PageBody`, `page_body`, `LevelFn`, `curve`, `polyline`, `guide_v`, `guide_h`, `fill_line`, `Handles` | `page_drawing.h` |
 | `DuckGraph`, `DuckHandles`, `duck_graph`, `DistortionGraph`, `distortion_graph`, `swing_graph` | `fx_graphs.h` |
-| `window_marks`, `LaneSpan`, `overview`, `StripNote`, `note_strip`, `quantize_graph` | `timeline_strips.h` |
+| `window_marks`, `LaneSpan`, `overview`, `StripNote`, `note_strip`, `quantize_graph`, `LaneNode`, `automation_lane` | `timeline_strips.h` |
 | `octave`, `zone_strip` | `keys.h` |
 | `amount_line`, `level_lines`, `beat_boxes`, `position_bar` | `oled/counters.h` |
 | `scope`, `scope_xy` | `scope.h` |

@@ -123,4 +123,36 @@ void quantize_graph(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, int32
 	}
 }
 
+void automation_lane(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, std::span<const LaneNode> nodes,
+                     int32_t empty_value, int32_t window_start, int32_t window_len, int32_t playhead) {
+	const int32_t right = r.x + r.w - 1;
+	const auto row = [&](int32_t v) { return r.y + (r.h - 1) - std::clamp(v, 0, 127) * (r.h - 1) / 127; };
+	const auto col = [&](int64_t t) { return std::clamp(column(r, t, length_ticks), r.x, right); };
+	if (nodes.empty()) {
+		for (int32_t x = r.x; x <= right; x += 2) {
+			f.pixel(x, row(empty_value));
+		}
+	}
+	else {
+		f.hline(row(nodes.front().value), r.x, col(nodes.front().pos));
+		for (size_t i = 1; i < nodes.size(); i++) {
+			const int32_t x0 = col(nodes[i - 1].pos);
+			const int32_t y0 = row(nodes[i - 1].value);
+			const int32_t x1 = col(nodes[i].pos);
+			const int32_t y1 = row(nodes[i].value);
+			if (nodes[i].interpolate) {
+				f.line(x0, y0, x1, y1);
+			}
+			else {
+				f.hline(y0, x0, x1);
+				f.vline(x1, std::min(y0, y1), std::max(y0, y1));
+			}
+		}
+		f.hline(row(nodes.back().value), col(nodes.back().pos), right);
+	}
+	const int32_t wx = column(r, window_start, length_ticks) - r.x;
+	const int32_t ww = column(r, static_cast<int64_t>(window_start) + window_len, length_ticks) - r.x - wx;
+	window_marks(f, r, wx, window_len > 0 ? ww : 0, playhead >= 0 ? column(r, playhead, length_ticks) - r.x : -1);
+}
+
 } // namespace deluge::ui::widgets::oled
