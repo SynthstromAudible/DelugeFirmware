@@ -142,8 +142,8 @@ public:
 	}
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack, bool forEdit) override;
+	                                                deluge::project::ParamTarget target, bool affectEntire,
+	                                                bool useMenuStack, bool forEdit) override;
 	/// @brief The mode @p offset steps from this one, wrapping.
 	[[nodiscard]] AudioOutputMode scrolledMode(int offset) const {
 		auto modeInt = (util::to_underlying(mode) + offset) % kNumAudioOutputModes;

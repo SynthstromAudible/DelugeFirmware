@@ -16,6 +16,11 @@
   "Weird.json": "ce70bd0ad65123c421e887b1e2a0c18c59c5c05b3a640de19588acac641acec9",
   "synthetic/learned_knob_volumes.XML": "fe092564d2c9fdf5117dd15e9ad0124e3cf805688552049406412cfdaf6ec9c7",
   "synthetic/learned_knobs.XML": "e1ae89a282e4abb5581d1057602970df96299d07e2ff798e3d2d7c128edd1453",
+  "synthetic/selection_arp.XML": "3398cb2f8fcd1adc79bc6366af0e5a6aff1245978c6eaec1e9582b128170bfe1",
+  "synthetic/selection_cable.XML": "4875e41b75439123ab6f6278f027860136aa0d501456654c0e250f588eb564b8",
+  "synthetic/selection_expression.XML": "0eb1287dd6e60d7ba13180fd95cce347bd637c502bb704bfdc9084d3d602758f",
+  "synthetic/selection_midi_cc.XML": "702ea78ff4b6f3870357e766310d3f5439819e7449dc28b913c6b1e0f3adc39d",
+  "synthetic/selection_patched.XML": "0abebbc832539b8bf0f42eb3549663b6927cb7d9c161b316732cd1bb5ed6ae1a",
   "synthetic/stutter_own.XML": "e745f1bc369e69b1e161ddfbe2de415b2958e3523bc7ef2d372a9a2610824ab8",
   "synthetic/syncscale.XML": "bd1211e9c955486a606f3a39f754076a61bf999ccd0eb183403ca018758809ca",
   "synthetic/synth_arp.XML": "1d7acd53fc84b6d8c6a2cddf4c7e6aa8bca4255c2815cfc9bce27dd6c017a2d5"

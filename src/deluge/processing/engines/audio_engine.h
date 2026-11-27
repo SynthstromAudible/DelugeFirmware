@@ -205,8 +205,8 @@ void init();
 /// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - the song and
 /// kit output stages have been folded in by the caller.
 struct PreviewVolume {
-	int32_t volumePostFX;       ///< params::GLOBAL_VOLUME_POST_FX
-	int32_t localVolume;        ///< params::LOCAL_VOLUME
+	int32_t volumePostFX;       ///< the instrument's kVolumePostFX
+	int32_t localVolume;        ///< the instrument's kVolume
 	int32_t velocityCableDepth; ///< depth of the VELOCITY -> LOCAL_VOLUME patch cable
 	deluge::instruments::classic::Polarity
 	    velocityCablePolarity; ///< polarity of the VELOCITY -> LOCAL_VOLUME patch cable

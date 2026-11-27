@@ -3,12 +3,15 @@
 
 #include "gui/ui/ui.h"                 // getRootUI
 #include "gui/views/automation_view.h" // automationView interpolation flags
+#include "host/chains/params.h"
+#include "instruments/classic/cables.h"
 #include "io/debug/log.h"
 #include "model/action/action.h" // recordParamChangeIfNotAlreadySnapshotted (region undo snapshot)
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h" // Clip::getCurrentlyRecordingLinearly (region context)
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/snapshot/param_snapshot.h" // ParamSnapshot::applyPatch
 #include "model/song/song.h"               // engine Song (tc != song comparison)
@@ -50,18 +53,20 @@ deluge::snapshot::RegionContext gatherRegionContext(const deluge::bridge::LaneTa
 /// Whether the reverb's sidechain copies the param @p stack names: any owner's sidechain shape, the song's or a global
 /// effectable's sidechain volume, or a sound's cable from the sidechain to its reverb send.
 bool copiedByReverbSidechain(const ModelStackWithAutoParam& stack) {
-	namespace params = deluge::modulation::params;
-	const params::Kind kind = stack.kind;
-	if (kind == params::Kind::PATCH_CABLE) {
-		PatchSource source{};
-		deluge::synth::CableTarget destination{};
-		PatchCableSet::dissectParamId(stack.paramId, &destination, &source);
-		return source == PatchSource::SIDECHAIN
-		       && destination == deluge::synth::CableTarget::param(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+	namespace classic = deluge::instruments::classic;
+	namespace chains = deluge::host::chains;
+	const std::optional<project::PluginParam> param = bridge::pluginParamOf(stack.kind, stack.paramId);
+	if (!param || param->target.space != project::ParamSpace::ENGINE) {
+		return false;
 	}
-	const bool unpatched = kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL;
-	return (unpatched && stack.paramId == params::UNPATCHED_SIDECHAIN_SHAPE)
-	       || (kind == params::Kind::UNPATCHED_GLOBAL && stack.paramId == params::UNPATCHED_SIDECHAIN_VOLUME);
+	const plugin::ParamId id = param->target.id;
+	if (param->plugin == bridge::OwnerPlugin::GLOBAL_EFFECTABLE) {
+		return id == chains::param::kCompressorShape || id == chains::param::kSidechainCompressorVolume;
+	}
+	if (const std::optional<classic::CableRoute> route = classic::cable_route(id)) {
+		return route->source == PatchSource::SIDECHAIN && route->destination == classic::param::kVolumePostReverbSend;
+	}
+	return id == classic::param::kCompressorShape;
 }
 
 /// Mark the instrument that owns @p address edited: an INSTRUMENT owner, or the kit holding a DRUM owner.

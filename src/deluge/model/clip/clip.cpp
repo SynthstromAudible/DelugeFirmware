@@ -32,6 +32,7 @@
 #include "model/edits/clip_address_for.h"
 #include "model/output.h"
 #include "model/project_bridge/midi_command.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -85,8 +86,6 @@ Clip::Clip(ClipType newType, Song& song, uint32_t loadedId) : type(newType) {
 
 	// initialize automation clip view variables
 	onAutomationClipView = false;
-	lastSelectedParamID = params::kNoParamID;
-	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
 	lastSelectedParamArrayPosition = 0;
@@ -802,12 +801,15 @@ void Clip::readShellFromTree(const deluge::storage::Value& clipNode) {
 	if (const Value* n = clipNode.find("onAutomationInstrumentClipView")) {
 		onAutomationClipView = stringToInt(n->str().c_str());
 	}
-	if (const Value* n = clipNode.find("lastSelectedParamID")) {
-		lastSelectedParamID = stringToInt(n->str().c_str());
+	int32_t fileKind = 0;
+	int32_t fileId = -1;
+	if (const Value* n = clipNode.find(deluge::bridge::kSelectionIdAttribute)) {
+		fileId = stringToInt(n->str().c_str());
 	}
-	if (const Value* n = clipNode.find("lastSelectedParamKind")) {
-		lastSelectedParamKind = static_cast<params::Kind>(stringToInt(n->str().c_str()));
+	if (const Value* n = clipNode.find(deluge::bridge::kSelectionKindAttribute)) {
+		fileKind = stringToInt(n->str().c_str());
 	}
+	selectedParam = deluge::bridge::clipSelectionOfFile(fileKind, fileId);
 	if (const Value* n = clipNode.find("lastSelectedParamShortcutX")) {
 		lastSelectedParamShortcutX = stringToInt(n->str().c_str());
 	}

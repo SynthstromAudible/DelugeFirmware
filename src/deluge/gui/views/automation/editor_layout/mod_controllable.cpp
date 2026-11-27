@@ -31,6 +31,7 @@
 #include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -45,6 +46,8 @@ using namespace deluge;
 namespace params = deluge::modulation::params;
 
 using namespace deluge::gui;
+
+using deluge::bridge::runtimePairOf;
 
 namespace {
 
@@ -301,7 +304,9 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay(
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+		    currentSong->selectedParam
+		        ? currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->selectedParam->target)
+		        : nullptr;
 	}
 	else {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -353,12 +358,12 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		int32_t lastSelectedParamID = params::kNoParamID;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
 		if (getOnArrangerView()) {
-			lastSelectedParamKind = currentSong->lastSelectedParamKind;
-			lastSelectedParamID = currentSong->lastSelectedParamID;
+			lastSelectedParamKind = runtimePairOf(currentSong->selectedParam).kind;
+			lastSelectedParamID = runtimePairOf(currentSong->selectedParam).index;
 		}
 		else {
-			lastSelectedParamKind = clip->lastSelectedParamKind;
-			lastSelectedParamID = clip->lastSelectedParamID;
+			lastSelectedParamKind = runtimePairOf(clip->selectedParam).kind;
+			lastSelectedParamID = runtimePairOf(clip->selectedParam).index;
 			lastSelectedPatchSource = clip->lastSelectedPatchSource;
 		}
 		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
@@ -398,7 +403,7 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		}
 	}
 	else {
-		((MIDIInstrument*)clip->output)->appendCCName(parameterName, clip->lastSelectedParamID);
+		((MIDIInstrument*)clip->output)->appendCCName(parameterName, runtimePairOf(clip->selectedParam).index);
 	}
 }
 

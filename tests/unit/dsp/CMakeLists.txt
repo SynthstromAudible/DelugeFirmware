@@ -42,7 +42,7 @@ if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
     ${DELUGE_REPO_ROOT}/src/synth/matrix/evaluator.cpp
     ${DELUGE_REPO_ROOT}/src/synth/modulation/envelope.cpp
     ${DELUGE_REPO_ROOT}/src/synth/modulation/lfo.cpp
-    ${DELUGE_REPO_ROOT}/src/deluge/util/param_functions.cpp
+    ${DELUGE_REPO_ROOT}/src/synth/matrix/param_functions.cpp
     ${DELUGE_REPO_ROOT}/src/dsp/fixed/interpolation/table_interpolation.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/util/synth_noise.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/util/lookuptables/lookuptables.cpp

@@ -23,6 +23,7 @@
 ///       and, unlike `closeUI`, it is well defined when the guest is the only thing on the stack.
 
 #include "gui/ui/menu_view_of.h"
+#include "instruments/classic/params.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
@@ -2085,7 +2086,7 @@ describe menu_entry_published_target("the menu's owner and params, which the aut
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, kit.song, kit.clip);
 		ModelStackWithAutoParam* param = kit.instrument->getModelStackWithParam(
-		    stack, kit.clip, deluge::modulation::params::LOCAL_LPF_FREQ, deluge::modulation::params::Kind::PATCHED,
+		    stack, kit.clip, deluge::project::engine_target(deluge::instruments::classic::param::kLpfFrequency.value),
 		    /*affectEntire=*/false, /*useMenuStack=*/true, /*forEdit=*/false);
 		expect(param).not_().to_be_null();
 		if (param != nullptr) {

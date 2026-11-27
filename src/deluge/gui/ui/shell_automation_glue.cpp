@@ -96,13 +96,12 @@ void selectParam(const AutomationParam& param, bool clipMinder) {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = nullptr;
 	if (clipMinder) {
-		modelStack =
-		    automationView.getModelStackWithParamForClip(currentSong->setupModelStackWithCurrentClip(modelStackMemory),
-		                                                 getCurrentClip(), false, runtime.index, runtime.kind);
+		modelStack = automationView.getModelStackWithParamForClip(
+		    currentSong->setupModelStackWithCurrentClip(modelStackMemory), getCurrentClip(), false, param);
 	}
 	else {
 		modelStack = currentSong->getModelStackWithParam(
-		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory), runtime.index);
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory), param.target);
 	}
 	if (modelStack != nullptr) {
 		// A cable's source, which the view names it by, is the one furthest from the param (`PatchCableStrength`'s
