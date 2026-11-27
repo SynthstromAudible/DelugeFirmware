@@ -3,7 +3,9 @@ See tests/README.md, Selecting by change, and test_test_selection.py."""
 
 import functools
 import re
+import subprocess
 from dataclasses import dataclass, field
+from pathlib import Path
 
 AREA_ALL = "all"
 
@@ -85,3 +87,100 @@ def consistency_problems(
             if not any(matches(g, t) for t in tracked)
         ]
     return problems
+
+
+def changed_files(root: Path, ref: str) -> list[str]:
+    """The repository paths changed since the merge base of `ref` and HEAD, the working tree included (staged,
+    unstaged, untracked and not ignored); a rename gives both paths. Sorted, each once."""
+
+    def git(*args: str) -> str:
+        done = subprocess.run(
+            ["git", *args], cwd=root, capture_output=True, text=True, check=False
+        )
+        if done.returncode != 0:
+            raise ValueError(
+                f"--since {ref}: {done.stderr.strip() or 'git ' + ' '.join(args) + ' failed'}"
+            )
+        return done.stdout
+
+    base = git("merge-base", ref, "HEAD").strip()
+    diffed = git("diff", "--name-only", "--no-renames", base).split("\n")
+    untracked = git("ls-files", "--others", "--exclude-standard").split("\n")
+    return sorted({p for p in diffed + untracked if p})
+
+
+def own_files(h) -> list[str]:
+    """The globs of `h`'s own files: its directory, the files its commands and check name, its scenario's driver,
+    its corpus runner and its baselines. A change to any of them reaches `h` whatever its areas."""
+    own = []
+    if h.path not in (".", ""):
+        own.append(f"{h.path.rstrip('/')}/**")
+    for arg in [*h.build, *h.run]:
+        if "/" in arg or arg.endswith((".py", ".sh")):
+            rel = arg.removeprefix("./")
+            own.append(
+                rel
+                if h.path in (".", "") or rel.startswith(h.path)
+                else f"{h.path}/{rel}"
+            )
+    if h.check:
+        own.append(h.check)
+    if h.scenario:
+        own.append(f"tests/integration/scenarios/**/{h.scenario}*")
+    if h.corpus_runner:
+        own.append(f"tests/integration/corpus/{h.corpus_runner}_run.py")
+    for b in h.baseline:
+        own += [b, f"{b.rstrip('/')}/**"]
+    return own
+
+
+@dataclass
+class SinceResult:
+    """The gates selected, what reached each (or "widened"), and the widening messages."""
+
+    selected: list
+    reasons: dict[str, str]
+    messages: list[str]
+
+
+def since(
+    selection: list, areas: Areas, changed: list[str], tier: str = ""
+) -> SinceResult:
+    """The gates of `selection` the `changed` files reach, each with the first area or own file that reached it. An
+    every-gate file, or a file in no area and in no gate's own files, selects the whole `selection`, with a message."""
+    owned = {h.name: own_files(h) for h in selection}
+    messages = []
+    for path in changed:
+        if any_match(areas.every_gate, path):
+            messages.append(f"--since: {path} reaches every gate")
+        elif not (
+            any_match(areas.no_gate, path)
+            or any(any_match(globs, path) for globs in areas.areas.values())
+            or any(any_match(globs, path) for globs in owned.values())
+        ):
+            messages.append(
+                f"--since: {path} is in no area: running the whole {tier + ' ' if tier else ''}selection"
+            )
+    if messages:
+        return SinceResult(
+            list(selection), {h.name: "widened" for h in selection}, messages
+        )
+    gated = [p for p in changed if not any_match(areas.no_gate, p)]
+    selected, reasons = [], {}
+    for h in selection:
+        why = None
+        for path in gated:
+            if AREA_ALL in h.areas:
+                why = f"all: {path}"
+            elif hit := next(
+                (a for a in h.areas if any_match(areas.areas.get(a, []), path)), None
+            ):
+                why = f"area {hit}: {path}"
+            elif any_match(owned[h.name], path):
+                why = f"own file: {path}"
+            if why:
+                break
+        if why:
+            selected.append(h)
+            reasons[h.name] = why
+    return SinceResult(selected, reasons, messages)

@@ -43,6 +43,7 @@ import harness_registry as hr
 import run_scratch
 import scenario_gate
 import test_builds as tb
+import test_selection as ts
 
 SHARED_TARGET_SUBDIR = tb.SHARED_TARGET_SUBDIR
 
@@ -79,6 +80,12 @@ def argparser() -> argparse.ArgumentParser:
         choices=hr.TIERS,
         default=None,
         help="Run every test up to and including this tier (default pr)",
+    )
+    parser.add_argument(
+        "--since",
+        metavar="REF",
+        help="Only the tier's tests the changes since REF's merge base reach, the working tree included (tests named "
+        "run whatever changed; tests/README.md, Selecting by change)",
     )
     parser.add_argument(
         "--list", action="store_true", help="List the selection instead of running it"
@@ -1175,6 +1182,7 @@ def cmd_list(
     markdown: bool,
     entries: list[hr.Harness],
     verbose: bool = False,
+    reasons: dict[str, str] | None = None,
 ) -> int:
     if markdown:
         print(hr.markdown_table(entries), end="")
@@ -1191,6 +1199,8 @@ def cmd_list(
             f"{mark} {h.name:<{width}}  {h.level:<11} {h.status:<13} {h.tier:<7} {hr.runtime_text(h.runtime_s)}{note}"
         )
         print(f"    {' ' * width}  {h.gates}")
+        if reasons and (why := reasons.get(h.name)):
+            print(f"    {' ' * width}  reached by {why}")
         if verbose and (text := hr.explanation(root, h)):
             for line in textwrap.wrap(
                 text,
@@ -1314,6 +1324,24 @@ def _main(argv: list[str]) -> int:
     except ValueError as exc:
         print(f"test: {exc}", file=sys.stderr)
         return 1
+    reasons: dict[str, str] = {}
+    if args.since and not args.names:
+        try:
+            result = ts.since(
+                selection,
+                hr.load_areas(root),
+                ts.changed_files(root, args.since),
+                tier,
+            )
+        except ValueError as exc:
+            print(f"test: {exc}", file=sys.stderr)
+            return 2
+        for line in result.messages:
+            print(line, file=sys.stderr)
+        selection, reasons = result.selected, result.reasons
+        if not selection:
+            print(f"--since: no gate is reachable from the changes since {args.since}")
+            return 0
     if args.update:
         return cmd_update(root, selection, passthrough)
 
@@ -1331,7 +1359,14 @@ def _main(argv: list[str]) -> int:
         print(json.dumps(hr.ci_matrix(selection)))
         return 0
     if args.list:
-        return cmd_list(root, selection, args.markdown, entries, verbose=args.verbose)
+        return cmd_list(
+            root,
+            selection,
+            args.markdown,
+            entries,
+            verbose=args.verbose,
+            reasons=reasons,
+        )
     return cmd_run(root, selection, args, passthrough, named=bool(args.names))
 
 
