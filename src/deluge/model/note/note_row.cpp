@@ -3075,8 +3075,11 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	// Go through each Note within the original length
 	for (int32_t i = 0; i < numNotesBefore; i++) {
 		Note* note = notes.getElement(i);
+		// Copy what we need: the loop below can delete this note from the array (when its first repeat fails its
+		// iterance), after which `note` points at a different note or at memory the array no longer uses
 		Iterance iterance = note->iterance;
 		int32_t pos = note->pos;
+		int32_t noteLength = note->length;
 
 		// If it's iteration dependent
 		if (iterance != kDefaultIteranceValue) {
@@ -3099,7 +3102,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				if (pingponging && (whichRepeatTotal & 1)) {
 					thisRepeatedNotePos = -thisRepeatedNotePos;
 					if (noteTailsAllowed) {
-						thisRepeatedNotePos += (oldLoopLength - note->length);
+						thisRepeatedNotePos += (oldLoopLength - noteLength);
 						if (thisRepeatedNotePos < 0) {
 							thisRepeatedNotePos =
 							    oldLoopLength
