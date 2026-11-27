@@ -315,7 +315,7 @@ template = "scenario"
 kind = "differential"
 gates = "the Rust prefix channel draws the same song artwork, and reports the same decode outcome and error, as the same file decoded synchronously"
 scenario = "song_preview_ab"
-markers = ["SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMMARY", "SP-LISTING-SUMMARY", "SP-PREDICT-SUMMARY", "SP-NEWNAME", "SP-SLOT", "SP-VARIATION", "SP-ACQUIRE-SUMMARY", "SP-BYPATH", "SP-LISTING-STALL", "SP-RELOAD", "SP-RELOAD-STALL", "SP-PREVIEW-STALL", "SP-OPEN-SCROLL", "SP-REFERENCE", "SP-TIER"]
+markers = ["SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMMARY", "SP-LISTING-SUMMARY", "SP-PREDICT-SUMMARY", "SP-NEWNAME", "SP-SLOT", "SP-VARIATION", "SP-ACQUIRE-SUMMARY", "SP-BYPATH", "SP-LISTING-STALL", "SP-RELOAD", "SP-RELOAD-STALL", "SP-PREVIEW-STALL", "SP-OPEN-SCROLL", "SP-DX", "SP-DX-STALL", "SP-REFERENCE", "SP-TIER"]
 result = "SP-RESULT failures=0"
 check = "tests/integration/checks/song_preview_ab.py"
 tier = "nightly"

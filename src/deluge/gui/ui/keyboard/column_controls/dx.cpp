@@ -31,8 +31,13 @@ using namespace deluge::gui::ui::keyboard::layout;
 namespace deluge::gui::ui::keyboard::controls {
 
 DxPatch* getCurrentDxPatch() {
-	// The column edits a DX7 on the first oscillator, which no sound holds (the DX7 is a sound's engine)
-	return nullptr;
+	// The column edits the DX7 engine of a synth in DX7 mode
+	Instrument* inst = getCurrentInstrument();
+	if (inst == nullptr || inst->type != OutputType::SYNTH) {
+		return nullptr;
+	}
+	auto* sound = static_cast<SoundInstrument*>(inst);
+	return sound->getSynthMode() == SynthMode::DX7 ? sound->dx7Patch.ensure() : nullptr;
 }
 
 void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {

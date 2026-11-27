@@ -3376,7 +3376,7 @@ void finishDxStage() {
 	g_dxStep = DxStep::Finished;
 }
 
-/// The first session clip's synth, given a DX7 first oscillator; null when the song has no synth clip.
+/// The first session clip's synth, in DX7 mode; null when the song has no synth clip.
 Clip* makeDxClip() {
 	if (currentSong->live.clips.session_clips.empty()) {
 		(void)currentSong->ensureAtLeastOneSessionClip();
@@ -3386,7 +3386,7 @@ Clip* makeDxClip() {
 		return nullptr;
 	}
 	auto* sound = clip->output->toModControllable()->effectsOwner()->sound;
-	deluge::test::setOscType(*sound, 0, OscType::DX7);
+	deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 	currentSong->setCurrentClip(clip);
 	return clip;
 }
@@ -3832,8 +3832,7 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 	case Stage::OpenScroll:
 		runOpenScrollTick();
 		if (g_openScrollStep == OpenScrollStep::Finished) {
-			// The DX stage waits for the DX7 engine's pages: no oscillator holds a DX7 for the menu to open on
-			g_stage = Stage::PreviewStall;
+			g_stage = Stage::Dx;
 		}
 		break;
 	case Stage::Dx:

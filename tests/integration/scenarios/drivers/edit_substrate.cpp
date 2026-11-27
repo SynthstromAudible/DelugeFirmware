@@ -1501,8 +1501,9 @@ void testHostOwnerDestroyedDropsRecord(deluge::edits::Context& ctx) {
 }
 
 /// Every write whose menu reshapes more than its leaf, from every synth mode: each oscillator type on either source,
-/// and each loop mode of a sample source. The typed write takes the reshaped state as it is; the audit holds it to
-/// the file's reading of that state (change_to), each write counted and none differing.
+/// and each loop mode of a sample source (none in DX7 mode, whose menus show no oscillator). The typed write takes the
+/// reshaped state as it is; the audit holds it to the file's reading of that state (change_to), each write counted and
+/// none differing.
 void testReshapingWrites(deluge::edits::Context& ctx) {
 	using deluge::serialization::Value;
 	ParamManagerForTimeline params;
@@ -1540,6 +1541,9 @@ void testReshapingWrites(deluge::edits::Context& ctx) {
 	const deluge::bridge::TypedWriteAudit before = deluge::bridge::typedWriteAudit();
 	for (const Value& mode : values("mode")) {
 		write("mode", mode);
+		if (mode.str() == "dx7") {
+			continue;
+		}
 		for (const std::string_view type : {"osc1/type", "osc2/type"}) {
 			for (const Value& osc : values(type)) {
 				write(type, osc);
