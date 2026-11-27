@@ -20,7 +20,7 @@ import fig_fig_4_5_1 from "../../../../assets/guidebook/figs/04-sequencing__05-n
 import fig_fig_4_5_2 from "../../../../assets/guidebook/figs/04-sequencing__05-note-characteristics--2.svg?raw"
 import fig_fig_4_5_3 from "../../../../assets/guidebook/figs/04-sequencing__05-note-characteristics--3.svg?raw"
 
-import { Steps } from "@astrojs/starlight/components"
+import { Badge, Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
@@ -181,6 +181,23 @@ This is a destructive process and the option is set ON by default in the Setting
    - Notes will be pasted into any new zoom levels where notes will be stretched or reduced to meet the destination zoom view.
 
 </Steps>
+
+## Locking a sound setting on a note <Badge text="C1.4" variant="tip" />
+
+In synth clips and kit sound rows, any note can have its own value for a sound setting, such as a brighter filter, a longer release or a detuned oscillator, while the rest of the row plays as normal. This is called a parameter lock. Up to 8 settings can be locked on each note. Patch cables still modulate a locked setting, starting from the locked value.
+
+<Steps>
+
+1. In clip view, hold one or more note :key[Pad]s.
+2. Turn a :key[Gold] knob. The change is heard straight away on the held notes only, and the display shows LOCK with the setting's name (on 7SEG, a dot after the value).
+3. Release the pads. The lock is saved on those notes and can be undone in one step. Notes with locks are drawn white in the grid.
+4. To review or remove locks, hold the note and press :key[Select] to open the note editor menu, then go to PARAM LOCKS. Press :key[Select] on a lock to change it, :key[Shift + Save] to delete it, or choose CLEAR ALL.
+
+</Steps>
+
+Settings shared by the whole sound, such as reverb, delay, mod FX and the arpeggiator rate, can't be locked. Turning one of those while holding notes adds step automation, as before, and the display shows AUTO.
+
+Locks stay with their notes when they are copied, pasted or moved, and arpeggiated notes keep the locks of the note that started them.
 
 :::note[See also]
 

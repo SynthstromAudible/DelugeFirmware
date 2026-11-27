@@ -124,3 +124,33 @@ Note Velocity Editing View that has been added as part of the existing Automatio
 
 - Press :key[crossscreen] while in the Velocity Note Editor to edit notes across multiple screens.
 - Note: you can only toggle cross screen editing if the clip has multiple screens OR the current note row selected has multiple screens.
+
+### Squares With Several Notes
+
+- When you're zoomed out far enough that one pad covers several notes, the column shows the velocity of the loudest of them.
+- Pressing a pad in that column sets the loudest note to the new velocity and scales the others with it, so they keep the same balance.
+
+## Edit All Note Rows at Once (Affect Entire) <Badge text="c1.4" variant="tip" />
+
+Press :key[AffectEntire] in the Velocity Editor to fold every note row of the clip into a single velocity lane, then edit the velocity of every note on a step with one press. This is useful for shaping the dynamics of a whole beat or chord progression without going row by row.
+
+### Fold / Unfold
+
+- Press :key[AffectEntire] (with nothing held) to fold. The display shows `FOLD`, then `ALL NOTES` (or `ALL DRUMS` in a kit) instead of a row name, and the :key[AffectEntire] LED is lit.
+- Press :key[AffectEntire] again to unfold back to the selected note row (`UNFOLD`).
+- In a kit, folding is the same as turning the kit's affect entire on, so the gold knobs edit the whole kit while folded. Entering the Velocity Editor from a kit with affect entire already on opens it folded.
+
+### Reading the Folded Grid
+
+- Each note row is drawn in the same colour it has in Clip View.
+- In each column, every row shows as a band of its colour, reaching up to that row's velocity on that step. The quietest row is at the bottom and the loudest at the top.
+- Where several rows have exactly the same velocity on a step, those pads show a blend of their colours.
+
+### Edit Velocities
+
+- Press a grid :key[Pad] to set the velocity of every note that starts on that step, in every row. The loudest note goes to the velocity you pressed and the others are scaled with it, so accents and the balance between rows are kept.
+- Press and hold two :key[Pad]s in the same column to set the velocity halfway between them.
+- Press and hold two :key[Pad]s in different columns to ramp the velocity across every step in between. The first step keeps its velocity and the second pad sets the end of the ramp.
+- Hold a :key[Pad] and :key[turn Horizontal] to fine-tune the velocities of every note on the held step.
+- Steps with no notes starting on them are left alone, so the folded editor never adds or removes notes. Unfold to add or remove notes in a row.
+- Every edit can be undone with :key[Undo].

@@ -20,7 +20,7 @@ import fig_fig_7_6_5_c from "../../../../assets/guidebook/figs/07-synthesizers__
 import fig_fig_7_6_5_d from "../../../../assets/guidebook/figs/07-synthesizers__06-oscillators--5-d.svg?raw"
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import { Steps } from "@astrojs/starlight/components"
+import { Badge, Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import OscFigure from "../../../../components/guidebook/OscFigure.astro"
 import fig_fig_7_6_1 from "../../../../assets/guidebook/figs/07-synthesizers__06-oscillators--1.svg?raw"
@@ -52,6 +52,36 @@ Deluge provides several oscillator types, set within the OSC 1 & OSC 2, TYPE Set
   group="analog"
   alt="The analog oscillator shapes, sawtooth and ASquare, as the Deluge plays them at C3: recorded single cycles, each plotted as amplitude over time."
 />
+
+## Supersaw <Badge text="C1.4" variant="tip" />
+
+The supersaw plays a stack of up to eight detuned sawtooth waves from a single oscillator. As the saws drift in and out of phase with each other they give the thick shimmering sound heard in trance leads, lush pads and big saw basses.
+Select SUPERSAW in the oscillator TYPE menu, just after ANALOG SAW (SSAW on 7SEG).
+
+Two oscillator settings take on new jobs when the type is supersaw:
+
+- **Spread** is set with :key[Wavetable Pad]. At 0 the saws are all in tune. Turning it up detunes them further apart and brings the outer saws up in the mix. Spread can be automated or modulated like any other parameter.
+- **Number of saws** is set with :key[Pulse Width Pad]. At 0 all seven saws play. Turning it up removes them one at a time
+
+The volume stays about the same when the spread or the number of saws changes so either one can be adjusted freely while playing.
+
+With RETRIGGER PHASE set every saw starts from the same phase. This makes the attack punchier since they'll all add with no phase cancellation at the beginning.
+
+See also [Supersaw Oscillator](/features/community_features#4513---supersaw-oscillator) in the Feature Overview.
+
+### Setting up a supersaw
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Press :key[Shift + Type Pad] for OSC 1 or 2. Alternatively use the nested menu options by pressing :key[Select] and navigating to ‘TYPE’.
+4. Turning :key[Select] navigates the waveform options. Select SUPERSAW.
+5. Press :key[Shift + Wavetable Pad] for the same oscillator and turn :key[Select] to set the spread. Play some notes on the audition pads while turning to hear the saws move apart.
+6. Press :key[Shift + Pulse Width Pad] and turn :key[Select] to set the number of saws. Leave it at 0 for the full seven.
+7. For an even wider sound, add unison voices with some UNISON STEREO SPREAD, or a little chorus. Patch an LFO or envelope to WAVE-INDEX to make the spread move.
+
+</Steps>
 
 ## Audio / Inputs as an Oscillator Waveform
 
