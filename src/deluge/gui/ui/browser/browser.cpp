@@ -1121,7 +1121,8 @@ searchFromOneEnd:
 				newChar += 32;
 			}
 
-			if (oldChar != newChar) {
+			// Stop at the end of the strings too: if they're identical, both terminators match
+			if (oldChar != newChar || oldChar == '\0') {
 				break;
 			}
 			oldCharAddress++;
