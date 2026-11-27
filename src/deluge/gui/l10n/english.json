@@ -901,6 +901,10 @@
     "STRING_FOR_CLIP_CLEARED": "Clip cleared",
     "STRING_FOR_SAMPLE_CLEARED": "Sample cleared",
     "STRING_FOR_NOTES_CLEARED": "Notes cleared",
+    "STRING_FOR_FOLD": "Fold",
+    "STRING_FOR_UNFOLD": "Unfold",
+    "STRING_FOR_ALL_NOTES": "All notes",
+    "STRING_FOR_ALL_DRUMS": "All drums",
     "STRING_FOR_AUTOMATION_CLEARED": "Automation cleared",
     "STRING_FOR_GRAIN": "Grain",
     "STRING_FOR_FILL": "Fill",
@@ -1043,6 +1047,9 @@
     "STRING_FOR_ENV_FOLLOW_Z": "Pressure (Z)",
     "STRING_FOR_ENV_FOLLOW_Z_SHORT": "Z",
     "STRING_FOR_ENV_FOLLOW_Y": "Mod wheel (Y)",
-    "STRING_FOR_ENV_FOLLOW_Y_SHORT": "Y"
+    "STRING_FOR_ENV_FOLLOW_Y_SHORT": "Y",
+    "STRING_FOR_LOOP_CROSSFADE": "Loop xfade",
+    "STRING_FOR_LOOP_CROSSFADE_SHORT": "XFADE",
+    "STRING_FOR_SAMP_LOOP_XFADE_MENU_TITLE": "Samp* loop xfade"
   }
 }

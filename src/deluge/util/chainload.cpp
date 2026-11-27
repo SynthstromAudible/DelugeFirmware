@@ -23,6 +23,10 @@
 #include "definitions.h"
 #include "timers_interrupts/timers_interrupts.h"
 
+extern "C" {
+#include "drivers/dmac/dmac.h"
+}
+
 extern uint32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 #if defined(__arm__)
 extern "C" void v7_dma_flush_range(uint32_t start, uint32_t end);
@@ -51,6 +55,9 @@ void chainload_from_buf(uint8_t* buffer, int buf_size) {
 	uint8_t* funcbuf = reinterpret_cast<uint8_t*>(spareRenderingBuffer);
 
 #if defined(__arm__)
+	// Stop DMA before the chainloader's copy overwrites the channels' link descriptors
+	dmaStopAllChannels();
+
 	// The chainloader runs with the MMU and caches disable so we need to make sure everything is flushed to the right
 	// state before it starts
 	invalidate_range_all_caches((uint32_t)buffer, (uint32_t)buffer + (uint32_t)buf_size);

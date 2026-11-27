@@ -72,9 +72,8 @@ enum class ActionType {
 	NOTEROW_ROTATE,
 	NOTEROW_LENGTH_EDIT,
 	NOTEROW_HORIZONTAL_SHIFT,
+	SECTION_REORDER,
 };
-
-extern EnumStringMap<ActionType, 28> actionTypeMap;
 
 class Action {
 public:

@@ -65,6 +65,7 @@ struct SquareInfo {
 	int32_t numNotes;
 	uint8_t squareType;
 	int32_t averageVelocity;
+	int32_t maxVelocity; // highest velocity of the notes in the square
 	int32_t probability;
 	Iterance iterance;
 	int32_t fill;

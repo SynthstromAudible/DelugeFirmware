@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/rgb.h"
 #include "gui/menu_item/reverb/model.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
@@ -77,9 +78,12 @@ OutputType getCurrentOutputType();
 class Section {
 public:
 	LearnedMIDI launchMIDICommand;
-	int16_t numRepetitions;
+	int16_t num_repetitions = 0;
+	// Index into defaultClipSectionColours, so the colour can travel with the section when it's moved
+	uint8_t colour_index = 0;
 
-	Section() { numRepetitions = 0; }
+	// Resolve this section's colour independently of its current position in the song.
+	[[nodiscard]] RGB getColour() const;
 };
 
 struct BackedUpParamManager {

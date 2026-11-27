@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/views/automation/editor_layout/note.h"
+#include "gui/views/automation/editor_layout/note/velocity_fold.h"
 
 // namespace deluge::gui::views::automation::editor_layout::note {
 
@@ -29,15 +30,18 @@ public:
 	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
 	                           int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
 
+	// folded velocity editor, toggled with affect entire
+	VelocityFold fold;
+
 private:
-	int32_t getVelocityFromY(int32_t y);
-	int32_t getYFromVelocity(int32_t velocity);
 	void addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity);
 	void adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t velocity,
 	                        int32_t newVelocity, uint8_t squareType);
 	void setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t newVelocity);
 	void setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
-	                     SquareInfo rowSquareInfo[kDisplayWidth], int32_t velocityIncrement);
+	                     SquareInfo rowSquareInfo[kDisplayWidth]);
+
+	velocity_edit::Ramp ramp;
 
 public:
 	// Automation View Render Functions

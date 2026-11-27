@@ -17,7 +17,14 @@
     },
     {
       "head": "Affect entire",
-      "match": ["affect-entire", "affect entire"]
+      "match": ["affect-entire", "affect entire"],
+      "refs": [
+        {
+          "label": "Editing every note row at once",
+          "href": "/guidebook/06-automation/03-velocity-view#editing-every-note-row-at-once",
+          "section": "6.3"
+        }
+      ]
     },
     {
       "head": "Affect group",
@@ -590,6 +597,17 @@
       ]
     },
     {
+      "head": "Parameter locks",
+      "match": ["parameter lock", "parameter locks", "param locks"],
+      "refs": [
+        {
+          "label": "Locking a sound setting on a note",
+          "href": "/guidebook/04-sequencing/05-note-characteristics#locking-a-sound-setting-on-a-note",
+          "section": "4.5"
+        }
+      ]
+    },
+    {
       "head": "Patch cables",
       "match": ["patch cables", "cables"]
     },
@@ -912,6 +930,10 @@
       "match": ["subtractive"]
     },
     {
+      "head": "Supersaw",
+      "match": ["supersaw"]
+    },
+    {
       "head": "Swing",
       "match": ["swing"]
     },
@@ -922,6 +944,7 @@
         "FM synthesis",
         "Oscillator",
         "Subtractive synthesis",
+        "Supersaw",
         "Wavetable"
       ]
     },

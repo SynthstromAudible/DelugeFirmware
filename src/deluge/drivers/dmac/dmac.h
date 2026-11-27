@@ -25,3 +25,7 @@
 void setDMARS(int32_t dmaChannel, uint32_t dmarsValue);
 void initDMAWithLinkDescriptor(int32_t dma_channel, const uint32_t* linkDescriptor, uint32_t dmarsValue);
 void dmaChannelStart(const uint32_t dma_channel);
+
+/// Stops every DMA channel and clears its status; a channel that won't stop is left as it is. The link-descriptor
+/// channels (audio, UART) keep reloading descriptors from RAM, so stop them before overwriting that RAM (chainload).
+void dmaStopAllChannels(void);

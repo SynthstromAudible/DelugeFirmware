@@ -13,7 +13,7 @@ guidebook:
 ---
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import { Badge } from "@astrojs/starlight/components"
+import { Badge, Steps } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
@@ -27,3 +27,28 @@ import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 <Unwritten>
   See [Velocity View](/features/automation_view_velocity_editor).
 </Unwritten>
+
+## Editing every note row at once <Badge text="C1.4" variant="tip" />
+
+Velocity view normally edits one note row at a time. Pressing :key[AffectEntire] folds every note row in the clip into a single velocity lane, so the dynamics of a whole drum beat or chord progression can be shaped in one pass. FOLD appears briefly, then the display shows ALL NOTES (ALL DRUMS in a kit) in place of the row name, and the :key[AffectEntire] LED lights while folded. Press :key[AffectEntire] again to unfold (UNFOLD) and go back to the selected row.
+
+Each row is drawn in the same colour it has in clip view. In every column the rows stack up as bands of colour: the quietest at the bottom, each band reaching up to that row's velocity on the step. Pads where several rows share exactly the same velocity show a blend of their colours.
+
+A press edits every note that starts on that step, in every row. The loudest note goes to the velocity pressed and the others are scaled with it, so accents and the balance between rows are kept. Steps with no notes are left alone and notes can't be added or removed while folded.
+
+In a kit, folding is the same as turning the kit's affect entire on, so the gold knobs edit the whole kit while folded. Entering velocity view from a kit with affect entire already on opens it folded.
+
+### Shaping the velocity of a whole clip
+
+<Steps>
+
+1. Open velocity view: in clip view or automation view, hold an :key[Audition Pad] and press the velocity patch source :key[Pad].
+2. With nothing held, press :key[AffectEntire]. The display shows ALL NOTES or ALL DRUMS.
+3. Press a grid :key[Pad] in a column to set the velocity of every note on that step.
+4. To set a value between two pads, hold two :key[Pad]s in the same column. To ramp the velocity over several steps, hold a :key[Pad] in one column and then press a :key[Pad] in another. The first step keeps its velocity and the second pad sets the end of the ramp.
+5. For finer changes, hold a :key[Pad] and :key[Turn Horizontal] to nudge the velocity of every note on that step.
+6. Press :key[AffectEntire] again to unfold and go back to editing one row at a time.
+
+</Steps>
+
+See also [Edit All Note Rows at Once](/features/automation_view_velocity_editor#edit-all-note-rows-at-once-affect-entire) in the Velocity View feature documentation.
