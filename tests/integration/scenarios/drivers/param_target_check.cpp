@@ -25,6 +25,7 @@
 //     target and back through the bridge, ids resolve only in their owner's plugin, and every table that names params
 //     by target gives cell by cell the runtime param its recorded characterisation holds
 
+#include "arp/params.h"
 #include "board_controls.hpp"
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
@@ -36,6 +37,7 @@
 #include "model/fx/chain_params.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/song/song.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
@@ -50,6 +52,7 @@
 #include "support/main_numbering.h"
 #include "ui/controls/knob_focus.h"
 #include "ui/scenes/bind/knob_assignment.h"
+#include "util/misc.h"
 
 #include <array>
 #include <cstdio>
@@ -130,6 +133,95 @@ void checkRoundTrip(Checker& check) {
 	}
 	if (deluge::bridge::runtimeParamOf(OwnerPlugin::GLOBAL_EFFECTABLE, deluge::project::engine_target(0))) {
 		check.fail("global effectable resolved id 0", 0, 0, 0);
+	}
+}
+
+/// The automation selection's crossings: every pair the views select comes back from its PluginParam, and a clip's or
+/// the song's file attributes read as their selections (a MIDI clip's CC, whatever kind it kept).
+void checkSelection(Checker& check) {
+	using deluge::bridge::clipSelectionOfFile;
+	using deluge::bridge::pluginParamOf;
+	using deluge::bridge::runtimePairOf;
+	using deluge::bridge::songSelectionOfFile;
+	using deluge::project::midi_cc_param;
+	using deluge::project::ParamSpace;
+	auto trip = [&](params::Kind kind, int32_t index) {
+		const RuntimeParam back = runtimePairOf(pluginParamOf(kind, index));
+		if (back.kind != kind || back.index != index) {
+			check.fail("selection round trip", static_cast<int>(kind), index, static_cast<int>(back.kind));
+		}
+	};
+	for (int32_t p = 0; p < params::kNumParams; ++p) {
+		trip(params::Kind::PATCHED, p);
+	}
+	for (int32_t u = 0; u < params::UNPATCHED_SOUND_MAX_NUM; ++u) {
+		trip(params::Kind::UNPATCHED_SOUND, u);
+	}
+	for (int32_t u = 0; u < params::UNPATCHED_GLOBAL_MAX_NUM; ++u) {
+		trip(params::Kind::UNPATCHED_GLOBAL, u);
+	}
+	for (int32_t e = 0; e < kNumExpressionDimensions; ++e) {
+		trip(params::Kind::EXPRESSION, e);
+	}
+	for (int32_t a = 0; a < static_cast<int32_t>(deluge::arp::kParamCount); ++a) {
+		trip(params::Kind::ARP, a);
+	}
+	for (int32_t cc = 0; cc < kNumCCExpression; ++cc) {
+		trip(params::Kind::MIDI, cc);
+	}
+	for (const auto& column : params::kSoundParamShortcuts) {
+		for (const auto& cell : column) {
+			if (!cell) {
+				continue;
+			}
+			const std::optional<RuntimeParam> runtime = deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, *cell);
+			if (runtime && runtime->kind == params::Kind::PATCH_CABLE) {
+				trip(params::Kind::PATCH_CABLE, runtime->index);
+			}
+		}
+	}
+
+	const RuntimeParam none = runtimePairOf(std::nullopt);
+	if (pluginParamOf(params::Kind::NONE, 5) || none.kind != params::Kind::NONE
+	    || none.index != static_cast<int32_t>(params::kNoParamID)) {
+		check.fail("no selection", static_cast<int>(none.kind), none.index, 0);
+	}
+
+	constexpr int32_t kExpression = util::to_underlying(params::Kind::EXPRESSION);
+	constexpr int32_t kPatched = util::to_underlying(params::Kind::PATCHED);
+	constexpr int32_t kGlobal = util::to_underlying(params::Kind::UNPATCHED_GLOBAL);
+	if (clipSelectionOfFile(0, 74) != midi_cc_param(74)) {
+		check.fail("a MIDI clip's CC, kind none", 0, 74, 0);
+	}
+	if (clipSelectionOfFile(kExpression, 74) != midi_cc_param(74)) {
+		check.fail("a MIDI clip's CC, kind expression", kExpression, 74, 0);
+	}
+	const std::optional<deluge::project::PluginParam> y = clipSelectionOfFile(kExpression, 1);
+	if (!y || y->target.space != ParamSpace::EXPRESSION || y->target.id.value != 1) {
+		check.fail("an expression lane", kExpression, 1, 0);
+	}
+	if (clipSelectionOfFile(kPatched, 24) != pluginParamOf(params::Kind::PATCHED, 24)) {
+		check.fail("a patched param", kPatched, 24, 0);
+	}
+	for (int32_t kind = 0; kind <= util::to_underlying(params::Kind::ARP); ++kind) {
+		if (clipSelectionOfFile(kind, -1) || songSelectionOfFile(kind, -1)) {
+			check.fail("no id", kind, -1, 0);
+		}
+	}
+	if (clipSelectionOfFile(99, 3) || songSelectionOfFile(99, 3)) {
+		check.fail("no kind", 99, 3, 0);
+	}
+	const int32_t tempoIndex = *deluge::host::chains::find_runtime_index(deluge::host::chains::param::kTempo);
+	const std::optional<deluge::project::PluginParam> tempo = songSelectionOfFile(kGlobal, tempoIndex);
+	if (!tempo || tempo->plugin != OwnerPlugin::GLOBAL_EFFECTABLE
+	    || tempo->target != deluge::project::engine_target(deluge::host::chains::param::kTempo.value)) {
+		check.fail("the song's tempo", kGlobal, tempoIndex, 0);
+	}
+	if (songSelectionOfFile(0, tempoIndex)) {
+		check.fail("the song's kind none", 0, tempoIndex, 0);
+	}
+	if (deluge::bridge::isCableCollection(nullptr)) {
+		check.fail("no collection is a cable set", 0, 0, 0);
 	}
 }
 
@@ -540,6 +632,7 @@ void checkKnobWords(Checker& check) {
 int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	checkRoundTrip(check);
+	checkSelection(check);
 	checkShortcutsAndOrders(check);
 	checkMIDICCShortcuts(check);
 	checkMidiFollow(check);
