@@ -102,6 +102,20 @@ void NamedThingVector::removeElement(int32_t i) {
 	deleteAtIndex(i);
 }
 
+// Each element keeps its own copy of the thing's name as the sort key. If a thing's name was changed directly, the key
+// is stale: searches by the new name miss the element, and searchForExactObject()-style lookups can't find it at all.
+void NamedThingVector::renameChangedMembers() {
+	for (int32_t i = 0; i < getNumElements();) {
+		NamedThingVectorElement* memory = getMemory(i);
+		String* thingName = getName(memory->namedThing);
+		if (strcmp(memory->name.get(), thingName->get()) != 0) {
+			renameMember(i, thingName);
+			continue; // The element may have moved, so check whatever is at index i now
+		}
+		i++;
+	}
+}
+
 // Check the new name is in fact different before calling this, if you want.
 void NamedThingVector::renameMember(int32_t i, String* newName) {
 

@@ -41,6 +41,8 @@ public:
 	Error insertElement(void* namedThing);
 	Error insertElement(void* namedThing, int32_t i);
 	void renameMember(int32_t i, String* newName);
+	// For things renamed directly rather than through renameMember(): updates their keys and sort positions
+	void renameChangedMembers();
 
 	const int32_t stringOffset;
 

@@ -410,11 +410,21 @@ gotError:
 		return true;
 	};
 
+	// saveAudioFile() can rename a recording's filePath (collect media appends a random suffix). audioFiles is sorted
+	// and searched by a separate copy of that name, so re-key renamed files after the loop - doing it inside would
+	// reorder the array under the index. Until then, a renamed file can't be found by name, including by
+	// AudioFile::steal(), which would then free it while leaving it in audioFiles.
+	bool savedAllAudioFiles = true;
 	for (int32_t i = 0; i < audioFileManager.audioFiles.getNumElements(); i++) {
 		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(i);
 		if (!saveAudioFile(audioFile)) {
-			return false;
+			savedAllAudioFiles = false;
+			break;
 		}
+	}
+	audioFileManager.audioFiles.renameChangedMembers();
+	if (!savedAllAudioFiles) {
+		return false;
 	}
 
 	String filePathDuringWrite;
