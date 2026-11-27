@@ -52,6 +52,7 @@
 #include "modulation/automation/working_copies.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/staged_repeat.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/move_section.h"
@@ -1808,6 +1809,12 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 			}
 		}
 	}
+	else if (newInstrument->type == OutputType::CV && paramManager.getArpParamSet() == nullptr) {
+		Error error = paramManager.setupArpOnly(deluge::arp::Owner::CLIP);
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
 	output = newInstrument;
 	affectEntire = true; // Moved here from changeInstrument, March 2021
 
@@ -1914,6 +1921,15 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 		expectNoFurtherTicks(modelStack->song); // Still necessary? Probably.
 	}
 
+	// A MIDI and a CV clip play one arp: its values cross a change between the two.
+	const auto isNonAudio = [](OutputType type) { return type == OutputType::MIDI_OUT || type == OutputType::CV; };
+	std::optional<deluge::arp::Values> carriedArp;
+	if (isNonAudio(oldInstrument->type) && isNonAudio(newInstrument->type)) {
+		if (const ArpParamSet* arp = paramManager.getArpParamSet()) {
+			carriedArp = arp->values();
+		}
+	}
+
 	// Also unassigns NoteRows and remembers Drum names.
 	detachFromOutput(modelStack, true, (newInstrument->type == OutputType::KIT), false, keepNoteRowsWithMIDIInput,
 	                 giveMidiAssignmentsToNewInstrument,
@@ -1940,6 +1956,13 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 			heldAfterFailedSwap.emplace();
 		}
 		return error; // TODO: we'll need to get the old Instrument back...
+	}
+	if (carriedArp) {
+		if (ArpParamSet* arp = paramManager.getArpParamSet()) {
+			for (std::size_t i = 0; i < deluge::arp::kParamCount; ++i) {
+				arp->set_word(deluge::arp::id_at(i), carriedArp->words[i]);
+			}
+		}
 	}
 
 	// If a synth...
@@ -3002,7 +3025,7 @@ loadInstrument:
 
 		else if (!strcmp(tagName, "kitParams")) {
 			outputTypeWhileLoading = OutputType::KIT;
-			error = paramManager.setupUnpatched();
+			error = paramManager.setupUnpatched(deluge::arp::Owner::KIT);
 			if (error != Error::NONE) {
 				goto someError;
 			}
@@ -3171,7 +3194,7 @@ doReadBendRange:
 					// in 1.0?). Just create one now.
 					if (!instrumentWasLoadedByReferenceFromClip && output->type == OutputType::KIT) {
 
-						error = paramManager.setupUnpatched();
+						error = paramManager.setupUnpatched(deluge::arp::Owner::KIT);
 						if (error != Error::NONE) {
 							goto someError;
 						}
@@ -4178,6 +4201,14 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 					thisNoteRow->syncDrumId(); // freshly-created real gate drum — safe to mirror
 				}
 				thisNoteRow->giveMidiCommandsToDrum();
+				// A gate drum's row holds its own arp's set, starting at its drum's values.
+				if (thisNoteRow->paramManager.getArpParamSet() == nullptr) {
+					const Error error = thisNoteRow->paramManager.setupArpOnly(deluge::arp::Owner::ROW);
+					if (error != Error::NONE) {
+						return error;
+					}
+					thisNoteRow->paramManager.getArpParamSet()->set_words(thisNoteRow->drum->arpSettings.values);
+				}
 			}
 
 			// Otherwise, we know we've sneakily put an integer index in place of the pointer, so convert that back to
@@ -4248,6 +4279,15 @@ haveNoDrum:
 						}
 					}
 				}
+				// A MIDI or gate drum's row holds its own arp's set, starting at its drum's values.
+				else if (thisNoteRow->drum->type != DrumType::SOUND
+				         && thisNoteRow->paramManager.getArpParamSet() == nullptr) {
+					error = thisNoteRow->paramManager.setupArpOnly(deluge::arp::Owner::ROW);
+					if (error != Error::NONE) {
+						return error;
+					}
+					thisNoteRow->paramManager.getArpParamSet()->set_words(thisNoteRow->drum->arpSettings.values);
+				}
 			}
 			noteRowCount++;
 		}
@@ -4283,6 +4323,20 @@ haveNoDrum:
 				if (error != Error::NONE) {
 					return error;
 				}
+			}
+		}
+		// A CV clip holds its arp's set alone.
+		else if (output->type == OutputType::CV && paramManager.getArpParamSet() == nullptr) {
+			Error error = paramManager.setupArpOnly(deluge::arp::Owner::CLIP);
+			if (error != Error::NONE) {
+				return error;
+			}
+		}
+		// A MIDI or CV clip's arp element held its values; its set plays them. This runs once, as the song's read
+		// resolves each clip's output, before anything has played or edited the set.
+		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+			if (ArpParamSet* arp = paramManager.getArpParamSet()) {
+				arp->set_words(arpSettings.values);
 			}
 		}
 

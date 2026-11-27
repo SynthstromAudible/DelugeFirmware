@@ -879,8 +879,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
 
 		const std::vector<int32_t> after = param_snapshot(song.clip->paramManager);
-		// Recorded from `View::modEncoderAction` on an audio clip, the same turn.
-		expect(sole_change(before, after)).to_equal("31=167772160");
+		// Recorded from `View::modEncoderAction` on an audio clip, the same turn: main's pan at index 31, here 15.
+		expect(sole_change(before, after)).to_equal("15=167772160");
 		display = nullptr;
 		currentSong = nullptr;
 	});

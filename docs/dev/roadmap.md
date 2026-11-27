@@ -26,7 +26,7 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
   component; the file's flat layout is the codec's parse form alone, and the tests check the record against its
   recorded answers. A sound's sidechain send and MIDI output are the host's: `project::SoundRouting` on its synth track
   or kit row, a setting group the menus write. Its effects are its `FxSection`, its LFOs' settings `synth::LfoState`.
-- Next actions: params C5b to C5d; the arpeggiator's params vs settings (D7) spec; the C2 spec; the float instrument's voice pool (Track B).
+- Next actions: params C5b to C5d; D7b (the matrix feeds the arp its rate; with it, measure the runtime SRAM heap D7a's smaller unpatched sets save on a few corpus songs), then D7c (the arp's save form) and D7d (its rows on every owner); the C2 spec; the float instrument's voice pool (Track B). D7a is done: every arp plays and saves its own param set.
 
 ## Target architecture
 

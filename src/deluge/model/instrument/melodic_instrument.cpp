@@ -786,6 +786,10 @@ ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWit
 			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 		}
 
+		else if (paramKind == deluge::modulation::params::Kind::ARP) {
+			modelStackWithParam = modelStackWithThreeMainThings->getArpAutoParamFromId(paramID);
+		}
+
 		else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
 			modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID, forEdit);
 		}

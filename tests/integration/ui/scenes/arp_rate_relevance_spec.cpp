@@ -348,8 +348,8 @@ describe arp_kit_global_drum_kinds("the kit's own arp and randomizer columns wit
 		kit->renderOutput(setupModelStackWithSong(memory, f.song), buffer, nullptr, 0, 0, false, true);
 		// The kit's arp is its active clip's (`Kit::getArpSettings`).
 		const ArpeggiatorSettings& rendered = f.clip->arpSettings;
-		expect(rendered.spreadGate).to_equal(menu::bindings::menu_to_unsigned(30));
-		expect(rendered.noteProbability).to_equal(menu::bindings::menu_to_unsigned(20));
+		expect(rendered.values.unsigned_word(deluge::arp::param::kSpreadGate)).to_equal(menu::bindings::menu_to_unsigned(30));
+		expect(rendered.values.unsigned_word(deluge::arp::param::kNoteProbability)).to_equal(menu::bindings::menu_to_unsigned(20));
 		expect(menu::bindings::read(menu::nodes::spread_gate_midi, ctx)).to_equal(30);
 		expect(menu::bindings::read(menu::nodes::note_probability_midi, ctx)).to_equal(20);
 		// The MIDI drum's own arp is not the kit's: its settings are untouched.

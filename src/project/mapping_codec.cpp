@@ -17,6 +17,8 @@
 
 #include "project/mapping_codec.h"
 
+#include "arp/params.h"
+
 #include "project/knob_ref.h"
 #include "project/midi_command_codec.h"
 #include "serialization/tree.h"
@@ -131,8 +133,8 @@ void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& eleme
 	Value midiKnobs = Value::makeArray();
 	for (const Mapping& entry : table.params_of(owner)) {
 		const ParamTarget& param = std::get<OwnerParamTarget>(entry.target).param;
-		if (param.space != ParamSpace::ENGINE) {
-			continue; // the file names engine params only
+		if (param.space != ParamSpace::ENGINE && param.space != ParamSpace::ARP) {
+			continue; // the file names engine and arp params only
 		}
 		Value knob = Value::makeMap();
 		const uint8_t channel = entry.source.channel_or_zone;
@@ -144,7 +146,9 @@ void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& eleme
 		}
 		knob.set("ccNumber", Value::makeNumber(entry.source.note_or_cc));
 		knob.set("relative", Value::makeNumber(entry.relative ? 1 : 0));
-		set_ref(knob, naming->ref_of(param.id));
+		set_ref(knob, param.space == ParamSpace::ARP
+		                  ? deluge::plugin::ParamRef{.param = deluge::arp::row(param.id).info.file_name}
+		                  : naming->ref_of(param.id));
 		if (entry.source.device) {
 			knob.set("device", encode_device(*entry.source.device));
 		}
@@ -197,15 +201,24 @@ std::vector<Mapping> decode_knobs(const Value& element, ControlsAddress owner,
 		if (!knob->isMap()) {
 			continue;
 		}
-		std::optional<deluge::plugin::ParamId> param = naming.id_of(ref_in(*knob));
-		if (!param) {
+		const deluge::plugin::ParamRef ref = ref_in(*knob);
+		std::optional<deluge::plugin::ParamId> param = naming.id_of(ref);
+		std::optional<ParamTarget> target;
+		if (param) {
+			if (naming.mod_knob_target != nullptr) {
+				param = naming.mod_knob_target(*param); // a knob on a volume turns the one the runtime uses
+			}
+			target = engine_target(param->value);
+		}
+		// A name the owner's engine does not have may be its arp's.
+		else if (const std::optional<deluge::plugin::ParamId> arp = deluge::arp::find_by_file_name(ref.param)) {
+			target = ParamTarget{.space = ParamSpace::ARP, .id = *arp};
+		}
+		if (!target) {
 			continue;
 		}
-		if (naming.mod_knob_target != nullptr) {
-			param = naming.mod_knob_target(*param); // a knob on a volume turns the one the runtime uses
-		}
 		Mapping& learned = knobs.emplace_back();
-		learned.target = OwnerParamTarget{owner, engine_target(param->value)};
+		learned.target = OwnerParamTarget{owner, *target};
 		learned.source.channel_or_zone = with_zone(byte_of(knob->find("channel")), knob->find("mpeZone"));
 		learned.source.note_or_cc = byte_of(knob->find("ccNumber"));
 		learned.relative = serialization::int_of(knob->find("relative")).value_or(0) != 0;

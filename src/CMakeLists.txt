@@ -8,6 +8,7 @@ add_subdirectory(dsp) # deluge_dsp: the L0 DSP library (the core interfaces and 
 add_subdirectory(serialization) # deluge_serialization: the document tree and its XML and JSON parsers
 add_subdirectory(plugin) # deluge_plugin: the host–plugin contract's interface
 add_subdirectory(effects) # deluge_effects: the effects' words, state and codec
+add_subdirectory(arp) # deluge_arp: the arpeggiator's param table and the values an arp plays by
 add_subdirectory(instruments/classic) # deluge_instruments_classic: the Deluge instrument's state, words and codec
 add_subdirectory(host/chains) # deluge_host_chains: the host chain's param table and pages
 add_subdirectory(music) # deluge_music: note sets, scales, keys and scale mapping

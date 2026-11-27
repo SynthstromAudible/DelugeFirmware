@@ -21,6 +21,7 @@
 #include "model/note/note_row.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/song/song.h"
+#include "modulation/params/arp_param_set.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -511,14 +512,16 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::clipArpSettingFor(*midi.clip, "arpeggiator/rate", Value::makeNumber(12345));
 		const SettingAddress midiArp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*midi.clip, *midi.song)};
 		expect(recorded(*midi.song, midiArp, "arpeggiator/rate")).to_equal(std::string{"12345"});
-		expect(midi.clip->arpSettings.rate).to_equal(12345);
+		expect(midi.clip->arpSettings.values[deluge::arp::param::kRate]).to_equal(12345);
+		// The clip's arp set, which the arp plays, holds it too.
+		expect(midi.clip->paramManager.getArpParamSet()->word(deluge::arp::param::kRate)).to_equal(12345);
 
 		spec::SongFixture synth = spec::make_synth_song();
-		const int32_t before = synth.clip->arpSettings.rate;
+		const int32_t before = synth.clip->arpSettings.values[deluge::arp::param::kRate];
 		deluge::edits::clipArpSettingFor(*synth.clip, "arpeggiator/rate", Value::makeNumber(12345));
 		const SettingAddress synthArp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*synth.clip, *synth.song)};
 		expect(deluge::project::holds_setting(synth.song->project, synthArp, "arpeggiator/rate")).to_be_false();
-		expect(synth.clip->arpSettings.rate).to_equal(before);
+		expect(synth.clip->arpSettings.values[deluge::arp::param::kRate]).to_equal(before);
 	});
 
 	it("turning a playing MIDI clip's arp on or off sends its notes off", _ {
@@ -604,7 +607,7 @@ describe song_settings_edit("SetSetting", $ {
 		const auto ctx = deluge::ui::scenes::spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		deluge::ui::scenes::menu::bindings::write(deluge::ui::scenes::menu::nodes::arp_rate_midi, ctx, 40);
 		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
-		expect(recorded(*f.song, arp, "arpeggiator/rate")).to_equal(std::to_string(f.clip->arpSettings.rate));
+		expect(recorded(*f.song, arp, "arpeggiator/rate")).to_equal(std::to_string(f.clip->arpSettings.values[deluge::arp::param::kRate]));
 		expect(deluge::project::holds_setting(f.song->project, arp, "arpeggiator/rate")).to_be_true();
 	});
 

@@ -300,11 +300,20 @@ context("resolve_learned", _{
 		expect(resolve_learned({kAudio, project::engine_target(kParam)}, OwnerId::clip(13), std::nullopt).has_value())
 		    .to_be_false();
 	});
-	it("turns no param outside the owner's engine params", _{
+	it("turns no param outside the owner's engine and arp params", _{
 		const OwnerParamTarget cc{kSynth, {project::ParamSpace::MIDI_CC, plugin::ParamId{kParam}}};
 		const OwnerParamTarget expression{kSynth, {project::ParamSpace::EXPRESSION, plugin::ParamId{0}}};
 		expect(resolve_learned(cc, OwnerId::instrument(1), 11).has_value()).to_be_false();
 		expect(resolve_learned(expression, OwnerId::instrument(1), 11).has_value()).to_be_false();
+	});
+	it("puts a knob on an arp param on the owner's arp, in the clip its writes go to", _{
+		const OwnerParamTarget gate{kSynth, {project::ParamSpace::ARP, plugin::ParamId{0}}};
+		const auto address = resolve_learned(gate, OwnerId::instrument(1), 21);
+		expect(address).to_have_value("the arp param's address");
+		if (address) {
+			expect(name(*address)).to_equal(std::string{"I1@21#0"});
+			expect(static_cast<int>(address->space)).to_equal(static_cast<int>(project::ParamSpace::ARP));
+		}
 	});
 });
 

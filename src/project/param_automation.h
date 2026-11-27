@@ -139,6 +139,8 @@ inline constexpr std::size_t kEngineParamBlocks = 2;
 struct DocParamManager {
 	std::array<std::optional<DocParamSet>, kEngineParamBlocks> engine_params;
 	std::optional<DocParamSet> expression;
+	/// The arp's params (arp/params.h), where the owner holds an arp.
+	std::optional<DocParamSet> arp;
 	std::vector<DocCableDepth> cable_depths;
 	std::vector<DocMidiParam> midi_params;
 

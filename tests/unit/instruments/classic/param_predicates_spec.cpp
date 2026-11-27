@@ -25,22 +25,21 @@ describe param_predicates("which collection and id a param is, and what the knob
 
 	it("names a constant id's runtime index", _ {
 		expect(static_cast<uint32_t>(runtime_index(param::kPan))).to_equal(23U);
-		expect(static_cast<uint32_t>(runtime_index(param::kRhythm))).to_equal(12U);
+		expect(static_cast<uint32_t>(runtime_index(param::kPortamento))).to_equal(11U);
 		expect(static_cast<uint32_t>(runtime_index(kFirstGlobalParam))).to_equal(45U);
 	});
 
 	it("finds a row by index as it does by id", _ {
 		expect(param_row_at(ParamKind::PATCHED, 2)).to_equal(param_row(ParamKind::PATCHED, param::kVolume));
-		expect(param_row_at(ParamKind::UNPATCHED_SOUND, 12)).to_equal(param_row(ParamKind::UNPATCHED_SOUND, param::kRhythm));
-		expect(param_row_at(ParamKind::UNPATCHED_GLOBAL, 42)).to_equal(
+		expect(param_row_at(ParamKind::UNPATCHED_SOUND, 11))
+		    .to_equal(param_row(ParamKind::UNPATCHED_SOUND, param::kPortamento));
+		expect(param_row_at(ParamKind::UNPATCHED_GLOBAL, 26)).to_equal(
 		    param_row(ParamKind::UNPATCHED_GLOBAL, deluge::host::chains::param::kTempo));
-		expect(param_row_at(ParamKind::UNPATCHED_SOUND, 27)).to_be_null();
+		expect(param_row_at(ParamKind::UNPATCHED_SOUND, 12)).to_be_null();
 		expect(param_row_at(ParamKind::EXPRESSION, 0)).to_be_null();
 	});
 
 	it("answers the predicates by index too", _ {
-		expect(is_arp_rhythm_at(ParamKind::UNPATCHED_SOUND, 12)).to_be_true();
-		expect(is_arp_rhythm_at(ParamKind::UNPATCHED_GLOBAL, 12)).to_be_false();
 		expect(is_stutter_rate_at(ParamKind::UNPATCHED_GLOBAL, 0)).to_be_true();
 		expect(is_stutter_rate_at(ParamKind::PATCHED, 0)).to_be_false();
 		expect(is_bipolar_at(ParamKind::PATCH_CABLE, 0x0102U)).to_be_true();
@@ -51,7 +50,7 @@ describe param_predicates("which collection and id a param is, and what the knob
 
 	it("finds the row of a sound's patched or unpatched param", _ {
 		expect(param_row(ParamKind::PATCHED, param::kVolume)->id.value).to_equal(param::kVolume.value);
-		expect(param_row(ParamKind::UNPATCHED_SOUND, param::kRhythm)->id.value).to_equal(param::kRhythm.value);
+		expect(param_row(ParamKind::UNPATCHED_SOUND, param::kPortamento)->id.value).to_equal(param::kPortamento.value);
 	});
 
 	it("finds a global effectable's rows in the host chain's table and no patched row there", _ {
@@ -62,17 +61,11 @@ describe param_predicates("which collection and id a param is, and what the knob
 		expect(param_row(ParamKind::EXPRESSION, ParamId{0})).to_be_null();
 	});
 
-	it("knows the arp rhythm only as a sound's unpatched param", _ {
-		expect(is_arp_rhythm(ParamKind::UNPATCHED_SOUND, param::kRhythm)).to_be_true();
-		expect(is_arp_rhythm(ParamKind::UNPATCHED_GLOBAL, param::kRhythm)).to_be_false();
-		expect(is_arp_rhythm(ParamKind::UNPATCHED_SOUND, param::kStutterRate)).to_be_false();
-	});
-
 	it("knows the stutter rate under both unpatched kinds", _ {
 		expect(is_stutter_rate(ParamKind::UNPATCHED_GLOBAL, deluge::host::chains::param::kStutterRate)).to_be_true();
 		expect(is_stutter_rate(ParamKind::UNPATCHED_SOUND, deluge::host::chains::param::kStutterRate)).to_be_true();
 		expect(is_stutter_rate(ParamKind::PATCHED, deluge::host::chains::param::kStutterRate)).to_be_false();
-		expect(is_stutter_rate(ParamKind::UNPATCHED_SOUND, param::kRhythm)).to_be_false();
+		expect(is_stutter_rate(ParamKind::UNPATCHED_SOUND, param::kPortamento)).to_be_false();
 	});
 
 	it("calls a centred param, a cable depth and the pitch-bend axis bipolar", _ {
@@ -84,7 +77,7 @@ describe param_predicates("which collection and id a param is, and what the knob
 
 	it("calls an uncentred param, another expression axis and a host space bipolar-free", _ {
 		expect(is_bipolar(ParamKind::PATCHED, param::kVolume)).to_be_false();
-		expect(is_bipolar(ParamKind::UNPATCHED_SOUND, param::kRhythm)).to_be_false();
+		expect(is_bipolar(ParamKind::UNPATCHED_SOUND, param::kPortamento)).to_be_false();
 		expect(is_bipolar(ParamKind::EXPRESSION, ParamId{1})).to_be_false();
 		expect(is_bipolar(ParamKind::MIDI, ParamId{0})).to_be_false();
 	});

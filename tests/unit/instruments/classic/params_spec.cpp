@@ -24,7 +24,7 @@ struct Pinned {
 	std::string_view name;
 };
 /// Every row, forever: an id never changes its name, and a name never changes its id.
-constexpr std::array<Pinned, 82> kPinned{{
+constexpr std::array<Pinned, 67> kPinned{{
     {0, "oscAVolume"},
     {1, "oscBVolume"},
     {2, "volume"},
@@ -91,22 +91,7 @@ constexpr std::array<Pinned, 82> kPinned{{
     {98, "modFXFeedback"},
     {99, "compressorShape"},
     {100, "compressorThreshold"},
-    {101, "arpGate"},
-    {102, "rhythm"},
-    {103, "sequenceLength"},
-    {104, "chordPolyphony"},
-    {105, "ratchetAmount"},
-    {106, "noteProbability"},
-    {107, "reverseProbability"},
-    {108, "bassProbability"},
-    {109, "swapProbability"},
-    {110, "glideProbability"},
-    {111, "chordProbability"},
-    {112, "ratchetProbability"},
-    {113, "spreadGate"},
-    {114, "spreadOctave"},
-    {115, "spreadVelocity"},
-    {116, "portamento"},
+    {101, "portamento"},
 }};
 constexpr std::array<uint32_t, 6> kCentred{23, 25, 26, 27, 28, 29};
 namespace plugin = deluge::plugin;
@@ -203,8 +188,7 @@ describe params("the Deluge instrument's param table", ${
 		expect(param::kVolumePostFX.value).to_equal(45u);
 		expect(param::kArpRate.value).to_equal(54u);
 		expect(param::kStutterRate.value).to_equal(90u);
-		expect(param::kArpGate.value).to_equal(101u);
-		expect(param::kPortamento.value).to_equal(116u);
+		expect(param::kPortamento.value).to_equal(101u);
 	});
 
 	it("scopes the voice params per voice and the rest per sound", _ {
@@ -226,7 +210,7 @@ describe params("the Deluge instrument's param table", ${
 		expect(kParamBlocks[0].first.value).to_equal(0u);
 		expect(kParamBlocks[0].count).to_equal(55u);
 		expect(kParamBlocks[1].first.value).to_equal(90u);
-		expect(kParamBlocks[1].count).to_equal(27u);
+		expect(kParamBlocks[1].count).to_equal(12u);
 		for (const auto& row : kParams) {
 			expect(row.id).to_satisfy([](ParamId id) { return kParamBlocks[0].contains(id) || kParamBlocks[1].contains(id); });
 		}

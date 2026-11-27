@@ -52,12 +52,13 @@ struct OwnerId {
 };
 
 /// @brief Which numbering a param address's id is in: its owner's engine's param table, or one of the host's own
-/// spaces (an MPE expression dimension, a MIDI CC number). A patch cable's depth is an engine param.
-enum class ParamSpace : uint8_t { ENGINE, EXPRESSION, MIDI_CC };
+/// spaces (an MPE expression dimension, a MIDI CC number, the arp's table). A patch cable's depth is an engine param.
+enum class ParamSpace : uint8_t { ENGINE, EXPRESSION, MIDI_CC, ARP };
 
 /// @brief A param without its owner: which space, which param in it. In ENGINE space the id is in the owner's plugin
 /// table (a patch cable's depth is the instrument's depth id); a MIDI_CC id is the CC number, an EXPRESSION id the MPE
-/// dimension. Ids are per plugin, so a target names a param only together with its owner's plugin.
+/// dimension, an ARP id a row of the arp's table (arp/params.h) on any owner. Engine ids are per plugin, so an ENGINE
+/// target names a param only together with its owner's plugin.
 struct ParamTarget {
 	ParamSpace space{ParamSpace::ENGINE};
 	deluge::plugin::ParamId id{};

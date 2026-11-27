@@ -17,6 +17,8 @@
 
 #include "gui/l10n/param_names.h"
 
+#include "arp/params.h"
+
 #include "gui/l10n/l10n.h"
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
@@ -170,36 +172,6 @@ std::optional<std::string_view> unpatched_sound_name(plugin::ParamId id) {
 		return getView(String::STRING_FOR_SIDECHAIN_SHAPE);
 	case instruments::classic::param::kCompressorThreshold.value:
 		return getView(String::STRING_FOR_THRESHOLD);
-	case instruments::classic::param::kArpGate.value:
-		return getView(String::STRING_FOR_ARP_GATE_MENU_TITLE);
-	case instruments::classic::param::kRhythm.value:
-		return getView(String::STRING_FOR_ARP_RHYTHM_MENU_TITLE);
-	case instruments::classic::param::kSequenceLength.value:
-		return getView(String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE);
-	case instruments::classic::param::kChordPolyphony.value:
-		return getView(String::STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE);
-	case instruments::classic::param::kRatchetAmount.value:
-		return getView(String::STRING_FOR_ARP_RATCHETS_MENU_TITLE);
-	case instruments::classic::param::kNoteProbability.value:
-		return getView(String::STRING_FOR_NOTE_PROBABILITY_MENU_TITLE);
-	case instruments::classic::param::kReverseProbability.value:
-		return getView(String::STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE);
-	case instruments::classic::param::kBassProbability.value:
-		return getView(String::STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE);
-	case instruments::classic::param::kSwapProbability.value:
-		return getView(String::STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE);
-	case instruments::classic::param::kGlideProbability.value:
-		return getView(String::STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE);
-	case instruments::classic::param::kChordProbability.value:
-		return getView(String::STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE);
-	case instruments::classic::param::kRatchetProbability.value:
-		return getView(String::STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE);
-	case instruments::classic::param::kSpreadGate.value:
-		return getView(String::STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE);
-	case instruments::classic::param::kSpreadOctave.value:
-		return getView(String::STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE);
-	case instruments::classic::param::kSpreadVelocity.value:
-		return getView(String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE);
 	case instruments::classic::param::kPortamento.value:
 		return getView(String::STRING_FOR_PORTAMENTO);
 	}
@@ -231,36 +203,6 @@ std::optional<std::string_view> unpatched_global_name(plugin::ParamId id) {
 		return getView(String::STRING_FOR_SIDECHAIN_SHAPE);
 	case host::chains::param::kCompressorThreshold.value:
 		return getView(String::STRING_FOR_THRESHOLD);
-	case host::chains::param::kArpGate.value:
-		return getView(String::STRING_FOR_ARP_GATE_MENU_TITLE);
-	case host::chains::param::kRhythm.value:
-		return getView(String::STRING_FOR_ARP_RHYTHM_MENU_TITLE);
-	case host::chains::param::kSequenceLength.value:
-		return getView(String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE);
-	case host::chains::param::kChordPolyphony.value:
-		return getView(String::STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE);
-	case host::chains::param::kRatchetAmount.value:
-		return getView(String::STRING_FOR_ARP_RATCHETS_MENU_TITLE);
-	case host::chains::param::kNoteProbability.value:
-		return getView(String::STRING_FOR_NOTE_PROBABILITY_MENU_TITLE);
-	case host::chains::param::kReverseProbability.value:
-		return getView(String::STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE);
-	case host::chains::param::kBassProbability.value:
-		return getView(String::STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE);
-	case host::chains::param::kSwapProbability.value:
-		return getView(String::STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE);
-	case host::chains::param::kGlideProbability.value:
-		return getView(String::STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE);
-	case host::chains::param::kChordProbability.value:
-		return getView(String::STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE);
-	case host::chains::param::kRatchetProbability.value:
-		return getView(String::STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE);
-	case host::chains::param::kSpreadGate.value:
-		return getView(String::STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE);
-	case host::chains::param::kSpreadOctave.value:
-		return getView(String::STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE);
-	case host::chains::param::kSpreadVelocity.value:
-		return getView(String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE);
 	case host::chains::param::kModFXRate.value:
 		return getView(String::STRING_FOR_MOD_FX_RATE);
 	case host::chains::param::kModFXDepth.value:
@@ -269,8 +211,6 @@ std::optional<std::string_view> unpatched_global_name(plugin::ParamId id) {
 		return getView(String::STRING_FOR_DELAY_RATE);
 	case host::chains::param::kDelayFeedback.value:
 		return getView(String::STRING_FOR_DELAY_AMOUNT);
-	case host::chains::param::kArpRate.value:
-		return getView(String::STRING_FOR_ARP_RATE_MENU_TITLE);
 	case host::chains::param::kPan.value:
 		return getView(String::STRING_FOR_PAN);
 	case host::chains::param::kLpfFrequency.value:
@@ -446,6 +386,45 @@ bool is_hpf_morph(plugin::ParamKind kind, plugin::ParamId id) {
 	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host::chains::param::kHpfMorph);
 }
 
+/// @brief An arp param's name (arp/params.h), whoever holds the arp.
+std::optional<std::string_view> arp_name(plugin::ParamId id) {
+	switch (id.value) {
+	case arp::param::kRate.value:
+		return getView(String::STRING_FOR_ARP_RATE_MENU_TITLE);
+	case arp::param::kGate.value:
+		return getView(String::STRING_FOR_ARP_GATE_MENU_TITLE);
+	case arp::param::kRhythm.value:
+		return getView(String::STRING_FOR_ARP_RHYTHM_MENU_TITLE);
+	case arp::param::kSequenceLength.value:
+		return getView(String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE);
+	case arp::param::kChordPolyphony.value:
+		return getView(String::STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE);
+	case arp::param::kRatchetAmount.value:
+		return getView(String::STRING_FOR_ARP_RATCHETS_MENU_TITLE);
+	case arp::param::kNoteProbability.value:
+		return getView(String::STRING_FOR_NOTE_PROBABILITY_MENU_TITLE);
+	case arp::param::kReverseProbability.value:
+		return getView(String::STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE);
+	case arp::param::kBassProbability.value:
+		return getView(String::STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE);
+	case arp::param::kSwapProbability.value:
+		return getView(String::STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE);
+	case arp::param::kGlideProbability.value:
+		return getView(String::STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE);
+	case arp::param::kChordProbability.value:
+		return getView(String::STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE);
+	case arp::param::kRatchetProbability.value:
+		return getView(String::STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE);
+	case arp::param::kSpreadGate.value:
+		return getView(String::STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE);
+	case arp::param::kSpreadOctave.value:
+		return getView(String::STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE);
+	case arp::param::kSpreadVelocity.value:
+		return getView(String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE);
+	}
+	return std::nullopt;
+}
+
 /// @brief The name of the param @p id in @p plugin's table, or nullopt where the table names none.
 std::optional<std::string_view> plugin_param_name(project::OwnerPlugin plugin, plugin::ParamId id) {
 	if (plugin == project::OwnerPlugin::GLOBAL_EFFECTABLE) {
@@ -458,6 +437,10 @@ std::optional<std::string_view> plugin_param_name(project::OwnerPlugin plugin, p
 
 std::string_view expression_param_name(plugin::ParamId id) {
 	return expression_name(id).value_or(getView(String::STRING_FOR_NONE));
+}
+
+std::string_view arp_param_name(plugin::ParamId id) {
+	return arp_name(id).value_or(getView(String::STRING_FOR_NONE));
 }
 
 std::string_view param_name(project::OwnerPlugin plugin, plugin::ParamId id) {
@@ -495,10 +478,10 @@ std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id) {
 	case plugin::ParamKind::EXPRESSION:
 		name = expression_name(id);
 		break;
-	case plugin::ParamKind::NONE:
-	case plugin::ParamKind::STATIC:
-	case plugin::ParamKind::MIDI:
-	case plugin::ParamKind::PATCH_CABLE:
+	case plugin::ParamKind::ARP:
+		name = arp_name(id);
+		break;
+	default: // no names: no kind, a static param, a MIDI CC, a cable
 		break;
 	}
 	return name.value_or(getView(String::STRING_FOR_NONE));

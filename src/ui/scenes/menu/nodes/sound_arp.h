@@ -56,6 +56,7 @@
 ///       `SequenceLength` draws "OFF" at zero (its `renderInHorizontalMenu`). All four take `Hint::None`, which is the
 ///       honest answer for art the toolkit has no meter for.
 
+#include "arp/params.h"
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/column_hooks.h"
 #include "ui/scenes/menu/nodes/detail.h"
@@ -212,10 +213,10 @@ inline constexpr Node arp_preset = with_affect_entire(with_column_art(
     arp_preset_art));
 /// Not on a MIDI or gate drum row (`arpeggiator::ArpUnpatchedParam::isRelevant`), which the kit's own effects keep
 /// selected.
-inline constexpr Node arp_gate = with_relevant(
-    param(sid(deluge::l10n::String::STRING_FOR_GATE), sound_param(deluge::instruments::classic::param::kArpGate),
-          Hint::LengthSlider, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE)),
-    relevance::not_non_audio_drum_row);
+inline constexpr Node arp_gate =
+    with_relevant(param(sid(deluge::l10n::String::STRING_FOR_GATE), arp_param(deluge::arp::param::kGate),
+                        Hint::LengthSlider, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE)),
+                  relevance::not_non_audio_drum_row);
 inline constexpr Node arp_sync = with_affect_entire(with_title(
     setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel, arp_row("arpeggiator/syncLevel")),
     sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE)));
@@ -271,11 +272,11 @@ inline constexpr Node arp_chord_simulator = with_affect_entire(with_short_column
 inline constexpr Node arp_rhythm = with_relevant(
     with_value_style(
         with_leaf_text(
-            with_column_art(with_slots(param(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
-                                             sound_param(deluge::instruments::classic::param::kRhythm), Hint::None,
-                                             ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
-                                       2),
-                            arp_rhythm_art),
+            with_column_art(
+                with_slots(param(sid(deluge::l10n::String::STRING_FOR_RHYTHM), arp_param(deluge::arp::param::kRhythm),
+                                 Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+                           2),
+                arp_rhythm_art),
             arp_rhythm_screen_text),
         deluge::ui::widgets::oled::ValueStyle{.label_in_digits = true}),
     relevance::not_non_audio_drum_row);
@@ -288,13 +289,13 @@ inline constexpr Node arp_rhythm_midi =
                                    arp_rhythm_midi_art),
                    arp_rhythm_name_text);
 /// `arpeggiator::ArpUnpatchedParam::isRelevant`: not with a MIDI or gate drum selected.
-inline constexpr Node arp_sequence_length = with_relevant(
-    with_value_text(with_short_column_label(
-                        param(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),
-                              sound_param(deluge::instruments::classic::param::kSequenceLength), Hint::None,
-                              ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE))),
-                    off_at_zero_text),
-    relevance::not_non_audio_drum_row);
+inline constexpr Node arp_sequence_length =
+    with_relevant(with_value_text(with_short_column_label(
+                                      param(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),
+                                            arp_param(deluge::arp::param::kSequenceLength), Hint::None, ParamShows{},
+                                            sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE))),
+                                  off_at_zero_text),
+                  relevance::not_non_audio_drum_row);
 inline constexpr Node arp_sequence_length_midi = with_value_text(
     with_short_column_label(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH), Kind::Int,
                                                     arp_row("arpeggiator/sequenceLength", false)),

@@ -121,6 +121,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_instruments_classic # the Deluge instrument's state, words and codec
     deluge_effects # the effects' words, state and codec
     deluge_host_chains # the host chain's param table and pages
+    deluge_arp # the arpeggiator's param table and the values an arp plays by
     deluge_serialization # the document tree and its XML and JSON parsers
     deluge_music # note sets, scales, keys and scale mapping
     deluge_ui_views_waveform # a waveform view's columns, peaks and navigation

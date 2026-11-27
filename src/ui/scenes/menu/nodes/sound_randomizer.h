@@ -13,7 +13,7 @@
 /// is why the pairs are not `DuplicateName` reports.
 ///
 // clang-format off
-/// | node | legacy global | legacy class | param / field |
+/// | node | legacy global | legacy class | legacy param / field |
 /// |---|---|---|---|
 /// | `randomizer_lock` | `randomizerLockMenu` | `randomizer::RandomizerLock` (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_lock.h`) | `randomizerLock` |
 /// | `spread_gate` | `spreadGateMenu` | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_GATE` |
@@ -57,6 +57,7 @@
 ///       Unlike the arpeggiator's, `randomizer` is a `Layout::Horizontal` page, so `randomizer_lock` sets
 ///       `Node::selection_is_toggle` -- see its own definition below and `node.h`'s doc.
 
+#include "arp/params.h"
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/column_hooks.h"
 #include "ui/scenes/menu/nodes/detail.h"
@@ -84,7 +85,7 @@ namespace deluge::ui::scenes::menu::nodes {
 ///        the kit's own effects keep selected (`RandomizerUnpatchedParam::isRelevant`'s `editingNonAudioDrumRow()`).
 #define DELUGE_RANDOMIZER_PARAM(node_name, name_id, title_id, param_id, rel, hint)                                     \
 	inline constexpr Node node_name =                                                                                  \
-	    with_relevant(with_short_column_label(param(sid(deluge::l10n::String::name_id), sound_param(param_id), hint,   \
+	    with_relevant(with_short_column_label(param(sid(deluge::l10n::String::name_id), arp_param(param_id), hint,     \
 	                                                rel, sid(deluge::l10n::String::title_id))),                        \
 	                  relevance::not_non_audio_drum_row)
 
@@ -99,77 +100,72 @@ inline constexpr Node randomizer_lock =
 // (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_unpatched_param.h`) -- the non-global ids need the
 // arpeggiator on, the three global ones do not.
 DELUGE_RANDOMIZER_PARAM(spread_gate, STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-                        deluge::instruments::classic::param::kSpreadGate, param_shows::kRandomizer, Hint::Bar);
+                        deluge::arp::param::kSpreadGate, param_shows::kRandomizer, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_gate_midi, STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
                        "arpeggiator/spreadGate", Hint::Bar);
 
 // `RandomizerSoundOnlyUnpatchedParam::isRelevant`
 // (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_unpatched_param.h`).
 DELUGE_RANDOMIZER_PARAM(spread_octave, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
-                        deluge::instruments::classic::param::kSpreadOctave, param_shows::kRandomizerSoundOnly,
-                        Hint::Bar);
+                        deluge::arp::param::kSpreadOctave, param_shows::kRandomizerSoundOnly, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_octave_midi, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
                        "arpeggiator/spreadOctave", Hint::Bar);
 
 /// A global id, so with the arp off too; not on a MIDI or gate drum row, which the kit's own effects keep selected.
-inline constexpr Node spread_velocity = with_relevant(
-    with_short_column_label(param(sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY),
-                                  sound_param(deluge::instruments::classic::param::kSpreadVelocity), Hint::Bar,
-                                  ParamShows{}, sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE))),
-    relevance::not_non_audio_drum_row);
+inline constexpr Node spread_velocity =
+    with_relevant(with_short_column_label(param(sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY),
+                                                arp_param(deluge::arp::param::kSpreadVelocity), Hint::Bar, ParamShows{},
+                                                sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE))),
+                  relevance::not_non_audio_drum_row);
 DELUGE_RANDOMIZER_MIDI(spread_velocity_midi, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
                        "arpeggiator/spreadVelocity", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(ratchet_amount, STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE,
-                        deluge::instruments::classic::param::kRatchetAmount, param_shows::kRandomizer, Hint::Bar);
+                        deluge::arp::param::kRatchetAmount, param_shows::kRandomizer, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(ratchet_amount_midi, STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE,
                        "arpeggiator/ratchetAmount", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(ratchet_probability, STRING_FOR_RATCHET_PROBABILITY,
-                        STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
-                        deluge::instruments::classic::param::kRatchetProbability, param_shows::kRandomizer,
-                        Hint::Percent);
+                        STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, deluge::arp::param::kRatchetProbability,
+                        param_shows::kRandomizer, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(ratchet_probability_midi, STRING_FOR_RATCHET_PROBABILITY,
                        STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, "arpeggiator/ratchetProbability", Hint::Percent);
 
 // `RandomizerNonKitSoundUnpatchedParam::isRelevant`
 // (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_unpatched_param.h`).
 DELUGE_RANDOMIZER_PARAM(chord_polyphony, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
-                        deluge::instruments::classic::param::kChordPolyphony, param_shows::kRandomizerNonKit,
-                        Hint::Bar);
+                        deluge::arp::param::kChordPolyphony, param_shows::kRandomizerNonKit, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(chord_polyphony_midi, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
                        "arpeggiator/chordPolyphony", Hint::Bar);
 
 DELUGE_RANDOMIZER_PARAM(chord_probability, STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE,
-                        deluge::instruments::classic::param::kChordProbability, param_shows::kRandomizerNonKit,
-                        Hint::Percent);
+                        deluge::arp::param::kChordProbability, param_shows::kRandomizerNonKit, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(chord_probability_midi, STRING_FOR_CHORD_PROBABILITY,
                        STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, "arpeggiator/chordProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(note_probability, STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE,
-                        deluge::instruments::classic::param::kNoteProbability, ParamShows{}, Hint::Percent);
+                        deluge::arp::param::kNoteProbability, ParamShows{}, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(note_probability_midi, STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE,
                        "arpeggiator/noteProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(swap_probability, STRING_FOR_SWAP_PROBABILITY, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
-                        deluge::instruments::classic::param::kSwapProbability, param_shows::kRandomizer, Hint::Percent);
+                        deluge::arp::param::kSwapProbability, param_shows::kRandomizer, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(swap_probability_midi, STRING_FOR_SWAP_PROBABILITY, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
                        "arpeggiator/swapProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(bass_probability, STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
-                        deluge::instruments::classic::param::kBassProbability, param_shows::kRandomizer, Hint::Percent);
+                        deluge::arp::param::kBassProbability, param_shows::kRandomizer, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(bass_probability_midi, STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
                        "arpeggiator/bassProbability", Hint::Percent);
 
 DELUGE_RANDOMIZER_PARAM(glide_probability, STRING_FOR_GLIDE_PROBABILITY, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
-                        deluge::instruments::classic::param::kGlideProbability, param_shows::kRandomizer,
-                        Hint::Percent);
+                        deluge::arp::param::kGlideProbability, param_shows::kRandomizer, Hint::Percent);
 DELUGE_RANDOMIZER_MIDI(glide_probability_midi, STRING_FOR_GLIDE_PROBABILITY,
                        STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, "arpeggiator/glideProbability", Hint::Percent);
 
 // The one setting with no MIDI/CV twin (`reverseProbabilityMenu` in `origin/main:src/deluge/gui/ui/menus.cpp`).
 DELUGE_RANDOMIZER_PARAM(reverse_probability, STRING_FOR_REVERSE_PROBABILITY, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
-                        deluge::instruments::classic::param::kReverseProbability, ParamShows{}, Hint::Percent);
+                        deluge::arp::param::kReverseProbability, ParamShows{}, Hint::Percent);
 
 #undef DELUGE_RANDOMIZER_MIDI
 #undef DELUGE_RANDOMIZER_PARAM

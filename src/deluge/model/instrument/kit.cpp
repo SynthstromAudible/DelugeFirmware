@@ -43,6 +43,7 @@
 #include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
@@ -59,6 +60,7 @@
 #include "util/sound_menu_open.h"
 #include "util/structural_edit_probe.h"
 #include <cstring>
+#include <limits>
 #include <variant>
 
 namespace params = deluge::modulation::params;
@@ -769,8 +771,14 @@ yesTickParamManager:
 					}
 				}
 
-				// No time to call the proper function and do error checking, sorry.
-				ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[3];
+				// The arp's params interpolate as the unpatched ones do.
+				if (ParamCollectionSummary* arpSummary = thisNoteRow->paramManager.getArpParamSetSummary();
+				    arpSummary != nullptr && arpSummary->whichParamsAreInterpolating[0]) {
+					goto yesTickParamManager;
+				}
+
+				ParamCollectionSummary* expressionParamsSummary =
+				    thisNoteRow->paramManager.getExpressionParamSetSummary();
 				if constexpr (kNumExpressionDimensions > 32) {
 					if (expressionParamsSummary->whichParamsAreInterpolating[0]
 					    || expressionParamsSummary->whichParamsAreInterpolating[1]) {
@@ -833,23 +841,31 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, d
 	renderNonAudioArpPostOutput(output);
 }
 
+namespace {
+/// @brief Give the kit's own arp its arp set's values for this block, less those the kit's arp does not play (so a
+///        followed CC cannot move them).
+void playKitArpValues(ArpeggiatorSettings& arp, ParamManager& paramManager) {
+	arp.values = paramManager.getArpParamSet()->values();         // every kit's manager holds its arp's set
+	constexpr int32_t kOff = std::numeric_limits<int32_t>::min(); // an unsigned field's 0
+	arp.values.set(deluge::arp::param::kChordPolyphony, kOff);
+	arp.values.set(deluge::arp::param::kChordProbability, kOff);
+	arp.values.set(deluge::arp::param::kSpreadOctave, kOff);
+}
+} // namespace
+
 void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                      ParamManager* paramManager, std::span<StereoSample> output) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	if (arpSettings == nullptr) {
 		return;
 	}
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
-	arpSettings->chordPolyphony = 0;
-	arpSettings->chordProbability = 0;
-	arpSettings->spreadOctave = 0;
+	playKitArpValues(*arpSettings, *paramManager);
 
 	if (arpSettings->mode != ArpMode::OFF) {
-		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
-		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
-		    ArpeggiatorSettings::rate_from_knob(unpatchedParams->getKnob(params::UNPATCHED_ARP_RATE)));
+		uint32_t gateThreshold = arpSettings->values.unsigned_word(deluge::arp::param::kGate);
+		// The kit's arp set holds the rate as the knob, Q31 (playKitArpValues copied the same word).
+		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(ArpeggiatorSettings::rate_from_knob(
+		    paramManager->getArpParamSet()->getKnob(static_cast<int32_t>(deluge::arp::param::kRate.value))));
 
 		ArpReturnInstruction kitInstruction;
 		arpeggiator.render(arpSettings, &kitInstruction, output.size(), gateThreshold, phaseIncrement);
@@ -939,12 +955,16 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 		}
 
 		NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
+		// The row's arp plays its own set's values.
+		if (const ArpParamSet* rowArp = thisNoteRow->paramManager.getArpParamSet()) {
+			nonAudioDrum->arpSettings.values = rowArp->values();
+		}
 
 		if (nonAudioDrum->arpSettings.mode != ArpMode::OFF) {
-			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpSettings.gate + 2147483648;
+			uint32_t gateThreshold = nonAudioDrum->arpSettings.values.unsigned_word(deluge::arp::param::kGate);
 			// The arp's stored rate word is the knob, Q31.
-			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(
-			    ArpeggiatorSettings::rate_from_knob(deluge::dsp::Q<31>::from_raw(nonAudioDrum->arpSettings.rate)));
+			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(ArpeggiatorSettings::rate_from_knob(
+			    deluge::dsp::Q<31>::from_raw(nonAudioDrum->arpSettings.values[deluge::arp::param::kRate])));
 
 			ArpReturnInstruction instruction;
 			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,
@@ -1176,12 +1196,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-	// Nullify parameters not supported by Kit Arpeggiator (to avoid Midi Follow to modify them)
-	arpSettings->chordPolyphony = 0;
-	arpSettings->chordProbability = 0;
-	arpSettings->spreadOctave = 0;
+	playKitArpValues(*arpSettings, *paramManager);
 
 	ArpReturnInstruction kitInstruction;
 	int32_t ticksTilNextKitArpEvent =
@@ -2085,7 +2100,9 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelin
 	}
 
 	if (modelStackWithThreeMainThings) {
-		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+		modelStackWithParam = paramKind == params::Kind::ARP
+		                          ? modelStackWithThreeMainThings->getArpAutoParamFromId(paramID)
+		                          : modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 	}
 
 	return modelStackWithParam;
@@ -2120,6 +2137,10 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 
 				else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
 					modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+				}
+
+				else if (paramKind == deluge::modulation::params::Kind::ARP) {
+					modelStackWithParam = modelStackWithThreeMainThings->getArpAutoParamFromId(paramID);
 				}
 
 				else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {

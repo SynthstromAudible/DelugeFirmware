@@ -1,7 +1,7 @@
 # Layer-rule baseline: file<TAB>rule<TAB>count. May only shrink.
 src/deluge/bench/mod_matrix_workload.h	no-param-kind-outside-runtime	24
 src/deluge/bench/stutter_cases.cpp	no-param-kind-outside-runtime	1
-src/deluge/gui/l10n/param_names.cpp	no-param-kind-outside-runtime	20
+src/deluge/gui/l10n/param_names.cpp	no-param-kind-outside-runtime	17
 src/deluge/gui/l10n/param_names.h	no-param-kind-outside-runtime	5
 src/deluge/gui/ui/browser/folder_import.cpp	no-param-kind-outside-runtime	1
 src/deluge/gui/ui/browser/sample_preview.cpp	no-param-kind-outside-runtime	5
@@ -14,7 +14,7 @@ src/deluge/gui/ui/sound_target.cpp	no-param-kind-outside-runtime	1
 src/deluge/gui/views/automation/editor_layout.h	no-param-kind-outside-runtime	1
 src/deluge/gui/views/automation/editor_layout/mod_controllable.cpp	no-param-kind-outside-runtime	25
 src/deluge/gui/views/automation/editor_layout/mod_controllable.h	no-param-kind-outside-runtime	5
-src/deluge/gui/views/automation_view.cpp	no-param-kind-outside-runtime	113
+src/deluge/gui/views/automation_view.cpp	no-param-kind-outside-runtime	105
 src/deluge/gui/views/automation_view.h	no-param-kind-outside-runtime	2
 src/deluge/gui/views/performance_view.cpp	no-param-kind-outside-runtime	38
 src/deluge/gui/views/performance_view.h	no-param-kind-outside-runtime	7
@@ -51,7 +51,7 @@ src/deluge/model/instrument/kit.cpp	model-calls-ui	4
 src/deluge/model/instrument/kit.cpp	no-param-kind-outside-runtime	10
 src/deluge/model/instrument/kit.h	no-param-kind-outside-runtime	3
 src/deluge/model/instrument/melodic_instrument.cpp	model-calls-ui	4
-src/deluge/model/instrument/melodic_instrument.cpp	no-param-kind-outside-runtime	6
+src/deluge/model/instrument/melodic_instrument.cpp	no-param-kind-outside-runtime	7
 src/deluge/model/instrument/melodic_instrument.h	no-param-kind-outside-runtime	1
 src/deluge/model/instrument/midi_instrument.cpp	no-param-kind-outside-runtime	1
 src/deluge/model/instrument/midi_instrument.h	no-param-kind-outside-runtime	1

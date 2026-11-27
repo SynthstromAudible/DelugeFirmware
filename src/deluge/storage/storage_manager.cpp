@@ -512,7 +512,7 @@ paramManagerSetupError:
 	// Kit
 	else {
 		if (paramManager) {
-			error = paramManager->setupUnpatched();
+			error = paramManager->setupUnpatched(deluge::arp::Owner::KIT);
 			if (error != Error::NONE) {
 				goto paramManagerSetupError;
 			}

@@ -19,6 +19,7 @@
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
 #include "model/fx/effect_reads.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 
@@ -59,6 +60,10 @@ void initSharedParams(ParamManager* paramManager, params::Kind defaults) {
 	    defaults == params::Kind::UNPATCHED_SOUND ? std::span<const plugin::ParamInfo>{instruments::classic::kParams}
 	                                              : std::span<const plugin::ParamInfo>{host::chains::kParams};
 	setRowsToDefaults(*paramManager->getUnpatchedParamSet(), table, kFirstSharedId, kLastSharedId, {});
+	// A sound's or a kit's arp starts at its owner's values too.
+	if (ArpParamSet* arp = paramManager->getArpParamSet()) {
+		arp->set_to_defaults();
+	}
 }
 
 void initGlobalParams(ParamManager* paramManager) {

@@ -242,6 +242,8 @@ public:
 	ModelStackWithAutoParam* addParam(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary,
 	                                  int32_t newParamId, AutoParam* newAutoParam) const;
 	ModelStackWithAutoParam* getUnpatchedAutoParamFromId(int32_t newParamId);
+	/// @brief The lane of the arp param @p newParamId (arp/params.h) in the owner's arp set; nullptr where it has none.
+	ModelStackWithAutoParam* getArpAutoParamFromId(int32_t newParamId);
 	ModelStackWithAutoParam* getPatchedAutoParamFromId(int32_t newParamId);
 	/// @brief The depth of the cable whose param id is @p newParamId. With @p forEdit, a missing cable is added through
 	/// the mod matrix (create-on-edit, recorded in the open Action); otherwise a missing cable gives a null autoParam.

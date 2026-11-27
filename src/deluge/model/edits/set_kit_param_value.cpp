@@ -22,8 +22,8 @@ Error SetKitParamValue::apply(Context& ctx) {
 			continue;
 		}
 		SetParamValue write{project::ParamAddress{.owner = project::OwnerId::drum(*drum->id()),
-		                                          .space = project::ParamSpace::ENGINE,
-		                                          .id = id_,
+		                                          .space = param_.space,
+		                                          .id = param_.id,
 		                                          .clip_id = clip_id_},
 		                    value_};
 		if (deluge::edits::apply(ctx, write) == Error::NONE) {

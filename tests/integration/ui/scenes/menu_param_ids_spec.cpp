@@ -2,6 +2,7 @@
 // as it did, whatever spelling its tables use.
 
 #include "menu_param_ids_reference.h"
+#include "support/main_numbering.h"
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/node_id.h"
 #include "ui/scenes/menu/nodes/nodes.h"
@@ -30,7 +31,7 @@ std::vector<MenuParamCell> walk() {
 		const ParamRef p = n->bind.param;
 		out.push_back({.node = id,
 		               .name = n->name,
-		               .table = static_cast<uint8_t>(param_table_of(p) == deluge::ui::scenes::bind::ParamTable::CHAIN),
+		               .table = static_cast<uint8_t>(param_table_of(p)), // 0 a sound's, 1 a chain's, 2 the arp's
 		               .id = param_id_of(p).value,
 		               .patched = is_patched(p)});
 	}
@@ -50,7 +51,17 @@ describe menu_param_ids_cases("the menu's params by table and id", ${
 		}
 		expect(cells.size()).to_equal(std::size(reference::kMenuParamIds));
 		for (size_t i = 0; i < cells.size() && i < std::size(reference::kMenuParamIds); i++) {
-			const MenuParamCell& want = reference::kMenuParamIds[i];
+			MenuParamCell want = reference::kMenuParamIds[i];
+			// Recorded before the arp's params left the sound's and the chain's tables: those are the arp's own now, and
+			// the ids past them sit lower (support/main_numbering.h).
+			namespace numbering = deluge::ui::scenes::spec::main_numbering;
+			if (!want.patched && want.id >= numbering::kUnpatchedFirstId) {
+				const deluge::project::ParamTarget ours = numbering::target_of_id(want.table == 1, want.id);
+				if (ours.space == deluge::project::ParamSpace::ARP) {
+					want.table = static_cast<uint8_t>(deluge::ui::scenes::bind::ParamTable::ARP);
+				}
+				want.id = ours.id.value;
+			}
 			expect(cells[i].node).to_equal(want.node);
 			expect(cells[i].name).to_equal(want.name);
 			expect(cells[i].table).to_equal(want.table);

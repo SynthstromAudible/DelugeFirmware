@@ -96,6 +96,7 @@
 ///       Every `Kind::Custom` node counts as **one node** against `kMaxCustomNodes` (the cap counts nodes, not
 ///       distinct `CustomItem` instances).
 
+#include "arp/params.h"
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/actions.h" // the five action items
 #include "ui/scenes/menu/nodes/column_hooks.h"
@@ -602,12 +603,12 @@ inline constexpr Node root_song = submenu(sid(String::STRING_FOR_SONG), kSongRoo
 inline constexpr const Node* kKitFxActionsChildren[] = {&edit_name, &kit_fx_stem_export};
 inline constexpr Node kit_fx_actions = submenu(sid(String::STRING_FOR_ACTIONS), kKitFxActionsChildren);
 
-// `arpeggiator::KitRate` is the kit's own `UNPATCHED_ARP_RATE`, shown only on the kit's global-FX page
-// (`KitRate::isRelevant` in `origin/main:src/deluge/gui/menu_item/arpeggiator/rate.h`); `arpGateMenu` is shared with
-// the sound arpeggiator.
+// `arpeggiator::KitRate` (main's kit `UNPATCHED_ARP_RATE`, here the kit arp's `arp::param::kRate`), shown only on the
+// kit's global-FX page (`KitRate::isRelevant` in `origin/main:src/deluge/gui/menu_item/arpeggiator/rate.h`);
+// `arpGateMenu` is shared with the sound arpeggiator.
 inline constexpr Node arp_kit_rate =
-    param(sid(String::STRING_FOR_RATE), chain_param(deluge::host::chains::param::kArpRate), Hint::Knob,
-          param_shows::kKitEffects, sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));
+    param(sid(String::STRING_FOR_RATE), arp_param(deluge::arp::param::kRate), Hint::Knob, param_shows::kKitEffects,
+          sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));
 inline constexpr const Node* kArpBasicKitChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_kit_rate};
 inline constexpr Node arp_basic_kit = submenu(sid(String::STRING_FOR_BASIC), kArpBasicKitChildren, Layout::Horizontal,
                                               nullptr, sid(String::STRING_FOR_ARP_BASIC_MENU_TITLE));

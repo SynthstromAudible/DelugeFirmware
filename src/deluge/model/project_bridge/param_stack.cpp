@@ -226,6 +226,13 @@ ModelStackWithAutoParam* paramInOwner(const OwnerStack& owner, const project::Pa
 		}
 		return paramInCollection(owner.stack, owner.stack->paramManager->getExpressionParamSetSummary(),
 		                         static_cast<int32_t>(address.id.value), create);
+	case project::ParamSpace::ARP: {
+		// Whoever holds an arp holds its set; the song and an audio clip hold none.
+		ParamCollectionSummary* summary = owner.stack->paramManager->getArpParamSetSummary();
+		return summary != nullptr
+		           ? paramInCollection(owner.stack, summary, static_cast<int32_t>(address.id.value), create)
+		           : nullptr;
+	}
 	}
 	return nullptr;
 }

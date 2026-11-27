@@ -2,6 +2,8 @@
 /// @brief `ParamPopupScene`. See `param_popup_scene.h`.
 
 #include "ui/scenes/overlay/param_popup_scene.h"
+
+#include "arp/params.h"
 #include "ui/scenes/services/source_names.h"
 
 #include "ui/scenes/bind/param_facts.h"
@@ -154,6 +156,9 @@ void format_name(const PluginParam& param, PatchSource source1, PatchSource sour
 			name = deluge::l10n::expression_param_name(id);
 			break;
 		case ParamSpace::MIDI_CC:
+			break;
+		case ParamSpace::ARP:
+			name = deluge::l10n::arp_param_name(id);
 			break;
 		case ParamSpace::ENGINE: {
 			const std::optional<std::string_view> envelope_name =

@@ -61,6 +61,11 @@ using EnvelopeModes = std::array<synth::EnvelopeMode, 4>;
 /// @return The name; "None" for an id no axis has.
 [[nodiscard]] std::string_view expression_param_name(plugin::ParamId id);
 
+/// @brief The display name of the arp param @p id (arp/params.h), whoever holds the arp.
+/// @param id The param, in the arp's table.
+/// @return The name; "None" for an id the arp has no row for.
+[[nodiscard]] std::string_view arp_param_name(plugin::ParamId id);
+
 /// @brief The display name of the param @p id in @p plugin's table.
 /// @param plugin Whose table the id is in.
 /// @param id     The param's id.

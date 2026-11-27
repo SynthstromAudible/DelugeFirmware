@@ -3,6 +3,7 @@
 ///        the pitch-adjust zeroing reads them: a pitch adjust a learned knob turns keeps its preset value, whether the
 ///        knob is in the table, still on its owner before the table takes it, or handed over by a preset change.
 
+#include "arp/params.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/learn_mapping.h"
@@ -184,6 +185,39 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		expect(text).to_contain(R"("controlsParam": "volumePostFX")", "the saved song");
 		expect(text).not_().to_contain(R"("controlsParam": "volume")", "the saved song");
 		expect(text).not_().to_contain(R"("ccNumber": 11)", "the saved song");
+	});
+
+	it("loads a knob on an arp param as the arp's and saves it by the arp's name", _ {
+		Song* song = spec::load_song(synth_song_xml(R"(
+				<midiKnob channel="1" ccNumber="20" relative="0" controlsParam="arpGate" />
+				<midiKnob channel="1" ccNumber="21" relative="0" controlsParam="spreadOctave" />)"));
+		expect(song).not_().to_be_null("the loaded song");
+		SoundInstrument* synth = song != nullptr ? spec::first_synth(*song) : nullptr;
+		expect(synth).not_().to_be_null("the song's synth");
+		if (synth == nullptr) {
+			return;
+		}
+		expect(synth->id().has_value()).to_be_true("the synth's id");
+		if (!synth->id()) {
+			return;
+		}
+		const std::vector<Mapping> knobs = song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *synth->id()});
+		expect(static_cast<int>(knobs.size())).to_equal(2);
+		if (knobs.size() != 2) {
+			return;
+		}
+		const auto paramOf = [](const Mapping& knob) { return std::get<OwnerParamTarget>(knob.target).param; };
+		expect(paramOf(knobs[0]))
+		    .to_equal(deluge::project::ParamTarget{.space = deluge::project::ParamSpace::ARP,
+		                                           .id = deluge::arp::param::kGate},
+		              "the first knob's param");
+		expect(paramOf(knobs[1]))
+		    .to_equal(deluge::project::ParamTarget{.space = deluge::project::ParamSpace::ARP,
+		                                           .id = deluge::arp::param::kSpreadOctave},
+		              "the second knob's param");
+		const std::string text = saved(*song);
+		expect(text).to_contain(R"("controlsParam": "arpGate")", "the saved song");
+		expect(text).to_contain(R"("controlsParam": "spreadOctave")", "the saved song");
 	});
 
 	it("keeps a pitch adjust a learned knob in the table turns, and zeroes one no knob turns", _ {

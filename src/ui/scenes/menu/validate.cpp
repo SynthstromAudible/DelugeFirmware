@@ -64,6 +64,7 @@
 
 #include "ui/scenes/menu/validate.h"
 
+#include "arp/params.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/node_id.h"
 #include "ui/scenes/menu/shortcuts.h"
@@ -143,12 +144,16 @@ bool collect(std::span<const Node* const> roots, Reachable& seen) {
 	return true;
 }
 
-/// @brief Does @p param name a row of its table: the instrument's for a sound's param, the host chain's for a chain's?
+/// @brief Does @p param name a row of its table: the instrument's for a sound's param, the host chain's for a chain's,
+/// the arp's for an arp param?
 bool param_in_range(const ParamRef& param) {
-	const std::span<const deluge::plugin::ParamInfo> table =
-	    param.table == deluge::ui::scenes::bind::ParamTable::CHAIN
-	        ? std::span<const deluge::plugin::ParamInfo>{deluge::host::chains::kParams}
-	        : std::span<const deluge::plugin::ParamInfo>{deluge::instruments::classic::kParams};
+	std::span<const deluge::plugin::ParamInfo> table{deluge::instruments::classic::kParams};
+	if (param.table == deluge::ui::scenes::bind::ParamTable::CHAIN) {
+		table = deluge::host::chains::kParams;
+	}
+	else if (param.table == deluge::ui::scenes::bind::ParamTable::ARP) {
+		table = deluge::arp::kParamInfos;
+	}
 	return param.id && deluge::plugin::find_param(table, *param.id) != nullptr;
 }
 

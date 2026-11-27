@@ -128,9 +128,11 @@ void TrackChannel::tickParamAutomation(ModelStackWithTimelineCounter* modelStack
                                        size_t frames, const ChannelBlock& block) {
 	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0) && block.is_clip_active) {
 		auto& interpolating_params = paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating;
-		const bool result = (params::kMaxNumUnpatchedParams > 32)
-		                        ? (interpolating_params[0] != 0u || interpolating_params[1] != 0u)
-		                        : (interpolating_params[0] != 0u);
+		const ParamCollectionSummary* arp = paramManager.getArpParamSetSummary(); // a kit's own arp
+		const bool result =
+		    ((params::kMaxNumUnpatchedParams > 32) ? (interpolating_params[0] != 0u || interpolating_params[1] != 0u)
+		                                           : (interpolating_params[0] != 0u))
+		    || (arp != nullptr && arp->whichParamsAreInterpolating[0] != 0u);
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(block.tick_owner, &paramManager);

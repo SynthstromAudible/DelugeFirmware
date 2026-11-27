@@ -1,4 +1,6 @@
 #include "model/project_bridge/setting_projection.h"
+#include "arp/params.h"
+#include "modulation/params/arp_param_set.h"
 
 #include "effects/reverb.h"
 #include "model/clip/audio_clip.h"
@@ -465,59 +467,37 @@ Error applyClipValueSetting(::InstrumentClip& clip, ::Song& /*song*/, std::strin
 
 namespace {
 
-/// @brief The engine field of host value @p path, as the 32 bits a file holds; nullptr for any other path.
-uint32_t* hostField(::ArpeggiatorSettings& arp, std::string_view path) {
+/// @brief The arp param host value @p path names (`arpeggiator/<name>`), or nullopt for any other path.
+std::optional<plugin::ParamId> hostParam(std::string_view path) {
 	constexpr std::string_view kPrefix = "arpeggiator/";
-	const std::string_view name = path.substr(std::min(path.size(), kPrefix.size()));
-	if (name == "gate") {
-		return reinterpret_cast<uint32_t*>(&arp.gate);
+	if (!path.starts_with(kPrefix)) {
+		return std::nullopt;
 	}
-	if (name == "rate") {
-		return reinterpret_cast<uint32_t*>(&arp.rate);
+	return arp::find_by_setting_name(path.substr(kPrefix.size()));
+}
+
+/// @brief Set @p id's word on every arp set that plays @p owner's arp: the clip's own, or the row of the drum in every
+///        clip that plays its kit.
+void setHostWord(const ArpOwner& owner, ::Song& song, plugin::ParamId id, int32_t word) {
+	if (owner.clip != nullptr) {
+		if (ArpParamSet* set = owner.clip->paramManager.getArpParamSet()) {
+			set->set_word(id, word);
+		}
+		return;
 	}
-	if (name == "rhythm") {
-		return &arp.rhythm;
+	if (owner.drum == nullptr || owner.kit == nullptr) {
+		return;
 	}
-	if (name == "sequenceLength") {
-		return &arp.sequenceLength;
+	for (::Clip* clip : AllClips::everywhere(&song)) {
+		if (clip->output != owner.kit || clip->type != ClipType::INSTRUMENT) {
+			continue;
+		}
+		if (::NoteRow* row = static_cast<::InstrumentClip*>(clip)->getNoteRowForDrum(owner.drum)) {
+			if (ArpParamSet* set = row->paramManager.getArpParamSet()) {
+				set->set_word(id, word);
+			}
+		}
 	}
-	if (name == "chordPolyphony") {
-		return &arp.chordPolyphony;
-	}
-	if (name == "ratchetAmount") {
-		return &arp.ratchetAmount;
-	}
-	if (name == "noteProbability") {
-		return &arp.noteProbability;
-	}
-	if (name == "bassProbability") {
-		return &arp.bassProbability;
-	}
-	if (name == "swapProbability") {
-		return &arp.swapProbability;
-	}
-	if (name == "glideProbability") {
-		return &arp.glideProbability;
-	}
-	if (name == "reverseProbability") {
-		return &arp.reverseProbability;
-	}
-	if (name == "chordProbability") {
-		return &arp.chordProbability;
-	}
-	if (name == "ratchetProbability") {
-		return &arp.ratchetProbability;
-	}
-	if (name == "spreadVelocity") {
-		return &arp.spreadVelocity;
-	}
-	if (name == "spreadGate") {
-		return &arp.spreadGate;
-	}
-	if (name == "spreadOctave") {
-		return &arp.spreadOctave;
-	}
-	return nullptr;
 }
 
 /// @brief The index of @p value among the choices of arp row @p path, or nullopt.
@@ -613,12 +593,15 @@ bool arpHostValuesAreSettings(const ArpOwner& owner) {
 
 Error applyArpSetting(::ArpeggiatorSettings& arp, const ArpOwner& owner, ::Song& song, std::string_view path,
                       const Value& value) {
-	if (uint32_t* host = hostField(arp, path)) {
+	if (const std::optional<plugin::ParamId> id = hostParam(path)) {
 		const std::optional<int32_t> v = integer_of(value);
 		if (!v || !arpHostValuesAreSettings(owner)) {
 			return Error::UNSPECIFIED;
 		}
-		*host = static_cast<uint32_t>(*v);
+		// A host value is the engine's number: word + 2^31 for every value but the gate and the rate.
+		const int32_t word = arp::word_of_field(*id, *v);
+		arp.values.set(*id, word);
+		setHostWord(owner, song, *id, word);
 		return Error::NONE;
 	}
 	if (path == "arpeggiator/preset") {

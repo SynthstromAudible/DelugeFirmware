@@ -226,7 +226,7 @@ void HostEditSink::write_param_target(const WriteRequest& request) {
 	if (where.affect_entire && where.kit_output && request.target.whole_kit && where.clip && where.slot
 	    && where.slot->kind == project::SlotAddress::Kind::DRUM) {
 		// Legacy's affect-entire loop: every sound drum of the kit with a row in the clip, as one Edit.
-		edits::SetKitParamValue edit{*where.kit_output, where.clip->clip_id, address->id, request.param_value};
+		edits::SetKitParamValue edit{*where.kit_output, where.clip->clip_id, address->target(), request.param_value};
 		error = edits::apply(ctx, edit);
 	}
 	else {

@@ -155,6 +155,11 @@ constexpr ParamRef chain_param(deluge::plugin::ParamId id) {
 	return {.table = deluge::ui::scenes::bind::ParamTable::CHAIN, .id = id};
 }
 
+/// @brief The arp param @p id: an `arp::param` constant, on whichever owner holds the arp.
+constexpr ParamRef arp_param(deluge::plugin::ParamId id) {
+	return {.table = deluge::ui::scenes::bind::ParamTable::ARP, .id = id};
+}
+
 /// @brief Whether @p p is one of a sound's patched params: the ones a cable reaches and a source pad patches.
 constexpr bool is_patched(ParamRef p) {
 	return p.table == deluge::ui::scenes::bind::ParamTable::SOUND && p.id
@@ -1238,7 +1243,9 @@ constexpr bool node_uses_affect_entire(const Node& n) {
 	const bool edits_its_param =
 	    n.bind.get == nullptr
 	    && (!n.bind.target.valid() || n.bind.target.kind == deluge::ui::scenes::bind::Target::Kind::PARAM);
-	return n.uses_affect_entire || (n.bind.param.valid() && n.bind.param.table == ParamTable::SOUND)
+	return n.uses_affect_entire
+	       || (n.bind.param.valid()
+	           && (n.bind.param.table == ParamTable::SOUND || n.bind.param.table == ParamTable::ARP))
 	       || (n.bind.param.valid() && n.bind.param.table == ParamTable::CHAIN && edits_its_param);
 }
 
