@@ -26,12 +26,13 @@ private:
 	/** Stores the transition notes from the last computed scale change.
 	 */
 	NoteSet lastTransitionNotes;
-	/** Indexes 0-11 store the transition scales for the corresponding scale size - 1.
+	/** Indexed by scale size (number of notes, 1-12), storing the transition scale for that size. Index 0 is
+	 * unused.
 	 *
 	 * Note: we include 12 tone scales both for simplicity, and in order to support 12-tone scales with
 	 * bent notes.
 	 */
-	NoteSet transitionScaleStore[kMaxScaleSize];
+	NoteSet transitionScaleStore[kMaxScaleSize + 1];
 	NoteSet initialTransitionScale(NoteSet sourceScale);
 	void computeInitialChanges(NoteSet sourceScale, NoteSet initialScale, ScaleChange& changes);
 	void flushTransitionScaleStore(NoteSet initialScale);
