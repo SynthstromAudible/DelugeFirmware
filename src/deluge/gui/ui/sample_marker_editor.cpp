@@ -528,6 +528,13 @@ exitAfterRemovingLoopMarker:
 						}
 					}
 
+					// Only the START and END cases above set value. If no marker is at the held column any more,
+					// there's nothing to write.
+					if (markerHeld != MarkerType::START && markerHeld != MarkerType::END) {
+						currentUIMode = UI_MODE_NONE;
+						goto doRender;
+					}
+
 					currentUIMode = UI_MODE_NONE;
 					blinkPhase = 0;
 					goto doWriteValue;
