@@ -1043,12 +1043,14 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		}
 
 		if (wrapping) {
-			if (resultingIndexes[0]) {
-				nodes.deleteAtIndex(0, resultingIndexes[0]);
-			}
+			// Delete the nodes at the end first: deleting the ones at the start first would shift
+			// resultingIndexes[1] down, so the end range would be computed from a stale index.
 			int32_t numAtEnd = nodes.getNumElements() - resultingIndexes[1];
 			if (numAtEnd) {
 				nodes.deleteAtIndex(resultingIndexes[1], numAtEnd);
+			}
+			if (resultingIndexes[0]) {
+				nodes.deleteAtIndex(0, resultingIndexes[0]);
 			}
 		}
 
