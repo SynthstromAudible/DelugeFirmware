@@ -77,7 +77,8 @@ Page sound_page(const project::Song& song, const SoundFocus& focus, uint8_t mode
 	// A knob on the arp's param: the plugin decorates only its own, so the slot takes the target as it is
 	std::array<std::optional<project::ParamTarget>, plugin::kRemoteControlsCount> arp{};
 	const std::vector<project::ControllerMapping>* controls = sound_controls(song, focus.slot);
-	if (controls != nullptr && publisher.record != nullptr && publisher.record->decorate != nullptr) {
+	const bool decorates = publisher.record != nullptr && publisher.record->decorate != nullptr;
+	if (controls != nullptr) {
 		for (const project::ControllerMapping& m : *controls) {
 			const size_t knob = m.control.knob;
 			// The first mapping of a knob is the one it moves.
@@ -87,7 +88,7 @@ Page sound_page(const project::Song& song, const SoundFocus& focus, uint8_t mode
 			if (m.target.space == ParamSpace::ARP) {
 				arp[knob] = m.target;
 			}
-			else {
+			else if (decorates) {
 				saved.slots[knob] = publisher.record->decorate(publisher.context, m.target.id);
 			}
 		}

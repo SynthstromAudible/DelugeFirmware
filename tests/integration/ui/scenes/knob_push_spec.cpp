@@ -4,7 +4,9 @@
 // settings, knob mappings, chain views, reverb, stutter and text after every push. And the mod button's popup, as the
 // engine showed it.
 
+#include "arp/params.h"
 #include "board_controls.hpp"
+#include "gui/l10n/param_names.h"
 #include "ui/scenes/services/knob_push.h"
 
 #include "gui/ui/shell_host/host_ports.h"
@@ -566,6 +568,33 @@ describe knob_push("what a gold knob's push and a mod button do, from the record
 		}
 		report(found);
 		expect(found.empty()).to_be_true();
+		currentSong = before;
+	});
+
+	it("names a synth's knobs on its arp's params by the arp's names", _ {
+		Song* const before = currentSong;
+		deluge::ui::scenes::spec::SongFixture a = deluge::ui::scenes::spec::make_synth_song();
+		Side side = synth_side(a);
+		currentSong = side.song;
+		deluge::project::DocOutput* record = side.song->project.output_structure.find(*a.instrument->id());
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			using deluge::project::ParamSpace;
+			using deluge::project::ParamTarget;
+			for (deluge::project::ControllerMapping& m : record->controls) {
+				if (m.control.button == 0) {
+					m.target = ParamTarget{.space = ParamSpace::ARP,
+					                       .id = m.control.knob == 1 ? deluge::arp::param::kGate : deluge::arp::param::kRate};
+				}
+			}
+			StubDisplay stub;
+			display = &stub;
+			(void)deluge::edits::modKnobModeFor(side.mode_owner, 0);
+			const std::string shown = services::mod_button_popup(side.song->project, side.focus, 0, inputs_of(side, true));
+			display = nullptr;
+			expect(shown).to_equal(std::string{deluge::l10n::arp_param_name(deluge::arp::param::kGate)} + "\n"
+			                       + std::string{deluge::l10n::arp_param_name(deluge::arp::param::kRate)});
+		}
 		currentSong = before;
 	});
 

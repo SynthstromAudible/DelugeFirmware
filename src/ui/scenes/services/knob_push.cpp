@@ -444,6 +444,9 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		return {};
 	}
 	const plugin::ParamId id = address->id;
+	if (address->space == project::ParamSpace::ARP) {
+		return std::string{l10n::arp_param_name(id)};
+	}
 	if (instruments::classic::is_cable_depth(id)) {
 		const int level = instruments::classic::detail::depth_level(id.value);
 		const auto first = static_cast<PatchSource>(instruments::classic::detail::source_field(id.value, 0) - 1);
@@ -566,9 +569,10 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	const effects::EffectStates& fx = inputs.effects;
 	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner)) {
 		const ui::controls::Page current = ui::controls::current_page(song, focus, inputs.pages);
+		// The engine param a knob is on: the pairs below are the instrument's
 		const auto param_at = [&current](size_t knob) -> std::optional<plugin::ParamId> {
 			const std::optional<project::ParamTarget>& target = current.slots[knob].target;
-			return target ? std::optional{target->id} : std::nullopt;
+			return target && target->space == project::ParamSpace::ENGINE ? std::optional{target->id} : std::nullopt;
 		};
 		const std::optional<plugin::ParamId> top = param_at(1);
 		const std::optional<plugin::ParamId> bottom = param_at(0);
