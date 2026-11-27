@@ -25,6 +25,7 @@ public:
 	void boolean(bool value) override;
 	void text(std::string_view value) override;
 	void real(double value) override;
+	void real(float value) override;
 	void null() override;
 	void value(const Value& subtree) override;
 

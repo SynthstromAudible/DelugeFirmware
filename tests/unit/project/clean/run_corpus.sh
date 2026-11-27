@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# The clean-roundtrip gate over the song corpus: builds the standalone driver in the host tree (configured by
-# `./dbt test unit`) and runs it on $DELUGE_SONG_CORPUS, else $DELUGE_BACKUP/SONGS, else ~/Deluge Backup/SONGS.
+# The clean-roundtrip gate over the song corpora: builds the standalone driver in the host tree (configured by
+# `./dbt test unit`) and runs it on $DELUGE_SONG_CORPUS, else $DELUGE_BACKUP/SONGS, else ~/Deluge Backup/SONGS; and on
+# $DELUGE_LEGACY_CORPUS too when it is set (the files as the releases wrote them, before the upgrader).
 #
 # Gate clean-roundtrip-corpus:
 #     the model read back from each corpus song's clean save equals the model the legacy decoder read from the file,
@@ -25,4 +26,8 @@ if [[ -z "$corpus" ]]; then
     echo "clean-roundtrip-corpus: no song corpus (set DELUGE_SONG_CORPUS)" >&2
     exit 77
 fi
-exec "$tree/unit/project/clean/Debug/clean_roundtrip" "$corpus"
+corpora=("$corpus")
+if [[ -n "${DELUGE_LEGACY_CORPUS:-}" && -d "$DELUGE_LEGACY_CORPUS" && "$DELUGE_LEGACY_CORPUS" != "$corpus" ]]; then
+    corpora+=("$DELUGE_LEGACY_CORPUS")
+fi
+exec "$tree/unit/project/clean/Debug/clean_roundtrip" "${corpora[@]}"

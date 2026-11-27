@@ -44,6 +44,12 @@ describe values_schema("clip values and sound routing", ${
 		expect(resolve(values, "bendRangeMPE", 48)).to_equal(48);
 	});
 
+	it("clamp a program to its row's range, none included", _ {
+		const auto back = sch::decode(kClipValuesSchema, *parseJson(R"({"midiPGM": 200, "bendRange": 97})"));
+		expect(back->value.midi_pgm).to_equal(std::optional<int32_t>{kNoMidiProgram});
+		expect(back->value.bend_range).to_equal(std::optional<int32_t>{kMaxBendRange});
+	});
+
 	it("clamp a routing's MIDI channel to the sixteen there are", _ {
 		const auto back = sch::decode(kSoundRoutingSchema, *parseJson(R"({"sideChainSend": 5, "midiChannel": 16, "midiNote": null})"));
 		expect(back->value.midi_channel).to_equal(std::optional<uint8_t>{15});

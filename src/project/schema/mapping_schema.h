@@ -21,6 +21,8 @@ namespace deluge::project::schema {
 inline constexpr std::array<std::string_view, 5> kMidiPortWords{"din", "upstreamUsb1", "upstreamUsb2", "upstreamUsb3",
                                                                 "hosted"};
 inline constexpr std::array<std::string_view, 3> kControlsOwnerWords{"output", "drum", "song"};
+static_assert(kMidiPortWords.size() == std::to_underlying(MidiDeviceRef::Port::HOSTED) + 1);
+static_assert(kControlsOwnerWords.size() == std::to_underlying(ControlsAddress::Kind::SONG) + 1);
 
 namespace mapping_detail {
 
@@ -33,8 +35,7 @@ inline constexpr std::array kDeviceFields{
 
 } // namespace mapping_detail
 
-inline constexpr sch::RecordDesc kMidiDeviceDesc =
-    sch::open_record<&MidiDeviceRef::extras>("midiDevice", mapping_detail::kDeviceFields);
+inline constexpr sch::RecordDesc kMidiDeviceDesc = sch::closed_record("midiDevice", mapping_detail::kDeviceFields);
 
 namespace mapping_detail {
 
@@ -61,8 +62,7 @@ inline constexpr std::array kLaneInputFields{sch::scalar<&LaneInputTarget::drum_
 
 } // namespace mapping_detail
 
-inline constexpr sch::RecordDesc kMidiCommandDesc =
-    sch::open_record<&MidiCommand::extras>("midiCommand", mapping_detail::kCommandFields);
+inline constexpr sch::RecordDesc kMidiCommandDesc = sch::closed_record("midiCommand", mapping_detail::kCommandFields);
 
 namespace mapping_detail {
 

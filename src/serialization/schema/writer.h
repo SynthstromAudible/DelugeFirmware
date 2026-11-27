@@ -43,9 +43,14 @@ public:
 	/// @brief Write text.
 	/// @param value The text.
 	virtual void text(std::string_view value) = 0;
-	/// @brief Write a finite real number so that reading it back gives the same double.
+	/// @brief Write a finite real number so that reading it back gives the same double. A value that is not finite
+	///        is written as `null`, which no real field reads.
 	/// @param value The number.
 	virtual void real(double value) = 0;
+	/// @brief Write a finite float so that reading it back as a double and narrowing gives the same float, in the
+	///        fewest digits that do.
+	/// @param value The number.
+	virtual void real(float value) = 0;
 	/// @brief Write the absence of a value.
 	virtual void null() = 0;
 	/// @brief Write @p subtree as it is: a plugin's state, or an entry kept from the file.

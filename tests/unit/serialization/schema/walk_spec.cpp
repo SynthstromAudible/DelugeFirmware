@@ -44,7 +44,7 @@ describe walk("the generic walk", ${
 	it("writes every field in table order, a variant's kind first", _ {
 		const Value written = encode(kPanelSchema, full_panel());
 		expect(keys(written)).to_equal(std::vector<std::string>{"level", "colour", "lit", "name", "gain", "length",
-		    "origin", "offset", "spare", "knobs", "pair", "labels", "figure", "figures", "plugin"});
+		    "origin", "offset", "spare", "knobs", "pair", "labels", "figure", "figures", "plugin", "sparePlugin"});
 		expect(keys(*written.find("figure"))).to_equal(std::vector<std::string>{"kind", "side"});
 		expect(*written.find("colour")).to_equal(Value::makeScalar("blue"));
 	});
@@ -72,9 +72,11 @@ describe walk("the generic walk", ${
 		    {LoadNote::Kind::CLAMPED, "level"}, {LoadNote::Kind::CLAMPED, "pair/0"}});
 	});
 
-	it("reads an unknown word as the first and notes where", _ {
-		const auto back = decode(kPanelSchema, json(R"({"colour": "purple"})"));
-		expect(back->value.colour).to_equal(Colour::RED);
+	it("keeps a field's value for an unknown word, and notes where", _ {
+		Panel onto;
+		onto.colour = Colour::GREEN;
+		const auto back = decode(kPanelSchema, json(R"({"colour": "purple"})"), nullptr, onto);
+		expect(back->value.colour).to_equal(Colour::GREEN);
 		expect(back->report.notes).to_equal(std::vector<LoadNote>{{LoadNote::Kind::UNKNOWN_WORD, "colour"}});
 	});
 
@@ -123,6 +125,29 @@ describe walk("the generic walk", ${
 		const Value written = encode(kPanelSchema, back->value);
 		expect(std::ranges::count(keys(written), std::string{"plugin"})).to_equal(std::ptrdiff_t{1});
 		expect(*written.find("plugin")->find("entries")).to_equal(json(R"({"w": 5})"));
+	});
+
+	it("writes a field's own value once it holds one, not the node kept for it", _ {
+		auto back = decode(kPanelSchema, json(R"({"plugin": {"version": 1, "tickMagnitude": 0, "entries": {"w": 5}}})"));
+		back->value.plugin_state = 7;
+		const Value written = encode(kPanelSchema, back->value);
+		expect(std::ranges::count(keys(written), std::string{"plugin"})).to_equal(std::ptrdiff_t{1});
+		expect(*written.find("plugin")->find("entries")).to_equal(json(R"({"v": 7})"));
+	});
+
+	it("keeps an optional plugin node its plugin cannot read, leaving the optional empty", _ {
+		const auto back = decode(kPanelSchema,
+		    json(R"({"sparePlugin": {"version": 1, "tickMagnitude": 0, "entries": {"w": 1}}})"));
+		expect(back->value.spare_plugin).to_equal(std::optional<int32_t>{});
+		expect(back->report.notes).to_equal(std::vector<LoadNote>{{LoadNote::Kind::PLUGIN_STATE_KEPT, "sparePlugin"}});
+		const Value written = encode(kPanelSchema, back->value);
+		expect(std::ranges::count(keys(written), std::string{"sparePlugin"})).to_equal(std::ptrdiff_t{1});
+		expect(*written.find("sparePlugin")->find("entries")).to_equal(json(R"({"w": 1})"));
+	});
+
+	it("reads the keys after a fixed list it dropped items from", _ {
+		const auto back = decode(kPanelSchema, json(R"({"pair": [1, 2, 3], "level": 4})"));
+		expect(back->value.level).to_equal(int8_t{4});
 	});
 
 	it("refuses a plugin node that is not one", _ {

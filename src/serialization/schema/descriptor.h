@@ -99,7 +99,8 @@ struct VariantDesc {
 /// @brief What a plugin made of its node.
 enum class PluginRead : uint8_t {
 	DECODED, ///< the member holds the node's state
-	KEEP,    ///< no registered plugin reads it: the walk keeps the node in the owning record's extras
+	KEEP,    ///< no registered plugin reads it: the walk keeps the node in the owning record's extras, and writes it
+	         ///< back while the member holds no state of its own
 	BAD,     ///< the node is not a plugin node
 };
 
@@ -107,13 +108,20 @@ enum class PluginRead : uint8_t {
 struct PluginOps {
 	std::string_view name; ///< what the schema lock records
 	uint32_t version;      ///< the node version it writes
+	/// Whether the member holds a state of its own; while it does not, a node kept from the file is written instead.
+	bool (*has_state)(const void* member) = nullptr;
 	void (*write)(const void* member, Writer& out, const WalkContext& context) = nullptr;
 	PluginRead (*read)(void* member, const Value& node, WalkContext& context) = nullptr;
 };
 
+/// @brief A tag per member type, so that a lookup can tell a scalar field's member type whatever its codec.
+template <typename T>
+inline constexpr char kTypeTag = 0;
+
 struct ScalarShape {
 	const ScalarCodec* codec{nullptr};
 	ScalarRule rule{};
+	const void* type{nullptr}; ///< &kTypeTag<T> for a member of type T
 };
 struct RecordShape {
 	const RecordDesc* record{nullptr};

@@ -104,6 +104,21 @@ describe clean_codec("the clean format's envelope", ${
 		expect(back->value).to_equal(preset);
 	});
 
+	it("reads a preset's one output and drops a second", _ {
+		const Value one = through_text(encode_preset_clean(extract_preset(legacy_song(), 1), 2, kFirmware, plugins()));
+		Value two = one;
+		Value outputs = *one.find("preset")->find("outputs");
+		Value second = outputs.items()[0];
+		second.replace_or_append("id", Value::makeNumber(9));
+		outputs.append(second);
+		two.find_mut("preset")->replace_or_append("outputs", outputs);
+		const auto back = decode_preset_clean(through_text(two), plugins());
+		expect(back).to_have_value();
+		expect(back->value.output_order.size()).to_equal(std::size_t{1});
+		expect(back->report.notes).to_equal(std::vector<sch::LoadNote>{
+		    {sch::LoadNote::Kind::TOO_MANY_ITEMS, "preset/outputs/1"}});
+	});
+
 	it("round-trips generated songs", _ {
 		const schema::CleanContext clean{&plugins(), 1};
 		for (uint32_t seed = 1; seed <= 100; ++seed) {

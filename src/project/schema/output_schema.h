@@ -6,6 +6,7 @@
 
 #include "project/audio_input.h"
 #include "project/document.h"
+#include "project/midi_command.h"
 #include "project/schema/arp_schema.h"
 #include "project/schema/param_target_schema.h"
 #include "project/schema/plugin_nodes.h"
@@ -49,12 +50,15 @@ struct ConstDrumView {
 inline constexpr std::array<std::string_view, 3> kAudioTrackModeWords{"player", "sampler", "looper"};
 inline constexpr std::array<std::string_view, 4> kModKnobCcWords{"none", "number", "bend", "aftertouch"};
 inline constexpr std::array<std::string_view, 5> kCvModeWords{"off", "pitch", "mod", "aftertouch", "velocity"};
+static_assert(kModKnobCcWords.size() == std::to_underlying(ModKnobCc::Kind::AFTERTOUCH) + 1);
+static_assert(kCvModeWords.size() == std::to_underlying(CVMode::VELOCITY) + 1);
 
 namespace output_detail {
 
 using Label = std::pair<uint8_t, std::string>;
 
-inline constexpr std::array kCcLabelFields{sch::scalar<&Label::first>("cc"), sch::scalar<&Label::second>("label")};
+inline constexpr std::array kCcLabelFields{sch::scalar<&Label::first>("cc", {.min = 0, .max = kNumRealCcNumbers - 1}),
+                                           sch::scalar<&Label::second>("label")};
 inline constexpr std::array kModKnobCcFields{
     sch::scalar<&ModKnobCc::kind>("kind", {.words = kModKnobCcWords}),
     sch::scalar<&ModKnobCc::number>("number"),

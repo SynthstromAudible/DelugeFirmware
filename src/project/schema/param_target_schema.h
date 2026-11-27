@@ -8,11 +8,13 @@
 
 #include <array>
 #include <string_view>
+#include <utility>
 
 namespace deluge::project::schema {
 
 /// The words of a param target's space, by ParamSpace.
 inline constexpr std::array<std::string_view, 4> kParamSpaceWords{"engine", "expression", "midiCc", "arp"};
+static_assert(kParamSpaceWords.size() == std::to_underlying(ParamSpace::ARP) + 1);
 
 namespace param_target_detail {
 

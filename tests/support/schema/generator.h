@@ -5,6 +5,7 @@
 /// ids, every record of several kinds with its kind first. Plugin nodes are `null`.
 
 #include "serialization/schema/descriptor.h"
+#include "serialization/schema/plugin_node.h"
 #include "serialization/value.h"
 
 #include <algorithm>
@@ -12,6 +13,8 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <optional>
 #include <random>
 #include <string>
 #include <variant>
@@ -20,6 +23,8 @@ namespace deluge::serialization::schema::test {
 
 struct GeneratorOptions {
 	bool unknown_keys{false}; ///< also write a key no schema has, `zzUnknown`, into some records
+	bool out_of_range{false}; ///< also write some numbers past their rule and some words outside their list
+	bool plugin_nodes{false}; ///< write plugin nodes with no entries, which no plugin's state is (else `null`)
 	std::size_t max_items{3}; ///< the most items a list gets
 };
 
@@ -62,7 +67,7 @@ private:
 		                      [&](const OptionalShape& shape) { return one_in(2) ? null() : value(*shape.value); },
 		                      [&](const ListShape& shape) { return list(shape); },
 		                      [&](const VariantShape& shape) { return variant(*shape.variant); },
-		                      [&](const PluginShape& /*shape*/) { return null(); },
+		                      [&](const PluginShape& shape) { return plugin_node(shape); },
 		                  },
 		                  field.shape);
 	}
@@ -116,7 +121,24 @@ private:
 		return {.min = 0, .max = 1'000'000};
 	}
 
+	/// A node whose entries are empty: what no plugin's state reads as, so the decode keeps it.
+	Value plugin_node(const PluginShape& shape) {
+		if (!options_.plugin_nodes) {
+			return null();
+		}
+		Value node = Value::makeMap();
+		node.set(std::string{kVersionKey}, Value::makeNumber(shape.ops->version));
+		node.set(std::string{kTickMagnitudeKey}, Value::makeNumber(0));
+		node.set(std::string{kEntriesKey}, Value::makeMap());
+		return node;
+	}
+
 	Value scalar(const ScalarShape& shape) {
+		if (options_.out_of_range && one_in(4)) {
+			if (const std::optional<Value> outside = out_of_range(shape)) {
+				return *outside;
+			}
+		}
 		if (!shape.rule.words.empty()) {
 			return Value::makeScalar(
 			    std::string{shape.rule.words[static_cast<std::size_t>(pick(0, std::ssize(shape.rule.words) - 1))]});
@@ -132,6 +154,24 @@ private:
 			return real();
 		}
 		return Value::makeNumber(integer(shape.rule));
+	}
+
+	/// A value just outside @p shape's rule: a word no list has, or a number one past an end the rule narrows.
+	std::optional<Value> out_of_range(const ScalarShape& shape) {
+		if (!shape.rule.words.empty()) {
+			return Value::makeScalar("zzNoSuchWord");
+		}
+		if (shape.codec->form != "integer") {
+			return std::nullopt;
+		}
+		constexpr int64_t kNarrowest = std::numeric_limits<int32_t>::max();
+		if (shape.rule.max < kNarrowest) {
+			return Value::makeNumber(shape.rule.max + 1);
+		}
+		if (shape.rule.min > -kNarrowest) {
+			return Value::makeNumber(shape.rule.min - 1);
+		}
+		return std::nullopt;
 	}
 
 	int64_t integer(const ScalarRule& rule) {

@@ -80,6 +80,30 @@ describe output_schema("the outputs' schema", ${
 		expect(state.find("entries")->isMap()).to_equal(true);
 	});
 
+	it("decodes an instrument whose state comes before its plugin id", _ {
+		const SongDocument song = legacy(R"(<song><instruments><sound id="1" presetName="LEAD"><osc1 type="square"/></sound></instruments></song>)");
+		const CleanContext clean{&plugins(), song.transport.input_tick_magnitude()};
+		const Value written = sch::encode(kOutputsOnly, song, &clean);
+		const Value& slot = *written.find("outputs")->items()[0].find("instrument");
+		Value reordered = Value::makeMap();
+		for (const auto& [key, value] : slot.entries()) {
+			if (key != "plugin") {
+				reordered.set(key, value);
+			}
+		}
+		reordered.set("plugin", *slot.find("plugin"));
+		Value sound = written.find("outputs")->items()[0];
+		sound.replace_or_append("instrument", reordered);
+		Value outputs = Value::makeArray();
+		outputs.append(sound);
+		Value root = Value::makeMap();
+		root.set("outputs", outputs);
+		const auto back = sch::decode(kOutputsOnly, *parseJson(write_json(root)), &clean);
+		expect(back->report.notes.size()).to_equal(std::size_t{0});
+		expect(back->value.outputs.at(1).instrument->state.has_value()).to_be_true();
+		expect(back->value.outputs.at(1).instrument).to_equal(song.outputs.at(1).instrument);
+	});
+
 	it("keeps an instrument no plugin reads, and writes it back", _ {
 		const CleanContext clean{&plugins(), 1};
 		const auto back = sch::decode(kOutputsOnly, *parseJson(R"({"outputs": [{"kind": "sound", "id": 1,

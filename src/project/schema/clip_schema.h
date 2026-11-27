@@ -5,20 +5,33 @@
 /// `audio`) holding its entry's fields, its record's, and an audio clip's own.
 
 #include "project/document.h"
+#include "project/launch_style.h"
 #include "project/schema/values_schema.h"
+#include "project/sequence_direction.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <utility>
 
 namespace deluge::project::schema {
 
-inline constexpr std::array<std::string_view, 4> kSequenceDirectionWords{"forward", "reverse", "pingpong",
-                                                                         "obeyParent"};
-inline constexpr std::array<std::string_view, 3> kLaunchStyleWords{"default", "fill", "once"};
+/// A sequence direction's words, by SequenceDirection: its own names.
+inline constexpr std::array kSequenceDirectionWords{
+    to_string(SequenceDirection::FORWARD), to_string(SequenceDirection::REVERSE),
+    to_string(SequenceDirection::PINGPONG), to_string(SequenceDirection::OBEY_PARENT)};
+static_assert(kSequenceDirectionWords.size() == std::to_underlying(SequenceDirection::OBEY_PARENT) + 1);
+/// A launch style's words, by LaunchStyle: its own names.
+inline constexpr std::array kLaunchStyleWords{to_string(LaunchStyle::DEFAULT), to_string(LaunchStyle::FILL),
+                                              to_string(LaunchStyle::ONCE)};
+static_assert(kLaunchStyleWords.size() == std::to_underlying(LaunchStyle::ONCE) + 1);
+/// An audio clip's interpolation, by InterpolationMode.
 inline constexpr std::array<std::string_view, 2> kInterpolationWords{"linear", "smooth"};
+static_assert(kInterpolationWords.size() == std::to_underlying(plugin::InterpolationMode::SMOOTH) + 1);
+/// An audio clip's voice priority, by VoicePriority.
 inline constexpr std::array<std::string_view, 3> kClipVoicePriorityWords{"low", "medium", "high"};
+static_assert(kClipVoicePriorityWords.size() == std::to_underlying(plugin::VoicePriority::HIGH) + 1);
 
 /// @brief One clip of a song document, as the clip list walks it.
 struct ClipView {
@@ -36,17 +49,15 @@ struct ConstClipView {
 
 namespace clip_detail {
 
-inline constexpr sch::FieldDesc kNumber = sch::value_scalar<int32_t>();
-inline constexpr sch::FieldDesc kId = sch::value_scalar<uint32_t>();
+inline constexpr sch::FieldDesc kBendRange = sch::value_scalar<int32_t>({.min = 0, .max = kMaxBendRange});
 
 inline constexpr std::array kNoteRowFields{
     sch::scalar<&DocNoteRow::y>("y"),
     sch::scalar<&DocNoteRow::loop_length_if_independent>("loopLengthIfIndependent"),
     sch::scalar<&DocNoteRow::colour_offset>("colourOffset"),
     sch::scalar<&DocNoteRow::sequence_direction>("sequenceDirection", {.words = kSequenceDirectionWords}),
-    sch::optional<&DocNoteRow::bend_range>("bendRange", kNumber),
+    sch::optional<&DocNoteRow::bend_range>("bendRange", kBendRange),
     sch::scalar<&DocNoteRow::muted>("muted"),
-    sch::optional<&DocNoteRow::drum_id>("drum", kId),
 };
 static_assert(sch::keys_unique(kNoteRowFields));
 

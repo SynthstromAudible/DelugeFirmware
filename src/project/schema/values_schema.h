@@ -16,15 +16,18 @@
 namespace deluge::project::schema {
 namespace values_detail {
 
-inline constexpr sch::FieldDesc kNumber = sch::value_scalar<int32_t>();
+/// A MIDI program, bank or sub-bank: 0..127, or kNoMidiProgram for none.
+inline constexpr sch::FieldDesc kProgram = sch::value_scalar<int32_t>({.min = 0, .max = kNoMidiProgram});
+/// A bend range's semitones.
+inline constexpr sch::FieldDesc kBendRange = sch::value_scalar<int32_t>({.min = 0, .max = kMaxBendRange});
 inline constexpr sch::FieldDesc kArp = sch::value_record(kArpDesc);
 
 inline constexpr std::array kClipValuesFields{
-    sch::optional<&ClipValues::midi_bank>("midiBank", kNumber),
-    sch::optional<&ClipValues::midi_sub>("midiSub", kNumber),
-    sch::optional<&ClipValues::midi_pgm>("midiPGM", kNumber),
-    sch::optional<&ClipValues::bend_range>("bendRange", kNumber),
-    sch::optional<&ClipValues::bend_range_mpe>("bendRangeMPE", kNumber),
+    sch::optional<&ClipValues::midi_bank>("midiBank", kProgram),
+    sch::optional<&ClipValues::midi_sub>("midiSub", kProgram),
+    sch::optional<&ClipValues::midi_pgm>("midiPGM", kProgram),
+    sch::optional<&ClipValues::bend_range>("bendRange", kBendRange),
+    sch::optional<&ClipValues::bend_range_mpe>("bendRangeMPE", kBendRange),
     sch::optional<&ClipValues::arp>("arp", kArp),
 };
 static_assert(sch::keys_unique(kClipValuesFields));

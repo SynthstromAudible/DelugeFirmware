@@ -1,9 +1,12 @@
 #include "serialization/schema/traversal.h"
 
+#include "serialization/schema/value_reader.h"
+
 #include <algorithm>
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace deluge::serialization::schema {
 namespace {
@@ -25,25 +28,51 @@ struct Owner {
 
 void encode_value(const FieldDesc& field, const void* member, Writer& out, const WalkContext& context);
 
+/// Whether @p member holds nothing of its own: a plugin with no state, or an optional with no value. A node kept
+/// from the file for such a field is written in its place.
+bool holds_nothing(const FieldDesc& field, const void* member) {
+	if (const auto* plugin = std::get_if<PluginShape>(&field.shape)) {
+		return !plugin->ops->has_state(member);
+	}
+	if (const auto* optional = std::get_if<OptionalShape>(&field.shape)) {
+		return !optional->ops->has_value(member);
+	}
+	return false;
+}
+
+/// Whether the kept entry at @p key stands for one of @p desc's fields, now holding a value of its own.
+bool superseded(const RecordDesc& desc, const void* record, std::string_view key) {
+	const auto field = std::ranges::find(desc.fields, key, &FieldDesc::key);
+	return field != desc.fields.end() && !holds_nothing(*field, field->access.get(record));
+}
+
 void encode_fields(const RecordDesc& desc, const void* record, Writer& out, const WalkContext& context) {
 	const Extras* extras = desc.extras != nullptr ? desc.extras(record) : nullptr;
 	for (const FieldDesc& field : desc.fields) {
-		if (extras != nullptr && extras->holds(field.key)) {
-			continue; // a plugin node no plugin read: written below, as read
+		const void* member = field.access.get(record);
+		if (extras != nullptr && extras->holds(field.key) && holds_nothing(field, member)) {
+			continue; // a plugin node no plugin read, written below as it was read
 		}
 		out.key(field.key);
-		encode_value(field, field.access.get(record), out, context);
+		encode_value(field, member, out, context);
 	}
 	if (extras != nullptr) {
 		for (const auto& [key, value] : extras->entries()) {
-			out.key(key);
-			out.value(value);
+			if (!superseded(desc, record, key)) {
+				out.key(key);
+				out.value(value);
+			}
 		}
 	}
 }
 
 void encode_variant(const VariantDesc& variant, const void* member, Writer& out, const WalkContext& context) {
-	const Alternative& alternative = variant.alternatives[variant.index(member)];
+	const std::size_t index = variant.index(member);
+	if (index >= variant.alternatives.size()) {
+		out.null(); // a kind the schema has no word for: reading it back fails at its path
+		return;
+	}
+	const Alternative& alternative = variant.alternatives[index];
 	out.begin_record();
 	out.key(kKindKey);
 	out.text(alternative.word);
@@ -81,8 +110,25 @@ void encode_value(const FieldDesc& field, const void* member, Writer& out, const
 
 Result decode_value(const FieldDesc& field, void* member, Reader& in, WalkContext& context, Owner owner);
 
+/// Whether @p field holds a plugin node, alone or as an optional's value: such a field is read after the record's
+/// other keys, because a plugin reads its node knowing the record's other fields (an instrument slot's plugin id).
+bool is_plugin(const FieldDesc& field) {
+	if (std::holds_alternative<PluginShape>(field.shape)) {
+		return true;
+	}
+	const auto* optional = std::get_if<OptionalShape>(&field.shape);
+	return optional != nullptr && std::holds_alternative<PluginShape>(optional->value->shape);
+}
+
+/// A plugin field's node, held until the record's other keys are read.
+struct Deferred {
+	const FieldDesc* field;
+	Value node;
+};
+
 std::expected<void, LoadError> decode_fields(const RecordDesc& desc, void* record, Reader& in, WalkContext& context) {
 	Extras* extras = desc.extras_mut != nullptr ? desc.extras_mut(record) : nullptr;
+	std::vector<Deferred> deferred;
 	while (std::optional<std::string> key = in.next_key()) {
 		context.enter(*key);
 		const auto field = std::ranges::find(desc.fields, std::string_view{*key}, &FieldDesc::key);
@@ -96,9 +142,22 @@ std::expected<void, LoadError> decode_fields(const RecordDesc& desc, void* recor
 				context.note(LoadNote::Kind::UNKNOWN_KEY_DROPPED);
 			}
 		}
+		else if (is_plugin(*field)) {
+			deferred.push_back({.field = &*field, .node = in.value()});
+		}
 		else if (Result done = decode_value(*field, field->access.get_mut(record), in, context,
 		                                    {.extras = extras, .key = field->key});
 		         !done) {
+			return std::unexpected(std::move(done.error()));
+		}
+		context.leave();
+	}
+	for (const Deferred& plugin : deferred) {
+		context.enter(plugin.field->key);
+		ValueReader node{plugin.node};
+		if (Result done = decode_value(*plugin.field, plugin.field->access.get_mut(record), node, context,
+		                               {.extras = extras, .key = plugin.field->key});
+		    !done) {
 			return std::unexpected(std::move(done.error()));
 		}
 		context.leave();

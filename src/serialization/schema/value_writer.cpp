@@ -2,6 +2,7 @@
 
 #include <array>
 #include <charconv>
+#include <cmath>
 #include <utility>
 
 namespace deluge::serialization::schema {
@@ -38,11 +39,27 @@ void ValueWriter::text(std::string_view value) {
 	put(Value::makeScalar(std::string{value}));
 }
 
-void ValueWriter::real(double value) {
-	// The shortest text that parses back to the same double.
+namespace {
+
+/// The shortest text that parses back to @p value, as a NUMBER scalar; `null` for a value that is not finite.
+template <typename Real>
+Value number_of(Real value) {
+	if (!std::isfinite(value)) {
+		return Value::makeScalar("null", ScalarKind::LITERAL);
+	}
 	std::array<char, 32> digits{};
 	const auto [end, error] = std::to_chars(digits.data(), digits.data() + digits.size(), value);
-	put(Value::makeScalar(std::string{digits.data(), end}, ScalarKind::NUMBER));
+	return Value::makeScalar(std::string{digits.data(), end}, ScalarKind::NUMBER);
+}
+
+} // namespace
+
+void ValueWriter::real(double value) {
+	put(number_of(value));
+}
+
+void ValueWriter::real(float value) {
+	put(number_of(value));
 }
 
 void ValueWriter::null() {

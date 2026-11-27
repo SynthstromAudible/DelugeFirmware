@@ -16,7 +16,10 @@
 #include <bitset>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
+#include <optional>
 #include <string_view>
+#include <utility>
 
 namespace deluge::project::schema {
 namespace settings_detail {
@@ -75,6 +78,7 @@ template <std::size_t N>
 }
 
 inline constexpr std::array<std::string_view, 3> kReverbModelWords{"freeverb", "mutable", "digital"};
+static_assert(kReverbModelWords.size() == std::to_underlying(ReverbModel::DIGITAL) + 1);
 
 namespace settings_detail {
 

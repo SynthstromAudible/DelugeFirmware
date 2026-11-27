@@ -13,10 +13,12 @@
 
 namespace deluge::serialization::schema::test {
 
-/// @brief What a round trip allows its decodes to note.
-enum class RoundTrip : uint8_t {
-	EXACT,        ///< nothing
-	UNKNOWN_KEYS, ///< unknown keys kept or dropped
+/// @brief What a round trip allows its decodes to note. The first decode reads the generated document; the second
+/// reads what the first record encodes to, in which a clamp or an unknown word no longer shows.
+struct RoundTrip {
+	bool unknown_keys{false}; ///< unknown keys kept or dropped, in either decode
+	bool plugin_kept{false};  ///< plugin nodes kept, in either decode
+	bool out_of_range{false}; ///< values clamped and words unknown, in the first decode
 };
 
 /// @brief Check the round trip of @p document through @p schema.
@@ -29,13 +31,16 @@ enum class RoundTrip : uint8_t {
 /// @return Nothing, or what failed.
 template <typename R>
 [[nodiscard]] std::expected<void, std::string> round_trip(Schema<R> schema, const Value& document,
-                                                          const void* user = nullptr, RoundTrip mode = RoundTrip::EXACT,
+                                                          const void* user = nullptr, RoundTrip mode = {},
                                                           const R& onto = R{}) {
-	const auto noted = [&](const LoadReport& report) -> std::expected<void, std::string> {
+	const auto noted = [&](const LoadReport& report, bool first) -> std::expected<void, std::string> {
 		for (const LoadNote& note : report.notes) {
-			const bool unknown =
-			    note.kind == LoadNote::Kind::UNKNOWN_KEY_KEPT || note.kind == LoadNote::Kind::UNKNOWN_KEY_DROPPED;
-			if (!(mode == RoundTrip::UNKNOWN_KEYS && unknown)) {
+			using enum LoadNote::Kind;
+			const bool allowed =
+			    (mode.unknown_keys && (note.kind == UNKNOWN_KEY_KEPT || note.kind == UNKNOWN_KEY_DROPPED))
+			    || (mode.plugin_kept && note.kind == PLUGIN_STATE_KEPT)
+			    || (first && mode.out_of_range && (note.kind == CLAMPED || note.kind == UNKNOWN_WORD));
+			if (!allowed) {
 				return std::unexpected("noted something at " + note.path + " in " + write_json(document));
 			}
 		}
@@ -45,7 +50,7 @@ template <typename R>
 	if (!first) {
 		return std::unexpected("does not decode at " + first.error().path + ": " + write_json(document));
 	}
-	if (auto clean = noted(first->report); !clean) {
+	if (auto clean = noted(first->report, true); !clean) {
 		return clean;
 	}
 	const std::string written = write_json(encode(schema, first->value, user));
@@ -53,7 +58,7 @@ template <typename R>
 	if (!second) {
 		return std::unexpected("its encode does not decode at " + second.error().path + ": " + written);
 	}
-	if (auto clean = noted(second->report); !clean) {
+	if (auto clean = noted(second->report, false); !clean) {
 		return clean;
 	}
 	if (!(second->value == first->value)) {

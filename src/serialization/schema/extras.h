@@ -17,6 +17,9 @@ namespace deluge::serialization::schema {
 
 /// @brief The keys a document held that a record's schema does not know, in the order read, kept so that saving never
 /// drops what the firmware does not understand. A pointer wide, and empty unless a document held such keys.
+///
+/// Identities (addresses, targets, MIDI commands) hold none: their schemas describe them as closed records, so an
+/// equality that identifies one never compares kept keys.
 class Extras {
 public:
 	using Entry = std::pair<std::string, Value>;

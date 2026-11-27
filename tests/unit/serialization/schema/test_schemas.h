@@ -64,6 +64,7 @@ struct Panel {
 	Figure figure;
 	std::vector<Figure> figures;
 	int32_t plugin_state{0};
+	std::optional<int32_t> spare_plugin;
 	Extras extras;
 	bool operator==(const Panel&) const = default;
 };
@@ -92,7 +93,15 @@ inline PluginRead read_test_plugin(void* member, const Value& node, WalkContext&
 	state = *v;
 	return PluginRead::DECODED;
 }
-inline constexpr PluginOps kTestPlugin{"test.plugin", 1, &write_test_plugin, &read_test_plugin};
+/// The test plugin holds a state of its own when its number is not 0.
+inline bool test_plugin_has_state(const void* member) {
+	return *static_cast<const int32_t*>(member) != 0;
+}
+inline constexpr PluginOps kTestPlugin{.name = "test.plugin",
+                                       .version = 1,
+                                       .has_state = &test_plugin_has_state,
+                                       .write = &write_test_plugin,
+                                       .read = &read_test_plugin};
 
 inline constexpr std::array kKnobFields{scalar<&Knob::number>("number"), scalar<&Knob::label>("label")};
 inline constexpr RecordDesc kKnobDesc = open_record<&Knob::extras>("knob", kKnobFields);
@@ -117,6 +126,7 @@ inline constexpr FieldDesc kKnobValue = value_record(kKnobDesc);
 inline constexpr FieldDesc kPairValue = value_scalar<int8_t>({.min = -5, .max = 5});
 inline constexpr FieldDesc kLabelValue = value_record(kLabelDesc);
 inline constexpr FieldDesc kFigureValue = value_variant(kFigureDesc);
+inline constexpr FieldDesc kPluginValue = value_plugin(kTestPlugin);
 
 inline constexpr std::array kPanelFields{
     scalar<&Panel::level>("level", {.min = -10, .max = 10}),
@@ -134,6 +144,7 @@ inline constexpr std::array kPanelFields{
     variant<&Panel::figure>("figure", kFigureDesc),
     list<&Panel::figures>("figures", kFigureValue),
     plugin<&Panel::plugin_state>("plugin", kTestPlugin),
+    optional<&Panel::spare_plugin>("sparePlugin", kPluginValue),
 };
 static_assert(keys_unique(kPanelFields));
 inline constexpr RecordDesc kPanelDesc = open_record<&Panel::extras>("panel", kPanelFields);
@@ -157,6 +168,7 @@ inline Panel full_panel() {
 	panel.figure = Square{.side = 6};
 	panel.figures = {Circle{.radius = 2}, Square{.side = 3}};
 	panel.plugin_state = 42;
+	panel.spare_plugin = 5;
 	return panel;
 }
 

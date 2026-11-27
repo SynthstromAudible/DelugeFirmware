@@ -67,6 +67,17 @@ describe value_backend("the Value writer and reader", ${
 		expect(in.peek()).to_equal(Token::END);
 	});
 
+	it("writes a float in its fewest exact digits, and a real that is not finite as null", _ {
+		ValueWriter out;
+		out.begin_list();
+		out.real(0.1F);
+		out.real(std::numeric_limits<double>::infinity());
+		out.end_list();
+		const Value tree = std::move(out).take();
+		expect(tree.items()[0].str()).to_equal(std::string{"0.1"});
+		expect(tree.items()[1].str()).to_equal(std::string{"null"});
+	});
+
 	it("walks nested records and lists in order", _ {
 		const Value tree = through_json([](ValueWriter& out) {
 			out.begin_record();

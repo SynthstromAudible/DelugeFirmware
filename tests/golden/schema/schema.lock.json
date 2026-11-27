@@ -393,9 +393,12 @@
     {
      "key": "syncType",
      "kind": "scalar",
-     "form": "integer",
-     "min": 0,
-     "max": 19
+     "form": "word",
+     "words": [
+      "0",
+      "10",
+      "19"
+     ]
     },
     {
      "key": "randomizerLock",
@@ -1023,7 +1026,7 @@
      "kind": "scalar",
      "form": "integer",
      "min": 0,
-     "max": 255
+     "max": 119
     },
     {
      "key": "label",
@@ -1261,8 +1264,8 @@
      "value": {
       "kind": "scalar",
       "form": "integer",
-      "min": -2147483648,
-      "max": 2147483647
+      "min": 0,
+      "max": 128
      }
     },
     {
@@ -1271,8 +1274,8 @@
      "value": {
       "kind": "scalar",
       "form": "integer",
-      "min": -2147483648,
-      "max": 2147483647
+      "min": 0,
+      "max": 128
      }
     },
     {
@@ -1281,8 +1284,8 @@
      "value": {
       "kind": "scalar",
       "form": "integer",
-      "min": -2147483648,
-      "max": 2147483647
+      "min": 0,
+      "max": 128
      }
     },
     {
@@ -1291,8 +1294,8 @@
      "value": {
       "kind": "scalar",
       "form": "integer",
-      "min": -2147483648,
-      "max": 2147483647
+      "min": 0,
+      "max": 96
      }
     },
     {
@@ -1301,8 +1304,8 @@
      "value": {
       "kind": "scalar",
       "form": "integer",
-      "min": -2147483648,
-      "max": 2147483647
+      "min": 0,
+      "max": 96
      }
     },
     {
@@ -1357,24 +1360,14 @@
      "value": {
       "kind": "scalar",
       "form": "integer",
-      "min": -2147483648,
-      "max": 2147483647
+      "min": 0,
+      "max": 96
      }
     },
     {
      "key": "muted",
      "kind": "scalar",
      "form": "bool"
-    },
-    {
-     "key": "drum",
-     "kind": "optional",
-     "value": {
-      "kind": "scalar",
-      "form": "integer",
-      "min": 0,
-      "max": 4294967295
-     }
     }
    ]
   },
@@ -1607,7 +1600,7 @@
   },
   {
    "name": "midiDevice",
-   "open": true,
+   "open": false,
    "fields": [
     {
      "key": "port",
@@ -1644,7 +1637,7 @@
   },
   {
    "name": "midiCommand",
-   "open": true,
+   "open": false,
    "fields": [
     {
      "key": "channelOrZone",

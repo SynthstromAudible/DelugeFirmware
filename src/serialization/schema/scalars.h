@@ -29,17 +29,29 @@ template <typename T>
 	}
 }
 
+/// Writes the member's value, or a choice's word. A value the field's form cannot hold (a choice past its words, an
+/// unsigned 64-bit value past the signed range) is written in a form that field never reads, so reading it back
+/// fails at its path instead of loading another value.
 template <typename T>
 void write_integer(const void* member, const ScalarRule& rule, Writer& out) {
-	const int64_t stored = to_int64(*static_cast<const T*>(member));
-	if (rule.words.empty()) {
+	const T value = *static_cast<const T*>(member);
+	if constexpr (std::is_unsigned_v<Stored<T>> && sizeof(Stored<T>) == sizeof(int64_t)) {
+		if (static_cast<Stored<T>>(value) > static_cast<Stored<T>>(std::numeric_limits<int64_t>::max())) {
+			out.text(std::to_string(static_cast<Stored<T>>(value)));
+			return;
+		}
+	}
+	const int64_t stored = to_int64(value);
+	const bool named = stored >= 0 && std::cmp_less(stored, rule.words.size());
+	if (rule.words.empty() || !named) {
 		out.integer(stored);
 		return;
 	}
-	const bool named = stored >= 0 && std::cmp_less(stored, rule.words.size());
-	out.text(named ? rule.words[static_cast<std::size_t>(stored)] : rule.words.front());
+	out.text(rule.words[static_cast<std::size_t>(stored)]);
 }
 
+/// Reads a number within the rule (clamped, and noted, when outside it), or a choice's word; an unknown word keeps
+/// the member's value, as a missing key does, and is noted.
 template <typename T>
 std::expected<void, LoadError::Kind> read_integer(void* member, const ScalarRule& rule, Reader& in,
                                                   WalkContext& context) {
@@ -52,10 +64,9 @@ std::expected<void, LoadError::Kind> read_integer(void* member, const ScalarRule
 		const auto named = std::ranges::find(rule.words, *word);
 		if (named == rule.words.end()) {
 			context.note(LoadNote::Kind::UNKNOWN_WORD);
+			return {};
 		}
-		else {
-			stored = named - rule.words.begin();
-		}
+		stored = named - rule.words.begin();
 	}
 	else {
 		const std::optional<int64_t> number = in.integer();
@@ -99,7 +110,7 @@ inline std::expected<void, LoadError::Kind> read_text(void* member, const Scalar
 
 template <typename T>
 void write_real(const void* member, const ScalarRule& /*rule*/, Writer& out) {
-	out.real(static_cast<double>(*static_cast<const T*>(member)));
+	out.real(*static_cast<const T*>(member));
 }
 template <typename T>
 std::expected<void, LoadError::Kind> read_real(void* member, const ScalarRule& /*rule*/, Reader& in,

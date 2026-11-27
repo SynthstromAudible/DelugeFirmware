@@ -14,6 +14,11 @@
 
 namespace deluge::project {
 
+/// The MIDI program, bank and sub-bank a clip's values hold: 0..127, and this for none (no message sent).
+inline constexpr int32_t kNoMidiProgram = 128;
+/// The most semitones a bend range has, as its menus offer them.
+inline constexpr int32_t kMaxBendRange = 96;
+
 /// @brief A clip's own values, by setting path.
 struct ClipValues {
 	std::optional<int32_t> midi_bank;      ///< `midiBank`, 0..127, 128 = none

@@ -11,6 +11,7 @@
 #include "project/fraction.h"
 #include "project/midi_command.h"
 #include "project/schema/arp_schema.h"
+#include "project/schema/clip_schema.h"
 #include "project/schema/values_schema.h"
 #include "project/sequence_direction.h"
 #include "project/song.h"
@@ -20,6 +21,7 @@
 #include <array>
 #include <climits>
 #include <iterator>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -535,11 +537,9 @@ void write_routing(SoundRouting& routing, std::string_view path, int32_t v) {
 // ---------------------------------------------------------------------------------------------
 // NOTE_ROW (on DocNoteRow)
 
-constexpr std::string_view kDirectionChoices[] = {"forward", "reverse", "pingpong", "obeyParent"};
+constexpr std::span<const std::string_view> kDirectionChoices{schema::kSequenceDirectionWords};
 /// A clip has no parent direction to obey: its menu lists the first three.
-constexpr std::string_view kClipDirectionChoices[] = {"forward", "reverse", "pingpong"};
-/// A bend range's semitones, as its menu offers them.
-constexpr int32_t kMaxBendRange = 96;
+constexpr std::span<const std::string_view> kClipDirectionChoices = kDirectionChoices.first(3);
 /// The factory bend ranges: a whole clip's, and a finger's (MPE).
 constexpr int32_t kDefaultBendRange = 2;
 constexpr int32_t kDefaultBendRangeMpe = 48;
@@ -629,9 +629,6 @@ constexpr SettingInfo kClipTable[] = {
 };
 static_assert(plugin::conditions_are_valid(kClipTable));
 static_assert(plugin::mappings_are_valid(kClipTable));
-
-/// MIDI program numbers 0..127; 128 is none (no message sent).
-constexpr int32_t kNoMidiProgram = 128;
 
 constexpr SettingInfo kClipValuesTable[] = {
     integer("midiBank", 0, kNoMidiProgram, kNoMidiProgram, {}, SettingUnits::NONE, &kOnMidiExtras),

@@ -28,7 +28,7 @@ template <typename T>
 	}
 	else {
 		const auto* shape = std::get_if<ScalarShape>(&field.shape);
-		return shape != nullptr && shape->codec == &kScalar<T>;
+		return shape != nullptr && shape->type == &kTypeTag<T>;
 	}
 }
 

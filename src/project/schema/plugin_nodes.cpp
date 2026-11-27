@@ -47,6 +47,14 @@ sch::PluginRead read_chain(FxChain& chain, ChainHome home, const Value& node, sc
 
 } // namespace
 
+bool instrument_has_state(const void* member) {
+	return static_cast<const InstrumentSlot*>(member)->state.has_value();
+}
+
+bool chain_has_state(const void* member) {
+	return static_cast<const FxChain*>(member)->effects.has_value();
+}
+
 void write_instrument_state(const void* member, sch::Writer& out, const sch::WalkContext& context) {
 	const auto& slot = *static_cast<const InstrumentSlot*>(member);
 	const CleanContext& held = clean(context);

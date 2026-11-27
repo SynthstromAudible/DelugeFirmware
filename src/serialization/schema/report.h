@@ -13,7 +13,7 @@ namespace deluge::serialization::schema {
 struct LoadNote {
 	enum class Kind : uint8_t {
 		CLAMPED,                 ///< a value outside its field's range, stored at the nearest end of it
-		UNKNOWN_WORD,            ///< a word outside its field's list, stored as the list's first
+		UNKNOWN_WORD,            ///< a word outside its field's list; the field keeps its value
 		UNKNOWN_KEY_KEPT,        ///< a key the schema does not know, kept and written back
 		UNKNOWN_KEY_DROPPED,     ///< a key a closed record does not know, dropped
 		PLUGIN_STATE_KEPT,       ///< a plugin node no registered plugin reads, kept and written back

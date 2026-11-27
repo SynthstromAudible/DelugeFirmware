@@ -8,9 +8,14 @@
 #include "project/arp_record.h"
 #include "project/schema/row_fields.h"
 
+#include <algorithm>
 #include <array>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -41,6 +46,34 @@ struct HostValue {
 	static constexpr sch::OptionalOps kOps{&has_value, &value, &emplace, &reset};
 };
 
+/// The sync type is a choice whose words are the numbers the record stores (0, 10, 19): written as its word.
+inline void write_sync_type(const void* member, const sch::ScalarRule& rule, sch::Writer& out) {
+	const uint8_t type = *static_cast<const uint8_t*>(member);
+	const std::string word = std::to_string(type);
+	if (std::ranges::contains(rule.words, std::string_view{word})) {
+		out.text(word);
+	}
+	else {
+		out.integer(type); // a type with no word: reading it back fails at its path
+	}
+}
+inline std::expected<void, sch::LoadError::Kind> read_sync_type(void* member, const sch::ScalarRule& rule,
+                                                                sch::Reader& in, sch::WalkContext& context) {
+	const std::optional<std::string> word = in.text();
+	if (!word) {
+		return std::unexpected(sch::LoadError::Kind::WRONG_TYPE);
+	}
+	if (!std::ranges::contains(rule.words, std::string_view{*word})) {
+		context.note(sch::LoadNote::Kind::UNKNOWN_WORD);
+		return {};
+	}
+	uint8_t type = 0;
+	std::from_chars(word->data(), word->data() + word->size(), type);
+	*static_cast<uint8_t*>(member) = type;
+	return {};
+}
+inline constexpr sch::ScalarCodec kSyncTypeCodec{.form = "integer", .write = &write_sync_type, .read = &read_sync_type};
+
 inline constexpr sch::FieldDesc kHostNumber = sch::value_scalar<int32_t>();
 
 template <std::size_t... I>
@@ -58,8 +91,7 @@ inline constexpr std::array kSettingFields{
     setting<&ArpRecord::step_repeat>(row("arpeggiator/stepRepeat")),
     setting<&ArpRecord::chord_type>(row("arpeggiator/chordType")),
     setting<&ArpRecord::sync_level>(row("arpeggiator/syncLevel")),
-    // A choice whose words are the numbers stored (0, 10, 19): written as the number.
-    sch::scalar<&ArpRecord::sync_type>("syncType", {.min = 0, .max = 19}),
+    sch::scalar_with<&ArpRecord::sync_type>("syncType", kSyncTypeCodec, {.words = plugin::kArpSyncTypeWords}),
     setting<&ArpRecord::randomizer_lock>(row("arpeggiator/randomizerLock")),
     setting<&ArpRecord::kit_arp>(row("arpeggiator/kitArp")),
 };

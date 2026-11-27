@@ -17,6 +17,7 @@
 namespace deluge::serialization::schema {
 namespace detail {
 
+/// @brief The OptionalOps of an optional member type.
 template <typename T>
 struct OptionalTraits;
 
@@ -47,6 +48,7 @@ struct SequenceTraits {
 	static constexpr ListOps kOps{.for_each = &for_each, .clear = &clear, .append = &append};
 };
 
+/// @brief The ListOps of a list member type: a vector, a list, a fixed-size array or a map.
 template <typename T>
 struct ListTraits;
 
@@ -101,6 +103,7 @@ struct ListTraits<std::map<K, V, Compare, A>> {
 	static constexpr ListOps kOps{.for_each = &for_each, .clear = &clear, .append = &append};
 };
 
+/// @brief The index, alternative and emplace functions of a std::variant member type.
 template <typename T>
 struct VariantTraits;
 
