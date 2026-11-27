@@ -13,8 +13,9 @@ use super::core::{Clock, Config, Outputs, Service};
 /// stamps anything.
 pub(crate) const CONFIG: Config = Config {
     max_ahead_frames: crate::audio::capture_stamp::INPUT_LATENCY_FRAMES,
-    // The SPI word and the MAX5136's settling.
-    cv_lead_micros: 20,
+    // The SPI word and the MAX5136's settling, and more than the tolerance plus a frame, so the CV
+    // goes on an earlier fire than its gate.
+    cv_lead_micros: 50,
     // About a sample.
     tolerance_micros: 22,
 };

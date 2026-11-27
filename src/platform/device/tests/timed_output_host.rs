@@ -217,44 +217,82 @@ fn gate_edges_sort_by_stamp_and_equal_stamps_keep_their_order() {
 }
 
 #[test]
-fn as_soon_as_possible_goes_before_every_timed_edge() {
+fn an_as_soon_as_possible_edge_replaces_the_channel_s_queued_edges() {
     let mut s = Service::new();
     let mut r = Rec::new();
+    // A clock pulse the render queued, then Stop between renders: the off is the last word.
     s.push_gate(2, true, 1100);
+    s.push_gate(3, true, 1100);
     s.push_gate(2, false, STAMP_NOW);
     s.fire(&CFG, at(1100, 0), &mut r);
-    assert_eq!(r.log, ["gate2=0", "gate2=1"]);
+    assert_eq!(r.log, ["gate2=0", "gate3=1"]);
 }
 
 #[test]
-fn as_soon_as_possible_edges_keep_the_order_they_came_in() {
+fn an_as_soon_as_possible_cv_word_replaces_the_channel_s_queued_words() {
+    let mut s = Service::new();
+    let mut r = Rec::new();
+    // A note's voltage the render queued, then a pitch bend between renders: the bend's value
+    // stands, and the note's gate still waits for no older word.
+    s.push_cv(0, 100, 1441);
+    s.push_gate(0, true, 1441);
+    s.push_cv(0, 105, STAMP_NOW);
+    s.fire(&CFG, at(1441, 10_000), &mut r);
+    assert_eq!(r.log, ["cv0=105", "gate0=1"]);
+}
+
+#[test]
+fn an_as_soon_as_possible_note_waits_for_its_cv_but_a_gate_switched_now_does_not() {
     let mut s = Service::new();
     let mut r = Rec::new();
     r.bus_busy = true;
-    s.push_gate(2, true, STAMP_NOW);
-    s.push_gate(2, false, STAMP_NOW);
     s.push_cv(0, 3, STAMP_NOW);
     s.push_gate(0, true, STAMP_NOW);
+    s.push_cv(1, 4, STAMP_NOW);
+    assert!(s.gate_now(1, false));
     s.fire(&CFG, at(0, 0), &mut r);
-    // Gate 0 waits for its CV, stamped no later than it.
-    assert_eq!(r.log, ["gate2=1", "gate2=0"]);
+    assert_eq!(r.log, ["gate1=0"]);
 }
 
 #[test]
-fn cancel_drops_queued_edges_for_the_masked_gates_only() {
+fn a_gate_switched_now_drops_its_queued_edges_only() {
     let mut s = Service::new();
     let mut r = Rec::new();
     s.push_gate(0, true, 1441);
     s.push_gate(1, true, 1441);
-    s.cancel_gates(0b01);
+    s.gate_now(0, false);
+    s.fire(&CFG, at(1000, 0), &mut r);
+    assert_eq!(r.log, ["gate0=0"]);
     s.fire(&CFG, at(1441, 10_000), &mut r);
-    assert_eq!(r.log, ["gate1=1"]);
+    assert_eq!(r.log, ["gate0=0", "gate1=1"]);
+}
+
+/// The device's timing: a CV lead of 50 µs against a tolerance of about a sample.
+const DEVICE: Config = Config {
+    max_ahead_frames: 640,
+    cv_lead_micros: 50,
+    tolerance_micros: 22,
+};
+
+#[test]
+fn with_the_device_s_timing_a_note_s_cv_goes_out_before_its_gate_s_fire() {
+    let mut s = Service::new();
+    let mut r = Rec::new();
+    s.push_cv(0, 7, 1441);
+    s.push_gate(0, true, 1441);
+    // Three frames (68 µs) before the stamp: within the lead and tolerance for the CV, not for the
+    // gate.
+    let next = s.fire(&DEVICE, at(1438, 0), &mut r);
+    assert_eq!(r.log, ["cv0=7"]);
+    assert_eq!(next, Some(68));
+    s.fire(&DEVICE, at(1441, 68), &mut r);
+    assert_eq!(r.log, ["cv0=7", "gate0=1"]);
 }
 
 #[test]
 fn a_full_queue_refuses_and_counts_the_drop() {
     let mut s = Service::new();
-    for _ in 0..8 {
+    for _ in 0..16 {
         assert!(s.push_gate(0, true, 1441));
     }
     assert!(!s.push_gate(0, true, 1441));

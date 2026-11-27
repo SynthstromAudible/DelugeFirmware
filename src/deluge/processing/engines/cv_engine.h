@@ -77,9 +77,10 @@ public:
 	bool isTriggerClockOutputEnabled();
 
 	/// The stamp a gate switching on at @p requested goes at: no earlier than @p minGateOffTime (100 µs units) after
-	/// the stamp it last switched off at, @p lastOff. DELUGE_STAMP_NOW for @p lastOff means it has no timed off;
-	/// DELUGE_STAMP_NOW for @p requested means as soon as the off time allows.
-	static uint32_t onStampAfterOff(uint32_t requested, uint32_t lastOff, uint8_t minGateOffTime);
+	/// the stamp it last switched off at, @p lastOff. DELUGE_STAMP_NOW for @p lastOff, or an off more than a second
+	/// behind @p playNow (the stamp playing now), means no off to wait for; DELUGE_STAMP_NOW for @p requested means
+	/// as soon as the off time allows. Never DELUGE_STAMP_NOW unless @p requested is and there is no off to wait for.
+	static uint32_t onStampAfterOff(uint32_t requested, uint32_t lastOff, uint32_t playNow, uint8_t minGateOffTime);
 
 	GateChannel gateChannels[NUM_GATE_CHANNELS];
 
@@ -101,7 +102,7 @@ private:
 	void switchGateOff(int32_t channel);
 	/// Switch a gate on at the render's stamp, or as soon as possible, once the minimum off time has passed
 	void switchGateOn(int32_t channel, bool asSoonAsPossible = false);
-	/// Switch a gate to its state at once, dropping any edge queued for it
+	/// Switch a gate to its state at once, dropping any edge queued for it and not waiting for its CV
 	void switchGateNow(int32_t channel);
 	uint8_t gateLevel(int32_t channel) const {
 		// The gate pin is inverted - setting it true turns the gate off

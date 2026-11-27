@@ -1,7 +1,7 @@
 //! The timed output service on the host. Stamps count the render cursor, and the play position is
 //! the latest block's start plus the Embassy clock's time since it began: the render driver fires
-//! the service after each block, and it sends what that clock has reached. A submit only queues, so specs that
-//! take output without rendering flush first (`deluge_host_out_flush`). DIN bytes go where the
+//! the service after each block, and it sends what that clock has reached. A submit only queues,
+//! so specs that take output without rendering flush first (`deluge_host_out_flush`). DIN bytes go where the
 //! host's DIN writes always went (the simulator, or kept for specs); CV and gate writes are kept as
 //! text for specs (`deluge_host_out_take`).
 
@@ -11,7 +11,7 @@ use super::core::{Clock, Config, Outputs, Service};
 
 const CONFIG: Config = Config {
     max_ahead_frames: crate::audio::capture_stamp::INPUT_LATENCY_FRAMES,
-    cv_lead_micros: 20,
+    cv_lead_micros: 50,
     tolerance_micros: 22,
 };
 

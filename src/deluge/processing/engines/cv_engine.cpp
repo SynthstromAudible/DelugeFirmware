@@ -49,12 +49,18 @@ void CVEngine::init() {
 	updateRunOutput();
 }
 
-uint32_t CVEngine::onStampAfterOff(uint32_t requested, uint32_t lastOff, uint8_t minGateOffTime) {
-	if (lastOff == DELUGE_STAMP_NOW) {
+uint32_t CVEngine::onStampAfterOff(uint32_t requested, uint32_t lastOff, uint32_t playNow, uint8_t minGateOffTime) {
+	// An off more than a second behind the playhead is long past any off time, and too far back to compare by signed
+	// difference for ever
+	constexpr int32_t kOffMemoryFrames = 44100;
+	if (lastOff == DELUGE_STAMP_NOW || static_cast<int32_t>(playNow - lastOff) > kOffMemoryFrames) {
 		return requested;
 	}
 	// 4.41 frames per 100 µs, Q16
 	uint32_t earliest = lastOff + ((static_cast<uint32_t>(minGateOffTime) * 289014) >> 16);
+	if (earliest == DELUGE_STAMP_NOW) {
+		earliest = 1; // a real frame, not "as soon as possible"
+	}
 	if (requested == DELUGE_STAMP_NOW) {
 		return earliest;
 	}
@@ -62,8 +68,7 @@ uint32_t CVEngine::onStampAfterOff(uint32_t requested, uint32_t lastOff, uint8_t
 }
 
 void CVEngine::switchGateNow(int32_t channel) {
-	deluge_out_gate_cancel(1 << channel);
-	(void)deluge_out_gate_at(channel, gateLevel(channel), DELUGE_STAMP_NOW);
+	(void)deluge_out_gate_now(channel, gateLevel(channel));
 }
 
 // These next two functions get called for run but not clock
@@ -76,8 +81,9 @@ void CVEngine::switchGateOff(int32_t channel) {
 void CVEngine::switchGateOn(int32_t channel, bool asSoonAsPossible) {
 	gateChannels[channel].on = true;
 	uint32_t requested = asSoonAsPossible ? DELUGE_STAMP_NOW : AudioEngine::cvGateStamp();
-	(void)deluge_out_gate_at(channel, gateLevel(channel),
-	                         onStampAfterOff(requested, gateChannels[channel].offStamp, minGateOffTime));
+	(void)deluge_out_gate_at(
+	    channel, gateLevel(channel),
+	    onStampAfterOff(requested, gateChannels[channel].offStamp, deluge_audio_play_stamp(), minGateOffTime));
 }
 
 // note -32768 means switch "all notes off", or switch on without changing actual CV voltage output

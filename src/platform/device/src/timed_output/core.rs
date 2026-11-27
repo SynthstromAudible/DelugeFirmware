@@ -27,7 +27,7 @@ pub const NUM_GATES: usize = 4;
 const DIN_ENTRIES: usize = 256;
 const DIN_BYTES: usize = 1024;
 const USB_PACKETS: usize = 1024;
-const EDGES: usize = 8;
+const EDGES: usize = 16;
 /// An event sent more than this many frames after its stamp is late.
 const LATE_FRAMES: i32 = 1;
 
@@ -131,6 +131,13 @@ struct DinEntry {
 
 type Edges<T> = Vec<(u32, T), EDGES>;
 
+#[derive(Clone, Copy)]
+struct GateEdge {
+    level: bool,
+    /// Switches as soon as it is due, whatever CV is still to be written ([`Service::gate_now`]).
+    ignores_cv: bool,
+}
+
 /// Insert `(stamp, value)` after every edge that goes no later than it.
 fn insert_edge<T>(edges: &mut Edges<T>, stamp: u32, value: T) -> bool {
     let at = edges
@@ -146,7 +153,8 @@ pub struct Service {
     din_bytes: Deque<u8, DIN_BYTES>,
     usb: Deque<(u32, [u8; 4]), USB_PACKETS>,
     cv: [Edges<u16>; NUM_CV],
-    gates: [Edges<bool>; NUM_GATES],
+    /// Each edge's level, and whether it switches without waiting for its channel's CV.
+    gates: [Edges<GateEdge>; NUM_GATES],
     stats: Stats,
 }
 
@@ -222,35 +230,59 @@ impl Service {
         }
     }
 
+    /// Queue CV `channel`'s word `value` for `stamp`. A word for [`STAMP_NOW`] is the newest
+    /// decision for the channel, so it replaces the words still queued.
     pub fn push_cv(&mut self, channel: usize, value: u16, stamp: u32) -> bool {
-        let ok = self
-            .cv
-            .get_mut(channel)
-            .is_some_and(|edges| insert_edge(edges, stamp, value));
-        if !ok {
-            self.stats.dropped += 1;
-        }
-        ok
-    }
-
-    pub fn push_gate(&mut self, channel: usize, level: bool, stamp: u32) -> bool {
-        let ok = self
-            .gates
-            .get_mut(channel)
-            .is_some_and(|edges| insert_edge(edges, stamp, level));
-        if !ok {
-            self.stats.dropped += 1;
-        }
-        ok
-    }
-
-    /// Drop the queued edges of the gates in `mask`.
-    pub fn cancel_gates(&mut self, mask: u8) {
-        for (g, edges) in self.gates.iter_mut().enumerate() {
-            if mask & (1 << g) != 0 {
+        let ok = self.cv.get_mut(channel).is_some_and(|edges| {
+            if stamp == STAMP_NOW {
                 edges.clear();
             }
+            insert_edge(edges, stamp, value)
+        });
+        if !ok {
+            self.stats.dropped += 1;
         }
+        ok
+    }
+
+    /// Queue gate `channel`'s edge to `level` at `stamp`, after the channel's CV for a stamp no
+    /// later than it. An edge for [`STAMP_NOW`] is the newest decision for the channel, so it
+    /// replaces the edges still queued.
+    pub fn push_gate(&mut self, channel: usize, level: bool, stamp: u32) -> bool {
+        self.push_gate_edge(
+            channel,
+            stamp,
+            GateEdge {
+                level,
+                ignores_cv: false,
+            },
+        )
+    }
+
+    /// Switch gate `channel` to `level` as soon as possible, dropping its queued edges and not
+    /// waiting for its CV: a gate going off at once.
+    pub fn gate_now(&mut self, channel: usize, level: bool) -> bool {
+        self.push_gate_edge(
+            channel,
+            STAMP_NOW,
+            GateEdge {
+                level,
+                ignores_cv: true,
+            },
+        )
+    }
+
+    fn push_gate_edge(&mut self, channel: usize, stamp: u32, edge: GateEdge) -> bool {
+        let ok = self.gates.get_mut(channel).is_some_and(|edges| {
+            if stamp == STAMP_NOW {
+                edges.clear();
+            }
+            insert_edge(edges, stamp, edge)
+        });
+        if !ok {
+            self.stats.dropped += 1;
+        }
+        ok
     }
 
     pub fn stats(&self) -> Stats {
@@ -285,23 +317,24 @@ impl Service {
         }
 
         for ch in 0..NUM_GATES {
-            while let Some(&(stamp, level)) = self.gates[ch].first() {
+            while let Some(&(stamp, edge)) = self.gates[ch].first() {
                 let until = config.until(stamp, now);
                 if until > tolerance {
                     next = next.min(until);
                     break;
                 }
                 // The gate's CV for this note, or an earlier one, hasn't reached the DAC.
-                let cv_pending = self
-                    .cv
-                    .get(ch)
-                    .and_then(|cv| cv.first())
-                    .is_some_and(|&(cv_stamp, _)| no_later(cv_stamp, stamp));
+                let cv_pending = !edge.ignores_cv
+                    && self
+                        .cv
+                        .get(ch)
+                        .and_then(|cv| cv.first())
+                        .is_some_and(|&(cv_stamp, _)| no_later(cv_stamp, stamp));
                 if cv_pending {
                     blocked = true;
                     break;
                 }
-                out.gate_set(ch as u8, level);
+                out.gate_set(ch as u8, edge.level);
                 if is_late(stamp, now.frame) {
                     self.stats.late += 1;
                 }

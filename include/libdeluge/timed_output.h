@@ -21,8 +21,9 @@
 /// block, a wrapping 32-bit count compared only by signed difference — the timeline capture stamps
 /// are on (see deluge_audio_stamp_to_render_offset). The board sends each event when the codec
 /// plays its stamp's frame. A stamp at or behind the play position, or further ahead than the
-/// output latency, goes at once; so does DELUGE_STAMP_NOW. Every call sends whatever is already
-/// due before it returns.
+/// output latency, goes at once; so does DELUGE_STAMP_NOW, which is also the newest decision for
+/// its CV or gate channel and so replaces what that channel has queued. Every call sends whatever
+/// is already due before it returns.
 #ifndef LIBDELUGE_TIMED_OUTPUT_H
 #define LIBDELUGE_TIMED_OUTPUT_H
 
@@ -38,8 +39,7 @@ extern "C" {
 #define DELUGE_STAMP_NOW 0u
 
 /// The stamp of the sample `offset_frames` after the first sample of the block being rendered
-/// (between renders: of the next block to render). Never DELUGE_STAMP_NOW; DELUGE_STAMP_NOW where
-/// there is no play position (the host). [task] [audio]
+/// (between renders: of the next block to render). Never DELUGE_STAMP_NOW. [task] [audio]
 uint32_t deluge_audio_render_offset_to_stamp(uint32_t offset_frames) DELUGE_NOEXCEPT;
 
 /// The stamp of the frame the codec is playing now: when something sent as soon as possible goes out. Never
@@ -64,8 +64,9 @@ bool deluge_out_cv_at(uint8_t channel, uint16_t value, uint32_t stamp) DELUGE_NO
 /// [task] [audio]
 bool deluge_out_gate_at(uint8_t channel, bool level, uint32_t stamp) DELUGE_NOEXCEPT;
 
-/// Drop the gate edges queued for the channels in `mask` (bit n: gate n). [task] [audio]
-void deluge_out_gate_cancel(uint8_t mask) DELUGE_NOEXCEPT;
+/// Gate `channel`'s pin goes to `level` as soon as possible, dropping the edges queued for it and
+/// not waiting for its CV: a gate switched off at once. [task] [audio]
+bool deluge_out_gate_now(uint8_t channel, bool level) DELUGE_NOEXCEPT;
 
 /// The timed output service's counts since boot.
 typedef struct DelugeOutStats {

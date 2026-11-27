@@ -157,11 +157,18 @@ pub(crate) fn gate_timer_setup(timer: Peri<'static, GateTimer>) {
     }
 }
 
+/// Timer ticks per microsecond, Q32, worked out at compile time so the conversion needs no
+/// division at run time (the A9 has no divide instruction). Rounded down: a deadline fires at most
+/// a tick early, and the service arms again for what isn't due.
+const GATE_TIMER_TICKS_PER_US_Q32: u64 = (GATE_TIMER_TICKS_PER_SEC << 32) / 1_000_000;
+
 /// Timer ticks until `deadline_us`, at least one, saturating at the 16-bit compare register: a
 /// deadline beyond it fires early and the service arms again.
 fn ticks_until(deadline_us: u64, now_us: u64) -> u16 {
-    let us = deadline_us.saturating_sub(now_us);
-    (us.saturating_mul(GATE_TIMER_TICKS_PER_SEC) / 1_000_000).clamp(1, u16::MAX as u64) as u16
+    // Past the register's reach (about 127 ms) it saturates anyway; clamping first keeps the
+    // product in range.
+    let us = deadline_us.saturating_sub(now_us).min(1 << 20);
+    ((us * GATE_TIMER_TICKS_PER_US_Q32) >> 32).clamp(1, u16::MAX as u64) as u16
 }
 
 /// Arm the output timer for `deadline_us` on the Embassy clock, replacing any armed deadline.

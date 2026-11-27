@@ -25,8 +25,6 @@
 #include <libdeluge/scheduler.h>
 #include <libdeluge/timed_output.h>
 
-struct CriticalSectionGuard;
-
 class MIDICable;
 class MIDIDrum;
 class MIDIInstrument;
@@ -99,8 +97,9 @@ public:
 	/// @param value Pressure amount. Saturated into 0-127
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter);
 
-	/// The play-timeline stamp everything sent from now on goes out at (see libdeluge/timed_output.h): MIDI, and CV
-	/// and gates too. The render sets it to where it is in its window; between renders it is the next render's start.
+	/// The play-timeline stamp MIDI sent from now on goes out at (see libdeluge/timed_output.h). The render sets it to
+	/// where it is in its window; between renders it is the end of the last window. CV and gates have their own,
+	/// AudioEngine::cvGateStamp().
 	void setOutputStamp(uint32_t stamp) { outputStamp_ = stamp; }
 	[[nodiscard]] uint32_t outputStamp() const { return outputStamp_; }
 

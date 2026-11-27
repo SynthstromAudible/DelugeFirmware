@@ -19,11 +19,11 @@ const SYSEX: [[u8; 4]; 3] = [
 ];
 
 /// The tick every packet of [`received`]'s one transfer carries.
-const TICK: u64 = 7_000;
+const TICK: u32 = 7_000;
 
 /// A bounded packet queue, as the USB class keeps: each packet with its transfer's tick.
 struct Queue {
-    packets: VecDeque<([u8; 4], u64)>,
+    packets: VecDeque<([u8; 4], u32)>,
     capacity: usize,
 }
 
@@ -87,7 +87,7 @@ fn a_read_never_splits_a_packet_or_drops_one_that_does_not_fit() {
 
 #[test]
 fn a_read_stops_at_the_next_transfer_and_keeps_its_first_packet_for_the_next_read() {
-    let mut rx: VecDeque<([u8; 4], u64)> =
+    let mut rx: VecDeque<([u8; 4], u32)> =
         VecDeque::from([(NOTE_ON, 10), (SYSEX[0], 10), (SYSEX[1], 20)]);
     let mut reader = TransferReader::new();
     let mut dst = [0u8; 64];
@@ -100,7 +100,7 @@ fn a_read_stops_at_the_next_transfer_and_keeps_its_first_packet_for_the_next_rea
 
 #[test]
 fn a_held_packet_is_read_even_when_its_transfer_is_the_last() {
-    let mut rx: VecDeque<([u8; 4], u64)> = VecDeque::from([(NOTE_ON, 10), (SYSEX[0], 20)]);
+    let mut rx: VecDeque<([u8; 4], u32)> = VecDeque::from([(NOTE_ON, 10), (SYSEX[0], 20)]);
     let mut reader = TransferReader::new();
     let mut dst = [0u8; 64];
     assert_eq!(reader.read(&mut dst, || rx.pop_front()), Some((4, 10)));

@@ -33,6 +33,13 @@ const PORT_COUNT: u8 = USB_PORT_BASE + MAX_USB_MIDI_DEVICES;
 /// The USB-MIDI peripheral port: the single connection to a computer.
 const USB_PERIPHERAL_PORT: u8 = USB_PORT_BASE;
 
+/// The Embassy tick whose low 32 bits are `low`, the latest such tick not after now: a packet's
+/// tick is a recent past one.
+fn widen_ticks(low: u32) -> u64 {
+    let now = embassy_time::Instant::now().as_ticks();
+    now - u64::from((now as u32).wrapping_sub(low))
+}
+
 /// The USB peripheral port's reader, which returns one transfer per read.
 static USB_READER: Mutex<RefCell<TransferReader>> = Mutex::new(RefCell::new(TransferReader::new()));
 
@@ -74,7 +81,7 @@ pub extern "C" fn deluge_midi_read_timed(
     };
     if !arrival_ticks.is_null() {
         // SAFETY: caller passes a valid out-pointer when non-null.
-        unsafe { *arrival_ticks = crate::audio::capture_stamp::now_for(ticks) };
+        unsafe { *arrival_ticks = crate::audio::capture_stamp::now_for(widen_ticks(ticks)) };
     }
     written as u32
 }

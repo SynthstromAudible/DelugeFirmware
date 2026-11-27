@@ -19,7 +19,6 @@
 #include "gui/l10n/l10n.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/midi_io.h"
-#include "libdeluge/system.h"
 #include "libdeluge/timed_output.h"
 #include "storage/storage_manager.h"
 

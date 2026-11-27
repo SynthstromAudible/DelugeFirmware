@@ -1342,8 +1342,11 @@ startAgain:
 				if (playbackHandler.midiClockOutTickScheduled) {
 					int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
 					if (std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
-						// The clock, and any MIDI after it (it's sent in order), is due at this point in the window
+						// The clock, and any MIDI after it (it's sent in order), is due at this point in the window;
+						// CV and gates keep the window's stamp
+						uint32_t cvGate = cvGateStamp_;
 						setOutputStampAtWindowOffset(timeTilMIDIClockOutTick);
+						cvGateStamp_ = cvGate;
 						playbackHandler.doMIDIClockOutTick();
 						playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
 					}

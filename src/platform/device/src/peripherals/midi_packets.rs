@@ -8,8 +8,9 @@
 /// Bytes in one USB-MIDI 1.0 event packet.
 pub const PACKET_BYTES: usize = 4;
 
-/// A USB-MIDI packet received from the host and the Embassy tick its transfer's read completed at.
-pub type StampedPacket = ([u8; 4], u64);
+/// A USB-MIDI packet received from the host and the low 32 bits of the Embassy tick its transfer's
+/// read completed at.
+pub type StampedPacket = ([u8; 4], u32);
 
 /// Reads received packets one transfer at a time: every packet of a transfer carries its read's
 /// tick, so a read that stops at the next transfer gives one stamp exact for all it returns.
@@ -33,7 +34,7 @@ impl TransferReader {
         &mut self,
         dst: &mut [u8],
         mut next: impl FnMut() -> Option<StampedPacket>,
-    ) -> Option<(usize, u64)> {
+    ) -> Option<(usize, u32)> {
         let mut written = 0;
         let mut transfer = None;
         while dst.len() - written >= PACKET_BYTES {

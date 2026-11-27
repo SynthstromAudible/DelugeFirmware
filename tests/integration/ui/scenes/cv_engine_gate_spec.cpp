@@ -62,18 +62,21 @@ describe cv_engine_gate_body("CVEngine on stamps", ${
 
 	it("holds a gate-on until the minimum off time after its off", _ {
 		// 10 is 1 ms: 44 frames.
-		expect(CVEngine::onStampAfterOff(1000, 990, 10)).to_equal(990u + 44u);
-		expect(CVEngine::onStampAfterOff(2000, 990, 10)).to_equal(2000u);
-		expect(CVEngine::onStampAfterOff(DELUGE_STAMP_NOW, 990, 10)).to_equal(990u + 44u);
+		expect(CVEngine::onStampAfterOff(1000, 990, 995, 10)).to_equal(990u + 44u);
+		expect(CVEngine::onStampAfterOff(2000, 990, 995, 10)).to_equal(2000u);
+		expect(CVEngine::onStampAfterOff(DELUGE_STAMP_NOW, 990, 995, 10)).to_equal(990u + 44u);
 	});
 
-	it("sends a gate-on as asked when its gate has no timed off", _ {
-		expect(CVEngine::onStampAfterOff(DELUGE_STAMP_NOW, DELUGE_STAMP_NOW, 10)).to_equal(DELUGE_STAMP_NOW);
-		expect(CVEngine::onStampAfterOff(1000, DELUGE_STAMP_NOW, 10)).to_equal(1000u);
+	it("sends a gate-on as asked when its gate has no off to wait for", _ {
+		expect(CVEngine::onStampAfterOff(DELUGE_STAMP_NOW, DELUGE_STAMP_NOW, 995, 10)).to_equal(DELUGE_STAMP_NOW);
+		expect(CVEngine::onStampAfterOff(1000, DELUGE_STAMP_NOW, 995, 10)).to_equal(1000u);
+		// An off more than a second ago is forgotten.
+		expect(CVEngine::onStampAfterOff(DELUGE_STAMP_NOW, 990, 990 + 44101, 10)).to_equal(DELUGE_STAMP_NOW);
 	});
 
-	it("counts the off time across the timeline's wrap", _ {
-		expect(CVEngine::onStampAfterOff(10, UINT32_MAX - 20, 10)).to_equal(UINT32_MAX - 20 + 44);
+	it("counts the off time across the timeline's wrap, and never lands on as soon as possible", _ {
+		expect(CVEngine::onStampAfterOff(10, UINT32_MAX - 20, UINT32_MAX - 10, 10)).to_equal(UINT32_MAX - 20 + 44);
+		expect(CVEngine::onStampAfterOff(DELUGE_STAMP_NOW, UINT32_MAX - 43, UINT32_MAX - 40, 10)).to_equal(1u);
 	});
 });
 // clang-format on

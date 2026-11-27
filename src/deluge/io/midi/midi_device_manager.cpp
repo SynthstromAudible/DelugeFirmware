@@ -30,7 +30,6 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/midi_io.h"      // deluge_midi_init/_usb_port, deluge_midi_poll_usb_host_event
-#include "libdeluge/system.h"       // CriticalSectionGuard
 #include "libdeluge/timed_output.h" // deluge_out_midi_at/_space
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"

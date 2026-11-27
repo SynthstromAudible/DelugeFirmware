@@ -76,8 +76,8 @@ pub extern "C" fn deluge_out_gate_at(channel: u8, level: bool, stamp: u32) -> bo
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_out_gate_cancel(mask: u8) {
-    service(|s| s.cancel_gates(mask));
+pub extern "C" fn deluge_out_gate_now(channel: u8, level: bool) -> bool {
+    service(|s| s.gate_now(channel as usize, level))
 }
 
 #[unsafe(no_mangle)]
@@ -102,7 +102,7 @@ pub extern "C" fn deluge_out_stats(out: *mut DelugeOutStats) {
 abi_pin!(
     deluge_out_cv_at,
     deluge_out_gate_at,
-    deluge_out_gate_cancel,
+    deluge_out_gate_now,
     deluge_out_midi_at,
     deluge_out_midi_space,
     deluge_out_stats,
