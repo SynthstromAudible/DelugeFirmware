@@ -1475,7 +1475,12 @@ ramError:
 				break;
 			}
 			if (selectedDrumOnly) {
-				noteRowId = getCurrentKit()->getDrumIndex(getCurrentKit()->selectedDrum);
+				// Paste into the selected drum's NoteRow. Its index in the Kit's drum list is not a NoteRow index
+				// (the two orders differ, and it's -1 with no drum selected).
+				Drum* selectedDrum = getCurrentKit()->selectedDrum;
+				if (!selectedDrum || !getCurrentInstrumentClip()->getNoteRowForDrum(selectedDrum, &noteRowId)) {
+					break;
+				}
 			}
 
 			NoteRow* thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(noteRowId);
