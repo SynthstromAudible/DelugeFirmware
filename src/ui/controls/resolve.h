@@ -33,7 +33,6 @@ namespace deluge::ui::controls {
 /// @brief A turn of a slot: the param it moves, on the focused owner.
 struct ParamWrite {
 	project::ParamAddress address;
-	plugin::ParamKind kind{plugin::ParamKind::NONE}; ///< which of the owner's collections holds the param
 	[[nodiscard]] bool operator==(const ParamWrite&) const = default;
 };
 

@@ -27,6 +27,8 @@
 #include "support/recorded_knob_assignments.h"
 #include "support/song_fixture.h"
 
+#include "model/project_bridge/param_ids.h"
+
 #include "cppspec.hpp"
 
 #include "support/spec_main.h"
@@ -65,8 +67,9 @@ std::vector<std::string> disagreements(::Song& song, const bind::KnobFocus& focu
 			if (const auto* named = std::get_if<deluge::project::ParamAddress>(&port.target)) {
 				// The lane is the recorded param on the owner and clip the fixture holds.
 				if (want.space != static_cast<int8_t>(named->space) || want.id != named->id.value
-				    || want.kind != static_cast<int8_t>(port.kind) || lane_owner.owner != named->owner
-				    || lane_owner.clip_id != named->clip_id) {
+				    || want.kind
+				           != static_cast<int8_t>(deluge::bridge::runtimeParamOf(port.plugin, named->target())->kind)
+				    || lane_owner.owner != named->owner || lane_owner.clip_id != named->clip_id) {
 					found.push_back(at + "differs from the recorded param");
 				}
 			}

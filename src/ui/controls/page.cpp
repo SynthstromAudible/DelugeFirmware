@@ -29,7 +29,6 @@ Page page_of(const plugin::RemotePage& page) {
 		out.slots[i] = Slot{.target = from.param ? std::optional{project::ParamTarget{
 		                                               .space = project::ParamSpace::ENGINE, .id = *from.param}}
 		                                         : std::nullopt,
-		                    .kind = from.kind,
 		                    .press = from.press,
 		                    .press_param = from.press_param};
 	}

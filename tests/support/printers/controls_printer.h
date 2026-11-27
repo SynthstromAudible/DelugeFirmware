@@ -51,7 +51,7 @@ namespace deluge::ui::controls {
 inline std::ostream& operator<<(std::ostream& os, const Slot& s) {
 	using deluge::test::printers::print_optional;
 	os << "{target ";
-	print_optional(os, s.target) << ", " << s.kind << ", " << s.press << ", press_param ";
+	print_optional(os, s.target) << ", " << s.press << ", press_param ";
 	return print_optional(os, s.press_param) << "}";
 }
 

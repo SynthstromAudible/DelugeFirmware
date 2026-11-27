@@ -55,6 +55,8 @@
 #include "support/slicer_host_open.h"
 #include "support/song_fixture.h"
 
+#include "support/plugin_param.h"
+
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
 
@@ -304,8 +306,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		auto& popup = deluge::ui::scenes::overlay::param_popup_scene();
 		popup.tick(100'000);
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
-		(void)popup.show(deluge::modulation::params::Kind::UNPATCHED_GLOBAL,
-		                 deluge::modulation::params::UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(deluge::modulation::params::Kind::UNPATCHED_GLOBAL, deluge::modulation::params::UNPATCHED_VOLUME), 0, PatchSource::NONE, PatchSource::NONE,
 		                 5'000'000, {});
 		const std::string name{popup.shown_name()};
 		const std::string value{popup.shown_value()};
@@ -350,7 +351,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		// The guest's popup moves the knob on, and its close hands that popup to legacy's display.
 		auto& popup = deluge::ui::scenes::overlay::param_popup_scene();
 		popup.tick(100'000);
-		(void)popup.show(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME, 30, PatchSource::NONE,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME), 30, PatchSource::NONE,
 		                 PatchSource::NONE, 6'000'000, {});
 		deluge::gui::ui::handOffGuestOverlays(6'000'000);
 		expect(stub.value).not_().to_equal(legacy_value);

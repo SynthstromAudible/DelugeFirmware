@@ -56,6 +56,11 @@ using EnvelopeModes = std::array<synth::EnvelopeMode, 4>;
 [[nodiscard]] std::optional<std::string_view> envelope_param_name(plugin::ParamId id, const EnvelopeModes& modes,
                                                                   bool brief = false);
 
+/// @brief The display name of the MPE expression axis @p id.
+/// @param id The axis, in the host's expression space.
+/// @return The name; "None" for an id no axis has.
+[[nodiscard]] std::string_view expression_param_name(plugin::ParamId id);
+
 /// @brief The display name of the param @p id in @p plugin's table.
 /// @param plugin Whose table the id is in.
 /// @param id     The param's id.

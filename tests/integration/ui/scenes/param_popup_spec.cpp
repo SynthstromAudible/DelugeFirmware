@@ -56,6 +56,8 @@
 #include "unit/ui/gfx/support/golden.h"
 #include "unit/ui/gfx/support/pbm.h"
 
+#include "support/plugin_param.h"
+
 #include "cppspec.hpp"
 
 #include <cstdint>
@@ -269,7 +271,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		{
 			Rig r;
 			r.open();
-			param_popup_scene().show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE,
+			param_popup_scene().show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 0, PatchSource::NONE,
 			                         PatchSource::NONE, 0);
 			r.tick(0);
 			// Both at `visible_top == 5` (the default profile matches legacy's own), so the raw
@@ -284,7 +286,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 			// matching legacy's own untimed first call above -- same title/value, since nothing
 			// about this popup's own strip depends on panel height beyond its width (128 on both
 			// shipped profiles).
-			param_popup_scene().show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE,
+			param_popup_scene().show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 0, PatchSource::NONE,
 			                         PatchSource::NONE, 1'000'000);
 			r64.tick(1'000'000);
 			// `board_64()` sets `visible_top == 0` (no hidden bezel on this hypothetical wider
@@ -308,7 +310,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		const auto shown = [&now](Kind kind, int32_t id, overlay::PopupContext popup) {
 			param_popup_scene().tick(100'000);
 			now += 100'000;
-			(void)param_popup_scene().show(kind, id, 0, PatchSource::NONE, PatchSource::NONE, now, popup);
+			(void)param_popup_scene().show(deluge::ui::scenes::spec::plugin_param(kind, id), 0, PatchSource::NONE, PatchSource::NONE, now, popup);
 			return std::pair{std::string{param_popup_scene().shown_name()},
 			                 std::string{param_popup_scene().shown_value()}};
 		};
@@ -389,7 +391,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 
 		Rig r;
 		r.open();
-		param_popup_scene().show(Kind::PATCH_CABLE, LOCAL_VOLUME, 64, PatchSource::LFO_GLOBAL_1,
+		param_popup_scene().show(deluge::ui::scenes::spec::plugin_param(Kind::PATCH_CABLE, LOCAL_VOLUME), 64, PatchSource::LFO_GLOBAL_1,
 		                         PatchSource::ENVELOPE_0, 2'000'000);
 		r.tick(2'000'000);
 		expect(r.fake.pbm(0)).to_equal(legacy_pbm);
@@ -407,7 +409,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 
 		Rig r;
 		r.open();
-		param_popup_scene().show(Kind::PATCH_CABLE, packed, 64, PatchSource::SIDECHAIN, PatchSource::NONE, 2'500'000);
+		param_popup_scene().show(deluge::ui::scenes::spec::plugin_param(Kind::PATCH_CABLE, packed), 64, PatchSource::SIDECHAIN, PatchSource::NONE, 2'500'000);
 		r.tick(2'500'000);
 		expect(r.fake.pbm(0)).to_equal(legacy_pbm);
 	});
@@ -426,7 +428,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		set_legacy_time_ms(kBase + 0);
 		view.displayModEncoderValuePopup(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE,
 		                                 PatchSource::NONE);
-		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE, 0);
+		scene.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 0, PatchSource::NONE, PatchSource::NONE, 0);
 		expect(spy.calls).to_equal(1);
 		expect(std::string{scene.shown_name()}).to_equal(spy.last_title);
 		expect(std::string{scene.shown_value()}).to_equal(spy.last_value);
@@ -437,7 +439,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		set_legacy_time_ms(kBase + 20);
 		view.displayModEncoderValuePopup(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE,
 		                                 PatchSource::NONE);
-		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE, 20);
+		scene.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 0, PatchSource::NONE, PatchSource::NONE, 20);
 		expect(spy.calls).to_equal(1); // unchanged: legacy did not redraw either.
 		expect(scene.remaining_ms()).to_equal(2000u); // re-armed, not merely "still counting down".
 		scene.tick(0); // the shell's tick the refresh landed in, which takes nothing off the new lifetime
@@ -448,7 +450,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		set_legacy_time_ms(kBase + 120);
 		view.displayModEncoderValuePopup(Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN, 64, PatchSource::NONE,
 		                                 PatchSource::NONE);
-		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN, 64, PatchSource::NONE, PatchSource::NONE, 120);
+		scene.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN), 64, PatchSource::NONE, PatchSource::NONE, 120);
 		expect(spy.calls).to_equal(1); // legacy's arbitration refused the switch too.
 		expect(scene.remaining_ms()).to_equal(1900u); // only ticked down, never refreshed.
 
@@ -458,7 +460,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		set_legacy_time_ms(kBase + 1100);
 		view.displayModEncoderValuePopup(Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN, 64, PatchSource::NONE,
 		                                 PatchSource::NONE);
-		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN, 64, PatchSource::NONE, PatchSource::NONE, 1100);
+		scene.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN), 64, PatchSource::NONE, PatchSource::NONE, 1100);
 		expect(spy.calls).to_equal(2);
 		expect(std::string{scene.shown_name()}).to_equal(spy.last_title);
 		expect(std::string{scene.shown_value()}).to_equal(spy.last_value);
@@ -472,7 +474,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		set_legacy_time_ms(kBase + 1120);
 		view.displayModEncoderValuePopup(Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN, -64, PatchSource::NONE,
 		                                 PatchSource::NONE);
-		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN, -64, PatchSource::NONE, PatchSource::NONE, 1120);
+		scene.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_PAN), -64, PatchSource::NONE, PatchSource::NONE, 1120);
 		expect(spy.calls).to_equal(2); // legacy queued it (`hasPendingModEncoderValuePopup`), not drawn.
 		expect(scene.has_pending()).to_be_true();
 		expect(std::string{scene.shown_value()}).to_equal(pan_first_value); // unchanged so far.
@@ -494,7 +496,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 
 	it("expires on its own after a quiet tick and removes itself with Action::Kind::Remove, never Pop", _ {
 		ParamPopupScene& scene = param_popup_scene();
-		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO, 0, PatchSource::NONE, PatchSource::NONE, 5'000'000);
+		scene.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO), 0, PatchSource::NONE, PatchSource::NONE, 5'000'000);
 		expect(scene.remaining_ms()).to_equal(2000u);
 		expect(scene.next_timer().has_value()).to_be_true();
 		expect(*scene.next_timer()).to_equal(2000u);
@@ -530,11 +532,11 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		// A gold turn between ticks re-arms the shown popup (`View::displayModEncoderValuePopup`'s
 		// `setTimer(DISPLAY, ...)`): its lifetime counts from the turn, not from the last tick.
 		ParamPopupScene& scene = param_popup_scene();
-		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO, 0, PatchSource::NONE, PatchSource::NONE, 6'000'000);
+		scene.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO), 0, PatchSource::NONE, PatchSource::NONE, 6'000'000);
 		scene.tick(5);
 		scene.tick(500);
 		expect(scene.remaining_ms()).to_equal(1500u);
-		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO, 1, PatchSource::NONE, PatchSource::NONE, 6'001'400);
+		scene.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO), 1, PatchSource::NONE, PatchSource::NONE, 6'001'400);
 		scene.tick(1400); // the shell's dt since its last tick, most of it before the turn
 		expect(scene.remaining_ms()).to_equal(2000u);
 		scene.tick(2000);
@@ -548,7 +550,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		display = &spy;
 		Rig r;
 		r.open();
-		param_popup_scene().show(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 0, PatchSource::NONE,
+		param_popup_scene().show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE), 0, PatchSource::NONE,
 		                         PatchSource::NONE, 9'000'000);
 		r.tick(9'000'000);
 		expect(r.shell.stack().depth()).to_equal(1u);
@@ -569,7 +571,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 	it("hands off what it shows and its remaining lifetime, and stops showing", _ {
 		auto& popup = param_popup_scene();
 		popup.tick(100'000);
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE, 7'000'000,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 0, PatchSource::NONE, PatchSource::NONE, 7'000'000,
 		                 {});
 		const std::string name{popup.shown_name()};
 		const std::string value{popup.shown_value()};
@@ -580,8 +582,8 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 			expect(handed->name).to_equal(name);
 			expect(handed->value).to_equal(value);
 			expect(handed->remaining_ms).to_equal(uint32_t(1400));
-			expect(handed->kind).to_equal(Kind::UNPATCHED_GLOBAL);
-			expect(handed->param_id).to_equal(int32_t(UNPATCHED_VOLUME));
+			expect(deluge::ui::scenes::spec::runtime_pair(handed->param).kind).to_equal(Kind::UNPATCHED_GLOBAL);
+			expect(deluge::ui::scenes::spec::runtime_pair(handed->param).index).to_equal(int32_t(UNPATCHED_VOLUME));
 		}
 		expect(popup.remaining_ms()).to_equal(uint32_t(0));
 		expect(popup.hand_off(7'000'600).has_value()).to_be_false();
@@ -590,7 +592,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 	it("reads the lifetime left off the clock, whether or not it has ticked since", _ {
 		auto& popup = param_popup_scene();
 		popup.tick(100'000);
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 5, PatchSource::NONE, PatchSource::NONE, 7'500'000,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 5, PatchSource::NONE, PatchSource::NONE, 7'500'000,
 		                 {});
 		// No tick since the show: a hand-off 900 ms on has 1100 ms left.
 		const std::optional<overlay::ShownPopup> later = popup.hand_off(7'500'900);
@@ -600,7 +602,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		}
 
 		popup.tick(100'000);
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 7, PatchSource::NONE, PatchSource::NONE, 7'600'000,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 7, PatchSource::NONE, PatchSource::NONE, 7'600'000,
 		                 {});
 		// Expired by the clock, though no tick has counted it down: nothing to hand.
 		expect(popup.hand_off(7'602'500).has_value()).to_be_false();
@@ -610,14 +612,14 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 	it("hands off a pending update, flushed first", _ {
 		auto& popup = param_popup_scene();
 		popup.tick(100'000);
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE, 8'000'000,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 0, PatchSource::NONE, PatchSource::NONE, 8'000'000,
 		                 {});
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 20, PatchSource::NONE, PatchSource::NONE, 8'000'010,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 20, PatchSource::NONE, PatchSource::NONE, 8'000'010,
 		                 {});
 		const std::optional<overlay::ShownPopup> handed = popup.hand_off(8'000'020);
 		// The newer value, as the shown popup would have read once its deferred flush ran.
 		popup.tick(100'000);
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 20, PatchSource::NONE, PatchSource::NONE, 9'000'000,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 20, PatchSource::NONE, PatchSource::NONE, 9'000'000,
 		                 {});
 		const std::string latest{popup.shown_value()};
 		expect(handed.has_value()).to_be_true();
@@ -642,17 +644,17 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		auto& popup = param_popup_scene();
 		popup.tick(100'000);
 		(void)cancels();
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE, 10'000'000,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 0, PatchSource::NONE, PatchSource::NONE, 10'000'000,
 		                 {});
 		expect(cancels()).to_equal(1);
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 20, PatchSource::NONE, PatchSource::NONE, 10'000'010,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 20, PatchSource::NONE, PatchSource::NONE, 10'000'010,
 		                 {});
 		expect(cancels()).to_equal(0); // deferred: nothing drawn yet
 		popup.tick(100);                // the deferred flush draws
 		expect(cancels()).to_equal(1);
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 40, PatchSource::NONE, PatchSource::NONE, 10'000'200,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 40, PatchSource::NONE, PatchSource::NONE, 10'000'200,
 		                 {});
-		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 60, PatchSource::NONE, PatchSource::NONE, 10'000'210,
+		(void)popup.show(deluge::ui::scenes::spec::plugin_param(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME), 60, PatchSource::NONE, PatchSource::NONE, 10'000'210,
 		                 {});
 		(void)cancels();
 		expect(popup.hand_off(10'000'220).has_value()).to_be_true();

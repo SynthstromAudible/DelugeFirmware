@@ -34,7 +34,6 @@ namespace deluge::ui::controls {
 /// @brief One control of a page: what a turn moves and what a press does.
 struct Slot {
 	std::optional<project::ParamTarget> target;           ///< what a turn moves; none for an empty slot
-	plugin::ParamKind kind{plugin::ParamKind::NONE};      ///< which of the owner's collections holds @c target
 	plugin::PressAction press{plugin::PressAction::NONE}; ///< what a press does
 	std::optional<plugin::ParamId> press_param;           ///< the setting a STEP_SETTING press steps
 	[[nodiscard]] constexpr bool operator==(const Slot&) const = default;

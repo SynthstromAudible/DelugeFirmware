@@ -460,25 +460,21 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 			out += " -> ";
 		}
 		const uint32_t index = destination ? destination->index : 0;
-		out += l10n::envelope_param_name_at(plugin::ParamKind::PATCHED, index, inputs.envelopes, /*brief=*/true)
-		           .value_or(l10n::patched_param_short_name_at(index, fx.filter.lpf_mode, fx.filter.hpf_mode));
+		out += l10n::envelope_param_name(plugin::ParamId{index}, inputs.envelopes, /*brief=*/true)
+		           .value_or(
+		               l10n::patched_param_short_name(plugin::ParamId{index}, fx.filter.lpf_mode, fx.filter.hpf_mode));
 		return out;
 	}
-	if (assignment.kind == plugin::ParamKind::UNPATCHED_GLOBAL) {
-		const std::optional<uint8_t> index = host::chains::find_runtime_index(id);
-		return index ? std::string{l10n::param_name_at(plugin::ParamKind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
-		                                               fx.filter.hpf_mode)}
-		             : std::string{};
+	if (assignment.plugin == project::OwnerPlugin::GLOBAL_EFFECTABLE) {
+		return host::chains::kParamBlock.contains(id)
+		           ? std::string{l10n::param_name(assignment.plugin, id, fx.filter.lpf_mode, fx.filter.hpf_mode)}
+		           : std::string{};
 	}
-	const std::optional<instruments::classic::RuntimeSlot> slot = instruments::classic::runtime_slot(id);
-	if (!slot) {
+	if (!instruments::classic::runtime_slot(id)) {
 		return {};
 	}
-	const plugin::ParamKind kind = slot->set == instruments::classic::RuntimeSet::PATCHED
-	                                   ? plugin::ParamKind::PATCHED
-	                                   : plugin::ParamKind::UNPATCHED_SOUND;
-	return std::string{l10n::envelope_param_name_at(kind, slot->index, inputs.envelopes)
-	                       .value_or(l10n::param_name_at(kind, slot->index, fx.filter.lpf_mode, fx.filter.hpf_mode))};
+	return std::string{l10n::envelope_param_name(id, inputs.envelopes)
+	                       .value_or(l10n::param_name(assignment.plugin, id, fx.filter.lpf_mode, fx.filter.hpf_mode))};
 }
 
 /// Both knobs' names, the upper first; the stutter button's lower knob has none on the song.

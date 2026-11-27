@@ -456,6 +456,10 @@ std::optional<std::string_view> plugin_param_name(project::OwnerPlugin plugin, p
 
 } // namespace
 
+std::string_view expression_param_name(plugin::ParamId id) {
+	return expression_name(id).value_or(getView(String::STRING_FOR_NONE));
+}
+
 std::string_view param_name(project::OwnerPlugin plugin, plugin::ParamId id) {
 	return plugin_param_name(plugin, id).value_or(getView(String::STRING_FOR_NONE));
 }

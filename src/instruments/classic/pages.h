@@ -59,17 +59,10 @@ struct PressInputs {
 /// @brief The slot that turns @p target and what its press does.
 /// @param target The param the knob moves.
 /// @param in     What changes the press.
-/// @return The slot: the kind names the sound's collection holding @p target (a cable's depth, a patched param, or an
-///         unpatched one); the press is a mod-button knob's press.
+/// @return The slot: @p target, with a mod-button knob's press.
 [[nodiscard]] constexpr plugin::RemoteSlot slot_for(plugin::ParamId target, const PressInputs& in) {
 	namespace setting = effects::setting;
 	plugin::RemoteSlot slot{.param = target, .press_param = std::nullopt};
-	if (is_cable_depth(target)) {
-		slot.kind = plugin::ParamKind::PATCH_CABLE;
-	}
-	else {
-		slot.kind = target.value < kUnpatchedFirstId ? plugin::ParamKind::PATCHED : plugin::ParamKind::UNPATCHED_SOUND;
-	}
 	const auto step = [&slot](plugin::ParamId setting_id) {
 		slot.press = plugin::PressAction::STEP_SETTING;
 		slot.press_param = setting_id;

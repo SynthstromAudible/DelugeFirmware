@@ -57,15 +57,20 @@ bool GuestKnobPresentation::suppress_value_popup(const ModTurn& turn) {
 	if (focused == nullptr || !focused->bind.param.valid()) {
 		return false;
 	}
-	const menu::AutomationParam pair = menu::legacy_pair_of(focused->bind.param);
-	return pair.kind == turn.kind && pair.id == turn.param_id;
+	const deluge::project::OwnerPlugin plugin = focused->bind.param.table == bind::ParamTable::CHAIN
+	                                                ? deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE
+	                                                : deluge::project::OwnerPlugin::INSTRUMENT;
+	return turn.param
+	       == deluge::project::PluginParam{
+	           .plugin = plugin,
+	           .target = deluge::project::engine_target(menu::param_id_of(focused->bind.param).value)};
 }
 
 void GuestKnobPresentation::show_value_popup(const ModTurn& turn, PatchSource source1, PatchSource source2,
                                              const overlay::PopupContext& context, uint32_t now_ms) {
 	// The popup's `show` reports whether it redrew; a second detent on an open popup moves its text, and only the
 	// caller's `Repaint` draws it.
-	const bool committed = popup_.show(turn.kind, turn.param_id, turn.new_knob_pos, source1, source2, now_ms, context);
+	const bool committed = popup_.show(turn.param, turn.new_knob_pos, source1, source2, now_ms, context);
 	// The popup is a scene: pushed when not stacked yet (it is input-transparent, so one may sit above it).
 	const bool stacked = std::ranges::any_of(stack_.scenes(), [](const deluge::ui::shell::Scene* scene) {
 		return scene->kind() == overlay::kParamPopupSceneKind;
