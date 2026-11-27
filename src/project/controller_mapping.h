@@ -22,6 +22,7 @@
 #include "project/fx_chain.h"
 #include "project/instrument_slot.h"
 #include "project/param_address.h"
+#include "serialization/schema/extras.h"
 
 #include <cstdint>
 #include <span>
@@ -41,6 +42,8 @@ struct ModKnobControl {
 struct ControllerMapping {
 	ModKnobControl control;
 	ParamTarget target{};
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	[[nodiscard]] bool operator==(const ControllerMapping&) const = default;
 };
 

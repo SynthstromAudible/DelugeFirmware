@@ -54,6 +54,8 @@ struct InstrumentSlot {
 	/// The song's input tick magnitude when the slot was filled: the context an edit reads and writes its sync levels
 	/// in.
 	int32_t tick_magnitude{1};
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const InstrumentSlot&) const = default;
 };
 
