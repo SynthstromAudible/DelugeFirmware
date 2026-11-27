@@ -16,7 +16,7 @@ guidebook:
 ---
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import { Steps } from "@astrojs/starlight/components"
+import { Badge, Steps } from "@astrojs/starlight/components"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -48,3 +48,19 @@ Some .wav and .aiff files contain tags specifying sample loop points. The Deluge
 2. :key[Turn Select] to adjust. The options are ‘ONCE’, ‘LOOP’, ‘STRETCH’, ‘CUT’.
 
 </Steps>
+
+## Smoothing loops with a crossfade <Badge text="C1.4" variant="tip" />
+
+Loops whose start and end don't join up perfectly can click or bump each time they go round. LOOP XFADE fades the end of the loop out while the start of the next pass fades in, so the join is smooth.
+
+<Steps>
+
+1. With a synth type set to sample and a file loaded and in focus, open the sound editor - :key[Select] &gt; OSCILLATOR 1 (or 2) &gt; LOOP XFADE, just after REPEAT MODE.
+2. :key[Turn Select] to set the crossfade time, from OFF up to 1000 ms in 10 ms steps. Longer crossfades smooth out more difficult joins.
+
+</Steps>
+
+- The crossfade works whenever the sample loops: in LOOP mode, or with a loop end point while the note is held, playing forwards or reversed. With no loop points set, the whole sample is the loop.
+- The crossfade can be at most half the loop's length.
+- The time is measured in the sample's own time, so the crossfade gets shorter as the sample is played higher.
+- It needs PITCH/SPEED linked and SPEED at 0. Otherwise notes away from the sample's own pitch are time-stretched, and the loop jumps as it did before.

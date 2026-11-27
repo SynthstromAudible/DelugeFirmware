@@ -1161,6 +1161,10 @@ For a detailed description of this feature, please refer to the feature document
     If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
   - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
     preset scales, it will be learned as a user scale, overwriting the previous `USER` scale.
+    <Badge text="c1.4" variant="tip" /> (#5345) Entering scale mode now always
+    keeps the song's key, and notes outside it become
+    [accidentals](#443---accidentals), so a user scale is only learned with
+    :key[Learn + Scale].
   - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded. Soon!
 
 - (#2376) <Badge text="c1.2" variant="tip" /> Added `ACTIVE SCALES` menu.
