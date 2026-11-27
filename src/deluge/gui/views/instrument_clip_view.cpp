@@ -3362,7 +3362,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 multiplePresses:
 
 		int32_t leftMostPos = 2147483647;
-		int32_t leftMostIndex;
+		int32_t leftMostIndex = -1;
 		// Find the leftmost one. There may be more than one...
 		for (int32_t i = 0; i < edit_targets.size(); i++) {
 			if (edit_targets[i].isActive) {
@@ -3401,6 +3401,12 @@ multiplePresses:
 					}
 				}
 			}
+		}
+
+		// A blurred square whose notes can't be found sets no index; with no leftmost note there's nothing to base the
+		// edit on
+		if (leftMostIndex < 0) {
+			return;
 		}
 
 		int32_t originalParameter = 0;
