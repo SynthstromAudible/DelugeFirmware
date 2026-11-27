@@ -584,8 +584,16 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		}
 	}
 	else if (b == SAVE && currentUIMode == UI_MODE_AUDITIONING) {
+		// Saving an auditioned row is for kit rows with a sound drum. In other clips there may be no NoteRow on that
+		// row, and kit rows can have no Drum.
+		if (!on || getCurrentOutputType() != OutputType::KIT) {
+			return ActionResult::DEALT_WITH;
+		}
+		if (inCardRoutine) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(lastAuditionedYDisplay, currentSong, nullptr);
-		if (noteRow->drum->type == DrumType::SOUND) {
+		if (noteRow && noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
 			saveKitRowUI.setup((SoundDrum*)noteRow->drum, &noteRow->paramManager);
 			AudioEngine::stopAnyPreviewing();
 			cancelAllAuditioning();
