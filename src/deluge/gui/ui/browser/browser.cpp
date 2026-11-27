@@ -1568,6 +1568,17 @@ void Browser::displayText(bool blinkImmediately) {
 	}
 }
 
+// FileItems for presets that are loaded in the song (or hibernating) point at the Instrument, and the browser stays
+// open across things that can free it - e.g. a save into the slot of a hibernating Instrument deletes that Instrument.
+void Browser::forgetOutput(Output const* output) {
+	for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
+		FileItem* item = (FileItem*)fileItems.getElementAddress(i);
+		if (item->instrument != nullptr && static_cast<Output const*>(item->instrument) == output) {
+			item->instrument = nullptr;
+		}
+	}
+}
+
 FileItem* Browser::getCurrentFileItem() {
 	if (fileIndexSelected == -1) {
 		return nullptr;
