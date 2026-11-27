@@ -2472,8 +2472,9 @@ paths = ["src/deluge/model/**", "src/project/**", "src/serialization/**", "src/d
          "tests/unit/deluge/**", "tests/unit/integration/**", "tests/fixtures/songs/**",
          "tests/fixtures/midi-devices/**"]
 [area.synth]
-paths = ["src/synth/**", "src/instruments/**", "src/plugin/**", "src/deluge/processing/**",
-         "src/deluge/modulation/**", "tests/unit/instruments/**", "tests/unit/plugin/**"]
+paths = ["src/synth/**", "src/arp/**", "src/instruments/**", "src/plugin/**", "src/deluge/processing/**",
+         "src/deluge/modulation/**", "tests/unit/instruments/**", "tests/unit/plugin/**",
+         "tests/unit/arp/**"]
 [area.dsp]
 paths = ["src/dsp/**", "src/arm_neon_shim.h", "tests/unit/dsp/**"]
 [area.effects]
