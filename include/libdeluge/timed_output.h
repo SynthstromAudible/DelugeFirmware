@@ -42,6 +42,10 @@ extern "C" {
 /// there is no play position (the host). [task] [audio]
 uint32_t deluge_audio_render_offset_to_stamp(uint32_t offset_frames) DELUGE_NOEXCEPT;
 
+/// The stamp of the frame the codec is playing now: when something sent as soon as possible goes out. Never
+/// DELUGE_STAMP_NOW. [task] [audio] [isr]
+uint32_t deluge_audio_play_stamp(void) DELUGE_NOEXCEPT;
+
 /// Queue a whole MIDI message on `port` to start at `stamp`: raw bytes on DIN, whole 4-byte
 /// USB-MIDI event packets on a USB port. Each port sends in the order queued; a message not yet due
 /// holds back those behind it. Returns false, queuing nothing, if the port's queue lacks room for

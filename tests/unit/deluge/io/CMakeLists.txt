@@ -2,7 +2,7 @@
 # and stem-export policies built on it. The wrapper links against a hand-written in-memory mock of file_io.h's C ABI
 # (tests/support/mocks/mock_file_io.cpp), not the FatFS-backed adapter, so these specs get real
 # open/read/write/seek/close and directory-iteration round trips with no mounted filesystem. The bounded C paths
-# (c_path.h) and the gates' output times (io/midi/midi_queue.cpp, its clock from mock_hal.cpp) are specced here too. The pad-grid crash pattern has its own driver
+# (c_path.h) are specced here too. The pad-grid crash pattern has its own driver
 # (debug/).
 set(_app ${DELUGE_REPO_ROOT}/src/deluge)
 deluge_specs_driver(io_specs TREES host
@@ -21,7 +21,6 @@ deluge_specs_driver(io_specs TREES host
     ${_app}/model/sample/recorder_finalize_policy.cpp
     ${_app}/model/sample/recorder_create_policy.cpp
     ${_app}/processing/stem_export/stem_search_policy.cpp
-    ${_app}/io/midi/midi_queue.cpp
     ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_hal.cpp
     ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_critical_section.cpp
   INCLUDES

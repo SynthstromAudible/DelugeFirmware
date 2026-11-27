@@ -19,8 +19,7 @@
 
 #include "model/drum/gate_drum.h"
 #include <cstdint>
-
-struct CriticalSectionGuard;
+#include <libdeluge/timed_output.h>
 
 #define WHICH_GATE_OUTPUT_IS_RUN 2
 #define WHICH_GATE_OUTPUT_IS_CLOCK 3
@@ -50,18 +49,14 @@ public:
 	GateChannel() { on = false; }
 	bool on; // Means either on now, or "awaiting" switch-on
 	GateType mode;
-	uint32_t timeLastSwitchedOff{};
+	/// The play-timeline stamp of the frame playing when the gate last switched off (DELUGE_STAMP_NOW before then):
+	/// the next switch-on waits minGateOffTime after it
+	uint32_t offStamp{DELUGE_STAMP_NOW};
 };
 
-/// A snapshot of gate output changes, so they can be physically output at a later time (e.g. from the MIDI/gate
-/// output ISR) without being affected by changes made in the meantime
-struct GateOutputs {
-	uint8_t mask{0};             ///< bitmask of gate channels to physically switch
-	uint8_t levels{0};           ///< pin level for each channel in mask
-	uint8_t cvWaitMask{0};       ///< channels in mask which can't switch until any pending CV has been sent
-	bool needsMinOffTime{false}; ///< contains a note-on which must respect minGateOffTime
-};
-
+/// The CV and gate outputs' state and policy: notes to voltages, the clock and run gates, and the minimum gate off
+/// time. Output goes through libdeluge/timed_output.h at the render's stamp (see AudioEngine::cvGateStamp()), so a
+/// note's CV reaches the DAC before its gate switches.
 class CVEngine {
 public:
 	CVEngine();
@@ -72,29 +67,20 @@ public:
 	void setCVTranspose(uint8_t channel, int32_t semitones, int32_t cents);
 	void setCVPitchBend(uint8_t channel, int32_t value, bool outputToo = true);
 	int32_t calculateVoltage(int32_t note, uint8_t channel);
-	void physicallySwitchGate(int32_t channel);
-	/// Release any gates held for their CV, if the CV has reached the DAC since it was queued
-	void pollCVSent(const CriticalSectionGuard&);
-	/// Whether any gates are being held until their CV has been output, see pollCVSent()
-	bool anyGatesAwaitingCV() const { return gatesAwaitingCV != 0; }
 
 	void analogOutTick();
 	void playbackBegun();
 	void playbackEnded();
-	/// toggles clock, does not physically update until updateGateOutputs called
+	/// Send the clock gate's state, when the clock gate carries the clock
 	void updateClockOutput();
 	void updateRunOutput();
 	bool isTriggerClockOutputEnabled();
-	/// physically send all pending gate outs right now
-	void updateGateOutputs();
-	/// take all gate changes made since the last call, so they can be scheduled to go out at a specific time.
-	/// asap (run) gates are only included if includeAsap is set, since they need to respect minGateOffTime
-	GateOutputs takePendingGateOutputs(bool includeAsap);
-	/// physically output a snapshot of gates
-	void outputGates(const GateOutputs& outputs, const CriticalSectionGuard&);
 
-	bool isAnythingButRunPending() const { return (pendingGates & ~pendingAsapGates) != 0; }
-	bool isAnythingPending() const { return pendingGates != 0; }
+	/// The stamp a gate switching on at @p requested goes at: no earlier than @p minGateOffTime (100 µs units) after
+	/// the stamp it last switched off at, @p lastOff. DELUGE_STAMP_NOW for @p lastOff means it has no timed off;
+	/// DELUGE_STAMP_NOW for @p requested means as soon as the off time allows.
+	static uint32_t onStampAfterOff(uint32_t requested, uint32_t lastOff, uint8_t minGateOffTime);
+
 	GateChannel gateChannels[NUM_GATE_CHANNELS];
 
 	CVChannel cvChannels[NUM_PHYSICAL_CV_CHANNELS];
@@ -102,11 +88,6 @@ public:
 	uint8_t minGateOffTime; // in 100uS's
 
 	bool clockState;
-
-	// When one or more note-on is pending, this is the latest time that one of them last switched off.
-	// But it seems I only use this very coarsely - more to see if we're still in the same audio frame than to measure
-	// time exactly. This could be improved.
-	uint32_t mostRecentSwitchOffTimeOfPendingNoteOn;
 
 	void sendVoltageOut(uint8_t channel, uint16_t voltage);
 
@@ -116,30 +97,16 @@ public:
 
 private:
 	void recalculateCVChannelVoltage(uint8_t channel);
+	/// Switch a gate off at once, a head start on the off time before it switches on again
 	void switchGateOff(int32_t channel);
-	void switchGateOn(int32_t channel, int32_t doInstantlyIfPossible = false);
-	/// physically switch a gate right now, superseding any pending or scheduled output for it
+	/// Switch a gate on at the render's stamp, or as soon as possible, once the minimum off time has passed
+	void switchGateOn(int32_t channel, bool asSoonAsPossible = false);
+	/// Switch a gate to its state at once, dropping any edge queued for it
 	void switchGateNow(int32_t channel);
 	uint8_t gateLevel(int32_t channel) const {
-		// deluge_gate_set is inverted - sending true turns the gate off
+		// The gate pin is inverted - setting it true turns the gate off
 		return gateChannels[channel].on == (gateChannels[channel].mode == GateType::S_TRIG);
 	}
-	/// release any gates which were held while CV is pending now that it's done
-	void cvOutUpdated(const CriticalSectionGuard&);
-	/// signifies there's a gate that can't go until the cv is output
-	bool cvOutPending{false};
-	/// deluge_cv_sent_count() at the moment the pending CV was queued; cvOutPending clears once the count moves past
-	/// it. See pollCVSent().
-	uint32_t cvSentSnapshot{0};
-	/// bitmask of gate channels which have changed but haven't been taken for output yet
-	uint8_t pendingGates{0};
-	/// subset of pendingGates which should go asap (run signal), respecting minGateOffTime
-	uint8_t pendingAsapGates{0};
-	/// subset of pendingGates which are deferred note-ons (must wait for CV and respect minGateOffTime)
-	uint8_t pendingNoteOnGates{0};
-	/// gates whose scheduled time has passed but are being held until their cv is output
-	uint8_t gatesAwaitingCV{0};
-	uint8_t levelsAwaitingCV{0};
 };
 
 extern CVEngine cvEngine;

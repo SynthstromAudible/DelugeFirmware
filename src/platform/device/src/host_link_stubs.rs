@@ -50,6 +50,12 @@ pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
     0
 }
 
+/// The host's play position, as its output service reads it.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_play_stamp() -> u32 {
+    crate::audio::capture_stamp::stamp_for_offset(crate::audio::host::play_frame(), 0)
+}
+
 /// The host's render cursor counts the timeline: the block being rendered starts at it.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_render_offset_to_stamp(offset_frames: u32) -> u32 {
@@ -318,6 +324,7 @@ abi_pin!(
     deluge_audio_input_resync,
     deluge_audio_stamp_to_render_offset,
     deluge_audio_render_offset_to_stamp,
+    deluge_audio_play_stamp,
     deluge_audio_start,
     deluge_battery_read_raw,
     deluge_battery_start_conversion,

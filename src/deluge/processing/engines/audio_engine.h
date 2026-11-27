@@ -373,12 +373,9 @@ extern deluge::dsp::fp::LevelDetector envelopeFollower;
 /// Set once the BSP's audio tier drives the render (at the end of deluge_app_init). From then on
 /// runRoutine() leaves rendering to the tier, which preempts its caller.
 extern std::atomic<bool> renderDrivenByTier;
-/// Remove these gate channels from any output waiting to be sent by the MIDI/gate output timer, because they've been
-/// superseded by a newer state which is being output now
-void cancelScheduledGates(uint8_t gateMask, const CriticalSectionGuard&);
-/// Called from the MIDI/gate output timer's interrupt. Sends any MIDI/gate output which is due and arms the timer for
-/// the rest
-void midiGateOutputTimerFired();
+/// The stamp CV and gate changes made now go out at (libdeluge/timed_output.h): where the render is in its window, or
+/// DELUGE_STAMP_NOW between renders, so a change made outside the render goes at once
+uint32_t cvGateStamp();
 
 /// @name The foreground recording
 ///

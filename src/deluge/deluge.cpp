@@ -109,12 +109,7 @@ Song* currentSong = nullptr;
 Song* preLoadedSong = nullptr;
 
 extern "C" void midiAndGateTimerGoneOff(void) noexcept {
-	try {
-		// Sends only what's due now, and arms the timer again for anything still to come
-		AudioEngine::midiGateOutputTimerFired();
-	} catch (...) {
-		// An interrupt has no caller to report to. What was not sent stays pending for the next flush.
-	}
+	// The board's timed output service answers the timer: nothing of the app's is waiting for it
 }
 
 uint32_t timeNextGraphicsTick = 0;
