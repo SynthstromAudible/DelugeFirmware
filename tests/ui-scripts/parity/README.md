@@ -165,3 +165,20 @@ walk reaches COUNT-IN too, so both runners cover the count-in.
 The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
 preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
 preset shows the conversion in every comparison that touches it instead of the UI.
+
+## When a change needs an emulator sweep
+
+The host app plays every parity script on the virtual clock (`tools/x86_parity.py`, gate `x86-parity`). A change whose
+x86 run against its base differs in nothing keeps the base's parity with `main` for everything the host app can show,
+so the base's explained sweep carries over. The emulator sees what the host app cannot: upstream `main` itself, ARM
+code generation, the BSP and the device's timing. A change gets one sweep of its final image against `main` (read
+against `DIFFERENCES.md`) only when it:
+
+- merges upstream `main` (rebuild the reference image at the merged `main` first);
+- touches `src/platform/device/`, the `deluge-sdk` pin in `Cargo.lock`, `src/platform/device/linker/`, the memory
+  placement (`tools/placement_roots.toml`), or the device compiler flags and toolchain;
+- changes input or display timing: encoder or button polling, UI timers, the display flush;
+- shows any difference in x86 against its base that is meant to be there.
+
+Every other change is checked by x86 against its base (zero differences) and its host gates. ARM code generation is
+covered by `unit-arm` and `dsp-diff` under qemu-arm.
