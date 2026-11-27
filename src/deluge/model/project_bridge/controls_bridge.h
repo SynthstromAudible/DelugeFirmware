@@ -39,21 +39,22 @@ class Song;
 
 namespace deluge::bridge {
 
-/// @brief The param a runtime knob controls, as the model's controls name it: a plain param through its engine's map
-/// (@p unpatchedKind numbers an unpatched one), a cable's depth as the instrument's depth id. A knob with no target
-/// reads as the null descriptor does.
+/// @brief The param a runtime knob controls, as the model's controls name it: an engine param through its engine's map
+/// (@p unpatchedKind numbers an unpatched one), a cable's depth as the instrument's depth id, an arp param as itself. A
+/// knob with no target reads as the null descriptor does.
 /// @param knob          The knob's target.
 /// @param unpatchedKind The Kind that numbers an unpatched param.
-/// @return The target param id.
-[[nodiscard]] deluge::plugin::ParamId controlTargetOf(const deluge::modulation::KnobTarget& knob,
-                                                      deluge::modulation::params::Kind unpatchedKind);
+/// @return The target.
+[[nodiscard]] deluge::project::ParamTarget controlTargetOf(const deluge::modulation::KnobTarget& knob,
+                                                           deluge::modulation::params::Kind unpatchedKind);
 
 /// @brief A knob's target as the model's control names it, for an owner of @p owner's plugin: the kind form with the
 /// kind that numbers that owner's unpatched params.
 /// @param knob  The knob's target.
 /// @param owner The owner's plugin.
-/// @return The target param id.
-[[nodiscard]] deluge::plugin::ParamId controlTargetOf(const deluge::modulation::KnobTarget& knob, OwnerPlugin owner);
+/// @return The target.
+[[nodiscard]] deluge::project::ParamTarget controlTargetOf(const deluge::modulation::KnobTarget& knob,
+                                                           OwnerPlugin owner);
 
 /// @brief A sound's controls as the model holds them: its 16 mod knobs (button by button, knob 0 then 1).
 /// @param sound The sound.
@@ -61,8 +62,9 @@ namespace deluge::bridge {
 [[nodiscard]] std::vector<deluge::project::ControllerMapping> controlsOf(::Sound& sound);
 
 /// @brief A sound's controls as the instrument's knob pairs, one per mod button: each knob's target is the param id
-/// the record holds (a cable's depth as its depth id). A knob @p controls does not name reads as param id 0
-/// (`kOscAVolume`); writeKnobPairs reads a record only when it names every knob.
+/// the record holds (a cable's depth as its depth id). A knob @p controls does not name, or names on the arp, reads as
+/// param id 0 (`kOscAVolume`); writeKnobPairs reads a record only when it names every knob, and keeps an arp knob whose
+/// slot its change leaves alone.
 /// @param controls A sound's controls (as controlsOf gives them).
 /// @return The knobs, button by button.
 [[nodiscard]] deluge::instruments::classic::KnobPairs
@@ -113,11 +115,11 @@ void refreshControls(::Song& song);
 [[nodiscard]] deluge::modulation::KnobTarget knobOfControl(deluge::plugin::ParamId target,
                                                            deluge::modulation::params::Kind unpatchedKind);
 
-/// @brief The runtime knob target of a learned param. Only an ENGINE-space param names a runtime knob; any other
-/// space has none.
+/// @brief The runtime knob target of a learned param: an ENGINE-space param's runtime param, an arp param itself; any
+/// other space has none.
 /// @param target        The learned param.
 /// @param unpatchedKind The Kind that numbers an unpatched param.
-/// @return The knob's target; none if @p target is not an ENGINE param naming a runtime param.
+/// @return The knob's target; none if @p target is neither an arp param nor an ENGINE param naming a runtime param.
 [[nodiscard]] deluge::modulation::KnobTarget knobOfControl(deluge::project::ParamTarget target,
                                                            deluge::modulation::params::Kind unpatchedKind);
 

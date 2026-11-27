@@ -49,6 +49,8 @@ enum class ParamFlag : uint16_t {
 	STEPPED = 1 << 6,             ///< takes whole steps: a choice index or a count, never a knob word between
 	ENUM = 1 << 7,                ///< each step is a named choice
 	SETTING = 1 << 8,             ///< a setting the host stores at its file name's path, not automated and not undone
+	DESTINATION_ONLY = 1 << 9, ///< a cable destination only: its base value lives in another store, so its name alone
+	                           ///< names that store's param, and only a cable's ref names this row
 };
 
 /// @brief A set of ParamFlag.

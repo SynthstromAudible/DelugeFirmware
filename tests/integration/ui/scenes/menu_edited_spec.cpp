@@ -417,7 +417,7 @@ describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the 
 		    deluge::project::engine_target(
 		        deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::LOCAL_VOLUME),
 		                                        params::Kind::UNPATCHED_SOUND)
-		            .value)};
+		            .id.value)};
 		deluge::edits::learnMappingFor(deluge::project::MidiCommand{.channel_or_zone = 1, .note_or_cc = 74}, knob);
 		expect(fx.song->project.mappings.find(knob)).not_().to_be_null();
 		fx.instrument->editedByUser = false;

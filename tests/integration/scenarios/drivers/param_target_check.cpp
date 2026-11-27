@@ -307,11 +307,18 @@ void checkCell(Checker& check, const char* table, OwnerPlugin owner, std::option
 		}
 		return;
 	}
-	// The cells are main's: its unpatched params past the arp's sit 15 (16) higher, and the arp's own are ours by arp
-	// id (support/main_numbering.h).
+	// The cells are main's: its unpatched params past the arp's sit 15 (16) higher, and the arp's own (a sound's arp
+	// rate, its patched 54, among them) are ours by arp id (support/main_numbering.h).
 	params::Kind kind = cell.kind;
 	int32_t index = cell.index;
-	if (kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
+	if (kind == params::Kind::PATCHED) {
+		if (const std::optional<uint32_t> arp =
+		        deluge::ui::scenes::spec::main_numbering::arp_id_of_patched(static_cast<uint32_t>(index))) {
+			kind = params::Kind::ARP;
+			index = static_cast<int32_t>(*arp);
+		}
+	}
+	else if (kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
 		namespace numbering = deluge::ui::scenes::spec::main_numbering;
 		if (const std::optional<uint32_t> arp =
 		        numbering::arp_id_of_index(kind == params::Kind::UNPATCHED_GLOBAL, index)) {
@@ -462,15 +469,22 @@ void checkMidiFollow(Checker& check) {
 		// The cell is main's id; the controlling CC is main's for that id, the CC asked is ours for its param.
 		const auto main_id = static_cast<uint32_t>(cell.cell);
 		const bool unpatched = main_id >= deluge::ui::scenes::spec::main_numbering::kUnpatchedFirstId;
+		const std::optional<uint32_t> arp_rate =
+		    unpatched ? std::nullopt : deluge::ui::scenes::spec::main_numbering::arp_id_of_patched(main_id);
 		const ParamTarget target = unpatched ? deluge::ui::scenes::spec::main_numbering::target_of_id(false, main_id)
-		                                     : deluge::project::engine_target(main_id);
+		                           : arp_rate
+		                               ? ParamTarget{.space = deluge::project::ParamSpace::ARP, .id = {*arp_rate}}
+		                               : deluge::project::engine_target(main_id);
 		std::optional<RuntimeParam> param = deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, target);
 		if (!param) {
 			continue;
 		}
-		const int expected = unpatched ? controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::UNPATCHED_SOUND,
-		                                             static_cast<int32_t>(main_id - params::UNPATCHED_START))
-		                               : controlling(Table::FOLLOW_CC_TO_SOUND, param->kind, param->index);
+		// Main's record names the param by its own kind: a sound's arp rate as patched
+		const int expected =
+		    unpatched  ? controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::UNPATCHED_SOUND,
+		                             static_cast<int32_t>(main_id - params::UNPATCHED_START))
+		    : arp_rate ? controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::PATCHED, static_cast<int32_t>(main_id))
+		               : controlling(Table::FOLLOW_CC_TO_SOUND, param->kind, param->index);
 		std::optional<uint8_t> cc = follow.ccOf(OwnerPlugin::INSTRUMENT, target);
 		if (ccNumber(cc) != expected || ccNumber(cc) != cell.index) {
 			check.fail("follow sound CC", cell.cell, ccNumber(cc), cell.index);

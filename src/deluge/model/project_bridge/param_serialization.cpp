@@ -117,8 +117,8 @@ constexpr DocParamAttr kArpAttrs[] = {
     {"spreadGate", arp::param::kSpreadGate},
     {"spreadOctave", arp::param::kSpreadOctave},
 };
-// A kit's arp rate.
-constexpr DocParamAttr kKitArpRateAttr[] = {{"arpeggiatorRate", arp::param::kRate}};
+// An arp's rate: a kit's, and a sound's (the base of its matrix's arp-rate destination).
+constexpr DocParamAttr kArpRateAttr[] = {{"arpeggiatorRate", arp::param::kRate}};
 
 /// @brief The arp params as a global effectable with no arp (the song, an audio clip) saves them: a kit's arp's
 ///        starting values, which nothing plays.
@@ -343,7 +343,8 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 
 	writeDocParamAsAttribute(patched, "reverbAmount", ip::kReverbAmount, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "arpeggiatorRate", ip::kArpRate, out, writeAutomation);
+	writeDocParamAsAttribute(arp != nullptr ? *arp : arpDefaultsForSave(), "arpeggiatorRate", arp::param::kRate, out,
+	                         writeAutomation && arp != nullptr);
 
 	serializeModControllableParamAttributes(unpatched, out, writeAutomation, nullptr, arp);
 
@@ -574,7 +575,7 @@ bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSe
                                   ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos,
                                   LiveArp arp) {
 	return (arp.set != nullptr
-	        && readLiveParamFromTable(in, tagName, kKitArpRateAttr, *arp.set, *arp.summary, readAutomationUpToPos))
+	        && readLiveParamFromTable(in, tagName, kArpRateAttr, *arp.set, *arp.summary, readAutomationUpToPos))
 	       || readLiveParamGroup(in, tagName, "delay", kGlobalDelayGroup, unpatched, unpatchedSummary,
 	                             readAutomationUpToPos)
 	       || readLiveParamGroup(in, tagName, "lpf", kGlobalLpfReadGroup, unpatched, unpatchedSummary,
@@ -630,7 +631,7 @@ bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, Doc
 
 bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
                                        int32_t readAutomationUpToPos, DocParamSet* arp) {
-	return (arp != nullptr && readDocParamFromTable(in, tagName, kKitArpRateAttr, *arp, readAutomationUpToPos))
+	return (arp != nullptr && readDocParamFromTable(in, tagName, kArpRateAttr, *arp, readAutomationUpToPos))
 	       || readDocParamGroup(in, tagName, "delay", kGlobalDelayGroup, doc, readAutomationUpToPos)
 	       || readDocParamGroup(in, tagName, "lpf", kGlobalLpfReadGroup, doc, readAutomationUpToPos)
 	       || readDocParamGroup(in, tagName, "hpf", kGlobalHpfReadGroup, doc, readAutomationUpToPos)
@@ -679,7 +680,6 @@ constexpr DocParamAttr kSoundPatchedAttrs[] = {
     {"delayRate", ip::kDelayRate},
     {"delayFeedback", ip::kDelayFeedback},
     {"reverbAmount", ip::kReverbAmount},
-    {"arpeggiatorRate", ip::kArpRate},
     {"lpfMorph", ip::kLpfMorph},
     {"hpfMorph", ip::kHpfMorph},
     {"waveFold", ip::kWaveFold},
@@ -691,6 +691,8 @@ bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched,
                        LiveArp arp) {
 	return readLiveParamFromTable(in, tagName, kSoundUnpatchedAttrs, unpatched, unpatchedSummary, readAutomationUpToPos)
 	       || readLiveParamFromTable(in, tagName, kSoundPatchedAttrs, patched, patchedSummary, readAutomationUpToPos)
+	       || (arp.set != nullptr
+	           && readLiveParamFromTable(in, tagName, kArpRateAttr, *arp.set, *arp.summary, readAutomationUpToPos))
 	       || readLiveParamGroup(in, tagName, "envelope1", kEnvelope1, patched, patchedSummary, readAutomationUpToPos)
 	       || readLiveParamGroup(in, tagName, "envelope2", kEnvelope2, patched, patchedSummary, readAutomationUpToPos)
 	       || readLiveParamGroup(in, tagName, "envelope3", kEnvelope3, patched, patchedSummary, readAutomationUpToPos)
@@ -702,6 +704,7 @@ bool readSoundParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& 
                             int32_t readAutomationUpToPos, DocParamSet* arp) {
 	return readDocParamFromTable(in, tagName, kSoundUnpatchedAttrs, unpatched, readAutomationUpToPos)
 	       || readDocParamFromTable(in, tagName, kSoundPatchedAttrs, patched, readAutomationUpToPos)
+	       || (arp != nullptr && readDocParamFromTable(in, tagName, kArpRateAttr, *arp, readAutomationUpToPos))
 	       || readDocParamGroup(in, tagName, "envelope1", kEnvelope1, patched, readAutomationUpToPos)
 	       || readDocParamGroup(in, tagName, "envelope2", kEnvelope2, patched, readAutomationUpToPos)
 	       || readDocParamGroup(in, tagName, "envelope3", kEnvelope3, patched, readAutomationUpToPos)

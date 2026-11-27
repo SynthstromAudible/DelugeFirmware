@@ -4,6 +4,8 @@
 ///        knob is in the table, still on its owner before the table takes it, or handed over by a preset change.
 
 #include "arp/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/learn_mapping.h"
@@ -56,7 +58,7 @@ constexpr int32_t kSeeded = 1 << 26;
 /// @brief A patched param of a sound, as the table names it.
 deluge::project::ParamTarget patched(int32_t p) {
 	return deluge::project::engine_target(
-	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).value);
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).id.value);
 }
 
 /// @brief A knob on the sound pitch adjust, as a file reads it: its owner a placeholder.
@@ -102,7 +104,7 @@ SoundInstrument* makeLooseSynth(::Song& song) {
 }
 
 /// @brief A song with one synth, on one clip, whose element holds @p midiKnobs.
-std::string synth_song_xml(std::string_view midiKnobs) {
+std::string synth_song_xml(std::string_view midiKnobs, std::string_view modKnobs = {}) {
 	return std::string{R"(<?xml version="1.0" encoding="UTF-8"?>
 <song firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" timePerTimerTick="229" timerTickFraction="-1342177280" inputTickMagnitude="2">
 	<instruments>
@@ -110,8 +112,9 @@ std::string synth_song_xml(std::string_view midiKnobs) {
 			<osc1 type="square" transpose="0" cents="0" retrigPhase="-1" />
 			<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />
 			<unison num="1" detune="8" />
-			<midiKnobs>
-)"} + std::string{midiKnobs}
+)"} + (modKnobs.empty() ? std::string{} : "\t\t\t<modKnobs>\n" + std::string{modKnobs} + "\n\t\t\t</modKnobs>\n")
+	       + R"(			<midiKnobs>
+)" + std::string{midiKnobs}
 	       + R"(
 			</midiKnobs>
 		</sound>
@@ -167,7 +170,7 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		                      deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(
 		                          params::GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::SIDECHAIN)),
 		                      params::Kind::UNPATCHED_SOUND)
-		                      .value),
+		                      .id.value),
 		              "the second knob's param");
 		expect(paramOf(knobs[2])).to_equal(patched(params::LOCAL_PITCH_ADJUST), "the third knob's param");
 		expect(knobs[2].relative).to_be_true();
@@ -218,6 +221,88 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		const std::string text = saved(*song);
 		expect(text).to_contain(R"("controlsParam": "arpGate")", "the saved song");
 		expect(text).to_contain(R"("controlsParam": "spreadOctave")", "the saved song");
+	});
+
+	it("loads a sound's knob on arpRate as the arp's rate, and one on a cable to it as the cable's depth", _ {
+		Song* song = spec::load_song(synth_song_xml(R"(
+				<midiKnob channel="1" ccNumber="22" relative="0" controlsParam="arpRate" />
+				<midiKnob channel="1" ccNumber="23" relative="0" controlsParam="arpRate" patchAmountFromSource="lfo1" />)"));
+		expect(song).not_().to_be_null("the loaded song");
+		SoundInstrument* synth = song != nullptr ? spec::first_synth(*song) : nullptr;
+		expect(synth).not_().to_be_null("the song's synth");
+		if (synth == nullptr || !synth->id()) {
+			return;
+		}
+		const std::vector<Mapping> knobs = song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *synth->id()});
+		expect(static_cast<int>(knobs.size())).to_equal(2);
+		if (knobs.size() != 2) {
+			return;
+		}
+		const auto paramOf = [](const Mapping& knob) { return std::get<OwnerParamTarget>(knob.target).param; };
+		expect(paramOf(knobs[0]))
+		    .to_equal(deluge::project::ParamTarget{.space = deluge::project::ParamSpace::ARP,
+		                                           .id = deluge::arp::param::kRate},
+		              "the plain knob's param");
+		const std::optional<deluge::plugin::ParamId> depth = deluge::instruments::classic::cable_depth_id(
+		    deluge::instruments::classic::PatchSource::LFO_GLOBAL_1, deluge::instruments::classic::param::kArpRate);
+		expect(depth.has_value()).to_be_true("the cable's depth id");
+		if (depth) {
+			expect(paramOf(knobs[1])).to_equal(deluge::project::engine_target(depth->value), "the cable knob's param");
+		}
+		const std::string text = saved(*song);
+		expect(text).to_contain(R"("controlsParam": "arpRate")", "the saved song");
+		expect(text).to_contain(R"("patchAmountFromSource": "lfo1")", "the saved song");
+	});
+
+	it("loads a sound's mod knobs on its arp's params as the arp's, one on a cable to its rate as the cable's, and saves them so", _ {
+		Song* song = spec::load_song(synth_song_xml({}, R"(
+				<modKnob controlsParam="arpGate" />
+				<modKnob controlsParam="arpRate" />
+				<modKnob controlsParam="arpRate" patchAmountFromSource="lfo1" />)"));
+		expect(song).not_().to_be_null("the loaded song");
+		SoundInstrument* synth = song != nullptr ? spec::first_synth(*song) : nullptr;
+		expect(synth).not_().to_be_null("the song's synth");
+		if (synth == nullptr || !synth->id()) {
+			return;
+		}
+		using deluge::project::ParamSpace;
+		using deluge::project::ParamTarget;
+		const ParamTarget gate{.space = ParamSpace::ARP, .id = deluge::arp::param::kGate};
+		const ParamTarget rate{.space = ParamSpace::ARP, .id = deluge::arp::param::kRate};
+		const std::optional<deluge::plugin::ParamId> depth = deluge::instruments::classic::cable_depth_id(
+		    deluge::instruments::classic::PatchSource::LFO_GLOBAL_1, deluge::instruments::classic::param::kArpRate);
+		expect(depth.has_value()).to_be_true("the cable's depth id");
+		if (!depth) {
+			return;
+		}
+		const ParamTarget cable = deluge::project::engine_target(depth->value);
+		// The sound's own knobs
+		expect(synth->modKnobs[0][0].target.value_or(ParamTarget{})).to_equal(gate, "the sound's knob 0 0");
+		expect(synth->modKnobs[0][1].target.value_or(ParamTarget{})).to_equal(rate, "the sound's knob 0 1");
+		expect(deluge::bridge::controlTargetOf(synth->modKnobs[1][0].target, params::Kind::UNPATCHED_SOUND))
+		    .to_equal(cable, "the sound's knob 1 0");
+		// The model's
+		const std::vector<deluge::project::ControllerMapping>* controls =
+		    song->project.resolveControls({ControlsAddress::Kind::OUTPUT, *synth->id()});
+		expect(controls).not_().to_be_null("the synth's controls");
+		if (controls != nullptr) {
+			const auto at = [&](uint8_t button, uint8_t knob) {
+				for (const deluge::project::ControllerMapping& m : *controls) {
+					if (m.control == deluge::project::ModKnobControl{.button = button, .knob = knob}) {
+						return m.target;
+					}
+				}
+				return ParamTarget{};
+			};
+			expect(at(0, 0)).to_equal(gate, "the model's knob 0 0");
+			expect(at(0, 1)).to_equal(rate, "the model's knob 0 1");
+			expect(at(1, 0)).to_equal(cable, "the model's knob 1 0");
+		}
+		const std::string text = saved(*song);
+		const std::string knobs = text.substr(std::min(text.find("modKnobs"), text.size()));
+		expect(knobs).to_contain(R"("controlsParam": "arpGate")", "the saved knobs");
+		expect(knobs).to_contain(R"("controlsParam": "arpRate")", "the saved knobs");
+		expect(knobs).to_contain(R"("patchAmountFromSource": "lfo1")", "the saved knobs");
 	});
 
 	it("keeps a pitch adjust a learned knob in the table turns, and zeroes one no knob turns", _ {

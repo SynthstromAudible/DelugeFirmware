@@ -1,10 +1,11 @@
 #pragma once
 
 /// @file
-/// @brief Main's numbering of the unpatched params, as this tree numbers them, for the specs whose records were
-///        taken from main. Main keeps the arp's params in a sound's and a chain's unpatched sets: a sound's at runtime
-///        indices 11 to 25 (ids 101 to 115), a chain's the same plus its arp rate at index 30 (id 120). Here they are
-///        the arp's own (arp/params.h), and every param past them sits 15 lower (16 past a chain's arp rate).
+/// @brief Main's numbering of the arp's params, as this tree numbers them, for the specs whose records were taken from
+///        main. Main keeps the arp's params in a sound's and a chain's unpatched sets: a sound's at runtime indices 11
+///        to 25 (ids 101 to 115), a chain's the same plus its arp rate at index 30 (id 120); and a sound's arp rate is
+///        its patched param 54. Here they are the arp's own (arp/params.h), the patched row 54 is the matrix's arp-rate
+///        destination alone, and every unpatched param past them sits 15 lower (16 past a chain's arp rate).
 
 #include "arp/params.h"
 #include "project/param_address.h"
@@ -18,6 +19,14 @@ namespace deluge::ui::scenes::spec::main_numbering {
 
 /// Main's first id of the unpatched sets.
 inline constexpr uint32_t kUnpatchedFirstId = 90;
+
+/// Main's patched id (and runtime index) of a sound's arp rate.
+inline constexpr uint32_t kPatchedArpRate = 54;
+
+/// @brief The arp id of main's patched param @p id, or nullopt for one that is not an arp param.
+[[nodiscard]] constexpr std::optional<uint32_t> arp_id_of_patched(uint32_t id) {
+	return id == kPatchedArpRate ? std::optional<uint32_t>{arp::param::kRate.value} : std::nullopt;
+}
 
 /// @brief The arp id of main's unpatched runtime index @p index, or nullopt for one that is not an arp param.
 /// @param chain Whether the index is a chain's (where index 30 is the kit's arp rate).

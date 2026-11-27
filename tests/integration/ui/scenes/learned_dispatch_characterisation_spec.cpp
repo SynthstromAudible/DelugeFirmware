@@ -90,13 +90,13 @@ Command source(uint8_t channel, uint8_t number) {
 /// @brief A patched param of a sound, as the table names it.
 deluge::project::ParamTarget patched(int32_t p) {
 	return deluge::project::engine_target(
-	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).value);
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).id.value);
 }
 
 /// @brief An unpatched param of @p kind, as the table names it.
 deluge::project::ParamTarget unpatched(params::Kind kind, int32_t p) {
 	return deluge::project::engine_target(
-	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind).value);
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind).id.value);
 }
 
 /// @brief The depth of the cable from @p source onto patched param @p p, as the table names it.
@@ -105,7 +105,7 @@ deluge::project::ParamTarget depthOf(int32_t p, PatchSource source) {
 	    deluge::bridge::controlTargetOf(
 	        deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(static_cast<uint8_t>(p), source)),
 	        params::Kind::UNPATCHED_SOUND)
-	        .value);
+	        .id.value);
 }
 
 /// @brief The address of @p id on @p owner, in @p clip's override (none: the owner's backed-up params).

@@ -320,7 +320,11 @@ describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 			const deluge::plugin::ParamKind node_kind = runtime.kind;
 			const bool chain = node_kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL || (index && *index == 30);
 			if (index && node_kind == deluge::plugin::ParamKind::ARP) {
-				const std::optional<uint32_t> arp = spec::main_numbering::arp_id_of_index(chain, *index);
+				// Main's unpatched arp index, or a sound's patched arp rate (no unpatched arp index is 54)
+				std::optional<uint32_t> arp = spec::main_numbering::arp_id_of_index(chain, *index);
+				if (!arp) {
+					arp = spec::main_numbering::arp_id_of_patched(static_cast<uint32_t>(*index));
+				}
 				index = arp ? std::optional<int32_t>{static_cast<int32_t>(*arp)} : std::nullopt;
 			}
 			else if (index && (node_kind == deluge::plugin::ParamKind::UNPATCHED_SOUND || node_kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL)) {
@@ -426,6 +430,12 @@ describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 					if (main_id >= spec::main_numbering::kUnpatchedFirstId && main_id <= 132) {
 						wanted = std::to_string(
 						    spec::main_numbering::target_of_id(main_id >= 120, static_cast<uint32_t>(main_id)).id.value);
+					}
+					else if (got && got->param.space == deluge::project::ParamSpace::ARP) {
+						if (const std::optional<uint32_t> arp =
+						        spec::main_numbering::arp_id_of_patched(static_cast<uint32_t>(main_id))) {
+							wanted = std::to_string(*arp);
+						}
 					}
 				}
 				expect(at + (got ? std::to_string(got->param.id.value) : std::string{"none"})).to_equal(at + wanted);
@@ -881,7 +891,9 @@ describe tables_2_patch_cables("scenes::menu sound-editor tables: the patch-cabl
 			for (const Node* t : n->chain_targets) {
 				stack.push_back(t);
 			}
-			const bool is_patched = spec::runtime_of(n->bind.param).kind == deluge::modulation::params::Kind::PATCHED;
+			// Main's PatchedParam items: a sound's patched params, and its arp rate (here the arp's, patching to its
+			// matrix destination)
+			const bool is_patched = n->bind.patch_destination.has_value();
 			const bool to_picker = chain_targets_contain(*n, &nodes::source_selection_regular);
 			if (is_patched) {
 				patched++;

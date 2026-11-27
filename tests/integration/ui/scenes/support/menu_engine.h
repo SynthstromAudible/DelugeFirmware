@@ -104,7 +104,7 @@ inline bool learns_as(const std::optional<deluge::project::OwnerParamTarget>& po
 	const auto unpatched = ctx.addresses.slot ? deluge::modulation::params::Kind::UNPATCHED_SOUND
 	                                          : deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 	return port && port->owner == deluge::ui::scenes::menu::bindings::controls_owner(ctx)
-	       && port->param.id == deluge::bridge::controlTargetOf(legacy, unpatched);
+	       && port->param == deluge::bridge::controlTargetOf(legacy, unpatched);
 }
 
 } // namespace deluge::ui::scenes::spec

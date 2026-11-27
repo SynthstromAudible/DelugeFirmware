@@ -2,6 +2,11 @@
 
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
+#include "model/clip/clip.h"
+#include "model/lane_owner.h"
+#include "model/project_bridge/lane_target.h"
+#include "modulation/params/param.h"
+#include "processing/sound/sound.h"
 #include "util/exceptions.h"
 
 #include <new>
@@ -66,6 +71,20 @@ int32_t ArpParamSet::word(deluge::plugin::ParamId id) const {
 void ArpParamSet::set_words(const deluge::arp::Values& values) {
 	for (std::size_t i = 0; i < deluge::arp::kParamCount; ++i) {
 		set_word(deluge::arp::id_at(i), values.words[i]);
+	}
+}
+
+void ArpParamSet::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue,
+                                               bool automationChanged, bool automatedBefore, bool automatedNow) {
+	ParamSet::notifyParamModifiedInSomeWay(lane, oldValue, automationChanged, automatedBefore, automatedNow);
+	if (owner_ != deluge::arp::Owner::SOUND || lane.param_id != static_cast<int32_t>(deluge::arp::param::kRate.value)) {
+		return;
+	}
+	// As a patched param's change reaches the matrix: only while the sound plays this clip (or there is no clip)
+	if ((lane.timeline == nullptr || static_cast<Clip*>(lane.timeline)->isActiveOnOutput())
+	    && lane.auto_param->getCurrentValue() != oldValue) {
+		deluge::model::sound_of(lane.owner)
+		    .recalculatePatchingToParam(deluge::modulation::params::GLOBAL_ARP_RATE, lane.manager);
 	}
 }
 

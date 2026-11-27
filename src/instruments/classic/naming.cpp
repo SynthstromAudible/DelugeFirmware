@@ -69,7 +69,7 @@ std::optional<plugin::ParamId> id_of(const plugin::ParamRef& ref) {
 		return std::nullopt;
 	}
 	const plugin::ParamInfo* row = plugin::find_param(kParams, ref.param);
-	if (row == nullptr) {
+	if (row == nullptr || (ref.source.empty() && row->flags.has(plugin::ParamFlag::DESTINATION_ONLY))) {
 		return std::nullopt;
 	}
 	std::optional<plugin::ParamId> id = row->id;

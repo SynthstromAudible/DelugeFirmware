@@ -17,6 +17,7 @@
 
 #include "project/controls_codec.h"
 
+#include "arp/params.h"
 #include "project/knob_ref.h"
 #include "serialization/tree.h"
 
@@ -51,14 +52,18 @@ std::vector<ControllerMapping> decode_controls(const Value& element, const delug
 			if (button >= kModButtons || !knob->isMap()) {
 				continue;
 			}
-			std::optional<deluge::plugin::ParamId> target = naming.id_of(ref_in(*knob));
-			if (!target) {
-				continue;
+			const deluge::plugin::ParamRef ref = ref_in(*knob);
+			// The plugin's param of the name, else the arp's (a plain name the plugin does not take)
+			if (std::optional<deluge::plugin::ParamId> id = naming.id_of(ref)) {
+				if (naming.mod_knob_target != nullptr) {
+					id = naming.mod_knob_target(*id);
+				}
+				controls.push_back({ModKnobControl{button, which}, engine_target(id->value)});
 			}
-			if (naming.mod_knob_target != nullptr) {
-				target = naming.mod_knob_target(*target);
+			else if (const std::optional<deluge::plugin::ParamId> arp =
+			             ref.source.empty() ? deluge::arp::find_by_file_name(ref.param) : std::nullopt) {
+				controls.push_back({ModKnobControl{button, which}, ParamTarget{.space = ParamSpace::ARP, .id = *arp}});
 			}
-			controls.push_back({ModKnobControl{button, which}, *target});
 		}
 	}
 	return controls;
@@ -78,7 +83,9 @@ void encode_controls(const std::vector<ControllerMapping>& controls, const delug
 			empty.set("modKnob", Value::makeMap());
 			modKnobs.append(std::move(empty));
 		}
-		set_ref(knob, naming.ref_of(mapping.target));
+		set_ref(knob, mapping.target.space == ParamSpace::ARP
+		                  ? deluge::plugin::ParamRef{.param = deluge::arp::row(mapping.target.id).info.file_name}
+		                  : naming.ref_of(mapping.target.id));
 		Value box = Value::makeMap();
 		box.set("modKnob", std::move(knob));
 		modKnobs.append(std::move(box));

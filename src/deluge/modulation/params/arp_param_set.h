@@ -22,6 +22,11 @@ public:
 	            int32_t reverse_direction_with_length = 0) const override;
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::ARP; }
 
+	/// @brief Besides the collection's bookkeeping: a sound's rate is the base of the matrix's arp-rate destination, so
+	///        a change to it repatches that destination while the sound plays the clip.
+	void notifyParamModifiedInSomeWay(const deluge::bridge::LaneTarget& lane, int32_t oldValue, bool automationChanged,
+	                                  bool automatedBefore, bool automatedNow) override;
+
 	/// @brief Give every param its owner's starting word (`arp::default_value`).
 	void set_to_defaults();
 

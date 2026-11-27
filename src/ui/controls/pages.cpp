@@ -74,16 +74,32 @@ Publisher chain_publisher(const project::FxChain* chain, bool is_song, const Pag
 /// A sound's saved knobs for @p mode: the first mapping of each knob, decorated by @p publisher.
 Page sound_page(const project::Song& song, const SoundFocus& focus, uint8_t mode, const Publisher& publisher) {
 	plugin::RemotePage saved{.section = mode, .name = {}, .for_preset = true};
+	// A knob on the arp's param: the plugin decorates only its own, so the slot takes the target as it is
+	std::array<std::optional<project::ParamTarget>, plugin::kRemoteControlsCount> arp{};
 	const std::vector<project::ControllerMapping>* controls = sound_controls(song, focus.slot);
-	if (controls != nullptr && publisher.record != nullptr && publisher.record->decorate != nullptr) {
+	const bool decorates = publisher.record != nullptr && publisher.record->decorate != nullptr;
+	if (controls != nullptr) {
 		for (const project::ControllerMapping& m : *controls) {
+			const size_t knob = m.control.knob;
 			// The first mapping of a knob is the one it moves.
-			if (m.control.button == mode && m.control.knob < saved.slots.size() && !saved.slots[m.control.knob].param) {
-				saved.slots[m.control.knob] = publisher.record->decorate(publisher.context, m.target);
+			if (m.control.button != mode || knob >= saved.slots.size() || saved.slots[knob].param || arp[knob]) {
+				continue;
+			}
+			if (m.target.space == ParamSpace::ARP) {
+				arp[knob] = m.target;
+			}
+			else if (decorates) {
+				saved.slots[knob] = publisher.record->decorate(publisher.context, m.target.id);
 			}
 		}
 	}
-	return page_of(saved);
+	Page out = page_of(saved);
+	for (size_t knob = 0; knob < arp.size(); knob++) {
+		if (arp[knob]) {
+			out.slots[knob].target = arp[knob];
+		}
+	}
+	return out;
 }
 
 /// A sound's cycle on section @p mode: the pages its publisher's find serves there, from page id 0 to the first it

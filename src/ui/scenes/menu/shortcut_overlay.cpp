@@ -143,8 +143,8 @@ void paint_source_column(deluge::ui::widgets::grid::GridFrame& f, const MenuCont
 		return;
 	}
 	int32_t param = 0;
-	if (is_patched(focused->bind.param)) {
-		param = patched_byte(focused->bind.param);
+	if (focused->bind.patch_destination.has_value()) {
+		param = *focused->bind.patch_destination;
 	}
 	else if (focused->custom != nullptr && focused->custom->is_patch_cable()) {
 		param = st.walk.patching_param;

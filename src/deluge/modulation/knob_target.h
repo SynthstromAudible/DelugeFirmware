@@ -34,8 +34,8 @@ using KnobTarget = std::optional<deluge::project::ParamTarget>;
 	return deluge::project::engine_target(flat);
 }
 
-/// @brief @p target in the runtime's descriptor layout: no target is null, a param the param with no source, a cable
-/// depth its packed word.
+/// @brief @p target in the runtime's descriptor layout: a param as its flat index with no source, a cable depth as its
+/// packed word; no target, or an arp param (which the layout does not name), as the null word.
 [[nodiscard]] deluge::synth::CableTarget knobWord(const KnobTarget& target);
 
 /// @brief The knob target of the descriptor word @p word; the inverse of knobWord.

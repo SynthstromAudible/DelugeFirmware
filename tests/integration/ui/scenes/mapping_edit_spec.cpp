@@ -73,13 +73,13 @@ Command held(::Song& song, const MappingTarget& target) {
 /// @brief A patched param of a sound, as the table names it.
 deluge::project::ParamTarget patched(int32_t p) {
 	return deluge::project::engine_target(
-	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).value);
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).id.value);
 }
 
 /// @brief An unpatched param of @p kind (UNPATCHED_SOUND or UNPATCHED_GLOBAL), as the table names it.
 deluge::project::ParamTarget unpatched(params::Kind kind, int32_t p) {
 	return deluge::project::engine_target(
-	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind).value);
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind).id.value);
 }
 
 /// @brief @p command, told apart by the device on @p port.

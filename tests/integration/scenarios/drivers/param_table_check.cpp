@@ -209,9 +209,16 @@ struct Checker {
 		if ((info.scope == ParamScope::PER_VOICE) != perVoice) {
 			fail(table, info, "its scope is not the runtime's");
 		}
-		if (info.flags != reference_predicates::flagsOf(kind, index)) {
+		// Main's flags, and on main's patched arp rate the one ours adds: its row is the matrix's destination alone
+		const bool destination_only =
+		    kind == params::Kind::PATCHED
+		    && deluge::ui::scenes::spec::main_numbering::arp_id_of_patched(static_cast<uint32_t>(index)).has_value();
+		const deluge::plugin::ParamFlags flags =
+		    destination_only ? reference_predicates::flagsOf(kind, index) | deluge::plugin::ParamFlag::DESTINATION_ONLY
+		                     : reference_predicates::flagsOf(kind, index);
+		if (info.flags != flags) {
 			std::fprintf(io.err, "%s %u: flags %#x, the runtime's predicates give %#x\n", table, info.id.value,
-			             info.flags.bits, reference_predicates::flagsOf(kind, index).bits);
+			             info.flags.bits, flags.bits);
 			fail(table, info, "its flags are not the runtime's");
 		}
 		if (info.mapping != reference_predicates::mappingOf(kind, index)) {
@@ -235,7 +242,8 @@ struct Checker {
 		const deluge::plugin::ParamNaming& naming = kind == params::Kind::UNPATCHED_GLOBAL
 		                                                ? deluge::host::chains::kNaming
 		                                                : deluge::instruments::classic::kNaming;
-		if (!unnamed && naming.id_of({name}) != std::optional<ParamId>{info.id}) {
+		// A destination-only row's plain name is its base's param, not the row
+		if (!unnamed && naming.id_of({name}) != (destination_only ? std::nullopt : std::optional<ParamId>{info.id})) {
 			fail(table, info, "its naming does not give the runtime's name this id");
 		}
 	}

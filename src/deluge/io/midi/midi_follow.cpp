@@ -278,7 +278,7 @@ void MidiFollow::initDefaultMappings() {
 	mapSoundArp(48, ap::kChordProbability);
 	mapSoundArp(49, ap::kRatchetProbability);
 	mapSoundArp(50, ap::kGate);
-	mapSound(51, ip::kArpRate);
+	mapSoundArp(51, ap::kRate);
 	mapSound(52, ip::kDelayFeedback);
 	mapSound(53, ip::kDelayRate);
 	mapSound(54, ip::kModulator1Volume);
@@ -1812,9 +1812,12 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 	while (*(tag_name = reader.readNextTagOrAttributeName())) {
 		foundParam = false;
 		int32_t value = reader.readTagOrAttributeValueInt();
-		// Loop through patched sound params
+		// Loop through patched sound params (a cable destination alone names its base's param, below)
 		for (uint8_t paramId = 0; paramId < params::GLOBAL_NONE; paramId++) {
-			if (!strcmp(tag_name, params::paramNameForFile(params::Kind::PATCHED, paramId, true))) {
+			const deluge::plugin::ParamInfo* row =
+			    deluge::plugin::find_param(deluge::instruments::classic::kParams, deluge::plugin::ParamId{paramId});
+			if ((row == nullptr || !row->flags.has(deluge::plugin::ParamFlag::DESTINATION_ONLY))
+			    && !strcmp(tag_name, params::paramNameForFile(params::Kind::PATCHED, paramId, true))) {
 				mapSound(value, *deluge::bridge::targetOf(OwnerPlugin::INSTRUMENT, params::Kind::PATCHED, paramId));
 				foundParam = true;
 				break;
@@ -1832,8 +1835,7 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 				}
 			}
 		}
-		// An arp param follows on a global effectable, and on a sound where no sound param took the name (a sound's
-		// arpRate is its own patched param)
+		// An arp param follows on a global effectable, and on a sound where no sound param took the name
 		if (const std::optional<deluge::plugin::ParamId> arp = deluge::arp::find_by_file_name(tag_name)) {
 			if (!foundParam) {
 				mapSound(value, {deluge::project::ParamSpace::ARP, *arp});
