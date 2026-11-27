@@ -102,8 +102,9 @@ public:
 	/// indexed by the instrument's id, a global effectable's by its runtime index.
 	std::array<uint8_t, params::UNPATCHED_START + params::UNPATCHED_SOUND_MAX_NUM> soundParamToCC{};
 	std::array<uint8_t, params::UNPATCHED_GLOBAL_MAX_NUM> globalParamToCC{};
-	/// The CC that follows each arp param, by its arp id, in a sound and a global effectable alike.
-	std::array<uint8_t, deluge::arp::kParamCount> arpParamToCC{};
+	/// The CC that follows each arp param, by its arp id: a sound's, and a global effectable's (a kit's own arp).
+	std::array<uint8_t, deluge::arp::kParamCount> soundArpParamToCC{};
+	std::array<uint8_t, deluge::arp::kParamCount> globalArpParamToCC{};
 
 	int32_t previousKnobPos[kMaxMIDIValue + 1]{};
 	uint32_t timeLastCCSent[kMaxMIDIValue + 1]{};

@@ -54,4 +54,26 @@ inline constexpr uint32_t kUnpatchedFirstId = 90;
 	return project::engine_target(kUnpatchedFirstId + static_cast<uint32_t>(index_of(index)));
 }
 
+/// @brief Main's id of this tree's unpatched param id @p ours (not an arp param): the inverse of target_of_id.
+/// @param chain Whether the id is in a chain's table.
+/// @param ours  This tree's id, at or above kUnpatchedFirstId.
+[[nodiscard]] constexpr uint32_t main_id_of(bool chain, uint32_t ours) {
+	const uint32_t index = ours - kUnpatchedFirstId;
+	if (index <= 10) {
+		return ours;
+	}
+	return ours + (chain && index > 14 ? 16 : 15);
+}
+
+/// @brief Main's id of the arp param @p arp: its unpatched id (a sound's, or a chain's when @p chain), or for a
+///        sound's rate nullopt (main keeps it patched).
+[[nodiscard]] constexpr std::optional<uint32_t> main_id_of_arp(bool chain, uint32_t arp) {
+	for (int32_t index = 11; index <= 30; ++index) {
+		if (arp_id_of_index(chain, index) == arp) {
+			return kUnpatchedFirstId + static_cast<uint32_t>(index);
+		}
+	}
+	return std::nullopt;
+}
+
 } // namespace deluge::ui::scenes::spec::main_numbering

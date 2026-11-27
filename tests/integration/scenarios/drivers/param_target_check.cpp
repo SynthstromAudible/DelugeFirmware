@@ -47,6 +47,7 @@
 #include "scenarios/drivers/midi_follow_xml_reference.h"
 #include "scenarios/drivers/param_target_tables_reference.h"
 #include "storage/storage_manager.h"
+#include "support/main_numbering.h"
 #include "ui/controls/knob_focus.h"
 #include "ui/scenes/bind/knob_assignment.h"
 
@@ -165,8 +166,23 @@ void checkCell(Checker& check, const char* table, OwnerPlugin owner, std::option
 		}
 		return;
 	}
+	// The cells are main's: its unpatched params past the arp's sit 15 (16) higher, and the arp's own are ours by arp
+	// id (support/main_numbering.h).
+	params::Kind kind = cell.kind;
+	int32_t index = cell.index;
+	if (kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
+		namespace numbering = deluge::ui::scenes::spec::main_numbering;
+		if (const std::optional<uint32_t> arp =
+		        numbering::arp_id_of_index(kind == params::Kind::UNPATCHED_GLOBAL, index)) {
+			kind = params::Kind::ARP;
+			index = static_cast<int32_t>(*arp);
+		}
+		else {
+			index = numbering::index_of(index);
+		}
+	}
 	std::optional<RuntimeParam> runtime = target ? deluge::bridge::runtimeParamOf(owner, *target) : std::nullopt;
-	if (!runtime || runtime->kind != cell.kind || runtime->index != cell.index) {
+	if (!runtime || runtime->kind != kind || runtime->index != index) {
 		check.fail(table, cell.cell, static_cast<int>(cell.kind), cell.index);
 	}
 }
@@ -234,6 +250,9 @@ void checkMIDICCShortcuts(Checker& check) {
 					else if (param.kind == params::Kind::UNPATCHED_SOUND) {
 						cc = follow.soundParamToCC[params::UNPATCHED_START + param.index];
 					}
+					else if (param.kind == params::Kind::ARP) {
+						cc = follow.soundArpParamToCC[param.index];
+					}
 					if (cc != MIDI_CC_NONE) {
 						expected = cc;
 					}
@@ -299,20 +318,34 @@ void checkMidiFollow(Checker& check) {
 	for (const auto& cell : recorded(Table::FOLLOW_SOUND_TO_CC)) {
 		// the cell is the param's flat id, which is its instrument id; the gap between the patched and unpatched
 		// params names no param
-		const ParamTarget target = deluge::project::engine_target(static_cast<uint32_t>(cell.cell));
+		// The cell is main's id; the controlling CC is main's for that id, the CC asked is ours for its param.
+		const auto main_id = static_cast<uint32_t>(cell.cell);
+		const bool unpatched = main_id >= deluge::ui::scenes::spec::main_numbering::kUnpatchedFirstId;
+		const ParamTarget target = unpatched ? deluge::ui::scenes::spec::main_numbering::target_of_id(false, main_id)
+		                                     : deluge::project::engine_target(main_id);
 		std::optional<RuntimeParam> param = deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, target);
 		if (!param) {
 			continue;
 		}
-		const int expected = controlling(Table::FOLLOW_CC_TO_SOUND, param->kind, param->index);
+		const int expected = unpatched ? controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::UNPATCHED_SOUND,
+		                                             static_cast<int32_t>(main_id - params::UNPATCHED_START))
+		                               : controlling(Table::FOLLOW_CC_TO_SOUND, param->kind, param->index);
 		std::optional<uint8_t> cc = follow.ccOf(OwnerPlugin::INSTRUMENT, target);
 		if (ccNumber(cc) != expected || ccNumber(cc) != cell.index) {
 			check.fail("follow sound CC", cell.cell, ccNumber(cc), cell.index);
 		}
 	}
 	for (const auto& cell : recorded(Table::FOLLOW_GLOBAL_TO_CC)) {
-		std::optional<ParamTarget> target =
-		    deluge::bridge::targetOf(OwnerPlugin::GLOBAL_EFFECTABLE, params::Kind::UNPATCHED_GLOBAL, cell.cell);
+		// The cell is main's unpatched index, as this tree names it (support/main_numbering.h).
+		std::optional<ParamTarget> target;
+		if (const std::optional<uint32_t> arp =
+		        deluge::ui::scenes::spec::main_numbering::arp_id_of_index(true, cell.cell)) {
+			target = ParamTarget{.space = deluge::project::ParamSpace::ARP, .id = deluge::plugin::ParamId{*arp}};
+		}
+		else {
+			target = deluge::bridge::targetOf(OwnerPlugin::GLOBAL_EFFECTABLE, params::Kind::UNPATCHED_GLOBAL,
+			                                  deluge::ui::scenes::spec::main_numbering::index_of(cell.cell));
+		}
 		const int expected = controlling(Table::FOLLOW_CC_TO_GLOBAL, params::Kind::UNPATCHED_GLOBAL, cell.cell);
 		std::optional<uint8_t> cc = target ? follow.ccOf(OwnerPlugin::GLOBAL_EFFECTABLE, *target) : std::nullopt;
 		// the recorded map is kept but for the EQ, whose feedback went out on the filters' CCs

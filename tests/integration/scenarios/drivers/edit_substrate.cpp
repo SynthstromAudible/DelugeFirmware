@@ -93,6 +93,7 @@
 #include "storage/tree_document.h"
 #include "storage/value_serializer.h"
 #include "storage/value_tree_deserializer.h"
+#include "support/main_numbering.h"
 
 using namespace deluge;
 
@@ -1148,10 +1149,16 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 		check(record != nullptr && record->controls.size() == kRecorded[press].size(),
 		      "knob gestures: a knob cycle keeps the record's mappings");
 		for (size_t at = 0; record != nullptr && at < record->controls.size() && at < kRecorded[press].size(); at++) {
-			if (record->controls[at].target.value != kRecorded[press][at]) {
+			// Recorded by main, whose sound params past the arp's sit 15 higher (support/main_numbering.h).
+			const uint32_t main_id = kRecorded[press][at];
+			const uint32_t expected =
+			    main_id >= deluge::ui::scenes::spec::main_numbering::kUnpatchedFirstId && main_id <= 132
+			        ? deluge::ui::scenes::spec::main_numbering::target_of_id(false, main_id).id.value
+			        : main_id;
+			if (record->controls[at].target.value != expected) {
 				std::fprintf(io.err, "FAIL: knob gestures: push %zu: mapping %zu names param %u, not the recorded %u\n",
 				             press, at, static_cast<unsigned>(record->controls[at].target.value),
-				             static_cast<unsigned>(kRecorded[press][at]));
+				             static_cast<unsigned>(expected));
 				failures++;
 			}
 		}

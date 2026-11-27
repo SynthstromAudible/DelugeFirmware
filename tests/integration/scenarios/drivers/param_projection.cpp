@@ -1161,7 +1161,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true);
+		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true, nullptr,
+		                                                         doc.arp ? &*doc.arp : nullptr);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
 		      "host chain attributes byte-identical");
@@ -1388,7 +1389,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), pcs->records().records(),
-		                                     doc.cable_depths, smSerializer, true);
+		                                     doc.cable_depths, smSerializer, true, doc.arp ? &*doc.arp : nullptr);
 		int32_t domLen = smSerializer.bytesWritten();
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
@@ -1481,7 +1482,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
-		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true, ovr.data());
+		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true, ovr.data(),
+		                                                         doc.arp ? &*doc.arp : nullptr);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
 		      "host chain override attributes byte-identical");

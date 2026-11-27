@@ -197,12 +197,13 @@ void MidiFollow::clearMappings() {
 
 	soundParamToCC.fill(MIDI_CC_NONE);
 	globalParamToCC.fill(MIDI_CC_NONE);
-	arpParamToCC.fill(MIDI_CC_NONE);
+	soundArpParamToCC.fill(MIDI_CC_NONE);
+	globalArpParamToCC.fill(MIDI_CC_NONE);
 }
 
 void MidiFollow::mapSound(int32_t cc, ParamTarget target) {
 	if (target.space == deluge::project::ParamSpace::ARP) {
-		arpParamToCC[target.id.value] = cc;
+		soundArpParamToCC[target.id.value] = cc;
 	}
 	else {
 		soundParamToCC[target.id.value] = cc;
@@ -212,7 +213,7 @@ void MidiFollow::mapSound(int32_t cc, ParamTarget target) {
 
 void MidiFollow::mapGlobal(int32_t cc, ParamTarget target) {
 	if (target.space == deluge::project::ParamSpace::ARP) {
-		arpParamToCC[target.id.value] = cc;
+		globalArpParamToCC[target.id.value] = cc;
 	}
 	else {
 		globalParamToCC[*deluge::host::chains::find_runtime_index(target.id)] = cc;
@@ -230,7 +231,7 @@ void MidiFollow::initDefaultMappings() {
 	auto mapGlobal = [this](int32_t cc, deluge::plugin::ParamId id) {
 		this->mapGlobal(cc, deluge::project::engine_target(id.value));
 	};
-	// An arp param follows on a sound and a global effectable alike, by its arp id.
+	// An arp param follows by its arp id: on a sound, and on a global effectable (a kit's own arp).
 	auto mapSoundArp = [this](int32_t cc, deluge::plugin::ParamId id) {
 		this->mapSound(cc, {deluge::project::ParamSpace::ARP, id});
 	};
@@ -489,7 +490,8 @@ void MidiFollow::displayParamControlError(Target sound, Target global) {
 
 std::optional<uint8_t> MidiFollow::ccOf(OwnerPlugin owner, ParamTarget target) const {
 	if (target.space == deluge::project::ParamSpace::ARP) {
-		const uint8_t cc = target.id.value < arpParamToCC.size() ? arpParamToCC[target.id.value] : MIDI_CC_NONE;
+		const auto& map = owner == OwnerPlugin::INSTRUMENT ? soundArpParamToCC : globalArpParamToCC;
+		const uint8_t cc = target.id.value < map.size() ? map[target.id.value] : MIDI_CC_NONE;
 		return cc == MIDI_CC_NONE ? std::nullopt : std::optional<uint8_t>{cc};
 	}
 	if (target.space != deluge::project::ParamSpace::ENGINE) {
