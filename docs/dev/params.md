@@ -12,7 +12,8 @@ collection `Kind` and index) maps to ids through `model/project_bridge/param_ids
 `params::paramInfoFor(kind, index)` returns a runtime param's row.
 
 Only the runtime and the bridge hold that numbering: the instrument's tables (`instruments/classic`), the runtime's
-collections (`modulation/`), the bridge (`model/project_bridge/`), the Sound and effects runtime's own reads and the
+collections (`modulation/`) and the model stack's storage kind (`model/model_stack.h`), the host chain's own map
+(`host/chains/params.h`), the bridge (`model/project_bridge/`), the Sound and effects runtime's own reads and the
 synth's param planes. The `no-param-kind-outside-runtime` count (`scripts/check_layer_rules.py`) holds every other file
 to its number of runtime-numbered names, and may only fall; `src/ui` holds none.
 
@@ -42,15 +43,27 @@ What names params by target:
   (`getLearningThing()`);
 - the cable set and the patch-cable menus, by `synth::CableTarget` word.
 
-A clip's and the song's automation selection (`lastSelectedParamKind`, `lastSelectedParamID`) stays the runtime pair:
-it is what the files record, a MIDI clip's keeping whatever kind was there with its CC.
+A clip's and the song's automation selection is `selectedParam`, a `std::optional<project::PluginParam>`: a kit's
+selection carries its plugin because it decides Affect Entire. The files keep the runtime pair in their
+`lastSelectedParamKind` and `lastSelectedParamID` attributes, read through `bridge::clipSelectionOfFile` and
+`songSelectionOfFile` and written through `bridge::selectionPairOf` (`model/project_bridge/param_selection.h`). A MIDI
+clip's CC is a MIDI_CC target and saves as kind MIDI; an older file's CC (kind none, or the kind an expression left
+behind, with an id past the expression dimensions) loads as that CC.
+
+The model's own API names params by target. `Output::getModelStackWithParam` and `Song::getModelStackWithParam` take a
+`ParamTarget`, each output knowing its plugin, and `bridge::autoParamOf` turns it into the lane on a model stack. The
+edits name instrument or chain ids, and ask `bridge::isCableCollection` whether a store is a sound's cables. A runtime
+read outside the runtime's own files names the id and reads the set at `bridge::patchedIndex` or `unpatchedIndex`
+(`model/project_bridge/param_reads.h`). The legacy views keep their `(kind, index)` plumbing and cross at their edges:
+the automation view reads the selection's runtime pair through `bridge::runtimePairOf` and turns a pair back into a
+param through `bridge::pluginParamOf`.
 
 The UI names a param as a `project::PluginParam` (`src/project/owner_plugin.h`): its owner's plugin and its target. A
 menu item's `ParamRef` is its table and id; a gold knob's turn, the popup and MIDI follow carry the plugin param, the
 knobs taking the plugin from their focus (`ui::controls::owner_plugin_of`). What the UI shows a param by comes from its
 plugin and id: `ui/scenes/bind/param_facts.h` (its row, and whether it is a cable, patched, bipolar, the stutter rate or
-the arpeggiator's rhythm) and `l10n`'s plugin-keyed names. Where the app hands a plugin param to the legacy views or to
-the automation view's selection, it turns it into the runtime pair through `bridge::runtimeParamOf`.
+the arpeggiator's rhythm) and `l10n`'s plugin-keyed names. Where the app hands a plugin param to the legacy views, it turns it into the runtime pair through
+`bridge::runtimeParamOf`; the automation view's selection takes the plugin param as it is.
 
 param_target_check round-trips every runtime param of both plugins and every cable word through the bridge, and holds
 each of these tables to its recorded runtime cells
