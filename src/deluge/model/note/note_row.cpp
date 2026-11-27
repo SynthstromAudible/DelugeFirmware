@@ -531,7 +531,11 @@ addNewNote:
 					newLength = note->length + squareStart + squareWidth - noteEnd;
 				}
 
+				// When wrap-editing, complexSetNoteLength() rebuilds the note array and can free the old one, so find
+				// the note again by its position (which doesn't change) rather than keep the old pointer.
+				int32_t notePos = note->pos;
 				complexSetNoteLength(note, newLength, modelStack, action);
+				note = notes.getElement(notes.search(notePos, GREATER_OR_EQUAL));
 
 				*firstNote = *lastNote = note;
 

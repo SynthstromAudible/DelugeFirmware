@@ -2692,6 +2692,11 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 							if (error != Error::NONE) {
 								display->displayError(Error::INSUFFICIENT_RAM);
 							}
+
+							// addCorrespondingNotes() rebuilds the note array and can free the old one, so firstNote
+							// and lastNote (the new note at squareStart) must be found again in the new array
+							firstNote = lastNote =
+							    noteRow->notes.getElement(noteRow->notes.search(squareStart, GREATER_OR_EQUAL));
 						}
 					}
 
