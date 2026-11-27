@@ -392,7 +392,7 @@ lists the browse row,
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike; oscillator 1's type pad lands on the DX7's page, on the mode (`nodes::dx_shortcut_fallback`).
-  The DX7's differences from `main` are DIFFERENCES D193–D197.
+  The DX7's differences from `main` are DIFFERENCES D201–D205.
 * **The parameter page has its own pads** (`main` gave them only while its DX7 engine feature was on; the DX7 is
   built in here): `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut
   (`CustomItem::shortcut_pad`, asked first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of
