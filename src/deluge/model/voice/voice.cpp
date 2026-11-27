@@ -463,7 +463,8 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
 
 			int32_t pitchAdjustNeutralValue;
-			if (source->oscType == OscType::SAMPLE) {
+			// A SAMPLE source can have no holder (it was off at note-on, or its range has no file) - see above
+			if (source->oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
 				pitchAdjustNeutralValue = ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement;
 			}
 			else {
@@ -515,7 +516,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		}
 
 		// Cents
-		if (source->oscType == OscType::SAMPLE) { // guides[s].sampleHolder
+		if (source->oscType == OscType::SAMPLE && guides[s].audioFileHolder) { // guides[s].sampleHolder
 			phaseIncrement = ((SampleHolderForVoice*)guides[s].audioFileHolder)->fineTuner.detune(phaseIncrement);
 		}
 		else {
