@@ -1347,14 +1347,15 @@ skipAutoRelease: {}
 					amplitudeForRingMod = multiply_32x32_rshift32_rounded(amplitudeForRingMod, filterGain) << 4;
 				}
 
-				bool doingOscSyncThisOscillator = false;
-				int32_t s = 0;
-				goto cantBeDoingOscSyncForFirstOsc;
+				// Each source is rendered into its own spare buffer row: source 0 into row 3, source 1 into row 2. Only
+				// source 1 can be synced, and the osc sync renderer writes 4 samples at a time, so it can write up to 3
+				// samples past numSamples - with a full-size render, into the start of the next row. So source 1 goes
+				// first, into row 2, and source 0 then overwrites that spill when it renders row 3. (A synced source in
+				// row 3 would write past the end of spareRenderingBuffer.)
+				for (int32_t s = 1; s >= 0; s--) {
+					bool doingOscSyncThisOscillator = (s == 1) && doingOscSync;
+					int32_t* sourceBuffer = spareRenderingBuffer[3 - s];
 
-				for (; s < 2; s++) {
-					doingOscSyncThisOscillator = doingOscSync;
-
-cantBeDoingOscSyncForFirstOsc:
 					// Work out pulse width, from parameter. This has no effect if we're not actually using square
 					// waves, but just do it anyway, it's a simple calculation
 					int32_t pulseWidth =
@@ -1370,11 +1371,10 @@ cantBeDoingOscSyncForFirstOsc:
 					                           : nullptr;
 
 					dsp::Oscillator::renderOsc(
-					    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples, numSamples,
-					    phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
-					    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
-					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s], waveTable,
-					    &unisonParts[u].sources[s].supersawPhases);
+					    oscType, 0, sourceBuffer, sourceBuffer + numSamples, numSamples, phaseIncrements[s], pulseWidth,
+					    &unisonParts[u].sources[s].oscPos, false, 0, doingOscSyncThisOscillator, oscSyncPos[u],
+					    phaseIncrements[0], sound.oscRetriggerPhase[s], sourceWaveIndexIncrements[s],
+					    sourceWaveIndexesLastTime[s], waveTable, &unisonParts[u].sources[s].supersawPhases);
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
 					// we need to compensate
@@ -1387,8 +1387,8 @@ cantBeDoingOscSyncForFirstOsc:
 				}
 
 				int32_t* __restrict__ output = oscBuffer;
-				int32_t* __restrict__ input0 = spareRenderingBuffer[2];
-				int32_t* __restrict__ input1 = spareRenderingBuffer[3];
+				int32_t* __restrict__ input0 = spareRenderingBuffer[3]; // Source 0
+				int32_t* __restrict__ input1 = spareRenderingBuffer[2]; // Source 1
 
 				if (stereoUnison) {
 					int32_t const* const oscBufferEnd = oscBuffer + 2 * numSamples;
