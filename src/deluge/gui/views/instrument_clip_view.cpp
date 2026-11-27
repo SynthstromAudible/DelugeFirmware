@@ -4846,8 +4846,13 @@ void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip
 	// If the Kit arpeggiator is active and playback is stopped, we must reset it so notes are reassigned
 	// If playback is active, the rendering will take care of it
 	if (isKit && !playbackHandler.isEitherClockActive()) {
-		clip->noteRows.getElement(noteRowToShiftI)->drum->arpeggiator.reset();
-		clip->noteRows.getElement(noteRowToSwapWithI)->drum->arpeggiator.reset();
+		// Kit NoteRows can have no Drum
+		for (int32_t i : {noteRowToShiftI, noteRowToSwapWithI}) {
+			Drum* drum = clip->noteRows.getElement(i)->drum;
+			if (drum) {
+				drum->arpeggiator.reset();
+			}
+		}
 		((Kit*)output)->arpeggiator.reset();
 	}
 }
