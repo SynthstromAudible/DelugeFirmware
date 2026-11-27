@@ -428,8 +428,13 @@ spreads) are its own params: one table, `arp::kParams` (`src/arp/params.h`), for
 `Kind::ARP` in the owner's `ArpParamSet` (`modulation/params/arp_param_set.h`), the last main collection of the owner's
 `ParamManager` (a MIDI or gate kit row's and a CV clip's manager holds it alone, which counts as no main collection).
 The owner's starting values differ only for a kit's own arp, whose gate starts fully open (`arp::default_value`). The
-engine plays a per-block snapshot of the set (`ArpeggiatorSettings::values`). A sound's arp rate is still its patched
-`GLOBAL_ARP_RATE` until the matrix feeds the arp (D7b).
+engine plays a per-block snapshot of the set (`ArpeggiatorSettings::values`).
+A sound's arp rate is its arp's `kRate` too, but the mod matrix computes the rate a sound's arp plays: its arp-rate
+destination (`GLOBAL_ARP_RATE`) takes its base from the arp set (`Sound::matrixBlock`), adds its cables and applies its
+curve, and an edit of the arp's rate repatches it (`ArpParamSet::notifyParamModifiedInSomeWay`). The instrument's row 54
+(`arpRate`) is that destination only (`ParamFlag::DESTINATION_ONLY`): cables name it, and a plain `arpRate` (a learned
+knob, a MIDI follow entry) names the arp's rate. A menu item's patch destination is its binding's own
+(`Binding::patch_destination`), so the arp-rate item patches to row 54 while it edits the arp's rate.
 Saves keep their attributes: a sound's and a kit's in its param block, a MIDI or CV clip's and a MIDI or gate row's on
 its `<arpeggiator>` element (the unsigned values word + 2^31, `arp::word_of_field`).
 
