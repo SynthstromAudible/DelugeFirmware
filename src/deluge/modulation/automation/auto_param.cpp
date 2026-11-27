@@ -691,6 +691,15 @@ adjustNodeJustReached:
 					int32_t iNew = nodes.insertAtKey(
 					    posOverridingEnds); // Can only do this now, after updating nodeJustReached, above
 					if (iNew != -1) {
+						// The insert shifted the later nodes and may have moved the array, and nodeJustReached is read
+						// again below when reversed. (Only reversed: otherwise a redundant node may have been
+						// deleted above, so iJustReached isn't valid any more - and isn't needed.)
+						if (reversed) {
+							if (iNew <= iJustReached) {
+								iJustReached++;
+							}
+							nodeJustReached = nodes.getElement(iJustReached);
+						}
 						iRight = iNew;
 						nextNodeInOurDirection = nodes.getElement(iRight);
 						nextNodeInOurDirection->value = valueOverridingEnds;
