@@ -31,6 +31,7 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/sample_folder_index.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
@@ -113,6 +114,8 @@ void AudioFileManager::init() {
 void AudioFileManager::cardReinserted() {
 
 	cardDisabled = false;
+	sampleFolderIndex.clear(); // Its folders were on the old card, in blocks sized for its Clusters
+
 	for (int32_t i = 0; i < kNumAudioRecordingFolders; i++) {
 		highestUsedAudioRecordingNumberNeedsReChecking[i] = true;
 	}
@@ -494,6 +497,25 @@ Error AudioFileManager::setupAlternateAudioFilePath(String& newPath, int32_t dir
 	return Error::NONE;
 }
 
+namespace {
+/// Finds a sample file through SampleFolderIndex, without opening it. Returns false if it doesn't know the file.
+bool findInSampleFolderIndex(char const* filePath, FilePointer& filePointer) {
+	std::optional<FilePointer> found = sampleFolderIndex.find(filePath);
+	if (!found) {
+		return false;
+	}
+	filePointer = *found;
+#ifdef SAMPLE_FOLDER_INDEX_VERIFY // Testing only: check against the normal way
+	if (f_open(&smDeserializer.readFIL, filePath, FA_READ) != FR_OK
+	    || smDeserializer.readFIL.obj.sclust != filePointer.sclust
+	    || smDeserializer.readFIL.obj.objsize != filePointer.objsize) {
+		FREEZE_WITH_ERROR("SFI1");
+	}
+#endif
+	return true;
+}
+} // namespace
+
 AudioFile* AudioFileManager::getAudioFileFromFilename(String& filePath, bool mayReadCard, Error* error,
                                                       FilePointer* suppliedFilePointer, AudioFileType type,
                                                       bool makeWaveTableWorkAtAllCosts) {
@@ -751,33 +773,37 @@ tryNextAlternate:
 		// Otherwise, try the regular file path
 		else {
 tryRegular:
-			result = f_open(&smDeserializer.readFIL, filePath.get(), FA_READ);
+			// Quicker when lots of files are being loaded from one folder - and if it can't help, the normal way below
+			if (!findInSampleFolderIndex(filePath.get(), effectiveFilePointer)) {
+				result = f_open(&smDeserializer.readFIL, filePath.get(), FA_READ);
 
-			// If that didn't work, try the alternate load directory, if we didn't already and it potentially exists
-			if (result != FR_OK) {
+				// If that didn't work, try the alternate load directory, if we didn't already and it potentially
+				// exists
+				if (result != FR_OK) {
 
-				if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
+					if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
 
-					result = f_opendir(&alternateLoadDir, alternateAudioFileLoadPath.get());
-					if (result != FR_OK) {
-						alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
-						goto notFound;
+						result = f_opendir(&alternateLoadDir, alternateAudioFileLoadPath.get());
+						if (result != FR_OK) {
+							alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
+							goto notFound;
+						}
+
+						alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+
+						alreadyTriedRegular = true;
+						goto tryAlternateDoesExist;
 					}
 
-					alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
-
-					alreadyTriedRegular = true;
-					goto tryAlternateDoesExist;
+notFound:
+					*error = Error::FILE_UNREADABLE;
+					return NULL;
 				}
 
-notFound:
-				*error = Error::FILE_UNREADABLE;
-				return NULL;
+				// Ok, found file.
+				effectiveFilePointer.sclust = activeDeserializer->readFIL.obj.sclust;
+				effectiveFilePointer.objsize = activeDeserializer->readFIL.obj.objsize;
 			}
-
-			// Ok, found file.
-			effectiveFilePointer.sclust = activeDeserializer->readFIL.obj.sclust;
-			effectiveFilePointer.objsize = activeDeserializer->readFIL.obj.objsize;
 		}
 	}
 

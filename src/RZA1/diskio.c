@@ -44,6 +44,10 @@
 
 uint8_t currentlyAccessingCard = 0;
 
+// Bumped by every write to the card, and whenever the card is removed, inserted or initialised - so anything that
+// remembers what's on the card (SampleFolderIndex) can tell that it may be out of date
+volatile uint32_t sdCardChangeCount = 0;
+
 #define _USE_WRITE 1 /* 1: Enable disk_write function */
 #define _USE_IOCTL 1 /* 1: Enable disk_ioctl fucntion */
 
@@ -146,6 +150,7 @@ int sdIntCallback(int sd_port, int cd)
 {
     if (sd_port == SD_PORT)
     {
+        sdCardChangeCount++;
         if (cd)
         {
             uartPrintln("SD Card insert!\n");
@@ -175,6 +180,8 @@ uint32_t initializationWorkArea[SD_SIZE_OF_INIT / sizeof(uint32_t)];
 DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber to identify the drive */
 )
 {
+    sdCardChangeCount++;
+
     // If no card, return early
     if (diskStatus & STA_NODISK)
         return SD_ERR_NO_CARD;
@@ -305,6 +312,7 @@ DRESULT disk_write(BYTE pdrv, /* Physical drive nmuber to identify the drive */
     takeCardFromAsyncReads(true);
 
     err = sd_write_sect(SD_PORT, buff, sector, count, 0x0001u);
+    sdCardChangeCount++; // Whether it worked or not, the card may have changed
 
     releaseCardFromAsyncReads();
     currentlyAccessingCard = 0;
