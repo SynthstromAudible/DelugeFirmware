@@ -35,6 +35,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation/editor_layout/note/velocity.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
@@ -1668,6 +1669,10 @@ void View::setModLedStates() {
 		// otherwise you're in an audio clip or automation view for an audio clip, in which case affect entire is always
 		// enabled
 		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
+		// in automation view's velocity editor, affect entire shows whether the editor is folded to all note rows
+		if (rootUI == &automationView && automationView.inNoteEditor()) {
+			affectEntire = automationEditorLayoutNoteVelocity.fold.isFolded();
+		}
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
@@ -1785,25 +1790,29 @@ int32_t View::getModKnobMode() {
 	return modKnobMode;
 }
 
-void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
-	if (paramManager == activeModControllableModelStack.paramManager
-	    || (getCurrentUI() == &soundEditor && paramManager == soundEditor.currentParamManager)) {
+void View::startParamAutomationTimers() {
+	uint8_t notice = paramAutomationNotice_;
+	paramAutomationNotice_ = 0;
+	// A change for the sound editor's parameters only counts while the sound editor is showing.
+	if ((notice & kParamNoticeActive) == 0 && getCurrentUI() != &soundEditor) {
+		return;
+	}
+	bool update_mod_levels = (notice & kParamNoticeModLevels) != 0;
 
-		// If timer wasn't set yet, set it now
-		if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
-			pendingParamAutomationUpdatesModLevels = updateModLevels;
-			uiTimerManager.setTimer(TimerName::DISPLAY_AUTOMATION, 25);
-		}
+	// If timer wasn't set yet, set it now
+	if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
+		pendingParamAutomationUpdatesModLevels = update_mod_levels;
+		uiTimerManager.setTimer(TimerName::DISPLAY_AUTOMATION, 25);
+	}
 
-		else {
-			if (updateModLevels) {
-				pendingParamAutomationUpdatesModLevels = true;
-			}
+	else {
+		if (update_mod_levels) {
+			pendingParamAutomationUpdatesModLevels = true;
 		}
+	}
 
-		if (!uiTimerManager.isTimerSet(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
-			uiTimerManager.setTimer(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
-		}
+	if (!uiTimerManager.isTimerSet(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
+		uiTimerManager.setTimer(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
 	}
 }
 

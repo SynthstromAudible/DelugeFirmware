@@ -485,6 +485,10 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_BAD_KEY, "KEY FAIL"},
         {STRING_FOR_SAMPLE_CLEARED, "CLEAR"},
         {STRING_FOR_NOTES_CLEARED, "CLEAR"},
+        {STRING_FOR_FOLD, "FOLD"},
+        {STRING_FOR_UNFOLD, "UNFOLD"},
+        {STRING_FOR_ALL_NOTES, "ALL"},
+        {STRING_FOR_ALL_DRUMS, "ALL"},
         {STRING_FOR_AUTOMATION_CLEARED, "CLEAR"},
         {STRING_FOR_MIDILOOPBACK, "M LP"},
         {STRING_FOR_AUTOMATION, "AUTO"},
@@ -593,6 +597,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_ENV_LEVEL, "LEVL"},
         {STRING_FOR_ENV_FOLLOW_Z, "Z"},
         {STRING_FOR_ENV_FOLLOW_Y, "Y"},
+        {STRING_FOR_LOOP_CROSSFADE, "XFAD"},
     },
     &built_in::english,
 };

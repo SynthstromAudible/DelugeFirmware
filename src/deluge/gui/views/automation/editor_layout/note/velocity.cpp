@@ -57,6 +57,16 @@ const int32_t maxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112
 
 PLACE_SDRAM_BSS AutomationEditorLayoutNoteVelocity automationEditorLayoutNoteVelocity{};
 
+using namespace velocity_edit;
+
+int32_t velocity_edit::getVelocityFromY(int32_t y) {
+	return std::clamp<int32_t>(padPressValues[y], 1, 127);
+}
+
+bool velocity_edit::velocityReachesY(int32_t velocity, int32_t y) {
+	return velocity >= minPadDisplayValues[y];
+}
+
 /// render each square in each column of the note editor grid
 void AutomationEditorLayoutNoteVelocity::renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow,
                                                           InstrumentClip* clip,
@@ -66,7 +76,7 @@ void AutomationEditorLayoutNoteVelocity::renderNoteColumn(ModelStackWithNoteRow*
                                                           SquareInfo& squareInfo) {
 	// iterate through each square
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		renderNoteSquare(image, occupancyMask, xDisplay, yDisplay, squareInfo.squareType, squareInfo.averageVelocity);
+		renderNoteSquare(image, occupancyMask, xDisplay, yDisplay, squareInfo.squareType, squareInfo.maxVelocity);
 	}
 }
 
@@ -83,7 +93,7 @@ void AutomationEditorLayoutNoteVelocity::renderNoteSquare(RGB image[][kDisplayWi
 	}
 	else {
 		// render square
-		if (value >= minPadDisplayValues[yDisplay]) {
+		if (velocityReachesY(value, yDisplay)) {
 			doRender = true;
 			if (squareType == SQUARE_NOTE_HEAD) {
 				pixel = velocityRowColour[yDisplay];
@@ -150,7 +160,6 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 	// multi pad press variables
 	getMultiPadPressSelected() = false;
 	SquareInfo rowSquareInfo[kDisplayWidth];
-	int32_t multiPadPressVelocityIncrement = 0;
 
 	// update velocity editor rendering
 	bool refreshVelocityEditor = false;
@@ -181,64 +190,7 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 
 					// get note info on all the squares in the note row
 					noteRow->getRowSquareInfo(effectiveLength, rowSquareInfo);
-
-					// the long press logic calculates and renders the interpolation as if the press was
-					// entered in a forward fashion (where the first pad is to the left of the second
-					// pad). if the user happens to enter a long press backwards then we fix that entry
-					// by re-ordering the pad presses so that it is forward again
-					getLeftPadSelectedX() = firstPadX > x ? x : firstPadX;
-					getRightPadSelectedX() = firstPadX > x ? firstPadX : x;
-
-					int32_t numSquares = 0;
-					// find total number of notes in note row (excluding the first note)
-					for (int32_t i = getLeftPadSelectedX(); i <= getRightPadSelectedX(); i++) {
-						// don't include note tails in note count
-						if (rowSquareInfo[i].numNotes != 0 && rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL) {
-							numSquares++;
-						}
-					}
-
-					//	DEF_STACK_STRING_BUF(numSquare, 50);
-					//	numSquare.append("Squares: ");
-					//	numSquare.appendInt(numSquares);
-					//	numSquare.append("\n");
-
-					// calculate start and end velocity for long press
-					int32_t leftPadSelectedVelocity;
-					int32_t rightPadSelectedVelocity;
-
-					if (getLeftPadSelectedX() == firstPadX) { // then left pad is the first press
-						leftPadSelectedVelocity = rowSquareInfo[getLeftPadSelectedX()].averageVelocity;
-						getLeftPadSelectedY() = getYFromVelocity(leftPadSelectedVelocity);
-						rightPadSelectedVelocity = getVelocityFromY(y);
-						getRightPadSelectedY() = y;
-					}
-					else { // then left pad is the second press
-						leftPadSelectedVelocity = getVelocityFromY(y);
-						getLeftPadSelectedY() = y;
-						rightPadSelectedVelocity = rowSquareInfo[getRightPadSelectedX()].averageVelocity;
-						getRightPadSelectedY() = getYFromVelocity(rightPadSelectedVelocity);
-					}
-
-					//	numSquare.append("L: ");
-					//	numSquare.appendInt(leftPadSelectedVelocity);
-					//	numSquare.append(" R: ");
-					//	numSquare.appendInt(rightPadSelectedVelocity);
-					//	numSquare.append("\n");
-
-					// calculate increment from first pad to last pad
-					float multiPadPressVelocityIncrementFloat =
-					    static_cast<float>((rightPadSelectedVelocity - leftPadSelectedVelocity)) / (numSquares - 1);
-					multiPadPressVelocityIncrement =
-					    static_cast<int32_t>(std::round(multiPadPressVelocityIncrementFloat));
-					// if ramp is upwards, make increment positive
-					if (leftPadSelectedVelocity < rightPadSelectedVelocity) {
-						multiPadPressVelocityIncrement = std::abs(multiPadPressVelocityIncrement);
-					}
-
-					//	numSquare.append("Inc: ");
-					//	numSquare.appendInt(multiPadPressVelocityIncrement);
-					//	display->displayPopup(numSquare.c_str());
+					ramp.setup(firstPadX, rowSquareInfo[firstPadX].maxVelocity, x, y);
 
 					// update multi pad press selection indicator
 					getMultiPadPressSelected() = true;
@@ -257,7 +209,7 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 	}
 	// if multi pad (long) press was selected, set the velocity of all the notes between the two pad presses
 	else if (getMultiPadPressSelected()) {
-		setVelocityRamp(modelStackWithNoteRow, noteRow, rowSquareInfo, multiPadPressVelocityIncrement);
+		setVelocityRamp(modelStackWithNoteRow, noteRow, rowSquareInfo);
 		refreshVelocityEditor = true;
 	}
 	// otherwise, it's a regular velocity pad action
@@ -268,9 +220,8 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 			addNoteWithNewVelocity(x, velocity, newVelocity);
 			refreshVelocityEditor = true;
 		}
-		// pressing pad corresponding to note's current averageVelocity, remove note
-		else if (minPadDisplayValues[y] <= squareInfo.averageVelocity
-		         && squareInfo.averageVelocity <= maxPadDisplayValues[y]) {
+		// pressing pad corresponding to the square's current (highest) velocity, remove note
+		else if (minPadDisplayValues[y] <= squareInfo.maxVelocity && squareInfo.maxVelocity <= maxPadDisplayValues[y]) {
 			recordNoteEditPadAction(x, velocity);
 			refreshVelocityEditor = true;
 			showNewVelocity = false;
@@ -293,41 +244,17 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 		uiNeedsRendering(getAutomationView(), 0xFFFFFFFF, 0);
 		// if holding a multi pad press, render left and right velocity of the multi pad press
 		if (getMultiPadPressActive()) {
-			int32_t leftPadSelectedVelocity = getVelocityFromY(getLeftPadSelectedY());
-			int32_t rightPadSelectedVelocity = getVelocityFromY(getRightPadSelectedY());
-			if (display->haveOLED()) {
-				renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
-			}
-			else {
-				// for 7seg, render value of last pad pressed
-				renderDisplay(getLeftPadSelectedX() == x ? leftPadSelectedVelocity : rightPadSelectedVelocity);
-			}
+			ramp.renderValues(x);
 		}
 		else {
 			if (velocity) {
-				renderDisplay(showNewVelocity ? newVelocity : squareInfo.averageVelocity);
+				renderDisplay(showNewVelocity ? newVelocity : squareInfo.maxVelocity);
 			}
 			else {
 				renderDisplay();
 			}
 		}
 	}
-}
-
-// convert y of pad press into velocity value between 1 and 127
-int32_t AutomationEditorLayoutNoteVelocity::getVelocityFromY(int32_t y) {
-	int32_t velocity = std::clamp<int32_t>(padPressValues[y], 1, 127);
-	return velocity;
-}
-
-// convert velocity of a square into y
-int32_t AutomationEditorLayoutNoteVelocity::getYFromVelocity(int32_t velocity) {
-	for (int32_t i = 0; i < kDisplayHeight; i++) {
-		if (minPadDisplayValues[i] <= velocity && velocity <= maxPadDisplayValues[i]) {
-			return i;
-		}
-	}
-	return kNoSelection;
 }
 
 // add note and set velocity
@@ -387,23 +314,14 @@ void AutomationEditorLayoutNoteVelocity::setVelocity(ModelStackWithNoteRow* mode
 				uint32_t velocitySumThisSquare = 0;
 				uint32_t numNotesThisSquare = 0;
 
-				int32_t noteI =
-				    noteRow->notes.search(instrumentClipView.editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-				Note* note = noteRow->notes.getElement(noteI);
-				while (note
-				       && note->pos - instrumentClipView.editPadPresses[i].intendedPos
-				              < instrumentClipView.editPadPresses[i].intendedLength) {
-					noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-					                                     CORRESPONDING_NOTES_SET_VELOCITY, newVelocity);
-
+				int32_t intendedPos = instrumentClipView.editPadPresses[i].intendedPos;
+				int32_t intendedEndPos = intendedPos + instrumentClipView.editPadPresses[i].intendedLength;
+				setRelativeVelocity(action, modelStackWithNoteRow, intendedPos, intendedEndPos, newVelocity);
+				forNotesInRange(noteRow, intendedPos, intendedEndPos, [&](Note* note) {
 					instrumentClipView.updateVelocityValue(velocityValue, note->getVelocity());
-
 					numNotesThisSquare++;
 					velocitySumThisSquare += note->getVelocity();
-
-					noteI++;
-					note = noteRow->notes.getElement(noteI);
-				}
+				});
 
 				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I
 				// didn't
@@ -438,56 +356,18 @@ void AutomationEditorLayoutNoteVelocity::setVelocity(ModelStackWithNoteRow* mode
 
 // set velocity of notes between pressed squares
 void AutomationEditorLayoutNoteVelocity::setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
-                                                         SquareInfo rowSquareInfo[kDisplayWidth],
-                                                         int32_t velocityIncrement) {
+                                                         SquareInfo rowSquareInfo[kDisplayWidth]) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 	if (!action) {
 		return;
 	}
 
-	int32_t startVelocity = getVelocityFromY(getLeftPadSelectedY());
-	int32_t velocityValue = 0;
-	int32_t squaresProcessed = 0;
-
-	for (int32_t i = getLeftPadSelectedX(); i <= getRightPadSelectedX(); i++) {
-		if (rowSquareInfo[i].numNotes != 0) {
-			int32_t intendedPos = rowSquareInfo[i].squareStartPos;
-
-			// Multiple notes in square
-			if (rowSquareInfo[i].numNotes > 1) {
-				int32_t intendedLength = rowSquareInfo[i].squareEndPos - intendedPos;
-
-				int32_t noteI = noteRow->notes.search(intendedPos, GREATER_OR_EQUAL);
-
-				Note* note = noteRow->notes.getElement(noteI);
-
-				while (note && note->pos - intendedPos < intendedLength) {
-					int32_t intendedVelocity =
-					    std::clamp<int32_t>(startVelocity + (velocityIncrement * squaresProcessed), 1, 127);
-
-					noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-					                                     CORRESPONDING_NOTES_SET_VELOCITY, intendedVelocity);
-
-					noteI++;
-
-					note = noteRow->notes.getElement(noteI);
-				}
-			}
-			// one note in square
-			else {
-				int32_t intendedVelocity =
-				    std::clamp<int32_t>(startVelocity + (velocityIncrement * squaresProcessed), 1, 127);
-
-				noteRow->changeNotesAcrossAllScreens(intendedPos, modelStackWithNoteRow, action,
-				                                     CORRESPONDING_NOTES_SET_VELOCITY, intendedVelocity);
-			}
-
-			// don't include note tails in note count
-			if (rowSquareInfo[i].squareType != SQUARE_NOTE_TAIL) {
-				squaresProcessed++;
-			}
-		}
-	}
+	ramp.forEachStep(
+	    [&](int32_t x) { return rowSquareInfo[x].numNotes != 0 && rowSquareInfo[x].squareType != SQUARE_NOTE_TAIL; },
+	    [&](int32_t x, int32_t velocity) {
+		    setRelativeVelocity(action, modelStackWithNoteRow, rowSquareInfo[x].squareStartPos,
+		                        rowSquareInfo[x].squareEndPos, velocity);
+	    });
 }
 
 // }; // namespace deluge::gui::views::automation::editor_layout::note

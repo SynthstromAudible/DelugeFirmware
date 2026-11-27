@@ -59,10 +59,13 @@ jobs:
         run: |
           ../32bit_unit_tests/SmallPointerTests -ojunit
           ../32bit_unit_tests/MemoryManagerTests -ojunit
-      - name: Run main CppUTest
+      - name: Run unit CppUTest suites
         working-directory: build/results
         run: |
           ../unit/UnitTests -ojunit
+          # Give the parameter suite's reports their own package name, so its test groups can't collide with
+          # another suite's.
+          ../unit/parameters/ParameterTests -ojunit -k ParameterTests
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v7

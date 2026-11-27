@@ -140,7 +140,24 @@ OutputType getCurrentOutputType() {
 using namespace deluge;
 using deluge::accidentals::AccidentalHandling;
 
+RGB Section::getColour() const {
+	// Resolve the stored palette index, falling back safely if it is outside the palette.
+	return defaultClipSectionColours[colour_index < kMaxNumSections ? colour_index : 0];
+}
+
+namespace {
+// Restore the default palette mapping for new songs and old song files.
+void resetSectionColours(Song& song) {
+	// Start with the original section-number-to-colour mapping before any sections are moved.
+	for (int32_t s = 0; s < kMaxNumSections; s++) {
+		song.sections[s].colour_index = static_cast<uint8_t>(s);
+	}
+}
+
+} // namespace
+
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
+	resetSectionColours(*this);
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
@@ -1306,26 +1323,24 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeArrayEnding("instruments");
 	writer.writeArrayStart("sections");
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		if (true || sections[s].launchMIDICommand.containsSomething() || sections[s].numRepetitions) {
-			writer.writeOpeningTagBeginning("section", true);
-			writer.writeAttribute("id", s, false);
-			if (true || sections[s].numRepetitions) {
-				writer.writeAttribute("numRepeats", sections[s].numRepetitions, false);
+		writer.writeOpeningTagBeginning("section", true);
+		writer.writeAttribute("id", s, false);
+		writer.writeAttribute("numRepeats", sections[s].num_repetitions, false);
+		// Persist the colour independently of the section ID so reordering survives a reload.
+		writer.writeAttribute("colour", sections[s].colour_index, false);
+		if (sections[s].launchMIDICommand.containsSomething()) {
+			// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI
+			// class now uses.
+			writer.writeAttribute("midiCommandChannel", sections[s].launchMIDICommand.channelOrZone, false);
+			writer.writeAttribute("midiCommandNote", sections[s].launchMIDICommand.noteOrCC, false);
+			if (sections[s].launchMIDICommand.cable != nullptr) {
+				writer.writeOpeningTagEnd();
+				sections[s].launchMIDICommand.cable->writeReferenceToFile(writer, "midiCommandDevice");
+				writer.writeClosingTag("section", true, true);
+				continue; // We now don't need to close the tag.
 			}
-			if (sections[s].launchMIDICommand.containsSomething()) {
-				// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI
-				// class now uses.
-				writer.writeAttribute("midiCommandChannel", sections[s].launchMIDICommand.channelOrZone, false);
-				writer.writeAttribute("midiCommandNote", sections[s].launchMIDICommand.noteOrCC, false);
-				if (sections[s].launchMIDICommand.cable) {
-					writer.writeOpeningTagEnd();
-					sections[s].launchMIDICommand.cable->writeReferenceToFile(writer, "midiCommandDevice");
-					writer.writeClosingTag("section", true, true);
-					continue; // We now don't need to close the tag.
-				}
-			}
-			writer.closeTag(true);
 		}
+		writer.closeTag(true);
 	}
 	writer.writeArrayEnding("sections");
 
@@ -1444,8 +1459,10 @@ Error Song::readFromFile(Deserializer& reader) {
 	char const* tagName;
 
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		sections[s].numRepetitions = 0;
+		sections[s].num_repetitions = 0;
 	}
+	// Songs saved before section colours were stored use each section's default colour
+	resetSectionColours(*this);
 	for (int32_t y = 0; y < 8; y++) {
 		sessionMacros[y].kind = NO_MACRO;
 	}
@@ -1946,6 +1963,8 @@ unknownTag:
 						uint8_t channel = 255;
 						uint8_t note = 255;
 						int16_t numRepeats = 0;
+						// Missing colour attributes in older songs leave the default mapping intact.
+						int32_t colour_index = -1;
 						reader.match('{');
 						while (*(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "id")) {
@@ -1957,6 +1976,10 @@ unknownTag:
 								if (numRepeats < -2 || numRepeats > 9999) {
 									numRepeats = 0;
 								}
+							}
+
+							else if (strcmp(tagName, "colour") == 0) {
+								colour_index = reader.readTagOrAttributeValueInt();
 							}
 
 							// Annoyingly, I used one-off tag names here, rather than it conforming to what the
@@ -1984,7 +2007,11 @@ unknownTag:
 								sections[id].launchMIDICommand.channelOrZone = channel;
 								sections[id].launchMIDICommand.noteOrCC = note;
 							}
-							sections[id].numRepetitions = numRepeats;
+							sections[id].num_repetitions = numRepeats;
+							// Only replace the default with a valid palette index from the song file.
+							if (colour_index >= 0 && colour_index < kMaxNumSections) {
+								sections[id].colour_index = static_cast<uint8_t>(colour_index);
+							}
 						}
 						reader.match('}');               // leave values object
 						reader.exitTag("section", true); // leave box.
@@ -3325,7 +3352,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			for (int32_t l = 0; l < sessionClips.getNumElements(); l++) {
 				Clip* loopable = sessionClips.getClipAtIndex(l);
 				if (loopable->launchStyle == LaunchStyle::DEFAULT
-				    && currentSong->sections[loopable->section].numRepetitions != -2) {
+				    && currentSong->sections[loopable->section].num_repetitions != -2) {
 					loopable->armState = ArmState::OFF;
 				}
 			}

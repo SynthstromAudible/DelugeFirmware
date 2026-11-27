@@ -39,7 +39,17 @@ You can vertical scroll (:key[TURN VERTICAL]), horizontal scroll (:key[TURN HORI
 While in the note editing menu with a note selected, you are able to perform other functions as if you were holding that note, including:
 
 - :key[Press Turn Vertical] to edit note repeats
-- :key[Turn Gold] to add parameter step automation at current note zoom level
+- :key[Turn Gold] to set a parameter lock on the selected note(s) in synth clips and kit sound rows (see below). For parameters that can't be locked, and in other clip types, this adds parameter step automation at the current note zoom level.
+
+### Param Locks <Badge text="c1.4" variant="tip" />
+
+A parameter lock gives one note its own value for a sound setting, such as filter frequency or envelope release. Locks are set by holding notes in clip view and turning a gold knob. See [Per-Note Parameter Locks](/features/community_features#4514---per-note-parameter-locks).
+
+The `PARAM LOCKS` item in the note editor menu (on OLED, on the menu's second page) lists the selected note's locks (or `NO LOCKS`).
+
+- Press :key[Select] on a lock to change its value. The new value is applied to every selected note when you leave the item or select a different note.
+- Press :key[Shift + Save] on a lock to delete it (`LOCK DELETED`).
+- Select `CLEAR ALL`, the last entry, to remove every lock from the selected note(s) (`LOCKS CLEARED`).
 
 ### Exit Note Editor Menu
 

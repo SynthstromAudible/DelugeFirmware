@@ -353,6 +353,7 @@ void init() {
 	VoicePool::get().repopulate();
 	VoiceSamplePool::get().repopulate();
 	TimeStretcherPool::get().repopulate();
+	LoopCrossfadeReaderPool::get().repopulate();
 }
 
 void killAllVoices(bool deletingSong) {
@@ -2032,6 +2033,19 @@ TimeStretcher* solicitTimeStretcher() {
 // There are no destructors. You gotta clean it up before you call this
 void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 	TimeStretcherPool::recycle(timeStretcher);
+}
+
+SampleLowLevelReader* solicitLoopCrossfadeReader() {
+	try {
+		return LoopCrossfadeReaderPool::get().acquire().release();
+	} catch (deluge::exception e) {
+		return nullptr;
+	}
+}
+
+// Destructs it, which unassigns its Clusters
+void loopCrossfadeReaderUnassigned(SampleLowLevelReader* reader) {
+	LoopCrossfadeReaderPool::recycle(reader);
 }
 
 // TODO: delete unused ones

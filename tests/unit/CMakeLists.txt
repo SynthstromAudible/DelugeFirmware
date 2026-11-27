@@ -136,3 +136,5 @@ target_link_libraries(UnitTests CppUTestExt etl::etl)
 target_compile_options(UnitTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )
+
+add_subdirectory(parameters)
