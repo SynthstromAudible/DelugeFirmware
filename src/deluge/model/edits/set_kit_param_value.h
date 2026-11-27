@@ -2,6 +2,7 @@
 
 #include "model/edits/edit.h"
 #include "plugin/types/param.h"
+#include "project/param_address.h"
 
 #include <cstdint>
 
@@ -18,10 +19,10 @@ class SetKitParamValue final : public Edit {
 public:
 	/// @param kit_output The kit's output id.
 	/// @param clip_id    The clip whose rows' params are written.
-	/// @param id         The param, in the Deluge instrument's table.
+	/// @param param      The param: in the Deluge instrument's table, or the arp's (ParamSpace::ARP).
 	/// @param value      The new value.
-	SetKitParamValue(uint32_t kit_output, uint32_t clip_id, plugin::ParamId id, int32_t value)
-	    : kit_output_(kit_output), clip_id_(clip_id), id_(id), value_(value) {}
+	SetKitParamValue(uint32_t kit_output, uint32_t clip_id, project::ParamTarget param, int32_t value)
+	    : kit_output_(kit_output), clip_id_(clip_id), param_(param), value_(value) {}
 
 	/// @copydoc Edit::apply
 	/// @return Error::UNSPECIFIED if the song holds no such kit; Error::NONE otherwise, however many drums took it.
@@ -33,7 +34,7 @@ public:
 private:
 	uint32_t kit_output_;
 	uint32_t clip_id_;
-	plugin::ParamId id_;
+	project::ParamTarget param_;
 	int32_t value_;
 	uint32_t drums_written_{0};
 };

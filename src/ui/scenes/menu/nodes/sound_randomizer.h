@@ -13,7 +13,7 @@
 /// is why the pairs are not `DuplicateName` reports.
 ///
 // clang-format off
-/// | node | legacy global | legacy class | param / field |
+/// | node | legacy global | legacy class | legacy param / field |
 /// |---|---|---|---|
 /// | `randomizer_lock` | `randomizerLockMenu` | `randomizer::RandomizerLock` (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_lock.h`) | `randomizerLock` |
 /// | `spread_gate` | `spreadGateMenu` | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_GATE` |

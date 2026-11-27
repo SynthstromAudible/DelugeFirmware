@@ -71,13 +71,18 @@ void recordLearned(::Song& song, const LearnedMIDI& learned, deluge::project::Ma
 	}
 }
 
-/// Give each hosted device an engine param's knob of @p address names in @p mappings a device entry, as a load makes
-/// one for each device a song names: the device list shows it, and the index finds its cable once it is plugged in.
+/// Whether @p knob turns an engine or an arp param: one a file names.
+bool turnsNamedParam(const Mapping& knob) {
+	const deluge::project::ParamSpace space = std::get<deluge::project::OwnerParamTarget>(knob.target).param.space;
+	return space == deluge::project::ParamSpace::ENGINE || space == deluge::project::ParamSpace::ARP;
+}
+
+/// Give each hosted device an engine or arp param's knob of @p address names in @p mappings a device entry, as a load
+/// makes one for each device a song names: the device list shows it, and the index finds its cable once it is plugged
+/// in.
 void makeKnobDevices(const MappingTable& mappings, ControlsAddress address) {
 	for (const Mapping& knob : mappings.params_of(address)) {
-		if (knob.source.device
-		    && std::get<deluge::project::OwnerParamTarget>(knob.target).param.space
-		           == deluge::project::ParamSpace::ENGINE) {
+		if (knob.source.device && turnsNamedParam(knob)) {
 			(void)cable_for(*knob.source.device);
 		}
 	}
@@ -891,10 +896,7 @@ bool handsOverKnobs(::Song& song, ::Output& output) {
 	}
 	applyPendingMappingOps(song); // a knob the render's writes bring counts
 	return std::ranges::any_of(song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *output.id()}),
-	                           [](const Mapping& knob) {
-		                           return std::get<deluge::project::OwnerParamTarget>(knob.target).param.space
-		                                  == deluge::project::ParamSpace::ENGINE;
-	                           });
+	                           turnsNamedParam);
 }
 
 bool learnedKnobTurns(::Song* song, deluge::model::EffectsOwner owner, std::optional<ControlsAddress> address,

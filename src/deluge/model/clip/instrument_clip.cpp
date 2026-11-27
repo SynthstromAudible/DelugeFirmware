@@ -4201,6 +4201,14 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 					thisNoteRow->syncDrumId(); // freshly-created real gate drum — safe to mirror
 				}
 				thisNoteRow->giveMidiCommandsToDrum();
+				// A gate drum's row holds its own arp's set, starting at its drum's values.
+				if (thisNoteRow->paramManager.getArpParamSet() == nullptr) {
+					const Error error = thisNoteRow->paramManager.setupArpOnly(deluge::arp::Owner::ROW);
+					if (error != Error::NONE) {
+						return error;
+					}
+					thisNoteRow->paramManager.getArpParamSet()->set_words(thisNoteRow->drum->arpSettings.values);
+				}
 			}
 
 			// Otherwise, we know we've sneakily put an integer index in place of the pointer, so convert that back to
@@ -4324,7 +4332,8 @@ haveNoDrum:
 				return error;
 			}
 		}
-		// A MIDI or CV clip's arp element held its values; its set plays them.
+		// A MIDI or CV clip's arp element held its values; its set plays them. This runs once, as the song's read
+		// resolves each clip's output, before anything has played or edited the set.
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 			if (ArpParamSet* arp = paramManager.getArpParamSet()) {
 				arp->set_words(arpSettings.values);

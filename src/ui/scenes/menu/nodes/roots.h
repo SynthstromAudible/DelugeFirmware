@@ -633,9 +633,9 @@ inline constexpr Node root_song = submenu(sid(String::STRING_FOR_SONG), kSongRoo
 inline constexpr const Node* kKitFxActionsChildren[] = {&edit_name, &kit_fx_stem_export};
 inline constexpr Node kit_fx_actions = submenu(sid(String::STRING_FOR_ACTIONS), kKitFxActionsChildren);
 
-// `arpeggiator::KitRate` is the kit's own `UNPATCHED_ARP_RATE`, shown only on the kit's global-FX page
-// (`KitRate::isRelevant` in `origin/main:src/deluge/gui/menu_item/arpeggiator/rate.h`); `arpGateMenu` is shared with
-// the sound arpeggiator.
+// `arpeggiator::KitRate` (main's kit `UNPATCHED_ARP_RATE`, here the kit arp's `arp::param::kRate`), shown only on the
+// kit's global-FX page (`KitRate::isRelevant` in `origin/main:src/deluge/gui/menu_item/arpeggiator/rate.h`);
+// `arpGateMenu` is shared with the sound arpeggiator.
 inline constexpr Node arp_kit_rate =
     param(sid(String::STRING_FOR_RATE), arp_param(deluge::arp::param::kRate), Hint::Knob, param_shows::kKitEffects,
           sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));

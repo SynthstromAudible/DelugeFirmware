@@ -845,9 +845,7 @@ namespace {
 /// @brief Give the kit's own arp its arp set's values for this block, less those the kit's arp does not play (so a
 ///        followed CC cannot move them).
 void playKitArpValues(ArpeggiatorSettings& arp, ParamManager& paramManager) {
-	if (const ArpParamSet* set = paramManager.getArpParamSet()) {
-		arp.values = set->values();
-	}
+	arp.values = paramManager.getArpParamSet()->values();         // every kit's manager holds its arp's set
 	constexpr int32_t kOff = std::numeric_limits<int32_t>::min(); // an unsigned field's 0
 	arp.values.set(deluge::arp::param::kChordPolyphony, kOff);
 	arp.values.set(deluge::arp::param::kChordProbability, kOff);

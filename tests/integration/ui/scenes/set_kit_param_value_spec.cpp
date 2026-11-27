@@ -17,6 +17,7 @@
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "project/param_address.h"
@@ -48,6 +49,13 @@ std::optional<int32_t> lpf_of(Song& song, Clip& clip, Drum& drum) {
 	return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
 }
 
+/// The word @p drum's arp gate plays in @p clip, or nullopt where its row has no arp set.
+std::optional<int32_t> arp_gate_of(Clip& clip, Drum& drum) {
+	NoteRow* row = static_cast<InstrumentClip&>(clip).getNoteRowForDrum(&drum);
+	const ArpParamSet* arp = row != nullptr ? row->paramManager.getArpParamSet() : nullptr;
+	return arp != nullptr ? std::optional{arp->word(deluge::arp::param::kGate)} : std::nullopt;
+}
+
 /// A kit with three sound drums, one of them with no row in the clip, a MIDI drum and a gate drum.
 struct Rows {
 	spec::SongFixture f = spec::make_kit_song();
@@ -72,12 +80,25 @@ describe set_kit_param_value("a param written across a kit's sound drums", ${
 		const std::optional<int32_t> before = lpf_of(*r.f.song, *r.f.clip, *r.first);
 		const int32_t wanted = before == 0x11111111 ? 0x22222222 : 0x11111111;
 		deluge::edits::Context ctx{*r.f.song, r.f.song->project};
-		deluge::edits::SetKitParamValue edit{r.kit(), r.f.clip->id(), kLpf, wanted};
+		deluge::edits::SetKitParamValue edit{r.kit(), r.f.clip->id(), deluge::project::engine_target(kLpf.value), wanted};
 		expect(deluge::edits::apply(ctx, edit)).to_equal(Error::NONE);
 		expect(edit.drums_written()).to_equal(2u);
 		expect(lpf_of(*r.f.song, *r.f.clip, *r.first)).to_equal(std::optional{wanted});
 		expect(lpf_of(*r.f.song, *r.f.clip, *r.second)).to_equal(std::optional{wanted});
 		expect(lpf_of(*r.f.song, *r.f.clip, *r.rowless).has_value()).to_be_false();
+	});
+
+	it("writes an arp param into every sound drum's arp set, not its engine param of the same id", _ {
+		Rows r;
+		const std::optional<int32_t> osc_before = lpf_of(*r.f.song, *r.f.clip, *r.first);
+		deluge::edits::Context ctx{*r.f.song, r.f.song->project};
+		const deluge::project::ParamTarget gate{.space = deluge::project::ParamSpace::ARP, .id = deluge::arp::param::kGate};
+		deluge::edits::SetKitParamValue edit{r.kit(), r.f.clip->id(), gate, 0x12345678};
+		expect(deluge::edits::apply(ctx, edit)).to_equal(Error::NONE);
+		expect(edit.drums_written()).to_equal(2u);
+		expect(arp_gate_of(*r.f.clip, *r.first)).to_equal(std::optional{0x12345678});
+		expect(arp_gate_of(*r.f.clip, *r.second)).to_equal(std::optional{0x12345678});
+		expect(lpf_of(*r.f.song, *r.f.clip, *r.first)).to_equal(osc_before);
 	});
 
 	it("is one undo step, which restores every drum it wrote", _ {
@@ -87,7 +108,7 @@ describe set_kit_param_value("a param written across a kit's sound drums", ${
 		const std::optional<int32_t> first = lpf_of(*r.f.song, *r.f.clip, *r.first);
 		const std::optional<int32_t> second = lpf_of(*r.f.song, *r.f.clip, *r.second);
 		deluge::edits::Context ctx{*r.f.song, r.f.song->project};
-		deluge::edits::SetKitParamValue edit{r.kit(), r.f.clip->id(), kLpf, 0x33333333};
+		deluge::edits::SetKitParamValue edit{r.kit(), r.f.clip->id(), deluge::project::engine_target(kLpf.value), 0x33333333};
 		expect(deluge::edits::apply(ctx, edit)).to_equal(Error::NONE);
 		Action* action = actionLogger.firstAction[BEFORE];
 		expect(action).not_().to_be_null();
@@ -104,7 +125,7 @@ describe set_kit_param_value("a param written across a kit's sound drums", ${
 	it("refuses a kit the song does not hold", _ {
 		Rows r;
 		deluge::edits::Context ctx{*r.f.song, r.f.song->project};
-		deluge::edits::SetKitParamValue edit{r.kit() + 1000, r.f.clip->id(), kLpf, 0x11111111};
+		deluge::edits::SetKitParamValue edit{r.kit() + 1000, r.f.clip->id(), deluge::project::engine_target(kLpf.value), 0x11111111};
 		expect(deluge::edits::apply(ctx, edit)).to_equal(Error::UNSPECIFIED);
 		expect(edit.drums_written()).to_equal(0u);
 	});

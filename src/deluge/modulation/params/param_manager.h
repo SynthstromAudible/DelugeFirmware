@@ -79,8 +79,8 @@ public:
 
 	/// @brief Borrow-point this manager's ParamSets at DOM-owned DocParamSets anchored on the sets.
 	///
-	/// Binds unpatched always, patched if present, and expression (MPE) if present. Idempotent. Audio/kit
-	/// clip-level managers bind their unpatched set only; synth/drum managers add patched (+ expression).
+	/// Binds unpatched always, and patched, expression (MPE) and the arp's set where present. Idempotent. Audio and
+	/// kit clip-level managers bind their unpatched set (and a kit's arp set); synth/drum managers add patched.
 	///
 	/// @pre Only call on a Sound or host chain manager (summaries[0] is an UnpatchedParamSet).
 	/// @warning A MIDI manager also reports containsAnyMainParamCollections()==true but holds a
@@ -126,10 +126,7 @@ public:
 	}
 
 	/// @brief The arp's set, or nullptr for an owner that holds no arp (the song, an audio clip, a host chain).
-	inline ArpParamSet* getArpParamSet() {
-		ParamCollectionSummary* summary = getArpParamSetSummary();
-		return summary != nullptr ? reinterpret_cast<ArpParamSet*>(summary->paramCollection) : nullptr;
-	}
+	ArpParamSet* getArpParamSet();
 
 	/// @brief The arp's set's summary, or nullptr for an owner that holds no arp.
 	inline ParamCollectionSummary* getArpParamSetSummary() {

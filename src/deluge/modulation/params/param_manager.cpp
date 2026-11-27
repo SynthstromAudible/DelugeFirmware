@@ -242,14 +242,19 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	other->arpParamSetOffset = kNoArpSlot;
 }
 
+ArpParamSet* ParamManager::getArpParamSet() {
+	ParamCollectionSummary* summary = getArpParamSetSummary();
+	return summary != nullptr ? static_cast<ArpParamSet*>(summary->paramCollection) : nullptr;
+}
+
 void ParamManager::bindMainParamSetDomStores() {
 	if (!containsAnyMainParamCollections()) {
 		return; // MIDI / expression-only: no main ParamSet to bind
 	}
 	// summaries[0] is the unpatched set for every main-collection manager (a host chain's and a Sound's).
 	static_cast<ParamSet*>(summaries[0].paramCollection)->bindDomStore();
-	// summaries[1] (patched) exists only for full-synth managers (setupWithPatching), not the unpatched-only
-	// host chain managers (audio clip / kit clip-level FX).
+	// summaries[1] is the patched set of a full-synth manager (setupWithPatching); a kit's clip-level manager holds
+	// its arp's set there, which binds below too (binding is idempotent).
 	if (summaries[1].paramCollection != nullptr) {
 		static_cast<ParamSet*>(summaries[1].paramCollection)->bindDomStore();
 	}
