@@ -91,7 +91,8 @@ void Canvas::clear_area_exact(int32_t min_x, int32_t min_y, int32_t max_x, int32
 		first_complete_row++;
 		uint8_t first_row_mask = ~(255 << first_row_pixel_within);
 		if (will_do_last_row && first_row == last_row) {
-			first_row_mask &= last_row_mask;
+			// Both edges in this band: keep the rows above the area and the rows below it.
+			first_row_mask |= last_row_mask;
 		}
 		for (int32_t x = min_x; x <= max_x; x++) {
 			bytes_[first_row * geometry_.width + x] &= first_row_mask;
