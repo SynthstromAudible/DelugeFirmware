@@ -84,10 +84,8 @@ namespace deluge::ui::scenes::menu::nodes {
 ///        the kit's own effects keep selected (`RandomizerUnpatchedParam::isRelevant`'s `editingNonAudioDrumRow()`).
 #define DELUGE_RANDOMIZER_PARAM(node_name, name_id, title_id, param_id, rel, hint)                                     \
 	inline constexpr Node node_name =                                                                                  \
-	    with_relevant(with_short_column_label(param(sid(deluge::l10n::String::name_id),                                \
-	                                                {deluge::plugin::ParamKind::UNPATCHED_SOUND,                       \
-	                                                 deluge::instruments::classic::runtime_index(param_id)},           \
-	                                                hint, rel, sid(deluge::l10n::String::title_id))),                  \
+	    with_relevant(with_short_column_label(param(sid(deluge::l10n::String::name_id), sound_param(param_id), hint,   \
+	                                                rel, sid(deluge::l10n::String::title_id))),                        \
 	                  relevance::not_non_audio_drum_row)
 
 inline constexpr Node randomizer_lock =
@@ -115,11 +113,9 @@ DELUGE_RANDOMIZER_MIDI(spread_octave_midi, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_
 
 /// A global id, so with the arp off too; not on a MIDI or gate drum row, which the kit's own effects keep selected.
 inline constexpr Node spread_velocity = with_relevant(
-    with_short_column_label(
-        param(sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY),
-              {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-               deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kSpreadVelocity)},
-              Hint::Bar, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE))),
+    with_short_column_label(param(sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY),
+                                  sound_param(deluge::instruments::classic::param::kSpreadVelocity), Hint::Bar,
+                                  ParamShows{}, sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE))),
     relevance::not_non_audio_drum_row);
 DELUGE_RANDOMIZER_MIDI(spread_velocity_midi, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
                        "arpeggiator/spreadVelocity", Hint::Bar);

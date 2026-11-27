@@ -29,7 +29,8 @@ namespace {
 ///        the `Sound`, so legacy opens it through the base `MenuItem::checkPermissionToBeginSession`
 ///        (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) on a multisampled synth without asking for a range.
 constexpr menu::Node param_node =
-    menu::param(1, {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ});
+    menu::param(1, deluge::ui::scenes::menu::sound_param(
+                       deluge::plugin::ParamId{static_cast<uint32_t>(deluge::modulation::params::LOCAL_LPF_FREQ)}));
 
 /// @brief The same node marked range-specific (and range-dependent) -- an item whose permission routes through
 ///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`

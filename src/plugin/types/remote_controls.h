@@ -22,7 +22,6 @@
 ///        CLAP's remote-controls extension (`clap.remote-controls/2`), with what pressing each slot's knob does.
 
 #include "plugin/types/param.h"
-#include "plugin/types/param_kind.h"
 
 #include <array>
 #include <cstddef>
@@ -50,7 +49,6 @@ enum class PressAction : uint8_t {
 /// @brief One control of a page.
 struct RemoteSlot {
 	std::optional<ParamId> param;         ///< what a turn moves; none for an empty slot
-	ParamKind kind{ParamKind::NONE};      ///< which of the owner's collections holds @c param
 	PressAction press{PressAction::NONE}; ///< what a press does
 	std::optional<ParamId> press_param;   ///< the setting a STEP_SETTING press steps
 	/// @brief Whether two slots turn, and press, alike: every field equal.

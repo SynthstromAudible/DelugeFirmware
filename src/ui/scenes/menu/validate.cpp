@@ -143,25 +143,13 @@ bool collect(std::span<const Node* const> roots, Reachable& seen) {
 	return true;
 }
 
-/// @brief Is @p param a pair `bindings.cpp` could resolve? The patched set holds the instrument's first block of
-/// params; either unpatched kind holds as many as the larger of the instrument's second block and the host chain's.
+/// @brief Does @p param name a row of its table: the instrument's for a sound's param, the host chain's for a chain's?
 bool param_in_range(const ParamRef& param) {
-	constexpr size_t kUnpatchedMax =
-	    std::max<size_t>(deluge::instruments::classic::kParamBlocks[1].count, deluge::host::chains::kParamBlock.count);
-	switch (param.kind) {
-	case deluge::plugin::ParamKind::PATCHED:
-		return param.index < deluge::instruments::classic::kParamBlocks[0].count;
-	case deluge::plugin::ParamKind::UNPATCHED_SOUND:
-	case deluge::plugin::ParamKind::UNPATCHED_GLOBAL:
-		return param.index < kUnpatchedMax;
-	case deluge::plugin::ParamKind::NONE:
-	case deluge::plugin::ParamKind::STATIC:
-	case deluge::plugin::ParamKind::MIDI:
-	case deluge::plugin::ParamKind::PATCH_CABLE:
-	case deluge::plugin::ParamKind::EXPRESSION:
-		break;
-	}
-	return false;
+	const std::span<const deluge::plugin::ParamInfo> table =
+	    param.table == deluge::ui::scenes::bind::ParamTable::CHAIN
+	        ? std::span<const deluge::plugin::ParamInfo>{deluge::host::chains::kParams}
+	        : std::span<const deluge::plugin::ParamInfo>{deluge::instruments::classic::kParams};
+	return param.id && deluge::plugin::find_param(table, *param.id) != nullptr;
 }
 
 /// @brief Does @p node hold a value at all -- i.e. is a missing binding a bug?
@@ -303,11 +291,11 @@ deluge::base::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> 
 			add(out, Issue::Kind::EnumWithoutNames, &n);
 		}
 
-		if (n.bind.param.kind != deluge::plugin::ParamKind::NONE && !param_in_range(n.bind.param)) {
-			add(out, Issue::Kind::BadParamRef, &n, n.bind.param.index);
+		if (n.bind.param.valid() && !param_in_range(n.bind.param)) {
+			add(out, Issue::Kind::BadParamRef, &n, static_cast<uint16_t>(param_id_of(n.bind.param).value));
 		}
 		else if (is_value_kind(n.kind) && !n.bind.target.valid() && !n.bind.param.valid() && n.bind.get == nullptr) {
-			add(out, Issue::Kind::BadParamRef, &n, n.bind.param.index);
+			add(out, Issue::Kind::BadParamRef, &n, static_cast<uint16_t>(param_id_of(n.bind.param).value));
 		}
 
 		// `adjust` with no `get` would read through `param` and write through the hook -- see

@@ -52,7 +52,7 @@ constexpr deluge::midi::DeviceId kHosted = deluge::midi::kFirstHosted;
 OwnerParamTarget cutoff_target() {
 	return OwnerParamTarget{
 	    .owner = {.kind = deluge::project::ControlsAddress::Kind::OUTPUT, .id = FakeHostRig::kSynthOutputId},
-	    .param = deluge::project::engine_target(nodes::lpf_freq.bind.param.index)};
+	    .param = deluge::project::engine_target(nodes::lpf_freq.bind.param.id->value)};
 }
 
 /// @brief The calls of @p kind the learn fake recorded.

@@ -81,8 +81,7 @@ ParamBlink own_pad(const MenuContext& ctx, const Node& item) {
 
 /// Whether @p node is the patched param @p p's own item.
 bool is_patched_param(const Node* node, uint8_t p) {
-	return node != nullptr && node->bind.param.kind == deluge::plugin::ParamKind::PATCHED
-	       && node->bind.param.index == p;
+	return node != nullptr && is_patched(node->bind.param) && patched_byte(node->bind.param) == p;
 }
 
 /// @brief The pad of patched param @p p, every fourth cycle -- `SoundEditor::findPatchedParam`
@@ -115,8 +114,9 @@ uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node
 	if (item.custom != nullptr) {
 		return item.custom->source_blink(ctx, state, source, colour);
 	}
-	if (item.bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
-		return patching::source_is_patched(ctx, source, deluge::synth::CableTarget::param(item.bind.param.index))
+	if (is_patched(item.bind.param)) {
+		return patching::source_is_patched(ctx, source,
+		                                   deluge::instruments::classic::cable_target_of(*item.bind.param.id))
 		           ? 3
 		           : kNoBlink;
 	}

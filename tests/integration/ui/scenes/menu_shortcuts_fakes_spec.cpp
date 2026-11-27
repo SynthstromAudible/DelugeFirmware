@@ -73,7 +73,7 @@ void hold_sample_synth(FakeHostRig& fakes) {
 
 /// @brief The sound fake patching @p sources to the low-pass cutoff.
 void patch_to_cutoff(FakeHostRig& fakes, std::initializer_list<PatchSource> sources) {
-	const auto cutoff = deluge::synth::CableTarget::param(nodes::lpf_freq.bind.param.index);
+	const auto cutoff = deluge::instruments::classic::cable_target_of(*nodes::lpf_freq.bind.param.id);
 	for (const PatchSource source : sources) {
 		fakes.host.sound.cable_list.push_back({.depth = deluge::instruments::classic::cable_depth_of(source, cutoff)});
 	}

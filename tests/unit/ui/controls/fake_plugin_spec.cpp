@@ -60,7 +60,7 @@ constexpr plugin::ParamId kWidth{22};
 constexpr plugin::ParamId kRepeat{30};
 
 constexpr RemoteSlot knob(plugin::ParamId id, PressAction press = PressAction::NONE) {
-	return {.param = id, .kind = plugin::ParamKind::UNPATCHED_SOUND, .press = press, .press_param = std::nullopt};
+	return {.param = id, .press = press, .press_param = std::nullopt};
 }
 constexpr RemotePage fake_page(uint32_t section, uint32_t page_id, RemoteSlot lower, RemoteSlot upper,
                                 bool keeps = false) {
@@ -75,7 +75,7 @@ constexpr RemotePage fake_page(uint32_t section, uint32_t page_id, RemoteSlot lo
 constexpr std::array<RemotePage, 4> kFakePages{
     fake_page(0, 0, knob(kGain, PressAction::NEXT_PAGE), knob(kTone)),
     fake_page(0, 1, knob(kDrive, PressAction::NEXT_PAGE), knob(kColour)),
-    fake_page(1, 0, RemoteSlot{.param = kShape, .kind = plugin::ParamKind::UNPATCHED_SOUND,
+    fake_page(1, 0, RemoteSlot{.param = kShape,
                                .press = PressAction::STEP_SETTING, .press_param = kShapeKind},
               knob(kWidth)),
     fake_page(2, 0, knob(kRepeat, PressAction::HOLD_STUTTER), RemoteSlot{}, true),

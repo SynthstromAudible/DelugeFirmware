@@ -4,12 +4,14 @@
 #include "ui/scenes/overlay/param_popup_scene.h"
 #include "ui/scenes/services/source_names.h"
 
+#include "ui/scenes/bind/param_facts.h"
 #include "ui/widgets/oled/popup.h"
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
+#include "instruments/classic/cables.h"
 #include "instruments/classic/params.h"
 #include "plugin/types/arp_rhythm.h"
 #include "plugin/types/display_mapping.h"
@@ -26,7 +28,8 @@ namespace deluge::ui::scenes::overlay {
 
 using deluge::synth::PatchSource;
 
-using Kind = deluge::plugin::ParamKind;
+using deluge::project::ParamSpace;
+using deluge::project::PluginParam;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SurfaceRole;
@@ -76,16 +79,14 @@ const char* source_short_name(PatchSource source) {
 /// @brief `View::calculateKnobPosForDisplay`, transcribed. The unused
 ///        `knobPosOffsetFloat` local and the dead `returnValue:` label legacy carries are not
 ///        reproduced -- neither has any effect on the value returned.
-/// @param kind     The param's kind; `Kind::MIDI` passes @p knob_pos through unchanged.
-/// @param param_id The param id within @p kind.
+/// @param param    The param; a MIDI CC passes @p knob_pos through unchanged.
 /// @param knob_pos Legacy's `newKnobPos + 64` -- the caller adds the offset.
 /// @return The menu-range value (0..50, or -25..25 for a pan/pitch param) to display.
-int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob_pos) {
-	if (kind == Kind::MIDI) {
+int32_t calculate_knob_pos_for_display(const PluginParam& param, int32_t knob_pos) {
+	if (param.target.space == ParamSpace::MIDI_CC) {
 		return knob_pos;
 	}
-	const deluge::plugin::ParamInfo* info =
-	    deluge::instruments::classic::param_row_at(kind, static_cast<uint32_t>(param_id));
+	const deluge::plugin::ParamInfo* info = deluge::ui::scenes::bind::info_of(param);
 	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knob_pos);
 }
 
@@ -94,67 +95,78 @@ int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob
 /// All three of legacy's arms, with `PopupContext` supplying what `View` supplied there: the patch-cable form, the
 /// MIDI-clip CC/expression form and the plain form. A default `PopupContext` selects the plain form's context-free
 /// overload and skips the MIDI arm entirely, which is exactly what a context-free caller gets.
-/// @param kind     The param's kind.
-/// @param param_id The param id within @p kind.
-/// @param source1  The first patch source, for `Kind::PATCH_CABLE`.
-/// @param source2  The second patch source, or `PatchSource::NONE`.
-/// @param context  The model context; see `PopupContext`.
-/// @param out      Filled in with the formatted name.
-void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource source2, const PopupContext& context,
+/// @param param   The param.
+/// @param source1 The first patch source, for a cable.
+/// @param source2 The second patch source, or `PatchSource::NONE`.
+/// @param context The model context; see `PopupContext`.
+/// @param out     Filled in with the formatted name.
+void format_name(const PluginParam& param, PatchSource source1, PatchSource source2, const PopupContext& context,
                  FixedAppend& out) {
-	if (kind == Kind::PATCH_CABLE) {
+	const deluge::plugin::ParamId id = param.target.id;
+	if (deluge::ui::scenes::bind::is_cable(param)) {
 		out.append(source_short_name(source1));
 		out.append("->");
 		if (source2 != PatchSource::NONE && source2 != PatchSource::NOT_AVAILABLE) {
 			out.append(source_short_name(source2));
 			out.append("->");
 		}
-		// A cable's id packs its depth and sources above the destination, which is the low byte.
-		const auto index = static_cast<uint32_t>(static_cast<uint8_t>(param_id));
+		// A cable's word packs its sources above the destination, which is the low byte.
+		const deluge::plugin::ParamId destination{
+		    static_cast<uint8_t>(deluge::instruments::classic::cable_word_of(id))};
 		const std::optional<std::string_view> envelope_name =
-		    context.envelopes
-		        ? deluge::l10n::envelope_param_name_at(Kind::PATCHED, index, *context.envelopes, /*brief=*/true)
-		        : std::nullopt;
+		    context.envelopes ? deluge::l10n::envelope_param_name(destination, *context.envelopes, /*brief=*/true)
+		                      : std::nullopt;
 		out.append(envelope_name    ? *envelope_name
-		           : context.filter ? deluge::l10n::patched_param_short_name_at(index, context.filter->lpf_mode,
-		                                                                        context.filter->hpf_mode)
-		                            : deluge::l10n::patched_param_short_name_at(index));
+		           : context.filter ? deluge::l10n::patched_param_short_name(destination, context.filter->lpf_mode,
+		                                                                     context.filter->hpf_mode)
+		                            : deluge::l10n::patched_param_short_name(destination));
 	}
 	else if (context.midi_clip) {
 		// The MIDI-clip CC/expression form. The caller has already resolved
 		// `knobsOnClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT`; a non-null instrument *is* that
 		// test having passed.
-		if (kind == Kind::EXPRESSION) {
-			if (std::cmp_equal(param_id, deluge::instruments::classic::kExpressionPitchBend.value)) {
+		if (param.target.space == ParamSpace::EXPRESSION) {
+			if (id == deluge::instruments::classic::kExpressionPitchBend) {
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
 			}
-			else if (std::cmp_equal(param_id, deluge::instruments::classic::kExpressionPressure.value)) {
+			else if (id == deluge::instruments::classic::kExpressionPressure) {
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 			}
-			else if (std::cmp_equal(param_id, deluge::instruments::classic::kExpressionSlide.value)) {
+			else if (id == deluge::instruments::classic::kExpressionSlide) {
 				// In mono expression this is the mod wheel; the y axis is not directly controllable.
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 			}
 		}
-		else if (param_id >= 0 && param_id < deluge::project::kNumRealCcNumbers) {
+		else if (std::cmp_less(id.value, deluge::project::kNumRealCcNumbers)) {
 			if (!context.cc_label.empty()) {
 				out.append(context.cc_label);
 			}
 			else {
 				out.append("CC ");
-				out.append_int(param_id);
+				out.append_int(static_cast<int32_t>(id.value));
 			}
 		}
 	}
 	else {
-		const auto index = static_cast<uint32_t>(param_id);
-		const std::optional<std::string_view> envelope_name =
-		    context.envelopes ? deluge::l10n::envelope_param_name_at(kind, index, *context.envelopes) : std::nullopt;
-		const std::string_view name =
-		    envelope_name ? *envelope_name
-		    : context.filter
-		        ? deluge::l10n::param_name_at(kind, index, context.filter->lpf_mode, context.filter->hpf_mode)
-		        : deluge::l10n::param_name_at(kind, index);
+		std::string_view name = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_NONE);
+		switch (param.target.space) {
+		case ParamSpace::EXPRESSION:
+			name = deluge::l10n::expression_param_name(id);
+			break;
+		case ParamSpace::MIDI_CC:
+			break;
+		case ParamSpace::ENGINE: {
+			const std::optional<std::string_view> envelope_name =
+			    context.envelopes && param.plugin == deluge::project::OwnerPlugin::INSTRUMENT
+			        ? deluge::l10n::envelope_param_name(id, *context.envelopes)
+			        : std::nullopt;
+			name = envelope_name ? *envelope_name
+			       : context.filter
+			           ? deluge::l10n::param_name(param.plugin, id, context.filter->lpf_mode, context.filter->hpf_mode)
+			           : deluge::l10n::param_name(param.plugin, id);
+			break;
+		}
+		}
 		// `param_name` answers the very string `STRING_FOR_NONE` names for a param it does not know, as legacy's did.
 		if (name.data() != deluge::l10n::getView(deluge::l10n::String::STRING_FOR_NONE).data()) {
 			out.append(name);
@@ -165,16 +177,14 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 /// @brief The value half of `displayModEncoderValuePopup` (`gui/views/view.cpp`).
 ///
 /// A quantized stutter rate shows its bucket while no stutter plays; `PopupContext` says both.
-/// @param kind          The param's kind.
-/// @param param_id      The param id within @p kind.
-/// @param knob_pos      The raw knob position (pre-offset).
-/// @param context       The model context; see `PopupContext`.
-/// @param out            Filled in with the formatted value text.
+/// @param param    The param.
+/// @param knob_pos The raw knob position (pre-offset).
+/// @param context  The model context; see `PopupContext`.
+/// @param out      Filled in with the formatted value text.
 /// @return The value used for the arbitration's change-detection (legacy's
 ///         `current_display_value`).
-int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupContext& context, FixedAppend& out) {
-	if (deluge::instruments::classic::is_stutter_rate_at(kind, static_cast<uint32_t>(param_id))
-	    && context.stutter_quantized && !context.stuttering) {
+int32_t format_value(const PluginParam& param, int32_t knob_pos, const PopupContext& context, FixedAppend& out) {
+	if (deluge::ui::scenes::bind::is_stutter_rate(param) && context.stutter_quantized && !context.stuttering) {
 		int32_t display_value;
 		const char* text;
 		if (knob_pos < -39) {
@@ -200,9 +210,8 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 		out.append(text);
 		return display_value;
 	}
-	if (deluge::instruments::classic::is_arp_rhythm_at(kind, static_cast<uint32_t>(param_id))) {
-		const int32_t display_value =
-		    calculate_knob_pos_for_display(kind, param_id, knob_pos + plugin::kMaxKnobPosition / 2);
+	if (deluge::ui::scenes::bind::is_arp_rhythm(param)) {
+		const int32_t display_value = calculate_knob_pos_for_display(param, knob_pos + plugin::kMaxKnobPosition / 2);
 		char name[12];
 		const std::string_view pattern = plugin::kArpRhythms[static_cast<size_t>(display_value)].name;
 		const int n = std::snprintf(name, sizeof(name), "%d: %.*s", static_cast<int>(display_value),
@@ -212,8 +221,7 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 		}
 		return display_value;
 	}
-	const int32_t display_value =
-	    calculate_knob_pos_for_display(kind, param_id, knob_pos + plugin::kMaxKnobPosition / 2);
+	const int32_t display_value = calculate_knob_pos_for_display(param, knob_pos + plugin::kMaxKnobPosition / 2);
 	out.append_int(display_value);
 	return display_value;
 }
@@ -230,10 +238,10 @@ void take_notification_slot() {
 
 } // namespace
 
-bool ParamPopupScene::show(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1, PatchSource source2,
+bool ParamPopupScene::show(const PluginParam& param, int32_t knob_pos, PatchSource source1, PatchSource source2,
                            uint32_t now_ms, PopupContext context) {
 	const uint32_t expiry_before = expires_at_ms_;
-	const bool committed = attempt_display(kind, param_id, knob_pos, source1, source2, now_ms, context);
+	const bool committed = attempt_display(param, knob_pos, source1, source2, now_ms, context);
 	if (committed) {
 		take_notification_slot();
 	}
@@ -242,18 +250,18 @@ bool ParamPopupScene::show(Kind kind, int32_t param_id, int32_t knob_pos, PatchS
 	return committed;
 }
 
-bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
+bool ParamPopupScene::attempt_display(const PluginParam& param, int32_t knob_pos, PatchSource source1,
                                       PatchSource source2, uint32_t now_ms, PopupContext context) {
 	// `displayModEncoderValuePopup`'s formatting half (`gui/views/view.cpp`): always recomputed,
 	// whether or not the arbitration below ends up using it -- legacy does the same work on every
 	// call, including the flushed replay.
 	char name_buf[kTextCap + 1];
 	FixedAppend name{name_buf, kTextCap};
-	format_name(kind, param_id, source1, source2, context, name);
+	format_name(param, source1, source2, context, name);
 
 	char value_buf[kTextCap + 1];
 	FixedAppend value{value_buf, kTextCap};
-	const int32_t display_value = format_value(kind, param_id, knob_pos, context, value);
+	const int32_t display_value = format_value(param, knob_pos, context, value);
 
 	// `displayModEncoderValuePopup`'s arbitration half (`gui/views/view.cpp`), against this scene's
 	// own `remaining_ms_ > 0` standing in for `display->hasPopupOfType(PopupType::NOTIFICATION)`.
@@ -262,15 +270,14 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 	bool has_param_info_changed = true;
 	bool has_min_time_elapsed = true;
 	if (notification_active) {
-		has_param_info_changed =
-		    (kind != last_param_kind_ || param_id != last_param_id_ || display_value != last_display_value_
-		     || source1 != last_source1_ || source2 != last_source2_);
+		has_param_info_changed = (last_param_ != param || display_value != last_display_value_
+		                          || source1 != last_source1_ || source2 != last_source2_);
 		const uint32_t time_since_last_actual_display = now_ms - last_actual_display_ms_;
 		has_min_time_elapsed = time_since_last_actual_display >= kMinUpdateIntervalMs;
 	}
 
-	const bool current_param_owns_display = (kind == display_owner_kind_ && param_id == display_owner_param_id_
-	                                         && source1 == display_owner_source1_ && source2 == display_owner_source2_);
+	const bool current_param_owns_display =
+	    (display_owner_param_ == param && source1 == display_owner_source1_ && source2 == display_owner_source2_);
 
 	bool can_take_display_ownership = false;
 	if (!notification_active) {
@@ -297,15 +304,13 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 		expires_at_ms_ = now_ms + kPopupLifetimeMs;
 		was_showing_ = true;
 
-		last_param_kind_ = kind;
-		last_param_id_ = param_id;
+		last_param_ = param;
 		last_display_value_ = display_value;
 		last_source1_ = source1;
 		last_source2_ = source2;
 
 		if (!current_param_owns_display) {
-			display_owner_kind_ = kind;
-			display_owner_param_id_ = param_id;
+			display_owner_param_ = param;
 			display_owner_source1_ = source1;
 			display_owner_source2_ = source2;
 			display_ownership_start_ms_ = now_ms;
@@ -320,8 +325,7 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 	}
 	else if (has_param_info_changed && can_take_display_ownership && !has_min_time_elapsed) {
 		has_pending_ = true;
-		pending_kind_ = kind;
-		pending_param_id_ = param_id;
+		pending_param_ = param;
 		pending_knob_pos_ = knob_pos;
 		pending_source1_ = source1;
 		pending_source2_ = source2;
@@ -358,7 +362,7 @@ std::optional<ShownPopup> ParamPopupScene::hand_off(uint32_t now_ms) {
 		// The deferred flush, at the instant it was scheduled to fire (`tick`'s pending arm). The display it is
 		// handed to draws it, so it takes no notification slot here.
 		has_pending_ = false;
-		(void)attempt_display(pending_kind_, pending_param_id_, pending_knob_pos_, pending_source1_, pending_source2_,
+		(void)attempt_display(pending_param_, pending_knob_pos_, pending_source1_, pending_source2_,
 		                      last_actual_display_ms_ + kMinUpdateIntervalMs, pending_context_);
 	}
 	const bool showing = remaining_ms_ > 0;
@@ -370,8 +374,7 @@ std::optional<ShownPopup> ParamPopupScene::hand_off(uint32_t now_ms) {
 	return ShownPopup{.name = std::string{shown_name()},
 	                  .value = std::string{shown_value()},
 	                  .remaining_ms = std::min(static_cast<uint32_t>(left), kPopupLifetimeMs),
-	                  .kind = last_param_kind_,
-	                  .param_id = last_param_id_,
+	                  .param = last_param_.value_or(PluginParam{}),
 	                  .display_value = last_display_value_,
 	                  .source1 = last_source1_,
 	                  .source2 = last_source2_};
@@ -390,8 +393,8 @@ void ParamPopupScene::tick(uint32_t dt_ms) {
 			// exact by construction, since that is the instant this flush was scheduled to fire.
 			const uint32_t flush_now_ms = last_actual_display_ms_ + kMinUpdateIntervalMs;
 			has_pending_ = false;
-			if (attempt_display(pending_kind_, pending_param_id_, pending_knob_pos_, pending_source1_, pending_source2_,
-			                    flush_now_ms, pending_context_)) {
+			if (attempt_display(pending_param_, pending_knob_pos_, pending_source1_, pending_source2_, flush_now_ms,
+			                    pending_context_)) {
 				take_notification_slot();
 			}
 		}

@@ -218,8 +218,9 @@ constexpr Node no_param_node = menu::toggle_item(
 ///        "matches" node (paired with a clip set to the same kind/index) and the "does not match"
 ///        one (paired with a clip left at its default `Kind::NONE` / `kNoParamID`, or explicitly
 ///        set to a different param).
-constexpr Node param_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_FREQUENCY),
-                                        {params::Kind::PATCHED, params::LOCAL_LPF_FREQ});
+constexpr Node param_node = menu::param(
+    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_FREQUENCY),
+    deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{static_cast<uint32_t>(params::LOCAL_LPF_FREQ)}));
 
 } // namespace
 

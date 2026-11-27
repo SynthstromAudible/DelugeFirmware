@@ -100,6 +100,8 @@
 #include "support/recorded_knob_indicators.h"
 #include "support/song_fixture.h"
 
+#include "support/plugin_param.h"
+
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
 
@@ -449,9 +451,10 @@ struct RouteRig {
 // horizontal-page forwarding: the menu's own focused *column*, not the page node, is what the same-param guard has to
 // compare against.
 namespace mod_knobs_spec_nodes {
-inline constexpr deluge::ui::scenes::menu::Node res_col = deluge::ui::scenes::menu::param(
-    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESONANCE),
-    {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_RESONANCE});
+inline constexpr deluge::ui::scenes::menu::Node res_col =
+    deluge::ui::scenes::menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESONANCE),
+                                    deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{
+                                        static_cast<uint32_t>(deluge::modulation::params::LOCAL_LPF_RESONANCE)}));
 inline constexpr const deluge::ui::scenes::menu::Node* kResPageChildren[] = {&res_col};
 inline constexpr deluge::ui::scenes::menu::Node res_page =
     deluge::ui::scenes::menu::submenu(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LPF), kResPageChildren,
@@ -2018,14 +2021,14 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		deluge::effects::EffectStates effects;
 		effects.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
 		popup_context.filter = effects.filter;
-		overlay::param_popup_scene().show(Kind::PATCHED, kMorph, 0, PatchSource::NONE, PatchSource::NONE, 60000,
+		overlay::param_popup_scene().show(deluge::ui::scenes::spec::plugin_param(Kind::PATCHED, kMorph), 0, PatchSource::NONE, PatchSource::NONE, 60000,
 		                                  popup_context);
 		const std::string port_named{overlay::param_popup_scene().shown_name()};
 
 		// And with NO context -- the shape that cannot reach the context-aware arms.
 		overlay::param_popup_scene().tick(0); // the tick after a show takes nothing off its lifetime
 		overlay::param_popup_scene().tick(10000);
-		overlay::param_popup_scene().show(Kind::PATCHED, kMorph, 0, PatchSource::NONE, PatchSource::NONE, 120000);
+		overlay::param_popup_scene().show(deluge::ui::scenes::spec::plugin_param(Kind::PATCHED, kMorph), 0, PatchSource::NONE, PatchSource::NONE, 120000);
 		const std::string port_unnamed{overlay::param_popup_scene().shown_name()};
 
 		expect(legacy_named.empty()).to_be_false();

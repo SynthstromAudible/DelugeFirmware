@@ -133,23 +133,17 @@ ValueText stutter_direction_text(const MenuContext& ctx, int32_t value, ValueTex
 // title, and each node's title is its name. No `getRenderingStyle` override, so the `IntegerContinuous` default, KNOB.
 
 inline constexpr Node eq_bass =
-    param(sid(deluge::l10n::String::STRING_FOR_BASS),
-          {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kBass)});
+    param(sid(deluge::l10n::String::STRING_FOR_BASS), sound_param(deluge::instruments::classic::param::kBass));
 inline constexpr Node eq_treble =
-    param(sid(deluge::l10n::String::STRING_FOR_TREBLE),
-          {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kTreble)});
-inline constexpr Node eq_bass_freq = with_column_name(
-    param(sid(deluge::l10n::String::STRING_FOR_BASS_FREQUENCY),
-          {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kBassFreq)}),
-    sid(deluge::l10n::String::STRING_FOR_BASS_FREQUENCY_SHORT));
-inline constexpr Node eq_treble_freq = with_column_name(
-    param(sid(deluge::l10n::String::STRING_FOR_TREBLE_FREQUENCY),
-          {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kTrebleFreq)}),
-    sid(deluge::l10n::String::STRING_FOR_TREBLE_FREQUENCY_SHORT));
+    param(sid(deluge::l10n::String::STRING_FOR_TREBLE), sound_param(deluge::instruments::classic::param::kTreble));
+inline constexpr Node eq_bass_freq =
+    with_column_name(param(sid(deluge::l10n::String::STRING_FOR_BASS_FREQUENCY),
+                           sound_param(deluge::instruments::classic::param::kBassFreq)),
+                     sid(deluge::l10n::String::STRING_FOR_BASS_FREQUENCY_SHORT));
+inline constexpr Node eq_treble_freq =
+    with_column_name(param(sid(deluge::l10n::String::STRING_FOR_TREBLE_FREQUENCY),
+                           sound_param(deluge::instruments::classic::param::kTrebleFreq)),
+                     sid(deluge::l10n::String::STRING_FOR_TREBLE_FREQUENCY_SHORT));
 
 /// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`) orders the four
 /// as the graph's handles run, left to right: bass, bass frequency, treble frequency, treble.
@@ -161,11 +155,9 @@ inline constexpr Node eq =
 // --- Delay -------------------------------------------------------------------------------------
 
 inline constexpr Node delay_amount = with_column_draw(
-    with_column_name(with_patch_chain(param(
-                         sid(deluge::l10n::String::STRING_FOR_AMOUNT),
-                         {deluge::plugin::ParamKind::PATCHED, deluge::instruments::classic::runtime_index(
-                                                                  deluge::instruments::classic::param::kDelayFeedback)},
-                         Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_AMOUNT))),
+    with_column_name(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_AMOUNT),
+                                            sound_param(deluge::instruments::classic::param::kDelayFeedback), Hint::Bar,
+                                            nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_AMOUNT))),
                      sid(deluge::l10n::String::STRING_FOR_AMOUNT_SHORT)),
     delay_amount_draw);
 inline constexpr Node delay_ping_pong = with_affect_entire(with_column_art(
@@ -179,9 +171,7 @@ inline constexpr Node delay_sync = with_affect_entire(
                             {.kind = deluge::ui::scenes::bind::Target::Kind::EFFECT, .path = "delay/syncLevel"}),
                sid(deluge::l10n::String::STRING_FOR_DELAY_SYNC)));
 inline constexpr Node delay_rate = with_patch_chain(
-    param(sid(deluge::l10n::String::STRING_FOR_RATE),
-          {deluge::plugin::ParamKind::PATCHED,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kDelayRate)},
+    param(sid(deluge::l10n::String::STRING_FOR_RATE), sound_param(deluge::instruments::classic::param::kDelayRate),
           Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_RATE)));
 inline constexpr Node delay_type = with_affect_entire(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,
@@ -199,13 +189,11 @@ inline constexpr Node delay = submenu(sid(deluge::l10n::String::STRING_FOR_DELAY
 // sidechain volume starts at -1, which the item draws as AUTO (`Volume::getMinValue` and `Volume::drawValue` in
 // `origin/main:src/deluge/gui/menu_item/reverb/sidechain/volume.h`).
 
-inline constexpr Node reverb_amount = with_column_name(
-    with_patch_chain(
-        param(sid(deluge::l10n::String::STRING_FOR_AMOUNT),
-              {deluge::plugin::ParamKind::PATCHED,
-               deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kReverbAmount)},
-              Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_REVERB_AMOUNT))),
-    sid(deluge::l10n::String::STRING_FOR_AMOUNT_SHORT));
+inline constexpr Node reverb_amount =
+    with_column_name(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_AMOUNT),
+                                            sound_param(deluge::instruments::classic::param::kReverbAmount), Hint::Bar,
+                                            nullptr, sid(deluge::l10n::String::STRING_FOR_REVERB_AMOUNT))),
+                     sid(deluge::l10n::String::STRING_FOR_AMOUNT_SHORT));
 inline constexpr Node reverb_room_size =
     with_name_text(with_value_text(setting_item(sid(deluge::l10n::String::STRING_FOR_ROOM_SIZE), Kind::Int,
                                                 {.kind = deluge::ui::scenes::bind::Target::Kind::MODEL,
@@ -302,10 +290,8 @@ inline constexpr Node reverb =
 
 inline constexpr Node stutter_rate = with_turn(
     with_leaf_text(with_value_text(param(sid(deluge::l10n::String::STRING_FOR_RATE),
-                                         {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-                                          deluge::instruments::classic::runtime_index(
-                                              deluge::instruments::classic::param::kStutterRate)},
-                                         Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_STUTTER_RATE)),
+                                         sound_param(deluge::instruments::classic::param::kStutterRate), Hint::Knob,
+                                         nullptr, sid(deluge::l10n::String::STRING_FOR_STUTTER_RATE)),
                                    stutter_rate_text),
                    stutter_rate_text),
     stutter_rate_turn);
@@ -330,35 +316,28 @@ inline constexpr Node mod_fx_type =
                                 {.kind = deluge::ui::scenes::bind::Target::Kind::EFFECT, .path = "modFXType"}),
                    sid(deluge::l10n::String::STRING_FOR_MODFX_TYPE)),
         4))))); // `origin/main:src/deluge/gui/menu_item/mod_fx/type.h`
-inline constexpr Node mod_fx_depth = with_name_text(
-    with_value_text(with_patch_chain(param(
-                        sid(deluge::l10n::String::STRING_FOR_DEPTH),
-                        {deluge::plugin::ParamKind::PATCHED,
-                         deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kModFXDepth)},
-                        Hint::Bar, param_shows::kModFxDepth, sid(deluge::l10n::String::STRING_FOR_MODFX_DEPTH))),
-                    mod_fx_depth_text),
-    mod_fx_depth_text);
+inline constexpr Node mod_fx_depth =
+    with_name_text(with_value_text(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_DEPTH),
+                                                          sound_param(deluge::instruments::classic::param::kModFXDepth),
+                                                          Hint::Bar, param_shows::kModFxDepth,
+                                                          sid(deluge::l10n::String::STRING_FOR_MODFX_DEPTH))),
+                                   mod_fx_depth_text),
+                   mod_fx_depth_text);
 inline constexpr Node mod_fx_rate = with_patch_chain(
-    param(sid(deluge::l10n::String::STRING_FOR_RATE),
-          {deluge::plugin::ParamKind::PATCHED,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kModFXRate)},
+    param(sid(deluge::l10n::String::STRING_FOR_RATE), sound_param(deluge::instruments::classic::param::kModFXRate),
           Hint::Knob, param_shows::kModFxIsOn, sid(deluge::l10n::String::STRING_FOR_MODFX_RATE)));
 inline constexpr Node mod_fx_feedback = with_name_text(
-    with_value_text(
-        param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),
-              {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-               deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kModFXFeedback)},
-              Hint::Knob, param_shows::kModFxFeedback, sid(deluge::l10n::String::STRING_FOR_MODFX_FEEDBACK)),
-        mod_fx_feedback_text),
+    with_value_text(param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),
+                          sound_param(deluge::instruments::classic::param::kModFXFeedback), Hint::Knob,
+                          param_shows::kModFxFeedback, sid(deluge::l10n::String::STRING_FOR_MODFX_FEEDBACK)),
+                    mod_fx_feedback_text),
     mod_fx_feedback_text);
-inline constexpr Node mod_fx_offset = with_name_text(
-    with_value_text(
-        param(sid(deluge::l10n::String::STRING_FOR_OFFSET),
-              {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-               deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kModFXOffset)},
-              Hint::Knob, param_shows::kModFxOffset, sid(deluge::l10n::String::STRING_FOR_MODFX_OFFSET)),
-        mod_fx_offset_text),
-    mod_fx_offset_text);
+inline constexpr Node mod_fx_offset =
+    with_name_text(with_value_text(param(sid(deluge::l10n::String::STRING_FOR_OFFSET),
+                                         sound_param(deluge::instruments::classic::param::kModFXOffset), Hint::Knob,
+                                         param_shows::kModFxOffset, sid(deluge::l10n::String::STRING_FOR_MODFX_OFFSET)),
+                                   mod_fx_offset_text),
+                   mod_fx_offset_text);
 
 inline constexpr const Node* kModFxChildren[] = {&mod_fx_type, &mod_fx_depth, &mod_fx_rate, &mod_fx_feedback,
                                                  &mod_fx_offset};
@@ -371,21 +350,14 @@ inline constexpr Node saturation = with_affect_entire(with_value_style(
     setting_item(sid(deluge::l10n::String::STRING_FOR_SATURATION), Kind::Int,
                  {.kind = deluge::ui::scenes::bind::Target::Kind::EFFECT, .path = "clippingAmount"}, Hint::Bar),
     deluge::ui::widgets::oled::ValueStyle{.off_at_zero = true}));
-inline constexpr Node bitcrush =
-    param(sid(deluge::l10n::String::STRING_FOR_BITCRUSH),
-          {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kBitcrushAmount)},
-          Hint::Bar);
+inline constexpr Node bitcrush = param(sid(deluge::l10n::String::STRING_FOR_BITCRUSH),
+                                       sound_param(deluge::instruments::classic::param::kBitcrushAmount), Hint::Bar);
 inline constexpr Node decimation =
     param(sid(deluge::l10n::String::STRING_FOR_DECIMATION),
-          {deluge::plugin::ParamKind::UNPATCHED_SOUND,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kSampleRateReduction)},
-          Hint::Bar);
-inline constexpr Node wavefold = with_patch_chain(
-    param(sid(deluge::l10n::String::STRING_FOR_WAVEFOLD),
-          {deluge::plugin::ParamKind::PATCHED,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kWaveFold)},
-          Hint::Bar));
+          sound_param(deluge::instruments::classic::param::kSampleRateReduction), Hint::Bar);
+inline constexpr Node wavefold =
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_WAVEFOLD),
+                           sound_param(deluge::instruments::classic::param::kWaveFold), Hint::Bar));
 
 inline constexpr const Node* kDistortionChildren[] = {&saturation, &bitcrush, &decimation, &wavefold};
 inline constexpr Node distortion =

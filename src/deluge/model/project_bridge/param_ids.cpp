@@ -285,7 +285,31 @@ std::optional<deluge::project::ParamTarget> targetOf(OwnerPlugin owner, params::
 	if (kind == params::Kind::NONE) { // an unpatched set its owner's init has not named yet
 		kind = owner == OwnerPlugin::INSTRUMENT ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
 	}
-	return deluge::ui::controls::follow_target(owner, kind, paramIdOf(kind, index), instrument::has_engine_param);
+	const deluge::plugin::ParamId id = paramIdOf(kind, index);
+	deluge::project::PluginParam turned{.target = deluge::project::engine_target(id.value)};
+	switch (kind) {
+	case params::Kind::MIDI:
+		turned.target.space = deluge::project::ParamSpace::MIDI_CC;
+		break;
+	case params::Kind::EXPRESSION:
+		turned.target.space = deluge::project::ParamSpace::EXPRESSION;
+		break;
+	case params::Kind::PATCH_CABLE:
+		// A cable is the instrument's, and its depth is in no table: what the word names is the target as it stands.
+		return owner == OwnerPlugin::INSTRUMENT ? std::optional{turned.target} : std::nullopt;
+	case params::Kind::PATCHED:
+	case params::Kind::UNPATCHED_SOUND:
+		turned.plugin = OwnerPlugin::INSTRUMENT;
+		break;
+	case params::Kind::UNPATCHED_GLOBAL:
+		turned.plugin = OwnerPlugin::GLOBAL_EFFECTABLE;
+		break;
+	case params::Kind::NONE:
+	case params::Kind::STATIC:
+	default: // a kind with no follow, or a value that is no kind
+		return std::nullopt;
+	}
+	return deluge::ui::controls::follow_target(owner, turned, instrument::has_engine_param);
 }
 
 deluge::plugin::ParamId firstParamId(params::Kind kind) {

@@ -25,6 +25,7 @@
 #include "project/instrument_slot.h"
 #include "project/kit_row_address.h"
 #include "project/note_address.h"
+#include "project/owner_plugin.h"
 #include "project/param_address.h"
 #include "project/setting_group.h"
 #include "ui/controls/board.h"
@@ -108,6 +109,13 @@ struct KnobFocus {
 /// @brief Whether @p focus has no knobs to turn: no focus, or an owner with an empty layout.
 [[nodiscard]] constexpr bool has_no_knobs(const KnobFocus& focus) {
 	return std::holds_alternative<std::monostate>(focus.owner) || std::holds_alternative<NoControlsFocus>(focus.owner);
+}
+
+/// @brief Whose table the ENGINE ids @p focus's knobs move are in: a sound's the instrument's, a chain's or the song's
+///        the host chain's. A MIDI track's knobs move CCs and expression axes, in no table.
+[[nodiscard]] constexpr project::OwnerPlugin owner_plugin_of(const KnobFocus& focus) {
+	return std::holds_alternative<SoundFocus>(focus.owner) ? project::OwnerPlugin::INSTRUMENT
+	                                                       : project::OwnerPlugin::GLOBAL_EFFECTABLE;
 }
 
 /// @brief The owner @p focus's knobs move params of, as an address with no param: its owner id and clip id.

@@ -40,13 +40,16 @@ namespace {
 
 /// @brief An ordinary patched param -- main's `patched_param::Integer`
 /// (`origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp`).
-constexpr Node lpf_freq_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_FREQUENCY),
-                                           {params::Kind::PATCHED, params::LOCAL_LPF_FREQ});
+constexpr Node lpf_freq_node = menu::param(
+    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_FREQUENCY),
+    deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{static_cast<uint32_t>(params::LOCAL_LPF_FREQ)}));
 
 /// @brief An unpatched (sound) param -- main's `menu_item::UnpatchedParam`
 /// (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`).
-constexpr Node bass_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_BASS),
-                                       {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS});
+constexpr Node bass_node = menu::param(
+    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_BASS),
+    deluge::ui::scenes::menu::sound_param(deluge::instruments::classic::param_id(
+        {deluge::instruments::classic::RuntimeSet::UNPATCHED, static_cast<uint8_t>(params::UNPATCHED_BASS)})));
 
 /// @brief The `Kind::Enum` names table -- two real l10n ids.
 constexpr uint16_t kEnumNames[] = {

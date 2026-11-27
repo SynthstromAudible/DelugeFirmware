@@ -16,6 +16,8 @@
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/nodes.h"
 
+#include "support/oracle_tree.h"
+
 #include "cppspec.hpp"
 
 #include <map>
@@ -51,7 +53,13 @@ Scaling effective_scaling(const Node& node) {
 	if (node.bind.scaling != Scaling::Standard) {
 		return node.bind.scaling;
 	}
-	const ParamInfo* info = params::paramInfoFor(node.bind.param.kind, node.bind.param.index);
+	const ParamInfo* info =
+	    !node.bind.param.valid()
+	        ? nullptr
+	        : deluge::plugin::find_param(node.bind.param.table == deluge::ui::scenes::bind::ParamTable::CHAIN
+	                                         ? std::span<const ParamInfo>{deluge::host::chains::kParams}
+	                                         : std::span<const ParamInfo>{deluge::instruments::classic::kParams},
+	                                     param_id_of(node.bind.param));
 	if (node.hint == Hint::Pan || (info != nullptr && info->mapping == MappingKind::PAN)) {
 		return Scaling::Pan;
 	}
@@ -86,8 +94,9 @@ MappingKind display_of(Scaling s) {
 
 /// @brief The table row of the param @p ref names, or nullptr where no engine table has one.
 const ParamInfo* row_of(ParamRef ref) {
-	const ParamId id = deluge::bridge::paramIdOf(ref.kind, ref.index);
-	switch (ref.kind) {
+	const ParamId id = deluge::bridge::paramIdOf(deluge::ui::scenes::spec::runtime_of(ref).kind,
+	                                             deluge::ui::scenes::spec::runtime_of(ref).index);
+	switch (deluge::ui::scenes::spec::runtime_of(ref).kind) {
 	case params::Kind::PATCHED:
 	case params::Kind::NONE:
 	case params::Kind::UNPATCHED_SOUND:
@@ -136,7 +145,8 @@ std::vector<std::string> non_standard(std::span<const ParamInfo> table) {
 
 bool named(ParamRef ref) {
 	for (const Exception& e : kUnresolved) {
-		if (e.kind == ref.kind && e.index == ref.index) {
+		if (e.kind == deluge::ui::scenes::spec::runtime_of(ref).kind
+		    && e.index == deluge::ui::scenes::spec::runtime_of(ref).index) {
 			return true;
 		}
 	}
@@ -154,7 +164,7 @@ describe param_display_spec_body("The param tables' display against the menu nod
 			const ParamRef ref = node->bind.param;
 			const ParamInfo* row = row_of(ref);
 			if (row == nullptr) {
-				expect(named(ref)).to_be_true("param " + std::to_string(ref.index) + " has no row and is not named");
+				expect(named(ref)).to_be_true("param " + std::to_string(deluge::ui::scenes::spec::runtime_of(ref).index) + " has no row and is not named");
 				continue;
 			}
 			expect(display_name(row->mapping))
@@ -169,7 +179,7 @@ describe param_display_spec_body("The param tables' display against the menu nod
 			if (row == nullptr) {
 				continue;
 			}
-			const uint32_t key = (static_cast<uint32_t>(ref.kind) << 8) | ref.index;
+			const uint32_t key = (static_cast<uint32_t>(deluge::ui::scenes::spec::runtime_of(ref).kind) << 8) | deluge::ui::scenes::spec::runtime_of(ref).index;
 			const std::string_view shown = display_name(display_of(effective_scaling(*node)));
 			const auto first = seen.emplace(key, shown);
 			if (!first.second) {

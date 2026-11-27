@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "instruments/classic/params.h"
 #include "plugin/types/param.h"
 #include "synth/modulation/cable.h"
 #include "synth/modulation/patch_source.h"
@@ -142,6 +143,15 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 	return id & 0xFFu;
 }
 } // namespace detail
+
+/// @brief The target of a cable onto the patched param @p patched. A patched param's id is its index in the patched
+/// set, which is how a cable's word names its param.
+/// @param patched A patched param's id (@c is_patched).
+/// @return The cable target.
+[[nodiscard]] constexpr synth::CableTarget cable_target_of(plugin::ParamId patched) {
+	static_assert(kParamBlocks[0].first.value == 0);
+	return synth::CableTarget::param(static_cast<uint8_t>(patched.value));
+}
 
 /// @brief Whether @p id is a cable's depth.
 /// @param id A param id.

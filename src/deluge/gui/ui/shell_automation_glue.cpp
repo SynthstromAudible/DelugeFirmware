@@ -35,6 +35,7 @@
 #include "hid/led/pad_leds.h"
 #include "model/clip/clip.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
@@ -90,23 +91,26 @@ void leaveMenuView() {
 /// `Automation::selectAutomationViewParameter` for @p param: the view's selection, read on the clip (or, off a clip
 /// minder, the song) the menu edits.
 void selectParam(const AutomationParam& param, bool clipMinder) {
+	const deluge::bridge::RuntimeParam runtime =
+	    deluge::bridge::runtimeParamOf(param.plugin, param.target).value_or(deluge::bridge::RuntimeParam{});
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = nullptr;
 	if (clipMinder) {
 		modelStack =
 		    automationView.getModelStackWithParamForClip(currentSong->setupModelStackWithCurrentClip(modelStackMemory),
-		                                                 getCurrentClip(), false, param.id, param.kind);
+		                                                 getCurrentClip(), false, runtime.index, runtime.kind);
 	}
 	else {
 		modelStack = currentSong->getModelStackWithParam(
-		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory), param.id);
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory), runtime.index);
 	}
 	if (modelStack != nullptr) {
 		// A cable's source, which the view names it by, is the one furthest from the param (`PatchCableStrength`'s
 		// `getS`).
-		const PatchSource source = param.kind == params::Kind::PATCH_CABLE
-		                               ? deluge::synth::CableTarget{static_cast<uint32_t>(param.id)}.bottom_source()
-		                               : PatchSource::NONE;
+		const PatchSource source =
+		    runtime.kind == params::Kind::PATCH_CABLE
+		        ? deluge::synth::CableTarget{static_cast<uint32_t>(runtime.index)}.bottom_source()
+		        : PatchSource::NONE;
 		automationView.selectParam(modelStack, clipMinder, source);
 	}
 }

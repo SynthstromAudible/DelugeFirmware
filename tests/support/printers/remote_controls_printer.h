@@ -61,7 +61,7 @@ inline std::ostream& operator<<(std::ostream& os, ParamKind kind) {
 inline std::ostream& operator<<(std::ostream& os, const RemoteSlot& s) {
 	using deluge::test::printers::print_optional;
 	os << "{param ";
-	print_optional(os, s.param) << ", " << s.kind << ", " << s.press << ", press_param ";
+	print_optional(os, s.param) << ", " << s.press << ", press_param ";
 	return print_optional(os, s.press_param) << "}";
 }
 

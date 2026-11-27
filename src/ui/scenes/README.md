@@ -109,9 +109,9 @@ other field stays identical to the shell's copy.
 
 ## The menu tree (`menu/`)
 
-`menu/node.h` is the data model: `Node`, `Binding`, `ParamRef`, `Kind`, `Layout`, and the
-`constexpr` builders (`param`, `toggle`, `enumeration`, `submenu`, `custom`, …) that assemble a tree
-as plain data. The ten root tables live in `menu/nodes/` (one file per legacy subtree), gathered by
+`menu/node.h` is the data model: `Node`, `Binding`, `ParamRef` (a param by its table and id, built with
+`sound_param` or `chain_param`), `Kind`, `Layout`, and the `constexpr` builders (`param`, `toggle`, `enumeration`,
+`submenu`, `custom`, …) that assemble a tree as plain data. The ten root tables live in `menu/nodes/` (one file per legacy subtree), gathered by
 `MenuScene::roots()` and indexed by `MenuContext::Root`. Each table carries a
 `| node | legacy global | legacy class | kind |` comment naming where every node came from.
 

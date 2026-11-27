@@ -313,9 +313,10 @@ private:
 	void declare_indicators(deluge::ui::widgets::core::LedFrame& frame);
 	/// @brief Is knob @p which_encoder inside its blink's flash? At most one knob blinks at a time.
 	bool indicator_blinking(int32_t which_encoder) const;
-	/// @brief The param a knob turn reports to MIDI follow: its kind, where it is and the knob's new position.
+	/// @brief The param a knob turn reports to MIDI follow: which param in its plugin, where it is and the knob's new
+	///        position.
 	struct TurnedParam {
-		deluge::plugin::ParamKind kind;               ///< The kind of the param the knob turned.
+		deluge::project::PluginParam param;           ///< The param the knob turned, in its plugin.
 		const deluge::project::ParamAddress& address; ///< The param the knob turned.
 		int32_t knob_pos;                             ///< The knob's new position, -64..64.
 	};

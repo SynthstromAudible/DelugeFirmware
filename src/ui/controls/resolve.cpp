@@ -105,8 +105,7 @@ Target resolve_turn(const KnobFocus& focus, const SectionPages& pages, int32_t s
 	if (at == nullptr || !at->target || !owner) {
 		return {};
 	}
-	return ParamWrite{.address = project::ParamAddress::of(owner->owner, *at->target, owner->clip_id),
-	                  .kind = at->kind};
+	return ParamWrite{.address = project::ParamAddress::of(owner->owner, *at->target, owner->clip_id)};
 }
 
 Target resolve_press(const KnobFocus& focus, const SectionPages& pages, int32_t slot, bool on) {

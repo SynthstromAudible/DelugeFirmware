@@ -55,17 +55,13 @@ inline constexpr Node synth_mode = with_affect_entire(setting_item(
     sid(deluge::l10n::String::STRING_FOR_SYNTH_MODE), Kind::Enum,
     {.kind = deluge::ui::scenes::bind::Target::Kind::SOUND, .path = "mode", .fan_out_when = fan_out::kRingable}));
 
-inline constexpr Node master_volume = with_patch_chain(
-    param(sid(deluge::l10n::String::STRING_FOR_VOLUME_LEVEL),
-          {deluge::plugin::ParamKind::PATCHED,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolumePostFX)},
-          Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_MASTER_LEVEL)));
+inline constexpr Node master_volume = with_patch_chain(param(
+    sid(deluge::l10n::String::STRING_FOR_VOLUME_LEVEL), sound_param(deluge::instruments::classic::param::kVolumePostFX),
+    Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_MASTER_LEVEL)));
 
-inline constexpr Node master_pan =
-    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_PAN),
-                           {deluge::plugin::ParamKind::PATCHED,
-                            deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kPan)},
-                           Hint::Pan, nullptr, 0, Scaling::Pan));
+inline constexpr Node master_pan = with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_PAN),
+                                                          sound_param(deluge::instruments::classic::param::kPan),
+                                                          Hint::Pan, nullptr, 0, Scaling::Pan));
 
 // `Transpose::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`origin/main:src/deluge/gui/menu_item/transpose.h`):
 // semitones as a two-place decimal in cents.
@@ -77,8 +73,7 @@ inline constexpr Node master_transpose = with_column_name(
                                     {.kind = deluge::ui::scenes::bind::Target::Kind::SOUND, .path = "transpose"}),
                        2),
                    sid(deluge::l10n::String::STRING_FOR_MASTER_TRAN_MENU_TITLE)),
-        {deluge::plugin::ParamKind::PATCHED,
-         deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kPitch)})),
+        sound_param(deluge::instruments::classic::param::kPitch))),
     sid(deluge::l10n::String::STRING_FOR_TRANSPOSE));
 
 // `vibratoMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): a `patch_cable_strength::Fixed` on LOCAL_PITCH_ADJUST from

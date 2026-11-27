@@ -40,10 +40,11 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "model/clip/audio_clip.h"
+#include "model//clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -159,7 +160,10 @@ void handOffGuestOverlays(uint32_t now_ms) {
 	        deluge::ui::scenes::overlay::param_popup_scene().hand_off(now_ms)) {
 		display->displayNotification(shown->name, shown->value);
 		uiTimerManager.setTimer(TimerName::DISPLAY, static_cast<int32_t>(shown->remaining_ms));
-		view.adoptModEncoderValuePopup(shown->kind, shown->param_id, shown->display_value, shown->source1,
+		const deluge::bridge::RuntimeParam runtime =
+		    deluge::bridge::runtimeParamOf(shown->param.plugin, shown->param.target)
+		        .value_or(deluge::bridge::RuntimeParam{});
+		view.adoptModEncoderValuePopup(runtime.kind, runtime.index, shown->display_value, shown->source1,
 		                               shown->source2);
 	}
 }

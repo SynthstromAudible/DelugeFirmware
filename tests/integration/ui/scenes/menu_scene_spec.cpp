@@ -178,14 +178,14 @@ void set_morph(const MenuContext&, int32_t v) {
 constexpr uint16_t kEnumNames[] = {sid(String::STRING_FOR_DISABLED), sid(String::STRING_FOR_ENABLED),
                                    sid(String::STRING_FOR_OFF)};
 
-constexpr Node lpf_freq =
-    menu::param(sid(String::STRING_FOR_LPF_FREQUENCY),
-                {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ},
-                deluge::ui::widgets::oled::Hint::Lpf);
-constexpr Node lpf_res =
-    menu::param(sid(String::STRING_FOR_RESONANCE),
-                {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_RESONANCE},
-                deluge::ui::widgets::oled::Hint::Bar);
+constexpr Node lpf_freq = menu::param(sid(String::STRING_FOR_LPF_FREQUENCY),
+                                      deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{
+                                          static_cast<uint32_t>(deluge::modulation::params::LOCAL_LPF_FREQ)}),
+                                      deluge::ui::widgets::oled::Hint::Lpf);
+constexpr Node lpf_res = menu::param(sid(String::STRING_FOR_RESONANCE),
+                                     deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{
+                                         static_cast<uint32_t>(deluge::modulation::params::LOCAL_LPF_RESONANCE)}),
+                                     deluge::ui::widgets::oled::Hint::Bar);
 /// The horizontal page's other two columns: an `Enum` and a `Decimal`, so the page exercises all
 /// three slot renderers `columns` can be handed -- `meter_column` (FREQ/RES), `text_column` from a
 /// name (MODE) and `text_column` from `format_decimal` (MORPH).
@@ -230,9 +230,9 @@ constexpr Node flip_list = menu::submenu(sid(String::STRING_FOR_ARPEGGIATOR), kF
 constexpr Node sync_leaf = menu::sync_level_item(sid(String::STRING_FOR_SYNC), sid(String::STRING_FOR_DELAY_SYNC),
                                                  get_sync, set_sync, nodes::kSyncLevelRange);
 /// The range-dependent item the `MustSelectRange` arm fires on.
-constexpr Node transpose_leaf = menu::with_range_dependent(
-    menu::param(sid(String::STRING_FOR_TRANSPOSE),
-                {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ}));
+constexpr Node transpose_leaf = menu::with_range_dependent(menu::param(
+    sid(String::STRING_FOR_TRANSPOSE), deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{
+                                           static_cast<uint32_t>(deluge::modulation::params::LOCAL_LPF_FREQ)})));
 
 /// @brief A `CustomItem` that reports whether/how many times it saw `Back`, and either consumes it
 ///        (returning `Pop`) or lets it fall through -- the two halves of the Back-precedence claim.

@@ -11,6 +11,11 @@ an audio track. Ids are pinned forever by the tables' specs. The runtime's own n
 collection `Kind` and index) maps to ids through `model/project_bridge/param_ids.cpp`, and
 `params::paramInfoFor(kind, index)` returns a runtime param's row.
 
+Only the runtime and the bridge hold that numbering: the instrument's tables (`instruments/classic`), the runtime's
+collections (`modulation/`), the bridge (`model/project_bridge/`), the Sound and effects runtime's own reads and the
+synth's param planes. The `no-param-kind-outside-runtime` count (`scripts/check_layer_rules.py`) holds every other file
+to its number of runtime-numbered names, and may only fall; `src/ui` holds none.
+
 ## Identity in the host
 
 The host names a param without its owner as a `project::ParamTarget{ParamSpace space; plugin::ParamId id}`
@@ -39,6 +44,13 @@ What names params by target:
 
 A clip's and the song's automation selection (`lastSelectedParamKind`, `lastSelectedParamID`) stays the runtime pair:
 it is what the files record, a MIDI clip's keeping whatever kind was there with its CC.
+
+The UI names a param as a `project::PluginParam` (`src/project/owner_plugin.h`): its owner's plugin and its target. A
+menu item's `ParamRef` is its table and id; a gold knob's turn, the popup and MIDI follow carry the plugin param, the
+knobs taking the plugin from their focus (`ui::controls::owner_plugin_of`). What the UI shows a param by comes from its
+plugin and id: `ui/scenes/bind/param_facts.h` (its row, and whether it is a cable, patched, bipolar, the stutter rate or
+the arpeggiator's rhythm) and `l10n`'s plugin-keyed names. Where the app hands a plugin param to the legacy views or to
+the automation view's selection, it turns it into the runtime pair through `bridge::runtimeParamOf`.
 
 param_target_check round-trips every runtime param of both plugins and every cable word through the bridge, and holds
 each of these tables to its recorded runtime cells
@@ -411,5 +423,6 @@ combine.
 ## Not yet descriptor-driven
 
 Display names (l10n, the menus), the codec's attribute names (`model/project_bridge/param_serialization.cpp`, grouped
-by element), the identity enums and `Kind` below the bridge, edits and undo by address, ModelStack, and the
+by element), the identity enums and `Kind` in the model's API and the legacy views (the count above), edits and undo
+by address, ModelStack, and the
 arpeggiator's rows (params in sounds and kits, `ArpeggiatorSettings` fields for MIDI and CV tracks).
