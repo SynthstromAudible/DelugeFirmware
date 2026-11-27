@@ -97,9 +97,12 @@ std::vector<std::string> with_setting_disagreements() {
 }
 
 /// The paths whose value no file holds in some state of the matrix, where the encoding leaves the field out (a
-/// modulator outside FM; sample playback off a sample source; a sample source's own tuning and phase; an oscillator
-/// the DX7 parks): with_setting loses such a write, and write_setting keeps it.
-constexpr std::array<std::string_view, 22> kUnheldPaths{
+/// modulator outside FM; the DX7 outside DX7 mode; sample playback off a sample source; a sample source's own tuning
+/// and phase; an oscillator the DX7 parks): with_setting loses such a write, and write_setting keeps it.
+constexpr std::array<std::string_view, 25> kUnheldPaths{
+    "dx7/transpose",
+    "dx7/cents",
+    "dx7/retrigPhase",
     "modulator1/transpose",
     "modulator1/cents",
     "modulator1/retrigPhase",

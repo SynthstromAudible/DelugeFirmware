@@ -184,10 +184,11 @@ constexpr std::array<String, 8> kModFXTypeChoices{{
     STRING_FOR_GRAIN,
 }};
 
-constexpr std::array<String, 3> kModeChoices{{
+constexpr std::array<String, 4> kModeChoices{{
     STRING_FOR_SUBTRACTIVE,
     STRING_FOR_FM,
     STRING_FOR_RINGMOD,
+    STRING_FOR_DX7,
 }};
 
 constexpr std::array<String, 2> kModulator2ToModulator1Choices{{
@@ -771,7 +772,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 242> kEntries{{
+constexpr std::array<Entry, 244> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -940,6 +941,8 @@ constexpr std::array<Entry, 242> kEntries{{
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/directMonitoring">, &kUsbDirectMonitoringNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/enabled">, &kUsbAudioEnabledNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/outputSource">, &kUsbOutputSourceNames},
+    Entry{plugin::kDelugeInstrument, "dx7/retrigPhase", &kOsc1RetrigPhaseNames},
+    Entry{plugin::kDelugeInstrument, "dx7/transpose", &kOsc1TransposeNames},
     Entry{plugin::kDelugeInstrument, "envelope1Settings/curve", &kEnvelopeCurveNames},
     Entry{plugin::kDelugeInstrument, "envelope1Settings/follow", &kEnvelopeFollowNames},
     Entry{plugin::kDelugeInstrument, "envelope1Settings/mode", &kEnvelopeModeNames},

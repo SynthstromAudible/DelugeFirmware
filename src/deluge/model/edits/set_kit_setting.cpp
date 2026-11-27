@@ -6,6 +6,7 @@
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -26,11 +27,13 @@ bool ruleHolds(std::span<const deluge::plugin::SettingCondition> rule, ::Sound& 
 			loaded |= static_cast<uint8_t>(1u << s);
 		}
 	}
-	const deluge::plugin::SettingContext context{.owner = deluge::plugin::SettingContext::Owner::KIT_LANE,
-	                                             .instrument = deluge::plugin::SettingContext::Instrument::SOUND_DRUM,
-	                                             .audio_inputs_present =
-	                                                 AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn,
-	                                             .loaded_sources = loaded};
+	const deluge::plugin::SettingContext context{
+	    .owner = deluge::plugin::SettingContext::Owner::KIT_LANE,
+	    .instrument = deluge::plugin::SettingContext::Instrument::SOUND_DRUM,
+	    .audio_inputs_present = AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn,
+	    .dx7_engine =
+	        runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::On,
+	    .loaded_sources = loaded};
 	const deluge::plugin::SettingReader reader{
 	    .read =
 	        [](const void* self, std::string_view path) {

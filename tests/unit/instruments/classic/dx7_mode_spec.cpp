@@ -2,6 +2,7 @@
 #include "instruments/classic/dx7_init_voice.h"
 #include "instruments/classic/flat_layout.h"
 #include "instruments/classic/record_edit.h"
+#include "instruments/classic/settings.h"
 #include "instruments/classic/state_access.h"
 #include "serialization/parse_xml.h"
 #include "serialization/tree.h"
@@ -13,6 +14,8 @@
 #include <format>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
 
 using namespace deluge::instruments::classic;
 
@@ -70,6 +73,11 @@ std::string difference(const SoundState& state, const SoundState& other) {
 	return dumped.empty() ? std::string{"the records differ in what they keep"} : dumped;
 }
 
+/// @p state after a visit to the DX7 with no patch of its own: the DX7 it keeps holds the init voice it played.
+SoundState played_init_voice(const SoundState& state) {
+	return with_dx7_patch(state, DxPatchState{.params = kDx7InitVoice});
+}
+
 } // namespace
 
 // clang-format off
@@ -98,6 +106,14 @@ describe dx7_mode("a sound in DX7 mode", ${
 		expect(patch->params).to_equal(kDx7InitVoice);
 	});
 
+	it("gives a DX7 a switch enters with no patch the init voice, as a read does", _ {
+		SoundState state;
+		set_engine(state, SynthMode::DX7);
+		const DxPatchState* patch = dx7_patch(state);
+		expect(patch).not_().to_equal(static_cast<const DxPatchState*>(nullptr));
+		expect(patch->params).to_equal(kDx7InitVoice);
+	});
+
 	it("writes its dx7 entry and no oscillators, and reads back to the same record", _ {
 		const std::optional<SoundState> state = fromXml(dx7Sound());
 		expect(state.has_value()).to_equal(true);
@@ -117,6 +133,17 @@ describe dx7_mode("a sound in DX7 mode", ${
 		SoundState switched = *state;
 		set_engine(switched, SynthMode::SUBTRACTIVE);
 		expect(difference(to_record(to_flat(switched)), switched)).to_equal(std::string{});
+	});
+
+	it("edits its DX7's pitch through the dx7 rows, which change the dx7 entry alone", _ {
+		std::optional<SoundState> state = fromXml(dx7Sound());
+		expect(state.has_value()).to_equal(true);
+		const std::vector<std::string_view> changed =
+		    write_setting(*state, "dx7/cents", deluge::serialization::Value::makeNumber(-9));
+		expect(changed.size()).to_equal(size_t{1});
+		expect(std::string{changed.empty() ? std::string_view{} : changed.front()}).to_equal(std::string{"dx7"});
+		expect(int{dx7_pitch(*state).tuning.cents}).to_equal(-9);
+		expect(int{dx7_pitch(*state).tuning.transpose}).to_equal(3);
 	});
 
 	it("writes no dx7 entry in another mode", _ {
@@ -145,7 +172,7 @@ describe dx7_mode("a sound in DX7 mode", ${
 		expect(int{source_tuning(switched, SourceId::A).transpose}).to_equal(5);
 		expect(oscillator_sync(switched)).to_equal(true);
 		set_engine(switched, SynthMode::SUBTRACTIVE);
-		expect(difference(switched, *state)).to_equal(std::string{});
+		expect(difference(switched, played_init_voice(*state))).to_equal(std::string{});
 	});
 
 	it("keeps FM's state through the DX7 and back", _ {
@@ -155,7 +182,7 @@ describe dx7_mode("a sound in DX7 mode", ${
 		SoundState switched = *state;
 		set_engine(switched, SynthMode::DX7);
 		set_engine(switched, SynthMode::FM);
-		expect(difference(switched, *state)).to_equal(std::string{});
+		expect(difference(switched, played_init_voice(*state))).to_equal(std::string{});
 	});
 
 	it("edits a parked slot, which a switch back plays", _ {

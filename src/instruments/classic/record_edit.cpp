@@ -17,6 +17,7 @@
 
 #include "instruments/classic/record_edit.h"
 
+#include "instruments/classic/dx7_init_voice.h"
 #include "instruments/classic/flat_layout.h"
 #include "instruments/classic/state_access.h"
 
@@ -92,7 +93,12 @@ void enter_dx7(SoundState& state) {
 		recall.slots[slot] = park_whole_slot(unpacked.source, unpacked.phase);
 	}
 	recall.sync = sync;
-	state.plays.engine = std::exchange(recall.dx7, synth::Dx7State{});
+	synth::Dx7State dx7 = std::exchange(recall.dx7, synth::Dx7State{});
+	// A DX7 with no patch of its own plays the init voice, as one read without a patch does
+	if (!dx7.patch) {
+		dx7.patch.emplace(DxPatchState{.params = kDx7InitVoice});
+	}
+	state.plays.engine = dx7;
 }
 
 /// Out of the DX7 into dual-source engine @p mode: each slot plays its parked kind again; the DX7 goes to the recall.
@@ -256,6 +262,11 @@ std::array<synth::Pitch, 2>& modulators_of(SoundState& state) noexcept {
 bool& modulator_routing_of(SoundState& state) noexcept {
 	auto* fm = std::get_if<synth::FmState>(&state.plays.engine);
 	return fm != nullptr ? fm->modulator1_to_modulator0 : state.recall.modulator1_to_modulator0;
+}
+
+synth::Pitch& dx7_pitch_of(SoundState& state) noexcept {
+	auto* dx7 = std::get_if<synth::Dx7State>(&state.plays.engine);
+	return (dx7 != nullptr ? *dx7 : state.recall.dx7).pitch;
 }
 
 } // namespace deluge::instruments::classic
