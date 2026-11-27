@@ -61,8 +61,8 @@ struct FollowTables {
 /// @brief The param MIDI follow names for a knob's param, in the plugin the context follows.
 ///
 /// A sound's context follows the patched, unpatched-sound and cable params, a global effectable's the unpatched-global
-/// ones; a MIDI CC and an expression axis follow in either. A cable's depth id is in no plugin's table; every other
-/// engine id must be in its owner's.
+/// ones; a MIDI CC, an expression axis and an arp param follow in either. A cable's depth id is in no plugin's table;
+/// every other engine id must be in its owner's.
 ///
 /// @tparam InTable Callable `bool(plugin::PluginId, plugin::ParamId)`: whether the plugin's table has the param.
 /// @param owner    Whose params the context follows.
@@ -81,6 +81,8 @@ template <class InTable>
 		return project::ParamTarget{.space = project::ParamSpace::MIDI_CC, .id = id};
 	case plugin::ParamKind::EXPRESSION:
 		return project::ParamTarget{.space = project::ParamSpace::EXPRESSION, .id = id};
+	case plugin::ParamKind::ARP:
+		return project::ParamTarget{.space = project::ParamSpace::ARP, .id = id};
 	case plugin::ParamKind::PATCH_CABLE:
 		return owner == project::OwnerPlugin::INSTRUMENT ? std::optional{project::engine_target(id.value)}
 		                                                 : std::nullopt;

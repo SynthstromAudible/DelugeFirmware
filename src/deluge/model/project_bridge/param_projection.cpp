@@ -21,6 +21,7 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -79,11 +80,11 @@ namespace params = deluge::modulation::params;
 
 namespace {
 using deluge::modulation::params::Kind;
-// Slot 0 holds either the unpatched ParamSet or a MIDI-CC collection (which is not projected here). The unpatched
-// set's own `kind` is often still NONE here (the owner sets UNPATCHED_SOUND/GLOBAL later), so identify it
-// positionally: present and not the MIDI collection.
+// Slot 0 holds the unpatched ParamSet, a MIDI-CC collection or (on a MIDI or gate kit row) the arp's set; only the
+// first is projected here. The unpatched set's own `kind` is often still NONE (the owner sets UNPATCHED_SOUND/GLOBAL
+// later), so identify it positionally: present and neither of the others.
 bool isUnpatchedSetSlot(ParamCollection* c) {
-	return c != nullptr && c->getParamKind() != Kind::MIDI;
+	return c != nullptr && c->getParamKind() != Kind::MIDI && c->getParamKind() != Kind::ARP;
 }
 
 // Recompute a collection summary's automation flags from the live params after projection. The flags are
@@ -104,8 +105,8 @@ void refreshAutomationFlags(ParamSet& set, ParamCollectionSummary& summary) {
 
 DocParamManager toDocParamManager(ParamManager& paramManager) {
 	DocParamManager doc;
-	// Fixed slot layout: [0] unpatched (or MIDI, not projected here), [1] patched, [2] patch cables,
-	// expression at expressionParamSetOffset.
+	// Fixed slot layout: [0] unpatched (or MIDI, not projected here), [1] patched, [2] patch cables; the arp's set
+	// and the expression set at their offsets.
 	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
 		*storeFor(doc, c->getParamKind()) = toDocParamSet(*static_cast<ParamSet*>(c));
 	}
@@ -117,6 +118,9 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 		if (ExpressionParamSet* e = paramManager.getExpressionParamSet(); e != nullptr) {
 			doc.expression = toDocParamSet(*e);
 		}
+	}
+	if (ArpParamSet* arp = paramManager.getArpParamSet(); arp != nullptr) {
+		doc.arp = toDocParamSet(*arp);
 	}
 	// Slot [2]: patch cables.
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
@@ -142,6 +146,9 @@ DocParamManager toDocParamManagerFromStore(ParamManager& paramManager) {
 		if (ExpressionParamSet* e = paramManager.getExpressionParamSet(); e != nullptr) {
 			doc.expression = toDocParamSetFromStore(*e);
 		}
+	}
+	if (ArpParamSet* arp = paramManager.getArpParamSet(); arp != nullptr) {
+		doc.arp = toDocParamSetFromStore(*arp);
 	}
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
@@ -191,6 +198,12 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 			if (ParamCollectionSummary* s = paramManager.getExpressionParamSetSummary(); s != nullptr) {
 				refreshAutomationFlags(*e, *s);
 			}
+		}
+	}
+	if (doc.arp) {
+		if (ArpParamSet* arp = paramManager.getArpParamSet(); arp != nullptr) {
+			fromDocParamSet(*doc.arp, *arp);
+			refreshAutomationFlags(*arp, *paramManager.getArpParamSetSummary());
 		}
 	}
 	// Cable depths: the topology is the instrument's records; the projection carries the depth lanes.

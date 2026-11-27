@@ -422,6 +422,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::STATIC:
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::EXPRESSION:
+	case plugin::ParamKind::ARP:
 		break;
 	}
 	return plugin::ParamId{index};
@@ -445,6 +446,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::PATCH_CABLE:
 	case plugin::ParamKind::EXPRESSION:
+	case plugin::ParamKind::ARP:
 		break;
 	}
 	return nullptr;
@@ -476,6 +478,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::PATCH_CABLE:
 	case plugin::ParamKind::EXPRESSION:
+	case plugin::ParamKind::ARP:
 		return nullptr;
 	}
 	if (at < table.size() && table[at].id == *id) {
@@ -533,6 +536,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::STATIC:
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::EXPRESSION:
+	case plugin::ParamKind::ARP:
 		break;
 	}
 	return is_bipolar_at(kind, id.value);

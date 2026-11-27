@@ -19,6 +19,8 @@
 
 #include "ui/controls/follow.h"
 
+#include "arp/params.h"
+
 #include "definitions_cxx.hpp"
 #include "modulation/patch/patch_cable.h"
 
@@ -259,6 +261,11 @@ std::optional<RuntimeParam> runtimeParamOf(OwnerPlugin owner, deluge::project::P
 		return RuntimeParam{params::Kind::MIDI, static_cast<int32_t>(target.id.value)};
 	case deluge::project::ParamSpace::EXPRESSION:
 		return RuntimeParam{params::Kind::EXPRESSION, static_cast<int32_t>(target.id.value)};
+	case deluge::project::ParamSpace::ARP:
+		if (target.id.value >= deluge::arp::kParamCount) {
+			return std::nullopt;
+		}
+		return RuntimeParam{params::Kind::ARP, static_cast<int32_t>(target.id.value)};
 	case deluge::project::ParamSpace::ENGINE:
 		break;
 	}
@@ -298,6 +305,8 @@ deluge::project::ParamSpace spaceOf(params::Kind kind) {
 		return deluge::project::ParamSpace::EXPRESSION;
 	case params::Kind::MIDI:
 		return deluge::project::ParamSpace::MIDI_CC;
+	case params::Kind::ARP:
+		return deluge::project::ParamSpace::ARP;
 	default:
 		return deluge::project::ParamSpace::ENGINE;
 	}
@@ -313,6 +322,8 @@ std::optional<deluge::project::DocParamSet>* storeFor(deluge::project::DocParamM
 		return &doc.engine_params[1];
 	case params::Kind::EXPRESSION:
 		return &doc.expression;
+	case params::Kind::ARP:
+		return &doc.arp;
 	default:
 		return nullptr;
 	}

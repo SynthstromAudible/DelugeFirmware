@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param.h"
+#include "arp/params.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
@@ -31,7 +32,13 @@
 namespace deluge::modulation::params {
 
 const plugin::ParamInfo* paramInfoFor(Kind kind, int32_t paramId) {
-	return paramId < 0 ? nullptr : instruments::classic::param_row_at(kind, static_cast<uint32_t>(paramId));
+	if (paramId < 0) {
+		return nullptr;
+	}
+	if (kind == Kind::ARP) {
+		return static_cast<std::size_t>(paramId) < arp::kParamCount ? &arp::kParams[paramId].info : nullptr;
+	}
+	return instruments::classic::param_row_at(kind, static_cast<uint32_t>(paramId));
 }
 
 bool hasParamFlag(Kind kind, int32_t paramId, plugin::ParamFlag flag) {
@@ -44,6 +51,9 @@ bool isParamBipolar(Kind kind, int32_t paramID) {
 }
 
 bool isParamArpRhythm(Kind kind, int32_t paramID) {
+	if (kind == Kind::ARP) {
+		return paramID >= 0 && arp::is_rhythm(arp::id_at(static_cast<std::size_t>(paramID)));
+	}
 	return instruments::classic::is_arp_rhythm_at(kind, static_cast<uint32_t>(paramID));
 }
 

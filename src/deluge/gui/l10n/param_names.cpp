@@ -467,6 +467,7 @@ std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id) {
 	case plugin::ParamKind::STATIC:
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::PATCH_CABLE:
+	case plugin::ParamKind::ARP:
 		break;
 	}
 	return name.value_or(getView(String::STRING_FOR_NONE));

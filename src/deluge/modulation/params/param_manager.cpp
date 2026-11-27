@@ -19,11 +19,13 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/lane_target.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/arp_param_set.h"
 #include "modulation/params/lane_publication.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
@@ -33,13 +35,34 @@
 #include <new>
 
 ParamManager::ParamManager() {
-	summaries[0] = {0};
-	summaries[1] = {0};
-	summaries[2] = {0};
-	summaries[3] = {0};
-	summaries[4] = {0};
+	for (auto& summary : summaries) {
+		summary = {0};
+	}
 	expressionParamSetOffset = 0;
+	arpParamSetOffset = kNoArpSlot;
 }
+
+namespace {
+/// @brief Allocate an arp set for @p arp, or report that none is wanted.
+/// @return The memory (nullptr when @p arp is empty), or nullopt when memory ran out.
+std::optional<void*> arpMemoryFor(std::optional<deluge::arp::Owner> arp) {
+	if (!arp) {
+		return nullptr;
+	}
+	void* memory = deluge::memory::alloc_external(sizeof(ArpParamSet), alignof(ArpParamSet));
+	if (memory == nullptr) {
+		return std::nullopt;
+	}
+	return memory;
+}
+
+/// @brief Construct the arp set of @p owner in @p memory and give it its starting values.
+ArpParamSet* placeArpParamSet(void* memory, ParamCollectionSummary* summary, deluge::arp::Owner owner) {
+	auto* set = new (memory) ArpParamSet(summary, owner);
+	set->set_to_defaults();
+	return set;
+}
+} // namespace
 
 ParamManager::~ParamManager() {
 	destructAndForgetParamCollections();
@@ -55,30 +78,64 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 }
 
 Error ParamManager::setupMIDI() {
+	void* memoryArp = deluge::memory::alloc_external(sizeof(ArpParamSet), alignof(ArpParamSet));
+	if (memoryArp == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
 	void* memory = deluge::memory::alloc_fast(sizeof(MIDIParamCollection));
 	if (!memory) {
+		delugeDealloc(memoryArp);
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
-	summaries[1] = summaries[0];             // Shuffle the expression params over.
+	summaries[2] = summaries[0];             // Shuffle the expression params over.
 	summaries[0].paramCollection = new (memory) MIDIParamCollection(&summaries[0]);
-	summaries[2] = {0};
-	expressionParamSetOffset = 1;
+	summaries[1] = {0};
+	summaries[1].paramCollection = placeArpParamSet(memoryArp, &summaries[1], deluge::arp::Owner::CLIP);
+	summaries[3] = {0};
+	expressionParamSetOffset = 2;
+	arpParamSetOffset = 1;
 	return Error::NONE;
 }
 
-Error ParamManager::setupUnpatched() {
+Error ParamManager::setupUnpatched(std::optional<deluge::arp::Owner> arp) {
+	const std::optional<void*> memoryArp = arpMemoryFor(arp);
+	if (!memoryArp) {
+		return Error::INSUFFICIENT_RAM;
+	}
 	void* memoryUnpatched = deluge::memory::alloc_fast(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
+		delugeDealloc(*memoryArp);
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
-	summaries[1] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
+	const uint8_t mains = arp ? 2 : 1;
+	summaries[mains] = summaries[0]; // Shuffle the expression params over, rather than overwriting them
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
+	if (arp) {
+		summaries[1] = {0};
+		summaries[1].paramCollection = placeArpParamSet(*memoryArp, &summaries[1], *arp);
+	}
+	summaries[mains + 1] = {0};
+	expressionParamSetOffset = mains;
+	arpParamSetOffset = arp ? 1 : kNoArpSlot;
+	return Error::NONE;
+}
+
+Error ParamManager::setupArpOnly(deluge::arp::Owner arp) {
+	void* memoryArp = deluge::memory::alloc_external(sizeof(ArpParamSet), alignof(ArpParamSet));
+	if (memoryArp == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
+	summaries[1] = summaries[0];             // Shuffle the expression params over
+	summaries[0] = {0};
+	summaries[0].paramCollection = placeArpParamSet(memoryArp, &summaries[0], arp);
 	summaries[2] = {0};
 	expressionParamSetOffset = 1;
+	arpParamSetOffset = 0;
 	return Error::NONE;
 }
 
@@ -101,13 +158,23 @@ ramError2:
 		goto ramError2;
 	}
 
+	void* memoryArp = deluge::memory::alloc_external(sizeof(ArpParamSet), alignof(ArpParamSet));
+	if (memoryArp == nullptr) {
+		delugeDealloc(memoryPatchCables);
+		delugeDealloc(memoryPatched);
+		goto ramError2;
+	}
+
 	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
-	summaries[3] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
+	summaries[4] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
 	summaries[1].paramCollection = new (memoryPatched) PatchedParamSet(&summaries[1]);
 	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
-	summaries[4] = {0};
-	expressionParamSetOffset = 3;
+	summaries[3] = {0};
+	summaries[3].paramCollection = placeArpParamSet(memoryArp, &summaries[3], deluge::arp::Owner::SOUND);
+	summaries[5] = {0};
+	expressionParamSetOffset = 4;
+	arpParamSetOffset = 3;
 	return Error::NONE;
 }
 
@@ -165,13 +232,14 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	}
 	// - but not otherwise, cos we could have overflowed past the array's size!
 	expressionParamSetOffset = mpeParamsOffsetOther;
+	arpParamSetOffset = other->arpParamSetOffset;
 
 	other->summaries[0] = other->summaries[stopAtOther];
-	other->summaries[1] = {0};
-	other->summaries[2] = {0};
-	other->summaries[3] = {0};
-	other->summaries[4] = {0};
+	for (int32_t j = 1; j < PARAM_COLLECTIONS_STORAGE_NUM; j++) {
+		other->summaries[j] = {0};
+	}
 	other->expressionParamSetOffset = 0;
+	other->arpParamSetOffset = kNoArpSlot;
 }
 
 void ParamManager::bindMainParamSetDomStores() {
@@ -188,6 +256,9 @@ void ParamManager::bindMainParamSetDomStores() {
 	// Expression (MPE) set, if present — also a ParamSet (at expressionParamSetOffset, not a fixed slot).
 	if (ExpressionParamSet* expression = getExpressionParamSet()) {
 		expression->bindDomStore();
+	}
+	if (ArpParamSet* arp = getArpParamSet()) {
+		arp->bindDomStore();
 	}
 }
 
@@ -237,6 +308,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 					summary = {0};
 				}
 				expressionParamSetOffset = 0;
+				arpParamSetOffset = kNoArpSlot;
 			}
 			// Otherwise leave our existing collections untouched, rather than forgetting (and leaking) them
 			return Error::INSUFFICIENT_RAM;
@@ -284,6 +356,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 	}
 
 	expressionParamSetOffset = other->expressionParamSetOffset;
+	arpParamSetOffset = other->arpParamSetOffset;
 
 	return Error::NONE;
 }
@@ -300,11 +373,11 @@ void ParamManager::forgetParamCollections() {
 	// Copy the whole summary, not just the pointer - otherwise the expression set inherits the automated/interpolating
 	// flags of whatever main collection was in slot 0, and FOR_EACH_FLAGGED_PARAM would index past its params
 	summaries[0] = *getExpressionParamSetSummary();
-	summaries[1] = {0};
+	for (int32_t i = 1; i < PARAM_COLLECTIONS_STORAGE_NUM; i++) {
+		summaries[i] = {0};
+	}
 	expressionParamSetOffset = 0;
-	summaries[2] = {0};
-	summaries[3] = {0};
-	summaries[4] = {0};
+	arpParamSetOffset = kNoArpSlot;
 }
 
 // This one deletes MPE params too
@@ -318,6 +391,7 @@ void ParamManager::destructAndForgetParamCollections() {
 
 	summaries[0] = {0};
 	expressionParamSetOffset = 0;
+	arpParamSetOffset = kNoArpSlot;
 }
 
 void ParamManager::destructAndForgetMainParamCollections() {

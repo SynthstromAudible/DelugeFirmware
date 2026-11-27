@@ -39,6 +39,8 @@ enum class ParamKind : int32_t {
 	PATCH_CABLE,
 	/// Parameter connected to an MPE expression axis
 	EXPRESSION,
+	/// An arpeggiator's params (arp/params.h), whoever holds the arp
+	ARP,
 };
 
 } // namespace deluge::plugin

@@ -173,9 +173,15 @@ yesTickParamManagerForClip:
 				}
 			}
 
-			// No time to call the proper function and do error checking, sorry.
+			// The arp's params interpolate as the unpatched ones do.
+			if (ParamCollectionSummary* arpSummary =
+			        modelStackWithThreeMainThings->paramManager->getArpParamSetSummary();
+			    arpSummary != nullptr && arpSummary->whichParamsAreInterpolating[0]) {
+				goto yesTickParamManagerForClip;
+			}
+
 			ParamCollectionSummary* expressionParamsSummary =
-			    &modelStackWithThreeMainThings->paramManager->summaries[3];
+			    modelStackWithThreeMainThings->paramManager->getExpressionParamSetSummary();
 			if constexpr (kNumExpressionDimensions > 32) {
 				if (expressionParamsSummary->whichParamsAreInterpolating[0]
 				    || expressionParamsSummary->whichParamsAreInterpolating[1]) {

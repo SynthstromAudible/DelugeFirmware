@@ -57,6 +57,8 @@ DocAutoParam* laneInManager(DocParamManager* mgr, const ParamAddress& address) {
 		return mgr->expression ? mgr->expression->find(address.id) : nullptr;
 	case ParamSpace::MIDI_CC:
 		return midiParamInManager(mgr, address.id.value);
+	case ParamSpace::ARP:
+		return mgr->arp ? mgr->arp->find(address.id) : nullptr;
 	}
 	return nullptr;
 }

@@ -1455,6 +1455,8 @@ constexpr deluge::plugin::ParamId param_id_of(ParamRef p) {
 		return deluge::instruments::classic::param_id({deluge::instruments::classic::RuntimeSet::UNPATCHED, p.index});
 	case ParamKind::UNPATCHED_GLOBAL:
 		return deluge::host::chains::param_id(p.index);
+	case ParamKind::ARP: // the arp's ids are its set's indices
+		return deluge::plugin::ParamId{static_cast<uint32_t>(p.index)};
 	case ParamKind::NONE:
 	case ParamKind::STATIC:
 	case ParamKind::MIDI:

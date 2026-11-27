@@ -17,9 +17,11 @@
 
 #pragma once
 
+#include "arp/params.h"
 #include "definitions_cxx.hpp"
 #include "modulation/params/param_collection_summary.h"
 #include <cstdint>
+#include <optional>
 
 class Song;
 class Sound;
@@ -33,6 +35,7 @@ class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
 class ModelStackWithParamCollection;
 class ExpressionParamSet;
+class ArpParamSet;
 class PatchCableSet;
 class MIDIParamCollection;
 class PatchedParamSet;
@@ -50,7 +53,7 @@ struct LaneTarget;
 } // namespace deluge::bridge
 class ParamCollectionSummary;
 
-#define PARAM_COLLECTIONS_STORAGE_NUM 5
+#define PARAM_COLLECTIONS_STORAGE_NUM 6
 
 class ParamManager {
 public:
@@ -70,8 +73,9 @@ public:
 	ParamManager(ParamManager const&) = delete;
 	ParamManager& operator=(ParamManager const&) = delete;
 
-	// Not including MPE params
-	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
+	/// @brief Whether the manager holds an unpatched, patched or MIDI collection: the arp's set and MPE params alone do
+	///        not count (a MIDI or gate kit row's manager holds only those).
+	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset != 0 && arpParamSetOffset != 0; }
 
 	/// @brief Borrow-point this manager's ParamSets at DOM-owned DocParamSets anchored on the sets.
 	///
@@ -86,9 +90,14 @@ public:
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
 
+	/// @brief A sound's collections: unpatched, patched, cables, then the sound's arp.
 	Error setupWithPatching();
-	Error setupUnpatched();
+	/// @brief An unpatched set, then the arp's set of @p arp where the owner holds an arp (a kit's own arp).
+	Error setupUnpatched(std::optional<deluge::arp::Owner> arp = std::nullopt);
+	/// @brief A MIDI clip's collections: its CC collection, then its arp's set.
 	Error setupMIDI();
+	/// @brief The arp's set alone (a MIDI or gate kit row's): it does not count as a main collection.
+	Error setupArpOnly(deluge::arp::Owner arp);
 
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
 	Error cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation, bool cloneExpressionParams = false,
@@ -114,6 +123,17 @@ public:
 
 	inline ExpressionParamSet* getExpressionParamSet() { // Will return NULL if didn't exist
 		return (ExpressionParamSet*)getExpressionParamSetSummary()->paramCollection;
+	}
+
+	/// @brief The arp's set, or nullptr for an owner that holds no arp (the song, an audio clip, a host chain).
+	inline ArpParamSet* getArpParamSet() {
+		ParamCollectionSummary* summary = getArpParamSetSummary();
+		return summary != nullptr ? reinterpret_cast<ArpParamSet*>(summary->paramCollection) : nullptr;
+	}
+
+	/// @brief The arp's set's summary, or nullptr for an owner that holds no arp.
+	inline ParamCollectionSummary* getArpParamSetSummary() {
+		return arpParamSetOffset != kNoArpSlot ? &summaries[arpParamSetOffset] : nullptr;
 	}
 
 	inline MIDIParamCollection* getMIDIParamCollection() {
@@ -185,6 +205,10 @@ public:
 
 	uint8_t expressionParamSetOffset{};
 
+	/// The arp set's index, the last main slot (or 0 for an arp-only manager); kNoArpSlot where there is none.
+	static constexpr uint8_t kNoArpSlot = 0xFF;
+	uint8_t arpParamSetOffset{kNoArpSlot};
+
 	// This list should be terminated by an object whose values are all zero. Yes, all of them must be zero, because if
 	// we know this, we can check for stuff faster.
 	ParamCollectionSummary summaries[PARAM_COLLECTIONS_STORAGE_NUM]{};
@@ -192,11 +216,13 @@ public:
 private:
 	void moveFrom(ParamManager& other) noexcept {
 		expressionParamSetOffset = other.expressionParamSetOffset;
+		arpParamSetOffset = other.arpParamSetOffset;
 		for (auto i = 0; i < PARAM_COLLECTIONS_STORAGE_NUM; i++) {
 			summaries[i] = other.summaries[i];
 			other.summaries[i] = {nullptr};
 		}
 		other.expressionParamSetOffset = 0;
+		other.arpParamSetOffset = kNoArpSlot;
 	}
 };
 

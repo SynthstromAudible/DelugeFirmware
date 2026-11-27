@@ -769,8 +769,14 @@ yesTickParamManager:
 					}
 				}
 
-				// No time to call the proper function and do error checking, sorry.
-				ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[3];
+				// The arp's params interpolate as the unpatched ones do.
+				if (ParamCollectionSummary* arpSummary = thisNoteRow->paramManager.getArpParamSetSummary();
+				    arpSummary != nullptr && arpSummary->whichParamsAreInterpolating[0]) {
+					goto yesTickParamManager;
+				}
+
+				ParamCollectionSummary* expressionParamsSummary =
+				    thisNoteRow->paramManager.getExpressionParamSetSummary();
 				if constexpr (kNumExpressionDimensions > 32) {
 					if (expressionParamsSummary->whichParamsAreInterpolating[0]
 					    || expressionParamsSummary->whichParamsAreInterpolating[1]) {

@@ -47,6 +47,9 @@ SECTIONS {
         /* The libraries scripts/layers.toml's [[placement]] table places in SDRAM: their zero-initialised data,
          * which their own tier touches after the boot has zeroed this region. */
         /* BEGIN placement bss */
+        __placement_arp_bss_start = .;
+        *(.bss.*6deluge3arp*)
+        __placement_arp_bss_end = .;
         __placement_ui_bss_start = .;
         *(.bss.*6deluge2ui*)
         __placement_ui_bss_end = .;
@@ -87,6 +90,10 @@ SECTIONS {
         __sdram_text_start = .;
         /* The libraries scripts/layers.toml's [[placement]] table places in SDRAM, by namespace. */
         /* BEGIN placement text */
+        /* deluge::arp: the arp's param table, read when an arp's set is made, loaded or saved; the engine reads the set's words */
+        __placement_arp_text_start = .;
+        *(.text.*6deluge3arp*)
+        __placement_arp_text_end = .;
         /* deluge::ui: the UI tier, at menu and input rate; it reaches the audio tier only through base/notify queues */
         __placement_ui_text_start = .;
         *(.text.*6deluge2ui*)
@@ -102,6 +109,9 @@ SECTIONS {
         __sdram_text_end = .;
         /* The placed libraries' read-only and initialised data, their vtables among them. */
         /* BEGIN placement data */
+        __placement_arp_data_start = .;
+        *(.rodata.*6deluge3arp* .data.*6deluge3arp*)
+        __placement_arp_data_end = .;
         __placement_ui_data_start = .;
         *(.rodata.*6deluge2ui* .data.*6deluge2ui*)
         __placement_ui_data_end = .;
@@ -187,6 +197,8 @@ SECTIONS {
     /* The placed libraries' minimum sizes (scripts/layers.toml [[placement]]): far less means a rename stopped a
      * pattern matching and the library sits in SRAM. */
     /* BEGIN placement asserts */
+    ASSERT(__placement_arp_data_end - __placement_arp_data_start > 512,
+           "sdram_sections.x: deluge::arp's data fell back to SRAM (scripts/layers.toml [[placement]])")
     ASSERT(__placement_ui_text_end - __placement_ui_text_start > 153600,
            "sdram_sections.x: deluge::ui's code fell back to SRAM (scripts/layers.toml [[placement]])")
     ASSERT(__placement_ui_data_end - __placement_ui_data_start > 65536,

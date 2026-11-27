@@ -88,6 +88,7 @@ int32_t legacy_id(const ParamAddress& address, Kind kind) {
 	switch (address.space) {
 	case ParamSpace::MIDI_CC:
 	case ParamSpace::EXPRESSION:
+	case ParamSpace::ARP:
 		return static_cast<int32_t>(address.id.value);
 	case ParamSpace::ENGINE:
 		break;

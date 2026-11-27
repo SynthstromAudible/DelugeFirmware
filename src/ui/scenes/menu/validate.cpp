@@ -64,6 +64,7 @@
 
 #include "ui/scenes/menu/validate.h"
 
+#include "arp/params.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/node_id.h"
 #include "ui/scenes/menu/shortcuts.h"
@@ -144,7 +145,8 @@ bool collect(std::span<const Node* const> roots, Reachable& seen) {
 }
 
 /// @brief Is @p param a pair `bindings.cpp` could resolve? The patched set holds the instrument's first block of
-/// params; either unpatched kind holds as many as the larger of the instrument's second block and the host chain's.
+/// params; either unpatched kind holds as many as the larger of the instrument's second block and the host chain's; an
+/// arp's set holds the arp's table.
 bool param_in_range(const ParamRef& param) {
 	constexpr size_t kUnpatchedMax =
 	    std::max<size_t>(deluge::instruments::classic::kParamBlocks[1].count, deluge::host::chains::kParamBlock.count);
@@ -154,6 +156,8 @@ bool param_in_range(const ParamRef& param) {
 	case deluge::plugin::ParamKind::UNPATCHED_SOUND:
 	case deluge::plugin::ParamKind::UNPATCHED_GLOBAL:
 		return param.index < kUnpatchedMax;
+	case deluge::plugin::ParamKind::ARP:
+		return param.index < deluge::arp::kParamCount;
 	case deluge::plugin::ParamKind::NONE:
 	case deluge::plugin::ParamKind::STATIC:
 	case deluge::plugin::ParamKind::MIDI:
