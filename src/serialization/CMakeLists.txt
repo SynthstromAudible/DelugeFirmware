@@ -2,7 +2,8 @@
 # firmware version a document records.
 # Standard library only (plus base/panic.h); scripts/check_layers.py (its library in scripts/layers.toml) enforces that
 # with no allowlist.
-add_library(deluge_serialization STATIC parse_xml.cpp parse_json.cpp semver.cpp firmware_version.cpp write_json.cpp)
+add_library(deluge_serialization STATIC parse_xml.cpp parse_json.cpp semver.cpp firmware_version.cpp write_json.cpp
+            schema/value_writer.cpp schema/value_reader.cpp)
 # Parsing and writing documents is load/save work, off the audio path.
 include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/optimise_for_size.cmake)
 deluge_optimise_target_for_size(deluge_serialization)
