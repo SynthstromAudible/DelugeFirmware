@@ -51,9 +51,9 @@ namespace deluge::bridge {
 /// @return The pair, or NONE with kNoParamID when there is none.
 [[nodiscard]] RuntimeParam runtimePairOf(const std::optional<deluge::project::PluginParam>& selection);
 
-/// @brief The file attributes a clip's or the song's selection is saved in, as its runtime pair.
+/// @brief The file attribute a clip's or the song's selection saves its runtime index in.
 inline constexpr char kSelectionIdAttribute[] = "lastSelectedParamID";
-/// @copydoc kSelectionIdAttribute
+/// @brief The file attribute a clip's or the song's selection saves its runtime collection kind in.
 inline constexpr char kSelectionKindAttribute[] = "lastSelectedParamKind";
 
 /// @brief A clip's selection from its file's lastSelectedParamKind and lastSelectedParamID.

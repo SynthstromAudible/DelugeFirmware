@@ -146,7 +146,7 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                       bool forEdit, const deluge::project::PluginParam& param);
 	/// @brief The lane (read, not for edit) of @p target for the clip's owner, of @p owner's plugin: the one place the
-	/// view turns a target into a model stack, until the model stack is retired.
+	/// view turns a target into a model stack.
 	ModelStackWithAutoParam* laneFor(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                 deluge::bridge::OwnerPlugin owner, deluge::project::ParamTarget target);
 

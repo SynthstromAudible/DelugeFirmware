@@ -254,9 +254,15 @@ public:
 	void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	bool recordingInArrangement;
 
-	/// @brief The param @p target names on @p clip, in this output's plugin's numbering. @p forEdit states that the
-	/// caller writes it: a cable depth's missing cable is then created through the mod matrix; a read gets a null
-	/// autoParam for it instead.
+	/// @brief The param @p target names on @p clip, in this output's plugin's numbering.
+	/// @param modelStack   The clip's model stack.
+	/// @param clip         The clip whose lane it is.
+	/// @param target       The param.
+	/// @param affectEntire For a kit, whether the kit's own params are meant rather than its selected row's.
+	/// @param useMenuStack Whether the sound menu's owner and param manager stand in for the clip's.
+	/// @param forEdit      Whether the caller writes it: a cable depth's missing cable is then created through the mod
+	///                     matrix; a read gets a null autoParam for it instead.
+	/// @return The lane, or nullptr when the output has no such param.
 	virtual ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                        deluge::project::ParamTarget target, bool affectEntire,
 	                                                        bool useMenuStack, bool forEdit) = 0;

@@ -47,12 +47,9 @@ namespace params = deluge::modulation::params;
 
 using namespace deluge::gui;
 
-namespace {
+using deluge::bridge::runtimePairOf;
 
-/// The selection as the view's (kind, id) plumbing reads it: its runtime pair, NONE and kNoParamID for none.
-deluge::bridge::RuntimeParam selection(const std::optional<deluge::project::PluginParam>& selected) {
-	return deluge::bridge::runtimePairOf(selected);
-}
+namespace {
 
 /// @brief The gold knobs' owner's effects, or nullopt.
 std::optional<deluge::model::EffectsOwner> knobOwner() {
@@ -361,12 +358,12 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		int32_t lastSelectedParamID = params::kNoParamID;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
 		if (getOnArrangerView()) {
-			lastSelectedParamKind = selection(currentSong->selectedParam).kind;
-			lastSelectedParamID = selection(currentSong->selectedParam).index;
+			lastSelectedParamKind = runtimePairOf(currentSong->selectedParam).kind;
+			lastSelectedParamID = runtimePairOf(currentSong->selectedParam).index;
 		}
 		else {
-			lastSelectedParamKind = selection(clip->selectedParam).kind;
-			lastSelectedParamID = selection(clip->selectedParam).index;
+			lastSelectedParamKind = runtimePairOf(clip->selectedParam).kind;
+			lastSelectedParamID = runtimePairOf(clip->selectedParam).index;
 			lastSelectedPatchSource = clip->lastSelectedPatchSource;
 		}
 		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
@@ -406,7 +403,7 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		}
 	}
 	else {
-		((MIDIInstrument*)clip->output)->appendCCName(parameterName, selection(clip->selectedParam).index);
+		((MIDIInstrument*)clip->output)->appendCCName(parameterName, runtimePairOf(clip->selectedParam).index);
 	}
 }
 

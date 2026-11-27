@@ -19,10 +19,11 @@
 
 /// @file
 /// @brief Where a runtime read finds a param of the instrument's or the host chain's table: its index in the runtime's
-/// patched or unpatched set.
+/// patched or unpatched set, and the store a global effectable's unpatched params bind to.
 
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
+#include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
 #include "plugin/types/param.h"
 #include "project/param_automation.h"
@@ -32,10 +33,6 @@
 #include <optional>
 
 namespace deluge::bridge {
-
-static_assert(host::chains::kFirstId == modulation::params::UNPATCHED_START
-                  && instruments::classic::kUnpatchedFirstId == modulation::params::UNPATCHED_START,
-              "both owners keep their unpatched params from the runtime's first unpatched id");
 
 /// @brief The runtime's index of the instrument's patched param @p id.
 /// @param id One of the instrument's patched ids.
@@ -57,8 +54,13 @@ static_assert(host::chains::kFirstId == modulation::params::UNPATCHED_START
 /// @brief The store of a global effectable's unpatched params (the song's master chain, a kit's, an audio clip's).
 /// @param doc The owner's param manager.
 /// @return The store slot.
-[[nodiscard]] std::optional<project::DocParamSet>& globalEffectableStoreOf(project::DocParamManager& doc);
+[[nodiscard]] inline std::optional<project::DocParamSet>& globalEffectableStoreOf(project::DocParamManager& doc) {
+	return *storeFor(doc, modulation::params::Kind::UNPATCHED_GLOBAL);
+}
 /// @copydoc globalEffectableStoreOf(project::DocParamManager&)
-[[nodiscard]] const std::optional<project::DocParamSet>& globalEffectableStoreOf(const project::DocParamManager& doc);
+[[nodiscard]] inline const std::optional<project::DocParamSet>&
+globalEffectableStoreOf(const project::DocParamManager& doc) {
+	return *storeFor(doc, modulation::params::Kind::UNPATCHED_GLOBAL);
+}
 
 } // namespace deluge::bridge

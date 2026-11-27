@@ -464,8 +464,10 @@ public:
 	ModelStackWithThreeMainThings* setupModelStackWithSongAsTimelineCounter(void* memory);
 	ModelStackWithTimelineCounter* setupModelStackWithCurrentClip(void* memory);
 	ModelStackWithThreeMainThings* addToModelStack(ModelStack* modelStack);
-	/// Gets a modelstack with the song-global unpatched param paramID.
-	/// used in performance view and in automation arranger view
+	/// @brief The song's lane for @p target, a param of the master chain (the global effectable's table).
+	/// @param modelStack The song's model stack.
+	/// @param target     The param.
+	/// @return The lane, or nullptr when the chain has no such param.
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
 	                                                deluge::project::ParamTarget target);
 

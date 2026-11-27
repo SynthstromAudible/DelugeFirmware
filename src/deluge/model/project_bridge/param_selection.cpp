@@ -17,8 +17,6 @@
 
 #include "model/project_bridge/param_selection.h"
 
-#include "model/project_bridge/param_reads.h"
-
 #include "definitions_cxx.hpp"
 #include "model/model_stack.h"
 #include "modulation/params/param_collection.h"
@@ -31,7 +29,7 @@ using deluge::project::PluginParam;
 
 namespace {
 
-constexpr RuntimeParam kNoSelection{params::Kind::NONE, static_cast<int32_t>(params::kNoParamID)};
+constexpr RuntimeParam kNoRuntimeParam{params::Kind::NONE, static_cast<int32_t>(params::kNoParamID)};
 
 /// Whether @p value is one of params::Kind's values.
 bool isKind(int32_t value) {
@@ -58,11 +56,11 @@ std::optional<RuntimeParam> selectionPairOf(const std::optional<PluginParam>& se
 }
 
 RuntimeParam runtimePairOf(const std::optional<PluginParam>& selection) {
-	return selectionPairOf(selection).value_or(kNoSelection);
+	return selectionPairOf(selection).value_or(kNoRuntimeParam);
 }
 
 std::optional<PluginParam> clipSelectionOfFile(int32_t kind, int32_t id) {
-	if (id == kNoSelection.index || !isKind(kind)) {
+	if (id == kNoRuntimeParam.index || !isKind(kind)) {
 		return std::nullopt;
 	}
 	const auto read = static_cast<params::Kind>(kind);
@@ -73,7 +71,7 @@ std::optional<PluginParam> clipSelectionOfFile(int32_t kind, int32_t id) {
 }
 
 std::optional<PluginParam> songSelectionOfFile(int32_t kind, int32_t id) {
-	if (id == kNoSelection.index || !isKind(kind)) {
+	if (id == kNoRuntimeParam.index || !isKind(kind)) {
 		return std::nullopt;
 	}
 	return pluginParamOf(static_cast<params::Kind>(kind), id);
@@ -100,15 +98,6 @@ ModelStackWithAutoParam* autoParamOf(ModelStackWithThreeMainThings* stack, Owner
 	default:
 		return nullptr;
 	}
-}
-
-std::optional<deluge::project::DocParamSet>& globalEffectableStoreOf(deluge::project::DocParamManager& doc) {
-	return *storeFor(doc, params::Kind::UNPATCHED_GLOBAL);
-}
-
-const std::optional<deluge::project::DocParamSet>&
-globalEffectableStoreOf(const deluge::project::DocParamManager& doc) {
-	return *storeFor(doc, params::Kind::UNPATCHED_GLOBAL);
 }
 
 bool isCableCollection(ParamCollection* collection) {
