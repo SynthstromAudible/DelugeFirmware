@@ -4289,7 +4289,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	}
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
-	if (numToInsert == 1 && notes.getElement(0)->length == otherNoteRowLength) {
+	// (This row can be empty - then there's no note of ours to extend, so take the normal path)
+	if (numToInsert == 1 && notes.getNumElements() && notes.getElement(0)->length == otherNoteRowLength) {
 		Sound* sound = nullptr;
 		ParamManagerForTimeline* paramManagerNow = nullptr;
 
