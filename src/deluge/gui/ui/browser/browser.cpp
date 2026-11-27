@@ -981,8 +981,13 @@ void Browser::selectEncoderAction(int8_t offset) {
 				__builtin_unreachable();
 			}
 
+			// Prefix (at most 10 chars, "MidiDevice"), then an int32 (up to 11 chars with the sign - the slot goes
+			// negative if turned down far enough), then possibly 'A', then the terminator
 			int32_t filePrefixLength = strlen(filePrefix);
-			char searchString[16];
+			char searchString[32];
+			if (filePrefixLength > (int32_t)sizeof(searchString) - 13) {
+				filePrefixLength = sizeof(searchString) - 13;
+			}
 			memcpy(searchString, filePrefix, filePrefixLength);
 			char* searchStringNumbersStart = searchString + filePrefixLength;
 			intToString(thisSlot.slot, searchStringNumbersStart, 1);
