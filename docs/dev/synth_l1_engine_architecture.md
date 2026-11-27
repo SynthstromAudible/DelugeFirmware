@@ -5,7 +5,7 @@ envelopes, local LFOs, modulation, porta, filters, wavefold and output stage. Wh
 two tiers, in the synth library:
 
 - **Sources** (`src/synth/sources/`): one generator in one of a unison part's two slots — a virtual-analog wave, the
-  wavetable, the supersaw, a sample, the live input, a DX7 patch.
+  wavetable, the supersaw, a sample, the live input. (The DX7 is not a slot's: it is an engine of its own.)
 - **Engines** (`src/synth/engines/`): one voice's timbre generator over all its unison parts. An engine family
   decides how the two slots relate.
 
@@ -17,9 +17,9 @@ Engines are loaded by the Deluge instrument, never by the host: what the host lo
 | Tier | What it is | Here | To come |
 |---|---|---|---|
 | L0 kernels (the DSP library) | DSP building blocks | band-limited tables, oscillators, sinc interpolator, DX7 operator graph, filters | — |
-| Sources | one generator in one slot of one unison part | VA, wavetable, supersaw, sample, live input, DX7 | Karplus-Strong, Plaits models, granular from a sample, additive |
+| Sources | one generator in one slot of one unison part | VA, wavetable, supersaw, sample, live input | Karplus-Strong, Plaits models, granular from a sample, additive |
 | Dual-source engines | the relationship between the two slots, plus noise | Subtractive (mix, A→B sync), RingMod (multiply, A→B sync) | AM, phase modulation A→B, exciter→resonator (Rings, a Clouds-style granular slot B) |
-| Whole-voice engines | one generator is the voice | FM (two modulators into two carriers, with feedback) | a whole-voice DX7, Plaits as the voice, physical models (a piano: exciter and strings per voice) |
+| Whole-voice engines | one generator is the voice | FM (two modulators into two carriers, with feedback), DX7 (a DX7 voice per unison part) | Plaits as the voice, physical models (a piano: exciter and strings per voice) |
 | Per-sound stages | run once per sound, after its voices (the instrument tier) | the sound FX chain | a physical model's soundboard and sympathetic resonance |
 
 Hard sync, ring-mod pairing and the FM operator graph are relationships between generators, so they live in the
@@ -61,7 +61,7 @@ walk them. A slot holds:
 - the note's **oscillator source** in place, in a `std::variant` of the held rows' sources (VA, wavetable, supersaw),
   built at note-on and kept across notes while its class is unchanged, so a free-running oscillator keeps its phase;
   a VA wave change on a re-triggered voice keeps the built wave;
-- the **port-backed sources** (the ported rows: sample, DX7, input), bound to the firmware's ports for the voice's life;
+- the **port-backed sources** (the ported rows: sample, input), bound to the firmware's ports for the voice's life;
 - the phase state every mode shares (`SlotPhase`: `osc_pos`, the stored increment, FM's carrier feedback, `active`).
 
 `source_for(type)` is the source that renders a slot's current type: the port-backed one by type, else the held
@@ -98,9 +98,10 @@ Beside each contract sits the state its component saves: plain value types the i
 (`instruments::classic::SoundState`) composes, so what a file writes is exactly what the components hold.
 
 - `src/synth/sources/source_state.h`: `Tuning`, `Pitch` (a tuning and an optional retrigger phase), and one state per
-  source kind (`VaState`, `WavetableState`, `SampleState`, `Dx7State`, `InputState`) in the `SlotState` variant.
+  source kind (`VaState`, `WavetableState`, `SampleState`, `InputState`) in the `SlotState` variant, and `Dx7State` (the
+  DX7 engine's pitch and patch).
 - `src/synth/engines/engine_state.h`: `DualSourceState` (two slots and their sync), `SubtractiveState`,
-  `RingModState`, `FmState` (carriers, sync, modulators), in the `EngineState` variant.
+  `RingModState`, `FmState` (carriers, sync, modulators), and `Dx7State`, in the `EngineState` variant.
 - `src/synth/modulation/lfo_state.h`: `LfoState`, an LFO's shape and sync, read from the record to the render.
 - `src/synth/voice/voicing_state.h`: `VoicingState` and `UnisonState`.
 
@@ -161,7 +162,7 @@ lifecycle, the slots, the engine families and the declared hooks carry over. See
 
 - **Golden masters** (`golden-synth`, `golden-synth-arm`): byte-identical on x86 and ARM. The
   `voice/` and `stereo/` cases pin the engines' own paths: ring-mod sync (mono and spread), osc sync to a silent master,
-  noise without a filter and across a spread unison, a DX7 patch in osc 2, a retriggered supersaw, a mono voice's osc 1
+  noise without a filter and across a spread unison, a DX7 that was in osc 2 (its osc B level moved to the DX7's), a retriggered supersaw, a mono voice's osc 1
   turned saw → square (keeps its saw) and saw → supersaw (builds one) between notes (`RENDER_SETTING`), and FM
   re-triggered on a mono sound.
 - **`tests/unit/dsp/synth_engine_spec.cpp`**: an engine and a source the voice does not know, started over the voice's slots

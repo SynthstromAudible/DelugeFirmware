@@ -27,7 +27,6 @@
 class ParamManagerForTimeline;
 class WaveTable;
 class SampleHolder;
-class DxPatch;
 
 #include <optional>
 #include <vector>
@@ -36,9 +35,6 @@ class SourceResources {
 public:
 	SourceResources();
 	~SourceResources();
-
-	/// @brief The DX7 patch it holds: the 156 params, engine mode and random detune; none when it holds none.
-	[[nodiscard]] std::optional<deluge::instruments::classic::DxPatchState> heldDxPatch() const;
 
 	/// @brief The ranges it holds: each one's top note and file, and while they are sample ranges (whatever the current
 	/// type) their zones and tuning, which a type change and back keeps.
@@ -51,8 +47,6 @@ public:
 	/// @brief The oscillator's ranges: each one's file, zone and cluster reservations, as it plays them.
 	MultiRangeArray ranges;
 
-	DxPatch* dxPatch{nullptr};
-	bool dxPatchChanged = false;
 	/// @brief The live histories this oscillator's voices read while its type is an input type; empty otherwise.
 	deluge::synth::LiveInputStore liveInputs;
 
@@ -80,8 +74,6 @@ public:
 	bool hasAtLeastOneAudioFileLoaded();
 	bool hasAnyLoopEndPoint();
 	void setOscType(OscType newType);
-
-	DxPatch* ensureDxPatch();
 
 	/// @brief Makes or frees the live histories @p type plays from, handing them to the render inside an
 	/// audio-excluded section. [task]

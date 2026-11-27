@@ -12,7 +12,8 @@
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/menu/nodes/dx_algorithms.h"
 #include "ui/scenes/menu/nodes/dx_tables.h"
-#include "ui/scenes/menu/nodes/sound_osc.h" // modulator0_volume, the one shortcut with a DX7 fallback
+#include "ui/scenes/menu/nodes/sound_osc.h" // modulator0_volume and osc0_type, the shortcuts with a DX7 fallback
+#include "ui/scenes/menu/relevance.h"
 #include "ui/scenes/profile.h"
 
 #include "ui/gfx/oled/font.h"
@@ -44,12 +45,6 @@ using deluge::ui::gfx::oled::kTextSpacingX;
 using deluge::ui::gfx::oled::kTextTitleSizeY;
 using deluge::ui::gfx::oled::kTextTitleSpacingX;
 
-/// @brief Whether the DX7 engine feature is on, which gives the DX7 parameter page its own pad layout: the device's
-///        row; its default, off, where the context binds no device port.
-bool dx7_engine_enabled(const MenuContext& ctx) {
-	return bind::read_device_flag(ctx.ports.device, project::device_path::feature(project::Feature::ENABLE_DX7_ENGINE));
-}
-
 size_t depth_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.depth : 0;
 }
@@ -71,19 +66,18 @@ const deluge::instruments::classic::SoundState* sound_of(const MenuContext& ctx)
 	                                                        : nullptr;
 }
 
-/// @brief Oscillator 1's DX7 patch, the one every DX7 page edits (`DxParam::setValue`: "only OSC1 can be DX7").
+/// @brief The sound's DX7 engine's patch, the one every DX7 page edits; none where the sound holds none.
 std::optional<deluge::instruments::classic::DxPatchState> patch_of(const MenuContext& ctx) {
 	const deluge::instruments::classic::SoundState* sound = sound_of(ctx);
 	const deluge::instruments::classic::DxPatchState* patch =
-	    sound != nullptr ? deluge::instruments::classic::dx_patch(*sound, deluge::instruments::classic::SourceId::A)
-	                     : nullptr;
+	    sound != nullptr ? deluge::instruments::classic::dx7_patch(*sound) : nullptr;
 	return patch != nullptr ? std::optional{*patch} : std::nullopt;
 }
 
-/// @brief Write oscillator 1's patch.
+/// @brief Write the sound's DX7 patch.
 void write_patch(const MenuContext& ctx, const deluge::instruments::classic::DxPatchState& patch) {
 	if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot) {
-		(void)ctx.ports.sound_writes->write_dx_patch(*ctx.addresses.slot, 0, patch);
+		(void)ctx.ports.sound_writes->write_dx_patch(*ctx.addresses.slot, patch);
 	}
 }
 
@@ -259,15 +253,11 @@ void draw_param(deluge::ui::widgets::oled::OledFrame& p, int32_t top,
 	}
 }
 
-bool source_is_dx(const MenuContext& ctx, size_t source) {
-	const deluge::instruments::classic::SoundState* sound = sound_of(ctx);
-	return sound != nullptr
-	       && deluge::instruments::classic::source_type(*sound,
-	                                                    static_cast<deluge::instruments::classic::SourceId>(source))
-	              == OscType::DX7;
-}
-
 } // namespace
+
+bool sound_is_dx7(const MenuContext& ctx) {
+	return relevance::is_dx7(ctx);
+}
 
 // ---------------------------------------------------------------------------------------------
 // `DxBrowseMenu` (`origin/main:src/deluge/gui/menu_item/dx/browse.cpp`)
@@ -295,11 +285,10 @@ deluge::ui::shell::Result DxBrowseItem::handle(const deluge::ui::shell::UiEvent&
 
 namespace {
 
-/// @brief Load program @p program of the bank the last read loaded into the menu's source.
+/// @brief Load program @p program of the bank the last read loaded into the sound's DX7.
 void load_program(const MenuContext& ctx, int32_t program) {
 	if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot) {
-		(void)ctx.ports.sound_writes->load_dx_program(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
-		                                              program);
+		(void)ctx.ports.sound_writes->load_dx_program(*ctx.addresses.slot, program);
 	}
 }
 
@@ -595,10 +584,7 @@ std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const Me
 	return pad ? ItemBlink{.x = pad->x, .y = pad->y, .valid = true} : ItemBlink{};
 }
 
-bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t x, uint8_t y) const {
-	if (!dx7_engine_enabled(ctx)) {
-		return false;
-	}
+bool DxParamItem::shortcut_pad(const MenuContext& /*ctx*/, MenuState& state, uint8_t x, uint8_t y) const {
 	if (const std::optional<int16_t> param = dx::pad_param(x, y)) {
 		state.dx.param = *param;
 		state.dx.pad_blink = true; // `readValueAgain` sets the new param's blink up
@@ -608,8 +594,8 @@ bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t
 	return true;
 }
 
-bool dx_pad_layout(const MenuContext& ctx, const MenuState& state) {
-	return focused_of(state) == &dx_param && dx7_engine_enabled(ctx);
+bool dx_pad_layout(const MenuContext& /*ctx*/, const MenuState& state) {
+	return focused_of(state) == &dx_param;
 }
 
 deluge::ui::shell::Result DxParamItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
@@ -619,20 +605,23 @@ deluge::ui::shell::Result DxParamItem::handle(const deluge::ui::shell::UiEvent& 
 }
 
 // ---------------------------------------------------------------------------------------------
-// `osc::Type::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/osc/type.h`)
+// `osc::Type::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/osc/type.h`), on the synth mode
 
-const Node* osc0_type_chain(const MenuContext& ctx, const MenuState& /*state*/) {
-	return source_is_dx(ctx, 0) ? &dx_menu : nullptr;
-}
-
-const Node* osc1_type_chain(const MenuContext& ctx, const MenuState& /*state*/) {
-	return source_is_dx(ctx, 1) ? &dx_menu : nullptr;
+const Node* mode_chain(const MenuContext& ctx, const MenuState& /*state*/) {
+	return sound_is_dx7(ctx) ? &dx_menu : nullptr;
 }
 
 const Node* dx_shortcut_fallback(const Node& refused, const MenuContext& ctx, uint8_t x) {
 	// Legacy tests `soundEditor.currentSource`, which the refused `setup()` has not yet set, so it is the source the
-	// previous menu left; this tests the pad's own source on this sound (DIFFERENCES D90).
-	return &refused == &modulator0_volume && source_is_dx(ctx, x & 1) ? &dx_param : nullptr;
+	// previous menu left; this tests the pad's own source, oscillator 1's being the DX7's (DIFFERENCES D90).
+	if ((x & 1) != 0 || !sound_is_dx7(ctx)) {
+		return nullptr;
+	}
+	if (&refused == &modulator0_volume) {
+		return &dx_param;
+	}
+	// Oscillator 1's type on main showed the DX7 there, its SELECT entering "DX7 source": the DX7's column does.
+	return &refused == &osc0_type ? &dx7_engine : nullptr;
 }
 
 } // namespace deluge::ui::scenes::menu::nodes

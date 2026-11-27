@@ -60,7 +60,8 @@ namespace bindings = deluge::ui::scenes::menu::bindings;
 namespace {
 
 constexpr Node kMaxVoices = menu::setting_item(1, Kind::Int, Target{.kind = Target::Kind::SOUND, .path = "maxVoices"});
-constexpr Node kOsc2Type = menu::setting_item(2, Kind::Enum, Target{.kind = Target::Kind::SOUND, .path = "osc2/type"});
+constexpr Node kPolyphony =
+    menu::setting_item(2, Kind::Enum, Target{.kind = Target::Kind::SOUND, .path = "polyphonic"});
 
 void set_polyphony(::Sound& sound, const char* word) {
 	deluge::edits::settingFor(sound, "polyphonic", Value::makeScalar(word));
@@ -115,21 +116,23 @@ void sink_write(const Node& node, const MenuContext& ctx, int32_t menu) {
 // clang-format off
 describe scenes_edit_sink_writes("a target node's write through the app's sink", ${
 	it("sends one request to the menu's sink, and none for a stored choice that no longer applies", _ {
-		spec::SongFixture f = spec::make_kit_song();
-		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
-		deluge::edits::settingFor(*drum, "osc2/type", Value::makeScalar("dx7")); // only the first oscillator offers DX7
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		set_polyphony(*spec::menu_engine(ctx, *f.song).sound, "choke"); // only a kit lane offers choke
 		bind::test::RecordingWrites recorded;
 		ctx.ports.writes = &recorded;
 		bindings::write(kMaxVoices, ctx, 4);
 		expect(recorded.requests.size()).to_equal(size_t(1));
 		expect(recorded.requests[0].menu_value).to_equal(4);
-		const auto shown = bind::view(kOsc2Type.bind.target, ctx.model, ctx.addresses, ctx.ports);
+		const auto shown = bind::view(kPolyphony.bind.target, ctx.model, ctx.addresses, ctx.ports);
 		expect(shown.has_value()).to_be_true();
 		if (shown.has_value()) {
 			expect(shown->stale.has_value()).to_be_true();
+			if (shown->stale.has_value()) {
+				bindings::write(kPolyphony, ctx, *shown->stale);
+			}
 		}
-		bindings::write(kOsc2Type, ctx, *shown->stale);
 		expect(recorded.requests.size()).to_equal(size_t(1));
 	});
 

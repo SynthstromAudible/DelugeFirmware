@@ -35,8 +35,7 @@ namespace deluge::instruments::classic {
 
 /// @brief @p state with slot @p id's oscillator set to @p type. When the ranges change kind (sample to wavetable or
 /// back) the record's ranges keep only their top notes, and a slot left with none gains one open range; otherwise the
-/// slot takes the ranges it holds now. A DX7 slot without a patch gains the init voice. What the new kind does not
-/// hold is kept for a switch back.
+/// slot takes the ranges it holds now. What the new kind does not hold is kept for a switch back.
 /// @param held The ranges the slot plays now (the runtime holds them until it holds no ranges of its own).
 /// @param held_are_wavetable Whether those ranges are a wavetable's.
 [[nodiscard]] SoundState switch_source(SoundState state, SourceId id, OscType type,
@@ -58,7 +57,7 @@ namespace deluge::instruments::classic {
 /// the 24dB ladder low-pass.
 [[nodiscard]] SoundState as_default_synth(SoundState state);
 
-/// @brief @p state set up as a blank new synth, a DX7 one when @p dx (its first oscillator the init voice).
+/// @brief @p state set up as a blank new synth, a DX7 one when @p dx (in DX7 mode, the init voice where it has none).
 [[nodiscard]] SoundState as_blank_synth(SoundState state, bool dx);
 
 } // namespace deluge::instruments::classic

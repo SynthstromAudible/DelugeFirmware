@@ -49,7 +49,6 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 	    .note_code = note_code,
 	    .velocity = velocity,
 	    .priority_rating = priority_rating,
-	    .dx_patch = source.dx_patch,
 	    .osc_type = source.osc_type,
 	};
 

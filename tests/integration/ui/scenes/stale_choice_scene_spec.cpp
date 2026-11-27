@@ -9,7 +9,7 @@
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/node_id.h"
 #include "ui/scenes/menu/nodes/nodes.h"
-#include "ui/scenes/menu/nodes/sound_osc.h"
+#include "ui/scenes/menu/nodes/sound_voice.h"
 #include "ui/scenes/profile.h"
 #include "ui/scenes/registry.h"
 
@@ -33,7 +33,7 @@
 #include "support/spec_main.h"
 
 using namespace deluge::ui::scenes;
-using deluge::instruments::classic::OscType;
+using deluge::instruments::classic::PolyphonyMode;
 using deluge::ui::scenes::menu::MenuContext;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
@@ -78,24 +78,28 @@ struct LeafRig {
 
 // clang-format off
 describe stale_choice_scene("the menu scene over a stored choice that no longer applies", ${
-	it("turns off the marked entry onto the next choice, and the next turn onto the one after it", _ {
-		spec::SongFixture f = spec::make_kit_song();
-		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
-		deluge::edits::settingFor(*drum, "osc1/type", deluge::serialization::Value::makeScalar("dx7"));
+	it("turns off the marked entry onto the choice before it, and the next turn onto the one before that", _ {
+		// Choke shares a kit's voices among its lanes, so only a kit lane offers it; a synth track's stored choke is
+		// shown marked, past the four choices that apply.
+		spec::SongFixture f = spec::make_synth_song();
+		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
+		deluge::edits::settingFor(*sound, "polyphonic", deluge::serialization::Value::makeScalar("choke"));
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		LeafRig r;
-		r.open(menu::nodes::osc0_type, ctx);
-		const OscType first = deluge::instruments::classic::source_type(drum->state(), deluge::instruments::classic::SourceId::A);
-		r.turn(1, 20);
-		const OscType second = deluge::instruments::classic::source_type(drum->state(), deluge::instruments::classic::SourceId::A);
-		r.turn(1, 40);
-		const OscType third = deluge::instruments::classic::source_type(drum->state(), deluge::instruments::classic::SourceId::A);
-		expect("stored " + std::to_string(static_cast<int>(first))).to_equal("stored " + std::to_string(static_cast<int>(OscType::DX7)));
-		expect("one turn " + std::to_string(static_cast<int>(second)))
-		    .to_equal("one turn " + std::to_string(static_cast<int>(OscType::INPUT_L)));
-		expect("two turns " + std::to_string(static_cast<int>(third)))
-		    .to_equal("two turns " + std::to_string(static_cast<int>(OscType::INPUT_R)));
+		r.open(menu::nodes::polyphony, ctx);
+		const auto stored_mode = [&] { return static_cast<int>(deluge::instruments::classic::voicing(sound->state()).polyphony); };
+		const int first = stored_mode();
+		r.turn(-1, 20);
+		const int second = stored_mode();
+		r.turn(-1, 40);
+		const int third = stored_mode();
+		expect("stored " + std::to_string(first)).to_equal("stored " + std::to_string(static_cast<int>(PolyphonyMode::CHOKE)));
+		expect("one turn " + std::to_string(second))
+		    .to_equal("one turn " + std::to_string(static_cast<int>(PolyphonyMode::LEGATO)));
+		expect("two turns " + std::to_string(third))
+		    .to_equal("two turns " + std::to_string(static_cast<int>(PolyphonyMode::MONO)));
 	});
 });
+// clang-format on
 
 DELUGE_SPEC(stale_choice_scene_spec, stale_choice_scene)

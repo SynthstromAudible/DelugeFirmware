@@ -64,7 +64,6 @@ static_assert(same_feature(HighlightIncomingNotes, Feature::HIGHLIGHT_INCOMING_N
 static_assert(same_feature(DisplayNornsLayout, Feature::DISPLAY_NORNS_LAYOUT));
 static_assert(same_feature(ShiftIsSticky, Feature::SHIFT_IS_STICKY));
 static_assert(same_feature(LightShiftLed, Feature::LIGHT_SHIFT_LED));
-static_assert(same_feature(EnableDX7Engine, Feature::ENABLE_DX7_ENGINE));
 static_assert(same_feature(EnableKeyboardViewSidebarMenuExit, Feature::ENABLE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT));
 static_assert(same_feature(EnableLaunchEventPlayhead, Feature::ENABLE_LAUNCH_EVENT_PLAYHEAD));
 static_assert(same_feature(DisplayChordKeyboard, Feature::DISPLAY_CHORD_KEYBOARD));

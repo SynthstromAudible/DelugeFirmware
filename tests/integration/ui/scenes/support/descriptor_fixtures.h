@@ -173,10 +173,12 @@ inline const std::vector<Fixture>& fixtures() {
 		     plain_sound(c, s);
 		     set_song_stutter(c, s, false);
 	     }},
+	    // main's DX7 on oscillator 1 beside a saw; here the DX7 is the sound's engine, the saw parked on oscillator 2.
 	    {"a synth with a DX7", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c, Song& s) {
 		     plain_sound(c, s);
-		     osc_types(c, s, OscType::DX7, OscType::SAW);
+		     osc_types(c, s, OscType::SQUARE, OscType::SAW);
+		     set_word(*spec::menu_engine(c, s).sound, "mode", "dx7");
 	     }},
 	    {"a synth with its arp on", Where::SYNTH, kSoundFamilies,
 	     [](const MenuContext& c, Song& s) {

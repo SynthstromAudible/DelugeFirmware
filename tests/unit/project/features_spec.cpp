@@ -28,7 +28,7 @@ describe features("the community features' table", ${
 			expect(&feature_info(info.id)).to_equal(&info);
 			expect(seen.insert(std::string{info.path}).second).to_be_true(std::string{info.path} + " is listed twice");
 		}
-		expect(kFeatures.size()).to_equal(size_t{23});
+		expect(kFeatures.size()).to_equal(size_t{22});
 	});
 
 	it("resolves a valid id, and a constant-evaluated lookup of an id past the table does not compile", _ {
@@ -58,7 +58,7 @@ describe features("the community features' table", ${
 
 	it("finds a feature by its file name, and none by a name no feature has", _ {
 		expect(find_feature("enableHorizontalMenus")).to_equal(&feature_info(Feature::HORIZONTAL_MENUS));
-		expect(find_feature("EnableDX7Engine")).to_equal(&feature_info(Feature::ENABLE_DX7_ENGINE));
+		expect(find_feature("EnableDX7Engine")).to_be_null(); // retired: the DX7 is built in
 		expect(find_feature("legacyMenu")).to_be_null();
 		expect(find_feature("")).to_be_null();
 	});

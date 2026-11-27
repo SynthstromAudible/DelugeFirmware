@@ -85,10 +85,6 @@ int32_t choice_of(const Node& node, const MenuContext& ctx, int32_t value) {
 std::optional<ArtColumn> osc_type_art(const Node& node, const MenuContext& ctx, int32_t value) {
 	using instruments::classic::OscType;
 	const auto type = static_cast<OscType>(choice_of(node, ctx, value));
-	if (type == OscType::DX7) {
-		return ArtColumn{
-		    .text = deluge::l10n::getView(String::STRING_FOR_DX7), .face = ArtColumn::Face::Title, .dy = 5};
-	}
 	const Icon* icon = &icons::sine;
 	switch (type) {
 	case OscType::TRIANGLE:
@@ -655,7 +651,19 @@ ValueText source_page_title(const MenuContext& ctx, uint8_t page, std::span<char
 } // namespace
 
 ValueText source0_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out) {
+	if (sound_is_dx7(ctx)) {
+		return put_string(String::STRING_FOR_DX7, out);
+	}
 	return source_page_title(ctx, page, out, osc0_type, '1');
+}
+ValueText source0_name(const MenuContext& ctx, int32_t /*value*/, ValueTextUse /*use*/, std::span<char> out) {
+	return sound_is_dx7(ctx) ? put_string(String::STRING_FOR_DX7, out) : kValueTextFallback;
+}
+ValueText source1_name(const MenuContext& /*ctx*/, int32_t /*value*/, ValueTextUse /*use*/, std::span<char> /*out*/) {
+	return kValueTextFallback;
+}
+std::optional<ArtColumn> dx7_engine_art(const MenuContext& /*ctx*/, int32_t /*value*/) {
+	return ArtColumn{.text = deluge::l10n::getView(String::STRING_FOR_DX7), .face = ArtColumn::Face::Title, .dy = 5};
 }
 ValueText source1_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out) {
 	return source_page_title(ctx, page, out, osc1_type, '2');

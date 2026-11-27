@@ -7,6 +7,7 @@
 
 #include "support/clip_overview_cases.h"
 #include "support/oracle_table.h"
+#include "support/oracle_tree.h"
 
 #include "cppspec.hpp"
 
@@ -51,7 +52,11 @@ std::string differences(clip_overview::Case c, int32_t& lit) {
 			const std::string ours = clip_overview::rgb_text(got[y][x]);
 			const std::string oursOccupancy = std::to_string(gotOccupancy[y][x]);
 			lit += want == "0,0,0" ? 0 : 1;
-			if (want != ours || wantOccupancy != oursOccupancy) {
+			// A shortcut to a node the port shows where main hid it (spec::kShownWhereMainHid) lights where main's was
+			// dark.
+			const bool named = want == "0,0,0" && ours != "0,0,0"
+			                   && spec::pad_shown_where_main_hid(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+			if (!named && (want != ours || wantOccupancy != oursOccupancy)) {
 				bad += "(" + std::to_string(x) + "," + std::to_string(y) + ") main " + want + "/" + wantOccupancy
 				       + " ours " + ours + "/" + oursOccupancy + "\n";
 			}

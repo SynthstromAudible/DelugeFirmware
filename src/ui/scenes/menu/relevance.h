@@ -49,6 +49,10 @@ bool is_fm(const MenuContext& ctx);
 /// @brief Is the sound in subtractive mode? `osc::AudioRecorder::isRelevant`
 ///        (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`).
 bool is_subtractive(const MenuContext& ctx);
+/// @brief Whether the edited sound plays the DX7 engine: its DX7 page shows, its oscillators' pages do not.
+bool is_dx7(const MenuContext& ctx);
+/// @brief Whether the edited sound plays an engine other than the DX7: its oscillators' pages show.
+bool not_dx7(const MenuContext& ctx);
 /// @}
 
 /// @name Per-source predicates -- `osc0_*` is legacy's `source_id_ == 0`, `osc1_*` its `== 1`

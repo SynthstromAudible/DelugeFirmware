@@ -80,9 +80,17 @@ struct SourceState {
 	plugin::InterpolationMode interpolation_mode{plugin::InterpolationMode::SMOOTH};
 	bool pitch_and_speed_independent{false};
 	bool reversed{false};
-	std::optional<DxPatchState> dx_patch; ///< present iff the source has a DX7 patch
-	std::vector<RangeState> ranges;       ///< ordered by top_note
+	std::vector<RangeState> ranges; ///< ordered by top_note
 	bool operator==(const SourceState&) const = default;
+};
+
+/// @brief The DX7 engine's settings in the file's layout: its pitch and its voice.
+struct Dx7FileState {
+	int16_t transpose{0}; ///< semitones
+	int8_t cents{0};
+	uint32_t retrigger_phase{kFreeRunningPhase};
+	std::optional<DxPatchState> patch; ///< none for a DX7 not given one (its runtime makes the init voice)
+	bool operator==(const Dx7FileState&) const = default;
 };
 
 /// @brief A sound's settings in the file's flat layout: every engine's and every source kind's fields side by side, as
@@ -110,6 +118,7 @@ struct FlatSoundState {
 	std::array<synth::EnvelopeState, kNumEnvelopes> envelopes{}; ///< each envelope's mode, curve and follow input
 	deluge::effects::EffectStates effects;                       ///< the sound's own effects' settings
 	std::array<SourceState, kSourceCount> sources;
+	Dx7FileState dx7; ///< the DX7 engine's: the file writes it in DX7 mode, the record keeps it in the others
 	bool operator==(const FlatSoundState&) const = default;
 };
 

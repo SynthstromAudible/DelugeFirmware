@@ -1,5 +1,6 @@
 #include "instruments/classic/codec.h"
 
+#include "instruments/classic/record_edit.h"
 #include "instruments/classic/state_access.h"
 #include "support/record_state.h"
 #include <cppspec.hpp>
@@ -117,20 +118,26 @@ describe codec_encode("the Deluge instrument writes its state", ${
 		    .to_equal(std::vector<std::string>{"rangeTopNote", "fileName"});
 	});
 
-	it("writes a DX7 patch as upper-case hex, and oscillator sync on the second source only", _ {
+	it("writes the DX7's patch as upper-case hex, with its engine mode", _ {
 		SoundState s;
-		s = deluge::test::with_kind(s, SourceId::A, OscType::DX7);
+		set_engine(s, SynthMode::DX7);
 		DxPatchState patch;
 		patch.params[0] = 0xAB;
 		patch.engine_mode = 2;
-		s = with_dx_patch(std::move(s), SourceId::A, patch);
+		s = with_dx7_patch(std::move(s), patch);
+		SoundPieces p = encode_pieces(s, {});
+		const Value& dx7 = *p.body.find("dx7");
+		expect(text(dx7, "patch").substr(0, 4)).to_equal(std::string("AB00"));
+		expect(text(dx7, "patch").size()).to_equal(312u);
+		expect(text(dx7, "engineMode")).to_equal(std::string("2"));
+		expect(p.body.find("osc1")).to_be_null();
+	});
+
+	it("writes oscillator sync on the second source only", _ {
+		SoundState s;
 		deluge::test::set(s, "osc2/oscillatorSync", "1");
 		SoundPieces p = encode_pieces(s, {});
-		const Value& osc1 = *p.body.find("osc1");
-		expect(text(osc1, "dx7patch").substr(0, 4)).to_equal(std::string("AB00"));
-		expect(text(osc1, "dx7patch").size()).to_equal(312u);
-		expect(text(osc1, "dx7enginemode")).to_equal(std::string("2"));
-		expect(osc1.find("oscillatorSync")).to_be_null();
+		expect(p.body.find("osc1")->find("oscillatorSync")).to_be_null();
 		expect(text(*p.body.find("osc2"), "oscillatorSync")).to_equal(std::string("1"));
 	});
 

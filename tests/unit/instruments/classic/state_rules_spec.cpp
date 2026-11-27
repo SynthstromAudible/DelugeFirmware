@@ -80,18 +80,6 @@ describe state_rules("what changes with a sound's engine, oscillator type and lo
 		expect(source_ranges(s, SourceId::A)).to_equal(held);
 	});
 
-	it("gives a DX7 slot the init voice, and keeps a patch it has", _ {
-		const SoundState fresh = switch_source(SoundState{}, SourceId::A, OscType::DX7, {}, false);
-		const DxPatchState* fresh_patch = dx_patch(fresh, SourceId::A);
-		expect(fresh_patch).not_().to_be_null();
-		expect(fresh_patch->params).to_equal(kDx7InitVoice);
-		DxPatchState patch;
-		patch.params[0] = 7;
-		const SoundState held = with_dx_patch(SoundState{}, SourceId::A, patch);
-		const SoundState dx = switch_source(held, SourceId::A, OscType::DX7, {}, false);
-		expect(int{dx_patch(dx, SourceId::A)->params[0]}).to_equal(7);
-	});
-
 	it("makes pitch and speed independent for stretch, and gives it up leaving stretch", _ {
 		const SoundState stretched = with_loop_mode(SoundState{}, SourceId::A, SampleRepeatMode::STRETCH);
 		expect(sample_playback(stretched, SourceId::A).pitch_and_speed_independent).to_equal(true);
@@ -139,12 +127,16 @@ describe state_rules("what changes with a sound's engine, oscillator type and lo
 		expect(sound_effects(synth).filter.lpf_mode).to_equal(FilterMode::TRANSISTOR_24DB);
 	});
 
-	it("sets up a blank DX7 synth on the init voice, and leaves a blank synth's oscillators", _ {
+	it("sets up a blank DX7 synth in DX7 mode on the init voice, and leaves a blank synth's oscillators", _ {
 		const SoundState dx = as_blank_synth(SoundState{}, true);
-		expect(source_type(dx, SourceId::A)).to_equal(OscType::DX7);
-		const DxPatchState* patch = dx_patch(dx, SourceId::A);
+		expect(synth_mode(dx)).to_equal(SynthMode::DX7);
+		const DxPatchState* patch = dx7_patch(dx);
 		expect(patch).not_().to_be_null();
 		expect(patch->params).to_equal(kDx7InitVoice);
+		DxPatchState kept;
+		kept.params[0] = 7;
+		const SoundState held = as_blank_synth(with_dx7_patch(SoundState{}, kept), true);
+		expect(int{dx7_patch(held)->params[0]}).to_equal(7);
 		expect(as_blank_synth(SoundState{}, false)).to_equal(SoundState{});
 	});
 });

@@ -278,7 +278,7 @@ describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 				    .to_equal(e.path + " has a name row");
 			}
 			if (e.node->kind == menu::Kind::Submenu) {
-				expect(e.path + " kids " + std::to_string(e.node->children.size()))
+				expect(e.path + " kids " + std::to_string(spec::main_children(*e.node)))
 				    .to_equal(e.path + " kids " + table().value(e.path, "kids"));
 				submenus++;
 			}
@@ -461,7 +461,11 @@ describe tables_2_values("scenes::menu sound-editor tables: values", $ {
 					    e.node->bind.target.shown_on == deluge::ui::scenes::bind::Target::ShownOn::ON_LANE;
 					const bool shown_here = (e.parent == nullptr || menu::bindings::relevant(*e.parent, fx.ctx))
 					                        && menu::bindings::relevant(*e.node, fx.ctx);
-					const bool required = std::string{fx.name} == "synth" ? !lane_only : shown_here;
+					// A node shown where main hid it (spec::kShownWhereMainHid) has no list of main's there.
+					const std::vector<std::string>* main_rel = table().find(e.path, std::string{"rel@"} + fx.name);
+					const bool main_hid_it = spec::shows_where_main_hid(
+					    *e.node, shown_here, main_rel != nullptr && !main_rel->empty() && main_rel->front() == "1");
+					const bool required = (std::string{fx.name} == "synth" ? !lane_only : shown_here) && !main_hid_it;
 					expect(e.path + (required ? " has none" : " has options")).to_equal(e.path + " has options");
 					continue;
 				}
@@ -473,7 +477,7 @@ describe tables_2_values("scenes::menu sound-editor tables: values", $ {
 					port += std::string{got[i]} + "|";
 				}
 				std::string frozen;
-				for (const std::string& o : *want) {
+				for (const std::string& o : spec::port_choices(*e.node, *want)) {
 					frozen += o + "|";
 				}
 				expect(fx.name + std::string{" "} + e.path + " " + port)
@@ -498,8 +502,10 @@ describe tables_2_values("scenes::menu sound-editor tables: values", $ {
 					continue; // a page this context never opens (the bend ranges on a kit row)
 				}
 				const bool got = menu::bindings::relevant(*e.node, fx.ctx);
+				const bool main_shows = want->front() == "1";
 				const std::string at = std::string{fx.name} + " " + text_of(e.node->name) + " ";
-				expect(at + (got ? "shows" : "hides")).to_equal(at + (want->front() == "1" ? "shows" : "hides"));
+				expect(at + (got ? "shows" : "hides"))
+				    .to_equal(at + (main_shows || spec::shows_where_main_hid(*e.node, got, main_shows) ? "shows" : "hides"));
 				ever_true += got ? 1 : 0;
 			}
 		}
@@ -863,8 +869,9 @@ describe tables_2_patch_cables("scenes::menu sound-editor tables: the patch-cabl
 			expect(text_of(n->name) + (is_patched ? " PATCHED" : " -")).to_equal(text_of(n->name)
 			                                                                    + (to_picker ? " PATCHED" : " -"));
 		}
-		expect(patched).to_equal(size_t(53));
-		expect(chained_to_picker).to_equal(size_t(53));
+		// main's 53, and the DX7's transpose, amp mod and level (OSC1's columns in DX7 mode, the port's own)
+		expect(patched).to_equal(size_t(56));
+		expect(chained_to_picker).to_equal(size_t(56));
 	});
 
 	it("reads and writes a patch cable's strength where the legacy page reads and writes it", _ {

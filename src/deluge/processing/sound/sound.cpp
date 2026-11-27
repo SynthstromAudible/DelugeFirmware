@@ -365,7 +365,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN),
 	                                                           2147483647);
 	if (is_dx) {
-		sourceResources[0].ensureDxPatch(); // initializes DX engine if this is the first dx7patch
+		(void)dx7Patch.ensure(); // makes the DX engine if this is the first DX7
 		// velocity is forwarded to dx7 engine, don't do master volume
 		paramManager->getPatchCableSet()->truncateCables(0);
 		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setBase(
@@ -665,7 +665,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::LOCAL_OSC_B_PHASE_WIDTH:
-		if (getSynthMode() == SynthMode::FM) {
+		if (!playsSlots()) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		// if (getSynthMode() == SynthMode::FM || (oscType(1) != OscType::SQUARE &&
@@ -676,6 +676,9 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 			return PatchCableAcceptance::DISALLOWED;
 		}
 	case params::LOCAL_OSC_B_PITCH_ADJUST:
+		if (getSynthMode() == SynthMode::DX7) {
+			return PatchCableAcceptance::DISALLOWED; // the DX7 plays no second oscillator
+		}
 		return (isSourceActiveEverDisregardingMissingSample(1, paramManager)) ? PatchCableAcceptance::ALLOWED
 		                                                                      : PatchCableAcceptance::EDITABLE;
 
@@ -690,7 +693,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::LOCAL_NOISE_VOLUME:
-		if (getSynthMode() == SynthMode::FM) {
+		if (!playsSlots()) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (patchedParams->params[params::LOCAL_NOISE_VOLUME].containsSomething(
@@ -1165,7 +1168,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength, int32_t note) {
 
-	if (getSynthMode() == SynthMode::FM) {
+	if (!playsSlots()) {
 		return 0;
 	}
 
@@ -1189,7 +1192,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 // Returns sample length in samples
 int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping) {
 
-	if (getSynthMode() == SynthMode::FM) {
+	if (!playsSlots()) {
 		return 0;
 	}
 
@@ -1231,7 +1234,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 
 bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 
-	if (getSynthMode() == SynthMode::FM) {
+	if (!playsSlots()) {
 		return false;
 	}
 
@@ -1262,7 +1265,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 		return true;
 	}
 
-	if (getSynthMode() == SynthMode::FM) {
+	if (!playsSlots()) {
 		return false;
 	}
 
@@ -1300,14 +1303,20 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 	return true;
 }
 
+// In DX7 mode source 0 is the DX7, which reads osc A's level, and source 1 is none
 bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager) {
+	if (getSynthMode() == SynthMode::DX7 && s != 0) {
+		return false;
+	}
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || getSmoothedPatchedParamValue(params::LOCAL_OSC_A_VOLUME + s, *paramManager) != -2147483648)
-	       && (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE
-	           || sourceResources[s].hasAtLeastOneAudioFileLoaded());
+	       && (!playsSlots() || oscType(s) != OscType::SAMPLE || sourceResources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
+	if (getSynthMode() == SynthMode::DX7 && s != 0) {
+		return false;
+	}
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].containsSomething(
 	            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_OSC_A_VOLUME + s), -2147483648)
@@ -1316,12 +1325,11 @@ bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager*
 
 bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
 	return isSourceActiveEverDisregardingMissingSample(s, paramManager)
-	       && (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE
-	           || sourceResources[s].hasAtLeastOneAudioFileLoaded());
+	       && (!playsSlots() || oscType(s) != OscType::SAMPLE || sourceResources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
-	return (getSynthMode() != SynthMode::FM
+	return (playsSlots()
 	        && paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
 	            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648));
 }
@@ -1330,7 +1338,7 @@ bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManag
 	if (!synth_.config().engine.osc_sync) {
 		return false;
 	}
-	if (getSynthMode() == SynthMode::FM) {
+	if (!playsSlots()) {
 		return false;
 	}
 	return (getSmoothedPatchedParamValue(params::LOCAL_OSC_B_VOLUME, *paramManager) != -2147483648
@@ -1341,7 +1349,7 @@ bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 	if (!synth_.config().engine.osc_sync) {
 		return false;
 	}
-	if (getSynthMode() == SynthMode::FM) {
+	if (!playsSlots()) {
 		return false;
 	}
 	return (paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_B_VOLUME].containsSomething(
@@ -1647,9 +1655,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		sourcesChanged.fetch_or(anyChange << patchSourceLFOGlobalUnderlying, std::memory_order_acq_rel);
 	}
 
-	for (int s = 0; s < kNumSources; s++) {
-		if (oscType(s) == OscType::DX7 and sourceResources[s].dxPatch) {
-			sourceResources[s].dxPatch->computeLfo(output.size());
+	if (getSynthMode() == SynthMode::DX7) {
+		if (DxPatch* patch = dx7Patch.get()) {
+			patch->computeLfo(static_cast<int>(output.size()));
 		}
 	}
 
@@ -1798,10 +1806,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .note_tails_allowed = allowNoteTails(modelStackWithSoundFlags, true),
 		};
 		for (int32_t s = 0; s < kNumSources; s++) {
-			facts.dx_patch_changed[s] = sourceResources[s].dxPatchChanged;
 			facts.source_ever_active[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			facts.source_active_currently[s] = isSourceActiveCurrently(s, paramManager);
 		}
+		// The DX7 reads osc A's level: source 0's rule
+		facts.dx7_active_currently = getSynthMode() == SynthMode::DX7 && facts.source_active_currently[0];
+		facts.dx7_patch_changed = dx7Patch.changed;
 		const deluge::synth::BlockValues blockValues =
 		    deluge::instruments::classic::DelugeSynth::begin_block(hostBlock, facts);
 
@@ -1898,9 +1908,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// and by the voices, which may have read it already (a repeat patching gives the same values)
 	sourcesChanged.fetch_and(~soundSourcesChanged, std::memory_order_acq_rel);
 	expressionSourcesChangedAtSynthLevel.reset();
-	for (int i = 0; i < kNumSources; i++) {
-		sourceResources[i].dxPatchChanged = false;
-	}
+	dx7Patch.changed = false;
 
 	// Unlike all the other possible reasons we might want to start skipping rendering,
 	// core().delay().repeatsUntilAbandon() may have changed state just now.
@@ -2360,9 +2368,12 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		return Error::FILE_CORRUPTED;
 	}
 	deluge::instruments::classic::SoundState decoded = *state_;
-	if (!deluge::instruments::classic::decode(*element, decoded,
-	                                          {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {
-		return Error::FILE_CORRUPTED;
+	if (const auto read = deluge::instruments::classic::decode(
+	        *element, decoded, {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()});
+	    !read) {
+		// A form only released firmware wrote (a DX7 on an oscillator) is the upgrader's to convert
+		return read.error() == deluge::plugin::StateError::LEGACY_FORM ? Error::FILE_UNSUPPORTED
+		                                                               : Error::FILE_CORRUPTED;
 	}
 	effectsBinding_.delay_type_pending = !deluge::effects::saves_delay_type(*element);
 	const deluge::project::SoundRouting routing = deluge::project::decode_routing(*element, *routing_);
@@ -2467,18 +2478,6 @@ Error Sound::applyState(const deluge::instruments::classic::SoundState& state) {
 		const OscType type = deluge::instruments::classic::source_type(state, id);
 		SourceResources& source = sourceResources[s];
 		source.setOscType(type);
-		if (const deluge::instruments::classic::DxPatchState* from =
-		        deluge::instruments::classic::dx_patch(state, id)) {
-			DxPatch* patch = source.ensureDxPatch();
-			if (patch == nullptr) {
-				return Error::INSUFFICIENT_RAM;
-			}
-			std::ranges::copy(from->params, patch->params.begin());
-			// The engine follows the bytes: an auto patch on algorithm 4 or 6 with feedback renders in MkI
-			patch->setEngineMode(from->engine_mode);
-			patch->random_detune = from->random_detune;
-		}
-
 		// The ranges, of the kind the oscillator type plays.
 		const bool wavetable = type == OscType::WAVETABLE;
 		source.ranges.clear();
@@ -2505,6 +2504,14 @@ Error Sound::applyState(const deluge::instruments::classic::SoundState& state) {
 			}
 		}
 	}
+	// The DX7 engine's voice, which only DX7 mode needs made
+	if (const deluge::instruments::classic::DxPatchState* from = deluge::instruments::classic::dx7_patch(state);
+	    from != nullptr && deluge::instruments::classic::synth_mode(state) == SynthMode::DX7
+	    && dx7Patch.state() != *from) {
+		if (!dx7Patch.assign(*from)) {
+			return Error::INSUFFICIENT_RAM;
+		}
+	}
 	return Error::NONE;
 }
 
@@ -2525,12 +2532,11 @@ void Sound::recordHeldRanges(int32_t s) {
 	}
 }
 
-void Sound::recordHeldDxPatch(int32_t s) {
-	const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
-	const deluge::instruments::classic::DxPatchState* recorded = deluge::instruments::classic::dx_patch(*state_, id);
-	if (std::optional held = sourceResources[s].heldDxPatch();
+void Sound::recordHeldDx7Patch() {
+	const deluge::instruments::classic::DxPatchState* recorded = deluge::instruments::classic::dx7_patch(*state_);
+	if (std::optional held = dx7Patch.state();
 	    held.has_value() != (recorded != nullptr) || (held && *held != *recorded)) {
-		*state_ = deluge::instruments::classic::with_dx_patch(std::move(*state_), id, held);
+		*state_ = deluge::instruments::classic::with_dx7_patch(std::move(*state_), held);
 	}
 }
 
@@ -2649,9 +2655,14 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	int32_t maxRawOscTranspose = -32768;
-	for (int32_t s = 0; s < kNumSources; s++) {
-		if (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE) {
-			maxRawOscTranspose = std::max<int32_t>(maxRawOscTranspose, synth_.config().sources[s].transpose);
+	if (getSynthMode() == SynthMode::DX7) {
+		maxRawOscTranspose = synth_.config().dx7.transpose;
+	}
+	else {
+		for (int32_t s = 0; s < kNumSources; s++) {
+			if (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE) {
+				maxRawOscTranspose = std::max<int32_t>(maxRawOscTranspose, synth_.config().sources[s].transpose);
+			}
 		}
 	}
 
@@ -2676,9 +2687,14 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 int16_t Sound::getMinOscTranspose() {
 
 	int32_t minRawOscTranspose = 32767;
-	for (int32_t s = 0; s < kNumSources; s++) {
-		if (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE) {
-			minRawOscTranspose = std::min<int32_t>(minRawOscTranspose, synth_.config().sources[s].transpose);
+	if (getSynthMode() == SynthMode::DX7) {
+		minRawOscTranspose = synth_.config().dx7.transpose;
+	}
+	else {
+		for (int32_t s = 0; s < kNumSources; s++) {
+			if (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE) {
+				minRawOscTranspose = std::min<int32_t>(minRawOscTranspose, synth_.config().sources[s].transpose);
+			}
 		}
 	}
 
@@ -2805,11 +2821,11 @@ VoiceKind Sound::voiceKind() const {
 	if (getSynthMode() == SynthMode::RINGMOD) {
 		return VoiceKind::RINGMOD;
 	}
+	if (getSynthMode() == SynthMode::DX7) {
+		return VoiceKind::FM; // a whole-voice engine, as FM is
+	}
 	bool sample = false;
 	for (const deluge::synth::SourceConfig& source : synth_.config().sources) {
-		if (source.osc_type == OscType::DX7) {
-			return VoiceKind::FM;
-		}
 		sample |= source.osc_type == OscType::SAMPLE || source.osc_type == OscType::INPUT_L
 		          || source.osc_type == OscType::INPUT_R || source.osc_type == OscType::INPUT_STEREO;
 	}

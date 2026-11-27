@@ -75,10 +75,18 @@ bool same_ranges(const SoundState& a, const SoundState& b, SourceId id) noexcept
 	return source_ranges(a, id) == source_ranges(b, id);
 }
 
-const DxPatchState* dx_patch(const SoundState& state, SourceId id) noexcept {
-	const auto* dx = std::get_if<synth::Dx7State>(&kind_of(state, id));
-	const std::optional<DxPatchState>& patch = dx != nullptr ? dx->patch : memory_of(state, id).patch;
+const synth::Dx7State& dx7_state(const SoundState& state) noexcept {
+	const auto* dx7 = std::get_if<synth::Dx7State>(&state.plays.engine);
+	return dx7 != nullptr ? *dx7 : state.recall.dx7;
+}
+
+const DxPatchState* dx7_patch(const SoundState& state) noexcept {
+	const std::optional<DxPatchState>& patch = dx7_state(state).patch;
 	return patch ? &*patch : nullptr;
+}
+
+synth::Pitch dx7_pitch(const SoundState& state) noexcept {
+	return dx7_state(state).pitch;
 }
 
 const effects::EffectStates& sound_effects(const SoundState& state) noexcept {
@@ -102,6 +110,9 @@ bool oscillator_sync(const SoundState& state) noexcept {
 		return fm->sync;
 	}
 	const synth::DualSourceState* slots = dual_of(state.plays);
+	if (slots == nullptr) {
+		return state.recall.sync; // the DX7 plays: kept with the slots it parks
+	}
 	if (std::holds_alternative<synth::SampleState>(slots->slots[1])) {
 		return state.recall.sync; // the file writes it in the second oscillator's pitch, which a sample lacks
 	}
@@ -149,11 +160,9 @@ SoundState with_ranges(SoundState state, SourceId id, std::vector<synth::SourceR
 	return state;
 }
 
-SoundState with_dx_patch(SoundState state, SourceId id, std::optional<DxPatchState> patch) {
-	synth::SlotState* kind = slot_kind_of(state, slot_index(id));
-	// A DX7's patch is its own; any other kind's is the one the slot keeps for a DX7
-	auto* dx = kind != nullptr ? std::get_if<synth::Dx7State>(kind) : nullptr;
-	(dx != nullptr ? dx->patch : memory_of(state, id).patch) = patch;
+SoundState with_dx7_patch(SoundState state, std::optional<DxPatchState> patch) {
+	auto* dx7 = std::get_if<synth::Dx7State>(&state.plays.engine);
+	(dx7 != nullptr ? *dx7 : state.recall.dx7).patch = patch;
 	return state;
 }
 

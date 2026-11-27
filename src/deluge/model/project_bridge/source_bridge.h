@@ -49,19 +49,12 @@ namespace deluge::bridge {
 /// first range could not be made.
 Error applyRanges(::Sound& sound, int32_t s, const std::vector<synth::SourceRange>& ranges);
 
-/// @brief Source @p source's DX7 patch as the record holds it, or nullopt when it has none.
+/// @brief Give @p sound's DX7 the patch @p patch: its 156 voice bytes, its engine mode and its random detune. Its
+/// voices take the new bytes at the next block, as a menu edit does.
 ///
-/// @param source The runtime source.
-/// @return The patch, or nullopt.
-[[nodiscard]] std::optional<deluge::instruments::classic::DxPatchState> dxPatchOf(const ::SourceResources& source);
-
-/// @brief Give source @p s of @p sound the patch @p patch: its 156 voice bytes, its engine mode and its random detune.
-/// Its voices take the new patch at their next note, as a menu edit does.
-///
-/// @param sound The sound.
-/// @param s     The source index.
+/// @param sound The DX7-mode sound.
 /// @param patch The patch to give.
-/// @return Error::UNSPECIFIED unless the source is a DX7 oscillator.
-Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instruments::classic::DxPatchState& patch);
+/// @return Error::UNSPECIFIED unless the sound is in DX7 mode; Error::INSUFFICIENT_RAM when its voice cannot be made.
+Error applyDx7Patch(::Sound& sound, const deluge::instruments::classic::DxPatchState& patch);
 
 } // namespace deluge::bridge

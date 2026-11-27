@@ -60,15 +60,26 @@ bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFact
 		return false;
 	}
 	const bool fm = state.mode == SynthMode::FM;
+	// The DX7 reads osc A's params; it plays no second oscillator and no noise
+	const bool dx7 = state.mode == SynthMode::DX7;
 	const auto is = [&](plugin::ParamId id) { return destination == id; };
 	if (is(param::kVolume)) {
 		return !is_envelope(source) && source != PatchSource::SIDECHAIN;
 	}
-	if (is(param::kOscAPhaseWidth) || is(param::kOscBPhaseWidth) || is(param::kNoiseVolume)) {
+	if (is(param::kOscAPhaseWidth)) {
 		return !fm;
 	}
-	if (is(param::kOscAVolume) || is(param::kOscBVolume)) {
+	if (is(param::kOscBPhaseWidth) || is(param::kNoiseVolume)) {
+		return !fm && !dx7;
+	}
+	if (is(param::kOscAVolume)) {
 		return state.mode != SynthMode::RINGMOD;
+	}
+	if (is(param::kOscBVolume)) {
+		return state.mode != SynthMode::RINGMOD && !dx7;
+	}
+	if (is(param::kOscBPitch)) {
+		return !dx7;
 	}
 	if (is(param::kCarrier1Feedback) || is(param::kCarrier2Feedback) || is(param::kModulator1Volume)
 	    || is(param::kModulator2Volume) || is(param::kModulator1Pitch) || is(param::kModulator2Pitch)

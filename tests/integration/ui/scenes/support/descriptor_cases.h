@@ -97,6 +97,7 @@ enum class Where : uint8_t {
 	SYNTH_SAMPLE,  ///< a synth track, subtractive, both oscillators samples
 	SYNTH_FM,      ///< a synth track in FM
 	SYNTH_RINGMOD, ///< a synth track in ring mod, both oscillators square
+	SYNTH_DX7,     ///< a synth track in DX7 mode, its parked oscillators square
 	KIT_LANE,      ///< a kit lane's sound, subtractive
 	KIT,           ///< the whole kit (affect-entire): its own effects and arp
 	KIT_GATE_ROW,  ///< the whole kit, with a gate row selected: legacy reads that row's kind
@@ -258,7 +259,8 @@ inline const MenuContext& enter(Where where, int8_t source = 0) {
 	case Where::SYNTH:
 	case Where::SYNTH_SAMPLE:
 	case Where::SYNTH_FM:
-	case Where::SYNTH_RINGMOD: {
+	case Where::SYNTH_RINGMOD:
+	case Where::SYNTH_DX7: {
 		Synth& s = synth();
 		Sound& sound = *spec::menu_engine(s.ctx, *s.song.song).sound;
 		sound_setting(sound, "mode", "subtractive");
@@ -270,6 +272,9 @@ inline const MenuContext& enter(Where where, int8_t source = 0) {
 		}
 		if (where == Where::SYNTH_RINGMOD) {
 			sound_setting(sound, "mode", "ringmod");
+		}
+		if (where == Where::SYNTH_DX7) {
+			sound_setting(sound, "mode", "dx7");
 		}
 		currentSong = s.song.song; // the app binds through the song it plays
 		s.ctx = deluge::ui::scenes::spec::ctx_of(*s.song.song, deluge::gui::menuViewOf(s.song.clip), source, false,
@@ -720,6 +725,8 @@ inline std::string_view name_of(Where where) {
 		return "SYNTH_FM";
 	case Where::SYNTH_RINGMOD:
 		return "SYNTH_RINGMOD";
+	case Where::SYNTH_DX7:
+		return "SYNTH_DX7";
 	case Where::KIT_LANE:
 		return "KIT_LANE";
 	case Where::KIT:
@@ -1042,20 +1049,67 @@ inline std::string choice_text(const SettingNames& names, size_t index, bool sho
 	return index < list.size() ? text(list[index]) : std::string{"<no choice>"};
 }
 
+/// @brief A stored choice the port's list holds otherwise than `main`'s, on purpose: the DX7 is a sound's engine, so
+/// the
+///        synth mode offers it, and oscillator 1's type, the one `main` offered it on (outside ring mod, which rings
+///        nothing past a wavetable), does not (tests/ui-scripts/parity/DIFFERENCES.md).
+struct StoredChoiceDifference {
+	std::string_view path;
+	int32_t stored;
+	bool added;           ///< the port offers it and `main` did not; else `main` offered it and the port does not
+	bool outside_ringmod; ///< only outside ring mod
+};
+inline constexpr std::array<StoredChoiceDifference, 2> kStoredChoiceDifferences{{
+    {.path = "mode",
+     .stored = static_cast<int32_t>(deluge::instruments::classic::SynthMode::DX7),
+     .added = true,
+     .outside_ringmod = false},
+    {.path = "osc1/type",
+     .stored = static_cast<int32_t>(deluge::instruments::classic::OscType::DX7),
+     .added = false,
+     .outside_ringmod = true},
+}};
+
+/// @brief `main`'s applicable choices of @p path at @p where, from the port's @p port: kStoredChoiceDifferences undone.
+inline std::vector<int32_t> main_choices(std::string_view path, Where where, std::vector<int32_t> port) {
+	for (const StoredChoiceDifference& d : kStoredChoiceDifferences) {
+		if (d.path != path || (d.outside_ringmod && where == Where::SYNTH_RINGMOD)) {
+			continue;
+		}
+		if (d.added) {
+			std::erase(port, d.stored);
+		}
+		else {
+			port.insert(std::ranges::upper_bound(port, d.stored), d.stored);
+		}
+	}
+	return port;
+}
+
 /// A CHOICE case in its context: the list's length is the options' count, each applicable choice reads as its
-/// position in the list, and each position writes that choice.
+/// position in the list, and each position writes that choice. Where the port's list differs from `main`'s on purpose
+/// (kStoredChoiceDifferences), `main`'s cells are held to `main`'s list, rebuilt from the port's.
 inline void check_choices(auto& self, const Case& c, std::string_view variant = {}) {
 	const MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
 	const std::string key = case_key(c);
 	const auto column = [&](const std::string& base) { return base + std::string{variant}; };
-	const std::vector<int32_t> choices = applicable(row, context_of(c.where, c.family), ctx, c.where);
+	const std::vector<int32_t> choices =
+	    main_choices(c.path, c.where, applicable(row, context_of(c.where, c.family), ctx, c.where));
 	const Range frozen_items = frozen_range(c, variant);
 	const std::string listed = cell_int(key, column("range"), 1) ? std::to_string(int64_t{frozen_items.second} + 1)
 	                                                             : cell(key, column("range"), 1);
 	expect(std::string{c.path} + " offers " + std::to_string(choices.size()) + ": " + list_of(choices))
 	    .to_equal(std::string{c.path} + " offers " + listed + ": " + list_of(choices));
 	for (size_t position = 0; position < choices.size(); ++position) {
+		if (std::ranges::any_of(kStoredChoiceDifferences, [&](const StoredChoiceDifference& d) {
+			    return d.path == c.path && d.stored == choices[position];
+		    })) {
+			// A choice main offered and the port does not: nothing to store or read, but main's cell holds its place
+			expect(show(c, "read", choices[position], cell(key, column("read/" + std::to_string(choices[position])))))
+			    .to_equal(show(c, "read", choices[position], static_cast<int64_t>(position)));
+			continue;
+		}
 		set_stored(c.family, ctx, c.where, row, choices[position]);
 		expect(show(c, "read", choices[position], static_cast<int64_t>(position)))
 		    .to_equal(
@@ -1372,6 +1426,7 @@ inline constexpr Skip kSkips[] = {
     {kInstrumentOwner, "cents", "the master transpose's partner: shown only within `transpose`'s menu value"},
     {kAudioClipOwner, "cents", "the audio clip transpose's partner: shown only within `transpose`'s menu value"},
     {kInstrumentOwner, "osc1/cents", "osc 1 transpose's partner: shown only within its menu value"},
+    {kInstrumentOwner, "dx7/cents", "the DX7 transpose's partner: shown only within its menu value"},
     {kInstrumentOwner, "osc2/cents", "osc 2 transpose's partner: shown only within its menu value"},
     {kInstrumentOwner, "modulator1/cents", "modulator 1 transpose's partner: shown only within its menu value"},
     {kInstrumentOwner, "modulator2/cents", "modulator 2 transpose's partner: shown only within its menu value"},
@@ -1390,12 +1445,6 @@ inline constexpr Skip kSkips[] = {
     {kInstrumentOwner, "osc2/fileName", "structured: the sample browser, no value menu"},
     {kInstrumentOwner, "osc1/zone", "structured: the sample marker editor, no value menu"},
     {kInstrumentOwner, "osc2/zone", "structured: the sample marker editor, no value menu"},
-    {kInstrumentOwner, "osc1/dx7patch", "structured: the DX7 editor, no value menu"},
-    {kInstrumentOwner, "osc2/dx7patch", "structured: the DX7 editor, no value menu"},
-    {kInstrumentOwner, "osc1/dx7enginemode", "structured: the DX7 editor, no value menu"},
-    {kInstrumentOwner, "osc2/dx7enginemode", "structured: the DX7 editor, no value menu"},
-    {kInstrumentOwner, "osc1/dx7randomdetune", "structured: the DX7 editor, no value menu"},
-    {kInstrumentOwner, "osc2/dx7randomdetune", "structured: the DX7 editor, no value menu"},
     {kEffectOwners, "stutter/reverse",
      "one of three rows `stutter::StutterDirection` shows as one list (with pingPong, useSongStutter)"},
     {kEffectOwners, "stutter/pingPong",
@@ -1562,7 +1611,46 @@ inline constexpr std::string_view kShowsNonSoundRow =
 inline constexpr std::string_view kKitClipDirection =
     "the kit clip has a direction, which the row shortcut edits with affect-entire on (decision 4); legacy's whole-kit "
     "menu lists no direction item";
+/// main played a DX7 on oscillator 1 beside a second oscillator; here the DX7 is the sound's engine
+/// (tests/ui-scripts/parity/DIFFERENCES.md), so its sound has no oscillators to show and its mode menu shows, the menu
+/// that leaves DX7 mode.
+inline constexpr std::string_view kDx7Fixture = "a synth with a DX7";
+inline constexpr std::string_view kModeShowsPastWavetable =
+    "main hid the synth mode while an oscillator was past a wavetable (ring mod cannot ring it); it shows on every "
+    "sound, "
+    "the way into the DX7 and FM, offering ring mod only where both oscillators can be rung";
+inline constexpr std::string_view kDx7ModeShows =
+    "main hid the synth mode beside a DX7 oscillator, which ring mod cannot ring; DX7 mode shows it, the menu that "
+    "leaves it";
+inline constexpr std::string_view kDx7NoOscillators =
+    "main showed the oscillators beside its DX7 oscillator; a DX7-mode sound plays none (the DX7 page has its own "
+    "transpose and phase)";
+
 inline const AppliesException kAppliesExceptions[] = {
+    {plugin::kDelugeInstrument, "a kit's sound row", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a kit's sound row in FM", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a kit's sound row playing a loaded sample", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a kit's sound row with its arp on", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a kit's sound row with its own stutter", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "an FM synth whose first oscillator holds a loaded sample", "mode", false,
+     kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "an FM synth whose first oscillator holds a sample", "mode", false,
+     kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing a loaded wavetable and a sample with no file", "mode", false,
+     kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing a sample and a wavetable", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing loaded samples", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing samples with no file", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing the inputs", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, "a synth playing the right input", "mode", false, kModeShowsPastWavetable},
+    {plugin::kDelugeInstrument, kDx7Fixture, "mode", false, kDx7ModeShows},
+    {plugin::kDelugeInstrument, kDx7Fixture, "osc1/type", true, kDx7NoOscillators},
+    {plugin::kDelugeInstrument, kDx7Fixture, "osc1/transpose", true, kDx7NoOscillators},
+    {plugin::kDelugeInstrument, kDx7Fixture, "osc1/retrigPhase", true, kDx7NoOscillators},
+    {plugin::kDelugeInstrument, kDx7Fixture, "osc2/type", true, kDx7NoOscillators},
+    {plugin::kDelugeInstrument, kDx7Fixture, "osc2/transpose", true, kDx7NoOscillators},
+    {plugin::kDelugeInstrument, kDx7Fixture, "osc2/retrigPhase", true, kDx7NoOscillators},
+    {plugin::kDelugeInstrument, kDx7Fixture, "osc2/oscillatorSync", true, kDx7NoOscillators},
     {SettingGroupId::CLIP, "the whole kit", "sequenceDirection", false, kKitClipDirection},
     {SettingGroupId::CLIP, "the whole kit with its arp on", "sequenceDirection", false, kKitClipDirection},
     {SettingGroupId::CLIP, "the whole kit with its own stutter", "sequenceDirection", false, kKitClipDirection},
@@ -1637,11 +1725,23 @@ inline std::vector<const Case*> all_cases() {
 	return out;
 }
 
-/// Every case, the named-only ones included.
+/// The rows `main` had no item for, so no reference row answers: the DX7's own, OSC1's columns in DX7 mode
+/// (`nodes/sound_dx7.h`). They are named, and their nodes held to their rows, but compared with nothing of `main`'s.
+inline const std::vector<Case>& port_cases() {
+	static const std::vector<Case> cases{
+	    {.path = "dx7/transpose", .family = Family::INSTRUMENT, .where = Where::SYNTH_DX7, .pairs = kTransposePairs},
+	    {.path = "dx7/retrigPhase", .family = Family::INSTRUMENT, .where = Where::SYNTH_DX7, .stored = kPhases},
+	};
+	return cases;
+}
+
+/// Every case, the named-only ones and the port's own included.
 inline std::vector<const Case*> all_name_cases() {
 	std::vector<const Case*> out = all_cases();
-	for (const Case& c : group_cases()) {
-		out.push_back(&c);
+	for (const auto* family : {&group_cases(), &port_cases()}) {
+		for (const Case& c : *family) {
+			out.push_back(&c);
+		}
 	}
 	return out;
 }

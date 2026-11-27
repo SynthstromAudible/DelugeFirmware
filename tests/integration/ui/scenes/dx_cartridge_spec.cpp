@@ -20,7 +20,6 @@
 #include "gui/ui/browser/dx_cartridge_read.h"
 #include "gui/ui/browser_host.h"
 #include "hid/display/display.h"
-#include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
@@ -110,7 +109,7 @@ struct FakeChannel {
 	static DxCartridgeRead::Channel channel() { return {.collect = &collect, .request = &request, .booted = &booted}; }
 };
 
-/// @brief A synth whose first oscillator is DX7, its slot as the menu names it.
+/// @brief A synth in DX7 mode, its DX7 holding a voice, its slot as the menu names it.
 struct DxSong {
 	spec::SongFixture song = spec::make_synth_song();
 	Song* saved = currentSong;
@@ -119,7 +118,8 @@ struct DxSong {
 	DxSong() {
 		deluge::ui::scenes::spec::make_current(song.song);
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		deluge::test::setOscType(*sound, 0, OscType::DX7);
+		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
+		(void)sound->dx7Patch.ensure();
 	}
 	~DxSong() { deluge::ui::scenes::spec::make_current(saved); }
 	DxSong(const DxSong&) = delete;
@@ -129,9 +129,7 @@ struct DxSong {
 		return *spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)
 		            .addresses.slot;
 	}
-	deluge::instruments::classic::DxPatchState patch() {
-		return deluge::bridge::dxPatchOf(sound->sourceResources[0]).value();
-	}
+	deluge::instruments::classic::DxPatchState patch() { return sound->dx7Patch.state().value(); }
 };
 
 /// @brief The card these examples list: `tests/fixtures/scenes_spec/dx_cartridge`, installed for this file before boot
@@ -280,7 +278,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		for (size_t i = 0; params != nullptr && i < params->size() && i < want.params.size(); i++) {
 			want.params[i] = static_cast<uint8_t>(std::stoi((*params)[i]));
 		}
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 5)).to_be_true();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 5)).to_be_true();
 		expect(s.patch()).to_equal(want);
 		expect(s.song.instrument->name).to_equal(std::string{"PROG 5"});
 	});
@@ -290,25 +288,26 @@ describe dx_cartridge("the DX7 cartridge", ${
 		load_bank();
 		s.song.instrument->mightExistOnCard = true;
 		s.song.instrument->name = "KEEP";
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 3)).to_be_true();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 3)).to_be_true();
 		expect(s.song.instrument->name).to_equal(std::string{"KEEP"});
 	});
 
-	it("refuses a program outside the bank, a source that is not DX7, a slot that does not resolve and no bank", _ {
+	it("refuses a program outside the bank, a sound in another mode, a slot that does not resolve and no bank", _ {
 		DxSong s;
 		load_bank();
 		const deluge::instruments::classic::DxPatchState before = s.patch();
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, -1)).to_be_false();
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 32)).to_be_false();
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 1, 0)).to_be_false();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), -1)).to_be_false();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 32)).to_be_false();
 		deluge::project::SlotAddress nowhere = s.slot();
 		nowhere.id += 1000;
-		expect(menu::host_ports().sound_writes->load_dx_program(nowhere, 0, 0)).to_be_false();
+		expect(menu::host_ports().sound_writes->load_dx_program(nowhere, 0)).to_be_false();
 		DX7Cartridge* const held = bank();
 		bank() = nullptr;
-		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0, 0)).to_be_false();
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0)).to_be_false();
 		bank() = held;
 		expect(s.patch()).to_equal(before);
+		deluge::test::setSynthMode(*s.sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
+		expect(menu::host_ports().sound_writes->load_dx_program(s.slot(), 0)).to_be_false();
 	});
 
 	it("asks the channel for the file on the first collect and again on UNKNOWN, but not while it is PENDING", _ {
@@ -479,11 +478,11 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.turn(3);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
-		const deluge::instruments::classic::DxPatchState before = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		const deluge::instruments::classic::DxPatchState before = r.sound->dx7Patch.state().value();
 		menu_scene().read_value_again();
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
-		expect(deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value()).to_equal(before);
+		expect(r.sound->dx7Patch.state().value()).to_equal(before);
 	});
 
 	it("reads a bank and lands on the cartridge page under the browse row, whose BACK reopens the browser", _ {

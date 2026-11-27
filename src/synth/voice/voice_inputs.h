@@ -43,6 +43,7 @@ struct VoiceBlock {
 	/// Per source: it renders in stereo (the engine renders in stereo, and the source spreads its unison or plays a
 	/// stereo sample or input).
 	std::array<bool, kNumSources> source_in_stereo{};
+	bool dx7_in_stereo{};       ///< DX7 mode: the DX7 renders in stereo (the engine does, and its unison spreads)
 	size_t num_active_voices{}; ///< The sound's voice count, which the cull order ranks by.
 	VoiceClock clock;
 };
@@ -75,7 +76,6 @@ struct SourceSetup {
 	dsp::fixed::FineTune fine_tuner; ///< Cents: the playing sample's own, else the source's
 	/// The phase increment that plays the source at its root pitch: the playing sample's, else unity.
 	int32_t neutral_phase_increment{kMaxSampleValue};
-	void* dx_patch{}; ///< A DX7 source's patch, the handle its port takes
 };
 
 /// @brief What the DX7 engine's note-on reads: the patch, the DX7's pitch, and whether it can sound.

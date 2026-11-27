@@ -242,9 +242,8 @@ struct RecordingSoundWrites final : SoundWrites {
 	bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
 	                  std::optional<int16_t> lower_top) override;
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
-	bool write_dx_patch(project::SlotAddress slot, uint8_t source,
-	                    const instruments::classic::DxPatchState& patch) override;
-	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override;
+	bool write_dx_patch(project::SlotAddress slot, const instruments::classic::DxPatchState& patch) override;
+	bool load_dx_program(project::SlotAddress slot, int32_t program) override;
 	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                            int32_t menu_value) override;
 	bool velocity_to_level_everywhere(midi::DeviceId device) override;

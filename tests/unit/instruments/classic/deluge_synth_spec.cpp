@@ -116,7 +116,7 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 			    ranges.push_back({.top_note = 60});
 			    s = with_ranges(std::move(s), SourceId::B, std::move(ranges));
 		    }, Part::SOURCE_B_RANGES},
-		    {"osc1 dx", [](SoundState& s) { s = with_dx_patch(std::move(s), SourceId::A, DxPatchState{}); }, Part::SOURCE_A_DX},
+		    {"dx7 patch", [](SoundState& s) { s = with_dx7_patch(std::move(s), DxPatchState{.engine_mode = 1}); }, Part::DX7_PATCH},
 		    {"retrigger", [](SoundState& s) { test::set(s, "osc1/retrigPhase", "9"); }, Part::RETRIGGER},
 		    {"modulator cents", [](SoundState& s) { test::set(s, "modulator1/cents", "1"); }, Part::MODULATOR_TUNING},
 		    {"modulator routing", [](SoundState& s) { test::set(s, "modulator2/toModulator1", "0"); }, Part::MODULATOR_ROUTING},

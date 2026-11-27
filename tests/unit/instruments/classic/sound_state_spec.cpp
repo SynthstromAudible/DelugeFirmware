@@ -18,9 +18,9 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 		b = with_ranges(std::move(b), SourceId::B, {deluge::synth::SourceRange{.top_note = 60, .file_path = "SAMPLES/A.WAV"}});
 		expect(a).not_().to_equal(b);
 		a = with_ranges(std::move(a), SourceId::B, {deluge::synth::SourceRange{.top_note = 60, .file_path = "SAMPLES/A.WAV"}});
-		a = with_dx_patch(std::move(a), SourceId::A, DxPatchState{});
+		a = with_dx7_patch(std::move(a), DxPatchState{});
 		expect(a).not_().to_equal(b);
-		b = with_dx_patch(std::move(b), SourceId::A, DxPatchState{});
+		b = with_dx7_patch(std::move(b), DxPatchState{});
 		expect(a).to_equal(b);
 	});
 
@@ -58,8 +58,9 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 			expect(sample_playback(s, id).pitch_and_speed_independent).to_equal(false);
 			expect(sample_playback(s, id).reversed).to_equal(false);
 			expect(source_ranges(s, id).size()).to_equal(size_t{0});
-			expect(dx_patch(s, id)).to_be_null();
 		}
+		expect(dx7_patch(s)).to_be_null();
+		expect(phase_word(dx7_pitch(s).retrigger)).to_equal(kFreeRunningPhase);
 	});
 
 	it("records what a new synth starts as", _ {

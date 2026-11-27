@@ -20,7 +20,6 @@
 #include "dsp/core/phasor.h"
 #include "dsp/fixed/noise/cong.h"
 #include "synth/engines/engine_table.h"
-#include "synth/sources/dx7/dx7_source.h"
 #include "synth/sources/input/input_source.h"
 #include "synth/sources/sample/sample_source.h"
 #include "synth/sources/supersaw/supersaw_source.h"
@@ -36,7 +35,7 @@
 /// @brief The kinds of source an oscillator slot plays, one row each: the slot's note-on, build, lookup, binding and
 /// release, and the engines' own-rate test, are generated from these rows. Adding a source is adding a row.
 ///
-/// A ported row's source is bound to a firmware port for the voice's life (sample, DX7, live input); a held row's
+/// A ported row's source is bound to a firmware port for the voice's life (sample, live input); a held row's
 /// source is built per note into the slot's held oscillator (the waves). Either sounds only where the engine table's
 /// row for the mode holds the oscillators (holds_oscillators).
 
@@ -45,7 +44,6 @@ namespace deluge::synth {
 /// @brief The firmware ports a slot's port-backed sources play through; they outlive the slot.
 struct SourcePorts {
 	SamplePlaybackPort* sample{};    ///< the sample reader and its pool
-	DxVoicePort* dx{};               ///< the pooled DX7 voice
 	AudioInputPort* input{};         ///< the engine's live input
 	const LiveInputs* live_inputs{}; ///< the oscillator's live histories
 };
@@ -77,27 +75,6 @@ struct SampleKind {
 	/// @return False when the release ends the note at once and the slot unassigns.
 	[[nodiscard]] static bool release(Source& source, const SourceRelease& release, bool active) {
 		return !active || source.release(release);
-	}
-};
-
-/// @brief The DX7 row: a pooled DX7 voice played through its port.
-struct Dx7Kind {
-	using Source = DX7Source;
-	static constexpr bool kHeld = false;
-	static constexpr bool kOwnsNote = false;
-	static constexpr bool kOwnRate = false;
-	/// @brief Whether this row plays @p type.
-	[[nodiscard]] static constexpr bool plays(OscType type) noexcept { return type == OscType::DX7; }
-	/// @brief Binds @p source to its port in @p ports.
-	static void bind(Source& source, const SourcePorts& ports) { source.bind_port(ports.dx); }
-	/// @brief Starts @p note on @p source.
-	/// @return False when the note cannot play.
-	[[nodiscard]] static bool note_on(Source& source, const SourceNote& note) { return source.note_on(note); }
-	/// @brief The note-off for @p source.
-	/// @return True: the DX7 releases on its own envelopes, whatever the slot's state, and never ends the note here.
-	[[nodiscard]] static bool release(Source& source, const SourceRelease& /*release*/, bool /*active*/) {
-		(void)source.release({});
-		return true;
 	}
 };
 
@@ -199,7 +176,7 @@ struct SupersawKind {
 };
 
 /// @brief The slot's source kinds: the ported ones first, in the order bind and unassign walk them, then the held.
-using SourceKinds = std::tuple<SampleKind, Dx7Kind, InputKind, VirtualAnalogKind, WavetableKind, SupersawKind>;
+using SourceKinds = std::tuple<SampleKind, InputKind, VirtualAnalogKind, WavetableKind, SupersawKind>;
 
 namespace detail {
 

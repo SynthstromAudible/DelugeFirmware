@@ -414,7 +414,7 @@ describe tables_3_shape("scenes::menu settings and other roots tables: shape", $
 				    .to_equal(e.path + " has a name row");
 			}
 			if (e.node->kind == menu::Kind::Submenu) {
-				expect(e.path + " kids " + std::to_string(e.node->children.size()))
+				expect(e.path + " kids " + std::to_string(spec::main_children(*e.node)))
 				    .to_equal(e.path + " kids " + table().value(e.path, "kids"));
 				submenus++;
 			}
@@ -642,10 +642,15 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 			install(root->ctx, root->song);
 			const std::vector<std::string>* want = table().find(e.path, "options");
 			if (want == nullptr) {
-				// Only a node shown on a page the root opens has a row.
+				// Only a node shown on a page the root opens has a row; a node shown where main hid it
+				// (spec::kShownWhereMainHid) has none.
 				const bool shown_here = (e.parent == nullptr || menu::bindings::relevant(*e.parent, root->ctx))
 				                        && menu::bindings::relevant(*e.node, root->ctx);
-				expect(e.path + (shown_here ? " has none" : " has options")).to_equal(e.path + " has options");
+				const std::vector<std::string>* main_rel = table().find(e.path, "rel");
+				const bool main_hid_it = spec::shows_where_main_hid(
+				    *e.node, shown_here, main_rel != nullptr && !main_rel->empty() && main_rel->front() == "1");
+				expect(e.path + (shown_here && !main_hid_it ? " has none" : " has options"))
+				    .to_equal(e.path + " has options");
 				continue;
 			}
 			std::string_view got[menu::kMaxDynamicNames];
@@ -656,7 +661,7 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 				port += std::string{got[i]} + "|";
 			}
 			std::string frozen;
-			for (const std::string& o : *want) {
+			for (const std::string& o : spec::port_choices(*e.node, *want)) {
 				frozen += o + "|";
 			}
 			expect(e.path + " " + port).to_equal(e.path + " " + frozen);
@@ -680,7 +685,8 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 			}
 			const bool got = menu::bindings::relevant(*e.node, root->ctx);
 			const std::string label = e.path + " " + text_of(e.node->name) + " relevant=";
-			expect(label + (got ? "1" : "0")).to_equal(label + want->front());
+			const bool named = spec::shows_where_main_hid(*e.node, got, want->front() == "1");
+			expect(label + (got ? "1" : "0")).to_equal(label + (named ? "1" : want->front()));
 			ever_true += got ? 1 : 0;
 		}
 		expect(ever_true).to_be_greater_than(size_t(700)); // 845 today -- the loop cannot go vacuous
@@ -951,11 +957,12 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 			}
 			expect(e.path + " probed " + probed).to_equal(e.path + " probed " + expected);
 		}
-		// 365 probes over 118 nodes, across the (root, path) pairs with a `set` hook -- a node reachable from three
-		// roots is driven three times, on three different fixtures. A node bound to a target has no `set` hook: the
+		// 363 probes over 117 nodes, across the (root, path) pairs with a `set` hook -- a node reachable from three
+		// roots is driven three times, on three different fixtures. main's DX7 engine feature (two probes) is gone: the
+		// DX7 is built in. A node bound to a target has no `set` hook: the
 		// binding library's specs drive it instead. A change in either number means the loop reaches other hooks.
-		expect(exercised).to_equal(size_t(365));
-		expect(covered.size()).to_equal(size_t(118));
+		expect(exercised).to_equal(size_t(363));
+		expect(covered.size()).to_equal(size_t(117));
 	});
 
 	it("drives the port hook of every node the write rows leave out", _ {
@@ -1407,8 +1414,9 @@ describe tables_3_chaining("scenes::menu settings and other roots tables: select
 		}
 		// The chaining nodes of the shipped tree; a chain added without a spec fails here.
 		//
-		// **77** = 7 + 53 + 4 + 3 + 1 + 3 + 2 + 4. The seven original chain nodes; 53 `PatchedParam` nodes
-		// (`with_patch_chain`, every node with `bind.param.kind == PATCHED`); the four patch-cable pages
+		// **80** = 7 + 56 + 4 + 3 + 1 + 3 + 2 + 4. The seven original chain nodes; 56 `PatchedParam` nodes
+		// (`with_patch_chain`, every node with `bind.param.kind == PATCHED`: main's 53 and the DX7's transpose, amp mod
+		// and level); the four patch-cable pages
 		// (`source_selection_{regular,range}`, `patch_cable_strength_{regular,range}`); the three items that open one
 		// (`patch_cables`, `vibrato`, `sidechain_volume`); the range picker; `midi_devices`, which chains to the
 		// per-device page (`midi::Devices::selectButtonPress`,
@@ -1419,10 +1427,10 @@ describe tables_3_chaining("scenes::menu settings and other roots tables: select
 		// every one lands inside its own one-element span; and `nodes::note_iterance` and `nodes::note_row_iterance`,
 		// which each chain to their own custom-iterance root on `kCustomIterancePreset`
 		// (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`,
-		// `origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`); and the four DX7 chains: the two
-		// oscillator types into "DX7 source" (`origin/main:src/deluge/gui/menu_item/osc/type.h`), "DX7 parameters" and
-		// "DX7 operator N" (`nodes/dx.h`).
-		expect(chaining_nodes).to_equal(size_t(77));
+		// `origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`); and the four DX7 chains: the synth mode
+		// into "DX7 source" on the master page and as the DX7 page's first column (main's oscillator 1 type,
+		// `origin/main:src/deluge/gui/menu_item/osc/type.h`), "DX7 parameters" and "DX7 operator N" (`nodes/dx.h`).
+		expect(chaining_nodes).to_equal(size_t(80));
 		expect(answers).to_be_greater_than(size_t(0));
 	});
 
@@ -2952,6 +2960,13 @@ describe tables_3_reference_rows("tables_3: the reference rows", $ {
 		spec::OracleTable& t = spec::OracleTable::named("tables_3");
 		expect(t.problems().size()).to_equal(size_t{0});
 		expect(t.size()).to_be_greater_than(size_t{9000});
+		// main's rows for a child the port drops (spec::kMainOnlyChildren) answer for a node no longer here: each is held,
+		// and set aside.
+		for (const std::string& path : spec::main_only_paths("settings", nodes::root_settings)) {
+			expect(path + " rows " + std::to_string(t.under(path).size()))
+			    .not_()
+			    .to_equal(path + " rows 0");
+		}
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

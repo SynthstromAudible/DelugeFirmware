@@ -3376,7 +3376,7 @@ void finishDxStage() {
 	g_dxStep = DxStep::Finished;
 }
 
-/// The first session clip's synth, given a DX7 first oscillator; null when the song has no synth clip.
+/// The first session clip's synth, in DX7 mode; null when the song has no synth clip.
 Clip* makeDxClip() {
 	if (currentSong->live.clips.session_clips.empty()) {
 		(void)currentSong->ensureAtLeastOneSessionClip();
@@ -3386,7 +3386,7 @@ Clip* makeDxClip() {
 		return nullptr;
 	}
 	auto* sound = clip->output->toModControllable()->effectsOwner()->sound;
-	deluge::test::setOscType(*sound, 0, OscType::DX7);
+	deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 	currentSong->setCurrentClip(clip);
 	return clip;
 }

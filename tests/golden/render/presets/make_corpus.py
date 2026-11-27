@@ -348,7 +348,7 @@ def dx7_header_init_voice():
         CORPUS.resolve().parents[3]
         / "src"
         / "instruments"
-        / "deluge"
+        / "classic"
         / "dx7_init_voice.h"
     ).read_text()
     body = re.search(r"kDx7InitVoice\{([^}]*)\}", header).group(1)
@@ -375,13 +375,13 @@ def dx7_patch(ops=None, **globals_):
 
 
 def dx7_case(name, engine, patch):
-    # The XML reader's key is lowercase (src/instruments/classic/codec.cpp, "dx7enginemode"); a camelCase spelling would
-    # be ignored and render every case at engine 0 (auto). case()'s XML branch writes the file without creating the
-    # directory.
-    (CORPUS / "dx7").mkdir(exist_ok=True)
+    # Authored as a DX7 on osc 1, as released firmware wrote one, and converted by the upgrader into a DX7-mode sound:
+    # the firmware reads a DX7 only as its own engine. The oscillator's keys are lowercase ("dx7enginemode"), as the
+    # upgrader reads them.
     case(
         f"dx7/{name}",
         osc1={"type": "dx7", "dx7patch": patch, "dx7enginemode": str(engine)},
+        json=True,
     )
 
 
@@ -819,7 +819,7 @@ case(
     params={"lpfFrequency": "0x40000000", "lpfResonance": "0x7FFFFFFF"},
     **RINGMOD_SUPERSAWS,
 )
-# A DX7 patch in osc 2, beside a silent osc 1.
+# A DX7 patch in osc 2, beside a silent osc 1: the upgrader moves osc B's level onto the DX7's (osc A's).
 case(
     "voice/dx7_osc_b",
     osc2={
@@ -828,6 +828,7 @@ case(
         "dx7enginemode": "2",
     },
     params={"oscAVolume": "0x80000000", "oscBVolume": "0x40000000"},
+    json=True,
 )
 # Noise with no filter on (no filter-gain fold), and across stereo unison voices (rendered once into both channels).
 NOISE = {"oscAVolume": "0x80000000", "noiseVolume": "0x40000000"}

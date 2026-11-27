@@ -22,13 +22,10 @@ SoundState sample_on_b() {
 	                   {{.top_note = 60, .file_path = "SAMPLES/A.WAV", .zone = {.end = 100}}});
 }
 
-/// Whether slot @p id reads the same in @p a and @p b: its type, tuning, playback, ranges and DX7 patch.
+/// Whether slot @p id reads the same in @p a and @p b: its type, tuning, playback and ranges.
 bool same_slot(const SoundState& a, const SoundState& b, SourceId id) {
-	const DxPatchState* patch_a = dx_patch(a, id);
-	const DxPatchState* patch_b = dx_patch(b, id);
 	return source_type(a, id) == source_type(b, id) && source_tuning(a, id) == source_tuning(b, id)
-	       && sample_playback(a, id) == sample_playback(b, id) && same_ranges(a, b, id)
-	       && (patch_a == nullptr) == (patch_b == nullptr) && (patch_a == nullptr || *patch_a == *patch_b);
+	       && sample_playback(a, id) == sample_playback(b, id) && same_ranges(a, b, id);
 }
 
 } // namespace
@@ -52,26 +49,26 @@ describe state_access("the Deluge instrument's state, as code outside the instru
 		expect(source_ranges(s, SourceId::B)[0].file_path).to_equal(std::string{"SAMPLES/A.WAV"});
 	});
 
-	it("reads a DX7 patch only where a slot has one", _ {
+	it("reads the DX7's patch, which a sound keeps whichever engine plays", _ {
 		SoundState s;
-		expect(dx_patch(s, SourceId::A)).to_be_null();
+		expect(dx7_patch(s)).to_be_null();
 		DxPatchState patch;
 		patch.params[0] = 42;
-		s = with_dx_patch(std::move(s), SourceId::A, patch);
-		expect(dx_patch(s, SourceId::A)).not_().to_be_null();
-		expect(int{dx_patch(s, SourceId::A)->params[0]}).to_equal(42);
-		expect(dx_patch(s, SourceId::B)).to_be_null();
+		s = with_dx7_patch(std::move(s), patch);
+		expect(dx7_patch(s)).not_().to_be_null();
+		expect(int{dx7_patch(s)->params[0]}).to_equal(42);
 	});
 
-	it("writes ranges and a DX7 patch into one slot, leaving the rest", _ {
+	it("writes ranges into one slot and the DX7's patch, leaving the slots", _ {
 		const SoundState s = sample_on_b();
 		const SoundState ranged = with_ranges(s, SourceId::B, {{.top_note = 72, .file_path = "SAMPLES/B.WAV"}});
 		expect(source_ranges(ranged, SourceId::B)[0].top_note).to_equal(int16_t{72});
 		expect(same_slot(ranged, s, SourceId::A)).to_equal(true);
 		DxPatchState patch;
 		patch.params[1] = 9;
-		const SoundState dx = with_dx_patch(s, SourceId::A, patch);
-		expect(int{dx_patch(dx, SourceId::A)->params[1]}).to_equal(9);
+		const SoundState dx = with_dx7_patch(s, patch);
+		expect(int{dx7_patch(dx)->params[1]}).to_equal(9);
+		expect(same_slot(dx, s, SourceId::A)).to_equal(true);
 		expect(same_slot(dx, s, SourceId::B)).to_equal(true);
 	});
 

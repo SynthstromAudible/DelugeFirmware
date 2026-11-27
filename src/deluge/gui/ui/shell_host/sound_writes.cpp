@@ -119,26 +119,25 @@ public:
 		return applied(edit);
 	}
 
-	bool write_dx_patch(project::SlotAddress slot, uint8_t source,
-	                    const instruments::classic::DxPatchState& patch) override {
+	bool write_dx_patch(project::SlotAddress slot, const instruments::classic::DxPatchState& patch) override {
 		::Sound* sound = sound_at(slot);
-		if (sound == nullptr || source >= kNumSources || sound->oscType(source) != OscType::DX7) {
+		if (sound == nullptr || sound->getSynthMode() != SynthMode::DX7) {
 			return false;
 		}
 		// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`,
 		// `origin/main:src/deluge/gui/menu_item/dx/param.cpp`), which records no undo.
-		edits::dxPatchFor(*sound, source, patch);
+		edits::dxPatchFor(*sound, patch);
 		return true;
 	}
 
-	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override {
+	bool load_dx_program(project::SlotAddress slot, int32_t program) override {
 		::Sound* sound = sound_at(slot);
 		DX7Cartridge* bank = dxCartridgeBank();
-		if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->oscType(source) != OscType::DX7
-		    || program < 0 || program >= bank->numPatches()) {
+		if (sound == nullptr || bank == nullptr || sound->getSynthMode() != SynthMode::DX7 || program < 0
+		    || program >= bank->numPatches()) {
 			return false;
 		}
-		loadDxProgram(*sound, source, *bank, program);
+		loadDxProgram(*sound, *bank, program);
 		return true;
 	}
 

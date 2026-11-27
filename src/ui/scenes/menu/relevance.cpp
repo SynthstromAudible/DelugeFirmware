@@ -94,8 +94,8 @@ bool file_selector(const MenuContext& ctx, uint8_t index) {
 /// @brief `sample::Transpose::isRelevant` (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`).
 bool transpose(const MenuContext& ctx, uint8_t index) {
 	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
-	if (state == nullptr) {
-		return false;
+	if (state == nullptr || synth_mode(*state) == SynthMode::DX7) {
+		return false; // the DX7 plays no oscillator
 	}
 	const OscType type = source_type(*state, static_cast<SourceId>(index));
 	if (type == OscType::SAMPLE || type == OscType::WAVETABLE) {
@@ -116,6 +116,13 @@ bool is_fm(const MenuContext& ctx) {
 bool is_subtractive(const MenuContext& ctx) {
 	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
 	return state != nullptr && synth_mode(*state) == SynthMode::SUBTRACTIVE;
+}
+bool is_dx7(const MenuContext& ctx) {
+	const deluge::instruments::classic::SoundState* state = sound_state(ctx);
+	return state != nullptr && synth_mode(*state) == SynthMode::DX7;
+}
+bool not_dx7(const MenuContext& ctx) {
+	return !is_dx7(ctx);
 }
 // ---------------------------------------------------------------------------------------------
 // Per-source
@@ -287,9 +294,11 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 37> kRegistry{
+constexpr std::array<NamedPredicate, 39> kRegistry{
     DELUGE_RELEVANCE_ROW(is_fm),
     DELUGE_RELEVANCE_ROW(is_subtractive),
+    DELUGE_RELEVANCE_ROW(is_dx7),
+    DELUGE_RELEVANCE_ROW(not_dx7),
     DELUGE_RELEVANCE_ROW(osc0_file_selector),
     DELUGE_RELEVANCE_ROW(osc1_file_selector),
     DELUGE_RELEVANCE_ROW(osc0_transpose),
@@ -333,7 +342,7 @@ constexpr std::array<NamedPredicate, 37> kRegistry{
 // One row per predicate declared in `relevance.h` (21), plus the sixteen
 // `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
 // registered here for the reason this section's own note gives. 21 + 16 = 37.
-static_assert(kRegistry.size() == 37);
+static_assert(kRegistry.size() == 39);
 
 } // namespace
 

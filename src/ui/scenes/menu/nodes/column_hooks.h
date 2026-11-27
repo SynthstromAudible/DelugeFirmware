@@ -38,7 +38,7 @@ std::optional<deluge::ui::widgets::oled::ArtColumn> direction_art(const MenuCont
 /// `lfo::Type::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/lfo/type.h`): the shape's icon.
 std::optional<deluge::ui::widgets::oled::ArtColumn> lfo_type_art(const MenuContext& ctx, int32_t value);
 /// `osc::Type::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/osc/type.h`) for source 1 and 2: the
-/// shape's icon with the analog or supersaw letter, or DX7's name.
+/// shape's icon with the analog or supersaw letter.
 std::optional<deluge::ui::widgets::oled::ArtColumn> osc0_type_art(const MenuContext& ctx, int32_t value);
 std::optional<deluge::ui::widgets::oled::ArtColumn> osc1_type_art(const MenuContext& ctx, int32_t value);
 /// `sample::Repeat::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sample/repeat.h`): the mode's icon,
@@ -191,6 +191,17 @@ std::string_view last_folder(std::string_view path);
 /// past the first page of a sample oscillator.
 ValueText source0_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out);
 ValueText source1_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out);
+/// @}
+
+/// @name Source pages' names (`Binding::name_text`)
+/// @{ OSC1's page is the DX7's in DX7 mode, named DX7; OSC2's keeps its own (it hides in DX7 mode).
+ValueText source0_name(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+ValueText source1_name(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// @}
+
+/// @brief The synth mode's column on the DX7's page: DX7's name, as `main` drew a DX7 oscillator's type column.
+std::optional<ui::widgets::oled::ArtColumn> dx7_engine_art(const MenuContext& ctx, int32_t value);
+/// @{
 /// `submenu::ModFxHorizontalMenu::getTitle` (`origin/main:src/deluge/gui/menu_item/submenu/mod_fx.h`): the effect's
 /// name past the first page.
 ValueText mod_fx_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out);

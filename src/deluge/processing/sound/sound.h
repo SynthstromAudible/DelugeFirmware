@@ -34,11 +34,13 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "processing/dx7/held_dx_patch.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/voice_budget.h"
 #include "processing/sound/source_resources.h"
 #include "project/instrument_slot.h"
 #include "serialization/value.h"
+#include "synth/engines/engine_table.h"
 #include "synth/matrix/evaluator.h"
 #include "synth/matrix/matrix_block.h"
 #include "synth/modulation/lfo.h"
@@ -124,7 +126,7 @@ constexpr int32_t kSampleDrumVelocityCableUserValue = 50;
 enum class VoiceKind : uint8_t {
 	OSCILLATOR, ///< Subtractive, every source an oscillator or a wavetable.
 	SAMPLE,     ///< Subtractive, at least one source a sample or a live input.
-	FM,         ///< FM, or any DX7 source.
+	FM,         ///< FM, or the DX7.
 	RINGMOD,    ///< Ring modulation.
 };
 inline constexpr size_t kNumVoiceKinds = 4;
@@ -342,8 +344,8 @@ public:
 	/// @brief Record oscillator @p s's ranges as its runtime holds them (files found, zones loading clamped), when the
 	/// record holds others.
 	void recordHeldRanges(int32_t s);
-	/// @brief Record oscillator @p s's DX7 patch as its runtime holds it, when the record holds another.
-	void recordHeldDxPatch(int32_t s);
+	/// @brief Record the DX7 engine's patch as its runtime holds it, when the record holds another.
+	void recordHeldDx7Patch();
 	/// @brief What oscillator @p s plays.
 	[[nodiscard]] OscType oscType(int32_t s) const { return synth_.config().sources[s].osc_type; }
 	/// @brief Whether source @p s plays backwards now: its configured direction, inverted for an arpeggiated note.
@@ -361,6 +363,8 @@ public:
 	ParamLPF paramLPF{};
 
 	SourceResources sourceResources[kNumSources];
+	/// The DX7 engine's voice, which a DX7-mode sound plays
+	HeldDxPatch dx7Patch;
 
 	// The per-sound *global* modulation data plane. params.paramFinalValues begins with FIRST_GLOBAL, so
 	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.
@@ -494,6 +498,9 @@ public:
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
 	[[nodiscard]] SynthMode getSynthMode() const { return synth_.config().engine.mode; }
+	/// @brief Whether the engine plays the oscillator slots and the noise: subtractive and ring mod do; FM plays only
+	/// their pitches as carriers and the DX7 plays none.
+	[[nodiscard]] bool playsSlots() const { return deluge::synth::holds_oscillators(getSynthMode()); }
 	/// @brief What this Sound's voices are made of, as far as their cost goes.
 	[[nodiscard]] VoiceKind voiceKind() const;
 

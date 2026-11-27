@@ -22,7 +22,7 @@
 
 namespace deluge::instruments::classic {
 
-/// @brief The voice a new DX7 source starts with ("INIT VOICE"): the 156 bytes of a DX7 single-voice dump.
+/// @brief The voice a new DX7 starts with ("INIT VOICE"): the 156 bytes of a DX7 single-voice dump.
 inline constexpr std::array<uint8_t, 156> kDx7InitVoice{
     99, 99, 99, 99, 99, 99, 99, 00, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  7,  99, 99, 99, 99, 99,
     99, 99, 00, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  7,  99, 99, 99, 99, 99, 99, 99, 00, 0,  0,

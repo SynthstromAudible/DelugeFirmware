@@ -630,23 +630,24 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 		expect(count_where([](const Node& n) { return n.bind.turn != nullptr; })).to_equal(size_t(26));
 	});
 
-	it("starts every Decimal's cursor on 2 but the six overrides, which start on 1", _ {
-		// CV volts, gate off time, the two oscillator phases and the two modulator phases are the six.
+	it("starts every Decimal's cursor on 2 but the seven overrides, which start on 1", _ {
+		// CV volts, gate off time, the two oscillator phases, the DX7's and the two modulator phases are the seven.
 		expect(count_where([](const Node& n) { return n.kind == menu::Kind::Decimal && n.bind.default_edit_pos == 1; }))
-		    .to_equal(size_t(6));
+		    .to_equal(size_t(7));
 		expect(count_where([](const Node& n) {
 			return n.kind == menu::Kind::Decimal && n.bind.default_edit_pos != 1 && n.bind.default_edit_pos != 2;
 		})).to_equal(size_t(0));
 	});
 
 	it("names special values on exactly the Decimals main draws a word for", _ {
-		// CV volts names 0 as Hz/V; the four retrigger phases name a value below 0 as OFF and restart a turn up
+		// CV volts names 0 as Hz/V; the five retrigger phases (two oscillators', the DX7's, two modulators') name a value
+		// below 0 as OFF and restart a turn up
 		// from it.
 		expect(count_where([](const Node& n) { return n.bind.decimal_word == &nodes::cv_volts_word; })).to_equal(size_t(1));
 		expect(address_of(nodes::cv_volts.bind.decimal_word)).to_equal(address_of(&nodes::cv_volts_word));
-		expect(count_where([](const Node& n) { return n.bind.decimal_word == &nodes::retrigger_phase_text; })).to_equal(size_t(4));
-		expect(count_where([](const Node& n) { return n.bind.decimal_word != nullptr; })).to_equal(size_t(5));
-		expect(count_where([](const Node& n) { return n.bind.decimal_restart_from_negative; })).to_equal(size_t(4));
+		expect(count_where([](const Node& n) { return n.bind.decimal_word == &nodes::retrigger_phase_text; })).to_equal(size_t(5));
+		expect(count_where([](const Node& n) { return n.bind.decimal_word != nullptr; })).to_equal(size_t(6));
+		expect(count_where([](const Node& n) { return n.bind.decimal_restart_from_negative; })).to_equal(size_t(5));
 	});
 
 	it("draws its own full-screen text on exactly the items whose full screen is not main's plain digits", _ {
@@ -668,11 +669,11 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 		expect(nodes::record_quantize.bind.sync_name_magnitude).not_().to_be_null();
 	});
 
-	it("wraps a horizontal-page turn on the two oscillator types and turns five columns the other way", _ {
-		// The oscillator types wrap (behaviour: menu_horizontal_controls_spec). Reversed: the two HPF morphs, the
+	it("wraps a horizontal-page turn on the two oscillator types and the DX7's, and turns five columns the other way", _ {
+		// The oscillator types wrap (behaviour: menu_horizontal_controls_spec), and the DX7's column in their place. Reversed: the two HPF morphs, the
 		// audio clip's reverse and both samples' reverse.
-		expect(count_where([](const Node& n) { return n.bind.wrap_in_horizontal; })).to_equal(size_t(2));
-		for (const Node* n : {&nodes::osc0_type, &nodes::osc1_type}) {
+		expect(count_where([](const Node& n) { return n.bind.wrap_in_horizontal; })).to_equal(size_t(3));
+		for (const Node* n : {&nodes::osc0_type, &nodes::osc1_type, &nodes::dx7_engine}) {
 			expect(n->bind.wrap_in_horizontal).to_be_true();
 		}
 		expect(count_where([](const Node& n) { return n.bind.reverse_in_horizontal != nullptr; })).to_equal(size_t(5));
@@ -713,7 +714,7 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 			expect(menu_scene().state().edit_int).to_equal(std::max(range.min, range.max - 5 * step));
 			walked++;
 		}
-		expect(walked).to_equal(size_t(140));
+		expect(walked).to_equal(size_t(142)); // the DX7's amp mod and level among them
 	});
 
 	it("starts each Decimal's cursor where main does, whichever way it is opened", _ {
@@ -724,14 +725,14 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 			}
 			Rig r;
 			r.open(*n);
-			// `cv::Volts`, `gate::OffTime` and the four `osc::RetriggerPhase`s override it to 1.
-			const bool overridden =
-			    n == &nodes::cv_volts || n == &nodes::gate_off_time || n == &nodes::osc0_phase ||
-			    n == &nodes::osc1_phase || n == &nodes::modulator0_phase_node || n == &nodes::modulator1_phase_node;
+			// `cv::Volts`, `gate::OffTime` and the `osc::RetriggerPhase`s (the DX7's phase among them) override it to 1.
+			const bool overridden = n == &nodes::cv_volts || n == &nodes::gate_off_time || n == &nodes::osc0_phase
+			                        || n == &nodes::osc1_phase || n == &nodes::dx7_phase
+			                        || n == &nodes::modulator0_phase_node || n == &nodes::modulator1_phase_node;
 			expect(decimal_pos()).to_equal(overridden ? 1 : 2);
 			walked++;
 		}
-		expect(walked).to_equal(size_t(18));
+		expect(walked).to_equal(size_t(20)); // the DX7's transpose and phase among them
 	});
 });
 // clang-format on

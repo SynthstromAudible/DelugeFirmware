@@ -889,7 +889,7 @@ Dx7Controls Voice::dx7_controls(const VoiceBlock& block, Q<28> filter_gain, Q<24
 	    .note_code = note_code_after_arpeggiation_,
 	    .first_render = first_render,
 	    .stereo_unison = stereo_unison,
-	    .in_stereo = block.source_in_stereo[0],
+	    .in_stereo = block.dx7_in_stereo,
 	};
 }
 

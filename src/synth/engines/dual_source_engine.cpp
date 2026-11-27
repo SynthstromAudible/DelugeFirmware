@@ -216,12 +216,6 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	            .index_last = static_cast<int32_t>(block.levels->wave_indexes_last_time[s]),
 	            .index_increment = wave_index_increment,
 	        },
-	    .dx7 =
-	        {
-	            .amp_mod_param = c.phase_width[s],
-	            .patch_changed = cfg.dx_patch_changed[s],
-	            .note_code = c.note_code,
-	        },
 	    .sample =
 	        {
 	            .porta_envelope_pos = c.porta_envelope_pos,
