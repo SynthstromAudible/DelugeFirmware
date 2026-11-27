@@ -1,5 +1,6 @@
 #include "project/arp_codec.h"
 #include "project/clip_values.h"
+#include "project/schema/values_schema.h"
 #include "project/setting_group.h"
 #include "project/song.h"
 #include "project/structure_codec.h"

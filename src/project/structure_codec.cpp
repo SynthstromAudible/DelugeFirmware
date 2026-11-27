@@ -25,6 +25,7 @@
 #include "project/arrangement.h"
 #include "project/launch_style.h"
 #include "project/midi_command.h"
+#include "project/schema/values_schema.h"
 #include "project/sequence_direction.h"
 #include "serialization/tree.h"
 

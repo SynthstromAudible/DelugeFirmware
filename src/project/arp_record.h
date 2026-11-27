@@ -8,6 +8,7 @@
 /// clip, a MIDI or gate kit row); on a sound they are params, and the record leaves them absent.
 
 #include "plugin/types/arp.h"
+#include "serialization/schema/extras.h"
 
 #include <array>
 #include <cstddef>
@@ -41,6 +42,9 @@ struct ArpRecord {
 	uint16_t host_held{0};                                          ///< bit i: the record holds host value i
 	std::array<int32_t, plugin::kArpHostRows.size()> host_values{}; ///< 0 where not held
 	/// @}
+
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 
 	bool operator==(const ArpRecord&) const = default;
 };
@@ -80,60 +84,6 @@ constexpr void set_host_value(ArpRecord& record, std::string_view path, std::opt
 	const auto bit = static_cast<uint16_t>(1u << *i);
 	record.host_held = value ? record.host_held | bit : record.host_held & ~bit;
 	record.host_values[*i] = value.value_or(0);
-}
-
-/// @brief The slot of the setting at @p path, other than the preset (which the record derives).
-/// @param record The record (const or not).
-/// @param path   A path of kArpSettingRows.
-/// @return Its slot, or nullptr for the preset or a path that is not a setting row. Bools are not here: see
-///         arp_flag_at.
-template <typename Record>
-[[nodiscard]] auto* arp_field_at(Record& record, std::string_view path) {
-	using Slot = decltype(&record.mode);
-	if (path == "arpeggiator/arpMode") {
-		return &record.mode;
-	}
-	if (path == "arpeggiator/octaveMode") {
-		return &record.octave_mode;
-	}
-	if (path == "arpeggiator/noteMode") {
-		return &record.note_mode;
-	}
-	if (path == "arpeggiator/mpeVelocity") {
-		return &record.mpe_velocity;
-	}
-	if (path == "arpeggiator/numOctaves") {
-		return &record.num_octaves;
-	}
-	if (path == "arpeggiator/stepRepeat") {
-		return &record.step_repeat;
-	}
-	if (path == "arpeggiator/chordType") {
-		return &record.chord_type;
-	}
-	if (path == "arpeggiator/syncLevel") {
-		return &record.sync_level;
-	}
-	if (path == "arpeggiator/syncType") {
-		return &record.sync_type;
-	}
-	return Slot{nullptr};
-}
-
-/// @brief The slot of the bool setting at @p path.
-/// @param record The record (const or not).
-/// @param path   `arpeggiator/randomizerLock` or `arpeggiator/kitArp`.
-/// @return Its slot, or nullptr for any other path.
-template <typename Record>
-[[nodiscard]] auto* arp_flag_at(Record& record, std::string_view path) {
-	using Slot = decltype(&record.kit_arp);
-	if (path == "arpeggiator/randomizerLock") {
-		return &record.randomizer_lock;
-	}
-	if (path == "arpeggiator/kitArp") {
-		return &record.kit_arp;
-	}
-	return Slot{nullptr};
 }
 
 /// @brief The preset @p record's fields make.

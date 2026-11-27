@@ -7,10 +7,10 @@
 /// holds none of these, so a caller passes the setting's default as the track's value.
 
 #include "project/arp_record.h"
+#include "serialization/schema/extras.h"
 
 #include <cstdint>
 #include <optional>
-#include <string_view>
 
 namespace deluge::project {
 
@@ -22,43 +22,10 @@ struct ClipValues {
 	std::optional<int32_t> bend_range;     ///< `bendRange`, semitones, the whole clip's bend
 	std::optional<int32_t> bend_range_mpe; ///< `bendRangeMPE`, semitones, a finger's bend
 	std::optional<ArpRecord> arp;          ///< the clip's arp; absent until the clip has one recorded
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 
 	bool operator==(const ClipValues&) const = default;
 };
-
-/// @brief The value @p values holds at @p path.
-/// @param values The clip's values (const or not).
-/// @param path   A path of the clip-value group.
-/// @return Its slot, or nullptr for a path the layer does not hold.
-template <typename Values>
-[[nodiscard]] auto* value_at(Values& values, std::string_view path) {
-	using Slot = decltype(&values.midi_bank);
-	if (path == "midiBank") {
-		return &values.midi_bank;
-	}
-	if (path == "midiSub") {
-		return &values.midi_sub;
-	}
-	if (path == "midiPGM") {
-		return &values.midi_pgm;
-	}
-	if (path == "bendRange") {
-		return &values.bend_range;
-	}
-	if (path == "bendRangeMPE") {
-		return &values.bend_range_mpe;
-	}
-	return Slot{nullptr};
-}
-
-/// @brief The value a clip plays at @p path: its own when it holds one, else its track's.
-/// @param values      The clip's values.
-/// @param path        A path of the clip-value group.
-/// @param track_value The track's value at @p path.
-/// @return The resolved value.
-[[nodiscard]] inline int32_t resolve(const ClipValues& values, std::string_view path, int32_t track_value) {
-	const std::optional<int32_t>* slot = value_at(values, path);
-	return slot != nullptr && slot->has_value() ? **slot : track_value;
-}
 
 } // namespace deluge::project
