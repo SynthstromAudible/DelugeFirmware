@@ -182,9 +182,9 @@ constexpr Node chain_col =
 
 // The range-dependent column: a real `bind.param` so `permission_for`/`ensure_first_range` have a
 // source to ask, exactly as `menu_scene_spec.cpp`'s own `transpose_leaf` is built.
-constexpr Node range_col = menu::with_range_dependent(
-    menu::param(sid(String::STRING_FOR_TRANSPOSE),
-                {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ}));
+constexpr Node range_col = menu::with_range_dependent(menu::param(
+    sid(String::STRING_FOR_TRANSPOSE), deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{
+                                           static_cast<uint32_t>(deluge::modulation::params::LOCAL_LPF_FREQ)})));
 
 int32_t g_filler_col = 0;
 int32_t get_filler_col(const MenuContext&) {
@@ -200,9 +200,9 @@ constexpr Node filler_col = menu::int_item(sid(String::STRING_FOR_FEEDBACK), get
 // `FileSelector`/`osc::AudioRecorder`/`sample::Start`/`sample::End`/`audio_clip::SampleMarkerEditor`
 // (`Node::allow_session_from_horizontal`'s own doc). Shares `range_col`'s param on purpose: the two
 // columns differ only in this one bit, so a test can hold everything else equal.
-constexpr Node session_col = menu::with_allow_session_from_horizontal(menu::with_range_dependent(
-    menu::param(sid(String::STRING_FOR_TRANSPOSE),
-                {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ})));
+constexpr Node session_col = menu::with_allow_session_from_horizontal(menu::with_range_dependent(menu::param(
+    sid(String::STRING_FOR_TRANSPOSE), deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{
+                                           static_cast<uint32_t>(deluge::modulation::params::LOCAL_LPF_FREQ)}))));
 
 constexpr Node enum_col = menu::enumeration(sid(String::STRING_FOR_MODE), kEnumColNames, get_enum_col, set_enum_col);
 constexpr Node toggle_col = menu::toggle_item(sid(String::STRING_FOR_MONOPHONIC), get_toggle_col, set_toggle_col);

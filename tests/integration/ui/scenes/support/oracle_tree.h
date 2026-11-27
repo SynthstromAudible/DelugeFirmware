@@ -3,6 +3,9 @@
 /// @file
 /// @brief A menu tree as the reference tables key it: every node under a root by its child positions.
 
+#include "host/chains/params.h"
+#include "instruments/classic/params.h"
+#include "plugin/types/param_kind.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/node.h"
 
@@ -63,6 +66,30 @@ inline bool param_comparable(const menu::Node& node) {
 	return node.kind != menu::Kind::Submenu && node.kind != menu::Kind::Custom && node.bind.param.valid()
 	       && node.bind.get == nullptr
 	       && !(node.bind.target.valid() && node.bind.target.kind != deluge::ui::scenes::bind::Target::Kind::PARAM);
+}
+
+/// @brief A node's param in the runtime's numbering, as main's reference rows record it: its collection's kind and its
+///        index there.
+struct RuntimeParam {
+	plugin::ParamKind kind{plugin::ParamKind::NONE};
+	uint8_t index{255};
+};
+
+/// @brief @p p in the runtime's numbering: a sound's patched or unpatched set, or a chain's; NONE and 255 for no param.
+inline RuntimeParam runtime_of(const menu::ParamRef& p) {
+	if (!p.id) {
+		return {};
+	}
+	if (p.table == deluge::ui::scenes::bind::ParamTable::CHAIN) {
+		return {plugin::ParamKind::UNPATCHED_GLOBAL, host::chains::find_runtime_index(*p.id).value_or(255)};
+	}
+	const std::optional<instruments::classic::RuntimeSlot> slot = instruments::classic::runtime_slot(*p.id);
+	if (!slot) {
+		return {};
+	}
+	return {slot->set == instruments::classic::RuntimeSet::PATCHED ? plugin::ParamKind::PATCHED
+	                                                               : plugin::ParamKind::UNPATCHED_SOUND,
+	        slot->index};
 }
 
 /// @brief A table value as a number, or nothing for a missing row or a value that is not one.

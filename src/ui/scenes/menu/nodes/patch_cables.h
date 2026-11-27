@@ -277,7 +277,7 @@ inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStren
 /// `vibratoMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
 inline const PatchCableStrengthItem kVibratoItem{
     PatchCableStrengthItem::Which::Fixed,
-    deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kPitch),
+    deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kPitch).param_index(),
     PatchSource::LFO_GLOBAL_1};
 /// @brief `PatchCableStrength`'s value text on a fixed cable's column: the notification (`getNotificationValue`,
 ///        `origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`) and the column
@@ -294,7 +294,8 @@ ValueText ducking_strength_text(const MenuContext& ctx, int32_t value, ValueText
 /// SIDECHAIN. The reverb copies this cable, so its Edit raises the reverb's recompute.
 inline const PatchCableStrengthItem kSidechainVolumeItem{
     PatchCableStrengthItem::Which::Fixed,
-    deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolumePostReverbSend),
+    deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolumePostReverbSend)
+        .param_index(),
     PatchSource::SIDECHAIN};
 /// @}
 

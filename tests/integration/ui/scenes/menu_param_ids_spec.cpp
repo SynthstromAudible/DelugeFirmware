@@ -32,7 +32,7 @@ std::vector<MenuParamCell> walk() {
 		               .name = n->name,
 		               .table = static_cast<uint8_t>(param_table_of(p) == deluge::ui::scenes::bind::ParamTable::CHAIN),
 		               .id = param_id_of(p).value,
-		               .patched = p.kind == deluge::plugin::ParamKind::PATCHED});
+		               .patched = is_patched(p)});
 	}
 	return out;
 }
@@ -56,15 +56,6 @@ describe menu_param_ids_cases("the menu's params by table and id", ${
 			expect(cells[i].table).to_equal(want.table);
 			expect(cells[i].id).to_equal(want.id);
 			expect(cells[i].patched).to_equal(want.patched);
-		}
-	});
-	it("never names a cable: a cable's strength item is its own custom node", _ {
-		const uint16_t count = assign_node_ids(nodes::kAllRoots);
-		for (uint16_t id = 1; id <= count; id++) {
-			const Node* n = node_by_id(id);
-			if (n != nullptr && n->bind.param.valid()) {
-				expect(n->bind.param.kind).not_().to_equal(deluge::plugin::ParamKind::PATCH_CABLE);
-			}
 		}
 	});
 });

@@ -257,7 +257,7 @@ describe tables_1_shape("scenes::menu sound-subtree tables: shape", $ {
 			}
 			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
 			const std::string at = e.path + " " + text_of(e.node->name);
-			expect(at + " index " + std::to_string(e.node->bind.param.index))
+			expect(at + " index " + std::to_string(spec::runtime_of(e.node->bind.param).index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
 			const std::optional<int32_t> kind = spec::int_of(table().find(e.path, "param_kind"));
 			expect(at + (kind ? " has a kind" : " has none")).to_equal(at + " has a kind");
@@ -272,13 +272,13 @@ describe tables_1_shape("scenes::menu sound-subtree tables: shape", $ {
 			const bool unpatched = want == deluge::modulation::params::Kind::UNPATCHED_SOUND
 			                       || want == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 			if (unpatched) {
-				expect(e.node->bind.param.kind).to_satisfy([](auto kind) {
+				expect(spec::runtime_of(e.node->bind.param).kind).to_satisfy([](auto kind) {
 					using deluge::modulation::params::Kind;
 					return kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL;
 				});
 			}
 			else {
-				expect(e.node->bind.param.kind).to_equal(want);
+				expect(spec::runtime_of(e.node->bind.param).kind).to_equal(want);
 			}
 			compared++;
 		}

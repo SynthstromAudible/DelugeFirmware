@@ -997,8 +997,8 @@ Result MenuScene::after_render_navigation() {
 				// `PatchedParam::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`) records
 				// the param it patches. The source page reads it from the level above it, which here is the page, not
 				// the column.
-				if (column->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
-					st_.walk.patching_param = column->bind.param.index;
+				if (is_patched(column->bind.param)) {
+					st_.walk.patching_param = patched_byte(column->bind.param);
 				}
 				walk_.enter_child(core(), visit_.session, *chained);
 			}
@@ -1369,7 +1369,18 @@ std::optional<AutomationParam> automation_param(const Node& item, const MenuCont
 	if (!item.bind.param.valid()) {
 		return std::nullopt;
 	}
-	return AutomationParam{.kind = item.bind.param.kind, .id = item.bind.param.index};
+	return legacy_pair_of(item.bind.param);
+}
+
+AutomationParam legacy_pair_of(const ParamRef& p) {
+	if (!p.id) {
+		return {};
+	}
+	const deluge::instruments::classic::RuntimeParam runtime =
+	    p.table == deluge::ui::scenes::bind::ParamTable::CHAIN
+	        ? deluge::instruments::classic::chain_runtime_param_of(*p.id)
+	        : deluge::instruments::classic::runtime_param_of(*p.id);
+	return {.kind = runtime.kind, .id = runtime.index};
 }
 
 std::optional<deluge::project::ParamAddress> automation_address(const Node& item, const MenuContext& ctx,

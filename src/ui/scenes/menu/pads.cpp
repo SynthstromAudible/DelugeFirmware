@@ -105,9 +105,7 @@ bool is_randomizer_pad(uint8_t x, uint8_t y) {
 
 /// `getParamKind() == Kind::PATCH_CABLE` for @p node.
 bool is_patch_cable_item(const Node* node) {
-	return node != nullptr
-	       && ((node->custom != nullptr && node->custom->is_patch_cable())
-	           || node->bind.param.kind == deluge::plugin::ParamKind::PATCH_CABLE);
+	return node != nullptr && node->custom != nullptr && node->custom->is_patch_cable();
 }
 
 /// @brief The answer of the item at @p depth: a horizontal page answers for its focused column
@@ -127,9 +125,9 @@ SourcePress answer_at(MenuCore core, uint8_t depth, PatchSource source, bool pre
 	if (node->custom != nullptr) {
 		return node->custom->source_press(ctx, st, source, previous_held, open);
 	}
-	if (node->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
+	if (is_patched(node->bind.param)) {
 		const uint8_t previous = st.walk.patching_param;
-		st.walk.patching_param = node->bind.param.index;
+		st.walk.patching_param = patched_byte(node->bind.param);
 		const SourcePress r = nodes::kSourceSelectionRegularItem.source_press(ctx, st, source, previous_held, open);
 		if (r != SourcePress::Open) {
 			st.walk.patching_param = previous;

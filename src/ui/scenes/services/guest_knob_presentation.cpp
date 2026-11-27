@@ -57,7 +57,8 @@ bool GuestKnobPresentation::suppress_value_popup(const ModTurn& turn) {
 	if (focused == nullptr || !focused->bind.param.valid()) {
 		return false;
 	}
-	return focused->bind.param.kind == turn.kind && static_cast<int32_t>(focused->bind.param.index) == turn.param_id;
+	const menu::AutomationParam pair = menu::legacy_pair_of(focused->bind.param);
+	return pair.kind == turn.kind && pair.id == turn.param_id;
 }
 
 void GuestKnobPresentation::show_value_popup(const ModTurn& turn, PatchSource source1, PatchSource source2,

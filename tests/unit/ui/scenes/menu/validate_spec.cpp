@@ -94,7 +94,7 @@ constexpr Node hooked(uint16_t name, ParamRef p, Hint h, RelevantFn rel) {
 
 constexpr uint16_t kEnumNames[] = {10, 11};
 
-constexpr Node good_param = hooked(101, ParamRef{params::Kind::PATCHED, 3}, Hint::Bar, always);
+constexpr Node good_param = hooked(101, sound_param(deluge::plugin::ParamId{3}), Hint::Bar, always);
 constexpr Node good_enum = enumeration(102, kEnumNames, zero, discard);
 constexpr const Node* kGoodKids[] = {&good_param, &good_enum};
 constexpr Node good_root = submenu(100, kGoodKids);
@@ -110,7 +110,7 @@ constexpr const Node* kGoodRoots[] = {&good_root};
 // Everything else is deliberately well formed: distinct names per parent, non-zero titles, a
 // valid `ParamRef` or a `get` on every value node, and a non-null `custom` on every custom node.
 
-constexpr Node hidden_child = hooked(201, ParamRef{params::Kind::PATCHED, 4}, Hint::Bar, never);
+constexpr Node hidden_child = hooked(201, sound_param(deluge::plugin::ParamId{4}), Hint::Bar, never);
 constexpr const Node* kEmptyKids[] = {&hidden_child};
 constexpr Node bad_empty = submenu(200, kEmptyKids);
 
@@ -139,7 +139,7 @@ constexpr Node bad_root = submenu(199, kBadKids);
 constexpr const Node* kBadRoots[] = {&bad_root};
 
 /// Never a child of anything: the dangling shortcut target.
-constexpr Node stray = param(999, ParamRef{params::Kind::PATCHED, 5});
+constexpr Node stray = param(999, sound_param(deluge::plugin::ParamId{5}));
 constexpr const Node* kStrayTable[] = {&stray};
 
 /// @brief One fake context: "a synth with an LPF". Nothing in this spec reads a model pointer --
@@ -219,7 +219,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 
 	it("flags a ParamRef whose index is outside its kind's parameter space", _ {
 		set_shortcut_table_for_test({}, 0, 0);
-		static constexpr Node bad = param(402, ParamRef{params::Kind::PATCHED, 254});
+		static constexpr Node bad = param(402, sound_param(deluge::plugin::ParamId{254}));
 		static constexpr const Node* kids[] = {&bad};
 		static constexpr Node root = submenu(403, kids);
 		static constexpr const Node* roots[] = {&root};
@@ -230,8 +230,8 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 	it("flags two siblings that share a name", _ {
 		set_shortcut_table_for_test({}, 0, 0);
 		// Hook nodes sharing a predicate show together wherever either does; target nodes need a context to tell.
-		static constexpr Node a = hooked(404, ParamRef{params::Kind::PATCHED, 1}, Hint::Knob, always);
-		static constexpr Node b = hooked(404, ParamRef{params::Kind::PATCHED, 2}, Hint::Knob, always);
+		static constexpr Node a = hooked(404, sound_param(deluge::plugin::ParamId{1}), Hint::Knob, always);
+		static constexpr Node b = hooked(404, sound_param(deluge::plugin::ParamId{2}), Hint::Knob, always);
 		static constexpr const Node* kids[] = {&a, &b};
 		static constexpr Node root = submenu(405, kids);
 		static constexpr const Node* roots[] = {&root};
@@ -241,7 +241,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 
 	it("flags a node with no title at all", _ {
 		set_shortcut_table_for_test({}, 0, 0);
-		static constexpr Node untitled = param(0, ParamRef{params::Kind::PATCHED, 1});
+		static constexpr Node untitled = param(0, sound_param(deluge::plugin::ParamId{1}));
 		static constexpr const Node* kids[] = {&untitled};
 		static constexpr Node root = submenu(406, kids);
 		static constexpr const Node* roots[] = {&root};
@@ -251,8 +251,8 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 
 	it("flags a range_dependent node that the expected list does not name, and vice versa", _ {
 		set_shortcut_table_for_test({}, 0, 0);
-		static constexpr Node flagged = with_range_dependent(param(407, ParamRef{params::Kind::PATCHED, 1}));
-		static constexpr Node plain = param(408, ParamRef{params::Kind::PATCHED, 2});
+		static constexpr Node flagged = with_range_dependent(param(407, sound_param(deluge::plugin::ParamId{1})));
+		static constexpr Node plain = param(408, sound_param(deluge::plugin::ParamId{2}));
 		static constexpr const Node* kids[] = {&flagged, &plain};
 		static constexpr Node root = submenu(409, kids);
 		static constexpr const Node* roots[] = {&root};
@@ -278,7 +278,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		static constexpr Node chain_target = enumeration(420, {}, zero, discard); // no names -> one issue
 		static constexpr const Node* targets[] = {&chain_target};
 		static constexpr Node source =
-		    with_select_chain(param(421, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar), chain_hook, targets);
+		    with_select_chain(param(421, sound_param(deluge::plugin::ParamId{1}), Hint::Bar), chain_hook, targets);
 		static constexpr const Node* kids[] = {&source};
 		static constexpr Node root = submenu(422, kids);
 		static constexpr const Node* roots[] = {&root};
@@ -293,12 +293,12 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		// `Flag::ChainTargetsMismatch`. A hook with no targets is a page nothing can number; targets
 		// with no hook is a page nothing can open.
 		set_shortcut_table_for_test({}, 0, 0);
-		static constexpr Node target = param(430, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar);
+		static constexpr Node target = param(430, sound_param(deluge::plugin::ParamId{1}), Hint::Bar);
 		static constexpr const Node* targets[] = {&target};
 
-		static Node hook_only = param(431, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar);
+		static Node hook_only = param(431, sound_param(deluge::plugin::ParamId{1}), Hint::Bar);
 		hook_only.select_chain = chain_hook; // no `chain_targets`
-		static Node targets_only = param(432, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar);
+		static Node targets_only = param(432, sound_param(deluge::plugin::ParamId{1}), Hint::Bar);
 		targets_only.chain_targets = targets; // no `select_chain`
 
 		static const Node* kids[] = {&hook_only, &targets_only};
@@ -317,7 +317,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 
 	it("flags a half-precision binding the expected list does not name", _ {
 		set_shortcut_table_for_test({}, 0, 0);
-		static constexpr Node half = param(410, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar, nullptr, 0,
+		static constexpr Node half = param(410, sound_param(deluge::plugin::ParamId{1}), Hint::Bar, nullptr, 0,
 		                                   Scaling::HalfPrecision);
 		static constexpr const Node* kids[] = {&half};
 		static constexpr Node root = submenu(411, kids);
@@ -336,7 +336,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		// the value lives.
 		set_shortcut_table_for_test({}, 0, 0);
 		static constexpr Node no_get =
-		    with_adjust(param(440, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar), discard_offset);
+		    with_adjust(param(440, sound_param(deluge::plugin::ParamId{1}), Hint::Bar), discard_offset);
 		static constexpr const Node* kids[] = {&no_get};
 		static constexpr Node root = submenu(441, kids);
 		static constexpr const Node* roots[] = {&root};

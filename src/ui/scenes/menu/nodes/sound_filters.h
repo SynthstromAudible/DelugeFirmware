@@ -68,23 +68,17 @@ inline constexpr Node lpf_mode = with_affect_entire(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_MODE), Kind::Enum,
                             {.kind = deluge::ui::scenes::bind::Target::Kind::EFFECT, .path = "lpfMode"}),
                sid(deluge::l10n::String::STRING_FOR_LPF_MODE)));
-inline constexpr Node lpf_freq = with_column_draw(
-    with_patch_chain(
-        param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
-              {deluge::plugin::ParamKind::PATCHED,
-               deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kLpfFrequency)},
-              Hint::Bar, param_shows::kHasLpf, sid(deluge::l10n::String::STRING_FOR_LPF_FREQUENCY))),
-    lpf_graph_draw);
-inline constexpr Node lpf_res = with_patch_chain(
-    param(sid(deluge::l10n::String::STRING_FOR_RESONANCE),
-          {deluge::plugin::ParamKind::PATCHED,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kLpfResonance)},
-          Hint::Bar, param_shows::kHasLpf, sid(deluge::l10n::String::STRING_FOR_LPF_RESONANCE)));
+inline constexpr Node lpf_freq =
+    with_column_draw(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
+                                            sound_param(deluge::instruments::classic::param::kLpfFrequency), Hint::Bar,
+                                            param_shows::kHasLpf, sid(deluge::l10n::String::STRING_FOR_LPF_FREQUENCY))),
+                     lpf_graph_draw);
+inline constexpr Node lpf_res = with_patch_chain(param(
+    sid(deluge::l10n::String::STRING_FOR_RESONANCE), sound_param(deluge::instruments::classic::param::kLpfResonance),
+    Hint::Bar, param_shows::kHasLpf, sid(deluge::l10n::String::STRING_FOR_LPF_RESONANCE)));
 inline constexpr Node lpf_morph = with_name_text(
     with_value_text(with_column_draw(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_LPF_MORPH),
-                                                            {deluge::plugin::ParamKind::PATCHED,
-                                                             deluge::instruments::classic::runtime_index(
-                                                                 deluge::instruments::classic::param::kLpfMorph)},
+                                                            sound_param(deluge::instruments::classic::param::kLpfMorph),
                                                             Hint::Bar, param_shows::kHasLpf)),
                                      lpf_morph_draw),
                     lpf_morph_text),
@@ -96,27 +90,22 @@ inline constexpr Node hpf_mode = with_affect_entire(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_MODE), Kind::Enum,
                             {.kind = deluge::ui::scenes::bind::Target::Kind::EFFECT, .path = "hpfMode"}),
                sid(deluge::l10n::String::STRING_FOR_HPF_MODE)));
-inline constexpr Node hpf_freq = with_column_draw(
-    with_patch_chain(
-        param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
-              {deluge::plugin::ParamKind::PATCHED,
-               deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kHpfFrequency)},
-              Hint::Bar, param_shows::kHasHpf, sid(deluge::l10n::String::STRING_FOR_HPF_FREQUENCY))),
-    hpf_graph_draw);
-inline constexpr Node hpf_res = with_patch_chain(
-    param(sid(deluge::l10n::String::STRING_FOR_RESONANCE),
-          {deluge::plugin::ParamKind::PATCHED,
-           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kHpfResonance)},
-          Hint::Bar, param_shows::kHasHpf, sid(deluge::l10n::String::STRING_FOR_HPF_RESONANCE)));
+inline constexpr Node hpf_freq =
+    with_column_draw(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
+                                            sound_param(deluge::instruments::classic::param::kHpfFrequency), Hint::Bar,
+                                            param_shows::kHasHpf, sid(deluge::l10n::String::STRING_FOR_HPF_FREQUENCY))),
+                     hpf_graph_draw);
+inline constexpr Node hpf_res = with_patch_chain(param(
+    sid(deluge::l10n::String::STRING_FOR_RESONANCE), sound_param(deluge::instruments::classic::param::kHpfResonance),
+    Hint::Bar, param_shows::kHasHpf, sid(deluge::l10n::String::STRING_FOR_HPF_RESONANCE)));
 inline constexpr Node hpf_morph = with_name_text(
     with_reverse_in_horizontal(
-        with_value_text(with_column_draw(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_HPF_MORPH),
-                                                                {deluge::plugin::ParamKind::PATCHED,
-                                                                 deluge::instruments::classic::runtime_index(
-                                                                     deluge::instruments::classic::param::kHpfMorph)},
-                                                                Hint::Bar, param_shows::kHasHpf)),
-                                         hpf_morph_draw),
-                        hpf_morph_text),
+        with_value_text(
+            with_column_draw(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_HPF_MORPH),
+                                                    sound_param(deluge::instruments::classic::param::kHpfMorph),
+                                                    Hint::Bar, param_shows::kHasHpf)),
+                             hpf_morph_draw),
+            hpf_morph_text),
         hpf_morph_reversed),
     hpf_morph_text);
 inline constexpr const Node* kHpfChildren[] = {&hpf_mode, &hpf_freq, &hpf_res, &hpf_morph};

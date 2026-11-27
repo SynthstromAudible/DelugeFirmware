@@ -449,9 +449,10 @@ struct RouteRig {
 // horizontal-page forwarding: the menu's own focused *column*, not the page node, is what the same-param guard has to
 // compare against.
 namespace mod_knobs_spec_nodes {
-inline constexpr deluge::ui::scenes::menu::Node res_col = deluge::ui::scenes::menu::param(
-    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESONANCE),
-    {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_RESONANCE});
+inline constexpr deluge::ui::scenes::menu::Node res_col =
+    deluge::ui::scenes::menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESONANCE),
+                                    deluge::ui::scenes::menu::sound_param(deluge::plugin::ParamId{
+                                        static_cast<uint32_t>(deluge::modulation::params::LOCAL_LPF_RESONANCE)}));
 inline constexpr const deluge::ui::scenes::menu::Node* kResPageChildren[] = {&res_col};
 inline constexpr deluge::ui::scenes::menu::Node res_page =
     deluge::ui::scenes::menu::submenu(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LPF), kResPageChildren,

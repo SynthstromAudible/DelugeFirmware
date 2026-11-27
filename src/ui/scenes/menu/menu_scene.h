@@ -73,6 +73,10 @@ struct AutomationParam {
 	[[nodiscard]] constexpr bool operator==(const AutomationParam&) const = default;
 };
 
+/// @brief @p p as the automation view and the popup number it: its collection's kind and its index there. Replaced by
+///        the plugin param the knob path and the automation item carry.
+[[nodiscard]] AutomationParam legacy_pair_of(const ParamRef& p);
+
 /// @brief The `SceneKind` this scene is registered under: `FirstApp` (`registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kMenuSceneKind = deluge::ui::shell::SceneKind::FirstApp;
 

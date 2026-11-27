@@ -253,9 +253,11 @@ bool reachable_by_children(const Node* target) {
 bool raises_reverb(const Node& node) {
 	namespace params = deluge::modulation::params;
 	const auto& p = node.bind.param;
-	return ((p.kind == params::Kind::UNPATCHED_SOUND || p.kind == params::Kind::UNPATCHED_GLOBAL)
-	        && p.index == params::UNPATCHED_SIDECHAIN_SHAPE)
-	       || (p.kind == params::Kind::UNPATCHED_GLOBAL && p.index == params::UNPATCHED_SIDECHAIN_VOLUME);
+	return ((deluge::ui::scenes::spec::runtime_of(p).kind == params::Kind::UNPATCHED_SOUND
+	         || deluge::ui::scenes::spec::runtime_of(p).kind == params::Kind::UNPATCHED_GLOBAL)
+	        && deluge::ui::scenes::spec::runtime_of(p).index == params::UNPATCHED_SIDECHAIN_SHAPE)
+	       || (deluge::ui::scenes::spec::runtime_of(p).kind == params::Kind::UNPATCHED_GLOBAL
+	           && deluge::ui::scenes::spec::runtime_of(p).index == params::UNPATCHED_SIDECHAIN_VOLUME);
 }
 
 } // namespace
@@ -311,7 +313,7 @@ describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 			}
 			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
 			const std::string at = e.path + " " + text_of(e.node->name);
-			expect(at + " index " + std::to_string(e.node->bind.param.index))
+			expect(at + " index " + std::to_string(spec::runtime_of(e.node->bind.param).index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
 			for (const char* fixture : {"synth", "kit row"}) {
 				const std::optional<int32_t> kind = spec::int_of(table().find(e.path, std::string{"param_kind@"} + fixture));
@@ -324,13 +326,13 @@ describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 				const bool unpatched = want == deluge::modulation::params::Kind::UNPATCHED_SOUND
 				                       || want == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 				if (unpatched) {
-					expect(e.node->bind.param.kind).to_satisfy([](auto kind) {
+					expect(spec::runtime_of(e.node->bind.param).kind).to_satisfy([](auto kind) {
 						using deluge::modulation::params::Kind;
 						return kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL;
 					});
 				}
 				else {
-					expect(e.node->bind.param.kind).to_equal(want);
+					expect(spec::runtime_of(e.node->bind.param).kind).to_equal(want);
 				}
 			}
 			compared++;
@@ -851,7 +853,7 @@ describe tables_2_patch_cables("scenes::menu sound-editor tables: the patch-cabl
 			for (const Node* t : n->chain_targets) {
 				stack.push_back(t);
 			}
-			const bool is_patched = n->bind.param.kind == deluge::modulation::params::Kind::PATCHED;
+			const bool is_patched = spec::runtime_of(n->bind.param).kind == deluge::modulation::params::Kind::PATCHED;
 			const bool to_picker = chain_targets_contain(*n, &nodes::source_selection_regular);
 			if (is_patched) {
 				patched++;

@@ -20,6 +20,7 @@
 
 #include "ui/scenes/menu/shortcut_overlay.h"
 
+#include "instruments/classic/cables.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/menu_core.h"
 #include "ui/scenes/menu/nodes/dx.h"
@@ -142,8 +143,8 @@ void paint_source_column(deluge::ui::widgets::grid::GridFrame& f, const MenuCont
 		return;
 	}
 	int32_t param = 0;
-	if (focused->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
-		param = focused->bind.param.index;
+	if (is_patched(focused->bind.param)) {
+		param = patched_byte(focused->bind.param);
 	}
 	else if (focused->custom != nullptr && focused->custom->is_patch_cable()) {
 		param = st.walk.patching_param;
@@ -152,11 +153,16 @@ void paint_source_column(deluge::ui::widgets::grid::GridFrame& f, const MenuCont
 		return;
 	}
 	const bool is_volume =
-	    param == deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolumePostFX)
+	    param
+	        == deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolumePostFX)
+	               .param_index()
 	    || param
-	           == deluge::instruments::classic::runtime_index(
-	               deluge::instruments::classic::param::kVolumePostReverbSend)
-	    || param == deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolume);
+	           == deluge::instruments::classic::cable_target_of(
+	                  deluge::instruments::classic::param::kVolumePostReverbSend)
+	                  .param_index()
+	    || param
+	           == deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolume)
+	                  .param_index();
 	const auto allowed = [&](PatchSource source, bool edits_range) {
 		if (source >= PatchSource::NONE) {
 			return false;
@@ -165,20 +171,24 @@ void paint_source_column(deluge::ui::widgets::grid::GridFrame& f, const MenuCont
 			// `PatchCableStrength::checkPermissionToBeginSession`
 			// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) for a cable's range.
 			return source < PatchSource::ENVELOPE_0
-			       || param < deluge::instruments::classic::runtime_index(
-			              deluge::instruments::classic::kFirstGlobalParam);
+			       || param < deluge::instruments::classic::cable_target_of(
+			                      deluge::instruments::classic::kFirstGlobalParam)
+			                      .param_index();
 		}
 		// The volume triple takes the destination the source can reach.
 		if (is_volume) {
 			return patching::source_may_patch(
 			           ctx, source,
-			           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolumePostFX))
+			           deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolumePostFX)
+			               .param_index())
 			       || patching::source_may_patch(
 			           ctx, source,
-			           deluge::instruments::classic::runtime_index(deluge::instruments::classic::param::kVolume))
+			           deluge::instruments::classic::cable_target_of(deluge::instruments::classic::param::kVolume)
+			               .param_index())
 			       || patching::source_may_patch(ctx, source,
-			                                     deluge::instruments::classic::runtime_index(
-			                                         deluge::instruments::classic::param::kVolumePostReverbSend));
+			                                     deluge::instruments::classic::cable_target_of(
+			                                         deluge::instruments::classic::param::kVolumePostReverbSend)
+			                                         .param_index());
 		}
 		return patching::source_may_patch(ctx, source, param);
 	};

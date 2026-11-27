@@ -137,13 +137,35 @@ using IntRange = deluge::ui::widgets::oled::Range;
 ///     `origin/main:src/deluge/gui/menu_item/unpatched_param/pan.h` `Pan::getMaxValue`).
 enum class Scaling : uint8_t { Standard, HalfPrecision, Pan };
 
-/// @brief Which model parameter a `Binding` reads and writes through `ModelStack`, or an invalid
-///        (unset) reference for a `Binding` driven entirely by `get`/`set` instead.
+/// @brief Which param a `Binding` names for learn and the pads: its owner plugin's table and its id there; invalid (no
+///        id) for a `Binding` driven entirely by `get`/`set`.
 struct ParamRef {
-	deluge::plugin::ParamKind kind = deluge::plugin::ParamKind::NONE;
-	uint8_t index = 255;
-	constexpr bool valid() const { return kind != deluge::plugin::ParamKind::NONE; }
+	deluge::ui::scenes::bind::ParamTable table = deluge::ui::scenes::bind::ParamTable::SOUND;
+	std::optional<deluge::plugin::ParamId> id{};
+	constexpr bool valid() const { return id.has_value(); }
 };
+
+/// @brief The sound's param @p id: a `deluge::instruments::classic::param` constant.
+constexpr ParamRef sound_param(deluge::plugin::ParamId id) {
+	return {.table = deluge::ui::scenes::bind::ParamTable::SOUND, .id = id};
+}
+
+/// @brief The chain's param @p id: a `deluge::host::chains::param` constant.
+constexpr ParamRef chain_param(deluge::plugin::ParamId id) {
+	return {.table = deluge::ui::scenes::bind::ParamTable::CHAIN, .id = id};
+}
+
+/// @brief Whether @p p is one of a sound's patched params: the ones a cable reaches and a source pad patches.
+constexpr bool is_patched(ParamRef p) {
+	return p.table == deluge::ui::scenes::bind::ParamTable::SOUND && p.id
+	       && deluge::instruments::classic::is_patched(*p.id);
+}
+
+/// @brief The byte a cable's word names patched param @p p by (`synth::CableTarget`): a patched param's id.
+/// @param p A patched param (`is_patched`).
+constexpr uint8_t patched_byte(ParamRef p) {
+	return static_cast<uint8_t>(p.id->value);
+}
 
 /// @brief Forward declared only -- see the file-level note. Defined in `context.h` (a later task).
 struct MenuContext;
@@ -1212,13 +1234,12 @@ constexpr Node with_affect_entire(Node n) {
 ///        UNPATCHED_GLOBAL bindings whose param is what they edit), and the items marked with `with_affect_entire`.
 ///        The audio clip's transpose only learns its global param: its legacy item is no `UnpatchedParam`.
 constexpr bool node_uses_affect_entire(const Node& n) {
-	using deluge::plugin::ParamKind;
+	using deluge::ui::scenes::bind::ParamTable;
 	const bool edits_its_param =
 	    n.bind.get == nullptr
 	    && (!n.bind.target.valid() || n.bind.target.kind == deluge::ui::scenes::bind::Target::Kind::PARAM);
-	return n.uses_affect_entire || n.bind.param.kind == ParamKind::PATCHED
-	       || n.bind.param.kind == ParamKind::UNPATCHED_SOUND
-	       || (n.bind.param.kind == ParamKind::UNPATCHED_GLOBAL && edits_its_param);
+	return n.uses_affect_entire || (n.bind.param.valid() && n.bind.param.table == ParamTable::SOUND)
+	       || (n.bind.param.valid() && n.bind.param.table == ParamTable::CHAIN && edits_its_param);
 }
 
 /// @brief `n` with `option_list_column` set.
@@ -1447,28 +1468,12 @@ constexpr Node with_permitted(Node n, PermittedFn fn) {
 /// @brief The id @p p's param has in its owner's engine's table: a sound's (patched or unpatched) in the Deluge
 ///        instrument's, a global effectable's in its own.
 constexpr deluge::plugin::ParamId param_id_of(ParamRef p) {
-	using deluge::plugin::ParamKind;
-	switch (p.kind) {
-	case ParamKind::PATCHED:
-		return deluge::instruments::classic::param_id({deluge::instruments::classic::RuntimeSet::PATCHED, p.index});
-	case ParamKind::UNPATCHED_SOUND:
-		return deluge::instruments::classic::param_id({deluge::instruments::classic::RuntimeSet::UNPATCHED, p.index});
-	case ParamKind::UNPATCHED_GLOBAL:
-		return deluge::host::chains::param_id(p.index);
-	case ParamKind::NONE:
-	case ParamKind::STATIC:
-	case ParamKind::MIDI:
-	case ParamKind::PATCH_CABLE:
-	case ParamKind::EXPRESSION:
-		break;
-	}
-	return {};
+	return p.id.value_or(deluge::plugin::ParamId{});
 }
 
 /// @brief The table @ref param_id_of names @p p's param in.
 constexpr deluge::ui::scenes::bind::ParamTable param_table_of(ParamRef p) {
-	return p.kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL ? deluge::ui::scenes::bind::ParamTable::CHAIN
-	                                                             : deluge::ui::scenes::bind::ParamTable::SOUND;
+	return p.table;
 }
 
 /// @brief Where a param node shows, beyond where its owner holds the param: conditions over the owner's setting rows,
