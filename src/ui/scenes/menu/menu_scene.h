@@ -63,19 +63,10 @@
 
 namespace deluge::ui::scenes::menu {
 
-/// @brief The param an automation item edits, as the automation view names its selection: `Clip::lastSelectedParamKind`
-///        and `lastSelectedParamID` (`MenuItem::getParamKind` and `getParamIndex` on legacy's item). A cable's kind is
-///        `PATCH_CABLE` and its id the cable's descriptor word, as `PatchCableStrength::getModelStack`
-///        (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) addresses it.
-struct AutomationParam {
-	deluge::plugin::ParamKind kind;
-	int32_t id;
-	[[nodiscard]] constexpr bool operator==(const AutomationParam&) const = default;
-};
-
-/// @brief @p p as the automation view and the popup number it: its collection's kind and its index there. Replaced by
-///        the plugin param the knob path and the automation item carry.
-[[nodiscard]] AutomationParam legacy_pair_of(const ParamRef& p);
+/// @brief The param an automation item edits, in its plugin: a cable's is its depth id, the cable
+///        `PatchCableStrength::getModelStack` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`)
+///        addresses. The automation view's selection names it in the runtime's numbering, through the bridge.
+using AutomationParam = deluge::project::PluginParam;
 
 /// @brief The `SceneKind` this scene is registered under: `FirstApp` (`registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kMenuSceneKind = deluge::ui::shell::SceneKind::FirstApp;

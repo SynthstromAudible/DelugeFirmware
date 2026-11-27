@@ -39,6 +39,7 @@
 #include "ui/scenes/recorder/recorder_scene.h" // on_resume: a refused recorder push
 
 #include "base/notify/notice_queue.h"
+#include "instruments/classic/cables.h"
 #include "ui/shell/input_lowering.h" // claim_covers -- MenuScene::owns
 
 #include "base/notify/dirty_set.h"
@@ -1363,24 +1364,18 @@ std::optional<AutomationParam> automation_param(const Node& item, const MenuCont
 		if (!item.custom->is_automation_item()) {
 			return std::nullopt;
 		}
-		return AutomationParam{.kind = deluge::plugin::ParamKind::PATCH_CABLE,
-		                       .id = static_cast<int32_t>(item.custom->learn_descriptor(ctx, state).word)};
+		const deluge::plugin::ParamId depth =
+		    deluge::instruments::classic::cable_depth_of_word(item.custom->learn_descriptor(ctx, state).word);
+		return AutomationParam{.plugin = deluge::project::OwnerPlugin::INSTRUMENT,
+		                       .target = deluge::project::engine_target(depth.value)};
 	}
 	if (!item.bind.param.valid()) {
 		return std::nullopt;
 	}
-	return legacy_pair_of(item.bind.param);
-}
-
-AutomationParam legacy_pair_of(const ParamRef& p) {
-	if (!p.id) {
-		return {};
-	}
-	const deluge::instruments::classic::RuntimeParam runtime =
-	    p.table == deluge::ui::scenes::bind::ParamTable::CHAIN
-	        ? deluge::instruments::classic::chain_runtime_param_of(*p.id)
-	        : deluge::instruments::classic::runtime_param_of(*p.id);
-	return {.kind = runtime.kind, .id = runtime.index};
+	return AutomationParam{.plugin = item.bind.param.table == deluge::ui::scenes::bind::ParamTable::CHAIN
+	                                     ? deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE
+	                                     : deluge::project::OwnerPlugin::INSTRUMENT,
+	                       .target = deluge::project::engine_target(param_id_of(item.bind.param).value)};
 }
 
 std::optional<deluge::project::ParamAddress> automation_address(const Node& item, const MenuContext& ctx,

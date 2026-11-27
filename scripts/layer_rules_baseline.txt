@@ -107,5 +107,3 @@ src/deluge/storage/startup_song.cpp	model-calls-ui	1
 src/deluge/util/functions.h	model-calls-ui	1
 src/deluge/util/param_functions.cpp	no-param-kind-outside-runtime	2
 src/host/chains/params.h	no-param-kind-outside-runtime	1
-src/ui/scenes/menu/menu_scene.cpp	no-param-kind-outside-runtime	1
-src/ui/scenes/menu/menu_scene.h	no-param-kind-outside-runtime	1

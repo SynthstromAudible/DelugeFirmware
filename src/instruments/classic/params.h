@@ -586,34 +586,6 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	return id == param::kRhythm;
 }
 
-/// @brief A param in the runtime's numbering: its collection's kind and its index there.
-struct RuntimeParam {
-	plugin::ParamKind kind{plugin::ParamKind::NONE};
-	uint8_t index{0};
-	[[nodiscard]] constexpr bool operator==(const RuntimeParam&) const = default;
-};
-
-/// @brief Where the runtime keeps the instrument's param @p id: its patched or unpatched set and the index there.
-/// @param id A param id of the instrument.
-/// @return The runtime param; NONE for an id of no block.
-[[nodiscard]] constexpr RuntimeParam runtime_param_of(plugin::ParamId id) {
-	const std::optional<RuntimeSlot> slot = runtime_slot(id);
-	if (!slot) {
-		return {};
-	}
-	return {.kind = slot->set == RuntimeSet::PATCHED ? plugin::ParamKind::PATCHED : plugin::ParamKind::UNPATCHED_SOUND,
-	        .index = slot->index};
-}
-
-/// @brief Where the runtime keeps the host chain's param @p id: a global effectable's unpatched set and the index
-/// there.
-/// @param id A param id of the host chain.
-/// @return The runtime param; NONE for an id of no block.
-[[nodiscard]] constexpr RuntimeParam chain_runtime_param_of(plugin::ParamId id) {
-	const std::optional<uint8_t> index = host::chains::find_runtime_index(id);
-	return index ? RuntimeParam{.kind = plugin::ParamKind::UNPATCHED_GLOBAL, .index = *index} : RuntimeParam{};
-}
-
 /// @brief Whether a plugin's param table has the param @p id: the global effectable's host-chain table for it, the
 /// instrument's table for any other plugin.
 /// @param plugin The plugin whose params are asked.
