@@ -1636,13 +1636,15 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (Buttons::isShiftButtonPressed()) {
-				String filePath;
-				Error error = getCurrentFilePath(&filePath);
-				if (error != Error::NONE) {
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
-				}
 				if (favouritesManager.isEmpty(x)) {
-					if (!getCurrentFileItem()->isFolder) {
+					// No file item when the folder is empty - getCurrentFilePath() needs one too
+					FileItem* currentFileItem = getCurrentFileItem();
+					if (currentFileItem && !currentFileItem->isFolder) {
+						String filePath;
+						Error error = getCurrentFilePath(&filePath);
+						if (error != Error::NONE) {
+							display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
+						}
 						favouritesManager.setFavourite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
 						favouritesChanged();
 					}
