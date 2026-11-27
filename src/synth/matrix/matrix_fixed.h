@@ -21,8 +21,8 @@
 #include "dsp/core/fixed_point_neon.h"
 #include "dsp/fixed/curves/param_curve.h"
 #include "synth/matrix/descriptors.h"
+#include "synth/matrix/param_functions.h" // getFinalParameterValueExpWithDumbEnvelopeHack
 #include "synth/modulation/cable_depth.h" // apply_range
-#include "util/param_functions.h"         // getFinalParameterValueExpWithDumbEnvelopeHack
 
 #include <argon.hpp>
 #include <cstdint>

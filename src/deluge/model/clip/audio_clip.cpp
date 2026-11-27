@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/fx/chain_codec.h"
 #include "model/fx/chain_params.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/sample/clip_increment.h"
 #include "modulation/params/staged_repeat.h"
 #include "project/doc_audio_clip.h"
@@ -1309,9 +1310,9 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	if (onAutomationClipView) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
-	if (lastSelectedParamID != params::kNoParamID) {
-		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+	if (const std::optional<deluge::bridge::RuntimeParam> selected = deluge::bridge::selectionPairOf(selectedParam)) {
+		writer.writeAttribute(deluge::bridge::kSelectionIdAttribute, selected->index);
+		writer.writeAttribute(deluge::bridge::kSelectionKindAttribute, util::to_underlying(selected->kind));
 		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		writer.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);

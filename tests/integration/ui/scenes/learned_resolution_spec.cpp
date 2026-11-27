@@ -26,6 +26,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -403,12 +404,9 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		};
 		const auto [lpfId, lpfKind] = lane(lpf);
 		const auto [volId, volKind] = lane(songVolume);
-		f.clip->lastSelectedParamID = lpfId;
-		f.clip->lastSelectedParamKind = lpfKind;
-		other.clip->lastSelectedParamID = lpfId;
-		other.clip->lastSelectedParamKind = lpfKind;
-		f.song->lastSelectedParamID = volId;
-		f.song->lastSelectedParamKind = volKind;
+		f.clip->selectedParam = deluge::bridge::pluginParamOf(lpfKind, lpfId);
+		other.clip->selectedParam = deluge::bridge::pluginParamOf(lpfKind, lpfId);
+		f.song->selectedParam = deluge::bridge::pluginParamOf(volKind, volId);
 		// What a follow does: the editor's grid marked for rendering, the performance display drawn.
 		struct Seen {
 			bool grid;

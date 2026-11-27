@@ -24,6 +24,7 @@
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
 #include "project/controller_mapping.h"
+#include "project/param_address.h"
 #include "storage/audio/audio_load_context.h"
 #include "storage/audio/sample_load_walk.h"
 #include "util/c_string.h"
@@ -253,11 +254,18 @@ public:
 	void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	bool recordingInArrangement;
 
-	/// @brief The param @p paramID of kind @p paramKind on @p clip. @p forEdit states that the caller writes it: a
-	/// cable depth's missing cable is then created through the mod matrix; a read gets a null autoParam for it instead.
+	/// @brief The param @p target names on @p clip, in this output's plugin's numbering.
+	/// @param modelStack   The clip's model stack.
+	/// @param clip         The clip whose lane it is.
+	/// @param target       The param.
+	/// @param affectEntire For a kit, whether the kit's own params are meant rather than its selected row's.
+	/// @param useMenuStack Whether the sound menu's owner and param manager stand in for the clip's.
+	/// @param forEdit      Whether the caller writes it: a cable depth's missing cable is then created through the mod
+	///                     matrix; a read gets a null autoParam for it instead.
+	/// @return The lane, or nullptr when the output has no such param.
 	virtual ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                        int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                        bool affectEntire, bool useMenuStack, bool forEdit) = 0;
+	                                                        deluge::project::ParamTarget target, bool affectEntire,
+	                                                        bool useMenuStack, bool forEdit) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
 	bool hasRecorder() { return recorder; }
 	bool shouldRenderInSong() { return !(recorderIsEchoing); }

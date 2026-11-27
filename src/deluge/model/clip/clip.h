@@ -29,7 +29,9 @@
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "project/doc_clip.h"
+#include "project/owner_plugin.h"
 #include "util/c_string.h"
+
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -267,9 +269,8 @@ public:
 	bool onAutomationClipView; // new to save the view that you are currently in
 	                           //(e.g. if you leave clip and want to come back where you left off)
 
-	/// last selected Parameter to be edited in Automation Instrument Clip View
-	int32_t lastSelectedParamID;
-	deluge::modulation::params::Kind lastSelectedParamKind;
+	/// The param the automation view edits, by its owner's plugin and target; nullopt when none is.
+	std::optional<deluge::project::PluginParam> selectedParam;
 	int32_t lastSelectedParamShortcutX;
 	int32_t lastSelectedParamShortcutY;
 	int32_t lastSelectedParamArrayPosition;

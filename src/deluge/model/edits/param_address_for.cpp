@@ -1,4 +1,5 @@
 #include "model/edits/param_address_for.h"
+#include "model/project_bridge/param_selection.h"
 
 #include "base/panic.h"        // FREEZE_WITH_ERROR
 #include "definitions_cxx.hpp" // ALPHA_OR_BETA_VERSION
@@ -199,7 +200,7 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	// assignment into the slot and the rebind, so it sees the owner wholly before or wholly after. The render itself
 	// never relocates (ModelStackWithAutoParam::doc()).
 	ParamCollection* pc = modelStack.paramCollection;
-	const bool isCable = modelStack.kind == deluge::modulation::params::Kind::PATCH_CABLE;
+	const bool isCable = deluge::bridge::isCableCollection(modelStack.paramCollection);
 	const bool isMidi = !isCable && address->space == deluge::project::ParamSpace::MIDI_CC;
 	auto* midi = isMidi ? static_cast<MIDIParamCollection*>(pc) : nullptr;
 	auto* set = (!isCable && !isMidi) ? static_cast<ParamSet*>(pc) : nullptr;

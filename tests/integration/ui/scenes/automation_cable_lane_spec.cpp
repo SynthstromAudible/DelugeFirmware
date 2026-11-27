@@ -12,6 +12,7 @@
 #include "gui/ui/ui.h" // currentUIMode, UI_MODE_NONE
 #include "gui/views/automation_view.h"
 #include "model/clip/instrument_clip.h"
+#include "model/project_bridge/param_selection.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "synth/modulation/cable.h"
@@ -71,16 +72,14 @@ void render(Image& image) {
 /// The automation view on @p clip's overview, nothing selected.
 void on_overview(InstrumentClip* clip) {
 	automationView.onArrangerView = false;
-	clip->lastSelectedParamKind = params::Kind::NONE;
-	clip->lastSelectedParamID = params::kNoParamID;
+	clip->selectedParam.reset();
 	currentUIMode = UI_MODE_NONE;
 }
 
 /// The automation view on @p clip's vibrato cable, as its overview shortcut selects it.
 void on_vibrato(InstrumentClip* clip) {
 	on_overview(clip);
-	clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
-	clip->lastSelectedParamID = kVibratoCable;
+	clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCH_CABLE, kVibratoCable);
 	clip->lastSelectedPatchSource = PatchSource::LFO_GLOBAL_1;
 }
 

@@ -35,6 +35,7 @@
 #include "gui/views/arranger_view.h"
 #include "hid/led/indicator_leds.h"
 #include "model/instrument/kit.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "processing/sound/sound_drum.h"
 
@@ -558,8 +559,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
-		fx.clip->lastSelectedParamKind = params::Kind::PATCHED;
-		fx.clip->lastSelectedParamID = params::LOCAL_LPF_FREQ;
+		fx.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCHED, params::LOCAL_LPF_FREQ);
 		open_menu_node(*fx.song, fx.clip, param_node);
 		setRootUILowLevel(&automationView);
 		currentUIMode = UI_MODE_NONE;
@@ -573,8 +573,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
-		fx.clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
-		fx.clip->lastSelectedParamID = params::UNPATCHED_BASS;
+		fx.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS);
 		open_menu_node(*fx.song, fx.clip, param_node);
 		setRootUILowLevel(&automationView);
 		currentUIMode = UI_MODE_NONE;
@@ -589,8 +588,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
-		fx.clip->lastSelectedParamKind = params::Kind::PATCHED;
-		fx.clip->lastSelectedParamID = params::LOCAL_LPF_FREQ;
+		fx.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCHED, params::LOCAL_LPF_FREQ);
 		expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
 		expect(menu_scene().focused()).to_equal(&nodes::filters_group);
 		currentUIMode = UI_MODE_NONE;
@@ -605,8 +603,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
-		fx.clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
-		fx.clip->lastSelectedParamID = kVibratoCableId;
+		fx.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCH_CABLE, kVibratoCableId);
 		expect(open_shortcut_over_automation(fx.clip, 6, 2)).to_be_true();
 		expect(menu_scene().focused_value()).to_equal(&nodes::vibrato);
 		currentUIMode = UI_MODE_NONE;
@@ -618,9 +615,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
-		fx.clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
-		fx.clip->lastSelectedParamID = static_cast<int32_t>(
-		    deluge::synth::CableTarget::depth_of(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_2).word);
+		fx.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCH_CABLE, static_cast<int32_t>(
+		    deluge::synth::CableTarget::depth_of(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_2).word));
 		expect(open_shortcut_over_automation(fx.clip, 6, 2)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
 		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Exit);
@@ -634,8 +630,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
-		fx.clip->lastSelectedParamKind = params::Kind::PATCHED;
-		fx.clip->lastSelectedParamID = params::LOCAL_LPF_FREQ;
+		fx.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCHED, params::LOCAL_LPF_FREQ);
 		expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
 		ShiftHeld shift;
@@ -653,8 +648,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
-		fx.clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
-		fx.clip->lastSelectedParamID = params::UNPATCHED_BASS;
+		fx.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS);
 		expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
 		ShiftHeld shift;

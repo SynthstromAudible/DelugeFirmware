@@ -166,8 +166,8 @@ public:
 	bool appendCCName(etl::istring& buf, int32_t cc);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack, bool forEdit) override;
+	                                                deluge::project::ParamTarget target, bool affectEntire,
+	                                                bool useMenuStack, bool forEdit) override;
 
 	/// @brief A CC lane of this instrument's clip moved from @p oldValue to @p newValue: sends CC @p cc on the
 	///        instrument's channel when its 7-bit value changed.

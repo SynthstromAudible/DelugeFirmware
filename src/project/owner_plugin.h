@@ -37,4 +37,9 @@ struct PluginParam {
 	[[nodiscard]] constexpr bool operator==(const PluginParam&) const = default;
 };
 
+/// @brief A MIDI clip's lane for CC @p cc. A MIDI clip's params are in no plugin's table, so the plugin is the default.
+[[nodiscard]] constexpr PluginParam midi_cc_param(int32_t cc) {
+	return {.target = {.space = ParamSpace::MIDI_CC, .id = deluge::plugin::ParamId{static_cast<uint32_t>(cc)}}};
+}
+
 } // namespace deluge::project

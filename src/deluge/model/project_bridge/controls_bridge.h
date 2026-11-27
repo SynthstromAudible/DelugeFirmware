@@ -21,6 +21,7 @@
 #include "instruments/classic/pages.h"
 #include "model/fx/effects_owner.h"
 #include "model/lane_owner.h"
+#include "model/project_bridge/owner_plugin.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
 #include "plugin/types/param.h"
@@ -46,6 +47,14 @@ namespace deluge::bridge {
 /// @return The target.
 [[nodiscard]] deluge::project::ParamTarget controlTargetOf(const deluge::modulation::KnobTarget& knob,
                                                            deluge::modulation::params::Kind unpatchedKind);
+
+/// @brief A knob's target as the model's control names it, for an owner of @p owner's plugin: the kind form with the
+/// kind that numbers that owner's unpatched params.
+/// @param knob  The knob's target.
+/// @param owner The owner's plugin.
+/// @return The target.
+[[nodiscard]] deluge::project::ParamTarget controlTargetOf(const deluge::modulation::KnobTarget& knob,
+                                                           OwnerPlugin owner);
 
 /// @brief A sound's controls as the model holds them: its 16 mod knobs (button by button, knob 0 then 1).
 /// @param sound The sound.

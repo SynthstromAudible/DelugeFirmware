@@ -62,6 +62,8 @@
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/param_reads.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample_recorder.h"
@@ -255,8 +257,6 @@ Song::Song() {
 	live.master_channel.core().compressor().dsp().set_base_gain(0.85f);
 
 	// initialize automation arranger view variables
-	lastSelectedParamID = params::kNoParamID;
-	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
 	lastSelectedParamArrayPosition = 0;
@@ -1200,9 +1200,9 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("affectEntire", persistentView.affectEntire);
 	writer.writeAttribute("activeModFunction", project.mod_knob_mode);
 
-	if (lastSelectedParamID != params::kNoParamID) {
-		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+	if (const std::optional<deluge::bridge::RuntimeParam> selected = deluge::bridge::selectionPairOf(selectedParam)) {
+		writer.writeAttribute(deluge::bridge::kSelectionIdAttribute, selected->index);
+		writer.writeAttribute(deluge::bridge::kSelectionKindAttribute, util::to_underlying(selected->kind));
 		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		writer.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
@@ -1235,7 +1235,7 @@ weAreInArrangementEditorOrInClipInstance:
 	// never-loaded song whose store is still empty falls back to projecting the engine (first save).
 	writer.writeOpeningTagBeginning("songParams");
 	if (const std::optional<deluge::project::DocParamSet>& songStore =
-	        *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL)) {
+	        deluge::bridge::globalEffectableStoreOf(project.master_params)) {
 		deluge::bridge::serializeGlobalEffectableParamAttributes(*songStore, writer, true, valuesForOverride);
 		writer.writeOpeningTagEnd();
 		deluge::bridge::serializeGlobalEffectableParamTags(*songStore, writer, true, valuesForOverride);
@@ -1588,6 +1588,8 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 	if (element == nullptr || !reader.match('{')) {
 		return Error::FILE_CORRUPTED;
 	}
+	int32_t fileSelectedKind = 0;
+	int32_t fileSelectedId = -1;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
@@ -1753,14 +1755,14 @@ unknownTag:
 				reader.exitTag("affectEntire");
 			}
 
-			else if (!strcmp(tagName, "lastSelectedParamID")) {
-				lastSelectedParamID = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastSelectedParamID");
+			else if (!strcmp(tagName, deluge::bridge::kSelectionIdAttribute)) {
+				fileSelectedId = reader.readTagOrAttributeValueInt();
+				reader.exitTag(deluge::bridge::kSelectionIdAttribute);
 			}
 
-			else if (!strcmp(tagName, "lastSelectedParamKind")) {
-				lastSelectedParamKind = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
-				reader.exitTag("lastSelectedParamKind");
+			else if (!strcmp(tagName, deluge::bridge::kSelectionKindAttribute)) {
+				fileSelectedKind = reader.readTagOrAttributeValueInt();
+				reader.exitTag(deluge::bridge::kSelectionKindAttribute);
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
@@ -1935,7 +1937,7 @@ loadOutput:
 				UnpatchedParamSet* songUnpatched = paramManager.getUnpatchedParamSet();
 				songUnpatched->bindDomStore(); // ensure a store exists (init normally created it) before relocating
 				std::optional<deluge::project::DocParamSet>& songSlot =
-				    *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL);
+				    deluge::bridge::globalEffectableStoreOf(project.master_params);
 				songSlot = std::move(*songUnpatched->domStore());
 				deluge::project::DocParamSet& songStore = *songSlot;
 				songUnpatched->bindDomStoreExternal(&songStore);
@@ -1988,6 +1990,7 @@ loadOutput:
 			}
 		}
 	}
+	selectedParam = deluge::bridge::songSelectionOfFile(fileSelectedKind, fileSelectedId);
 	deluge::model::readEffectsFromElement(*live.master_channel.effectsOwner(), *element, getInputTickMagnitude());
 
 	setTimePerTimerTick(timePerTimerTick);
@@ -2278,7 +2281,7 @@ skipInstance:
 	{
 		UnpatchedParamSet* unpatchedEngine = paramManager.getUnpatchedParamSet();
 		std::optional<deluge::project::DocParamSet>& songSlot =
-		    *deluge::bridge::storeFor(project.master_params, params::Kind::UNPATCHED_GLOBAL);
+		    deluge::bridge::globalEffectableStoreOf(project.master_params);
 		if (!songSlot) {
 			songSlot = deluge::bridge::toDocParamSet(*unpatchedEngine);
 		}
@@ -2593,7 +2596,9 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
                                                      deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending) {
 
 	const deluge::dsp::Q<27> volumePostFX = live.master_channel.conversions().volume(
-	    paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_VOLUME), deluge::model::volume_from_knob);
+	    paramManager.getUnpatchedParamSet()->getKnob(
+	        deluge::bridge::unpatchedIndex(deluge::host::chains::param::kVolume)),
+	    deluge::model::volume_from_knob);
 	// The outputs take the halved volume's word as their reverb adjust
 	const int32_t reverbAmountAdjust = halve_floor(volumePostFX).raw();
 
@@ -3216,8 +3221,9 @@ void Song::setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction) 
 namespace {
 /// The song's tempo param's address.
 deluge::project::ParamAddress tempoAddress() {
-	return deluge::bridge::addressOf(deluge::project::OwnerId::song(), params::Kind::UNPATCHED_GLOBAL,
-	                                 params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	return deluge::project::ParamAddress{.owner = deluge::project::OwnerId::song(),
+	                                     .space = deluge::project::ParamSpace::ENGINE,
+	                                     .id = deluge::host::chains::param::kTempo};
 }
 } // namespace
 
@@ -6119,20 +6125,16 @@ ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {
 	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&live.master_channel, &paramManager);
 }
 
-ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (modelStack) {
-		modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramID);
-	}
-
-	return modelStackWithParam;
+ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
+                                                      deluge::project::ParamTarget target) {
+	return deluge::bridge::autoParamOf(modelStack, deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE, target, false);
 }
 
 void Song::updateBPMFromAutomation() {
 	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
 	// that
-	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
+	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(
+	    deluge::bridge::unpatchedIndex(deluge::host::chains::param::kTempo));
 	if (currentTempo && currentTempo != intBPM) {
 		setBPMInner((float)currentTempo / 100, false);
 		intBPM = currentTempo;

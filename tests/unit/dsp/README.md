@@ -19,8 +19,8 @@ one ctest test per spec file, named after the file. `core/` is the fixed-point c
 | `arm/` | `dsp_arm_specs` | arm | the A9's own assembly |
 
 The drivers link the libraries as each tree builds them (`tests/support/cmake/libs.cmake`): `deluge_dsp_fixed`,
-`deluge_dsp_float`, `deluge_synth`, `deluge_effects`, and the archives of app code they reach
-(`deluge_test_dsp_closure`, `deluge_test_synth_closure`). `fused/` and `unsafe_math/` link variants of the DSP library built
+`deluge_dsp_float`, `deluge_synth`, `deluge_effects`, and the archive of app code they reach
+(`deluge_test_dsp_closure`). `fused/` and `unsafe_math/` link variants of the DSP library built
 under their own flags (`deluge_dsp_float_fma`, `deluge_dsp_fixed_unsafe_math`, `deluge_dsp_float_unsafe_math`), so
 the library code a spec reaches is held to the same flags as the spec. On the A9, the DSP library is built as the device
 builds it: the DX7's modern operators run `fixed/dx7/neon_fm_kernel.s`.

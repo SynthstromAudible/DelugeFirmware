@@ -33,7 +33,6 @@
 #include "gui/views/performance_view.h"
 #include "memory/heaps.h"
 #include "model/clip/clip.h"
-#include "model/project_bridge/param_ids.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // currentSong, getCurrentClip()
 #include "processing/engines/audio_engine.h"
@@ -75,17 +74,11 @@ bool menuShowsAutomationParam() {
 	if (!param) {
 		return false;
 	}
-	const deluge::bridge::RuntimeParam runtime =
-	    deluge::bridge::runtimeParamOf(param->plugin, param->target).value_or(deluge::bridge::RuntimeParam{});
-	const auto kind = runtime.kind;
-	const int32_t paramID = runtime.index;
-
 	if (automationView.onArrangerView) { // main's arranger arm
-		return currentSong != nullptr && kind == currentSong->lastSelectedParamKind
-		       && paramID == currentSong->lastSelectedParamID;
+		return currentSong != nullptr && currentSong->selectedParam == *param;
 	}
 	const Clip* clip = getCurrentClip(); // main's clip arm
-	return clip != nullptr && kind == clip->lastSelectedParamKind && paramID == clip->lastSelectedParamID;
+	return clip != nullptr && clip->selectedParam == *param;
 }
 
 /// @brief Whether the firmware-version item is what the menu shows: the half of the tail's firmware-version

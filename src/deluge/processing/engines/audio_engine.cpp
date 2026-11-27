@@ -22,6 +22,7 @@
 #include "dsp/fixed/vca/pan.h"
 #include "model/clip/instrument_clip.h"
 #include "model/fx/chain_inputs.h"
+#include "model/project_bridge/param_reads.h"
 #include "modulation/params/staged_repeat.h"
 #include "util/notify.h"
 
@@ -1291,8 +1292,8 @@ deluge::dsp::Q<27> metronomeVolumePostFx() {
 	if (currentSong == nullptr) {
 		return deluge::dsp::q<27>(1.0); // playback triggers the click only with a song, so this is defensive
 	}
-	return deluge::model::volume_from_knob(
-	    currentSong->paramManager.getUnpatchedParamSet()->getKnob(deluge::modulation::params::UNPATCHED_VOLUME));
+	return deluge::model::volume_from_knob(currentSong->paramManager.getUnpatchedParamSet()->getKnob(
+	    deluge::bridge::unpatchedIndex(deluge::host::chains::param::kVolume)));
 }
 
 } // namespace
@@ -2077,7 +2078,8 @@ void updateReverbParams() {
 		// The song's own send starts the search: the sidechain can't duck it, so if nothing sends more, the reverb
 		// isn't ducked.
 		deluge::model::ReverbCandidate best{
-		    .amount = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)};
+		    .amount = currentSong->paramManager.getUnpatchedParamSet()->getValue(
+		        deluge::bridge::unpatchedIndex(deluge::host::chains::param::kReverbAmount))};
 		for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 			best = thisOutput->reverbCandidate(best);
 		}
@@ -2120,20 +2122,24 @@ void soundPreview(PreviewVolume const& volume) {
 	// Adopt the volume of the instrument / kit-row the sample will be loaded into, so the preview sounds the same
 	// before and after selecting it (issue #1591). The song master volume is applied downstream in renderSongFX().
 	PatchedParamSet* previewParams = paramManagerForSamplePreview->getPatchedParamSet();
-	previewParams->params[params::GLOBAL_VOLUME_POST_FX].setPlayed(volume.volumePostFX);
-	previewParams->params[params::LOCAL_VOLUME].setPlayed(volume.localVolume);
+	previewParams->params[deluge::bridge::patchedIndex(deluge::instruments::classic::param::kVolumePostFX)].setPlayed(
+	    volume.volumePostFX);
+	previewParams->params[deluge::bridge::patchedIndex(deluge::instruments::classic::param::kVolume)].setPlayed(
+	    volume.localVolume);
 
-	// setupAsSample() gives the preview drum one patch cable, VELOCITY -> LOCAL_VOLUME, unless it ran out of memory.
+	// setupAsSample() gives the preview drum one patch cable, VELOCITY -> the volume (kVolume), unless it ran out of
+	// memory.
 	PatchCableSet* previewCables = paramManagerForSamplePreview->getPatchCableSet();
 	if (previewCables->numPatchCables != 0) {
 		previewCables->patchCables[0].param.setPlayed(volume.velocityCableDepth);
 		previewCables->setPolarity(0, volume.velocityCablePolarity);
 	}
 
-	// GLOBAL_VOLUME_POST_FX is a Sound-level param with no patch cables on the preview drum, so its final value
-	// won't update on its own - recompute it before we note-on. LOCAL_VOLUME is per-voice and is picked up when
-	// the new voice is patched during noteOn().
-	sampleForPreview->recalculatePatchingToParam(params::GLOBAL_VOLUME_POST_FX, paramManagerForSamplePreview);
+	// The volume post FX (kVolumePostFX) is a Sound-level param with no patch cables on the preview drum, so its final
+	// value won't update on its own - recompute it before we note-on. The volume (kVolume) is per-voice and is picked
+	// up when the new voice is patched during noteOn().
+	sampleForPreview->recalculatePatchingToParam(
+	    deluge::bridge::patchedIndex(deluge::instruments::classic::param::kVolumePostFX), paramManagerForSamplePreview);
 
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
