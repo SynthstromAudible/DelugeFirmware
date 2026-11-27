@@ -1,6 +1,7 @@
 #include "ui/widgets/oled/timeline_strips.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace deluge::ui::widgets::oled {
 
@@ -90,6 +91,36 @@ void note_strip(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, std::span
 	const int32_t wx = column(r, window_start, length_ticks) - r.x;
 	const int32_t ww = column(r, static_cast<int64_t>(window_start) + window_len, length_ticks) - r.x - wx;
 	window_marks(f, r, wx, window_len > 0 ? ww : 0, playhead >= 0 ? column(r, playhead, length_ticks) - r.x : -1);
+}
+
+void quantize_graph(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, int32_t grid_ticks,
+                    std::span<const int32_t> note_ticks, float amount) {
+	amount = std::clamp(amount, 0.f, 1.f);
+	const int32_t right = r.x + r.w - 1;
+	const int32_t tick_h = std::max(1, static_cast<int32_t>(std::lround(static_cast<float>(r.h) / 5.f)));
+	const int32_t block_h = std::max(1, static_cast<int32_t>(std::lround(static_cast<float>(r.h) / 4.f)));
+	const int32_t block_top = r.y + r.h - block_h;
+	const auto col = [&](int64_t t) { return std::min(right, column(r, t, length_ticks)); };
+	if (grid_ticks > 0) {
+		for (int64_t g = 0; g <= length_ticks; g += grid_ticks) {
+			for (int32_t y = block_top; y < r.y + r.h; y += 2) {
+				f.pixel(col(g), y);
+			}
+		}
+	}
+	for (const int32_t t : note_ticks) {
+		const int32_t x0 = col(t);
+		int32_t x1 = x0;
+		if (grid_ticks > 0) {
+			const int64_t snap = (int64_t{t} + grid_ticks / 2) / grid_ticks * grid_ticks;
+			x1 = x0 + static_cast<int32_t>(std::lround(static_cast<float>(col(snap) - x0) * amount));
+		}
+		f.vline(x0, r.y, r.y + tick_h - 1);
+		f.line(x0, r.y + tick_h, x1, block_top - 1);
+		for (int32_t y = block_top; y < r.y + r.h; y++) {
+			f.hline(y, std::max(r.x, x1 - 1), std::min(right, x1 + 1));
+		}
+	}
 }
 
 } // namespace deluge::ui::widgets::oled

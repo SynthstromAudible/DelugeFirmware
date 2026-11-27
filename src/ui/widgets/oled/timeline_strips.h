@@ -55,4 +55,14 @@ struct StripNote {
 void note_strip(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, std::span<const StripNote> notes, uint8_t low,
                 uint8_t high, int32_t window_start, int32_t window_len, int32_t playhead);
 
+/// @brief Where a clip's notes were and where quantizing at @p amount will put them.
+///
+/// A tick t is column `x + t * w / length_ticks` of @p r. On the top fifth of @p r (rounded, at least a row) each
+/// note is a 1-px tick at its current column; on the bottom quarter (rounded, at least a row) a dotted line (every 2nd
+/// row) marks every `grid_ticks`, and each note is a 3-px-wide block at `x0 + round((snap - x0) * amount)`, where
+/// snap is the column of the nearest grid line (a tie goes to the later one). A 1-px line joins each tick's foot to
+/// the top of its block. @p amount is clamped to 0..1; columns are clipped to @p r.
+void quantize_graph(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, int32_t grid_ticks,
+                    std::span<const int32_t> note_ticks, float amount);
+
 } // namespace deluge::ui::widgets::oled

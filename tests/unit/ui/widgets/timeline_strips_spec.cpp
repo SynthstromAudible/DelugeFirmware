@@ -195,6 +195,61 @@ describe note_strip_w("ui::widgets::oled::note_strip", $ {
 		expect_golden(self, "ui/widgets/note_strip_64.pbm", r64.pbm());
 	});
 });
+describe quantize_graph_w("ui::widgets::oled::quantize_graph", $ {
+	// r = {0, 15, 128, 27}: ticks on the top fifth (rows 15..19), blocks on the bottom quarter (rows 35..41)
+	const Rect area{0, 15, 128, 27};
+
+	it("leaves blocks under their ticks at amount 0", _ {
+		uitest::Rig48 r;
+		const std::array<int32_t, 1> note{{30 * 24}}; // column 60
+		quantize_graph(r.frame, area, 64 * 24, 8 * 24, note, 0.f);
+		expect(r.lit(60, 15 + kTop)).to_be_true();
+		expect(r.lit(60, 41 + kTop)).to_be_true();
+		expect(r.lit(59, 41 + kTop)).to_be_true();
+		expect(r.lit(61, 41 + kTop)).to_be_true();
+	});
+
+	it("moves blocks onto the grid at amount 1", _ {
+		uitest::Rig48 r;
+		const std::array<int32_t, 1> note{{30 * 24}}; // snaps to 32: column 64
+		quantize_graph(r.frame, area, 64 * 24, 8 * 24, note, 1.f);
+		expect(r.lit(64, 41 + kTop)).to_be_true();
+		expect(r.lit(65, 40 + kTop)).to_be_true();
+		expect(r.lit(60, 15 + kTop)).to_be_true(); // the tick stays where the note was
+	});
+
+	it("rounds a tie to the later grid line", _ {
+		uitest::Rig48 r;
+		const std::array<int32_t, 1> note{{28 * 24}}; // half way between 24 and 32
+		quantize_graph(r.frame, area, 64 * 24, 8 * 24, note, 1.f);
+		expect(r.lit(65, 40 + kTop)).to_be_true();
+	});
+
+	it("draws only the grid for no notes", _ {
+		uitest::Rig48 r;
+		quantize_graph(r.frame, area, 64 * 24, 8 * 24, {}, 0.6f);
+		for (int32_t y = 15; y < 35; y++) {
+			for (int32_t x = 0; x < 128; x++) {
+				expect(r.lit(x, y + kTop)).to_be_false();
+			}
+		}
+		expect(r.lit(16, 35 + kTop)).to_be_true(); // a grid line's first dot
+	});
+
+	it("matches its goldens", _ {
+		std::array<int32_t, 8> notes{};
+		const float was[] = {3.0f, 13.5f, 20.0f, 29.0f, 35.5f, 45.0f, 52.5f, 61.0f};
+		for (size_t i = 0; i < notes.size(); i++) {
+			notes[i] = static_cast<int32_t>(was[i] * 24.f);
+		}
+		uitest::Rig48 r48;
+		quantize_graph(r48.frame, area, 64 * 24, 8 * 24, notes, 0.6f);
+		expect_golden(self, "ui/widgets/quantize_48.pbm", r48.pbm());
+		uitest::Rig64 r64;
+		quantize_graph(r64.frame, {0, 16, 128, 46}, 64 * 24, 8 * 24, notes, 0.6f);
+		expect_golden(self, "ui/widgets/quantize_64.pbm", r64.pbm());
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(timeline_strips_spec, window_marks_w, overview_w, note_strip_w)
+DELUGE_SPEC(timeline_strips_spec, window_marks_w, overview_w, note_strip_w, quantize_graph_w)
