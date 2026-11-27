@@ -294,9 +294,9 @@ them with a pure `params_from(words)` (`Filter`, `ModFx`) or `final_value(param,
 
 An owner's table gives each effect param its id, default and scope: `effects::row(id, param, {default, scope,
 extra_flags})` (`effects/param_row.h`) makes the row, taking the name, mapping and flags from the effect. The host
-chain's table (`host/chains/params.h`, ids 90–132) and the Deluge instrument's effect rows (its shared
-unpatched prefix and its patched filter, mod FX, delay and reverb rows) are built this way; the arpeggiator's rows and
-the channel's (pan, volume, pitch adjust, tempo) are the tables' own. Where a reader gathers several params of one
+chain's table (`host/chains/params.h`, ids 90–116) and the Deluge instrument's effect rows (its shared
+unpatched prefix and its patched filter, mod FX, delay and reverb rows) are built this way; the channel's rows (pan,
+volume, pitch adjust, tempo) are the tables' own. Where a reader gathers several params of one
 effect, the table names their ids in the effect's order (`host::chains::kFilterIds`, `kModFxIds`, `kEqIds`,
 `kBitcrushIds`; `instruments::classic::kEqIds`, `kBitcrushIds`), and `effects::built_from` checks each list against the effect's
 params at compile time.
@@ -408,8 +408,21 @@ The instrument's patching (`synth::matrix::kParamRules`, `src/synth/matrix/descr
 chain, curve, `patching_bipolar` rule, neutral and range. They are not published: a host never sees how cables
 combine.
 
+## The arpeggiator's params
+
+An arp's sixteen values (gate, rate, rhythm, sequence length, chord polyphony, ratchet amount, the probabilities, the
+spreads) are its own params: one table, `arp::kParams` (`src/arp/params.h`), for every owner. A param is
+`ParamTarget{ParamSpace::ARP, id}` on a sound, a kit, a kit row, or a MIDI or CV clip alike; at run time it is
+`Kind::ARP` in the owner's `ArpParamSet` (`modulation/params/arp_param_set.h`), the last main collection of the owner's
+`ParamManager` (a MIDI or gate kit row's and a CV clip's manager holds it alone, which counts as no main collection).
+The owner's starting values differ only for a kit's own arp, whose gate starts fully open (`arp::default_value`). The
+engine plays a per-block snapshot of the set (`ArpeggiatorSettings::values`). A sound's arp rate is still its patched
+`GLOBAL_ARP_RATE` until the matrix feeds the arp (D7b).
+Saves keep their attributes: a sound's and a kit's in its param block, a MIDI or CV clip's and a MIDI or gate row's on
+its `<arpeggiator>` element (the unsigned values word + 2^31, `arp::word_of_field`).
+
 ## Not yet descriptor-driven
 
 Display names (l10n, the menus), the codec's attribute names (`model/project_bridge/param_serialization.cpp`, grouped
-by element), the identity enums and `Kind` below the bridge, edits and undo by address, ModelStack, and the
-arpeggiator's rows (params in sounds and kits, `ArpeggiatorSettings` fields for MIDI and CV tracks).
+by element), the identity enums and `Kind` below the bridge, edits and undo by address, ModelStack, and a MIDI or CV
+arp's menu rows, which still edit its values as settings (the setting projection writes them into the arp's set).
