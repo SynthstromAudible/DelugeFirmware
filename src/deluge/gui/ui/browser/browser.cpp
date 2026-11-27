@@ -468,7 +468,8 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 
 	//  Get the File Index
 	fileIndexSelected = fileItems.search(fileName);
-	if (fileIndexSelected > fileItems.getNumElements()) {
+	if (fileIndexSelected >= fileItems.getNumElements()) { // search() returns the count if it sorts after everything
+		fileIndexSelected = -1;
 		return Error::FILE_NOT_FOUND;
 	}
 
