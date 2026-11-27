@@ -404,7 +404,7 @@ void MenuView::render_leaf_range(MenuCore core, deluge::ui::widgets::oled::OledF
 		st.tick.value_changed = true;
 		st.tick.value_node = &node;
 	}
-	// `range_value` owns the select and horizontal encoders, not the gold knobs (`values.h`'s
+	// `range_value` owns the select and horizontal encoders, not the gold knobs (`ui/widgets/oled/values.h`'s
 	// note on the two `selectEncoderAction`s it ports); the select press that leaves the item is
 	// this scene's, exactly as on a number screen.
 	if (f.select_pressed()) {

@@ -32,6 +32,9 @@ path = "project"
 path = "effects"
 
 [[directory]]
+path = "arp"
+
+[[directory]]
 path = "app"
 
 [[directory]]
@@ -118,6 +121,15 @@ prefix = "plugin/"
 may_include = [
     "serialization/",
     "base/panic.h",
+]
+
+# The arpeggiator's params: one table for every arp's owner, and the values an arp plays by.
+[[library]]
+name = "arp"
+root = "src/arp"
+prefix = "arp/"
+may_include = [
+    "plugin/types/",
 ]
 
 [[library]]
