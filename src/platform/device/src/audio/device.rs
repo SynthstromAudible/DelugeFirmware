@@ -385,6 +385,13 @@ pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
     crate::audio::capture_stamp::input_offset(stamp, WRITE_END.load(Ordering::Relaxed))
 }
 
+/// Returns the stamp of the sample `offset_frames` after the first of the block being rendered
+/// (between renders: of the next block), for the output service (`timed_output.h`). Any tier.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_render_offset_to_stamp(offset_frames: u32) -> u32 {
+    crate::audio::capture_stamp::stamp_for_offset(WRITE_END.load(Ordering::Relaxed), offset_frames)
+}
+
 /// The play-timeline frame the DMA is at now (see [`capture_stamp`](crate::audio::capture_stamp)):
 /// what an input event is stamped with. Any tier.
 pub(crate) fn play_timeline_frame() -> u32 {
@@ -415,6 +422,7 @@ pub extern "C" fn deluge_audio_overruns() -> u32 {
 }
 
 abi_pin!(
+    deluge_audio_render_offset_to_stamp,
     deluge_audio_await_block,
     deluge_audio_block_frames,
     deluge_audio_drive,

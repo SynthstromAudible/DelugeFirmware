@@ -237,8 +237,20 @@ pub fn start() -> ! {
         board.dma.pic_tx,
         31_250,
     );
-    // DIN receives on RXI, so each byte is stamped as it arrives; its DMA channel goes unused.
-    deluge_bsp::uart::init_midi_stamped(board.midi_uart, pins.midi, 31_250);
+    // DIN receives on RXI, so each byte is stamped as it arrives; its DMA channel goes unused. The
+    // ring is in SDRAM (`.sdram_bss`, zeroed at boot) to spare internal SRAM.
+    #[unsafe(link_section = ".sdram_bss")]
+    static mut MIDI_RX: [u8; 256] = [0; 256];
+    #[unsafe(link_section = ".sdram_bss")]
+    static mut MIDI_RX_TICKS: [u64; 256] = [0; 256];
+    // SAFETY: start runs once, so the buffers are lent to the one receiver.
+    let (rx, ticks) = unsafe {
+        (
+            &mut *core::ptr::addr_of_mut!(MIDI_RX),
+            &mut *core::ptr::addr_of_mut!(MIDI_RX_TICKS),
+        )
+    };
+    deluge_bsp::uart::init_midi_stamped(board.midi_uart, pins.midi, 31_250, rx, ticks);
     // The SD slot's controller, once; `sd::init` identifies the card when it is needed.
     deluge_bsp::sd::init_hw(board.sd_card, pins.sd, board.dma.sd_tx, board.dma.sd_rx);
     // The encoders' A-pin interrupts, and their 1 ms pin poll on MTU2 ch3.

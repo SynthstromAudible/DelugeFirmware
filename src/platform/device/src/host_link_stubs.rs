@@ -50,6 +50,12 @@ pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
     0
 }
 
+/// No play position on the host: every output goes as soon as possible.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_render_offset_to_stamp(offset_frames: u32) -> u32 {
+    0
+}
+
 // ── cv_gate.h ──────────────────────────────────────────────────────────────
 
 #[unsafe(no_mangle)]
@@ -136,22 +142,26 @@ pub extern "C" fn deluge_midi_read_timed(
     0
 }
 
+/// Sends DIN bytes on the host: to the simulator's MIDI out under `sim` when a panel is up, else
+/// kept for specs to take.
+pub(crate) fn host_din_write(bytes: &[u8]) {
+    #[cfg(feature = "sim")]
+    if let Some(panel) = crate::sim_panel::panel() {
+        panel.push_midi_out(bytes);
+        return;
+    }
+    HOST_MIDI_OUT
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .extend_from_slice(bytes);
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u32) -> u32 {
-    #[cfg(feature = "sim")]
-    if let (DIN_PORT, Some(panel)) = (port, crate::sim_panel::panel()) {
-        // SAFETY: the app passes `len` valid bytes.
-        panel.push_midi_out(unsafe { core::slice::from_raw_parts(src, len as usize) });
-        return len;
-    }
     stub_log!("deluge_midi_write");
     if port == DIN_PORT {
         // SAFETY: the app passes `len` valid bytes.
-        let bytes = unsafe { core::slice::from_raw_parts(src, len as usize) };
-        HOST_MIDI_OUT
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .extend_from_slice(bytes);
+        host_din_write(unsafe { core::slice::from_raw_parts(src, len as usize) });
     }
     // Accept all, so a caller retrying on partial acceptance cannot spin forever.
     len
@@ -304,6 +314,7 @@ pub extern "C" fn deluge_usb_audio_present() -> bool {
 abi_pin!(
     deluge_audio_input_resync,
     deluge_audio_stamp_to_render_offset,
+    deluge_audio_render_offset_to_stamp,
     deluge_audio_start,
     deluge_battery_read_raw,
     deluge_battery_start_conversion,
