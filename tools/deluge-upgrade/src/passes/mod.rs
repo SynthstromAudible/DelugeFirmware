@@ -6,6 +6,7 @@ use crate::version::FirmwareVersion;
 
 pub mod cables;
 pub mod community;
+pub mod dx7;
 pub mod params;
 pub mod samples;
 pub mod sound;
@@ -126,5 +127,11 @@ pub static ALL: &[Pass] = &[
         name: "swing interval",
         before: Some(FirmwareVersion::official_tagged(3, 1, 0, "alpha2")),
         run: params::swing_interval,
+    },
+    // Last: it reads the sound forms every other conversion leaves.
+    Pass {
+        name: "dx7 engine",
+        before: None,
+        run: dx7::dx7_engine,
     },
 ];

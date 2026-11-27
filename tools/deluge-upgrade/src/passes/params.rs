@@ -278,7 +278,7 @@ pub(crate) fn for_each_clip(doc: &mut Node, f: &mut dyn FnMut(&mut Node)) {
 }
 
 /// How a clip names its instrument: its preset name, or slot and sub-slot.
-fn clip_ref(clip: &Node) -> (Option<String>, Option<String>, Option<String>) {
+pub(crate) fn clip_ref(clip: &Node) -> (Option<String>, Option<String>, Option<String>) {
     let get = |k: &str| clip.get(k).and_then(Node::text).map(str::to_string);
     (
         get("instrumentPresetName"),
@@ -296,19 +296,20 @@ fn names(
         || (slot.is_some() && get("presetSlot") == *slot && get("presetSubSlot") == *sub_slot)
 }
 
-fn clip_is_fm(song: &Node, reference: (Option<String>, Option<String>, Option<String>)) -> bool {
+/// Whether the song's synth that `reference` names meets `test`.
+pub(crate) fn clip_sound_is(
+    song: &Node,
+    reference: (Option<String>, Option<String>, Option<String>),
+    test: impl Fn(&Node) -> bool,
+) -> bool {
     song.get("instruments")
         .into_iter()
         .flat_map(Node::entries)
-        .any(|(kind, synth)| {
-            kind == "sound"
-                && synth.get("mode").and_then(Node::text) == Some("fm")
-                && names(synth, &reference)
-        })
+        .any(|(kind, synth)| kind == "sound" && names(synth, &reference) && test(synth))
 }
 
-/// Whether each drum of the kit a clip plays is FM, by drum index.
-fn kit_of_clip(song: &Node, clip: &Node) -> Vec<bool> {
+/// Whether each drum of the kit a clip plays meets `test`, by drum index.
+pub(crate) fn kit_drums_are(song: &Node, clip: &Node, test: impl Fn(&Node) -> bool) -> Vec<bool> {
     let reference = clip_ref(clip);
     song.get("instruments")
         .into_iter()
@@ -318,12 +319,23 @@ fn kit_of_clip(song: &Node, clip: &Node) -> Vec<bool> {
             kit.get("soundSources")
                 .into_iter()
                 .flat_map(Node::entries)
-                .map(|(kind, drum)| {
-                    kind == "sound" && drum.get("mode").and_then(Node::text) == Some("fm")
-                })
+                .map(|(kind, drum)| kind == "sound" && test(drum))
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn is_fm(sound: &Node) -> bool {
+    sound.get("mode").and_then(Node::text) == Some("fm")
+}
+
+fn clip_is_fm(song: &Node, reference: (Option<String>, Option<String>, Option<String>)) -> bool {
+    clip_sound_is(song, reference, is_fm)
+}
+
+/// Whether each drum of the kit a clip plays is FM, by drum index.
+fn kit_of_clip(song: &Node, clip: &Node) -> Vec<bool> {
+    kit_drums_are(song, clip, is_fm)
 }
 
 /// The global effectable's filters, as a pre-1.2 kit or song left them: an open LPF's half resonance and an off
