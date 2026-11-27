@@ -51,7 +51,6 @@ struct SlotMemory {
 	std::optional<synth::SlotState> parked;
 	synth::SamplePlayback playback;         ///< how a sample plays, while the slot is another kind
 	std::vector<synth::SourceRange> ranges; ///< the slot's ranges, while its kind plays none
-	std::optional<synth::DxPatch> patch;    ///< a DX7 voice, while the slot is another kind
 	/// While a sample: the pitch the other kinds play (a sample oscillator has none of its own; its ranges carry
 	/// theirs)
 	synth::Pitch sample_pitch;

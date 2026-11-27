@@ -135,9 +135,6 @@ auto& source_pitch_in(State& state, size_t slot) noexcept {
 	if (auto* wavetable = std::get_if<synth::WavetableState>(&kind)) {
 		return wavetable->pitch;
 	}
-	if (auto* dx = std::get_if<synth::Dx7State>(&kind)) {
-		return dx->pitch;
-	}
 	if (auto* input = std::get_if<synth::InputState>(&kind)) {
 		return input->pitch;
 	}

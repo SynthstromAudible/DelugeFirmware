@@ -82,17 +82,13 @@ private:
 	int32_t blocks_since_keyup_{-1};
 };
 
-/// A rig whose every slot and DX7 engine part plays through its own logging DX7 port, declared first so it outlives the
-/// slots (their destructors unassign through it).
+/// A rig whose every DX7 engine part plays through one logging DX7 port, declared first so it outlives the engine (its
+/// destructor unassigns through it).
 struct DxRig {
 	ToneDxPort tone;
 	std::unique_ptr<Rig> rig = std::make_unique<Rig>();
 	DxRig() {
 		for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
-			for (int32_t s = 0; s < kNumSources; s++) {
-				rig->voice.unison_parts[u].slots[s].bind(
-				    {.sample = &rig->samples[u][s], .dx = &tone, .input = &rig->input});
-			}
 			rig->voice.bind_dx7(u, &tone);
 		}
 	}
@@ -107,10 +103,9 @@ struct Played {
 
 int32_t dummy_patch = 0;
 
-/// The DX7: on osc 1 with osc 2 silent for the subtractive engine, and the DX7 engine's own setup.
+/// The DX7 engine's setup.
 NoteSetup dx7_setup() {
 	NoteSetup setup = note_setup(OscType::DX7);
-	setup.sources[0].dx_patch = &dummy_patch;
 	setup.dx7 = {.patch = &dummy_patch, .ever_active = true};
 	return setup;
 }
@@ -134,7 +129,6 @@ Played play(SynthMode mode, const NoteSetup& setup, const std::function<void(Ren
 	bool alive = true;
 	for (int32_t b = 0; b < 6 && alive; b++) {
 		RenderConfig block_cfg = cfg;
-		block_cfg.values.dx_patch_changed[0] = patch_change && b == 2;
 		block_cfg.values.dx7_patch_changed = patch_change && b == 2;
 		alive = render_block(rig, level_change && b >= 3 ? quieter : setup, block_cfg);
 		played.blocks.push_back(rig.out);
@@ -151,28 +145,6 @@ Played play(SynthMode mode, const NoteSetup& setup, const std::function<void(Ren
 	played.calls = dx.tone.calls;
 	played.next_noise = rig.noise.next();
 	return played;
-}
-
-/// How @p dx7 differs from @p subtractive, or empty when it plays the same: every block, the port's log and the noise.
-std::string difference(const Played& subtractive, const Played& dx7) {
-	if (dx7.blocks.size() != subtractive.blocks.size()) {
-		return std::format("{} blocks, not {}", dx7.blocks.size(), subtractive.blocks.size());
-	}
-	for (size_t b = 0; b < dx7.blocks.size(); b++) {
-		if (dx7.blocks[b] != subtractive.blocks[b]) {
-			return std::format("block {} differs", b);
-		}
-	}
-	if (dx7.calls != subtractive.calls) {
-		return std::format("the port's log differs ({} calls, not {})", dx7.calls.size(), subtractive.calls.size());
-	}
-	if (dx7.next_noise != subtractive.next_noise) {
-		return "the noise stream differs";
-	}
-	if (dx7.calls.size() <= 8) {
-		return "the DX7 barely played";
-	}
-	return {};
 }
 
 /// A hash of everything @p played left (FNV-1a over each block's samples, the port's log and the noise word), as hex.
@@ -198,16 +170,14 @@ std::string fingerprint(const Played& played) {
 	return std::format("{:016x}", hash);
 }
 
-/// How the DX7 mode's note and the subtractive engine's (the DX7 on osc 1) differ from each other or from @p pin, the
-/// answer the subtractive slot path gave before it was retired.
+/// How the DX7 mode's note differs from @p pin, the answer the subtractive slot path gave before it was retired, or
+/// empty when it plays the same.
 std::string pinned_difference(std::string_view pin, const NoteSetup& setup,
                               const std::function<void(RenderConfig&)>& shape, bool patch_change = false,
                               bool level_change = false) {
-	const Played subtractive = play(SynthMode::SUBTRACTIVE, setup, shape, patch_change, level_change);
 	const Played dx7 = play(SynthMode::DX7, setup, shape, patch_change, level_change);
-	std::string difference_now = difference(subtractive, dx7);
-	if (!difference_now.empty()) {
-		return difference_now;
+	if (dx7.calls.size() <= 8) {
+		return "the DX7 barely played";
 	}
 	if (fingerprint(dx7) != pin) {
 		return std::format("plays {}, not the pinned {}", fingerprint(dx7), pin);

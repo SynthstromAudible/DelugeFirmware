@@ -365,7 +365,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN),
 	                                                           2147483647);
 	if (is_dx) {
-		sourceResources[0].ensureDxPatch(); // initializes DX engine if this is the first dx7patch
+		(void)dx7Patch.ensure(); // makes the DX engine if this is the first DX7
 		// velocity is forwarded to dx7 engine, don't do master volume
 		paramManager->getPatchCableSet()->truncateCables(0);
 		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setBase(
@@ -1660,13 +1660,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			patch->computeLfo(static_cast<int>(output.size()));
 		}
 	}
-	else {
-		for (int s = 0; s < kNumSources; s++) {
-			if (oscType(s) == OscType::DX7 and sourceResources[s].dxPatch) {
-				sourceResources[s].dxPatch->computeLfo(output.size());
-			}
-		}
-	}
 
 	// Do sidechain
 	if (paramView.wired(PatchSource::SIDECHAIN)) {
@@ -1813,7 +1806,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .note_tails_allowed = allowNoteTails(modelStackWithSoundFlags, true),
 		};
 		for (int32_t s = 0; s < kNumSources; s++) {
-			facts.dx_patch_changed[s] = sourceResources[s].dxPatchChanged;
 			facts.source_ever_active[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			facts.source_active_currently[s] = isSourceActiveCurrently(s, paramManager);
 		}
@@ -1916,9 +1908,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// and by the voices, which may have read it already (a repeat patching gives the same values)
 	sourcesChanged.fetch_and(~soundSourcesChanged, std::memory_order_acq_rel);
 	expressionSourcesChangedAtSynthLevel.reset();
-	for (int i = 0; i < kNumSources; i++) {
-		sourceResources[i].dxPatchChanged = false;
-	}
 	dx7Patch.changed = false;
 
 	// Unlike all the other possible reasons we might want to start skipping rendering,
@@ -2379,9 +2368,12 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		return Error::FILE_CORRUPTED;
 	}
 	deluge::instruments::classic::SoundState decoded = *state_;
-	if (!deluge::instruments::classic::decode(*element, decoded,
-	                                          {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {
-		return Error::FILE_CORRUPTED;
+	if (const auto read = deluge::instruments::classic::decode(
+	        *element, decoded, {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()});
+	    !read) {
+		// A form only released firmware wrote (a DX7 on an oscillator) is the upgrader's to convert
+		return read.error() == deluge::plugin::StateError::LEGACY_FORM ? Error::FILE_UNSUPPORTED
+		                                                               : Error::FILE_CORRUPTED;
 	}
 	effectsBinding_.delay_type_pending = !deluge::effects::saves_delay_type(*element);
 	const deluge::project::SoundRouting routing = deluge::project::decode_routing(*element, *routing_);
@@ -2486,18 +2478,6 @@ Error Sound::applyState(const deluge::instruments::classic::SoundState& state) {
 		const OscType type = deluge::instruments::classic::source_type(state, id);
 		SourceResources& source = sourceResources[s];
 		source.setOscType(type);
-		if (const deluge::instruments::classic::DxPatchState* from =
-		        deluge::instruments::classic::dx_patch(state, id)) {
-			DxPatch* patch = source.ensureDxPatch();
-			if (patch == nullptr) {
-				return Error::INSUFFICIENT_RAM;
-			}
-			std::ranges::copy(from->params, patch->params.begin());
-			// The engine follows the bytes: an auto patch on algorithm 4 or 6 with feedback renders in MkI
-			patch->setEngineMode(from->engine_mode);
-			patch->random_detune = from->random_detune;
-		}
-
 		// The ranges, of the kind the oscillator type plays.
 		const bool wavetable = type == OscType::WAVETABLE;
 		source.ranges.clear();
@@ -2549,15 +2529,6 @@ void Sound::recordHeldRanges(int32_t s) {
 	if (std::vector held = sourceResources[s].heldRanges();
 	    !std::ranges::equal(held, deluge::instruments::classic::source_ranges(*state_, id))) {
 		*state_ = deluge::instruments::classic::with_ranges(std::move(*state_), id, std::move(held));
-	}
-}
-
-void Sound::recordHeldDxPatch(int32_t s) {
-	const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
-	const deluge::instruments::classic::DxPatchState* recorded = deluge::instruments::classic::dx_patch(*state_, id);
-	if (std::optional held = sourceResources[s].heldDxPatch();
-	    held.has_value() != (recorded != nullptr) || (held && *held != *recorded)) {
-		*state_ = deluge::instruments::classic::with_dx_patch(std::move(*state_), id, held);
 	}
 }
 

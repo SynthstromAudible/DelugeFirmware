@@ -113,10 +113,6 @@ Parts DelugeSynth::changes(const State& before, const State& after) noexcept {
 		mark(parts, slot_part(Part::SOURCE_A_TUNING, s), source_tuning(before, id) != source_tuning(after, id));
 		mark(parts, slot_part(Part::SOURCE_A_PLAYBACK, s), sample_playback(before, id) != sample_playback(after, id));
 		mark(parts, slot_part(Part::SOURCE_A_RANGES, s), !same_ranges(before, after, id));
-		const DxPatchState* was_patch = dx_patch(before, id);
-		const DxPatchState* now_patch = dx_patch(after, id);
-		mark(parts, slot_part(Part::SOURCE_A_DX, s),
-		     (was_patch != nullptr) != (now_patch != nullptr) || (was_patch != nullptr && *was_patch != *now_patch));
 		retrigger = retrigger || source_retrigger(before, id) != source_retrigger(after, id);
 	}
 	const synth::Dx7State& was_dx7 = dx7_state(before);
@@ -170,7 +166,6 @@ synth::BlockValues DelugeSynth::begin_block(const synth::HostBlock& host, const 
 	    .clipping_amount = facts.clipping_amount,
 	    .doing_osc_sync = facts.doing_osc_sync,
 	    .engine_rendering_in_stereo = host.engine_in_stereo,
-	    .dx_patch_changed = facts.dx_patch_changed,
 	    .dx7_active_currently = facts.dx7_active_currently,
 	    .dx7_patch_changed = facts.dx7_patch_changed,
 	    .global_source_values = facts.global_source_values,

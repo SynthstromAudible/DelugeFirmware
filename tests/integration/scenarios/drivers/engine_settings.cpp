@@ -285,6 +285,10 @@ std::vector<Value> legalValues(const deluge::plugin::SettingInfo& row, const std
 	}
 	case Kind::CHOICE:
 		for (std::string_view name : row.choices) {
+			// The type list keeps DX7's stored index, but no oscillator holds a DX7: it is a sound's engine
+			if (std::string_view{row.path}.ends_with("/type") && name == "dx7") {
+				continue;
+			}
 			values.push_back(Value::makeScalar(std::string(name)));
 		}
 		break;
@@ -436,15 +440,12 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 	return 0;
 }
 
-/// Whether @p a and @p b are the same oscillator in what no FM file holds: its type, ranges, DX patch and playback.
+/// Whether @p a and @p b are the same oscillator in what no FM file holds: its type, ranges and playback.
 bool sameHiddenSource(const deluge::instruments::classic::SoundState& a,
                       const deluge::instruments::classic::SoundState& b, deluge::instruments::classic::SourceId id) {
 	namespace instrument = deluge::instruments::classic;
-	const instrument::DxPatchState* patchA = instrument::dx_patch(a, id);
-	const instrument::DxPatchState* patchB = instrument::dx_patch(b, id);
 	return instrument::source_type(a, id) == instrument::source_type(b, id)
 	       && instrument::source_ranges(a, id) == instrument::source_ranges(b, id)
-	       && (patchA != nullptr) == (patchB != nullptr) && (patchA == nullptr || *patchA == *patchB)
 	       && instrument::sample_playback(a, id) == instrument::sample_playback(b, id);
 }
 
@@ -453,9 +454,9 @@ constexpr std::array<deluge::instruments::classic::SourceId, 2> kSourceIds{delug
                                                                            deluge::instruments::classic::SourceId::B};
 
 /// The mode pair: @p sound set to subtractive, FM, then subtractive again, its slot coherent after each, holding the
-/// modulators only while FM, and its oscillators afterwards what they were (the types, samples and DX patches no FM
-/// file holds); then its old mode back. While FM, each oscillator's tuning is the one it had: FM's carriers play it.
-/// 0 when each holds, else 3 after printing the first that does not.
+/// modulators only while FM, and its oscillators afterwards what they were (the types and samples no FM file holds);
+/// then its old mode back. While FM, each oscillator's tuning is the one it had: FM's carriers play it. 0 when each
+/// holds, else 3 after printing the first that does not.
 int modePairLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 	if (!address) {

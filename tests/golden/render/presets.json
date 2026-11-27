@@ -313,9 +313,9 @@
  },
  "community/Glistening": {
   "frames": 88200,
-  "peak": 319662336,
-  "rms_db": -28.9,
-  "sha256": "e0d89076c0b3763363ce83e0e6d668aa1c7a95891ed52e8d45baf0b7db769de8"
+  "peak": 313278976,
+  "rms_db": -28.96,
+  "sha256": "4e4c8ba59afc1fb89b5c727f73b37979197b54f16e88fa162add96309c1c86a2"
  },
  "community/Gong": {
   "frames": 88200,
@@ -331,9 +331,9 @@
  },
  "community/Growlstrom": {
   "frames": 88200,
-  "peak": 131795200,
-  "rms_db": -31.08,
-  "sha256": "d32cecf6a551162165146e46a5f2585f4087ac1ef6636b12cbcc5c370ac7c53d"
+  "peak": 130267648,
+  "rms_db": -31.59,
+  "sha256": "c110665e5f46efd89ae8afedbdf5b1cc0adbd146ed1ee1402c96bcbd9a33a4e2"
  },
  "community/Heartspark": {
   "frames": 88200,
@@ -571,9 +571,9 @@
  },
  "community/Rubberdemon": {
   "frames": 88200,
-  "peak": 306747904,
-  "rms_db": -28.09,
-  "sha256": "05dbbe1372993714965d3d9a525776c3875b01d85b57f46b61b7473f14144641"
+  "peak": 303750656,
+  "rms_db": -28.16,
+  "sha256": "4d9fbb4031e1c63cd7244569982b6a3e5e777a99a97ad3199f2ece360e84bdc4"
  },
  "community/Runner Lead": {
   "frames": 88200,
@@ -733,9 +733,9 @@
  },
  "community/Warm DX7 Pad": {
   "frames": 88200,
-  "peak": 238718464,
-  "rms_db": -34.23,
-  "sha256": "f2d5d460ce1f0ca59063250dbb953bf150757b494406689ead380522b9149fde"
+  "peak": 219607296,
+  "rms_db": -34.55,
+  "sha256": "2dfb4eec3be0225449f37a8b557c1afcb18c20f7ffc518ee310267aba746f959"
  },
  "community/Wavedash": {
   "frames": 88200,
@@ -757,9 +757,9 @@
  },
  "community/Woodeep": {
   "frames": 88200,
-  "peak": 197084160,
-  "rms_db": -32.96,
-  "sha256": "3b98302e89210a2c53812caab8daeb25bbf33eedbc622bcb7ada9b74d981be2c"
+  "peak": 214410496,
+  "rms_db": -35.93,
+  "sha256": "9cd80e92b76cfa09ac65c9aa0c9e88dc970387c31573a6892e9f7d7bbaca06a9"
  },
  "community/Working Engine": {
   "frames": 88200,

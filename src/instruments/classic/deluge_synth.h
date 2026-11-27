@@ -54,8 +54,6 @@ enum class Part : uint8_t {
 	SOURCE_B_PLAYBACK,
 	SOURCE_A_RANGES,
 	SOURCE_B_RANGES,
-	SOURCE_A_DX,
-	SOURCE_B_DX,
 	DX7_TUNING,        ///< the DX7 engine's transpose and cents
 	DX7_PATCH,         ///< the DX7 engine's voice
 	RETRIGGER,         ///< the oscillators', modulators' and DX7's retrigger phases

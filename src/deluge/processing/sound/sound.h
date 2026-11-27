@@ -344,8 +344,6 @@ public:
 	/// @brief Record oscillator @p s's ranges as its runtime holds them (files found, zones loading clamped), when the
 	/// record holds others.
 	void recordHeldRanges(int32_t s);
-	/// @brief Record oscillator @p s's DX7 patch as its runtime holds it, when the record holds another.
-	void recordHeldDxPatch(int32_t s);
 	/// @brief Record the DX7 engine's patch as its runtime holds it, when the record holds another.
 	void recordHeldDx7Patch();
 	/// @brief What oscillator @p s plays.

@@ -41,9 +41,6 @@ constexpr std::array kModes{SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RI
 std::string name(SampleKind) {
 	return "sample";
 }
-std::string name(Dx7Kind) {
-	return "dx7";
-}
 std::string name(InputKind) {
 	return "input";
 }
@@ -64,16 +61,14 @@ bool slot_mode(SynthMode mode) {
 }
 
 /// The source a slot of @p type plays in @p mode, written out from the rule itself: a port-backed source (sample,
-/// live input, DX7) or a wave the engines build, in the modes whose slots play, else none.
+/// live input) or a wave the engines build, in the modes whose slots play, else none (a DX7 is no slot's: it is an
+/// engine of its own).
 std::string expected_source(OscType type, SynthMode mode) {
 	if (slot_mode(mode) && type == OscType::SAMPLE) {
 		return "sample";
 	}
 	if (slot_mode(mode) && (type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO)) {
 		return "input";
-	}
-	if (slot_mode(mode) && type == OscType::DX7) {
-		return "dx7";
 	}
 	const bool engine_mode = slot_mode(mode);
 	const bool va = type == OscType::SINE || type == OscType::TRIANGLE || type == OscType::SQUARE
@@ -120,7 +115,7 @@ int32_t rows_playing(OscType type) {
 static_assert(
     std::is_same_v<HeldOscillator, std::variant<std::monostate, VirtualAnalogSource, WavetableSource, SupersawSource>>,
     "the held oscillator is the held rows' sources, in the table's order");
-static_assert(std::is_same_v<PortedSources, std::tuple<SampleSource, DX7Source, InputSource>>,
+static_assert(std::is_same_v<PortedSources, std::tuple<SampleSource, InputSource>>,
               "the ported sources are the ported rows', in the order bind and unassign walk them");
 
 /// A sample port whose note-on and loop-end release answer as set, counting each call.

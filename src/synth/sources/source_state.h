@@ -115,8 +115,8 @@ struct DxPatch {
 	bool operator==(const DxPatch&) const = default;
 };
 
-/// @brief What a DX7 oscillator saves: its voice, none for one read without its own (its runtime makes the init
-/// voice, which loading records).
+/// @brief What the DX7 engine saves: its pitch and its voice, none for one read without its own (its runtime makes the
+/// init voice, which loading records).
 struct Dx7State {
 	Pitch pitch;
 	std::optional<DxPatch> patch;
@@ -131,6 +131,6 @@ struct InputState {
 };
 
 /// @brief What one oscillator slot saves: one kind's state.
-using SlotState = std::variant<VaState, WavetableState, SampleState, Dx7State, InputState>;
+using SlotState = std::variant<VaState, WavetableState, SampleState, InputState>;
 
 } // namespace deluge::synth

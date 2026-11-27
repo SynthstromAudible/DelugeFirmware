@@ -48,7 +48,8 @@ What the run checks (tests/integration/scenarios/song_preview_ab_scenario.cpp wr
   SP-OPEN-SCROLL
             the vertical scroll-in that opens the browser, with its timer firing before the first song's preview has
             answered: it takes no row from the store until the preview fills it, and ends showing the whole preview.
-  SP-DX     one DX7 bank picked in the DX browser, read through the prefix channel and parsed. The run requires the
+  SP-DX     (parked until the DX7 engine's pages: tests/parked/dx7-pages; the run does not reach it) one DX7 bank
+            picked in the DX browser, read through the prefix channel and parsed. The run requires the
             fixture's 32 patches and first patch name, with the menu landed on the cartridge page.
   SP-DX-STALL
             the same bank with its read held far past the load's stall bound: Select gives up with the read-error
@@ -107,7 +108,6 @@ STAGES = (
     "SP-SLOT",
     "SP-VARIATION",
     "SP-BYPATH",
-    "SP-DX",
     "SP-TIER",
     "SP-RELOAD",
 )

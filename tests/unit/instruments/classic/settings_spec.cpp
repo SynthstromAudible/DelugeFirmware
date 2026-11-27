@@ -194,6 +194,12 @@ describe settings("the Deluge instrument's settings schema", ${
 			for (const std::string& value : edges(row)) {
 				const SoundState base = baseFor(row.path);
 				SoundState read = SoundState{};
+				if (std::string_view{row.path}.ends_with("/type") && value == "dx7") {
+					// The type list keeps DX7's stored index, but no oscillator plays one: it is a sound's engine
+					expect(decode(withLeaf(encode(base, kContext), row.path, value), read, kContext).error())
+					    .to_equal(deluge::plugin::StateError::LEGACY_FORM);
+					continue;
+				}
 				expect(decode(withLeaf(encode(base, kContext), row.path, value), read, kContext)).to_have_value();
 				const Value reencoded = encode(read, kContext);
 				const Value* again = leafAt(reencoded, row.path);
@@ -213,7 +219,7 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(check_setting("polyphonic", Value::makeScalar("sideways"))).to_be_false();
 		expect(check_setting("polyphonic", Value::makeScalar("poly"))).to_be_true();
 		expect(check_setting("osc2/oscillatorSync", Value::makeNumber(2))).to_be_false();
-		expect(check_setting("osc1/dx7patch", Value::makeScalar("00"))).to_be_false();
+		expect(check_setting("osc1/zone", Value::makeScalar("00"))).to_be_false();
 		expect(check_setting("no/such/path", Value::makeNumber(0))).to_be_false();
 		expect(check_setting("unison/num", Value::makeScalar("three"))).to_be_false();
 	});
@@ -298,11 +304,12 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(deluge::plugin::setting_choice_applies(row, track, subtractive.reader(), sample)).to_be_true();
 		expect(deluge::plugin::setting_choice_applies(row, track, ring.reader(), sample)).to_be_false();
 		expect(deluge::plugin::applicable_choice_count(row, track, ring.reader())).to_equal(8);
-		expect(deluge::plugin::applicable_choice_count(row, track, subtractive.reader())).to_equal(11);
-		expect(deluge::plugin::applicable_choice_count(row, plugged, subtractive.reader())).to_equal(13);
-		expect(deluge::plugin::setting_choice_applies(row, track, subtractive.reader(), dx7)).to_be_true();
-		expect(deluge::plugin::setting_choice_applies(row, lane, subtractive.reader(), dx7)).to_be_true();
-		expect(deluge::plugin::setting_choice_applies(row, whole_kit, subtractive.reader(), dx7)).to_be_true();
+		expect(deluge::plugin::applicable_choice_count(row, track, subtractive.reader())).to_equal(10);
+		expect(deluge::plugin::applicable_choice_count(row, plugged, subtractive.reader())).to_equal(12);
+		// The DX7 is a sound's engine: no oscillator's type list offers it
+		expect(deluge::plugin::setting_choice_applies(row, track, subtractive.reader(), dx7)).to_be_false();
+		expect(deluge::plugin::setting_choice_applies(row, lane, subtractive.reader(), dx7)).to_be_false();
+		expect(deluge::plugin::setting_choice_applies(row, whole_kit, subtractive.reader(), dx7)).to_be_false();
 		expect(deluge::plugin::setting_choice_applies(row, track, subtractive.reader(), input_r)).to_be_false();
 		expect(deluge::plugin::setting_choice_applies(row, plugged, subtractive.reader(), input_r)).to_be_true();
 		expect(deluge::plugin::setting_choice_applies(row, plugged, ring.reader(), input_r)).to_be_false();
@@ -325,7 +332,7 @@ describe settings("the Deluge instrument's settings schema", ${
 			expect(stored).to_have_value();
 			expect(deluge::plugin::choice_position(row, track, reader, *stored).value_or(-1)).to_equal(position);
 		}
-		// the second oscillator never offers DX7 (index 9)
+		// no oscillator offers DX7 (index 9)
 		expect(deluge::plugin::choice_position(row, track, reader, static_cast<int32_t>(OscType::DX7)))
 		    .not_()
 		    .to_have_value();

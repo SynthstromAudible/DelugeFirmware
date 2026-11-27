@@ -98,7 +98,8 @@ describe block_values("a block's values", ${
 		facts.note_tails_allowed = true;
 		facts.source_ever_active = {true, false};
 		facts.source_active_currently = {false, true};
-		facts.dx_patch_changed = {false, true};
+		facts.dx7_active_currently = true;
+		facts.dx7_patch_changed = true;
 		facts.noise_can_sound = true;
 		facts.local_wired = 0b101;
 		facts.bend_ranges = {2, 48};
@@ -119,7 +120,8 @@ describe block_values("a block's values", ${
 		expect(values.note_tails_allowed).to_equal(true);
 		expect(values.source_ever_active).to_equal(std::array<bool, 2>{true, false});
 		expect(values.source_active_currently).to_equal(std::array<bool, 2>{false, true});
-		expect(values.dx_patch_changed).to_equal(std::array<bool, 2>{false, true});
+		expect(values.dx7_active_currently).to_equal(true);
+		expect(values.dx7_patch_changed).to_equal(true);
 		expect(values.noise_volume_contains_something).to_equal(true);
 		expect(values.local_sources_patched_to_anything).to_equal(uint32_t{0b101});
 		expect(values.bend_ranges).to_equal(std::array<uint8_t, 2>{2, 48});

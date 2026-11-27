@@ -100,7 +100,6 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 	}
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		SourceResources& source = sound.sourceResources[s];
 		SourceSetup& out = setup.sources[s];
 		out.osc_type = sound.oscType(s);
 		out.ever_active = flags.checkSourceEverActive(s);
@@ -113,9 +112,6 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		out.fine_tuner =
 		    sampleHolder != nullptr ? deluge::dsp::fixed::FineTune::of_cents(sampleHolder->cents) : settings.tune;
 		out.neutral_phase_increment = sampleHolder != nullptr ? sampleHolder->neutralPhaseIncrement : kMaxSampleValue;
-		if (!forNoteChange && sound.playsSlots() && sound.oscType(s) == OscType::DX7 && out.ever_active) {
-			out.dx_patch = source.ensureDxPatch();
-		}
 	}
 
 	if (synthMode == SynthMode::DX7) {

@@ -169,26 +169,14 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<synth::SourceRang
 	return Error::NONE;
 }
 
-std::optional<deluge::instruments::classic::DxPatchState> dxPatchOf(const ::SourceResources& source) {
-	return source.heldDxPatch();
-}
-
-Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instruments::classic::DxPatchState& patch) {
-	::SourceResources& source = sound.sourceResources[s];
-	if (sound.oscType(s) != OscType::DX7) {
+Error applyDx7Patch(::Sound& sound, const deluge::instruments::classic::DxPatchState& patch) {
+	if (sound.getSynthMode() != SynthMode::DX7) {
 		return Error::UNSPECIFIED;
 	}
-	if (dxPatchOf(source) != patch) {
-		DxPatch* runtime = source.ensureDxPatch();
-		if (runtime == nullptr) {
-			return Error::INSUFFICIENT_RAM;
-		}
-		std::ranges::copy(patch.params, runtime->params.begin());
-		runtime->setEngineMode(patch.engine_mode); // the engine follows the bytes as well as the mode
-		runtime->random_detune = patch.random_detune;
-		source.dxPatchChanged = true;
+	if (sound.dx7Patch.state() != patch && !sound.dx7Patch.assign(patch)) {
+		return Error::INSUFFICIENT_RAM;
 	}
-	sound.recordHeldDxPatch(s);
+	sound.recordHeldDx7Patch();
 	return Error::NONE;
 }
 

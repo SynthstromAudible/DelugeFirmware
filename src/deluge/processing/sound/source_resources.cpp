@@ -35,27 +35,7 @@
 
 SourceResources::SourceResources() = default;
 
-SourceResources::~SourceResources() {
-	// destruct dxPatch if it was allocated
-	if (dxPatch != nullptr) {
-		dxPatch->~DxPatch();
-		delugeDealloc(dxPatch);
-		dxPatch = nullptr;
-	}
-}
-
-std::optional<deluge::instruments::classic::DxPatchState> SourceResources::heldDxPatch() const {
-	if (dxPatch == nullptr) {
-		return std::nullopt;
-	}
-	deluge::instruments::classic::DxPatchState p;
-	for (int32_t b = 0; b < 156; b++) {
-		p.params[b] = dxPatch->params[b];
-	}
-	p.engine_mode = dxPatch->engineMode;
-	p.random_detune = dxPatch->random_detune;
-	return p;
-}
+SourceResources::~SourceResources() = default;
 
 std::vector<deluge::synth::SourceRange> SourceResources::heldRanges() const {
 	std::vector<deluge::synth::SourceRange> held;
@@ -235,9 +215,6 @@ doChangeType:
 		goto possiblyDeleteRanges;
 	}
 
-	if (newType == OscType::DX7) {
-		ensureDxPatch();
-	}
 	reconcileLiveInputs(newType);
 }
 
@@ -252,17 +229,6 @@ void SourceResources::reconcileLiveInputs(OscType type) {
 	}
 	// next holds the old histories, freed here, outside the section
 }
-
-DxPatch* SourceResources::ensureDxPatch() {
-	if (dxPatch == nullptr) {
-		DxEngine* engine = getDxEngine();
-		if (engine == nullptr) {
-			return nullptr;
-		}
-		dxPatch = engine->newPatch();
-	}
-	return dxPatch;
-};
 
 /*
     for (int32_t e = 0; e < std::ssize(ranges); e++) {

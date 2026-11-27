@@ -1603,21 +1603,21 @@ class UpgradeRunGuardTest(unittest.TestCase):
         self.assertTrue(self._shortfalls("all", 0, 39, 0, 0))
 
     def test_corpus_cases_do_not_make_up_a_committed_shortfall(self):
-        self.assertTrue(self._shortfalls("all", 38, 39, 200, 30))
+        self.assertTrue(self._shortfalls("all", 40, 41, 200, 30))
 
     def test_an_absent_corpus_original_is_a_shortfall(self):
-        self.assertTrue(self._shortfalls("all", 39, 39, 200, 30, 1))
-        self.assertTrue(self._shortfalls("corpus", 0, 39, 200, 30, 2))
+        self.assertTrue(self._shortfalls("all", 41, 41, 200, 30, 1))
+        self.assertTrue(self._shortfalls("corpus", 0, 41, 200, 30, 2))
 
     def test_nothing_owned_or_below_the_floor_is_a_shortfall(self):
         self.assertTrue(self._shortfalls("committed", 0, 0, 0, 0))
         self.assertTrue(self._shortfalls("all", 0, 0, 5, 5))
-        self.assertTrue(self._shortfalls("committed", 38, 38, 0, 0))
+        self.assertTrue(self._shortfalls("committed", 40, 40, 0, 0))
 
     def test_a_complete_run_is_not(self):
-        self.assertEqual(self._shortfalls("committed", 39, 39, 0, 0), [])
-        self.assertEqual(self._shortfalls("corpus", 0, 39, 200, 30), [])
-        self.assertEqual(self._shortfalls("all", 39, 39, 200, 30), [])
+        self.assertEqual(self._shortfalls("committed", 41, 41, 0, 0), [])
+        self.assertEqual(self._shortfalls("corpus", 0, 41, 200, 30), [])
+        self.assertEqual(self._shortfalls("all", 41, 41, 200, 30), [])
 
 
 class CorpusDeclarationTest(unittest.TestCase):

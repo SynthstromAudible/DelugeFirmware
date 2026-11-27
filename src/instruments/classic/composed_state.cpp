@@ -116,15 +116,10 @@ synth::SlotState pack_kind(const SourceState& src, uint32_t phase, SourceState& 
 		kept.reversed = neutral.reversed;
 		return sample;
 	}
-	case OscType::DX7: {
+	case OscType::DX7:
+		// No slot plays a DX7: it is an engine of its own, and the codec refuses one on an oscillator
 		keep_no_tuning();
-		synth::Dx7State dx{.pitch = pitch, .patch = {}};
-		if (src.dx_patch) {
-			dx.patch = *src.dx_patch;
-		}
-		kept.dx_patch.reset();
-		return dx;
-	}
+		return synth::VaState{.pitch = pitch, .shape = synth::VaShape::SQUARE};
 	default:
 		keep_no_tuning();
 		return synth::InputState{.pitch = pitch, .channel = channel_of(src.osc_type)};
@@ -168,14 +163,6 @@ SourceState unpack_kind(const synth::SlotState& slot, const SourceState& kept, c
 				    src.ranges.push_back(range_state_of(r));
 			    }
 		    }
-		    else if constexpr (std::is_same_v<T, synth::Dx7State>) {
-			    src.osc_type = OscType::DX7;
-			    take_pitch(state.pitch);
-			    src.dx_patch.reset();
-			    if (state.patch) {
-				    src.dx_patch = *state.patch;
-			    }
-		    }
 		    else {
 			    src.osc_type = type_of(state.channel);
 			    take_pitch(state.pitch);
@@ -215,9 +202,6 @@ OscType osc_type_of(const synth::SlotState& kind) noexcept {
 	if (std::holds_alternative<synth::SampleState>(kind)) {
 		return OscType::SAMPLE;
 	}
-	if (std::holds_alternative<synth::Dx7State>(kind)) {
-		return OscType::DX7;
-	}
 	return type_of(std::get_if<synth::InputState>(&kind)->channel);
 }
 
@@ -238,7 +222,6 @@ SlotMemory remember(const SourceState& kept, const synth::Retrigger& retrigger) 
 	                 .pitch_and_speed_independent = kept.pitch_and_speed_independent,
 	                 .reversed = kept.reversed},
 	    .ranges = {},
-	    .patch = kept.dx_patch,
 	    .sample_pitch = {.tuning = {.transpose = kept.transpose, .cents = kept.cents}, .retrigger = retrigger}};
 	memory.ranges.reserve(kept.ranges.size());
 	for (const RangeState& r : kept.ranges) {
@@ -257,7 +240,6 @@ SourceState recall(const SlotMemory& memory, synth::Retrigger& retrigger) {
 	                 .interpolation_mode = memory.playback.interpolation,
 	                 .pitch_and_speed_independent = memory.playback.pitch_and_speed_independent,
 	                 .reversed = memory.playback.reversed,
-	                 .dx_patch = memory.patch,
 	                 .ranges = {}};
 	kept.ranges.reserve(memory.ranges.size());
 	for (const synth::SourceRange& r : memory.ranges) {

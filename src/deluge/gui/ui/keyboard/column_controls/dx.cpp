@@ -31,13 +31,7 @@ using namespace deluge::gui::ui::keyboard::layout;
 namespace deluge::gui::ui::keyboard::controls {
 
 DxPatch* getCurrentDxPatch() {
-	auto* inst = getCurrentInstrument();
-	if (inst->type == OutputType::SYNTH) {
-		auto* sound = (SoundInstrument*)inst;
-		if (sound->oscType(0) == OscType::DX7) {
-			return sound->sourceResources[0].dxPatch;
-		}
-	}
+	// The column edits a DX7 on the first oscillator, which no sound holds (the DX7 is a sound's engine)
 	return nullptr;
 }
 
@@ -100,13 +94,12 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 		(void)deluge::gui::ui::openShellDxColumn(op);
 	}
 	else if (op < 6) {
-		// The column's patch is the current synth's first source's (getCurrentDxPatch).
+		// The column's patch is the current synth's DX7's (getCurrentDxPatch).
 		auto* sound = static_cast<SoundInstrument*>(getCurrentInstrument());
-		if (std::optional<deluge::instruments::classic::DxPatchState> changed =
-		        deluge::bridge::dxPatchOf(sound->sourceResources[0])) {
+		if (std::optional<deluge::instruments::classic::DxPatchState> changed = sound->dx7Patch.state()) {
 			changed->params[155] ^=
 			    static_cast<uint8_t>(1 << op); // the op switches: one bit per op, as DxPatch::opSwitch reads them
-			deluge::edits::dxPatchFor(*sound, 0, *changed);
+			deluge::edits::dxPatchFor(*sound, *changed);
 		}
 	}
 };

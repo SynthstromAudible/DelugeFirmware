@@ -71,13 +71,10 @@ const deluge::instruments::classic::SoundState* sound_of(const MenuContext& ctx)
 	                                                        : nullptr;
 }
 
-/// @brief Oscillator 1's DX7 patch, the one every DX7 page edits (`DxParam::setValue`: "only OSC1 can be DX7").
-std::optional<deluge::instruments::classic::DxPatchState> patch_of(const MenuContext& ctx) {
-	const deluge::instruments::classic::SoundState* sound = sound_of(ctx);
-	const deluge::instruments::classic::DxPatchState* patch =
-	    sound != nullptr ? deluge::instruments::classic::dx_patch(*sound, deluge::instruments::classic::SourceId::A)
-	                     : nullptr;
-	return patch != nullptr ? std::optional{*patch} : std::nullopt;
+/// @brief Oscillator 1's DX7 patch, the one every DX7 page edits (`DxParam::setValue`: "only OSC1 can be DX7"): none,
+///        since no oscillator holds a DX7 (it is the sound's engine).
+std::optional<deluge::instruments::classic::DxPatchState> patch_of(const MenuContext& /*ctx*/) {
+	return std::nullopt;
 }
 
 /// @brief Write oscillator 1's patch.

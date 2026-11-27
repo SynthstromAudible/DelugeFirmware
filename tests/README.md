@@ -31,7 +31,6 @@ builds only `golden-vt-render`.
 | fs-differential | component | cargo | differential | gate | embedded-fatfs must agree with the reference FAT implementation on every filesystem operation | pr | storage | ~1m |
 | upgrade-differential | integration | script | differential | gate | a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded | nightly | storage | ~10s |
 | upgrade-differential-corpus | integration | script | differential | gate | the upgrader against a real card backup | nightly | storage | ~10m |
-| dx7-upgrade-renders | integration | script | differential | gate | an upgraded DX7 preset plays through the DX7 engine as its original played through the slot, unless its other oscillator could sound | nightly | storage | ~1m |
 | upgrader | unit | cargo | unit | gate | the file upgrader reads a Deluge document as the firmware's parser does, converts it as official firmware loaded it, and writes the firmware's JSON | pr | storage | ~30s |
 | load-policy | integration | scenario | regression | gate | the sample loader's candidate order, admission rule, build contract and stream paths, policies no loader state can show | pr | app | ~10s |
 | load-policy-wavetable-churn | integration | scenario | property | gate | wavetables evicted under memory pressure reload as they were built | nightly | app | ~1m |
@@ -203,8 +202,8 @@ builds only `golden-vt-render`.
 | fixed-point-raw-selftest | unit | script | unit | gate | the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments | pr | tooling | ~1s |
 | fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
 | spec-comparisons | unit | script | unit | gate | no C++ spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy(), so every failed comparison prints its values | pr | tooling | ~2s |
-| dx7-presets | unit | script | unit | gate | the render presets that hold a DX7, and whether each one's other oscillator can sound, are as recorded | pr | tooling | ~1s |
-| dx7-presets-selftest | unit | script | unit | gate | the DX7 preset scan finds a DX7 on either slot, and an audible other oscillator by its volume or a cable | pr | tooling | ~1s |
+| dx7-presets | unit | script | unit | gate | the render presets in DX7 mode are as recorded, and none holds a DX7 on an oscillator | pr | tooling | ~1s |
+| dx7-presets-selftest | unit | script | unit | gate | the DX7 preset scan lists each DX7-mode sound and finds a DX7 on either oscillator | pr | tooling | ~1s |
 | layers-selftest | unit | script | unit | gate | the include-layer checker holds each library to what it declares, counts each rule, and refuses a new src/ directory, a shadowed path and legacy growth | pr | tooling | ~1s |
 | registry-selftest | unit | script | unit | gate | this registry's loader, selection and probes, the SDRAM packer, four source checkers, Cargo members, crate-header lists, temp-dir removal, coverage-tool seams | pr | tooling | ~1s |
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |

@@ -944,9 +944,8 @@ void testRemovalDropsOnlyOwnRecords(deluge::edits::Context& ctx) {
 	ctx.model.output_structure.remove(outputId);
 }
 
-// A DX7 source's patch changes through an Edit, its slot following, and its engine as it is chosen today; a source
-// A blank DX7 synth, as a new clip's synth is set up, plays a DX7 oscillator on the init voice: in its state, its
-// runtime and its record once added.
+// A blank DX7 synth, as a new clip's synth is set up, is a DX7-mode sound on the init voice: in its state, its runtime
+// and its record once added.
 void testBlankDxSynth(deluge::edits::Context& ctx) {
 	ParamManagerForTimeline paramManager;
 	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
@@ -956,48 +955,42 @@ void testBlankDxSynth(deluge::edits::Context& ctx) {
 	}
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
 	static_cast<SoundInstrument*>(synth)->setupAsBlankSynth(&paramManager, true);
-	const deluge::instruments::classic::SoundState* state = &sound.state();
-	const deluge::instruments::classic::DxPatchState* patch =
-	    state != nullptr ? deluge::instruments::classic::dx_patch(*state, deluge::instruments::classic::SourceId::A)
-	                     : nullptr;
-	check(state != nullptr
-	          && deluge::instruments::classic::source_type(*state, deluge::instruments::classic::SourceId::A)
-	                 == OscType::DX7
-	          && patch != nullptr && patch->params == deluge::instruments::classic::kDx7InitVoice,
-	      "blank dx: its state holds a DX7 oscillator on the init voice");
-	check(sound.oscType(0) == OscType::DX7 && sound.sourceResources[0].dxPatch != nullptr,
-	      "blank dx: its runtime plays a DX7 oscillator");
+	const deluge::instruments::classic::SoundState& state = sound.state();
+	const deluge::instruments::classic::DxPatchState* patch = deluge::instruments::classic::dx7_patch(state);
+	check(deluge::instruments::classic::synth_mode(state) == SynthMode::DX7 && patch != nullptr
+	          && patch->params == deluge::instruments::classic::kDx7InitVoice,
+	      "blank dx: its state is a DX7-mode sound on the init voice");
+	check(sound.getSynthMode() == SynthMode::DX7 && sound.dx7Patch.get() != nullptr,
+	      "blank dx: its runtime plays the DX7 engine");
 	ctx.song.live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 	ctx.song.addOutput(synth);
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "blank dx: its record is what it plays");
 }
 
-// that is not a DX7 oscillator refuses one.
+// A DX7-mode sound's patch changes through an Edit, its slot following, and its engine as it is chosen today; a sound
+// in another mode refuses one.
 void testSetDxPatch(deluge::edits::Context& ctx) {
-	using deluge::serialization::Value;
 	ParamManagerForTimeline paramManager;
 	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
-	ctx.song.addOutput(synth);
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	static_cast<SoundInstrument*>(synth)->setupAsBlankSynth(&paramManager, true);
+	ctx.song.live.param_backup.backUp(*synth, nullptr, &paramManager, true);
+	ctx.song.addOutput(synth);
 	const auto slot = deluge::bridge::slotAddressOf(sound);
 	check(slot.has_value(), "dx: the synth has a slot");
 	if (!slot) {
 		return;
 	}
-	deluge::edits::SetEngineSetting dx7{*slot, "osc1/type", Value::makeScalar("dx7")};
-	check(deluge::edits::apply(ctx, dx7) == Error::NONE, "dx: osc1 is a DX7");
-	std::optional<deluge::instruments::classic::DxPatchState> patch =
-	    deluge::bridge::dxPatchOf(sound.sourceResources[0]);
-	check(patch.has_value(), "dx: the DX7 source has a patch");
+	std::optional<deluge::instruments::classic::DxPatchState> patch = sound.dx7Patch.state();
+	check(patch.has_value(), "dx: the DX7 has a patch");
 	if (!patch) {
 		return;
 	}
 	patch->params[3] = static_cast<uint8_t>(patch->params[3] == 7 ? 8 : 7);
 	patch->random_detune = 5;
-	deluge::edits::SetDxPatch edit{*slot, 0, *patch};
+	deluge::edits::SetDxPatch edit{*slot, *patch};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "dx: a patch is applied");
-	check(sound.sourceResources[0].dxPatch->params[3] == patch->params[3]
-	          && sound.sourceResources[0].dxPatch->random_detune == 5,
+	check(sound.dx7Patch.get()->params[3] == patch->params[3] && sound.dx7Patch.get()->random_detune == 5,
 	      "dx: the runtime takes it");
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "dx: the sound stays coherent");
 
@@ -1006,29 +999,30 @@ void testSetDxPatch(deluge::edits::Context& ctx) {
 	patch->params[134] = 3; // algorithm 4
 	patch->params[135] = 7; // feedback
 	patch->engine_mode = 0; // auto
-	deluge::edits::SetDxPatch autoBytes{*slot, 0, *patch};
-	check(deluge::edits::apply(ctx, autoBytes) == Error::NONE
-	          && sound.sourceResources[0].dxPatch->engine == Engine::MKI,
+	deluge::edits::SetDxPatch autoBytes{*slot, *patch};
+	check(deluge::edits::apply(ctx, autoBytes) == Error::NONE && sound.dx7Patch.get()->engine == Engine::MKI,
 	      "dx: an auto patch's new bytes choose its engine");
 	patch->engine_mode = 2; // MkI
-	deluge::edits::SetDxPatch mk1{*slot, 0, *patch};
-	check(deluge::edits::apply(ctx, mk1) == Error::NONE && sound.sourceResources[0].dxPatch->engine == Engine::MKI,
+	deluge::edits::SetDxPatch mk1{*slot, *patch};
+	check(deluge::edits::apply(ctx, mk1) == Error::NONE && sound.dx7Patch.get()->engine == Engine::MKI,
 	      "dx: a MkI patch renders in MkI");
 	patch->engine_mode = 0;
-	deluge::edits::SetDxPatch backToAuto{*slot, 0, *patch};
-	check(deluge::edits::apply(ctx, backToAuto) == Error::NONE
-	          && sound.sourceResources[0].dxPatch->engine == Engine::MKI,
+	deluge::edits::SetDxPatch backToAuto{*slot, *patch};
+	check(deluge::edits::apply(ctx, backToAuto) == Error::NONE && sound.dx7Patch.get()->engine == Engine::MKI,
 	      "dx: auto chosen again picks MkI for algorithm 4 with feedback");
 	patch->params[135] = 0; // no feedback
-	deluge::edits::SetDxPatch noFeedback{*slot, 0, *patch};
-	check(deluge::edits::apply(ctx, noFeedback) == Error::NONE
-	          && sound.sourceResources[0].dxPatch->engine == Engine::MODERN,
+	deluge::edits::SetDxPatch noFeedback{*slot, *patch};
+	check(deluge::edits::apply(ctx, noFeedback) == Error::NONE && sound.dx7Patch.get()->engine == Engine::MODERN,
 	      "dx: an auto patch without feedback goes back to the modern engine");
 
-	deluge::edits::SetEngineSetting saw{*slot, "osc2/type", Value::makeScalar("saw")};
-	(void)deluge::edits::apply(ctx, saw);
-	deluge::edits::SetDxPatch refused{*slot, 1, *patch};
-	check(deluge::edits::apply(ctx, refused) != Error::NONE, "dx: a saw oscillator refuses a patch");
+	ParamManagerForTimeline otherParams;
+	Instrument* other = StorageManager::createNewInstrument(OutputType::SYNTH, &otherParams);
+	ctx.song.live.param_backup.backUp(*other, nullptr, &otherParams, true);
+	ctx.song.addOutput(other);
+	if (const auto otherSlot = deluge::bridge::slotAddressOf(*static_cast<SoundInstrument*>(other))) {
+		deluge::edits::SetDxPatch refused{*otherSlot, *patch};
+		check(deluge::edits::apply(ctx, refused) != Error::NONE, "dx: a subtractive sound refuses a patch");
+	}
 }
 
 // A knob's runtime descriptor and its mapping's target name the same param, both ways.

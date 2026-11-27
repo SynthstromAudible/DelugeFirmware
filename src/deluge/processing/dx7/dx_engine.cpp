@@ -60,7 +60,7 @@ void DxEngine::dxVoiceUnassigned(gsl::owner<DxPoolVoice*> dxVoice) {
 DxPatch* DxEngine::newPatch() {
 	void* memory = allocLowSpeed(sizeof(DxPatch));
 	if (memory == nullptr) {
-		// The freeze screen lets the user resume, so ensureDxPatch()'s callers have to handle nullptr
+		// The freeze screen lets the user resume, so HeldDxPatch::ensure()'s callers have to handle nullptr
 		FREEZE_WITH_ERROR("E457");
 		return nullptr;
 	}

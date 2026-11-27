@@ -50,11 +50,10 @@ void Sound::bindVoice(SoundVoice& voice) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			// The slots belong to the Sound, whose oscillators hold the histories: they outlive every slot bound here
 			voice.kernel.unison_parts[u].slots[s].bind({.sample = &voice.part.ports(u, s).sample,
-			                                            .dx = &voice.part.ports(u, s).dx,
 			                                            .input = &voice.part.ports(u, s).input,
 			                                            .live_inputs = &sourceResources[s].liveInputs.inputs()});
 		}
-		voice.kernel.bind_dx7(u, &voice.part.ports(u, 0).dx);
+		voice.kernel.bind_dx7(u, &voice.part.dx7_port(u));
 	}
 }
 

@@ -138,22 +138,21 @@ inline void recordRanges(::Sound& sound, int32_t s) {
 	rangesFor(sound, s, deluge::bridge::rangesOf(sound.sourceResources[s]));
 }
 
-/// @brief A gesture's change of source @p s of @p sound to the DX7 patch @p patch: an Edit on the sound's slot when it
-/// is bound in the current song, the patch alone for a sound with no slot in it.
-/// @param sound The sound being edited.
-/// @param s     Source (oscillator) index.
+/// @brief A gesture's change of @p sound's DX7 to the patch @p patch: an Edit on the sound's slot when it is bound in
+/// the current song, the patch alone for a sound with no slot in it.
+/// @param sound The DX7-mode sound being edited.
 /// @param patch The new DX7 patch state.
-inline void dxPatchFor(::Sound& sound, int32_t s, const deluge::instruments::classic::DxPatchState& patch) {
+inline void dxPatchFor(::Sound& sound, const deluge::instruments::classic::DxPatchState& patch) {
 	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
-		deluge::edits::SetDxPatch edit{*slot, static_cast<uint8_t>(s), patch};
+		deluge::edits::SetDxPatch edit{*slot, patch};
 		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
-			D_PRINTLN("dx patch refused: osc%d", static_cast<int>(s + 1));
+			D_PRINTLN("dx patch refused");
 		}
 		return;
 	}
-	if (deluge::bridge::applyDxPatch(sound, s, patch) != Error::NONE) {
-		D_PRINTLN("dx patch refused: osc%d", static_cast<int>(s + 1));
+	if (deluge::bridge::applyDx7Patch(sound, patch) != Error::NONE) {
+		D_PRINTLN("dx patch refused");
 	}
 }
 

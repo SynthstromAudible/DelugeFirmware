@@ -88,7 +88,6 @@ describe dx7_mode("a sound in DX7 mode", ${
 		expect(phase_word(dx7_pitch(*state).retrigger)).to_equal(256U);
 		expect(source_type(*state, SourceId::A)).to_equal(OscType::SQUARE);
 		expect(source_type(*state, SourceId::B)).to_equal(OscType::SQUARE);
-		expect(dx_patch(*state, SourceId::A)).to_equal(static_cast<const DxPatchState*>(nullptr));
 	});
 
 	it("gives a DX7 read without a patch the init voice", _ {

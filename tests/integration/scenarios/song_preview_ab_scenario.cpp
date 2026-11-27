@@ -3832,7 +3832,8 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 	case Stage::OpenScroll:
 		runOpenScrollTick();
 		if (g_openScrollStep == OpenScrollStep::Finished) {
-			g_stage = Stage::Dx;
+			// The DX stage waits for the DX7 engine's pages: no oscillator holds a DX7 for the menu to open on
+			g_stage = Stage::PreviewStall;
 		}
 		break;
 	case Stage::Dx:

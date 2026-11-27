@@ -50,6 +50,7 @@ struct CodecContext {
 enum class StateError : uint8_t {
 	NOT_A_MAP,       ///< the state's node is not a Map
 	DUPLICATE_RANGE, ///< two key-split ranges of one source cover up to the same note
+	LEGACY_FORM,     ///< a form the firmware no longer reads, which tools/deluge-upgrade converts
 };
 
 /// @brief A plugin whose state the host stores as a Value: a descriptor, a state type, and a codec that writes the

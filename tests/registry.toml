@@ -166,25 +166,6 @@ alone = true
 job = "storage"
 runtime_s = 600
 
-# The DX7 conversion's evidence: the upgraded DX7 presets against their originals' records.
-[[harness]]
-name = "dx7-upgrade-renders"
-path = "."
-level = "integration"
-runner = "script"
-kind = "differential"
-status = "gate"
-gates = "an upgraded DX7 preset plays through the DX7 engine as its original played through the slot, unless its other oscillator could sound"
-build = []
-run = ["python3", "tests/integration/corpus/dx7_upgrade_renders.py"]
-builds = ["golden-vt-render"]
-requires = ["cargo"]
-baseline = ["tests/golden/render/presets.json", "tests/golden/render/dx7_presets.json"]
-tier = "nightly"
-alone = true
-job = "storage"
-runtime_s = 60
-
 [[harness]]
 name = "upgrader"
 path = "tools/deluge-upgrade"
@@ -334,7 +315,7 @@ template = "scenario"
 kind = "differential"
 gates = "the Rust prefix channel draws the same song artwork, and reports the same decode outcome and error, as the same file decoded synchronously"
 scenario = "song_preview_ab"
-markers = ["SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMMARY", "SP-LISTING-SUMMARY", "SP-PREDICT-SUMMARY", "SP-NEWNAME", "SP-SLOT", "SP-VARIATION", "SP-ACQUIRE-SUMMARY", "SP-BYPATH", "SP-LISTING-STALL", "SP-RELOAD", "SP-RELOAD-STALL", "SP-PREVIEW-STALL", "SP-OPEN-SCROLL", "SP-DX", "SP-DX-STALL", "SP-REFERENCE", "SP-TIER"]
+markers = ["SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMMARY", "SP-LISTING-SUMMARY", "SP-PREDICT-SUMMARY", "SP-NEWNAME", "SP-SLOT", "SP-VARIATION", "SP-ACQUIRE-SUMMARY", "SP-BYPATH", "SP-LISTING-STALL", "SP-RELOAD", "SP-RELOAD-STALL", "SP-PREVIEW-STALL", "SP-OPEN-SCROLL", "SP-REFERENCE", "SP-TIER"]
 result = "SP-RESULT failures=0"
 check = "tests/integration/checks/song_preview_ab.py"
 tier = "nightly"
@@ -1949,7 +1930,7 @@ level = "unit"
 runner = "script"
 kind = "unit"
 status = "gate"
-gates = "the render presets that hold a DX7, and whether each one's other oscillator can sound, are as recorded"
+gates = "the render presets in DX7 mode are as recorded, and none holds a DX7 on an oscillator"
 run = ["python3", "scripts/check_dx7_presets.py", "--check"]
 tier = "pr"
 job = "tooling"
@@ -1959,7 +1940,7 @@ runtime_s = 1
 name = "dx7-presets-selftest"
 template = "unittest"
 path = "scripts"
-gates = "the DX7 preset scan finds a DX7 on either slot, and an audible other oscillator by its volume or a cable"
+gates = "the DX7 preset scan lists each DX7-mode sound and finds a DX7 on either oscillator"
 run = ["python3", "-m", "unittest", "test_check_dx7_presets"]
 
 [[harness]]

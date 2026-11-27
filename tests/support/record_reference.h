@@ -108,14 +108,14 @@ inline std::string readers_text(const in::SoundState& state) {
 			os << separator << range_text(r);
 			separator = " ";
 		}
-		os << "] patch ";
-		if (const in::DxPatchState* patch = in::dx_patch(state, id)) {
-			os << *patch;
-		}
-		else {
-			os << "none";
-		}
-		os << " retrigger " << in::phase_word(in::source_retrigger(state, id));
+		os << "] retrigger " << in::phase_word(in::source_retrigger(state, id));
+	}
+	os << " | dx7 pitch " << in::dx7_pitch(state) << " patch ";
+	if (const in::DxPatchState* patch = in::dx7_patch(state)) {
+		os << *patch;
+	}
+	else {
+		os << "none";
 	}
 	const std::array<synth::Pitch, 2> mods = in::modulators(state);
 	os << " | voicing " << in::voicing(state) << " sync " << int{in::oscillator_sync(state)} << " modulators ["
@@ -268,11 +268,12 @@ inline std::string with_setting_text(const in::SoundState& state) {
 inline std::string change_to_text(const in::SoundState& state) {
 	const plugin::CodecContext context{.input_tick_magnitude = 1};
 	std::vector<in::SoundState> nexts;
-	for (const in::SynthMode mode : {in::SynthMode::SUBTRACTIVE, in::SynthMode::RINGMOD, in::SynthMode::FM}) {
+	for (const in::SynthMode mode :
+	     {in::SynthMode::SUBTRACTIVE, in::SynthMode::RINGMOD, in::SynthMode::FM, in::SynthMode::DX7}) {
 		nexts.push_back(in::switch_engine(state, mode));
 	}
 	for (const in::OscType type :
-	     {in::OscType::SAW, in::OscType::WAVETABLE, in::OscType::SAMPLE, in::OscType::DX7, in::OscType::INPUT_L}) {
+	     {in::OscType::SAW, in::OscType::WAVETABLE, in::OscType::SAMPLE, in::OscType::INPUT_L}) {
 		nexts.push_back(in::switch_source(state, in::SourceId::B, type, in::source_ranges(state, in::SourceId::B),
 		                                  in::source_type(state, in::SourceId::B) == in::OscType::WAVETABLE));
 	}
@@ -299,7 +300,8 @@ inline std::string change_to_text(const in::SoundState& state) {
 	std::vector<ReferenceAnswer> answers;
 	answers.push_back({"sound", text_of(sound)});
 	answers.push_back({"readers", reference_detail::readers_text(sound)});
-	for (const in::SynthMode mode : {in::SynthMode::SUBTRACTIVE, in::SynthMode::RINGMOD, in::SynthMode::FM}) {
+	for (const in::SynthMode mode :
+	     {in::SynthMode::SUBTRACTIVE, in::SynthMode::RINGMOD, in::SynthMode::FM, in::SynthMode::DX7}) {
 		answers.push_back(
 		    {std::format("switch_engine {}", std::to_underlying(mode)), text_of(in::switch_engine(sound, mode))});
 	}

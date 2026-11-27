@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/fixed/noise/cong.h"
-#include "synth/sources/dx7/dx7_source.h"
 #include "synth/sources/input/input_source.h"
 #include "synth/sources/sample/sample_source.h"
 #include "synth/sources/source_table.h"
@@ -86,7 +85,6 @@ public:
 	void advance_osc_phase(dsp::UQ<32> delta);
 
 	[[nodiscard]] SampleSource& sample() { return std::get<SampleSource>(ported_); }
-	[[nodiscard]] DX7Source& dx7() { return std::get<DX7Source>(ported_); }
 
 private:
 	/// Builds or keeps the oscillator for a SUBTRACTIVE or RINGMOD note of @p osc_type; else holds none.

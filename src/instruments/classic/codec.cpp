@@ -219,17 +219,6 @@ void wavetable_entries(Value& map, const synth::WavetableState& wavetable) {
 	}
 }
 
-/// A DX7 oscillator's patch: its bytes, and its engine mode and random detune where they are set.
-void dx7_entries(Value& map, const synth::DxPatch& patch) {
-	map.set("dx7patch", text(hex(patch.params)));
-	if (patch.engine_mode != 0) {
-		map.set("dx7enginemode", number(patch.engine_mode));
-	}
-	if (patch.random_detune != 0) {
-		map.set("dx7randomdetune", number(patch.random_detune));
-	}
-}
-
 /// The DX7 engine's entry: its pitch, its patch's bytes, and its engine mode and random detune where they are set.
 Value dx7_entry(const synth::Dx7State& dx7) {
 	auto map = Value::makeMap();
@@ -262,12 +251,6 @@ Value slot_entry(const synth::SlotState& slot, OscType type, size_t s, bool sync
 	else if (const auto* wavetable = std::get_if<synth::WavetableState>(&slot)) {
 		pitch_entries(map, wavetable->pitch, s, sync);
 		wavetable_entries(map, *wavetable);
-	}
-	else if (const auto* dx = std::get_if<synth::Dx7State>(&slot)) {
-		pitch_entries(map, dx->pitch, s, sync);
-		if (dx->patch) {
-			dx7_entries(map, *dx->patch);
-		}
 	}
 	else if (const auto* input = std::get_if<synth::InputState>(&slot)) {
 		pitch_entries(map, input->pitch, s, sync);
@@ -356,11 +339,8 @@ std::optional<Value> scalar_entry(const SoundState& state, std::string_view key)
 /// Whether slot @p s differs between @p a and @p b in anything its entry writes or keeps.
 bool slot_differs(const SoundState& a, const SoundState& b, size_t s) {
 	const auto id = static_cast<SourceId>(s);
-	const DxPatchState* pa = dx_patch(a, id);
-	const DxPatchState* pb = dx_patch(b, id);
 	return source_type(a, id) != source_type(b, id) || source_tuning(a, id) != source_tuning(b, id)
 	       || sample_playback(a, id) != sample_playback(b, id) || !same_ranges(a, b, id)
-	       || (pa != nullptr) != (pb != nullptr) || (pa != nullptr && *pa != *pb)
 	       || source_retrigger(a, id) != source_retrigger(b, id)
 	       || (s == 1 && oscillator_sync(a) != oscillator_sync(b));
 }
@@ -589,13 +569,6 @@ RangeState& firstRange(SourceState& src) {
 	return src.ranges.front();
 }
 
-DxPatchState& dxPatch(SourceState& src) {
-	if (!src.dx_patch) {
-		src.dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
-	}
-	return *src.dx_patch;
-}
-
 void setOscType(SourceState& src, SourceReading& reading, OscType type) {
 	if (type == OscType::SAMPLE) {
 		changeRangeKind(src, reading, false);
@@ -604,9 +577,6 @@ void setOscType(SourceState& src, SourceReading& reading, OscType type) {
 		changeRangeKind(src, reading, true);
 	}
 	src.osc_type = type;
-	if (type == OscType::DX7) {
-		(void)dxPatch(src);
-	}
 }
 
 SampleRepeatMode repeatModeOf(const Value& value) {
@@ -696,7 +666,12 @@ std::expected<void, plugin::StateError> read_source(const Value& osc, FlatSoundS
 	}
 	for (const auto& [key, value] : osc.entries()) {
 		if (key == "type") {
-			setOscType(src, reading, parse_osc_type(textOf(value)));
+			const OscType type = parse_osc_type(textOf(value));
+			if (type == OscType::DX7) {
+				// The DX7 is a sound's engine, not an oscillator: tools/deluge-upgrade converts the released form
+				return std::unexpected(plugin::StateError::LEGACY_FORM);
+			}
+			setOscType(src, reading, type);
 		}
 		else if (key == "transpose") {
 			src.transpose = static_cast<int16_t>(intOf(value));
@@ -712,15 +687,6 @@ std::expected<void, plugin::StateError> read_source(const Value& osc, FlatSoundS
 		}
 		else if (key == "reversed") {
 			src.reversed = intOf(value) != 0;
-		}
-		else if (key == "dx7patch") {
-			read_patch_bytes(textOf(value), dxPatch(src));
-		}
-		else if (key == "dx7randomdetune") {
-			dxPatch(src).random_detune = intOf(value);
-		}
-		else if (key == "dx7enginemode") {
-			dxPatch(src).engine_mode = static_cast<uint8_t>(intOf(value));
 		}
 		else if (key == "timeStretchEnable") {
 			src.pitch_and_speed_independent = intOf(value) != 0;
@@ -1089,7 +1055,6 @@ void keep_unwritten(FlatSoundState& state, const FlatSoundState& from) {
 			src.osc_type = old.osc_type;
 			keepPlayback();
 			src.ranges = old.ranges;
-			src.dx_patch = old.dx_patch;
 			continue;
 		}
 		if (src.osc_type == OscType::SAMPLE) {
@@ -1100,15 +1065,11 @@ void keep_unwritten(FlatSoundState& state, const FlatSoundState& from) {
 			if (s == 1) {
 				state.oscillator_sync = from.oscillator_sync;
 			}
-			src.dx_patch = old.dx_patch;
 			continue;
 		}
 		keepPlayback();
 		if (src.osc_type != OscType::WAVETABLE) {
 			src.ranges = old.ranges;
-		}
-		if (src.osc_type != OscType::DX7) {
-			src.dx_patch = old.dx_patch;
 		}
 	}
 }
@@ -1240,11 +1201,6 @@ Value dump_flat(const SoundState& record, const FlatSoundState& state) {
 		source.set("interpolation", number(std::to_underlying(src.interpolation_mode)));
 		source.set("pitchAndSpeedIndependent", number(src.pitch_and_speed_independent ? 1 : 0));
 		source.set("reversed", number(src.reversed ? 1 : 0));
-		if (src.dx_patch) {
-			source.set("dx7patch", text(hex(src.dx_patch->params)));
-			source.set("dx7engineMode", number(src.dx_patch->engine_mode));
-			source.set("dx7randomDetune", number(src.dx_patch->random_detune));
-		}
 		auto ranges = Value::makeArray();
 		for (const RangeState& range : src.ranges) {
 			ranges.append(dumpRange(range));

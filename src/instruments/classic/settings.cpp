@@ -103,28 +103,23 @@ constexpr std::array<int32_t, 1> kRingModeValue{std::to_underlying(SynthMode::RI
 
 /// Ring mod mixes oscillators alone, so it offers no sample or input.
 constexpr std::array kNotRingMode{plugin::setting_is_not("mode", kRingModeValue)};
-/// DX7 in the first oscillator of any sound, a kit's included.
-constexpr std::array kDx7Conditions{plugin::setting_is_not("mode", kRingModeValue)};
 /// With no audio input plugged in, one input entry (the left input's) stands for the three.
 constexpr std::array kInputConditions{plugin::setting_is_not("mode", kRingModeValue), plugin::inputs_are(true)};
-/// The second oscillator's menu never offers DX7: only the first can hold one.
+/// No oscillator's menu offers DX7: it is a sound's engine, not an oscillator's type.
 constexpr std::array kNeverOffered{plugin::never()};
 
 /// The oscillator type menu's conditions; the choice list is shared, since stored indices are what files hold.
-constexpr std::array<plugin::ChoiceCondition, 5> osc_type_when(std::span<const plugin::SettingCondition> dx7) {
-	return {{{std::to_underlying(OscType::SAMPLE), kNotRingMode},
-	         {std::to_underlying(OscType::DX7), dx7},
-	         {std::to_underlying(OscType::INPUT_L), kNotRingMode},
-	         {std::to_underlying(OscType::INPUT_R), kInputConditions},
-	         {std::to_underlying(OscType::INPUT_STEREO), kInputConditions}}};
-}
-constexpr std::array kOsc1TypeWhen = osc_type_when(kDx7Conditions);
-constexpr std::array kOsc2TypeWhen = osc_type_when(kNeverOffered);
+constexpr std::array<plugin::ChoiceCondition, 5> kOscTypeWhen{
+    {{.choice = std::to_underlying(OscType::SAMPLE), .when = kNotRingMode},
+     {.choice = std::to_underlying(OscType::DX7), .when = kNeverOffered},
+     {.choice = std::to_underlying(OscType::INPUT_L), .when = kNotRingMode},
+     {.choice = std::to_underlying(OscType::INPUT_R), .when = kInputConditions},
+     {.choice = std::to_underlying(OscType::INPUT_STEREO), .when = kInputConditions}}};
 /// FM's carriers are sines: an oscillator's type menu shows outside it.
 constexpr std::array kNotFm{plugin::setting_is_not("mode", kFmValue)};
 constexpr std::array kOscTypeExtras{
-    plugin::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOsc1TypeWhen},
-    plugin::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOsc2TypeWhen}};
+    plugin::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOscTypeWhen},
+    plugin::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOscTypeWhen}};
 
 /// The oscillator types ring mod can ring, as allows_setting has them: every type up to the wavetable.
 constexpr auto kRingableTypes = [] {
@@ -288,11 +283,8 @@ constexpr int32_t kFreeRunning = -1;
 	    SettingInfo{.path = "osc" #n "/linearInterpolation", .kind = BOOL, .extras = &kInterpolationExtras[n - 1]},    \
 	    SettingInfo{.path = "osc" #n "/sampleRanges", .kind = STRUCTURED},                                             \
 	    SettingInfo{.path = "osc" #n "/wavetableRanges", .kind = STRUCTURED},                                          \
-	    SettingInfo{.path = "osc" #n "/fileName", .kind = STRUCTURED},                                                 \
-	    SettingInfo{.path = "osc" #n "/zone", .kind = STRUCTURED},                                                     \
-	    SettingInfo{.path = "osc" #n "/dx7patch", .kind = STRUCTURED},                                                 \
-	    SettingInfo{.path = "osc" #n "/dx7enginemode", .kind = STRUCTURED}, SettingInfo {                              \
-		.path = "osc" #n "/dx7randomdetune", .kind = STRUCTURED                                                        \
+	    SettingInfo{.path = "osc" #n "/fileName", .kind = STRUCTURED}, SettingInfo {                                   \
+		.path = "osc" #n "/zone", .kind = STRUCTURED                                                                   \
 	}
 
 /// An LFO's sync menu: one value over its level and its type row, @p partner.

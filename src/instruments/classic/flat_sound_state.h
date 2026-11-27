@@ -80,8 +80,7 @@ struct SourceState {
 	plugin::InterpolationMode interpolation_mode{plugin::InterpolationMode::SMOOTH};
 	bool pitch_and_speed_independent{false};
 	bool reversed{false};
-	std::optional<DxPatchState> dx_patch; ///< present iff the source has a DX7 patch
-	std::vector<RangeState> ranges;       ///< ordered by top_note
+	std::vector<RangeState> ranges; ///< ordered by top_note
 	bool operator==(const SourceState&) const = default;
 };
 
