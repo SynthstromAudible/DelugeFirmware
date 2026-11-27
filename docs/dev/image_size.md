@@ -58,6 +58,30 @@ adjacent entries, so there are 10,125 entries for about 23,000 functions.
 
 Duplicate crates are not a cost. `--gc-sections` drops unreferenced copies, which was shown in 2026-08 and still holds.
 
+### A song's param sets
+
+A loaded song's param sets are heap, not image, but they scale with the song. Every sound, kit and kit row holds an
+unpatched set, from the fast (SRAM) heap; every arp owner holds an arp set (`ArpParamSet`, the arp's 16 params), from
+SDRAM. On the device an `AutoParam` is 20 B, an unpatched set 608 B and an arp set 384 B. The arp's params used to be 16
+slots of each unpatched set, so moving them to their own set took 320 B of SRAM off each unpatched set and put 384 B of
+SDRAM on each arp owner.
+
+The `heap_footprint` scenario prints a loaded song's param managers and sets:
+`GOLDEN_SCENARIO=heap_footprint DRV_ARGS=<song file> build/cargo-harness/harness/golden_vt_render`. On the ten largest songs of the upgraded corpus (2026-11-27), with the device's sizes:
+
+| Song | Unpatched sets | SRAM saved | Arp sets | SDRAM added |
+|---|---:|---:|---:|---:|
+| Kitchen Clave | 55 | 17,600 B | 54 | 20,736 B |
+| Glitchy_2 | 38 | 12,160 B | 37 | 14,208 B |
+| Moechakkafire | 20 | 6,400 B | 19 | 7,296 B |
+| Weird | 19 | 6,080 B | 18 | 6,912 B |
+| Ghosts.Ranko | 19 | 6,080 B | 18 | 6,912 B |
+| Bedroom Beat | 15 | 4,800 B | 14 | 5,376 B |
+| Sampling | 12 | 3,840 B | 0 | 0 B |
+| Fmjam | 10 | 3,200 B | 9 | 3,456 B |
+| 241217 Midi To Deluge Test 9 | 6 | 1,920 B | 5 | 1,920 B |
+| SONG1 | 2 | 640 B | 1 | 384 B |
+
 ## Measured levers
 
 Headroom each adds when applied alone to the base (39,480 B in the worktree):
