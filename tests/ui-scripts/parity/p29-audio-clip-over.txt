@@ -1,0 +1,43 @@
+# UIs over the audio clip view and the global buttons it passes on: SELECT opens the menu and BACK closes it; LOAD opens
+# the song loader and BACK cancels it; SAVE opens the saver and BACK cancels it; four TAP TEMPO taps; LEARN pressed and
+# released.
+# card: tests/fixtures/card-audio-clips.card
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load audioclips
+14000 snapshot song
+14200 pad 0 7 down
+14320 pad 0 7 up
+16000 snapshot clip
+16200 button SelectEnc down
+16320 button SelectEnc up
+18000 snapshot menu
+18200 button Back down
+18320 button Back up
+20000 snapshot menu_closed
+20200 button Load down
+20320 button Load up
+22000 snapshot loader
+22200 button Back down
+22320 button Back up
+24000 snapshot loader_closed
+24200 button Save down
+24320 button Save up
+26000 snapshot saver
+26200 button Back down
+26320 button Back up
+28000 snapshot saver_closed
+28200 button TapTempo down
+28260 button TapTempo up
+28700 button TapTempo down
+28760 button TapTempo up
+29200 button TapTempo down
+29260 button TapTempo up
+29700 button TapTempo down
+29760 button TapTempo up
+31000 snapshot tapped
+31200 button Learn down
+32000 snapshot learn_held
+32200 button Learn up
+34000 snapshot learn_released

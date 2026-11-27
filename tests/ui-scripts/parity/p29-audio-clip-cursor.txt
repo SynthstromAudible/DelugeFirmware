@@ -1,0 +1,18 @@
+# The play cursor in the audio clip view: PLAY, snapshots a second apart across the clip, then PLAY again to stop.
+# card: tests/fixtures/card-audio-clips.card
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load audioclips
+14000 snapshot song
+14200 pad 0 7 down
+14320 pad 0 7 up
+16000 snapshot clip
+16200 button Play down
+16320 button Play up
+17000 snapshot playing_1
+18000 snapshot playing_2
+19000 snapshot playing_3
+19200 button Play down
+19320 button Play up
+21000 snapshot stopped

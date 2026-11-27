@@ -1,0 +1,50 @@
+# The end marker and the length edits, then zooming and scrolling, in the audio clip view: the end marker shown on
+# the clip's last column and moved, the length with and without timestretching, the length set to the sample's with
+# X and Y, the colour shifted with SHIFT and the vertical encoder, then zoom in with X held, a scroll detent each way
+# and zoom back out.
+# card: tests/fixtures/card-audio-clips.card
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load audioclips
+14000 snapshot song
+14200 pad 0 7 down
+14320 pad 0 7 up
+16000 snapshot clip
+16200 pad 15 4 down
+16320 pad 15 4 up
+16400 snapshot end_marker
+16700 pad 6 4 down
+16820 pad 6 4 up
+18000 snapshot end_moved
+18200 button Shift down
+18450 encoder Horizontal +1
+18700 button Shift up
+20000 snapshot stretched
+20200 button Shift down
+20300 button XEnc down
+20550 encoder Horizontal +1
+20800 button XEnc up
+20900 button Shift up
+22000 snapshot unstretched
+22200 button XEnc down
+22450 button YEnc down
+22570 button YEnc up
+22800 button XEnc up
+24000 snapshot to_sample_length
+24200 button Shift down
+24450 encoder Vertical +3
+24700 button Shift up
+26000 snapshot colour
+26200 button XEnc down
+26450 encoder Horizontal -1
+26700 button XEnc up
+28000 snapshot zoomed_in
+28200 encoder Horizontal +1
+29500 snapshot scrolled
+29700 encoder Horizontal -1
+31000 snapshot scrolled_back
+31200 button XEnc down
+31450 encoder Horizontal +1
+31700 button XEnc up
+33000 snapshot zoomed_out
