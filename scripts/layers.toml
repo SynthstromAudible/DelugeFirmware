@@ -153,6 +153,8 @@ may_include = [
     "host/chains/",
     "serialization/",
     "base/panic.h",
+    # the synth's words, which the instrument saves by name
+    "synth/types/",
     "synth/modulation/patch_source.h",
     "synth/modulation/cable.h",
     # the synth's config, which the instrument derives from its state (the instrument is the synth's plugin)
@@ -411,7 +413,7 @@ reason = "the application reaches the hardware only through libdeluge"
 [[rule]]
 name = "synth-boundary"
 files = ["src/synth/**"]
-pattern = '^(storage|model|processing|gui|playback|hid|io|bench|RZA1|bsp|drivers|memory|util|modulation|project)/'
+pattern = '^(storage|model|processing|gui|playback|hid|io|bench|RZA1|bsp|drivers|memory|util|modulation|project|instruments)/'
 allow = [
     "memory/memory_allocator_interface.h",
     "util/lookuptables/lookuptables.h",

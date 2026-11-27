@@ -30,9 +30,9 @@ class ParamManagerForTimeline;
 class Sound;
 class SourceResources;
 
-namespace deluge::instruments::classic {
+namespace deluge::synth {
 enum class OscType : uint8_t;
-} // namespace deluge::instruments::classic
+} // namespace deluge::synth
 
 namespace deluge::gui {
 
@@ -57,7 +57,7 @@ void retargetRangeAfterRetype(SoundTarget& target, RangesRetype retype);
 
 /// @brief Change @p target's source to @p type through its setting Edit, watching the change, and find @p target's
 ///        range again by `retargetRangeAfterRetype`'s rule. What a claim and an import change a source's type with.
-void setOscTypeFor(SoundTarget& target, deluge::instruments::classic::OscType type);
+void setOscTypeFor(SoundTarget& target, deluge::synth::OscType type);
 
 /// @brief The model stack @p target edits: the song's off a clip minder, the kit's own with affect-entire on, else the
 ///        current clip's with the kit's selected row.
