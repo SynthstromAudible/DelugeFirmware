@@ -446,7 +446,35 @@ bool is_hpf_morph(plugin::ParamKind kind, plugin::ParamId id) {
 	       || (kind == plugin::ParamKind::UNPATCHED_GLOBAL && id == host::chains::param::kHpfMorph);
 }
 
+/// @brief The name of the param @p id in @p plugin's table, or nullopt where the table names none.
+std::optional<std::string_view> plugin_param_name(project::OwnerPlugin plugin, plugin::ParamId id) {
+	if (plugin == project::OwnerPlugin::GLOBAL_EFFECTABLE) {
+		return unpatched_global_name(id);
+	}
+	return instruments::classic::is_patched(id) ? patched_name(id) : unpatched_sound_name(id);
+}
+
 } // namespace
+
+std::string_view param_name(project::OwnerPlugin plugin, plugin::ParamId id) {
+	return plugin_param_name(plugin, id).value_or(getView(String::STRING_FOR_NONE));
+}
+
+std::string_view param_name(project::OwnerPlugin plugin, plugin::ParamId id, effects::FilterMode lpf,
+                            effects::FilterMode hpf) {
+	// The ladder filters repurpose morph, so they name it after what it does. The SVF modes really do morph, and a
+	// filter that is off has no morph param at all, so both keep the default name.
+	const bool chain = plugin == project::OwnerPlugin::GLOBAL_EFFECTABLE;
+	if (id == (chain ? host::chains::param::kLpfMorph : instruments::classic::param::kLpfMorph)
+	    && is_family(lpf, effects::FilterFamily::LP_LADDER)) {
+		return getView(String::STRING_FOR_LPF_DRIVE);
+	}
+	if (id == (chain ? host::chains::param::kHpfMorph : instruments::classic::param::kHpfMorph)
+	    && is_family(hpf, effects::FilterFamily::HP_LADDER)) {
+		return getView(String::STRING_FOR_HPF_FM);
+	}
+	return param_name(plugin, id);
+}
 
 std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id) {
 	std::optional<std::string_view> name;
@@ -518,16 +546,15 @@ std::string_view patched_param_short_name_at(uint32_t index, effects::FilterMode
 	return patched_param_short_name(plugin::ParamId{index}, lpf, hpf);
 }
 
-std::optional<std::string_view> envelope_param_name_at(plugin::ParamKind kind, uint32_t index,
-                                                       const EnvelopeModes& modes, bool brief) {
-	if (kind != plugin::ParamKind::PATCHED) {
+std::optional<std::string_view> envelope_param_name(plugin::ParamId id, const EnvelopeModes& modes, bool brief) {
+	if (!instruments::classic::is_patched(id)) {
 		return std::nullopt;
 	}
 	// The four envelopes' copies of a param are consecutive
-	constexpr uint32_t kDecay = instruments::classic::runtime_index(instruments::classic::param::kEnv1Decay);
-	constexpr uint32_t kSustain = instruments::classic::runtime_index(instruments::classic::param::kEnv1Sustain);
-	constexpr uint32_t kRelease = instruments::classic::runtime_index(instruments::classic::param::kEnv1Release);
-	const auto envelope_of = [index](uint32_t first) -> std::optional<uint32_t> {
+	constexpr uint32_t kDecay = instruments::classic::param::kEnv1Decay.value;
+	constexpr uint32_t kSustain = instruments::classic::param::kEnv1Sustain.value;
+	constexpr uint32_t kRelease = instruments::classic::param::kEnv1Release.value;
+	const auto envelope_of = [index = id.value](uint32_t first) -> std::optional<uint32_t> {
 		return index >= first && index - first < 4 ? std::optional{index - first} : std::nullopt;
 	};
 	static constexpr std::array<std::string_view, 4> kHold{"Env1 hold", "Env2 hold", "Env3 hold", "Env4 hold"};
@@ -536,14 +563,22 @@ std::optional<std::string_view> envelope_param_name_at(plugin::ParamKind kind, u
 		return kHold[*e];
 	}
 	if (const auto e = envelope_of(kRelease); e && modes[*e] == synth::EnvelopeMode::AHD) {
-		const uint32_t decay = kDecay + *e;
-		return brief ? patched_param_short_name_at(decay) : param_name_at(kind, decay);
+		const plugin::ParamId decay{kDecay + *e};
+		return brief ? patched_param_short_name(decay) : param_name(project::OwnerPlugin::INSTRUMENT, decay);
 	}
 	if (const auto e = envelope_of(kSustain);
 	    e && (modes[*e] == synth::EnvelopeMode::AR || modes[*e] == synth::EnvelopeMode::MPE)) {
 		return kLevel[*e];
 	}
 	return std::nullopt;
+}
+
+std::optional<std::string_view> envelope_param_name_at(plugin::ParamKind kind, uint32_t index,
+                                                       const EnvelopeModes& modes, bool brief) {
+	if (kind != plugin::ParamKind::PATCHED) {
+		return std::nullopt;
+	}
+	return envelope_param_name(plugin::ParamId{index}, modes, brief);
 }
 
 } // namespace deluge::l10n

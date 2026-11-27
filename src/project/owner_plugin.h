@@ -20,6 +20,8 @@
 /// @file
 /// @brief Whose param table an owner's ENGINE ids are in.
 
+#include "project/param_address.h"
+
 #include <cstdint>
 
 namespace deluge::project {
@@ -27,5 +29,12 @@ namespace deluge::project {
 /// @brief Whose param table an owner's ENGINE ids are in: a sound's (a synth, a kit row) the Deluge instrument's, a
 /// global effectable's (the song, a kit's affect-entire, an audio clip) the host chain's table's.
 enum class OwnerPlugin : uint8_t { INSTRUMENT, GLOBAL_EFFECTABLE };
+
+/// @brief A param as the UI names it: whose table its ENGINE id is in, and which param in which space.
+struct PluginParam {
+	OwnerPlugin plugin{OwnerPlugin::INSTRUMENT};
+	ParamTarget target{};
+	[[nodiscard]] constexpr bool operator==(const PluginParam&) const = default;
+};
 
 } // namespace deluge::project

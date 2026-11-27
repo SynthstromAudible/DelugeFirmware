@@ -23,6 +23,7 @@
 #include "effects/words.h"
 #include "plugin/types/param.h"
 #include "plugin/types/param_kind.h"
+#include "project/owner_plugin.h"
 
 #include "synth/modulation/envelope_state.h"
 
@@ -45,6 +46,31 @@ using EnvelopeModes = std::array<synth::EnvelopeMode, 4>;
 /// @return The name; nullopt where the param does its usual job.
 [[nodiscard]] std::optional<std::string_view> envelope_param_name_at(plugin::ParamKind kind, uint32_t index,
                                                                      const EnvelopeModes& modes, bool brief = false);
+
+/// @brief The name of the instrument's envelope param @p id where its envelope's mode gives it another job: an AHD's
+///        decay is its hold and its release its decay; an AR's or MPE's sustain is its level.
+/// @param id    A param id of the instrument.
+/// @param modes The sound's envelopes' modes.
+/// @param brief The short form, as a cable's destination shows.
+/// @return The name; nullopt where the param does its usual job.
+[[nodiscard]] std::optional<std::string_view> envelope_param_name(plugin::ParamId id, const EnvelopeModes& modes,
+                                                                  bool brief = false);
+
+/// @brief The display name of the param @p id in @p plugin's table.
+/// @param plugin Whose table the id is in.
+/// @param id     The param's id.
+/// @return The name; "None" for an id the table does not hold.
+[[nodiscard]] std::string_view param_name(project::OwnerPlugin plugin, plugin::ParamId id);
+
+/// @brief As the plugin form of @c param_name, with the morph params named after what the sound's filter modes make
+///        them.
+/// @param plugin Whose table the id is in.
+/// @param id     The param's id.
+/// @param lpf    The low-pass filter's mode.
+/// @param hpf    The high-pass filter's mode.
+/// @return The name.
+[[nodiscard]] std::string_view param_name(project::OwnerPlugin plugin, plugin::ParamId id, effects::FilterMode lpf,
+                                          effects::FilterMode hpf);
 
 /// @brief The display name of a param.
 /// @param kind The param's collection.

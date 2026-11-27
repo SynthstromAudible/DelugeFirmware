@@ -1,7 +1,7 @@
 # Layer-rule baseline: file<TAB>rule<TAB>count. May only shrink.
 src/deluge/bench/mod_matrix_workload.h	no-param-kind-outside-runtime	24
 src/deluge/bench/stutter_cases.cpp	no-param-kind-outside-runtime	1
-src/deluge/gui/l10n/param_names.cpp	no-param-kind-outside-runtime	23
+src/deluge/gui/l10n/param_names.cpp	no-param-kind-outside-runtime	20
 src/deluge/gui/l10n/param_names.h	no-param-kind-outside-runtime	5
 src/deluge/gui/ui/browser/folder_import.cpp	no-param-kind-outside-runtime	1
 src/deluge/gui/ui/browser/sample_preview.cpp	no-param-kind-outside-runtime	5
