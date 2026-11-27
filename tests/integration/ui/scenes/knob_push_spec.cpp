@@ -163,7 +163,7 @@ std::string canonical(const Outcome& o) {
 	     o.stuttering});
 	for (const deluge::project::ControllerMapping& m : o.controls) {
 		text += std::to_string(m.control.button) + "." + std::to_string(m.control.knob) + ">"
-		        + std::to_string(m.target.value) + ",";
+		        + std::to_string(m.target.id.value) + ",";
 	}
 	return text + "|" + o.text;
 }

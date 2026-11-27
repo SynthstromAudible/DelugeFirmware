@@ -331,8 +331,8 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 			}
 			const std::optional<project::ParamTarget>& from = pages.current.slots[knob].target;
 			const std::optional<project::ParamTarget>& to = page.slots[knob].target;
-			if (to && (std::cmp_equal(knob, pressed) || (from && mapping.target == from->id))) {
-				mapping.target = to->id;
+			if (to && (std::cmp_equal(knob, pressed) || (from && mapping.target == *from))) {
+				mapping.target = *to;
 			}
 		}
 		out.controls = std::move(after);

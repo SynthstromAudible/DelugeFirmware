@@ -19,6 +19,7 @@
 
 #include "project/controller_mapping.h"
 #include "support/printers/param_id_printer.h"
+#include "support/printers/param_target_printer.h"
 
 #include <format>
 #include <ostream>
@@ -42,8 +43,7 @@ inline std::ostream& operator<<(std::ostream& os, const ModKnobControl& c) {
 	return os << std::format("{{button {}, knob {}}}", c.button, c.knob);
 }
 
-/// @brief Prints a learned knob as its control and the param it moves, e.g. `{control {button 3, knob 1}, target
-///        ParamId 12}`.
+/// @brief Prints a learned knob as its control and the param it moves, as param_target_printer.h prints a target.
 /// @param os The stream to print to.
 /// @param m The learned knob.
 /// @return @p os.

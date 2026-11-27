@@ -79,13 +79,13 @@ MIDICable& din() {
 /// The target of the sound param @p p, as follow's sound table names it.
 project::ParamTarget soundParam(int32_t p) {
 	return project::engine_target(
-	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).value);
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).id.value);
 }
 
 /// The target of the unpatched param @p p of @p kind, as the tables name it.
 project::ParamTarget unpatched(params::Kind kind, int32_t p) {
 	return project::engine_target(
-	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind).value);
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind).id.value);
 }
 
 ParamAddress addressOf(OwnerId owner, project::ParamTarget target, const Clip* clip) {

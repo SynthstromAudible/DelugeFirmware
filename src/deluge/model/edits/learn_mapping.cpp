@@ -71,10 +71,8 @@ std::optional<deluge::project::OwnerParamTarget> knobTargetIn(const deluge::mode
 	const bool isSound = effects->sound != nullptr;
 	namespace params = deluge::modulation::params;
 	return deluge::project::OwnerParamTarget{
-	    *address,
-	    deluge::project::engine_target(deluge::bridge::controlTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND
-	                                                                                  : params::Kind::UNPATCHED_GLOBAL)
-	                                       .value)};
+	    *address, deluge::bridge::controlTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND
+	                                                             : params::Kind::UNPATCHED_GLOBAL)};
 }
 
 /// The kit whose row @p drum is.

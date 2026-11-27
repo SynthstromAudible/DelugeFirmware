@@ -1082,7 +1082,7 @@ void testSetControls(deluge::edits::Context& ctx) {
 	}
 	const deluge::project::OwnerParamTarget knobTarget{
 	    address, deluge::project::engine_target(
-	                 deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND).value)};
+	                 deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND).id.value)};
 	const deluge::project::MidiCommand knobSource{.channel_or_zone = 0, .note_or_cc = 74};
 	deluge::edits::LearnMapping learnKnob{deluge::project::Mapping{.source = knobSource, .target = knobTarget}};
 	check(deluge::edits::apply(ctx, learnKnob) == Error::NONE, "controls: a MIDI knob is learned into the table");
@@ -1092,7 +1092,7 @@ void testSetControls(deluge::edits::Context& ctx) {
 	check(*ctx.model.resolveControls(address) == controls, "controls: the record holds the list");
 	const std::vector<deluge::project::Mapping> knobs = ctx.model.mappings.params_of(address);
 	check(knobs.size() == 1 && knobs[0].source.note_or_cc == 74 && knobs[0].relative
-	          && std::get<deluge::project::OwnerParamTarget>(knobs[0].target).param.id
+	          && std::get<deluge::project::OwnerParamTarget>(knobs[0].target).param
 	                 == deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND),
 	      "controls: the table holds the learned knob");
 
@@ -1155,9 +1155,9 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 			    main_id >= deluge::ui::scenes::spec::main_numbering::kUnpatchedFirstId && main_id <= 132
 			        ? deluge::ui::scenes::spec::main_numbering::target_of_id(false, main_id).id.value
 			        : main_id;
-			if (record->controls[at].target.value != expected) {
+			if (record->controls[at].target.id.value != expected) {
 				std::fprintf(io.err, "FAIL: knob gestures: push %zu: mapping %zu names param %u, not the recorded %u\n",
-				             press, at, static_cast<unsigned>(record->controls[at].target.value),
+				             press, at, static_cast<unsigned>(record->controls[at].target.id.value),
 				             static_cast<unsigned>(expected));
 				failures++;
 			}
@@ -1185,7 +1185,7 @@ void testPresetChangeHandsOverKnobs(deluge::edits::Context& ctx) {
 	    .source = {.channel_or_zone = 0, .note_or_cc = 71},
 	    .target = deluge::project::OwnerParamTarget{
 	        *oldAddress, deluge::project::engine_target(
-	                         deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND).value)}}};
+	                         deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND).id.value)}}};
 	check(deluge::edits::apply(ctx, learn) == Error::NONE && ctx.model.mappings.params_of(*oldAddress).size() == 1,
 	      "handover: the old synth learns a knob");
 
@@ -1228,7 +1228,7 @@ void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
 	    .source = {.channel_or_zone = 0, .note_or_cc = 72},
 	    .target = deluge::project::OwnerParamTarget{
 	        *address, deluge::project::engine_target(
-	                      deluge::bridge::controlTargetOf(volume, params::Kind::UNPATCHED_GLOBAL).value)}}};
+	                      deluge::bridge::controlTargetOf(volume, params::Kind::UNPATCHED_GLOBAL).id.value)}}};
 	check(deluge::edits::apply(ctx, learn) == Error::NONE && ctx.model.mappings.params_of(*address).size() == 1,
 	      "clone: the source track learns a knob");
 	const auto cloneAddress = deluge::bridge::controlsAddressOf(clone, ctx.song);

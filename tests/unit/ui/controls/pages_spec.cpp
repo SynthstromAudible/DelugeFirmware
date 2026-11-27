@@ -69,8 +69,8 @@ project::Song filter_on_lower_knob(uint8_t mode, SynthMode synth_mode = SynthMod
 	project::Song song{};
 	project::DocOutput& output = song.output_structure.getOrCreate(3);
 	output.mod_knob_mode = mode;
-	output.controls = {{.control = {.button = mode, .knob = 0}, .target = ip::kLpfFrequency},
-	                   {.control = {.button = mode, .knob = 1}, .target = ip::kLpfResonance}};
+	output.controls = {{.control = {.button = mode, .knob = 0}, .target = project::engine_target(ip::kLpfFrequency.value)},
+	                   {.control = {.button = mode, .knob = 1}, .target = project::engine_target(ip::kLpfResonance.value)}};
 	output.instrument = project::InstrumentSlot{
 	    .plugin = "deluge.instrument",
 	    .state = plugin::StateHandle::of<instruments::classic::DelugeSynth>(instruments::classic::switch_engine(instruments::classic::SoundState{}, synth_mode))};

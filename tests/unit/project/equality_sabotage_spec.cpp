@@ -162,9 +162,11 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, output] : document.outputs) {
 				for (ControllerMapping& mapping : output.controls) {
-					mapping.target = mapping.target == deluge::instruments::classic::param::kPan
-					                     ? deluge::instruments::classic::param::kVolumePostFX
-					                     : deluge::instruments::classic::param::kPan;
+					mapping.target = deluge::project::engine_target(
+					    (mapping.target.id == deluge::instruments::classic::param::kPan
+					         ? deluge::instruments::classic::param::kVolumePostFX
+					         : deluge::instruments::classic::param::kPan)
+					        .value);
 					return;
 				}
 			}

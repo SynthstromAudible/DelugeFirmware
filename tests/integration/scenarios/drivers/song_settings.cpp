@@ -297,7 +297,7 @@ deluge::project::ParamTarget knobParam(int32_t p, std::optional<params::Kind> un
 	return deluge::project::engine_target(
 	    deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
 	                                    unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND))
-	        .value);
+	        .id.value);
 }
 
 /// @brief @p mapping as a failure shows it: its target's kind (the MappingTarget alternative), its source's channel or

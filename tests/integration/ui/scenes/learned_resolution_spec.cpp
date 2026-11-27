@@ -81,7 +81,7 @@ project::ParamTarget depthOf(int32_t p, PatchSource source) {
 	    deluge::bridge::controlTargetOf(
 	        deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(static_cast<uint8_t>(p), source)),
 	        params::Kind::UNPATCHED_SOUND)
-	        .value);
+	        .id.value);
 }
 
 /// @brief The address of the filter's frequency or resonance on @p f's synth, in @p clip.
@@ -393,7 +393,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		const ParamAddress lpf = filterOf(f, deluge::instruments::classic::param::kLpfFrequency, *f.clip);
 		const project::ParamTarget volume = project::engine_target(
 		    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_VOLUME),
-		                                    params::Kind::UNPATCHED_GLOBAL).value);
+		                                    params::Kind::UNPATCHED_GLOBAL).id.value);
 		const ParamAddress songVolume{.owner = OwnerId::song(), .space = volume.space, .id = volume.id};
 		const auto lane = [&](const ParamAddress& address) {
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];

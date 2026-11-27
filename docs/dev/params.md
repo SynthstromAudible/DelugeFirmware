@@ -436,6 +436,10 @@ curve, and an edit of the arp's rate repatches it (`ArpParamSet::notifyParamModi
 knob, a MIDI follow entry) names the arp's rate. Its slot in a patched set stays, unread, so the patched ids keep their
 places. A menu item's patch destination is its binding's own
 (`Binding::patch_destination`), so the arp-rate item patches to row 54 while it edits the arp's rate.
+A knob may move an arp param on any owner: a MIDI knob is a song mapping to its `ParamTarget`, and a mod knob's target
+(`ControllerMapping::target`, the sound's `ModKnob::target`) is the arp's `ParamTarget` too, saved by the arp's file name.
+The instrument's knob pairs (`KnobPairs`) name the plugin's own params alone; `writeKnobPairs` keeps an arp knob its
+change leaves alone, and a page puts it in its slot as it is (`sound_page`).
 Saves keep their attributes: a sound's and a kit's in its param block, a MIDI or CV clip's and a MIDI or gate row's on
 its `<arpeggiator>` element (the unsigned values word + 2^31, `arp::word_of_field`).
 

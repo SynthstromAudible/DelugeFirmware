@@ -42,16 +42,19 @@ namespace params = deluge::modulation::params;
 using deluge::project::ControllerMapping;
 using deluge::project::ModKnobControl;
 
-deluge::plugin::ParamId controlTargetOf(const deluge::modulation::KnobTarget& knob, params::Kind unpatchedKind) {
+deluge::project::ParamTarget controlTargetOf(const deluge::modulation::KnobTarget& knob, params::Kind unpatchedKind) {
+	if (knob && knob->space == deluge::project::ParamSpace::ARP) {
+		return *knob;
+	}
 	const deluge::synth::CableTarget word = deluge::modulation::knobWord(knob);
 	if (!word.is_param()) {
-		return cableDepthIdOf(word.word);
+		return deluge::project::engine_target(cableDepthIdOf(word.word).value);
 	}
 	const int32_t p = word.param_index();
 	if (p >= params::UNPATCHED_START) {
-		return paramIdOf(unpatchedKind, p - params::UNPATCHED_START);
+		return deluge::project::engine_target(paramIdOf(unpatchedKind, p - params::UNPATCHED_START).value);
 	}
-	return paramIdOf(params::Kind::PATCHED, p);
+	return deluge::project::engine_target(paramIdOf(params::Kind::PATCHED, p).value);
 }
 
 std::vector<ControllerMapping> controlsOf(::Sound& sound) {
@@ -71,8 +74,10 @@ deluge::instruments::classic::KnobPairs knobPairsOf(const std::vector<Controller
 	deluge::instruments::classic::KnobPairs pairs{};
 	for (const ControllerMapping& mapping : controls) {
 		const ModKnobControl& knob = mapping.control;
-		if (knob.button < pairs.size() && knob.knob < kNumPhysicalModKnobs) {
-			(knob.knob == 0 ? pairs[knob.button].lower : pairs[knob.button].upper) = mapping.target;
+		// The plugin's pairs name its own params; a knob on the arp's is the controls' alone (writeKnobPairs keeps it)
+		if (knob.button < pairs.size() && knob.knob < kNumPhysicalModKnobs
+		    && mapping.target.space == deluge::project::ParamSpace::ENGINE) {
+			(knob.knob == 0 ? pairs[knob.button].lower : pairs[knob.button].upper) = mapping.target.id;
 		}
 	}
 	return pairs;
@@ -82,8 +87,8 @@ std::vector<ControllerMapping> controlsOf(const deluge::instruments::classic::Kn
 	std::vector<ControllerMapping> controls;
 	controls.reserve(pairs.size() * kNumPhysicalModKnobs);
 	for (uint8_t button = 0; button < pairs.size(); ++button) {
-		controls.push_back({ModKnobControl{button, 0}, pairs[button].lower});
-		controls.push_back({ModKnobControl{button, 1}, pairs[button].upper});
+		controls.push_back({ModKnobControl{button, 0}, deluge::project::engine_target(pairs[button].lower.value)});
+		controls.push_back({ModKnobControl{button, 1}, deluge::project::engine_target(pairs[button].upper.value)});
 	}
 	return controls;
 }
@@ -96,12 +101,29 @@ bool writeKnobPairs(
 	std::vector<ControllerMapping>* record = address ? song.project.resolveControls(*address) : nullptr;
 	// A record not holding all the mod knobs would read the missing ones as param id 0: the engine's knobs stand in.
 	const bool whole = record != nullptr && record->size() == kNumModButtons * kNumPhysicalModKnobs;
-	const deluge::instruments::classic::KnobPairs knobs = knobPairsOf(whole ? *record : controlsOf(sound));
+	const std::vector<ControllerMapping> before = whole ? *record : controlsOf(sound);
+	const deluge::instruments::classic::KnobPairs knobs = knobPairsOf(before);
 	const deluge::instruments::classic::KnobPairs changed = change(knobs);
 	if (changed == knobs) {
 		return false;
 	}
 	std::vector<ControllerMapping> controls = controlsOf(changed);
+	// A knob on the arp's param stays on it where the change left its pair's slot alone
+	for (const ControllerMapping& knob : before) {
+		if (knob.target.space != deluge::project::ParamSpace::ARP || knob.control.button >= changed.size()) {
+			continue;
+		}
+		const auto slot = [&knob](const deluge::instruments::classic::KnobPairs& pairs) {
+			return knob.control.knob == 0 ? pairs[knob.control.button].lower : pairs[knob.control.button].upper;
+		};
+		if (slot(changed) == slot(knobs)) {
+			for (ControllerMapping& out : controls) {
+				if (out.control == knob.control) {
+					out.target = knob.target;
+				}
+			}
+		}
+	}
 	if (record == nullptr) {
 		applyControls(sound, controls);
 		return true;
@@ -172,6 +194,9 @@ deluge::modulation::KnobTarget knobOfControl(deluge::plugin::ParamId target, par
 }
 
 deluge::modulation::KnobTarget knobOfControl(deluge::project::ParamTarget target, params::Kind unpatchedKind) {
+	if (target.space == deluge::project::ParamSpace::ARP) {
+		return target; // the arp's param, which a knob names as itself
+	}
 	if (target.space != deluge::project::ParamSpace::ENGINE) {
 		return std::nullopt;
 	}
