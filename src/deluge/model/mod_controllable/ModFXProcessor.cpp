@@ -31,6 +31,11 @@ void ModFXProcessor::processModFX(std::span<StereoSample> buffer, const ModFXTyp
 	// if nothing rendered into the clip then we can just return
 	if (anySoundComingIn == false)
 		return;
+	// The delay-based effects need modFXBuffer, which setupBuffer() leaves null if its allocation failed - then just
+	// skip the effect rather than index a null buffer. (Phaser uses its own memory; grain isn't handled here.)
+	if (modFXBuffer == nullptr && modFXType != ModFXType::PHASER && modFXType != ModFXType::GRAIN) [[unlikely]] {
+		return;
+	}
 	if (modFXType != ModFXType::NONE) {
 
 		LFOType modFXLFOWaveType{};
