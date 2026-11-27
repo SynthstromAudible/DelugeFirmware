@@ -513,3 +513,6 @@ private:
 
 extern Song* currentSong;
 extern Song* preLoadedSong;
+// preLoadedSong is published while it is still being built (code that runs during loading looks at it), so a swap to it
+// must also wait for this, which the loader sets once the Song is complete. Cleared by doSongSwap().
+extern bool preLoadedSongIsComplete;

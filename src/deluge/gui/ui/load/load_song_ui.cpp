@@ -469,6 +469,11 @@ gotErrorAfterCreatingSong:
 
 	preLoadedSong->name.set(&enteredText);
 
+	// The Song is complete now, so a launch event may swap it in from here on. After that preLoadedSong is null, so
+	// keep our own pointer for loading the rest of its samples below.
+	Song* newSong = preLoadedSong;
+	preLoadedSongIsComplete = true;
+
 	Song* toDelete = currentSong;
 
 	if (playbackHandler.isEitherClockActive()) {
@@ -508,7 +513,7 @@ gotErrorAfterCreatingSong:
 		// rest of the samples which weren't needed right away. (though we might run out of RAM cos we haven't discarded
 		// all the old samples yet)
 		AudioEngine::logAction("asking for samples");
-		preLoadedSong->loadAllSamples(true);
+		newSong->loadAllSamples(true);
 		AudioEngine::logAction("waiting for samples");
 #ifdef USE_TASK_MANAGER
 		// make sure we don't get stuck

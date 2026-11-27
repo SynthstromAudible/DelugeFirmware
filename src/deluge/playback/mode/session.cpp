@@ -2158,7 +2158,7 @@ bool Session::endPlayback() {
 	if (launchEventAtSwungTickCount || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
 		cancelAllLaunchScheduling();
 
-		if (preLoadedSong) {
+		if (preLoadedSong && preLoadedSongIsComplete) {
 			return true;
 		}
 		else {
@@ -2365,8 +2365,9 @@ traverseClips:
 				audioRecorder.endRecordingSoon();
 			}
 
-			// If we're doing a song swap...
-			if (preLoadedSong) {
+			// If we're doing a song swap... (a launch that was already scheduled when a song load began must not swap
+			// in the half-read Song - it launches as normal instead)
+			if (preLoadedSong && preLoadedSongIsComplete) {
 				cancelAllLaunchScheduling();
 				lastSectionArmed = REALLY_OUT_OF_RANGE;
 				playbackHandler.doSongSwap();

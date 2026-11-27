@@ -1499,6 +1499,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
+	preLoadedSongIsComplete = false;
 	loadSongUI.deletedPartsOfOldSong = false;
 
 	currentSong->sendAllMIDIPGMs();
