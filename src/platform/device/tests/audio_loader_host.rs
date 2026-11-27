@@ -272,6 +272,29 @@ fn minimal_wav() -> Vec<u8> {
     wav
 }
 
+/// A RIFF/WAVE like [`minimal_wav`], with `before` (chunk id, payload length) chunks between `fmt `
+/// and `data`, `audio_len` bytes of audio, and `after` chunks following the audio. Payloads are
+/// zeros, and an odd payload is padded, as RIFF requires.
+fn wav_with(before: &[(&[u8; 4], u32)], audio_len: u32, after: &[(&[u8; 4], u32)]) -> Vec<u8> {
+    fn chunk(wav: &mut Vec<u8>, id: &[u8; 4], len: u32) {
+        wav.extend_from_slice(id);
+        wav.extend_from_slice(&len.to_le_bytes());
+        wav.resize(wav.len() + len as usize + (len as usize & 1), 0);
+    }
+    let canonical = minimal_wav();
+    let mut wav = canonical[..36].to_vec(); // RIFF container and `fmt `
+    for (id, len) in before {
+        chunk(&mut wav, id, *len);
+    }
+    chunk(&mut wav, b"data", audio_len);
+    for (id, len) in after {
+        chunk(&mut wav, id, *len);
+    }
+    let riff_len = wav.len() as u32 - 8;
+    wav[4..8].copy_from_slice(&riff_len.to_le_bytes());
+    wav
+}
+
 /// Runs a future to completion on the test thread.
 fn block_on<F: core::future::Future>(future: F) -> F::Output {
     embassy_futures::block_on(future)
@@ -337,8 +360,9 @@ fn a_good_file_reports_where_it_is() {
 /// A failed load says nowhere: there is no file to open.
 #[test]
 fn a_failed_load_reports_no_location() {
+    // Two reads: the header's sector, then the chunk after the audio, which fails.
     let ops = FakeOps::new()
-        .with_file("A.wav", minimal_wav())
+        .with_file("A.wav", wav_with(&[], 5000, &[(b"LIST", 20)]))
         .with_read_failing_after(1);
     let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
     assert_eq!(result.error, DELUGE_ERROR_FILE_UNREADABLE);
@@ -438,8 +462,9 @@ fn a_failed_size_closes_the_handle() {
 /// A read that fails mid-parse (a card pulled) still closes the handle and produces a verdict.
 #[test]
 fn a_failed_read_mid_parse_closes_the_handle() {
+    // Two reads: the header's sector, then the chunk after the audio, which fails.
     let ops = FakeOps::new()
-        .with_file("A.wav", minimal_wav())
+        .with_file("A.wav", wav_with(&[], 5000, &[(b"LIST", 20)]))
         .with_read_failing_after(1);
     let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
     assert_eq!(result.error, DELUGE_ERROR_FILE_UNREADABLE);
@@ -650,13 +675,7 @@ fn an_unsizeable_candidate_yields_to_the_next_one() {
             Call::Close,
             Call::Open(String::from("SAMPLES/A.wav")),
             Call::SizeOf,
-            Call::Read { offset: 0, len: 12 },
-            Call::Read { offset: 12, len: 8 },
-            Call::Read {
-                offset: 20,
-                len: 16
-            },
-            Call::Read { offset: 36, len: 8 },
+            Call::Read { offset: 0, len: 52 },
             Call::Close,
         ]
     );
@@ -682,9 +701,65 @@ fn every_window_stays_inside_the_file() {
         "the parser must never name a byte past the size it was given; reads were {:?}",
         ops.reads()
     );
-    // The audio payload is skipped by arithmetic: the walk stops at the `data` chunk header
-    // (offset 36, 8 bytes).
-    assert_eq!(ops.reads(), vec![(0, 12), (12, 8), (20, 16), (36, 8)]);
+    // One read from the first sector, cut short where the 52-byte file ends; the parser answers
+    // the container, `fmt ` and `data` requests from it and skips the audio by arithmetic.
+    assert_eq!(ops.reads(), vec![(0, 52)]);
+}
+
+/// A header whose chunks all sit in the file's first sector is one read, not one per chunk: the
+/// parser is fed whole sectors and answers every request they cover itself. Each read is a trip
+/// through the filesystem on the card, so a song's samples paid this per chunk.
+#[test]
+fn a_header_inside_one_sector_is_one_read() {
+    let bytes = wav_with(&[(b"LIST", 30), (b"junk", 90)], 4000, &[]);
+    let ops = FakeOps::new().with_file("A.wav", bytes);
+    assert_eq!(
+        block_on(load_io_once(&ops, &request("A.wav", &["A.wav"]))).error,
+        DELUGE_ERROR_NONE
+    );
+    assert_eq!(ops.reads().len(), 1, "reads were {:?}", ops.reads());
+    ops.assert_settled();
+}
+
+/// A chunk after the audio is one more read, starting at the sector that holds it.
+#[test]
+fn a_chunk_after_the_audio_is_one_more_read_from_its_sector() {
+    let bytes = wav_with(&[], 5000, &[(b"LIST", 20)]);
+    let ops = FakeOps::new().with_file("A.wav", bytes);
+    assert_eq!(
+        block_on(load_io_once(&ops, &request("A.wav", &["A.wav"]))).error,
+        DELUGE_ERROR_NONE
+    );
+    let after_audio = 44 + 5000;
+    let reads = ops.reads();
+    assert_eq!(reads.len(), 2, "reads were {reads:?}");
+    assert_eq!(reads[0].0, 0);
+    assert_eq!(reads[1].0, after_audio / 512 * 512);
+    ops.assert_settled();
+}
+
+/// Every read starts on a sector and is whole sectors, except where the file ends first: the card
+/// reads such a window straight into the buffer, without the filesystem.
+#[test]
+fn every_read_is_whole_sectors_unless_the_file_ends() {
+    // The chunk after the audio straddles a sector boundary.
+    let audio_len = 1024 - 44 - 8 + 4;
+    let bytes = wav_with(&[], audio_len, &[(b"LIST", 600), (b"junk", 10)]);
+    let size = bytes.len();
+    let ops = FakeOps::new().with_file("A.wav", bytes);
+    assert_eq!(
+        block_on(load_io_once(&ops, &request("A.wav", &["A.wav"]))).error,
+        DELUGE_ERROR_NONE
+    );
+    for (offset, len) in ops.reads() {
+        assert_eq!(offset % 512, 0, "reads were {:?}", ops.reads());
+        assert!(
+            len % 512 == 0 || offset as usize + len == size,
+            "reads were {:?}",
+            ops.reads()
+        );
+    }
+    ops.assert_settled();
 }
 
 /// A zero-length window must still be read and fed: the parser resolves end of file inside
