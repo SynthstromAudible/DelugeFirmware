@@ -47,6 +47,13 @@ bool SaveInstrumentPresetUI::opened() {
 	// Must set this before calling SaveUI::opened(), which uses this to work out folder name
 	outputTypeToLoad = currentInstrument->type;
 
+	// Only synths, kits and MIDI instruments have preset files (the rest of this UI, e.g. the closing tag written in
+	// performSave(), has nothing for other types). The sound editor's SAVE can get here for a CV instrument.
+	if (outputTypeToLoad != OutputType::SYNTH && outputTypeToLoad != OutputType::KIT
+	    && outputTypeToLoad != OutputType::MIDI_OUT) {
+		return false;
+	}
+
 	bool success = SaveUI::opened();
 	if (!success) { // In this case, an error will have already displayed.
 doReturnFalse:
