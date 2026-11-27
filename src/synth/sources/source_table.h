@@ -19,13 +19,14 @@
 #include "definitions_cxx.hpp"
 #include "dsp/core/phasor.h"
 #include "dsp/fixed/noise/cong.h"
-#include "synth/sources/dx7/dx7_source.h"
+#include "synth/engines/engine_table.h"
 #include "synth/sources/input/input_source.h"
 #include "synth/sources/sample/sample_source.h"
 #include "synth/sources/supersaw/supersaw_source.h"
 #include "synth/sources/va/va_shapes.h"
 #include "synth/sources/va/virtual_analog_source.h"
 #include "synth/sources/wavetable/wavetable_source.h"
+#include "synth/table_rows.h"
 #include <tuple>
 #include <type_traits>
 #include <variant>
@@ -34,31 +35,18 @@
 /// @brief The kinds of source an oscillator slot plays, one row each: the slot's note-on, build, lookup, binding and
 /// release, and the engines' own-rate test, are generated from these rows. Adding a source is adding a row.
 ///
-/// A ported row's source is bound to a firmware port for the voice's life (sample, DX7, live input) and sounds outside
-/// FM. A held row's source is built per note into the slot's held oscillator (the waves) and sounds in the subtractive
-/// and ring-mod engines.
+/// A ported row's source is bound to a firmware port for the voice's life (sample, live input); a held row's
+/// source is built per note into the slot's held oscillator (the waves). Either sounds only where the engine table's
+/// row for the mode holds the oscillators (holds_oscillators).
 
 namespace deluge::synth {
 
 /// @brief The firmware ports a slot's port-backed sources play through; they outlive the slot.
 struct SourcePorts {
 	SamplePlaybackPort* sample{};    ///< the sample reader and its pool
-	DxVoicePort* dx{};               ///< the pooled DX7 voice
 	AudioInputPort* input{};         ///< the engine's live input
 	const LiveInputs* live_inputs{}; ///< the oscillator's live histories
 };
-
-/// @brief Whether a ported source sounds in @p mode: outside FM, whose slots are its carriers.
-/// @return True outside FM.
-[[nodiscard]] constexpr bool ported_mode(SynthMode mode) noexcept {
-	return mode != SynthMode::FM;
-}
-
-/// @brief Whether a held oscillator is built in @p mode: the subtractive and ring-mod engines only.
-/// @return True for SUBTRACTIVE and RINGMOD.
-[[nodiscard]] constexpr bool held_mode(SynthMode mode) noexcept {
-	return mode == SynthMode::SUBTRACTIVE || mode == SynthMode::RINGMOD;
-}
 
 /// @brief What a held source's build reads.
 struct HeldBuild {
@@ -87,27 +75,6 @@ struct SampleKind {
 	/// @return False when the release ends the note at once and the slot unassigns.
 	[[nodiscard]] static bool release(Source& source, const SourceRelease& release, bool active) {
 		return !active || source.release(release);
-	}
-};
-
-/// @brief The DX7 row: a pooled DX7 voice played through its port.
-struct Dx7Kind {
-	using Source = DX7Source;
-	static constexpr bool kHeld = false;
-	static constexpr bool kOwnsNote = false;
-	static constexpr bool kOwnRate = false;
-	/// @brief Whether this row plays @p type.
-	[[nodiscard]] static constexpr bool plays(OscType type) noexcept { return type == OscType::DX7; }
-	/// @brief Binds @p source to its port in @p ports.
-	static void bind(Source& source, const SourcePorts& ports) { source.bind_port(ports.dx); }
-	/// @brief Starts @p note on @p source.
-	/// @return False when the note cannot play.
-	[[nodiscard]] static bool note_on(Source& source, const SourceNote& note) { return source.note_on(note); }
-	/// @brief The note-off for @p source.
-	/// @return True: the DX7 releases on its own envelopes, whatever the slot's state, and never ends the note here.
-	[[nodiscard]] static bool release(Source& source, const SourceRelease& /*release*/, bool /*active*/) {
-		(void)source.release({});
-		return true;
 	}
 };
 
@@ -209,7 +176,7 @@ struct SupersawKind {
 };
 
 /// @brief The slot's source kinds: the ported ones first, in the order bind and unassign walk them, then the held.
-using SourceKinds = std::tuple<SampleKind, Dx7Kind, InputKind, VirtualAnalogKind, WavetableKind, SupersawKind>;
+using SourceKinds = std::tuple<SampleKind, InputKind, VirtualAnalogKind, WavetableKind, SupersawKind>;
 
 namespace detail {
 
@@ -266,30 +233,12 @@ using PortedKinds = detail::PortedKindsOf<SourceKinds>::type;
 /// @brief The held rows, in the table's order.
 using HeldKinds = detail::HeldKindsOf<SourceKinds>::type;
 
-/// @brief Calls @p fn with each row of @p Kinds (a tuple of rows) as a value of that type, in order, until @p fn
-/// returns true.
-/// @param fn Called as `fn(Kind{})`; true stops the walk.
-/// @return Whether some call returned true.
-template <class Kinds, class Fn>
-bool find_kind(Fn fn) {
-	return [&]<class... Kind>(std::type_identity<std::tuple<Kind...>>) {
-		return (fn(Kind{}) || ...);
-	}(std::type_identity<Kinds>{});
-}
-
-/// @brief Calls @p fn with each row of @p Kinds, in order.
-/// @param fn Called as `fn(Kind{})` for each row.
-template <class Kinds, class Fn>
-void for_each_kind(Fn fn) {
-	[&]<class... Kind>(std::type_identity<std::tuple<Kind...>>) { (fn(Kind{}), ...); }(std::type_identity<Kinds>{});
-}
-
 /// @brief Whether a source of @p type plays at its own rate in @p mode, so its neutral increment is the root note's: a
-/// ported row with kOwnRate, outside FM.
+/// ported row with kOwnRate, where the mode's engine holds the oscillators.
 /// @return True for a sample or a live input outside FM.
 [[nodiscard]] inline bool plays_at_own_rate(OscType type, SynthMode mode) {
-	return ported_mode(mode)
-	       && find_kind<PortedKinds>([&]<class Kind>(Kind) { return Kind::kOwnRate && Kind::plays(type); });
+	return holds_oscillators(mode)
+	       && find_row<PortedKinds>([&]<class Kind>(Kind) { return Kind::kOwnRate && Kind::plays(type); });
 }
 
 } // namespace deluge::synth

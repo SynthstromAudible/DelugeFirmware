@@ -18,6 +18,7 @@
 #pragma once
 
 #include "instruments/classic/dx7_init_voice.h"
+#include "instruments/classic/record_edit.h"
 #include "instruments/classic/settings.h"
 #include "instruments/classic/sound_state.h"
 #include "instruments/classic/state_access.h"
@@ -64,14 +65,13 @@ inline std::string osc(size_t s, std::string_view key) {
 
 /// @brief The oscillator kinds the matrix pairs.
 inline constexpr instruments::classic::OscType kMatrixKinds[] = {
-    instruments::classic::OscType::SINE,        instruments::classic::OscType::SAW,
-    instruments::classic::OscType::SUPERSAW,    instruments::classic::OscType::WAVETABLE,
-    instruments::classic::OscType::SAMPLE,      instruments::classic::OscType::DX7,
-    instruments::classic::OscType::INPUT_L,     instruments::classic::OscType::INPUT_R,
-    instruments::classic::OscType::INPUT_STEREO};
+    instruments::classic::OscType::SINE,     instruments::classic::OscType::SAW,
+    instruments::classic::OscType::SUPERSAW, instruments::classic::OscType::WAVETABLE,
+    instruments::classic::OscType::SAMPLE,   instruments::classic::OscType::INPUT_L,
+    instruments::classic::OscType::INPUT_R,  instruments::classic::OscType::INPUT_STEREO};
 
-/// @brief A sound with engine @p mode and kinds @p a and @p b, every oscillator field set to a value its default is
-/// not, whatever its kind holds.
+/// @brief A sound with engine @p mode and kinds @p a and @p b, every oscillator field and the DX7's patch set to a
+/// value its default is not, whatever its kind holds (in DX7 mode the oscillators are parked).
 /// @param mode The engine.
 /// @param a The first oscillator's kind.
 /// @param b The second oscillator's kind.
@@ -92,9 +92,8 @@ inline instruments::classic::SoundState plain_sound(instruments::classic::SynthM
 		    {.top_note = 40, .file_path = "SAMPLES/A.WAV", .zone = {.start = 10, .end = 900}},
 		    {.top_note = 127, .file_path = "SAMPLES/B.WAV", .zone = {.end = 400}, .tuning = {.transpose = 2}}};
 		s = with_ranges(std::move(s), id, std::move(ranges));
-		s = with_dx_patch(std::move(s), id,
-		                  DxPatchState{.params = kDx7InitVoice, .engine_mode = 2, .random_detune = 3});
 	}
+	s = with_dx7_patch(std::move(s), DxPatchState{.params = kDx7InitVoice, .engine_mode = 2, .random_detune = 3});
 	detail::put(s, "osc1/retrigPhase", std::to_string(static_cast<int32_t>(0x40000000)));
 	detail::put(s, "osc2/retrigPhase", "-1");
 	detail::put(s, "osc2/oscillatorSync", "1");
@@ -104,7 +103,12 @@ inline instruments::classic::SoundState plain_sound(instruments::classic::SynthM
 	detail::put(s, "modulator2/retrigPhase", "7");
 	detail::put(s, "modulator2/toModulator1", "1");
 	detail::put(s, "lfo2/syncLevel", std::to_string(std::to_underlying(plugin::SyncLevel::EIGHTH)));
-	detail::put(s, "mode", to_string(mode));
+	if (mode == SynthMode::DX7) {
+		set_engine(s, mode); // the mode row offers the DX7 with its pages
+	}
+	else {
+		detail::put(s, "mode", to_string(mode));
+	}
 	return s;
 }
 
@@ -122,7 +126,7 @@ inline instruments::classic::SoundState varied_sound(instruments::classic::Synth
 	detail::put(s, "osc2/loopMode", std::to_string(std::to_underlying(SampleRepeatMode::ONCE)));
 	detail::put(s, "osc2/reversed", "0");
 	s = with_ranges(std::move(s), SourceId::B, {});
-	s = with_dx_patch(std::move(s), SourceId::B, std::nullopt);
+	s = with_dx7_patch(std::move(s), std::nullopt);
 	detail::put(s, "osc1/retrigPhase", "-1");
 	detail::put(s, "osc2/retrigPhase", std::to_string(static_cast<int32_t>(0x20000000)));
 	detail::put(s, "osc2/oscillatorSync", "0");
@@ -162,8 +166,9 @@ inline std::vector<std::pair<std::string, instruments::classic::SoundState>> cor
 
 	DxPatchState patch{.engine_mode = 2, .random_detune = 5};
 	patch.params[7] = 42;
-	const SoundState dx = with_dx_patch(with_kind(SoundState{}, SourceId::B, OscType::DX7), SourceId::B, patch);
-	states.emplace_back("dx7", dx);
+	SoundState dx = with(SoundState{}, "osc2/type", to_string(OscType::SAW));
+	set_engine(dx, SynthMode::DX7);
+	states.emplace_back("dx7", with_dx7_patch(std::move(dx), patch));
 
 	SoundState wavetable = with_kind(SoundState{}, SourceId::A, OscType::WAVETABLE);
 	wavetable = with_ranges(std::move(wavetable), SourceId::A,
@@ -200,7 +205,7 @@ inline bool is_kind_row(std::string_view name) {
 template <class Check>
 void for_each_named_sound(const Check& check) {
 	using namespace instruments::classic;
-	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
+	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM, SynthMode::DX7}) {
 		for (const OscType a : kMatrixKinds) {
 			for (const OscType b : kMatrixKinds) {
 				const std::string name =

@@ -28,21 +28,26 @@
 
 /// @brief The firmware side of one unison part's source: the ports its sources play through.
 struct UnisonPartPorts {
-	SamplePlaybackAdapter sample;   ///< the VoiceSample pool and reader behind synth::SamplePlaybackPort
-	deluge::dsp::DxVoiceAdapter dx; ///< the pooled dx7::Voice behind synth::DxVoicePort
-	AudioInputAdapter input;        ///< the AudioEngine-backed live input behind synth::AudioInputPort
+	SamplePlaybackAdapter sample; ///< the VoiceSample pool and reader behind synth::SamplePlaybackPort
+	AudioInputAdapter input;      ///< the AudioEngine-backed live input behind synth::AudioInputPort
 };
 
 /// @brief The host's part of a sound's voice: the ports its sources play through and the playback guides of the files
 /// its note plays. Declared ahead of the kernel in the slot, whose sources point into the ports.
 struct VoicePart {
 	std::array<std::array<UnisonPartPorts, kNumSources>, kMaxNumVoicesUnison> ports_;
+	/// Each unison part's DX7: the pooled dx7::Voice behind synth::DxVoicePort, which the DX7 engine plays.
+	std::array<deluge::dsp::DxVoiceAdapter, kMaxNumVoicesUnison> dx7_ports_;
 	/// Each source's playback bounds and file for the note playing (basically sample memory bounds).
 	std::array<VoiceSamplePlaybackGuide, kNumSources> guides{};
 
 	/// @brief The ports unison part @p u's source @p s plays through.
 	/// @return The ports.
 	[[nodiscard]] UnisonPartPorts& ports(int32_t u, int32_t s) { return ports_[u][s]; }
+
+	/// @brief The DX7 port unison part @p u plays through.
+	/// @return The port.
+	[[nodiscard]] deluge::dsp::DxVoiceAdapter& dx7_port(int32_t u) { return dx7_ports_[u]; }
 };
 
 /// @brief A sound's voice: the library slot over the host's part, and nothing more. A type of its own rather than an

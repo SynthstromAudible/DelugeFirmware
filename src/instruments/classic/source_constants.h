@@ -37,7 +37,7 @@ using synth::kFreeRunningPhase;
 /// @brief The end a range's zone has before a file sets it: a file loaded into it plays to its own end.
 inline constexpr uint64_t kUnsetEndPos = 9999999;
 
-/// @brief The DX7 patch a DX7 source carries: the 156 voice bytes and two extensions.
+/// @brief The DX7 patch the DX7 engine plays: the 156 voice bytes and two extensions.
 using DxPatchState = synth::DxPatch;
 
 } // namespace deluge::instruments::classic

@@ -35,4 +35,11 @@ inline void setOscType(::Sound& sound, int32_t s, deluge::instruments::classic::
 	    deluge::serialization::Value::makeScalar(std::string(deluge::instruments::classic::to_string(type))));
 }
 
+/// @brief Change @p sound's synth mode to @p mode as its synth-mode menu does.
+inline void setSynthMode(::Sound& sound, deluge::instruments::classic::SynthMode mode) {
+	deluge::edits::settingFor(
+	    sound, "mode",
+	    deluge::serialization::Value::makeScalar(std::string(deluge::instruments::classic::to_string(mode))));
+}
+
 } // namespace deluge::test

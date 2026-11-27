@@ -27,7 +27,6 @@
 #include "hid/buttons.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
-#include "model/project_bridge/source_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
@@ -51,6 +50,7 @@
 
 #include "support/spec_main.h"
 
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <string>
@@ -179,13 +179,13 @@ describe dx_pages("the DX7 menu pages", ${
 	it("makes the source's patch the one written, with no undo record", _ {
 		DxRig r;
 		actionLogger.deleteAllLogs();
-		deluge::instruments::classic::DxPatchState want = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		deluge::instruments::classic::DxPatchState want = r.sound->dx7Patch.state().value();
 		want.params[134] = 17;
 		want.params[0] = 3;
 		want.engine_mode = 2;
 		want.random_detune = 42;
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, want)).to_be_true();
-		expect(deluge::bridge::dxPatchOf(r.sound->sourceResources[0])).to_equal(std::optional{want});
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), want)).to_be_true();
+		expect(r.sound->dx7Patch.state()).to_equal(std::optional{want});
 		expect(static_cast<int32_t>(r.patch().engineMode)).to_equal(2);
 		expect(r.patch().random_detune).to_equal(42);
 		expect(actionLogger.firstAction[BEFORE]).to_be_null();
@@ -195,47 +195,74 @@ describe dx_pages("the DX7 menu pages", ${
 	// with feedback renders without the feedback loop only MkI implements; here the engine follows the bytes.
 	it("chooses the engine again for an auto patch whose new algorithm needs MkI", _ {
 		DxRig r;
-		deluge::instruments::classic::DxPatchState want = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		deluge::instruments::classic::DxPatchState want = r.sound->dx7Patch.state().value();
 		expect(static_cast<int32_t>(want.engine_mode)).to_equal(0);
 		expect(r.patch().engine).to_equal(deluge::dsp::fixed::dx7::Engine::MODERN);
 		want.params[134] = 3; // algorithm 4
 		want.params[135] = 5; // with feedback
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, want)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), want)).to_be_true();
 		expect(r.patch().engine).to_equal(deluge::dsp::fixed::dx7::Engine::MKI);
 	});
 
-	it("refuses a source that is not a DX7 one", _ {
+	it("refuses a sound in another mode, and a slot that does not resolve", _ {
 		DxRig r;
-		const deluge::instruments::classic::DxPatchState want = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 1, want)).to_be_false();
-	expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 2, want)).to_be_false(); // past the two sources
-	deluge::project::SlotAddress nowhere = r.slot();
-	nowhere.id += 1000;
-	expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(nowhere, 0, want)).to_be_false();
+		const deluge::instruments::classic::DxPatchState want = r.sound->dx7Patch.state().value();
+		deluge::project::SlotAddress nowhere = r.slot();
+		nowhere.id += 1000;
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(nowhere, want)).to_be_false();
+		deluge::test::setSynthMode(*r.sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), want)).to_be_false();
 	});
 
-	it("enters DX7 source on SELECT from oscillator 1's type set to DX7, on its page and on the source page", _ {
+	it("enters DX7 source on SELECT from the synth mode set to DX7, on its row and on the master page", _ {
 		{
 			MenuRig r;
-			r.open(nodes::osc0_type);
+			r.open(nodes::synth_mode);
 			r.select();
 			expect(r.focused()).to_equal(&nodes::dx_menu);
 		}
 		{
 			MenuRig r;
-			r.open(nodes::source0); // the page opens on its first column, the type
+			r.open(nodes::sound_master); // the page opens on its first column, the mode
 			r.select();
 			expect(r.focused()).to_equal(&nodes::dx_menu);
 		}
 	});
 
-	it("goes up on SELECT from any other oscillator type, as main's type answers nothing", _ {
+	it("goes up on SELECT from any other synth mode, as main's mode answers nothing", _ {
 		MenuRig r;
-		deluge::test::setOscType(*r.sound, 0, OscType::SAW);
-		r.open(nodes::source0);
+		deluge::test::setSynthMode(*r.sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
+		r.open(nodes::sound_master);
 		r.select();
 		expect(r.focused()).not_().to_equal(&nodes::dx_menu);
-		expect(nodes::osc1_type_chain(r.menu_context(), r.state())).to_be_null();
+		expect(nodes::mode_chain(r.menu_context(), r.state())).to_be_null();
+	});
+
+	it("puts the DX7's page in OSC1's place in DX7 mode, its columns alone, and hides OSC2's page and the mixer", _ {
+		MenuRig r;
+		const MenuContext ctx = r.menu_context();
+		expect(menu::bindings::relevant(nodes::source0, ctx)).to_be_true();
+		expect(menu::bindings::relevant(nodes::source1, ctx)).to_be_false();
+		expect(menu::bindings::relevant(nodes::osc_mixer, ctx)).to_be_false();
+		std::array<const Node*, 32> listed{};
+		const size_t n = menu::bindings::listed_children(nodes::source0, ctx, listed, menu::bindings::ListFor::Columns);
+		const std::vector<const Node*> columns(listed.begin(), listed.begin() + static_cast<std::ptrdiff_t>(n));
+		expect(columns).to_equal(std::vector<const Node*>{&nodes::dx7_engine, &nodes::dx7_transpose, &nodes::dx7_amp_mod,
+		                                                  &nodes::dx7_phase, &nodes::dx7_level});
+		deluge::test::setSynthMode(*r.sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
+		const MenuContext subtractive = r.menu_context();
+		expect(menu::bindings::relevant(nodes::source1, subtractive)).to_be_true();
+		const size_t m =
+		    menu::bindings::listed_children(nodes::source0, subtractive, listed, menu::bindings::ListFor::Columns);
+		expect(std::count(listed.begin(), listed.begin() + static_cast<std::ptrdiff_t>(m), &nodes::dx7_engine))
+		    .to_equal(std::ptrdiff_t{0});
+	});
+
+	it("enters DX7 source on SELECT from the DX7 page's first column, as from main's DX7 oscillator type", _ {
+		MenuRig r;
+		r.open(nodes::source0); // the page opens on its first listed column, the DX7's
+		r.select();
+		expect(r.focused()).to_equal(&nodes::dx_menu);
 	});
 
 	it("a re-read of the engine version takes the patch's mode again", _ {
@@ -243,9 +270,9 @@ describe dx_pages("the DX7 menu pages", ${
 		MenuRig r;
 		r.open(nodes::dx_engine_select);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(0);
-		deluge::instruments::classic::DxPatchState vintage = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		deluge::instruments::classic::DxPatchState vintage = r.sound->dx7Patch.state().value();
 		vintage.engine_mode = 2;
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, vintage)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), vintage)).to_be_true();
 		menu_scene().read_value_again();
 		expect(static_cast<int32_t>(r.cursor())).to_equal(2);
 	});
@@ -271,9 +298,9 @@ describe dx_pages("the DX7 menu pages", ${
 
 	it("puts the engine version's cursor on the patch's mode and writes a turn's mode, stopping at either end", _ {
 		MenuRig r;
-		deluge::instruments::classic::DxPatchState modern = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		deluge::instruments::classic::DxPatchState modern = r.sound->dx7Patch.state().value();
 		modern.engine_mode = 1;
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, modern)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), modern)).to_be_true();
 		bind::test::RecordingSoundWrites writes;
 		r.open(nodes::dx_engine_select, &writes);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(1);
@@ -318,9 +345,9 @@ describe dx_pages("the DX7 menu pages", ${
 	it("turns the DX7 value five steps under Shift, then clamps to its limit", _ {
 		// `DxParam::selectEncoderAction` adds the scaled offset to the value and clamps it to `upper_limit`.
 		MenuRig r;
-		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		deluge::instruments::classic::DxPatchState patch = r.sound->dx7Patch.state().value();
 		patch.params[134] = 3;
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), patch)).to_be_true();
 		bind::test::RecordingSoundWrites writes;
 		menu_scene().land_dx(menu::DxState{.param = 134});
 		r.open(nodes::dx_param, &writes);
@@ -363,10 +390,10 @@ describe dx_pages("the DX7 menu pages", ${
 			const std::string tag = "param " + std::to_string(param) + " " + name + "\n";
 			expect(tag + below_bezel(r.fake.pbm(0))).to_equal(tag + below_bezel(frozen));
 		};
-		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		deluge::instruments::classic::DxPatchState patch = r.sound->dx7Patch.state().value();
 		for_each_layout(
 		    patch,
-		    [&] { expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true(); },
+		    [&] { expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), patch)).to_be_true(); },
 		    shot);
 	});
 
@@ -396,19 +423,19 @@ describe dx_pages("the DX7 menu pages", ${
 			}
 		}
 		for (uint8_t mode = 0; mode < 3; mode++) {
-			deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+			deluge::instruments::classic::DxPatchState patch = r.sound->dx7Patch.state().value();
 			patch.engine_mode = mode;
-			expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+			expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), patch)).to_be_true();
 			expect(port_panel(nodes::dx_engine_select)).to_equal(frozen_page("engine_" + std::to_string(mode)));
 		}
 	});
 
 	it("moves the value within its limits on a select turn and writes oscillator 1's patch", _ {
 		MenuRig r;
-		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		deluge::instruments::classic::DxPatchState patch = r.sound->dx7Patch.state().value();
 		patch.params[134] = 29;
 		patch.random_detune = 3;
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), patch)).to_be_true();
 		bind::test::RecordingSoundWrites writes;
 		menu_scene().land_dx(menu::DxState{.param = 134});
 		r.open(nodes::dx_param, &writes);
@@ -433,9 +460,9 @@ describe dx_pages("the DX7 menu pages", ${
 		r.turn(-1, kHorizontalEncoder);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(143);
 
-		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
+		deluge::instruments::classic::DxPatchState patch = r.sound->dx7Patch.state().value();
 		patch.params[dx::kOperatorSwitch] = 0b100101; // operators 0, 2 and 5 on
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), patch)).to_be_true();
 		menu_scene().land_dx(menu::DxState{.param = 0 * 21 + 18});
 		r.open(nodes::dx_param);
 		r.button(kShiftX, kShiftY, true);
@@ -447,7 +474,7 @@ describe dx_pages("the DX7 menu pages", ${
 		r.button(kShiftX, kShiftY, false);
 
 		patch.params[dx::kOperatorSwitch] = 0;
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), patch)).to_be_true();
 		menu_scene().land_dx(menu::DxState{.param = dx::kFirstGlobal});
 		r.open(nodes::dx_param);
 		r.button(kShiftX, kShiftY, true);
@@ -484,8 +511,16 @@ describe dx_pages("the DX7 menu pages", ${
 		r.tick();
 		expect(r.focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(40);
-		deluge::test::setOscType(*r.sound, 0, OscType::SAW);
+		deluge::test::setSynthMode(*r.sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
 		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 4)).to_be_null();
+	});
+
+	it("lands oscillator 1's type shortcut on the DX7's column on a DX7 sound, as main's type showed its DX7", _ {
+		MenuRig r;
+		expect(nodes::dx_shortcut_fallback(nodes::osc0_type, r.menu_context(), 2)).to_equal(&nodes::dx7_engine);
+		expect(nodes::dx_shortcut_fallback(nodes::osc1_type, r.menu_context(), 3)).to_be_null();
+		deluge::test::setSynthMode(*r.sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
+		expect(nodes::dx_shortcut_fallback(nodes::osc0_type, r.menu_context(), 2)).to_be_null();
 	});
 
 	it("goes up from the parameter page on SELECT and on BACK", _ {
@@ -577,9 +612,8 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(dx::pad_param(16, 4).has_value()).to_be_false(); // the sidebar
 	});
 
-	it("takes every Shift + pad on the parameter page with the DX7 engine on: a pad picks its param and blinks", _ {
+	it("takes every Shift + pad on the parameter page: a pad picks its param and blinks", _ {
 		select_language();
-		DxEngineOn on;
 		MenuRig r;
 		menu_scene().land_dx(menu::DxState{.param = 16});
 		r.open(nodes::dx_param);
@@ -596,20 +630,8 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(-1);
 	});
 
-	it("leaves the pads the menu's shortcuts on the parameter page with the DX7 engine off", _ {
-		select_language();
-		Feature off(RuntimeFeatureSettingType::EnableDX7Engine, RuntimeFeatureStateToggle::Off);
-		MenuRig r;
-		menu_scene().land_dx(menu::DxState{.param = 16});
-		r.open(nodes::dx_param);
-		r.shift_pad(3, 4);
-		expect(r.focused()).not_().to_equal(&nodes::dx_param);
-		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(16);
-	});
-
 	it("paints main's DX7 colour map as the overlay on the parameter page, and the ordinary one elsewhere", _ {
 		select_language();
-		DxEngineOn on;
 		MenuRig r;
 		const MenuContext ctx = r.menu_context();
 		const auto painted = [&](const Node& page) {
@@ -647,7 +669,6 @@ describe dx_pages("the DX7 menu pages", ${
 
 	it("shows the DX7 colour map under Shift on the parameter page", _ {
 		select_language();
-		DxEngineOn on;
 		Feature overlay(RuntimeFeatureSettingType::ShortcutOverlay,
 		                static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly));
 		MenuRig r;
@@ -745,8 +766,8 @@ describe dx_pages("the DX7 menu pages", ${
 		r.song.clip->keyboardState.isomorphic.scrollOffset = 40;
 		r.song.clip->keyboardState.isomorphic.rowInterval = 5;
 		r.patch().params[1 * 21 + 8] = 45;
-		deluge::instruments::classic::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
-		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		deluge::instruments::classic::DxPatchState patch = r.sound->dx7Patch.state().value();
+		expect(deluge::gui::shell_host::host_ports().sound_writes->write_dx_patch(r.slot(), patch)).to_be_true();
 		menu_scene().land_dx(menu::DxState{.param = 1 * 21 + 10});
 		r.open(nodes::dx_param);
 		const std::optional<menu::ItemBlink> blink = nodes::kDxParam.own_blink(r.menu_context(), r.state());

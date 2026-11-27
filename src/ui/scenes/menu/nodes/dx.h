@@ -2,8 +2,9 @@
 
 /// @brief The DX7 menu pages: "DX7 source" and what it lists.
 ///
-/// The port of `gui/menu_item/dx/`: `dxMenu`, the `Submenu` oscillator 1's type opens when it is DX7
-/// (`osc::Type::selectButtonPress`, `origin/main:src/deluge/gui/menu_item/osc/type.h`), with three rows:
+/// The port of `gui/menu_item/dx/`: `dxMenu`, the `Submenu` the synth mode's SELECT opens in DX7 mode, as oscillator
+/// 1's type's did when it was DX7 on `main` (`osc::Type::selectButtonPress`,
+/// `origin/main:src/deluge/gui/menu_item/osc/type.h`), and the first row of the sound's DX7 page; with three rows:
 ///
 /// - **load DX7 .syx file** (`DxBrowseMenu`): opens the `.syx` browser (`browser::BrowserId::DxSyx`) over the menu.
 ///   BACK from it returns to "DX7 source"; a bank it reads lands on the cartridge page under this row, whose BACK
@@ -18,8 +19,8 @@
 /// ## State
 ///
 /// Legacy keeps the param shown and the two lists' cursors on its singletons, so they outlive the editor; the port
-/// keeps them in `MenuState::dx`, which `MenuScene::open` carries over. Every write is the whole patch, through
-/// `SoundWrites::write_dx_patch`.
+/// keeps them in `MenuState::dx`, which `MenuScene::open` carries over. Every page edits the sound's DX7 engine's
+/// patch; every write is the whole patch, through `SoundWrites::write_dx_patch`.
 
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/detail.h"
@@ -134,9 +135,9 @@ public:
 	/// @brief The param's own pad, every other cycle, once a horizontal step has set it up; none for the scaling params
 	///        (`readValueAgain`'s `setupShortcutBlink(x, y, 1)`).
 	std::optional<ItemBlink> own_blink(const MenuContext& ctx, const MenuState& state) const override;
-	/// @brief The page's own pad layout while the DX7 engine feature is on (`DxParam::potentialShortcutPadAction`): a
-	///        pad picks its param (`dx::pad_param`) and blinks it, and every press is the page's, a pad with no param
-	///        included.
+	/// @brief The page's own pad layout (`DxParam::potentialShortcutPadAction`, which `main` gave the page while its
+	///        DX7 engine feature was on): a pad picks its param (`dx::pad_param`) and blinks it, and every press is the
+	///        page's, a pad with no param included.
 	bool shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t x, uint8_t y) const override;
 };
 
@@ -144,8 +145,9 @@ inline const DxGlobalParamsItem kDxGlobalParams{};
 inline const DxOperatorParamsItem kDxOperatorParams{};
 inline const DxParamItem kDxParam{};
 
-/// @brief Whether the pads under the menu are the DX7 layout: the parameter page is focused and the DX7 engine feature
-///        is on (`isDxShortcutLayoutActive`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
+/// @brief Whether the pads under the menu are the DX7 layout: the parameter page is focused
+///        (`isDxShortcutLayoutActive`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`, which also asked for `main`'s
+///        DX7 engine feature).
 bool dx_pad_layout(const MenuContext& ctx, const MenuState& state);
 
 /// @brief Where SELECT on "DX7 parameters" goes: the parameter page, or "DX7 operator N" (`global_row_param`).
@@ -186,21 +188,25 @@ inline constexpr const Node* kDxMenuChildren[] = {&dx_browse, &dx_global_params,
 /// @brief "DX7 source" -- `dxMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`).
 inline constexpr Node dx_menu = submenu(sid(deluge::l10n::String::STRING_FOR_DX_1), kDxMenuChildren);
 
-/// @brief `osc::Type::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/osc/type.h`) for oscillator 1: "DX7
-///        source" when its type is DX7, else nothing, so SELECT ascends.
-const Node* osc0_type_chain(const MenuContext& ctx, const MenuState& state);
-/// @brief The same for oscillator 2, which legacy's type list never offers DX7.
-const Node* osc1_type_chain(const MenuContext& ctx, const MenuState& state);
+/// @brief Whether the sound the menu edits plays the DX7 engine.
+bool sound_is_dx7(const MenuContext& ctx);
+
+/// @brief Where SELECT on the synth mode goes: "DX7 source" in DX7 mode, as `main`'s oscillator 1 type's
+///        `selectButtonPress` (`origin/main:src/deluge/gui/menu_item/osc/type.h`) went on a DX7; else nothing, so
+///        SELECT ascends.
+const Node* mode_chain(const MenuContext& ctx, const MenuState& state);
 
 /// @brief `potentialShortcutPadAction`'s fallback (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) for a shortcut
-///        whose node does not apply: modulator 1's volume, refused on a sound whose source `x & 1` is DX7, opens the
-///        DX7 parameter page instead, on the param it showed last.
+///        whose node does not apply, from oscillator 1's column (`x` even) on a DX7-mode sound, as on `main`'s DX7
+///        oscillator 1: modulator 1's volume opens the DX7 parameter page alone, on the param it showed last;
+///        oscillator 1's type lands on the DX7's column (`dx7_engine`), whose SELECT enters "DX7 source" as the type's
+///        did.
 /// @param refused The node the pad names, which does not apply.
 /// @param ctx     What the menu edits.
 /// @param x       The pad's column; its low bit names the source.
-/// @return `dx_param`, or nothing where legacy shows "PARAMETER NOT APPLICABLE".
+/// @return `dx_param` or `dx7_engine`, or nothing where legacy shows "PARAMETER NOT APPLICABLE".
 const Node* dx_shortcut_fallback(const Node& refused, const MenuContext& ctx, uint8_t x);
-inline constexpr const Node* kOscTypeChainArray[] = {&dx_menu};
-inline constexpr std::span<const Node* const> kOscTypeChain{kOscTypeChainArray};
+inline constexpr const Node* kModeChainArray[] = {&dx_menu};
+inline constexpr std::span<const Node* const> kModeChain{kModeChainArray};
 
 } // namespace deluge::ui::scenes::menu::nodes

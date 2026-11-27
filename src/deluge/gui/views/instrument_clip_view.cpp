@@ -919,9 +919,7 @@ bool InstrumentClipView::handleInstrumentChange(OutputType outputType,
 	bool isMIDIorCV = util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV});
 
 	if (outputType == OutputType::SYNTH) {
-		is_fm = Buttons::isButtonPressed(deluge::hid::button::MOD7)
-		        && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
-		            == RuntimeFeatureStateToggle::On);
+		is_fm = Buttons::isButtonPressed(deluge::hid::button::MOD7);
 	}
 
 	if (!isMIDIorCV && (is_fm || Buttons::isShiftButtonPressed())) {

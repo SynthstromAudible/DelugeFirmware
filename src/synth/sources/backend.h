@@ -29,6 +29,7 @@ struct SampleBlock;
 struct InputBlock;
 struct DualSourceControls;
 struct FmControls;
+struct Dx7Controls;
 struct UnisonPart;
 struct SourceLevels;
 struct BlockValues;
@@ -64,6 +65,7 @@ struct Fixed {
 	using Release = synth::ReleaseInfo;
 	using DualSourceControls = synth::DualSourceControls;
 	using FmControls = synth::FmControls;
+	using Dx7Controls = synth::Dx7Controls;
 };
 
 } // namespace deluge::synth

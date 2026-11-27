@@ -163,6 +163,8 @@ may_include = [
     "synth/sources/source_state.h",
     "synth/sources/input/input_channel.h",
     "synth/engines/engine_state.h",
+    "synth/engines/engine_table.h",
+    "synth/table_rows.h",
     "synth/modulation/lfo_state.h",
     "synth/modulation/envelope_state.h",
     "synth/voice/voicing_state.h",

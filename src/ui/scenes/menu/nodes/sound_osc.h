@@ -101,11 +101,11 @@
 #include "ui/scenes/menu/node.h"
 #include "ui/scenes/menu/nodes/column_hooks.h"
 #include "ui/scenes/menu/nodes/detail.h"
-#include "ui/scenes/menu/nodes/dx.h" // the type's select chain into "DX7 source"
 #include "ui/scenes/menu/nodes/fan_out_rules.h"
 #include "ui/scenes/menu/nodes/param_shows.h"
 #include "ui/scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 #include "ui/scenes/menu/nodes/sample.h"       // the six bespoke items this subtree's nodes point at
+#include "ui/scenes/menu/nodes/sound_dx7.h"    // the DX7's columns, OSC1's in DX7 mode
 #include "ui/scenes/menu/relevance.h"
 
 #include <cstddef>
@@ -174,20 +174,25 @@ constexpr Node retrigger_phase_screen(Node n) {
 	return with_default_edit_pos(with_decimal_restart_from_negative(with_decimal_word(n, retrigger_phase_text)), 1);
 }
 
+// OSC1's place is the DX7's in DX7 mode: its page lists the DX7's columns after its own, which hide there. OSC2's page
+// hides in DX7 mode.
+#define SOURCE0_DX7_COLUMNS , &dx7_engine, &dx7_transpose, &dx7_amp_mod, &dx7_phase, &dx7_level
+#define SOURCE1_DX7_COLUMNS
+inline constexpr RelevantFn source0_relevant = nullptr;
+inline constexpr RelevantFn source1_relevant = relevance::not_dx7;
+
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v);                                                 \
-	inline constexpr Node osc##i##_type =                                                                              \
-	    with_select_chain(with_wrap_in_horizontal(with_column_art(                                                     \
-	                          without_column_label(with_title_arg(                                                     \
-	                              with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,      \
-	                                                      {.kind = deluge::ui::scenes::bind::Target::Kind::SOUND,      \
-	                                                       .path = osc_path "/type",                                   \
-	                                                       .whole_kit = false}),                                       \
-	                                         sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE)),               \
-	                              (i) + 1)),                                                                           \
-	                          osc##i##_type_art)),                                                                     \
-	                      &osc##i##_type_chain, kOscTypeChain);                                                        \
+	inline constexpr Node osc##i##_type = with_wrap_in_horizontal(                                                     \
+	    with_column_art(without_column_label(with_title_arg(                                                           \
+	                        with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,            \
+	                                                {.kind = deluge::ui::scenes::bind::Target::Kind::SOUND,            \
+	                                                 .path = osc_path "/type",                                         \
+	                                                 .whole_kit = false}),                                             \
+	                                   sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE)),                     \
+	                        (i) + 1)),                                                                                 \
+	                    osc##i##_type_art));                                                                           \
 	inline constexpr Node file##i##_selector =                                                                         \
 	    with_value_text(with_column_art(with_allow_session_from_horizontal(with_range_specific(                        \
 	                                        custom(sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER),                 \
@@ -300,12 +305,18 @@ constexpr Node retrigger_phase_screen(Node n) {
 	                                     loop_end_draw),                                                               \
 	                    end_point_label);                                                                              \
 	inline constexpr const Node* kSource##i##Children[] = {                                                            \
-	    &osc##i##_type,        &file##i##_selector,       &source##i##_transpose,   &source##i##_wave_index,           \
-	    &osc##i##_pulse_width, &source##i##_feedback,     &osc##i##_phase,          &sample##i##_reverse,              \
-	    &sample##i##_repeat,   &sample##i##_time_stretch, &sample##i##_pitch_speed, &sample##i##_interpolation,        \
-	    &sample##i##_start,    &sample##i##_end};                                                                      \
-	inline constexpr Node source##i = with_page_title(                                                                 \
-	    submenu(sid(deluge::l10n::String::name_id), kSource##i##Children, Layout::Horizontal), source##i##_page_title)
+	    &osc##i##_type,           &file##i##_selector,                                                                 \
+	    &source##i##_transpose,   &source##i##_wave_index,                                                             \
+	    &osc##i##_pulse_width,    &source##i##_feedback,                                                               \
+	    &osc##i##_phase,          &sample##i##_reverse,                                                                \
+	    &sample##i##_repeat,      &sample##i##_time_stretch,                                                           \
+	    &sample##i##_pitch_speed, &sample##i##_interpolation,                                                          \
+	    &sample##i##_start,       &sample##i##_end SOURCE##i##_DX7_COLUMNS};                                           \
+	inline constexpr Node source##i =                                                                                  \
+	    with_name_text(with_page_title(submenu(sid(deluge::l10n::String::name_id), kSource##i##Children,               \
+	                                           Layout::Horizontal, source##i##_relevant),                              \
+	                                   source##i##_page_title),                                                        \
+	                   source##i##_name)
 
 /// @brief One FM modulator page's three shared leaves. Bodies in the `.cpp`.
 #define DELUGE_OSC_MODULATOR(i, modulator_path)                                                                        \
@@ -425,8 +436,8 @@ inline constexpr Node osc_sync = with_affect_entire(
                      sid(deluge::l10n::String::STRING_FOR_SYNC)));
 inline constexpr const Node* kMixerChildren[] = {&source0_volume,    &source1_volume, &modulator0_volume,
                                                  &modulator1_volume, &noise,          &osc_sync};
-inline constexpr Node osc_mixer =
-    submenu(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_MIXER), kMixerChildren, Layout::Horizontal);
+inline constexpr Node osc_mixer = submenu(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_MIXER), kMixerChildren,
+                                          Layout::Horizontal, relevance::not_dx7);
 
 /// @brief This file's six contributions to `kBatch1Roots`, in `origin/main:src/deluge/gui/menu_item/generate/main.py`'s
 ///        order: the recorder, both sources, both modulators, the mixer.

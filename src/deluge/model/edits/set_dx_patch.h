@@ -8,27 +8,25 @@
 
 namespace deluge::edits {
 
-/// @brief Set the DX7 patch of one source of a sound's instrument.
+/// @brief Set the patch of a sound's DX7 engine.
 ///
-/// apply() resolves the slot @c slot names in the model and the sound playing it, gives the source the patch
-/// (bridge::applyDxPatch), then makes the slot hold the sound's state again.
+/// apply() resolves the slot @c slot names in the model and the DX7-mode sound playing it, gives its DX7 the patch
+/// (bridge::applyDx7Patch), then makes the slot hold the sound's state again.
 ///
 /// @note Records no undo.
 class SetDxPatch final : public Edit {
 public:
-	/// @param slot   Address of the instrument slot.
-	/// @param source Index of the source (oscillator) within the sound; must be below kNumSources and a DX7 source.
-	/// @param patch  The DX7 patch state to give the source.
-	SetDxPatch(deluge::project::SlotAddress slot, uint8_t source, deluge::instruments::classic::DxPatchState patch)
-	    : slot_(slot), source_(source), patch_(patch) {}
+	/// @param slot  Address of the instrument slot.
+	/// @param patch The DX7 patch state to give the sound's DX7.
+	SetDxPatch(deluge::project::SlotAddress slot, deluge::instruments::classic::DxPatchState patch)
+	    : slot_(slot), patch_(patch) {}
 
 	/// @copydoc Edit::apply
-	/// @return Error::UNSPECIFIED if the slot, sound or a DX7 source cannot be resolved.
+	/// @return Error::UNSPECIFIED if the slot cannot be resolved or its sound is not in DX7 mode.
 	Error apply(Context& ctx) override;
 
 private:
 	deluge::project::SlotAddress slot_;
-	uint8_t source_;
 	deluge::instruments::classic::DxPatchState patch_;
 };
 

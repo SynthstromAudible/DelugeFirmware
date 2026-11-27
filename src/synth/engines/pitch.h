@@ -19,7 +19,9 @@
 
 #include "definitions_cxx.hpp" // kMaxSampleValue
 #include "dsp/core/fixed_point.h"
+#include "dsp/fixed/pitch/fine_tune.h"
 #include <cstdint>
+#include <optional>
 
 namespace deluge::synth {
 
@@ -38,5 +40,14 @@ namespace deluge::synth {
 	}
 	return true;
 }
+
+/// @brief A wave's phase increment for @p transposed_note_code (the note with every transpose added), before its cents
+/// and the unison detune.
+/// @return None when the note is too high to render (above 22.05 kHz).
+[[nodiscard]] std::optional<uint32_t> wave_phase_increment(int32_t transposed_note_code);
+
+/// @brief A unison part's increment: @p phase_increment detuned by the part's @p detuner, or none when it reaches
+/// 2^31, too high to render (above 22.05 kHz), as the base increment is held under it.
+[[nodiscard]] std::optional<uint32_t> detuned_increment(uint32_t phase_increment, const dsp::fixed::FineTune& detuner);
 
 } // namespace deluge::synth

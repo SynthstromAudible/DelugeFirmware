@@ -323,7 +323,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 			expect(call.value).to_equal(int64_t{60});
 			expect(call.neighbour_top).to_equal(std::optional<int16_t>{48});
 		}
-		expect(p.sound_writes->load_dx_program(slot, 1, 5)).to_be_true();
+		expect(p.sound_writes->load_dx_program(slot, 5)).to_be_true();
 		expect(host.sound_writes.calls.size()).to_equal(size_t{2});
 		if (host.sound_writes.calls.size() == 2) {
 			expect(host.sound_writes.calls[0].kind).to_equal(test::RecordingSoundWrites::Call::Kind::INSERT_RANGE);
@@ -832,7 +832,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(static_cast<int>(read_device<ShortcutsVersion>(nullptr, device_path::kShortcutsVersion)))
 			.to_equal(static_cast<int>(ShortcutsVersion::V3));
 		expect(read_device_flag(nullptr, battery)).to_be_true();
-		expect(read_device_flag(nullptr, device_path::feature(Feature::ENABLE_DX7_ENGINE))).to_be_false();
+		expect(read_device_flag(nullptr, device_path::feature(Feature::SHIFT_IS_STICKY))).to_be_false();
 	});
 	it("records each sample release, refuses the files in use, and answers the last sample path as the spec set", _ {
 		test::FakeHost host;

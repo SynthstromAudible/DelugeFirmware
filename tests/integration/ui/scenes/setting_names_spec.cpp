@@ -154,9 +154,10 @@ void check_names(auto& self, const Case& c, std::string_view variant = {}) {
 		if (shortened == nullptr) {
 			continue;
 		}
-		// A CHOICE row's list is its applicable choices in order; any other row's is its menu values.
-		std::vector<int32_t> choices =
-		    applicable(row, context_of(c.where, c.family), enter(c.where, c.source), c.where);
+		// A CHOICE row's list is its applicable choices in order, as main's (kStoredChoiceDifferences undone); any
+		// other row's is its menu values.
+		std::vector<int32_t> choices = main_choices(
+		    c.path, c.where, applicable(row, context_of(c.where, c.family), enter(c.where, c.source), c.where));
 		if (row.kind != SettingKind::CHOICE || named_only(c)) {
 			choices.clear();
 			for (size_t i = 0; i < full->size(); ++i) {

@@ -600,7 +600,7 @@ describe menu_entry_node_arg("openMenu can name a node, not only a root", $ {
 		// `InstrumentClipMinder::createNewInstrument`'s `soundEditor.setup(clip, &dxMenu, 0)`: a named item, so no wipe.
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
-		deluge::test::setOscType(*sound, 0, OscType::DX7);
+		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 		expect(entry::openMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
@@ -618,7 +618,7 @@ describe menu_entry_node_arg("openMenu can name a node, not only a root", $ {
 		// `DXColumn::handlePad`'s Shift arm: `openForOpOrGlobal`'s `setup(getCurrentClip(), &dxParam, 0)`.
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
-		deluge::test::setOscType(*sound, 0, OscType::DX7);
+		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 		f.song->setCurrentClip(f.clip);
 		expect(entry::openMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
@@ -768,7 +768,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		// `setup()` refuses it, and on a DX7 source `setup(clip, &dxParam, 0)` opens the page as `dxParam.param` stands.
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
-		deluge::test::setOscType(*sound, 0, OscType::DX7);
+		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
 		deluge::ui::scenes::menu_scene().land_dx(menu::DxState{.param = 3 * 21 + 2});
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 4, 0)).to_equal(&nodes::modulator0_volume);
 
@@ -781,7 +781,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		closeGuest();
 
 		// The same pad on a sound that is not DX7 is refused, with setup()'s popup.
-		deluge::test::setOscType(*sound, 0, OscType::SAW);
+		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
 		expect(entry::openMenuAtShortcut(f.clip, 4, 0, false, false, false, false)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
@@ -1840,24 +1840,25 @@ struct HeldAudition {
 } // namespace
 
 describe menu_entry_shortcut_whole("site 9: the port answers the press whole, and legacy never opens", $ {
-	it("says PARAMETER NOT APPLICABLE for a pad that does not apply, and the DX7 test reads the pad's own source", _ {
-		// A DX7 source beside the pad's own: the fallback tests the pad's source, not this one.
+	it("says PARAMETER NOT APPLICABLE for a pad that does not apply, and oscillator 2's column on a DX7 sound", _ {
+		// The DX7 fallback stands in oscillator 1's column alone, as main's DX7 could be oscillator 1 alone.
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		RootUIGuard root_guard;
 		deluge::ui::scenes::spec::UiModeGuard mode;
 		PopupSpy spy;
 		DisplayGuard shown{spy};
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
-		deluge::test::setOscType(*sound, 0, OscType::SAW);
-		deluge::test::setOscType(*sound, 1, OscType::DX7);
+		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 5, 0)).to_equal(&nodes::modulator1_volume);
 		setRootUILowLevel(&instrumentClipView);
 		{
 			HeldShift shift;
-			expect(entry::menuShortcutPadAction(4, 0, true)).to_equal(ActionResult::DEALT_WITH);
+			expect(entry::menuShortcutPadAction(5, 0, true)).to_equal(ActionResult::DEALT_WITH);
 		}
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
-		deluge::test::setOscType(*sound, 1, OscType::SAW);
+		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
 		nullifyUIs();
 	});
 

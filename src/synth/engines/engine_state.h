@@ -20,7 +20,6 @@
 #include "synth/sources/source_state.h"
 
 #include <array>
-#include <variant>
 
 namespace deluge::synth {
 
@@ -54,8 +53,5 @@ struct FmState {
 	bool modulator1_to_modulator0{false};
 	bool operator==(const FmState&) const = default;
 };
-
-/// @brief The engine a sound renders with, and what it saves.
-using EngineState = std::variant<SubtractiveState, RingModState, FmState>;
 
 } // namespace deluge::synth

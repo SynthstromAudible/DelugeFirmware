@@ -17,8 +17,9 @@
 
 #include "synth/engines/slot_engine.h"
 #include "dsp/core/fixed_point.h"
+#include "synth/engines/pitch.h"
 #include "synth/sources/source_table.h"
-#include "util/lookuptables/lookuptables.h" // noteFrequencyTable, noteIntervalTable
+#include "util/lookuptables/lookuptables.h" // noteIntervalTable
 #include <optional>
 #include <utility>
 
@@ -56,15 +57,7 @@ std::optional<uint32_t> base_phase_increment(const SourceSetup& source, SynthMod
 		return phase_increment << shift_left_amount;
 	}
 
-	// A wave oscillator
-	int32_t note_within_octave = static_cast<uint16_t>(transposed_note_code + 240 - 4) % 12;
-	int32_t octave = (transposed_note_code + 120 - 4) / 12;
-
-	int32_t shift_right_amount = 20 - octave;
-	if (shift_right_amount >= 0) {
-		return noteFrequencyTable[note_within_octave] >> shift_right_amount;
-	}
-	return std::nullopt;
+	return wave_phase_increment(transposed_note_code);
 }
 
 } // namespace
@@ -92,15 +85,6 @@ bool SlotEngine::mark_active(const EngineNote& note, bool refuse_silent) {
 		}
 	}
 	return true;
-}
-
-std::optional<uint32_t> detuned_increment(uint32_t phase_increment, const dsp::fixed::FineTune& detuner) {
-	// The tuner works on signed increments: below 2^31 the bits are the same
-	const auto detuned = static_cast<uint32_t>(detuner.apply(static_cast<int32_t>(phase_increment)));
-	if (detuned >= (uint32_t{1} << 31)) {
-		return std::nullopt;
-	}
-	return detuned;
 }
 
 void SlotEngine::calculate_phase_increments(const EngineNote& note) {

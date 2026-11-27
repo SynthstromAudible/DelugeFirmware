@@ -27,12 +27,12 @@ SourceSlot::~SourceSlot() {
 }
 
 void SourceSlot::bind(const SourcePorts& ports) {
-	for_each_kind<PortedKinds>([&]<class Kind>(Kind) { Kind::bind(std::get<typename Kind::Source>(ported_), ports); });
+	for_each_row<PortedKinds>([&]<class Kind>(Kind) { Kind::bind(std::get<typename Kind::Source>(ported_), ports); });
 }
 
 template <class Fn>
 bool SourceSlot::with_ported(OscType type, Fn fn) {
-	return find_kind<PortedKinds>([&]<class Kind>(Kind) {
+	return find_row<PortedKinds>([&]<class Kind>(Kind) {
 		if (!Kind::plays(type)) {
 			return false;
 		}
@@ -49,14 +49,15 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 	    .note_code = note_code,
 	    .velocity = velocity,
 	    .priority_rating = priority_rating,
-	    .dx_patch = source.dx_patch,
 	    .osc_type = source.osc_type,
 	};
 
-	// A port-backed source outside FM starts through its port; a sample's note-on is the whole of the slot's
+	// Where the engine plays the slots, a port-backed source starts through its port (a sample's note-on is the whole
+	// of the slot's) and any other type builds its held wave
 	bool started = true;
 	bool owned = false;
-	const bool ported = ported_mode(synth_mode) && with_ported(source.osc_type, [&]<class Kind>(Kind, auto& src) {
+	const bool plays_slots = holds_oscillators(synth_mode);
+	const bool ported = plays_slots && with_ported(source.osc_type, [&]<class Kind>(Kind, auto& src) {
 		                    started = Kind::note_on(src, note);
 		                    owned = Kind::kOwnsNote;
 	                    });
@@ -64,7 +65,7 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 		return started;
 	}
 	if (!ported) {
-		build_oscillator(source.osc_type, held_mode(synth_mode), osc_retrigger_phase, reset_everything, noise);
+		build_oscillator(source.osc_type, plays_slots, osc_retrigger_phase, reset_everything, noise);
 	}
 
 	if (reset_everything) {
@@ -90,7 +91,7 @@ void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t o
 	                      .reset_everything = reset_everything,
 	                      .osc_pos = osc_pos,
 	                      .noise = &noise};
-	const bool held = engine_mode && find_kind<HeldKinds>([&]<class Kind>(Kind) {
+	const bool held = engine_mode && find_row<HeldKinds>([&]<class Kind>(Kind) {
 		                  if (!Kind::plays(osc_type)) {
 			                  return false;
 		                  }
@@ -107,7 +108,7 @@ void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t o
 
 void SourceSlot::unassign(bool deleting_song) {
 	active = false;
-	for_each_kind<PortedKinds>(
+	for_each_row<PortedKinds>(
 	    [&]<class Kind>(Kind) { std::get<typename Kind::Source>(ported_).unassign(deleting_song); });
 }
 

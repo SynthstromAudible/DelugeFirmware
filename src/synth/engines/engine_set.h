@@ -18,36 +18,56 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // SynthMode
+#include "synth/engines/dx7_engine.h"
 #include "synth/engines/engine.h"
+#include "synth/engines/engine_table.h"
 #include "synth/engines/fm_engine.h"
 #include "synth/engines/ring_mod_engine.h"
 #include "synth/engines/subtractive_engine.h"
+#include "synth/table_rows.h"
+#include <tuple>
 
 namespace deluge::synth {
 
-/// @brief One of each engine a voice can play, and the factory that picks one by synth mode. Every engine keeps its
-/// state while another plays, so a voice whose sound changes mode while it sounds (an undo, a preset applied) carries
-/// each engine's state over the change.
+namespace detail {
+
+template <class Rows>
+struct EnginesOf;
+
+template <class... Rows>
+struct EnginesOf<std::tuple<Rows...>> {
+	using type = std::tuple<typename Rows::Engine...>;
+};
+
+} // namespace detail
+
+/// @brief One of each engine in the engine table, and the factory that picks one by synth mode. Every engine keeps
+/// its state while another plays, so a voice whose sound changes mode while it sounds (an undo, a preset applied)
+/// carries each engine's state over the change.
 class EngineSet {
 public:
-	/// The engine for @p mode.
+	/// @brief The engine of @p mode's row; the first row's for a mode no row names.
 	[[nodiscard]] Engine& for_mode(SynthMode mode) {
-		switch (mode) {
-		case SynthMode::RINGMOD:
-			return ring_mod_;
-		case SynthMode::FM:
-			return fm_;
-		default:
-			return subtractive_;
-		}
+		Engine* chosen = &std::get<0>(engines_);
+		(void)find_row<EngineRows>([&]<class Row>(Row) {
+			if (Row::kMode != mode) {
+				return false;
+			}
+			chosen = &of<Row>();
+			return true;
+		});
+		return *chosen;
 	}
-	/// FM, whose modulator levels the voice keeps current in every mode.
-	[[nodiscard]] FMEngine& fm() { return fm_; }
+	/// @brief The engine of @p Row.
+	template <class Row>
+	[[nodiscard]] Row::Engine& of() {
+		return std::get<typename Row::Engine>(engines_);
+	}
+	/// @brief FM, whose modulator levels the voice keeps current in every mode.
+	[[nodiscard]] FMEngine& fm() { return of<FmRow>(); }
 
 private:
-	SubtractiveEngine subtractive_;
-	RingModEngine ring_mod_;
-	FMEngine fm_;
+	detail::EnginesOf<EngineRows>::type engines_;
 };
 
 } // namespace deluge::synth

@@ -36,13 +36,10 @@ constexpr std::array kTypes{OscType::SINE,        OscType::TRIANGLE,     OscType
                             OscType::SAW,         OscType::ANALOG_SAW_2, OscType::SUPERSAW, OscType::WAVETABLE,
                             OscType::SAMPLE,      OscType::DX7,          OscType::INPUT_L,  OscType::INPUT_R,
                             OscType::INPUT_STEREO};
-constexpr std::array kModes{SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD};
+constexpr std::array kModes{SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD, SynthMode::DX7};
 
 std::string name(SampleKind) {
 	return "sample";
-}
-std::string name(Dx7Kind) {
-	return "dx7";
 }
 std::string name(InputKind) {
 	return "input";
@@ -57,20 +54,23 @@ std::string name(SupersawKind) {
 	return "supersaw";
 }
 
+/// Whether a slot plays a source of its own in @p mode: in subtractive and ring-mod (FM's slots are its carriers; the
+/// DX7 engine plays its DX7 itself).
+bool slot_mode(SynthMode mode) {
+	return mode == SynthMode::SUBTRACTIVE || mode == SynthMode::RINGMOD;
+}
+
 /// The source a slot of @p type plays in @p mode, written out from the rule itself: a port-backed source (sample,
-/// live input, DX7) outside FM, else a wave the subtractive and ring-mod engines build, else none.
+/// live input) or a wave the engines build, in the modes whose slots play, else none (a DX7 is no slot's: it is an
+/// engine of its own).
 std::string expected_source(OscType type, SynthMode mode) {
-	if (mode != SynthMode::FM && type == OscType::SAMPLE) {
+	if (slot_mode(mode) && type == OscType::SAMPLE) {
 		return "sample";
 	}
-	if (mode != SynthMode::FM
-	    && (type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO)) {
+	if (slot_mode(mode) && (type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO)) {
 		return "input";
 	}
-	if (mode != SynthMode::FM && type == OscType::DX7) {
-		return "dx7";
-	}
-	const bool engine_mode = mode == SynthMode::SUBTRACTIVE || mode == SynthMode::RINGMOD;
+	const bool engine_mode = slot_mode(mode);
 	const bool va = type == OscType::SINE || type == OscType::TRIANGLE || type == OscType::SQUARE
 	                || type == OscType::ANALOG_SQUARE || type == OscType::SAW || type == OscType::ANALOG_SAW_2;
 	if (engine_mode && va) {
@@ -85,8 +85,8 @@ std::string expected_source(OscType type, SynthMode mode) {
 	return "none";
 }
 
-/// The source the table's rows choose: the first ported row playing @p type outside FM, else the first held row in
-/// the engines that build one, else none.
+/// The source the table's rows choose: the first ported row playing @p type where the slots play, else the first held
+/// row in the engines that build one, else none.
 std::string chosen_by_table(OscType type, SynthMode mode) {
 	std::string chosen = "none";
 	const auto pick = [&]<class Kind>(Kind) {
@@ -96,11 +96,11 @@ std::string chosen_by_table(OscType type, SynthMode mode) {
 		chosen = name(Kind{});
 		return true;
 	};
-	if (ported_mode(mode) && find_kind<PortedKinds>(pick)) {
+	if (holds_oscillators(mode) && find_row<PortedKinds>(pick)) {
 		return chosen;
 	}
-	if (held_mode(mode)) {
-		find_kind<HeldKinds>(pick);
+	if (holds_oscillators(mode)) {
+		find_row<HeldKinds>(pick);
 	}
 	return chosen;
 }
@@ -108,14 +108,14 @@ std::string chosen_by_table(OscType type, SynthMode mode) {
 /// How many rows play @p type.
 int32_t rows_playing(OscType type) {
 	int32_t rows = 0;
-	for_each_kind<SourceKinds>([&]<class Kind>(Kind) { rows += Kind::plays(type) ? 1 : 0; });
+	for_each_row<SourceKinds>([&]<class Kind>(Kind) { rows += Kind::plays(type) ? 1 : 0; });
 	return rows;
 }
 
 static_assert(
     std::is_same_v<HeldOscillator, std::variant<std::monostate, VirtualAnalogSource, WavetableSource, SupersawSource>>,
     "the held oscillator is the held rows' sources, in the table's order");
-static_assert(std::is_same_v<PortedSources, std::tuple<SampleSource, DX7Source, InputSource>>,
+static_assert(std::is_same_v<PortedSources, std::tuple<SampleSource, InputSource>>,
               "the ported sources are the ported rows', in the order bind and unassign walk them");
 
 /// A sample port whose note-on and loop-end release answer as set, counting each call.
@@ -162,11 +162,11 @@ describe source_table_spec_body("the source table", ${
 		}
 	});
 
-	it("plays a sample and a live input at their own rate, outside FM only", _{
+	it("plays a sample and a live input at their own rate, where the slots play only", _{
 		for (const SynthMode mode : kModes) {
 			for (const OscType type : kTypes) {
 				const bool before =
-				    mode != SynthMode::FM
+				    slot_mode(mode)
 				    && (type == OscType::SAMPLE || type == OscType::INPUT_L || type == OscType::INPUT_R
 				        || type == OscType::INPUT_STEREO);
 				expect(std::format("{} {} {}", std::to_underlying(mode), std::to_underlying(type),

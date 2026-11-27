@@ -255,18 +255,10 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 		sound.projectEffects();
 	}
 	// What loading made of each oscillator reaches its record as the Edits a gesture would make, in this tick: the
-	// ranges' clamped zones and found files, and a DX7 patch the runtime made for one decoded without its own
-	// (a source whose record already holds what it loaded takes no Edit)
+	// ranges' clamped zones and found files (a source whose record already holds what it loaded takes no Edit)
 	deluge::edits::Context ctx{song, song.project};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
-		const deluge::instruments::classic::DxPatchState* recordedPatch =
-		    deluge::instruments::classic::dx_patch(sound.state(), id);
-		if (std::optional<deluge::instruments::classic::DxPatchState> patch = dxPatchOf(sound.sourceResources[s]);
-		    patch && (recordedPatch == nullptr || *patch != *recordedPatch)) {
-			deluge::edits::SetDxPatch dx{*address, static_cast<uint8_t>(s), std::move(*patch)};
-			(void)deluge::edits::apply(ctx, dx);
-		}
 		if (std::vector<synth::SourceRange> held = rangesOf(sound.sourceResources[s]);
 		    !std::ranges::equal(held, deluge::instruments::classic::source_ranges(sound.state(), id))) {
 			deluge::edits::SetSourceRanges ranges{*address, static_cast<uint8_t>(s), std::move(held)};

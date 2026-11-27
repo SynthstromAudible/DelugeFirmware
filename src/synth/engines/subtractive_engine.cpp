@@ -26,7 +26,7 @@ namespace deluge::synth {
 
 EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
 	const BlockValues& cfg = *block.values;
-	const DualSourceControls& c = block.dual;
+	const DualSourceControls& c = block.dual();
 	const int32_t num_samples = block.num_samples;
 	dsp::Q<31>* const osc_buffer = block.osc_buffer;
 
@@ -94,7 +94,7 @@ EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
 
 SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
                                                  const std::array<dsp::Q<31>, kNumSources>& source_amplitudes) {
-	const DualSourceControls& c = block.dual;
+	const DualSourceControls& c = block.dual();
 	SourceLevels& levels = *block.levels;
 
 	// A new filter gain, or a slow attack on the first block, jumps to the new levels rather than ramping to them

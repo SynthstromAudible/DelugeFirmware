@@ -50,10 +50,10 @@ void Sound::bindVoice(SoundVoice& voice) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			// The slots belong to the Sound, whose oscillators hold the histories: they outlive every slot bound here
 			voice.kernel.unison_parts[u].slots[s].bind({.sample = &voice.part.ports(u, s).sample,
-			                                            .dx = &voice.part.ports(u, s).dx,
 			                                            .input = &voice.part.ports(u, s).input,
 			                                            .live_inputs = &sourceResources[s].liveInputs.inputs()});
 		}
+		voice.kernel.bind_dx7(u, &voice.part.dx7_port(u));
 	}
 }
 
@@ -132,6 +132,8 @@ deluge::synth::VoiceBlock Sound::voiceBlock(const SoundVoice& voice) const {
 		    SourceResources::renderInStereo(type, synth_.config().voicing.unison_spread,
 		                                    synth_.config().voicing.unison.count, static_cast<SampleHolder*>(holder));
 	}
+	block.dx7_in_stereo = SourceResources::renderInStereo(OscType::DX7, synth_.config().voicing.unison_spread,
+	                                                      synth_.config().voicing.unison.count, nullptr);
 	return block;
 }
 
@@ -258,8 +260,7 @@ deluge::synth::NoteSetup SoundVoiceHost::prepare(SoundVoice& voice, Context mode
 	// The samples' ports play this note's source through this voice's guides
 	const deluge::synth::SoundConfig& config = sound->config();
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (sound->getSynthMode() != SynthMode::FM && sound->oscType(s) == OscType::SAMPLE
-		    && voice.part.guides[s].audioFileHolder) {
+		if (sound->playsSlots() && sound->oscType(s) == OscType::SAMPLE && voice.part.guides[s].audioFileHolder) {
 			for (int32_t u = 0; u < config.voicing.unison.count; u++) {
 				voice.part.ports(u, s).sample.bind(&config.sources[s], &voice.part.guides[s]);
 			}

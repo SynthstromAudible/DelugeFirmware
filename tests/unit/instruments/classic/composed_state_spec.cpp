@@ -135,7 +135,7 @@ describe composed_state("a sound's flat record as the state it plays and what it
 	});
 
 	it("plays an FM sound's tuning and sync on its carriers, and keeps its oscillators' kinds to recall", _ {
-		const SoundState sound = deluge::test::plain_sound(SynthMode::FM, OscType::SAMPLE, OscType::DX7);
+		const SoundState sound = deluge::test::plain_sound(SynthMode::FM, OscType::SAMPLE, OscType::SAW);
 		const ComposedState& state = sound.plays;
 		const Recall& recall = sound.recall;
 		const auto& fm = std::get<deluge::synth::FmState>(state.engine);

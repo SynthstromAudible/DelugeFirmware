@@ -238,6 +238,10 @@ void Voice::setup_porta(int32_t last_note_code) {
 	porta_envelope_max_amplitude_ = sub_wrap(Q<24>::from_raw(phase_increment), Q<24>::one());
 }
 
+void Voice::bind_dx7(int32_t u, DxVoicePort* port) {
+	engines_.of<Dx7Row>().bind(u, port);
+}
+
 void Voice::randomize_osc_phases(const SoundConfig& config, dsp::fixed::Cong& noise) {
 	noise_ = &noise;
 	for (int32_t u = 0; u < config.voicing.unison.count; u++) {
@@ -406,16 +410,18 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LfoState& config, deluge:
 	    .spare_buffers = spare_buffers_,
 	    .sync_scratch = sync_scratch_,
 	    .noise = noise_,
-	    .dual = {},
-	    .fm = {},
+	    .controls = {},
 	};
 	if (synth_mode == SynthMode::FM) {
-		engine_block.fm =
+		engine_block.controls =
 		    fm_controls(overall_osc_amplitude, filter_gain, overall_pitch_adjust, first_render, stereo_unison);
 	}
+	else if (synth_mode == SynthMode::DX7) {
+		engine_block.controls = dx7_controls(block, filter_gain, overall_pitch_adjust, first_render, stereo_unison);
+	}
 	else {
-		engine_block.dual = dual_source_controls(control_block, config, cfg, block, filter_gain, overall_pitch_adjust,
-		                                         first_render, stereo_unison);
+		engine_block.controls = dual_source_controls(control_block, config, cfg, block, filter_gain,
+		                                             overall_pitch_adjust, first_render, stereo_unison);
 	}
 	const EngineRenderResult result = engines_.for_mode(synth_mode).render(engine_block);
 	did_stereo_temp_buffer = result.did_stereo_buffer;
@@ -867,6 +873,24 @@ DualSourceControls Voice::dual_source_controls(const matrix::MatrixBlock& contro
 		    config.sources[s].osc_type == OscType::SAMPLE && pitch_mod_disallows_cache(control_block, cfg, s);
 	}
 	return controls;
+}
+
+// The DX7's params are osc A's until it has its own
+Dx7Controls Voice::dx7_controls(const VoiceBlock& block, Q<28> filter_gain, Q<24> overall_pitch_adjust,
+                                bool first_render, bool stereo_unison) const {
+	return {
+	    .volume = matrix::param_value_at<params::LOCAL_OSC_A_VOLUME, kNumSources>(params_.param_final_values, 0),
+	    .pitch_adjust =
+	        matrix::param_value_at<params::LOCAL_OSC_A_PITCH_ADJUST, kNumSources>(params_.param_final_values, 0),
+	    .amp_mod = params_.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH],
+	    .env0_attack = matrix::param_value<params::LOCAL_ENV_0_ATTACK>(params_.param_final_values),
+	    .filter_gain = filter_gain,
+	    .overall_pitch_adjust = overall_pitch_adjust,
+	    .note_code = note_code_after_arpeggiation_,
+	    .first_render = first_render,
+	    .stereo_unison = stereo_unison,
+	    .in_stereo = block.dx7_in_stereo,
+	};
 }
 
 FmControls Voice::fm_controls(Q<31> overall_osc_amplitude, Q<28> filter_gain, Q<24> overall_pitch_adjust,

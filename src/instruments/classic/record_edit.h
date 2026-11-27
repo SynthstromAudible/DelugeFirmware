@@ -95,4 +95,7 @@ void set_oscillator_sync(SoundState& state, bool sync);
 /// @brief Whether FM's second modulator modulates the first, played or kept, to change in place.
 [[nodiscard]] bool& modulator_routing_of(SoundState& state) noexcept;
 
+/// @brief The DX7 engine's pitch, played or kept, to change in place.
+[[nodiscard]] synth::Pitch& dx7_pitch_of(SoundState& state) noexcept;
+
 } // namespace deluge::instruments::classic

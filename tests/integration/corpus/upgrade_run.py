@@ -70,7 +70,7 @@ LEGACY_FIXTURES = LEGACY / "fixtures.json"
 # The originals of the golden millisecond-zone cases, each beside its sample.
 RENDER_ORIGINALS = LEGACY / "render"
 # The fewest committed cases a run accepts. Shrinking them is a deliberate change to this number.
-MIN_COMMITTED = 39
+MIN_COMMITTED = 41
 KINDS = {"synth": "SYNTH", "kit": "KIT", "song": "song"}
 
 

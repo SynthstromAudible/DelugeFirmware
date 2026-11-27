@@ -59,7 +59,7 @@ constexpr std::array<std::string_view, N> names_of() {
 }
 
 constexpr auto kPolyphony = names_of<PolyphonyMode, 5>();
-constexpr auto kSynthModes = names_of<SynthMode, 3>();
+constexpr auto kSynthModes = names_of<SynthMode, 4>();
 // INPUT_STEREO is the last type, so the list grows with the enum.
 constexpr auto kOscTypes = names_of<OscType, static_cast<size_t>(OscType::INPUT_STEREO) + 1>();
 constexpr auto kLfoTypes = names_of<LFOType, 7>();
@@ -99,31 +99,31 @@ constexpr plugin::SettingDescriptorExtras kPolyphonyExtras{.choice_when = kPolyp
 constexpr std::array<int32_t, 1> kSubtractiveValue{std::to_underlying(SynthMode::SUBTRACTIVE)};
 constexpr std::array<int32_t, 1> kFmValue{std::to_underlying(SynthMode::FM)};
 constexpr std::array<int32_t, 1> kRingModeValue{std::to_underlying(SynthMode::RINGMOD)};
+constexpr std::array<int32_t, 1> kDx7Value{std::to_underlying(SynthMode::DX7)};
+
+/// The DX7's own rows apply in DX7 mode; the oscillators' outside it.
+constexpr std::array kIsDx7{plugin::setting_is("mode", kDx7Value)};
+constexpr std::array kNotDx7{plugin::setting_is_not("mode", kDx7Value)};
 
 /// Ring mod mixes oscillators alone, so it offers no sample or input.
 constexpr std::array kNotRingMode{plugin::setting_is_not("mode", kRingModeValue)};
-/// DX7 in the first oscillator of any sound, a kit's included.
-constexpr std::array kDx7Conditions{plugin::setting_is_not("mode", kRingModeValue)};
 /// With no audio input plugged in, one input entry (the left input's) stands for the three.
 constexpr std::array kInputConditions{plugin::setting_is_not("mode", kRingModeValue), plugin::inputs_are(true)};
-/// The second oscillator's menu never offers DX7: only the first can hold one.
+/// No oscillator's menu offers DX7: it is a sound's engine, not an oscillator's type.
 constexpr std::array kNeverOffered{plugin::never()};
 
 /// The oscillator type menu's conditions; the choice list is shared, since stored indices are what files hold.
-constexpr std::array<plugin::ChoiceCondition, 5> osc_type_when(std::span<const plugin::SettingCondition> dx7) {
-	return {{{std::to_underlying(OscType::SAMPLE), kNotRingMode},
-	         {std::to_underlying(OscType::DX7), dx7},
-	         {std::to_underlying(OscType::INPUT_L), kNotRingMode},
-	         {std::to_underlying(OscType::INPUT_R), kInputConditions},
-	         {std::to_underlying(OscType::INPUT_STEREO), kInputConditions}}};
-}
-constexpr std::array kOsc1TypeWhen = osc_type_when(kDx7Conditions);
-constexpr std::array kOsc2TypeWhen = osc_type_when(kNeverOffered);
-/// FM's carriers are sines: an oscillator's type menu shows outside it.
-constexpr std::array kNotFm{plugin::setting_is_not("mode", kFmValue)};
+constexpr std::array<plugin::ChoiceCondition, 5> kOscTypeWhen{
+    {{.choice = std::to_underlying(OscType::SAMPLE), .when = kNotRingMode},
+     {.choice = std::to_underlying(OscType::DX7), .when = kNeverOffered},
+     {.choice = std::to_underlying(OscType::INPUT_L), .when = kNotRingMode},
+     {.choice = std::to_underlying(OscType::INPUT_R), .when = kInputConditions},
+     {.choice = std::to_underlying(OscType::INPUT_STEREO), .when = kInputConditions}}};
+/// FM's carriers are sines, and the DX7 plays no oscillator: an oscillator's type menu shows outside both.
+constexpr std::array kNotFmNorDx7{plugin::setting_is_not("mode", kFmValue), plugin::setting_is_not("mode", kDx7Value)};
 constexpr std::array kOscTypeExtras{
-    plugin::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOsc1TypeWhen},
-    plugin::SettingDescriptorExtras{.applies_when = kNotFm, .choice_when = kOsc2TypeWhen}};
+    plugin::SettingDescriptorExtras{.applies_when = kNotFmNorDx7, .choice_when = kOscTypeWhen},
+    plugin::SettingDescriptorExtras{.applies_when = kNotFmNorDx7, .choice_when = kOscTypeWhen}};
 
 /// The oscillator types ring mod can ring, as allows_setting has them: every type up to the wavetable.
 constexpr auto kRingableTypes = [] {
@@ -133,10 +133,13 @@ constexpr auto kRingableTypes = [] {
 	}
 	return types;
 }();
-/// The synth mode menu shows only while ring mod could be chosen: neither oscillator past a wavetable.
-constexpr std::array kModeConditions{plugin::setting_is("osc1/type", kRingableTypes),
-                                     plugin::setting_is("osc2/type", kRingableTypes)};
-constexpr plugin::SettingDescriptorExtras kModeExtras{.applies_when = kModeConditions};
+/// The synth mode menu shows on every sound, the way into the DX7 and FM whatever the oscillators play; it offers ring
+/// mod only where neither oscillator is past a wavetable.
+constexpr std::array kRingable{plugin::setting_is("osc1/type", kRingableTypes),
+                               plugin::setting_is("osc2/type", kRingableTypes)};
+constexpr std::array kModeWhen{
+    plugin::ChoiceCondition{.choice = std::to_underlying(SynthMode::RINGMOD), .when = kRingable}};
+constexpr plugin::SettingDescriptorExtras kModeExtras{.choice_when = kModeWhen};
 
 /// The polyphony that has a voice count to limit.
 constexpr std::array<int32_t, 1> kPolyValue{std::to_underlying(PolyphonyMode::POLY)};
@@ -159,9 +162,9 @@ constexpr std::array kSamplePlaybackExtras{
     plugin::SettingDescriptorExtras{.applies_when = kSamplePlaybackConditions[1]}};
 
 /// Oscillator sync resets the second oscillator from the first's cycle: neither may be a sample, nor the sound FM.
-constexpr std::array kOscSyncConditions{plugin::setting_is_not("mode", kFmValue),
-                                        plugin::setting_is_not("osc1/type", kSampleValue),
-                                        plugin::setting_is_not("osc2/type", kSampleValue)};
+constexpr std::array kOscSyncConditions{
+    plugin::setting_is_not("mode", kFmValue), plugin::setting_is_not("mode", kDx7Value),
+    plugin::setting_is_not("osc1/type", kSampleValue), plugin::setting_is_not("osc2/type", kSampleValue)};
 constexpr plugin::SettingDescriptorExtras kOscSyncExtras{.applies_when = kOscSyncConditions};
 
 /// The modulators play in FM alone.
@@ -216,8 +219,10 @@ constexpr std::array<std::array<Alternatives, 2>, 2> kModulatorPhaseAny{
 /// A retrigger phase menu: degrees, or −1 for free-running.
 constexpr plugin::DisplayMapping kPhaseMapping{.kind = plugin::DisplayMappingKind::PHASE_DEGREES};
 constexpr std::array kOscPhaseExtras{
-    plugin::SettingDescriptorExtras{.mapping = kPhaseMapping, .applies_any = kOscPhaseAny[0]},
-    plugin::SettingDescriptorExtras{.mapping = kPhaseMapping, .applies_any = kOscPhaseAny[1]}};
+    plugin::SettingDescriptorExtras{.mapping = kPhaseMapping, .applies_when = kNotDx7, .applies_any = kOscPhaseAny[0]},
+    plugin::SettingDescriptorExtras{.mapping = kPhaseMapping, .applies_when = kNotDx7, .applies_any = kOscPhaseAny[1]}};
+/// The DX7's retrigger phase, in DX7 mode.
+constexpr plugin::SettingDescriptorExtras kDx7PhaseExtras{.mapping = kPhaseMapping, .applies_when = kIsDx7};
 constexpr std::array kModulatorPhaseExtras{
     plugin::SettingDescriptorExtras{
         .mapping = kPhaseMapping, .applies_when = kFmConditions, .applies_any = kModulatorPhaseAny[0]},
@@ -240,11 +245,15 @@ constexpr plugin::SettingDescriptorExtras transpose_extras(std::string_view part
 	        .applies_any = any};
 }
 constexpr plugin::SettingDescriptorExtras kTransposeExtras = transpose_extras("cents");
-constexpr std::array kOscTransposeExtras{transpose_extras("osc1/cents", {}, kOscTuningAny[0]),
-                                         transpose_extras("osc2/cents", {}, kOscTuningAny[1])};
+constexpr std::array kOscTransposeExtras{transpose_extras("osc1/cents", kNotDx7, kOscTuningAny[0]),
+                                         transpose_extras("osc2/cents", kNotDx7, kOscTuningAny[1])};
 /// An oscillator's cents show within its transpose's menu, where that shows.
-constexpr std::array kOscCentsExtras{plugin::SettingDescriptorExtras{.applies_any = kOscTuningAny[0]},
-                                     plugin::SettingDescriptorExtras{.applies_any = kOscTuningAny[1]}};
+constexpr std::array kOscCentsExtras{
+    plugin::SettingDescriptorExtras{.applies_when = kNotDx7, .applies_any = kOscTuningAny[0]},
+    plugin::SettingDescriptorExtras{.applies_when = kNotDx7, .applies_any = kOscTuningAny[1]}};
+/// The DX7's transpose and cents, in DX7 mode.
+constexpr plugin::SettingDescriptorExtras kDx7TransposeExtras = transpose_extras("dx7/cents", kIsDx7);
+constexpr plugin::SettingDescriptorExtras kDx7Extras{.applies_when = kIsDx7};
 constexpr std::array kModulatorTransposeExtras{transpose_extras("modulator1/cents", kFmConditions),
                                                transpose_extras("modulator2/cents", kFmConditions)};
 
@@ -287,11 +296,8 @@ constexpr int32_t kFreeRunning = -1;
 	    SettingInfo{.path = "osc" #n "/linearInterpolation", .kind = BOOL, .extras = &kInterpolationExtras[n - 1]},    \
 	    SettingInfo{.path = "osc" #n "/sampleRanges", .kind = STRUCTURED},                                             \
 	    SettingInfo{.path = "osc" #n "/wavetableRanges", .kind = STRUCTURED},                                          \
-	    SettingInfo{.path = "osc" #n "/fileName", .kind = STRUCTURED},                                                 \
-	    SettingInfo{.path = "osc" #n "/zone", .kind = STRUCTURED},                                                     \
-	    SettingInfo{.path = "osc" #n "/dx7patch", .kind = STRUCTURED},                                                 \
-	    SettingInfo{.path = "osc" #n "/dx7enginemode", .kind = STRUCTURED}, SettingInfo {                              \
-		.path = "osc" #n "/dx7randomdetune", .kind = STRUCTURED                                                        \
+	    SettingInfo{.path = "osc" #n "/fileName", .kind = STRUCTURED}, SettingInfo {                                   \
+		.path = "osc" #n "/zone", .kind = STRUCTURED                                                                   \
 	}
 
 /// An LFO's sync menu: one value over its level and its type row, @p partner.
@@ -392,6 +398,24 @@ constexpr std::array kRows{
     OSC_ROWS(1),
     OSC_ROWS(2),
     SettingInfo{.path = "osc2/oscillatorSync", .kind = BOOL, .extras = &kOscSyncExtras},
+    SettingInfo{.path = "dx7/transpose",
+                .choices = {},
+                .min = -kTransposeRange,
+                .max = kTransposeRange,
+                .units = plugin::SettingUnits::CENTS,
+                .extras = &kDx7TransposeExtras},
+    SettingInfo{.path = "dx7/cents",
+                .choices = {},
+                .min = -kCentsRange,
+                .max = kCentsRange,
+                .units = plugin::SettingUnits::CENTS,
+                .extras = &kDx7Extras},
+    SettingInfo{.path = "dx7/retrigPhase",
+                .choices = {},
+                .min = kPhaseMin,
+                .max = kPhaseMax,
+                .default_value = kFreeRunning,
+                .extras = &kDx7PhaseExtras},
     LFO_ROWS(1),
     LFO_ROWS(2),
     LFO_ROWS(3),
@@ -626,6 +650,25 @@ Answer modulator_value(const SoundState& state, std::string_view path, bool held
 	return std::nullopt;
 }
 
+/// The DX7's pitch, read in DX7 mode (or @p held, whatever the mode).
+Answer dx7_value(const SoundState& state, std::string_view path, bool held) {
+	if (!held && synth_mode(state) != SynthMode::DX7) {
+		return std::nullopt;
+	}
+	const synth::Pitch pitch = dx7_pitch(state);
+	const std::string_view rest = path.substr(4);
+	if (rest == "transpose") {
+		return number(pitch.tuning.transpose);
+	}
+	if (rest == "cents") {
+		return number(pitch.tuning.cents);
+	}
+	if (rest == "retrigPhase") {
+		return phase(phase_word(pitch.retrigger));
+	}
+	return std::nullopt;
+}
+
 Answer unison_value(const SoundState& state, std::string_view path) {
 	const synth::UnisonState u = unison(state);
 	const std::string_view rest = path.substr(7);
@@ -664,6 +707,9 @@ Answer any_value(const SoundState& state, std::string_view path, bool held = fal
 	}
 	if (path.starts_with("unison/")) {
 		return unison_value(state, path);
+	}
+	if (path.starts_with("dx7/")) {
+		return dx7_value(state, path, held);
 	}
 	return top_level_value(state, path);
 }
@@ -820,6 +866,25 @@ bool write_modulator(SoundState& state, std::string_view path, const serializati
 	return true;
 }
 
+bool write_dx7(SoundState& state, std::string_view path, const serialization::Value& value) {
+	synth::Pitch& pitch = dx7_pitch_of(state);
+	const std::string_view rest = path.substr(4);
+	const int32_t n = intOf(value);
+	if (rest == "transpose") {
+		pitch.tuning.transpose = static_cast<int16_t>(n);
+	}
+	else if (rest == "cents") {
+		pitch.tuning.cents = static_cast<int8_t>(n);
+	}
+	else if (rest == "retrigPhase") {
+		pitch.retrigger = retrigger_of_word(static_cast<uint32_t>(n)); // the phase as a file writes it, signed
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
 bool write_unison(SoundState& state, std::string_view path, const serialization::Value& value) {
 	synth::UnisonState& u = state.plays.voicing.unison;
 	const std::string_view rest = path.substr(7);
@@ -897,6 +962,9 @@ std::vector<std::string_view> write_setting(SoundState& state, std::string_view 
 	}
 	else if (path.starts_with("unison/")) {
 		(void)write_unison(state, path, value);
+	}
+	else if (path.starts_with("dx7/")) {
+		(void)write_dx7(state, path, value);
 	}
 	else {
 		(void)write_top_level(state, path, value);

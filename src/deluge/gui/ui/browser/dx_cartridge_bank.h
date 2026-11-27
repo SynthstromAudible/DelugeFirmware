@@ -23,12 +23,11 @@ bool loadDxCartridgeFile(std::string_view path);
 /// @return True if a cartridge was parsed (a checksum failure still loads, after its popup).
 bool loadDxCartridgeBytes(std::span<std::byte> bytes);
 
-/// @brief Load program @p program of @p cartridge into source @p source of @p sound: its patch unpacked over the
-///        source's, its voices cut, and an unsaved synth renamed to the program.
-/// @param sound     The sound; @p source must be a DX7 one.
-/// @param source    The source index.
+/// @brief Load program @p program of @p cartridge into @p sound's DX7: its patch unpacked over the DX7's, its voices
+///        cut, and an unsaved synth renamed to the program.
+/// @param sound     The sound; nothing is loaded unless it is in DX7 mode.
 /// @param cartridge The bank.
 /// @param program   The program index, below `cartridge.numPatches()`.
-void loadDxProgram(::Sound& sound, int32_t source, DX7Cartridge& cartridge, int32_t program);
+void loadDxProgram(::Sound& sound, DX7Cartridge& cartridge, int32_t program);
 
 } // namespace deluge::gui

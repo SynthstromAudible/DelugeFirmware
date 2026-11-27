@@ -43,6 +43,7 @@ struct VoiceBlock {
 	/// Per source: it renders in stereo (the engine renders in stereo, and the source spreads its unison or plays a
 	/// stereo sample or input).
 	std::array<bool, kNumSources> source_in_stereo{};
+	bool dx7_in_stereo{};       ///< DX7 mode: the DX7 renders in stereo (the engine does, and its unison spreads)
 	size_t num_active_voices{}; ///< The sound's voice count, which the cull order ranks by.
 	VoiceClock clock;
 };
@@ -75,12 +76,20 @@ struct SourceSetup {
 	dsp::fixed::FineTune fine_tuner; ///< Cents: the playing sample's own, else the source's
 	/// The phase increment that plays the source at its root pitch: the playing sample's, else unity.
 	int32_t neutral_phase_increment{kMaxSampleValue};
-	void* dx_patch{}; ///< A DX7 source's patch, the handle its port takes
+};
+
+/// @brief What the DX7 engine's note-on reads: the patch, the DX7's pitch, and whether it can sound.
+struct Dx7Setup {
+	void* patch{};                   ///< The sound's DX7 patch, the handle the ports take
+	int32_t transpose{};             ///< Semitones
+	dsp::fixed::FineTune fine_tuner; ///< Cents
+	bool ever_active{};              ///< The DX7 can sound at all at the sound's current settings
 };
 
 /// @brief What a note-on or a note change needs from its sound, beyond the sound's config.
 struct NoteSetup {
 	std::array<SourceSetup, kNumSources> sources{};
+	Dx7Setup dx7{};                      ///< The DX7 engine's note-on (DX7 mode)
 	int32_t last_note_code{kNoLastNote}; ///< The sound's previous note, which portamento glides from
 	bool porta{};                        ///< Glide from @ref last_note_code
 	std::array<int32_t, kNumExpressionDimensions> monophonic_expression{}; ///< The sound's own MPE values

@@ -97,15 +97,34 @@ std::vector<std::string> with_setting_disagreements() {
 }
 
 /// The paths whose value no file holds in some state of the matrix, where the encoding leaves the field out (a
-/// modulator outside FM; sample playback off a sample source; a sample source's own tuning and phase): with_setting
-/// loses such a write, and write_setting keeps it.
-constexpr std::array<std::string_view, 18> kUnheldPaths{
-    "modulator1/transpose",    "modulator1/cents",         "modulator1/retrigPhase",
-    "modulator2/transpose",    "modulator2/cents",         "modulator2/retrigPhase",
-    "modulator2/toModulator1", "osc1/transpose",           "osc1/cents",
-    "osc1/retrigPhase",        "osc1/linearInterpolation", "osc1/reversed",
-    "osc1/timeStretchEnable",  "osc1/timeStretchAmount",   "osc2/linearInterpolation",
-    "osc2/reversed",           "osc2/timeStretchEnable",   "osc2/timeStretchAmount",
+/// modulator outside FM; the DX7 outside DX7 mode; sample playback off a sample source; a sample source's own tuning
+/// and phase; an oscillator the DX7 parks): with_setting loses such a write, and write_setting keeps it.
+constexpr std::array<std::string_view, 25> kUnheldPaths{
+    "dx7/transpose",
+    "dx7/cents",
+    "dx7/retrigPhase",
+    "modulator1/transpose",
+    "modulator1/cents",
+    "modulator1/retrigPhase",
+    "modulator2/transpose",
+    "modulator2/cents",
+    "modulator2/retrigPhase",
+    "modulator2/toModulator1",
+    "osc1/transpose",
+    "osc1/cents",
+    "osc1/retrigPhase",
+    "osc1/linearInterpolation",
+    "osc1/reversed",
+    "osc1/timeStretchEnable",
+    "osc1/timeStretchAmount",
+    "osc2/transpose",
+    "osc2/cents",
+    "osc2/retrigPhase",
+    "osc2/oscillatorSync",
+    "osc2/linearInterpolation",
+    "osc2/reversed",
+    "osc2/timeStretchEnable",
+    "osc2/timeStretchAmount",
 };
 
 /// Where write_setting on a copy of the state and with_setting disagree, over the same states, paths, values and
@@ -202,10 +221,10 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		expect(*decoded).to_equal(state);
 	});
 
-	it("keeps an FM sound's oscillator types, samples and DX patch, which no file holds", _ {
+	it("keeps an FM sound's oscillator types, samples and DX7, which no file holds", _ {
 		SoundState state = sampled();
-		state = deluge::test::with_kind(state, SourceId::B, OscType::DX7);
-		state = with_dx_patch(std::move(state), SourceId::B, DxPatchState{.params = {}, .engine_mode = 1, .random_detune = 3});
+		state = deluge::test::with_kind(state, SourceId::B, OscType::SAW);
+		state = with_dx7_patch(std::move(state), DxPatchState{.params = {}, .engine_mode = 1, .random_detune = 3});
 		state = switch_engine(std::move(state), SynthMode::FM);
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(decoded.has_value()).to_be_true();

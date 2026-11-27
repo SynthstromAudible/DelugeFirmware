@@ -44,15 +44,18 @@ inline constexpr std::array kHpfOn{plugin::setting_is_not("hpfMode", kHpfOff)};
 // The synth mode.
 inline constexpr std::array<int32_t, 1> kFm{value_of(instruments::classic::SynthMode::FM)};
 inline constexpr std::array<int32_t, 1> kRingMod{value_of(instruments::classic::SynthMode::RINGMOD)};
+inline constexpr std::array<int32_t, 1> kDx7Mode{value_of(instruments::classic::SynthMode::DX7)};
 inline constexpr std::array kIsFm{plugin::setting_is("mode", kFm)};
 inline constexpr std::array kNotFm{plugin::setting_is_not("mode", kFm)};
+inline constexpr std::array kIsDx7{plugin::setting_is("mode", kDx7Mode)};
+/// FM's carriers are sines and the DX7 plays no oscillator: an oscillator's wave shows outside both.
+inline constexpr std::array kNotFmNorDx7{plugin::setting_is_not("mode", kFm), plugin::setting_is_not("mode", kDx7Mode)};
 inline constexpr std::array kNotRingMod{plugin::setting_is_not("mode", kRingMod)};
 
 // The oscillators' types.
 inline constexpr std::array<std::string_view, 2> kOscType{"osc1/type", "osc2/type"};
 inline constexpr std::array<int32_t, 1> kWavetable{value_of(instruments::classic::OscType::WAVETABLE)};
 inline constexpr std::array<int32_t, 1> kSupersaw{value_of(instruments::classic::OscType::SUPERSAW)};
-inline constexpr std::array<int32_t, 1> kDx7{value_of(instruments::classic::OscType::DX7)};
 inline constexpr std::array<int32_t, 4> kSampleOrInput{
     value_of(instruments::classic::OscType::SAMPLE), value_of(instruments::classic::OscType::INPUT_L),
     value_of(instruments::classic::OscType::INPUT_R), value_of(instruments::classic::OscType::INPUT_STEREO)};
@@ -68,10 +71,12 @@ inline constexpr std::array<std::array<SettingCondition, 2>, 2> kLoadedWavetable
 inline constexpr std::array<std::array<Alternatives, 2>, 2> kWaveIndexAny{
     {{kSupersawOsc[0], kLoadedWavetable[0]}, {kSupersawOsc[1], kLoadedWavetable[1]}}};
 /// An oscillator's pulse width (`origin/main:src/deluge/gui/menu_item/osc/pulse_width.h`): not FM, not a sample or an
-/// input, and a wavetable only once loaded.
-inline constexpr std::array<std::array<SettingCondition, 2>, 2> kPulseWidth{{
-    {plugin::setting_is_not("mode", kFm), plugin::setting_is_not(kOscType[0], kSampleOrInput)},
-    {plugin::setting_is_not("mode", kFm), plugin::setting_is_not(kOscType[1], kSampleOrInput)},
+/// input, and a wavetable only once loaded; in DX7 mode the DX7's column shows it.
+inline constexpr std::array<std::array<SettingCondition, 3>, 2> kPulseWidth{{
+    {plugin::setting_is_not("mode", kFm), plugin::setting_is_not("mode", kDx7Mode),
+     plugin::setting_is_not(kOscType[0], kSampleOrInput)},
+    {plugin::setting_is_not("mode", kFm), plugin::setting_is_not("mode", kDx7Mode),
+     plugin::setting_is_not(kOscType[1], kSampleOrInput)},
 }};
 inline constexpr std::array<std::array<SettingCondition, 1>, 2> kNotWavetable{
     {{plugin::setting_is_not(kOscType[0], kWavetable)}, {plugin::setting_is_not(kOscType[1], kWavetable)}}};
@@ -79,11 +84,8 @@ inline constexpr std::array<std::array<SettingCondition, 1>, 2> kLoaded{
     {{plugin::source_loaded(0)}, {plugin::source_loaded(1)}}};
 inline constexpr std::array<std::array<Alternatives, 2>, 2> kPulseWidthAny{
     {{kNotWavetable[0], kLoaded[0]}, {kNotWavetable[1], kLoaded[1]}}};
-/// A source's carrier feedback (`origin/main:src/deluge/gui/menu_item/osc/source/feedback.h`): FM, or a DX7 oscillator.
-inline constexpr std::array<std::array<SettingCondition, 1>, 2> kDx7Osc{
-    {{plugin::setting_is(kOscType[0], kDx7)}, {plugin::setting_is(kOscType[1], kDx7)}}};
-inline constexpr std::array<std::array<Alternatives, 2>, 2> kCarrierFeedbackAny{
-    {{kIsFm, kDx7Osc[0]}, {kIsFm, kDx7Osc[1]}}};
+/// A source's carrier feedback (`origin/main:src/deluge/gui/menu_item/osc/source/feedback.h`): FM (`main`'s DX7
+/// oscillator showed it too, which the DX7 engine never reads).
 
 // The mod FX type, as the `isRelevant` overrides of main's mod FX items gate on it
 // (`origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`, `origin/main:src/deluge/gui/menu_item/mod_fx/rate.h`,
@@ -152,11 +154,12 @@ inline constexpr ParamShows kOnFm{.when = kIsFm};
 inline constexpr ParamShows kOffFm{.when = kNotFm};
 inline constexpr ParamShows kOffRingMod{.when = kNotRingMod};
 inline constexpr std::array<ParamShows, 2> kOscWaveIndex{
-    {{.when = kNotFm, .any = kWaveIndexAny[0]}, {.when = kNotFm, .any = kWaveIndexAny[1]}}};
+    {{.when = kNotFmNorDx7, .any = kWaveIndexAny[0]}, {.when = kNotFmNorDx7, .any = kWaveIndexAny[1]}}};
+/// The DX7's own columns, in DX7 mode.
+inline constexpr ParamShows kOnDx7{.when = kIsDx7};
 inline constexpr std::array<ParamShows, 2> kOscPulseWidth{
     {{.when = kPulseWidth[0], .any = kPulseWidthAny[0]}, {.when = kPulseWidth[1], .any = kPulseWidthAny[1]}}};
-inline constexpr std::array<ParamShows, 2> kOscCarrierFeedback{
-    {{.any = kCarrierFeedbackAny[0]}, {.any = kCarrierFeedbackAny[1]}}};
+inline constexpr std::array<ParamShows, 2> kOscCarrierFeedback{{{.when = kIsFm}, {.when = kIsFm}}};
 inline constexpr ParamShows kModFxIsOn{.when = kModFxOn};
 inline constexpr ParamShows kModFxDepth{.when = kModFxHasDepth};
 inline constexpr ParamShows kModFxFeedback{.when = kModFxHasFeedback};

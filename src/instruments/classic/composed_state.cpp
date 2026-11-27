@@ -116,15 +116,10 @@ synth::SlotState pack_kind(const SourceState& src, uint32_t phase, SourceState& 
 		kept.reversed = neutral.reversed;
 		return sample;
 	}
-	case OscType::DX7: {
+	case OscType::DX7:
+		// No slot plays a DX7: it is an engine of its own, and the codec refuses one on an oscillator
 		keep_no_tuning();
-		synth::Dx7State dx{.pitch = pitch, .patch = {}};
-		if (src.dx_patch) {
-			dx.patch = *src.dx_patch;
-		}
-		kept.dx_patch.reset();
-		return dx;
-	}
+		return synth::VaState{.pitch = pitch, .shape = synth::VaShape::SQUARE};
 	default:
 		keep_no_tuning();
 		return synth::InputState{.pitch = pitch, .channel = channel_of(src.osc_type)};
@@ -168,14 +163,6 @@ SourceState unpack_kind(const synth::SlotState& slot, const SourceState& kept, c
 				    src.ranges.push_back(range_state_of(r));
 			    }
 		    }
-		    else if constexpr (std::is_same_v<T, synth::Dx7State>) {
-			    src.osc_type = OscType::DX7;
-			    take_pitch(state.pitch);
-			    src.dx_patch.reset();
-			    if (state.patch) {
-				    src.dx_patch = *state.patch;
-			    }
-		    }
 		    else {
 			    src.osc_type = type_of(state.channel);
 			    take_pitch(state.pitch);
@@ -198,23 +185,11 @@ void put_lfo(FlatSoundState& f, size_t i, const synth::LfoState& lfo) {
 } // namespace
 
 const synth::DualSourceState* dual_of(const ComposedState& plays) noexcept {
-	if (const auto* sub = std::get_if<synth::SubtractiveState>(&plays.engine)) {
-		return &sub->oscillators;
-	}
-	if (const auto* ring = std::get_if<synth::RingModState>(&plays.engine)) {
-		return &ring->oscillators;
-	}
-	return nullptr;
+	return synth::oscillators_of(plays.engine);
 }
 
 synth::DualSourceState* dual_of(ComposedState& plays) noexcept {
-	if (auto* sub = std::get_if<synth::SubtractiveState>(&plays.engine)) {
-		return &sub->oscillators;
-	}
-	if (auto* ring = std::get_if<synth::RingModState>(&plays.engine)) {
-		return &ring->oscillators;
-	}
-	return nullptr;
+	return synth::oscillators_of(plays.engine);
 }
 
 OscType osc_type_of(const synth::SlotState& kind) noexcept {
@@ -226,9 +201,6 @@ OscType osc_type_of(const synth::SlotState& kind) noexcept {
 	}
 	if (std::holds_alternative<synth::SampleState>(kind)) {
 		return OscType::SAMPLE;
-	}
-	if (std::holds_alternative<synth::Dx7State>(kind)) {
-		return OscType::DX7;
 	}
 	return type_of(std::get_if<synth::InputState>(&kind)->channel);
 }
@@ -250,7 +222,6 @@ SlotMemory remember(const SourceState& kept, const synth::Retrigger& retrigger) 
 	                 .pitch_and_speed_independent = kept.pitch_and_speed_independent,
 	                 .reversed = kept.reversed},
 	    .ranges = {},
-	    .patch = kept.dx_patch,
 	    .sample_pitch = {.tuning = {.transpose = kept.transpose, .cents = kept.cents}, .retrigger = retrigger}};
 	memory.ranges.reserve(kept.ranges.size());
 	for (const RangeState& r : kept.ranges) {
@@ -269,7 +240,6 @@ SourceState recall(const SlotMemory& memory, synth::Retrigger& retrigger) {
 	                 .interpolation_mode = memory.playback.interpolation,
 	                 .pitch_and_speed_independent = memory.playback.pitch_and_speed_independent,
 	                 .reversed = memory.playback.reversed,
-	                 .dx_patch = memory.patch,
 	                 .ranges = {}};
 	kept.ranges.reserve(memory.ranges.size());
 	for (const synth::SourceRange& r : memory.ranges) {
@@ -309,6 +279,31 @@ SourceState unpark_slot(const SlotMemory& memory) {
 	return unpack_slot(memory.parked.value_or(synth::VaState{}), memory).source;
 }
 
+SlotMemory park_whole_slot(const SourceState& source, uint32_t phase) {
+	PackedSlot packed = pack_slot(source, phase);
+	packed.memory.parked = std::move(packed.kind);
+	return std::move(packed.memory);
+}
+
+UnpackedSlot unpark_whole_slot(const SlotMemory& memory) {
+	return unpack_slot(memory.parked.value_or(synth::VaState{}), memory);
+}
+
+namespace {
+
+synth::Dx7State dx7_of(const Dx7FileState& file) {
+	return {.pitch = pitch_of(file.transpose, file.cents, file.retrigger_phase), .patch = file.patch};
+}
+
+Dx7FileState dx7_file_of(const synth::Dx7State& dx7) {
+	return {.transpose = dx7.pitch.tuning.transpose,
+	        .cents = dx7.pitch.tuning.cents,
+	        .retrigger_phase = phase_word(dx7.pitch.retrigger),
+	        .patch = dx7.patch};
+}
+
+} // namespace
+
 std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 	ComposedState state{
 	    .voicing = {.polyphony = f.polyphonic,
@@ -336,6 +331,16 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 		}
 		fm.sync = f.oscillator_sync;
 		state.engine = fm;
+		recall.dx7 = dx7_of(f.dx7);
+	}
+	else if (f.synth_mode == SynthMode::DX7) {
+		for (size_t s = 0; s < 2; s++) {
+			recall.slots[s] = park_whole_slot(f.sources[s], f.osc_retrigger_phase[s]);
+		}
+		recall.sync = f.oscillator_sync;
+		recall.modulators = modulators;
+		recall.modulator1_to_modulator0 = f.modulator1_to_modulator0;
+		state.engine = dx7_of(f.dx7);
 	}
 	else {
 		synth::DualSourceState dual{.slots = {}, .sync = f.oscillator_sync};
@@ -351,12 +356,8 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 		}
 		recall.modulators = modulators;
 		recall.modulator1_to_modulator0 = f.modulator1_to_modulator0;
-		if (f.synth_mode == SynthMode::RINGMOD) {
-			state.engine = synth::RingModState{.oscillators = dual};
-		}
-		else {
-			state.engine = synth::SubtractiveState{.oscillators = dual};
-		}
+		recall.dx7 = dx7_of(f.dx7);
+		state.engine = synth::dual_state_for(f.synth_mode, dual);
 	}
 	return {std::move(state), std::move(recall)};
 }
@@ -395,12 +396,24 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 			f.osc_retrigger_phase[s] = phase_word(fm->carriers[s].retrigger);
 		}
 		f.oscillator_sync = fm->sync;
+		f.dx7 = dx7_file_of(recall.dx7);
+		return f;
+	}
+	put_modulators(recall.modulators, recall.modulator1_to_modulator0);
+	if (const auto* dx7 = std::get_if<synth::Dx7State>(&state.engine)) {
+		f.synth_mode = SynthMode::DX7;
+		for (size_t s = 0; s < 2; s++) {
+			auto [source, phase] = unpark_whole_slot(recall.slots[s]);
+			f.sources[s] = std::move(source);
+			f.osc_retrigger_phase[s] = phase;
+		}
+		f.oscillator_sync = recall.sync;
+		f.dx7 = dx7_file_of(*dx7);
 		return f;
 	}
 	const synth::DualSourceState& dual = *dual_of(state);
-	f.synth_mode =
-	    std::holds_alternative<synth::RingModState>(state.engine) ? SynthMode::RINGMOD : SynthMode::SUBTRACTIVE;
-	put_modulators(recall.modulators, recall.modulator1_to_modulator0);
+	f.synth_mode = synth::mode_of(state.engine);
+	f.dx7 = dx7_file_of(recall.dx7);
 	for (size_t s = 0; s < 2; s++) {
 		auto [source, phase] = unpack_slot(dual.slots[s], recall.slots[s]);
 		f.sources[s] = std::move(source);

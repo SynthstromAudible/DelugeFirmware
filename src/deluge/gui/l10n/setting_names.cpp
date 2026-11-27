@@ -184,10 +184,11 @@ constexpr std::array<String, 8> kModFXTypeChoices{{
     STRING_FOR_GRAIN,
 }};
 
-constexpr std::array<String, 3> kModeChoices{{
+constexpr std::array<String, 4> kModeChoices{{
     STRING_FOR_SUBTRACTIVE,
     STRING_FOR_FM,
     STRING_FOR_RINGMOD,
+    STRING_FOR_DX7,
 }};
 
 constexpr std::array<String, 2> kModulator2ToModulator1Choices{{
@@ -386,6 +387,9 @@ constexpr SettingNames kOsc1TimeStretchAmountNames{STRING_FOR_SAMP_SPEED_MENU_TI
 constexpr SettingNames kOsc1TimeStretchEnableNames{
     STRING_FOR_PITCH_SPEED, STRING_FOR_PITCH_SPEED, kOsc1TimeStretchEnableChoices, {}};
 constexpr SettingNames kOsc1TransposeNames{STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}};
+/// The DX7's pitch, on its page (OSC1's in DX7 mode): no oscillator number in its titles.
+constexpr SettingNames kDx7TransposeNames{STRING_FOR_TRANSPOSE, STRING_FOR_TRANSPOSE, {}, {}};
+constexpr SettingNames kDx7RetrigPhaseNames{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_RETRIGGER_PHASE, {}, {}};
 constexpr SettingNames kOsc1TypeNames{STRING_FOR_OSC_TYPE_MENU_TITLE, STRING_FOR_TYPE, kOsc1TypeChoices, {}};
 constexpr SettingNames kOsc1TypeUnpluggedNames{
     STRING_FOR_OSC_TYPE_MENU_TITLE, STRING_FOR_TYPE, kOsc1TypeUnpluggedChoices, {}};
@@ -708,8 +712,6 @@ constexpr SettingNames kFeatureStickyShiftNames{
     STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT, STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT, {}, {}};
 constexpr SettingNames kFeatureLightShiftNames{
     STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT, STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT, {}, {}};
-constexpr SettingNames kFeatureEnableDX7EngineNames{
-    STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE, STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE, {}, {}};
 constexpr SettingNames kFeatureEnableKeyboardViewSidebarMenuExitNames{
     STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
     STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
@@ -771,7 +773,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 242> kEntries{{
+constexpr std::array<Entry, 243> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -853,7 +855,6 @@ constexpr std::array<Entry, 242> kEntries{{
     Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/useLastClipType">, &kDefaultUseLastClipTypeNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/useSharps">, &kUseSharpsNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"defaults/velocity">, &kDefaultVelocityNames},
-    Entry{SettingGroupId::DEVICE, project::stored_text<"features/EnableDX7Engine">, &kFeatureEnableDX7EngineNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"features/altGoldenKnobDelayParams">,
           &kFeatureAltGoldenKnobDelayParamsNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"features/alternativePlaybackStartBehaviour">,
@@ -940,6 +941,8 @@ constexpr std::array<Entry, 242> kEntries{{
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/directMonitoring">, &kUsbDirectMonitoringNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/enabled">, &kUsbAudioEnabledNames},
     Entry{SettingGroupId::DEVICE, project::stored_text<"usbAudio/outputSource">, &kUsbOutputSourceNames},
+    Entry{plugin::kDelugeInstrument, "dx7/retrigPhase", &kDx7RetrigPhaseNames},
+    Entry{plugin::kDelugeInstrument, "dx7/transpose", &kDx7TransposeNames},
     Entry{plugin::kDelugeInstrument, "envelope1Settings/curve", &kEnvelopeCurveNames},
     Entry{plugin::kDelugeInstrument, "envelope1Settings/follow", &kEnvelopeFollowNames},
     Entry{plugin::kDelugeInstrument, "envelope1Settings/mode", &kEnvelopeModeNames},

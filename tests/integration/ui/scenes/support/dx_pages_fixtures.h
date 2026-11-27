@@ -33,11 +33,6 @@ struct Feature {
 	Feature& operator=(const Feature&) = delete;
 };
 
-/// @brief The DX7 engine feature on, which gives the parameter page its own pads.
-struct DxEngineOn : Feature {
-	DxEngineOn() : Feature(RuntimeFeatureSettingType::EnableDX7Engine, RuntimeFeatureStateToggle::On) {}
-};
-
 /// @brief The keyboard screen as the root UI on the isomorphic layout, over the rig's clip, put back after.
 struct IsomorphicRoot {
 	RootUI* saved = getRootUI();

@@ -27,6 +27,7 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <variant>
 
 namespace deluge::synth {
 
@@ -59,8 +60,18 @@ struct BasicEngineBlock {
 	std::array<typename B::Sample*, 4> spare_buffers{}; ///< The render's work buffers; [0] is @ref osc_buffer
 	std::span<typename B::Sample> sync_scratch;         ///< A synced oscillator's work buffer
 	dsp::fixed::Cong* noise{};                          ///< The synth's noise stream
-	B::DualSourceControls dual{};                       ///< For the dual-source engines
-	B::FmControls fm{};                                 ///< For FM
+	/// The controls of the engine that plays: only its family's are built each block.
+	std::variant<std::monostate, typename B::DualSourceControls, typename B::FmControls, typename B::Dx7Controls>
+	    controls;
+
+	/// @brief The dual-source engines' controls (a subtractive or ring-mod block).
+	[[nodiscard]] const B::DualSourceControls& dual() const {
+		return *std::get_if<typename B::DualSourceControls>(&controls);
+	}
+	/// @brief FM's controls (an FM block).
+	[[nodiscard]] const B::FmControls& fm() const { return *std::get_if<typename B::FmControls>(&controls); }
+	/// @brief The DX7 engine's controls (a DX7 block).
+	[[nodiscard]] const B::Dx7Controls& dx7() const { return *std::get_if<typename B::Dx7Controls>(&controls); }
 };
 using EngineBlock = BasicEngineBlock<Fixed>;
 

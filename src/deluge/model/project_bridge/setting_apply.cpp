@@ -199,8 +199,8 @@ Error applyChange(::Sound& sound, const deluge::instruments::classic::SoundState
 	const auto changed = [&](Part part) { return parts.test(std::to_underlying(part)); };
 	const auto slotPart = [](Part a, int32_t s) { return static_cast<Part>(std::to_underlying(a) + s); };
 	const auto playsFiles = [](OscType type) {
-		return util::one_of(type, {OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::SAMPLE,
-		                           OscType::DX7, OscType::WAVETABLE});
+		return util::one_of(
+		    type, {OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::SAMPLE, OscType::WAVETABLE});
 	};
 
 	// Voices stop first, as each setting's menu stops them before it changes anything.
@@ -254,7 +254,8 @@ Error applyChange(::Sound& sound, const deluge::instruments::classic::SoundState
 		AudioExcludedSection section;
 		sound.deriveConfig();
 		if (changed(Part::TUNING) || changed(Part::UNISON_COUNT) || changed(Part::UNISON_DETUNE)
-		    || changed(Part::MODULATOR_TUNING) || changed(Part::SOURCE_A_TUNING) || changed(Part::SOURCE_B_TUNING)) {
+		    || changed(Part::MODULATOR_TUNING) || changed(Part::SOURCE_A_TUNING) || changed(Part::SOURCE_B_TUNING)
+		    || changed(Part::DX7_TUNING)) {
 			sound.recalculateAllVoicePhaseIncrements(modelStack);
 		}
 		if (changed(Part::UNISON_COUNT)) {
@@ -273,41 +274,33 @@ Error applyChange(::Sound& sound, const deluge::instruments::classic::SoundState
 		sound.resyncGlobalLFOs();
 	}
 
-	// The ranges and DX7 patches the runtime holds follow the change's, as the record held them before it: a new type
-	// has just reshaped them in the runtime, which reflected them into the record. A source whose ranges or patch the
-	// runtime refuses keeps what the runtime holds, in the record too.
-	const auto optionalOf = [](const deluge::instruments::classic::DxPatchState* patch) {
-		return patch != nullptr ? std::optional{*patch} : std::nullopt;
-	};
+	// The ranges the runtime holds follow the change's, as the record held them before it: a new type has just reshaped
+	// them in the runtime, which reflected them into the record. A source whose ranges the runtime refuses keeps what
+	// the runtime holds, in the record too.
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instruments::classic::SourceId>(s);
-		const deluge::instruments::classic::DxPatchState* wantedPatch =
-		    deluge::instruments::classic::dx_patch(after, id);
 		const bool retyped = changed(slotPart(Part::SOURCE_A_TYPE, s));
-		const std::optional<deluge::instruments::classic::DxPatchState> heldPatch =
-		    retyped ? sound.sourceResources[s].heldDxPatch()
-		            : optionalOf(deluge::instruments::classic::dx_patch(before, id));
 		// Ranges are copied only when they may differ: a retyped slot's runtime reshaped its own
 		const bool rangesDiffer =
 		    retyped ? sound.sourceResources[s].heldRanges() != deluge::instruments::classic::source_ranges(after, id)
 		            : !deluge::instruments::classic::same_ranges(before, after, id);
-		Error error = Error::NONE;
-		if (wantedPatch != nullptr && heldPatch != *wantedPatch && sound.oscType(s) == OscType::DX7) {
-			error = applyDxPatch(sound, s, *wantedPatch);
-		}
-		if (error == Error::NONE && rangesDiffer) {
+		if (rangesDiffer) {
 			// A copy: applying them writes the sound's record, which `after` may be
 			const std::vector<synth::SourceRange> wanted = deluge::instruments::classic::source_ranges(after, id);
-			error = applyRanges(sound, s, wanted);
+			if (const Error error = applyRanges(sound, s, wanted); error != Error::NONE) {
+				deluge::instruments::classic::SoundState& record = sound.record();
+				record = deluge::instruments::classic::with_ranges(std::move(record), id,
+				                                                   sound.sourceResources[s].heldRanges());
+				return error;
+			}
 		}
-		if (error != Error::NONE) {
-			deluge::instruments::classic::SoundState& record = sound.record();
-			record = deluge::instruments::classic::with_ranges(
-			    deluge::instruments::classic::with_dx_patch(std::move(record), id,
-			                                                sound.sourceResources[s].heldDxPatch()),
-			    id, sound.sourceResources[s].heldRanges());
-			return error;
-		}
+	}
+	// The DX7 engine's voice follows the change's while the DX7 plays; one the runtime cannot make keeps what it holds
+	if (const deluge::instruments::classic::DxPatchState* wanted = deluge::instruments::classic::dx7_patch(after);
+	    wanted != nullptr && deluge::instruments::classic::synth_mode(after) == SynthMode::DX7
+	    && sound.dx7Patch.state() != *wanted && !sound.dx7Patch.assign(*wanted)) {
+		sound.recordHeldDx7Patch();
+		return Error::INSUFFICIENT_RAM;
 	}
 	return Error::NONE;
 }

@@ -17,6 +17,7 @@
 
 #include "instruments/classic/record_edit.h"
 
+#include "instruments/classic/dx7_init_voice.h"
 #include "instruments/classic/flat_layout.h"
 #include "instruments/classic/state_access.h"
 
@@ -36,12 +37,7 @@ void place_sync(SoundState& state, synth::DualSourceState& dual, bool sync) {
 
 /// @p dual played as @p mode's engine.
 void play_dual(ComposedState& plays, SynthMode mode, synth::DualSourceState dual) {
-	if (mode == SynthMode::RINGMOD) {
-		plays.engine = synth::RingModState{.oscillators = std::move(dual)};
-	}
-	else {
-		plays.engine = synth::SubtractiveState{.oscillators = std::move(dual)};
-	}
+	plays.engine = synth::dual_state_for(mode, std::move(dual));
 }
 
 /// Into FM: each slot's pitch becomes its carrier's and the rest of it parks; the sync goes with FM, and FM's
@@ -86,6 +82,41 @@ void leave_fm(SoundState& state, SynthMode mode) {
 	play_dual(state.plays, mode, std::move(dual));
 }
 
+/// Into the DX7 from a dual-source engine: each slot parks whole, its pitch with it, and the sync with them; the DX7
+/// comes back from the recall.
+void enter_dx7(SoundState& state) {
+	Recall& recall = state.recall;
+	const bool sync = oscillator_sync(state);
+	const synth::DualSourceState& dual = *dual_of(state.plays);
+	for (size_t slot = 0; slot < 2; slot++) {
+		const UnpackedSlot unpacked = unpack_slot(dual.slots[slot], recall.slots[slot]);
+		recall.slots[slot] = park_whole_slot(unpacked.source, unpacked.phase);
+	}
+	recall.sync = sync;
+	synth::Dx7State dx7 = std::exchange(recall.dx7, synth::Dx7State{});
+	// A DX7 with no patch of its own plays the init voice, as one read without a patch does
+	if (!dx7.patch) {
+		dx7.patch.emplace(DxPatchState{.params = kDx7InitVoice});
+	}
+	state.plays.engine = dx7;
+}
+
+/// Out of the DX7 into dual-source engine @p mode: each slot plays its parked kind again; the DX7 goes to the recall.
+void leave_dx7(SoundState& state, SynthMode mode) {
+	Recall& recall = state.recall;
+	synth::DualSourceState dual{.slots = {}, .sync = false};
+	for (size_t slot = 0; slot < 2; slot++) {
+		const UnpackedSlot unpacked = unpark_whole_slot(recall.slots[slot]);
+		auto [kind, memory] = pack_slot(unpacked.source, unpacked.phase);
+		dual.slots[slot] = std::move(kind);
+		recall.slots[slot] = std::move(memory);
+	}
+	const bool sync = std::exchange(recall.sync, false);
+	recall.dx7 = *std::get_if<synth::Dx7State>(&state.plays.engine);
+	place_sync(state, dual, sync);
+	play_dual(state.plays, mode, std::move(dual));
+}
+
 /// slot_kind_of for a const or a changeable state.
 template <class State>
 auto slot_kind_in(State& state, size_t slot) noexcept -> decltype(&*state.recall.slots[slot].parked) {
@@ -102,15 +133,13 @@ auto& source_pitch_in(State& state, size_t slot) noexcept {
 	if (auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
 		return fm->carriers[slot];
 	}
-	auto& kind = dual_of(state.plays)->slots[slot];
+	// A dual-source engine's slot, or one the DX7 parks whole (it parks every slot)
+	auto& kind = *slot_kind_in(state, slot);
 	if (auto* va = std::get_if<synth::VaState>(&kind)) {
 		return va->pitch;
 	}
 	if (auto* wavetable = std::get_if<synth::WavetableState>(&kind)) {
 		return wavetable->pitch;
-	}
-	if (auto* dx = std::get_if<synth::Dx7State>(&kind)) {
-		return dx->pitch;
 	}
 	if (auto* input = std::get_if<synth::InputState>(&kind)) {
 		return input->pitch;
@@ -145,6 +174,10 @@ SlotEdit begin_slot_edit(const SoundState& state, size_t slot) {
 		edit.source.cents = fm->carriers[slot].tuning.cents;
 		return edit;
 	}
+	if (std::holds_alternative<synth::Dx7State>(state.plays.engine)) {
+		const UnpackedSlot parked = unpark_whole_slot(state.recall.slots[slot]);
+		return {.source = parked.source, .phase = parked.phase, .sync = state.recall.sync};
+	}
 	const UnpackedSlot unpacked = unpack_slot(dual_of(state.plays)->slots[slot], state.recall.slots[slot]);
 	return {.source = unpacked.source, .phase = unpacked.phase, .sync = oscillator_sync(state)};
 }
@@ -155,6 +188,11 @@ void end_slot_edit(SoundState& state, size_t slot, const SlotEdit& edit) {
 		                      .retrigger = retrigger_of_word(edit.phase)};
 		fm->sync = edit.sync;
 		state.recall.slots[slot] = park_slot(edit.source);
+		return;
+	}
+	if (std::holds_alternative<synth::Dx7State>(state.plays.engine)) {
+		state.recall.slots[slot] = park_whole_slot(edit.source, edit.phase);
+		state.recall.sync = edit.sync;
 		return;
 	}
 	synth::DualSourceState& dual = *dual_of(state.plays);
@@ -169,14 +207,22 @@ void set_engine(SoundState& state, SynthMode mode) {
 	if (from == mode) {
 		return;
 	}
+	// FM and the DX7 each enter from a dual-source engine and leave to one: between the two, through subtractive
+	const bool dual_to = mode != SynthMode::FM && mode != SynthMode::DX7;
+	if (from == SynthMode::FM) {
+		leave_fm(state, dual_to ? mode : SynthMode::SUBTRACTIVE);
+	}
+	else if (from == SynthMode::DX7) {
+		leave_dx7(state, dual_to ? mode : SynthMode::SUBTRACTIVE);
+	}
+	else if (dual_to) {
+		play_dual(state.plays, mode, std::move(*dual_of(state.plays)));
+	}
 	if (mode == SynthMode::FM) {
 		enter_fm(state);
 	}
-	else if (from == SynthMode::FM) {
-		leave_fm(state, mode);
-	}
-	else {
-		play_dual(state.plays, mode, std::move(*dual_of(state.plays)));
+	else if (mode == SynthMode::DX7) {
+		enter_dx7(state);
 	}
 }
 
@@ -189,6 +235,10 @@ synth::SamplePlayback& sample_playback_of(SoundState& state, size_t slot) noexce
 void set_oscillator_sync(SoundState& state, bool sync) {
 	if (auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
 		fm->sync = sync;
+		return;
+	}
+	if (std::holds_alternative<synth::Dx7State>(state.plays.engine)) {
+		state.recall.sync = sync;
 		return;
 	}
 	place_sync(state, *dual_of(state.plays), sync);
@@ -212,6 +262,11 @@ std::array<synth::Pitch, 2>& modulators_of(SoundState& state) noexcept {
 bool& modulator_routing_of(SoundState& state) noexcept {
 	auto* fm = std::get_if<synth::FmState>(&state.plays.engine);
 	return fm != nullptr ? fm->modulator1_to_modulator0 : state.recall.modulator1_to_modulator0;
+}
+
+synth::Pitch& dx7_pitch_of(SoundState& state) noexcept {
+	auto* dx7 = std::get_if<synth::Dx7State>(&state.plays.engine);
+	return (dx7 != nullptr ? *dx7 : state.recall.dx7).pitch;
 }
 
 } // namespace deluge::instruments::classic

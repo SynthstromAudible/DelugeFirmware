@@ -63,6 +63,14 @@
     "kind": "SYNTH",
     "sha256": "1315cace482d66869026173de2c8e11b05838d0d2c3c6a3e420d885812c485ab"
   },
+  "upgrade/sound/dx7_osc1.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "a7eb234c8ce22a1c58f012c1571c8e665c08bbb3bd5a284230194160d79033c0"
+  },
+  "upgrade/sound/dx7_osc2.synth.XML": {
+    "kind": "SYNTH",
+    "sha256": "7972c435f8f4b1dd8afb6b208588effc3d13e19c467136e54e6081bcc9fe24b9"
+  },
   "upgrade/sound/early_sample.synth.XML": {
     "kind": "SYNTH",
     "sha256": "2f08cc4f839bca3b4dd1cb4077b81119cd58f25aa1b145f34849cc928c8f10a5"

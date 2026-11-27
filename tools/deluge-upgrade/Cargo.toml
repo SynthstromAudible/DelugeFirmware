@@ -1,5 +1,5 @@
 # The Deluge file upgrader: converts a song or preset any firmware wrote into the firmware's current JSON form, so the
-# firmware reads only what the latest releases write.
+# firmware reads only its own current forms (a DX7 on an oscillator becomes the sound's DX7 engine).
 #
 # Gate upgrader:
 #     the file upgrader reads a Deluge document into the tree the firmware's parser builds (attributes and child tags

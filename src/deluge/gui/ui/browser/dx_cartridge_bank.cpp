@@ -112,14 +112,13 @@ bool loadDxCartridgeBytes(std::span<std::byte> bytes) {
 	return parseCartridge(bytes, bank);
 }
 
-void loadDxProgram(::Sound& sound, int32_t source, DX7Cartridge& cartridge, int32_t program) {
-	if (sound.sourceResources[source].ensureDxPatch() == nullptr) {
+void loadDxProgram(::Sound& sound, DX7Cartridge& cartridge, int32_t program) {
+	if (sound.getSynthMode() != SynthMode::DX7 || sound.dx7Patch.ensure() == nullptr) {
 		return;
 	}
-	std::optional<deluge::instruments::classic::DxPatchState> patch =
-	    deluge::bridge::dxPatchOf(sound.sourceResources[source]);
+	std::optional<deluge::instruments::classic::DxPatchState> patch = sound.dx7Patch.state();
 	cartridge.unpackProgram(patch->params, program);
-	deluge::edits::dxPatchFor(sound, source, *patch);
+	deluge::edits::dxPatchFor(sound, *patch);
 	sound.killAllVoices();
 	// The synth a DX7 bank is loaded into takes the program's name until it is saved. A drum's kit keeps its own.
 	if (sound.isDrum()) {

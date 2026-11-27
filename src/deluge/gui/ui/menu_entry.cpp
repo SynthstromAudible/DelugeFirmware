@@ -354,13 +354,15 @@ bool openMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, 
 		return false;
 	}
 	if (!menu::shortcut_applies(*node, ctx)) {
-		// The DX7 fallback opens the parameter page alone; any other refusal is `setup()`'s, with its popup.
+		// The DX7 fallback opens the parameter page alone, or lands on the DX7's column as the type's shortcut lands;
+		// any other refusal is `setup()`'s, with its popup.
 		const menu::Node* fallback = menu::nodes::dx_shortcut_fallback(*node, ctx, static_cast<uint8_t>(x));
 		if (fallback == nullptr) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 			return false;
 		}
-		return openGuest(*root, ctx, menu::node_id(*fallback), nullptr);
+		return fallback == &menu::nodes::dx_param ? openGuest(*root, ctx, menu::node_id(*fallback), nullptr)
+		                                          : openGuest(*root, ctx, 0, fallback);
 	}
 	// No undo-log wipe: `setup()` wipes only when it is given no item.
 	return openGuest(*root, ctx, 0, node);

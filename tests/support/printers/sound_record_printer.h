@@ -22,7 +22,7 @@
 #include "support/printers/fixed_point_printer.h"
 #include "support/printers/list_printer.h"
 #include "support/printers/optional_printer.h"
-#include "synth/engines/engine_state.h"
+#include "synth/engines/engine_table.h"
 #include "synth/modulation/lfo_state.h"
 #include "synth/sources/source_state.h"
 #include "synth/voice/voicing_state.h"
@@ -178,15 +178,15 @@ inline std::ostream& operator<<(std::ostream& os, const ComposedState& s) {
 inline std::ostream& operator<<(std::ostream& os, const SlotMemory& m) {
 	os << "{parked ";
 	deluge::test::printers::print_optional(os, m.parked) << ", playback " << m.playback << ", ranges ";
-	deluge::test::printers::print_list(os, std::span{m.ranges}) << ", patch ";
-	return deluge::test::printers::print_optional(os, m.patch) << ", sample_pitch " << m.sample_pitch << "}";
+	deluge::test::printers::print_list(os, std::span{m.ranges});
+	return os << ", sample_pitch " << m.sample_pitch << "}";
 }
 
 /// @brief Prints what a sound keeps for a switch back.
 inline std::ostream& operator<<(std::ostream& os, const Recall& r) {
 	return os << "{slots [" << r.slots[0] << " " << r.slots[1] << "], modulators [" << r.modulators[0] << " "
 	          << r.modulators[1] << "], modulator1_to_modulator0 " << int{r.modulator1_to_modulator0} << ", sync "
-	          << int{r.sync} << "}";
+	          << int{r.sync} << ", dx7 " << r.dx7 << "}";
 }
 
 /// @brief Prints a sound's record: what it plays and what it keeps.

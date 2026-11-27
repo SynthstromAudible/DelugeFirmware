@@ -887,8 +887,6 @@ inline constexpr Node feature_norns_layout =
     feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT), project::Feature::DISPLAY_NORNS_LAYOUT);
 inline constexpr Node feature_light_shift =
     feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT), project::Feature::LIGHT_SHIFT_LED);
-inline constexpr Node feature_dx7_engine =
-    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE), project::Feature::ENABLE_DX7_ENGINE);
 inline constexpr Node feature_kb_sidebar_menu_exit =
     feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT),
                  project::Feature::ENABLE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT);
@@ -938,7 +936,6 @@ inline constexpr const Node* kRuntimeFeatureChildren[] = {&feature_drum_randomiz
                                                           &feature_norns_layout,
                                                           &feature_sticky_shift,
                                                           &feature_light_shift,
-                                                          &feature_dx7_engine,
                                                           &feature_kb_sidebar_menu_exit,
                                                           &feature_launch_event_playhead,
                                                           &feature_chord_keyboard,

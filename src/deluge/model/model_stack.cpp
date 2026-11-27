@@ -223,7 +223,7 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
 		flagValue = checkSourceEverActiveDisregardingMissingSample(s);
 		if (flagValue) { // Does an &&
 			Sound* sound = &deluge::model::sound_of(owner);
-			flagValue = sound->getSynthMode() == SynthMode::FM
+			flagValue = !sound->playsSlots()
 			            || (sound->oscType(s) != OscType::SAMPLE && sound->oscType(s) != OscType::WAVETABLE)
 			            || sound->sourceResources[s].hasAtLeastOneAudioFileLoaded();
 		}

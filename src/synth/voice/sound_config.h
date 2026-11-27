@@ -81,6 +81,13 @@ struct SourceConfig {
 	bool operator==(const SourceConfig&) const = default;
 };
 
+/// @brief The DX7 engine's pitch as its voices play it.
+struct Dx7Config {
+	int32_t transpose{0};      ///< semitones
+	dsp::fixed::FineTune tune; ///< its cents as a phase-increment multiplier
+	bool operator==(const Dx7Config&) const = default;
+};
+
 /// @brief A sound's settings as its voices play them, derived from its state in one place (DelugeSynth::derive).
 struct SoundConfig {
 	Voicing voicing;
@@ -88,6 +95,7 @@ struct SoundConfig {
 	std::array<LfoState, LFO_COUNT>
 	    lfos{}; ///< each LFO's wave and sync; LFO1 and LFO3 run per sound, 2 and 4 per voice
 	std::array<SourceConfig, kNumSources> sources{};      ///< each oscillator's playback settings
+	Dx7Config dx7;                                        ///< the DX7 engine's pitch (DX7 mode)
 	std::array<EnvelopeState, kNumEnvelopes> envelopes{}; ///< each envelope's mode, curve and follow input
 	bool operator==(const SoundConfig&) const = default;
 };

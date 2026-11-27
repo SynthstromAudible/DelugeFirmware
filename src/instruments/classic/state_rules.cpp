@@ -20,6 +20,7 @@
 #include "instruments/classic/composed_state.h"
 #include "instruments/classic/dx7_init_voice.h"
 #include "instruments/classic/record_edit.h"
+#include "instruments/classic/state_access.h"
 
 #include <utility>
 #include <variant>
@@ -34,15 +35,8 @@ namespace {
 	return range;
 }
 
-/// @p source given the DX7 init voice where it has no patch.
-void ensure_init_patch(SourceState& source) {
-	if (!source.dx_patch) {
-		source.dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
-	}
-}
-
 /// Slot @p source set to @p type: ranges of the other kind keep only their top notes (one open range where there are
-/// none), otherwise the slot takes @p held; a DX7 slot without a patch gains the init voice.
+/// none), otherwise the slot takes @p held.
 void apply_osc_type(SourceState& source, OscType type, std::span<const synth::SourceRange> held,
                     bool held_are_wavetable) {
 	source.osc_type = type;
@@ -60,9 +54,6 @@ void apply_osc_type(SourceState& source, OscType type, std::span<const synth::So
 		for (const synth::SourceRange& range : held) {
 			source.ranges.push_back(range_state_of(range));
 		}
-	}
-	if (type == OscType::DX7) {
-		ensure_init_patch(source);
 	}
 }
 
@@ -140,10 +131,10 @@ SoundState as_default_synth(SoundState state) {
 
 SoundState as_blank_synth(SoundState state, bool dx) {
 	if (dx) {
-		edit_slot(state, 0, [](SlotEdit& edit) {
-			edit.source.osc_type = OscType::DX7;
-			ensure_init_patch(edit.source);
-		});
+		set_engine(state, SynthMode::DX7);
+		if (dx7_patch(state) == nullptr) {
+			state = with_dx7_patch(std::move(state), DxPatchState{.params = kDx7InitVoice});
+		}
 	}
 	return state;
 }
