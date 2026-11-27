@@ -231,7 +231,8 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	else if (b == PLAY) {
 		// Need to use special preview mode for this as on constant playing, big Midi files can lead to stucked notes
 		FileItem* currentFileItem = getCurrentFileItem();
-		if (!currentFileItem->isFolder) {
+		// No file item when the folder is empty (the PATTERNS folders are created empty)
+		if (currentFileItem && !currentFileItem->isFolder) {
 			if (on) {
 				previewOnly = true;
 
