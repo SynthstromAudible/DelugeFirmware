@@ -7,11 +7,13 @@
 /// The writes are observed from outside: the undo log lists each param written, every value is read back through the
 /// param's address, and a feedback CC leaves the sample time it was sent at in `MidiFollow::timeLastCCSent`.
 
+#include "arp/params.h"
 #include "gui/ui/shell_host/host_ports.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "instruments/classic/params.h"
+#include "integration/scenarios/drivers/tree_load.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -249,6 +251,25 @@ struct Songs {
 
 // clang-format off
 describe midi_follow("a followed CC through PlaybackHandler::midiCCReceived", $ {
+	it("follows a sound's arp rate as the arp's, on CC 51 by default and by a file's arpRate entry", _ {
+		FollowWorld follow;
+		const project::ParamTarget rate{.space = project::ParamSpace::ARP, .id = arp::param::kRate};
+		midiFollow.resetToDefaults();
+		expect(midiFollow.ccToSoundTarget[51].value_or(project::ParamTarget{})).to_equal(rate, "CC 51's sound param by default");
+
+		std::optional<storage::Value> tree = parseDocument(
+		    "<defaults><cc_mappings><arpRate>30</arpRate></cc_mappings></defaults>", storage::DocumentFormat::XML);
+		expect(tree.has_value()).to_be_true("the parsed follow file");
+		if (tree) {
+			storage::ValueTreeDeserializer reader(*tree, sourceFormatOf(storage::DocumentFormat::XML));
+			expect(openTreeFile(reader, "defaults")).to_equal(Error::NONE);
+			midiFollow.parseDefaults(reader);
+			expect(midiFollow.ccToSoundTarget[30].value_or(project::ParamTarget{})).to_equal(rate, "CC 30's sound param");
+			expect(midiFollow.ccToGlobalTarget[30].value_or(project::ParamTarget{})).to_equal(rate, "CC 30's global param");
+		}
+		midiFollow.resetToDefaults();
+	});
+
 	it("moves the param a synth's CC names, in one undo step, and marks no instrument edited", _ {
 		FollowWorld follow;
 		Songs s;

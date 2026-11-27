@@ -221,12 +221,13 @@ inline constexpr Node arp_sync = with_affect_entire(with_title(
     setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel, arp_row("arpeggiator/syncLevel")),
     sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE)));
 /// Not on a MIDI or gate drum row or a kit's own effects (`arpeggiator::Rate::isRelevant`), which the kit's own
-/// shortcut table names it on.
-inline constexpr Node arp_rate =
-    with_relevant(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
-                                         sound_param(deluge::instruments::classic::param::kArpRate), Hint::Knob,
-                                         ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE))),
-                  relevance::not_non_audio_drum_or_kit_fx);
+/// shortcut table names it on. The arp's rate is the base of the matrix's arp-rate destination, which a cable from a
+/// source pad reaches.
+inline constexpr Node arp_rate = with_relevant(
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE), arp_param(deluge::arp::param::kRate), Hint::Knob,
+                           ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE)),
+                     deluge::instruments::classic::param::kArpRate),
+    relevance::not_non_audio_drum_or_kit_fx);
 
 inline constexpr const Node* kArpBasicChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_rate};
 inline constexpr Node arp_basic =

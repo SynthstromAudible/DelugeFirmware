@@ -27,6 +27,7 @@
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
+#include "support/main_numbering.h"
 #include "support/sound_fixtures.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/menu/bindings.h"
@@ -554,16 +555,19 @@ describe tables_3_shape("scenes::menu settings and other roots tables: shape", $
 	it("gives every leaf main's own param, AFFECT ENTIRE use, edit marking, slot count and range dependence", _ {
 		// Main keeps the arp's params in the unpatched sets: a sound's at runtime indices 11 to 25 (ids 101 to 115), a
 		// kit's rate at the global index 30 (id 120). Here they are the arp's own ids.
+		// The arp id of main's param at runtime index @p index of kind @p kind (support/main_numbering.h)
 		const auto arp_id_of_main_index = [](std::string_view kind, int32_t index) -> std::optional<int32_t> {
-			constexpr std::array<int32_t, 15> kSoundIndexToArp{0, 2, 3, 4, 5, 6, 10, 7, 8, 9, 11, 12, 14, 15, 13};
-			const auto global = std::to_string(static_cast<int32_t>(deluge::modulation::params::Kind::UNPATCHED_GLOBAL));
-			if (kind == global && index == 30) {
-				return 1;
+			namespace numbering = spec::main_numbering;
+			std::optional<uint32_t> arp;
+			if (kind == std::to_string(static_cast<int32_t>(deluge::modulation::params::Kind::PATCHED))) {
+				arp = numbering::arp_id_of_patched(static_cast<uint32_t>(index));
 			}
-			if (index >= 11 && index <= 25) {
-				return kSoundIndexToArp[static_cast<std::size_t>(index - 11)];
+			else {
+				const bool chain =
+				    kind == std::to_string(static_cast<int32_t>(deluge::modulation::params::Kind::UNPATCHED_GLOBAL));
+				arp = numbering::arp_id_of_index(chain, index);
 			}
-			return std::nullopt;
+			return arp ? std::optional<int32_t>{static_cast<int32_t>(*arp)} : std::nullopt;
 		};
 		size_t learned = 0;
 		for (const auto& [root, e] : every_entry()) {
@@ -592,7 +596,10 @@ describe tables_3_shape("scenes::menu settings and other roots tables: shape", $
 					const auto kind = table().find(e.path, "param_kind");
 					const std::string main_kind = kind != nullptr && !kind->empty() ? kind->front() : std::string{};
 					if (got->param.space == deluge::project::ParamSpace::ARP) {
-						if (const std::optional<int32_t> arp = arp_id_of_main_index(main_kind, main_id - 90)) {
+						const bool patched =
+						    main_kind == std::to_string(static_cast<int32_t>(deluge::modulation::params::Kind::PATCHED));
+						if (const std::optional<int32_t> arp =
+						        arp_id_of_main_index(main_kind, patched ? main_id : main_id - 90)) {
 							wanted = std::to_string(*arp);
 						}
 					}

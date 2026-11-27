@@ -4,6 +4,8 @@
 ///        knob is in the table, still on its owner before the table takes it, or handed over by a preset change.
 
 #include "arp/params.h"
+#include "instruments/classic/cables.h"
+#include "instruments/classic/params.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/learn_mapping.h"
@@ -218,6 +220,37 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		const std::string text = saved(*song);
 		expect(text).to_contain(R"("controlsParam": "arpGate")", "the saved song");
 		expect(text).to_contain(R"("controlsParam": "spreadOctave")", "the saved song");
+	});
+
+	it("loads a sound's knob on arpRate as the arp's rate, and one on a cable to it as the cable's depth", _ {
+		Song* song = spec::load_song(synth_song_xml(R"(
+				<midiKnob channel="1" ccNumber="22" relative="0" controlsParam="arpRate" />
+				<midiKnob channel="1" ccNumber="23" relative="0" controlsParam="arpRate" patchAmountFromSource="lfo1" />)"));
+		expect(song).not_().to_be_null("the loaded song");
+		SoundInstrument* synth = song != nullptr ? spec::first_synth(*song) : nullptr;
+		expect(synth).not_().to_be_null("the song's synth");
+		if (synth == nullptr || !synth->id()) {
+			return;
+		}
+		const std::vector<Mapping> knobs = song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *synth->id()});
+		expect(static_cast<int>(knobs.size())).to_equal(2);
+		if (knobs.size() != 2) {
+			return;
+		}
+		const auto paramOf = [](const Mapping& knob) { return std::get<OwnerParamTarget>(knob.target).param; };
+		expect(paramOf(knobs[0]))
+		    .to_equal(deluge::project::ParamTarget{.space = deluge::project::ParamSpace::ARP,
+		                                           .id = deluge::arp::param::kRate},
+		              "the plain knob's param");
+		const std::optional<deluge::plugin::ParamId> depth = deluge::instruments::classic::cable_depth_id(
+		    deluge::instruments::classic::PatchSource::LFO_GLOBAL_1, deluge::instruments::classic::param::kArpRate);
+		expect(depth.has_value()).to_be_true("the cable's depth id");
+		if (depth) {
+			expect(paramOf(knobs[1])).to_equal(deluge::project::engine_target(depth->value), "the cable knob's param");
+		}
+		const std::string text = saved(*song);
+		expect(text).to_contain(R"("controlsParam": "arpRate")", "the saved song");
+		expect(text).to_contain(R"("patchAmountFromSource": "lfo1")", "the saved song");
 	});
 
 	it("keeps a pitch adjust a learned knob in the table turns, and zeroes one no knob turns", _ {

@@ -543,6 +543,11 @@ struct Binding {
 	///        written. It is the menu's own half of a setting it lays itself out by, which no host store may reach
 	///        (the horizontal-menus feature). Null for every other node.
 	SetFn after_write = nullptr;
+
+	/// @brief The patched param a cable from a source pad reaches while this node is focused, which `with_patch_chain`
+	///        sets: the node's own patched param, or the matrix destination whose base the node's param is (a sound's
+	///        arp rate, kept in its arp's set). Empty on every other node.
+	std::optional<uint8_t> patch_destination{};
 };
 
 /// @brief Forward declared only -- see the file-level note. Defined alongside the interpreter's own

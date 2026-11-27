@@ -269,7 +269,7 @@ inline constexpr std::array<plugin::ParamInfo, 67> kParams{{
     effects::row(param::kModFXRate, effects::params::kModFxRate),
     {.id = param::kLfo1Rate, .file_name = "lfo1Rate", .default_value = 429496702},
     {.id = param::kLfo3Rate, .file_name = "lfo3Rate", .default_value = 429496702},
-    {.id = param::kArpRate, .file_name = "arpRate"},
+    {.id = param::kArpRate, .file_name = "arpRate", .flags = plugin::ParamFlag::DESTINATION_ONLY},
     effects::row(param::kStutterRate, effects::params::kStutterRate),
     effects::row(param::kBass, effects::params::kBass),
     effects::row(param::kTreble, effects::params::kTreble),

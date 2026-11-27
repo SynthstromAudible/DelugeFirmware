@@ -62,6 +62,14 @@ describe menu_param_ids_cases("the menu's params by table and id", ${
 				}
 				want.id = ours.id.value;
 			}
+			// A sound's arp rate was its patched param; here it is the arp's, its matrix destination patched alone
+			if (want.patched && want.table == 0) {
+				if (const std::optional<uint32_t> arp = numbering::arp_id_of_patched(want.id)) {
+					want.table = static_cast<uint8_t>(deluge::ui::scenes::bind::ParamTable::ARP);
+					want.id = *arp;
+					want.patched = false;
+				}
+			}
 			expect(cells[i].node).to_equal(want.node);
 			expect(cells[i].name).to_equal(want.name);
 			expect(cells[i].table).to_equal(want.table);

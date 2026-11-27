@@ -398,14 +398,25 @@ std::optional<deluge::ui::scenes::bind::WriteRequest> cable_request(const MenuCo
 
 /// @brief @p n with the chain every `PatchedParam`-derived legacy item has.
 ///
-/// Applied at the 29 declaration sites whose `bind.param` is a sound's patched param (`is_patched`; the macros
-/// in `sound_osc.h` / `sound_env.h` / `sound_lfo.h` expand several of them), which is **exactly 53 nodes** -- the same
-/// set as the legacy items that derive from `menu_item::PatchedParam`, verified by `dynamic_cast` over a lockstep walk.
-/// `tables_2_spec` pins both halves of that equality, so a patched `param(...)` added without this wrapper
-/// fails there rather than silently losing its select press.
+/// Applied at the 28 declaration sites whose `bind.param` is a sound's patched param (`is_patched`; the macros
+/// in `sound_osc.h` / `sound_env.h` / `sound_lfo.h` expand several of them), 52 nodes; with the arp rate (the overload
+/// below) **exactly 53 nodes** -- the same set as the legacy items that derive from `menu_item::PatchedParam`, verified
+/// by `dynamic_cast` over a lockstep walk. `tables_2_spec` pins both halves of that equality, so a patched `param(...)`
+/// added without this wrapper fails there rather than silently losing its select press.
 /// @param n The patched-param node.
-/// @return @p n with the patch-cable select chain attached.
+/// @return @p n with the patch-cable select chain attached, patching to its param.
 constexpr Node with_patch_chain(Node n) {
+	n.bind.patch_destination = patched_byte(n.bind.param);
+	return with_select_chain(n, &patched_param_chain, kPatchedParamChain);
+}
+
+/// @brief @p n, whose param is the base of the matrix destination @p destination held in another store, with the chain
+///        a patched param's item has, patching to @p destination.
+/// @param n           The node.
+/// @param destination The patched param a cable from a source pad reaches.
+/// @return @p n with the patch-cable select chain attached.
+constexpr Node with_patch_chain(Node n, deluge::plugin::ParamId destination) {
+	n.bind.patch_destination = static_cast<uint8_t>(destination.value);
 	return with_select_chain(n, &patched_param_chain, kPatchedParamChain);
 }
 

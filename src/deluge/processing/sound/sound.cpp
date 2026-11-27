@@ -226,7 +226,6 @@ void Sound::initParams(ParamManager* paramManager) {
 	                     params::LOCAL_PITCH_ADJUST,
 	                     params::GLOBAL_REVERB_AMOUNT,
 	                     params::GLOBAL_DELAY_RATE,
-	                     params::GLOBAL_ARP_RATE,
 	                     params::GLOBAL_DELAY_FEEDBACK,
 	                     params::LOCAL_CARRIER_0_FEEDBACK,
 	                     params::LOCAL_CARRIER_1_FEEDBACK,
@@ -413,9 +412,15 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 	PatchCableSet& cables = *paramManager.getPatchCableSet();
 	block.program = cables.program();
 	PatchedParamSet& patched = *paramManager.getPatchedParamSet();
+	// The arp rate's base is the arp's own param; the patched slot of its destination holds nothing
+	ArpParamSet* arp = paramManager.getArpParamSet();
+	const auto preset = [&](int32_t p) {
+		return p == params::GLOBAL_ARP_RATE && arp != nullptr ? arp->getKnob(deluge::arp::param::kRate.value)
+		                                                      : patched.getKnob(p);
+	};
 	if (gather == PresetGather::ALL) {
 		for (int32_t p = 0; p < deluge::modulation::params::kNumParams; p++) {
-			block.preset_values[p] = patched.getKnob(p);
+			block.preset_values[p] = preset(p);
 		}
 	}
 	else if (block.program != nullptr) {
@@ -423,7 +428,7 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 		for (const deluge::synth::matrix::ScopeView& scope : block.program->scopes) {
 			for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; k++) {
 				const int32_t p = scope.destinations[k].param;
-				block.preset_values[p] = patched.getKnob(p);
+				block.preset_values[p] = preset(p);
 			}
 		}
 	}

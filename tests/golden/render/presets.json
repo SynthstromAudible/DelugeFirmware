@@ -11,6 +11,12 @@
   "rms_db": -31.56,
   "sha256": "d3ccc58b8550784349a8360d63f0030f5dd64294ea32c911ab79ea6309e87ecf"
  },
+ "arp_rate_cables": {
+  "frames": 88200,
+  "peak": 134481152,
+  "rms_db": -28.88,
+  "sha256": "79d28bee1ceed727b1068e02617e0712490a9924eef4e0b93f6b491f26c73515"
+ },
  "community/12 Metalliche": {
   "frames": 88200,
   "peak": 286668032,
