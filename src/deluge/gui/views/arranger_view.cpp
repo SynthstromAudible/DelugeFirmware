@@ -1411,6 +1411,9 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 				// To the right is allowed
 				else {
 					clipInstance = createClipInstance(output, y, squareStart);
+					if (!clipInstance) {
+						return; // Out of memory (createClipInstance() has shown the error)
+					}
 				}
 			}
 		}
@@ -1434,6 +1437,10 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 	// Or, if no ClipInstance anywhere to the left, make a new one
 	else {
 		clipInstance = createClipInstance(output, y, squareStart);
+	}
+
+	if (!clipInstance) {
+		return; // createClipInstance() ran out of memory (and has shown the error)
 	}
 
 	recordEditPadPress(output, clipInstance, x, y, xScroll);
