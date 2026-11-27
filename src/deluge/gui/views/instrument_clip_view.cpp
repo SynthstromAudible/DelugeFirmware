@@ -4941,9 +4941,10 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
 void InstrumentClipView::scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack,
                                                           InstrumentClip* clip, bool isKit, bool keepYNoteOverride) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-	// if (!action) return; // Couldn't happen?
-
-	action->updateYScrollClipViewAfter(clip);
+	// getNewAction() returns null e.g. while recording to the arrangement, or if out of memory
+	if (action) {
+		action->updateYScrollClipViewAfter(clip);
+	}
 
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		if (editPadPresses[i].isActive) {
