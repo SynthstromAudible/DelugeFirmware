@@ -388,8 +388,10 @@ void Voice::setupPorta(const Sound& sound) {
 	portaEnvelopePos = 0;
 	int32_t semitoneAdjustment = sound.lastNoteCode - noteCodeAfterArpeggiation;
 
-	int32_t noteWithinOctave = (semitoneAdjustment + 120) % 12;
-	int32_t octave = (semitoneAdjustment + 120) / 12;
+	// Two notes can be more than 120 semitones apart, and a signed % would then give a negative table index. The
+	// unsigned form (as in calculatePhaseIncrements()) gives the same result for everything else.
+	int32_t noteWithinOctave = (uint16_t)(semitoneAdjustment + 240) % 12;
+	int32_t octave = (uint16_t)(semitoneAdjustment + 240) / 12 - 10;
 
 	int32_t phaseIncrement = noteIntervalTable[noteWithinOctave];
 
