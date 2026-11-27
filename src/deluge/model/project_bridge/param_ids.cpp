@@ -250,6 +250,9 @@ std::optional<deluge::project::ParamTarget> targetOf(OwnerPlugin owner, params::
 	case params::Kind::EXPRESSION:
 		turned.target.space = deluge::project::ParamSpace::EXPRESSION;
 		break;
+	case params::Kind::ARP:
+		turned.target.space = deluge::project::ParamSpace::ARP;
+		break;
 	case params::Kind::PATCH_CABLE:
 		// A cable is the instrument's, and its depth is in no table: what the word names is the target as it stands.
 		return owner == OwnerPlugin::INSTRUMENT ? std::optional{turned.target} : std::nullopt;
