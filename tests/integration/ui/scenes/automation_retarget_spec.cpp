@@ -19,6 +19,7 @@
 #include "gui/views/view.h"
 #include "hid/button.h"
 #include "model/instrument/kit.h"
+#include "model/project_bridge/param_selection.h"
 #include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "synth/modulation/cable.h"
@@ -63,21 +64,19 @@ namespace {
 /// The automation view on @p clip's overview, nothing selected.
 void on_overview(InstrumentClip* clip) {
 	automationView.onArrangerView = false;
-	clip->lastSelectedParamKind = params::Kind::NONE;
-	clip->lastSelectedParamID = params::kNoParamID;
+	clip->selectedParam.reset();
 	currentUIMode = UI_MODE_NONE;
 }
 
 /// The automation view's editor on @p clip's LPF frequency.
 void on_lpf_freq(InstrumentClip* clip) {
-	clip->lastSelectedParamKind = params::Kind::PATCHED;
-	clip->lastSelectedParamID = params::LOCAL_LPF_FREQ;
+	clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCHED, params::LOCAL_LPF_FREQ);
 }
 
 /// Whether the automation view is on @p clip's param (@p kind, @p id), in its editor.
 bool view_on(InstrumentClip* clip, params::Kind kind, int32_t id) {
-	return automationView.inAutomationEditor() && clip->lastSelectedParamKind == kind
-	       && clip->lastSelectedParamID == id;
+	return automationView.inAutomationEditor() && deluge::bridge::runtimePairOf(clip->selectedParam).kind == kind
+	       && deluge::bridge::runtimePairOf(clip->selectedParam).index == id;
 }
 
 /// The vibrato page's cable, LFO 1 onto pitch, in the view's numbering: its descriptor word.
@@ -245,7 +244,7 @@ describe automation_retarget("the automation view follows the menu's param", $ {
 		r.shortcut(8, 7);
 		expect(view_on(r.song.clip, params::Kind::PATCHED, params::LOCAL_LPF_FREQ)).to_be_true();
 		on_lpf_freq(r.song.clip);
-		r.song.clip->lastSelectedParamID = params::LOCAL_HPF_FREQ; // the view moved on by itself
+		r.song.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCHED, params::LOCAL_HPF_FREQ); // the view moved on by itself
 		r.shortcut(8, 7);
 		expect(view_on(r.song.clip, params::Kind::PATCHED, params::LOCAL_LPF_FREQ)).to_be_true();
 	});
@@ -273,7 +272,7 @@ describe automation_retarget("the automation view follows the menu's param", $ {
 		Rig r;
 		r.open(nodes::sound_filters);
 		r.shortcut(8, 7);
-		r.song.clip->lastSelectedParamID = params::LOCAL_HPF_FREQ;
+		r.song.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCHED, params::LOCAL_HPF_FREQ);
 		r.turn(1);
 		expect(view_on(r.song.clip, params::Kind::PATCHED, params::LOCAL_HPF_FREQ)).to_be_true();
 	});
@@ -283,7 +282,7 @@ describe automation_retarget("the automation view follows the menu's param", $ {
 		setRootUILowLevel(&instrumentClipView);
 		r.open(nodes::sound_filters);
 		r.shortcut(8, 7);
-		expect(r.song.clip->lastSelectedParamKind).to_equal(params::Kind::NONE);
+		expect(r.song.clip->selectedParam).not_().to_have_value();
 	});
 });
 describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation view from the menu", $ {
@@ -408,8 +407,7 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 		on_overview(fx.clip);
 		expect(open_shortcut_over_automation(fx.clip, 9, 7)).to_be_true();
 		view.setActiveModControllableTimelineCounter(fx.clip); // as the clip view leaves it
-		fx.clip->lastSelectedParamKind = params::Kind::PATCHED;
-		fx.clip->lastSelectedParamID = params::LOCAL_HPF_FREQ;
+		fx.clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCHED, params::LOCAL_HPF_FREQ);
 		expect(deluge::gui::ui::automationEditorTakesKnobs()).to_be_true();
 		const int32_t before = fx.clip->paramManager.getPatchedParamSet()->getValue(params::LOCAL_HPF_FREQ);
 		shellHostUI.modEncoderAction(1, 8);

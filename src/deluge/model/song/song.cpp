@@ -62,6 +62,7 @@
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample_recorder.h"
@@ -255,8 +256,6 @@ Song::Song() {
 	live.master_channel.core().compressor().dsp().set_base_gain(0.85f);
 
 	// initialize automation arranger view variables
-	lastSelectedParamID = params::kNoParamID;
-	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
 	lastSelectedParamArrayPosition = 0;
@@ -1200,9 +1199,9 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("affectEntire", persistentView.affectEntire);
 	writer.writeAttribute("activeModFunction", project.mod_knob_mode);
 
-	if (lastSelectedParamID != params::kNoParamID) {
-		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+	if (const std::optional<deluge::bridge::RuntimeParam> selected = deluge::bridge::selectionPairOf(selectedParam)) {
+		writer.writeAttribute(deluge::bridge::kSelectionIdAttribute, selected->index);
+		writer.writeAttribute(deluge::bridge::kSelectionKindAttribute, util::to_underlying(selected->kind));
 		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		writer.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
@@ -1588,6 +1587,8 @@ Error Song::readFromFile(Deserializer& reader, uint64_t timePerTimerTick) {
 	if (element == nullptr || !reader.match('{')) {
 		return Error::FILE_CORRUPTED;
 	}
+	int32_t fileSelectedKind = 0;
+	int32_t fileSelectedId = -1;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
@@ -1753,14 +1754,14 @@ unknownTag:
 				reader.exitTag("affectEntire");
 			}
 
-			else if (!strcmp(tagName, "lastSelectedParamID")) {
-				lastSelectedParamID = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastSelectedParamID");
+			else if (!strcmp(tagName, deluge::bridge::kSelectionIdAttribute)) {
+				fileSelectedId = reader.readTagOrAttributeValueInt();
+				reader.exitTag(deluge::bridge::kSelectionIdAttribute);
 			}
 
-			else if (!strcmp(tagName, "lastSelectedParamKind")) {
-				lastSelectedParamKind = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
-				reader.exitTag("lastSelectedParamKind");
+			else if (!strcmp(tagName, deluge::bridge::kSelectionKindAttribute)) {
+				fileSelectedKind = reader.readTagOrAttributeValueInt();
+				reader.exitTag(deluge::bridge::kSelectionKindAttribute);
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
@@ -1988,6 +1989,7 @@ loadOutput:
 			}
 		}
 	}
+	selectedParam = deluge::bridge::songSelectionOfFile(fileSelectedKind, fileSelectedId);
 	deluge::model::readEffectsFromElement(*live.master_channel.effectsOwner(), *element, getInputTickMagnitude());
 
 	setTimePerTimerTick(timePerTimerTick);

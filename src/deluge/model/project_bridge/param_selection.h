@@ -49,6 +49,11 @@ namespace deluge::bridge {
 /// @return The pair, or NONE with kNoParamID when there is none.
 [[nodiscard]] RuntimeParam runtimePairOf(const std::optional<deluge::project::PluginParam>& selection);
 
+/// @brief The file attributes a clip's or the song's selection is saved in, as its runtime pair.
+inline constexpr char kSelectionIdAttribute[] = "lastSelectedParamID";
+/// @copydoc kSelectionIdAttribute
+inline constexpr char kSelectionKindAttribute[] = "lastSelectedParamKind";
+
 /// @brief A clip's selection from its file's lastSelectedParamKind and lastSelectedParamID.
 ///
 /// A MIDI clip chose a CC by its id alone, leaving the kind it had: none, or an expression's. Kind NONE with an id,

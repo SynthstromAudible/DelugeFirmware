@@ -42,6 +42,7 @@
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/lane_target.h"
 #include "model/project_bridge/mapping_bridge.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -2577,9 +2578,9 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	if (onAutomationClipView) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
-	if (lastSelectedParamID != params::kNoParamID) {
-		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+	if (const std::optional<deluge::bridge::RuntimeParam> selected = deluge::bridge::selectionPairOf(selectedParam)) {
+		writer.writeAttribute(deluge::bridge::kSelectionIdAttribute, selected->index);
+		writer.writeAttribute(deluge::bridge::kSelectionKindAttribute, util::to_underlying(selected->kind));
 		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		writer.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
 		writer.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedOutputType));

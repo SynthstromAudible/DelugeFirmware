@@ -37,6 +37,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/sync.h"
+#include "project/owner_plugin.h"
 #include "project/song.h"
 #include "storage/flash_storage.h"
 #include "storage/preset_acquisition.h"
@@ -44,6 +45,7 @@
 #include "util/containers.h"
 #include "util/etl_string.h"
 #include <atomic>
+#include <optional>
 #include <utility>
 
 class MidiCommand;
@@ -478,9 +480,8 @@ public:
 	TimelineCounter* getTimelineCounterToRecordTo() override;
 
 	// START ~ new Automation Arranger View Variables
-	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
-	deluge::modulation::params::Kind
-	    lastSelectedParamKind; // 0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
+	/// The param the automation arranger view edits, by its owner's plugin and target; nullopt when none is.
+	std::optional<deluge::project::PluginParam> selectedParam;
 	int32_t lastSelectedParamShortcutX;
 	int32_t lastSelectedParamShortcutY;
 	int32_t lastSelectedParamArrayPosition;

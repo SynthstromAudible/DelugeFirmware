@@ -434,7 +434,8 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	// by a learned midi knob, then re-render the pads on the automation editor grid
 	if (type == OutputType::MIDI_OUT) {
 		if (getRootUI() == &automationView) {
-			if (activeClip->lastSelectedParamID == ccNumber) {
+			if (activeClip->selectedParam
+			    && static_cast<int32_t>(activeClip->selectedParam->target.id.value) == ccNumber) {
 				deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
 				deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 			}

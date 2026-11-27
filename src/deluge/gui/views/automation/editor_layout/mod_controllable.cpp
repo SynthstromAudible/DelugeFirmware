@@ -31,6 +31,7 @@
 #include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -47,6 +48,11 @@ namespace params = deluge::modulation::params;
 using namespace deluge::gui;
 
 namespace {
+
+/// The selection as the view's (kind, id) plumbing reads it: its runtime pair, NONE and kNoParamID for none.
+deluge::bridge::RuntimeParam selection(const std::optional<deluge::project::PluginParam>& selected) {
+	return deluge::bridge::runtimePairOf(selected);
+}
 
 /// @brief The gold knobs' owner's effects, or nullopt.
 std::optional<deluge::model::EffectsOwner> knobOwner() {
@@ -300,8 +306,8 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay(
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+		                                                          selection(currentSong->selectedParam).index);
 	}
 	else {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -353,12 +359,12 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		int32_t lastSelectedParamID = params::kNoParamID;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
 		if (getOnArrangerView()) {
-			lastSelectedParamKind = currentSong->lastSelectedParamKind;
-			lastSelectedParamID = currentSong->lastSelectedParamID;
+			lastSelectedParamKind = selection(currentSong->selectedParam).kind;
+			lastSelectedParamID = selection(currentSong->selectedParam).index;
 		}
 		else {
-			lastSelectedParamKind = clip->lastSelectedParamKind;
-			lastSelectedParamID = clip->lastSelectedParamID;
+			lastSelectedParamKind = selection(clip->selectedParam).kind;
+			lastSelectedParamID = selection(clip->selectedParam).index;
 			lastSelectedPatchSource = clip->lastSelectedPatchSource;
 		}
 		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
@@ -398,7 +404,7 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		}
 	}
 	else {
-		((MIDIInstrument*)clip->output)->appendCCName(parameterName, clip->lastSelectedParamID);
+		((MIDIInstrument*)clip->output)->appendCCName(parameterName, selection(clip->selectedParam).index);
 	}
 }
 

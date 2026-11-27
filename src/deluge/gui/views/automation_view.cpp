@@ -74,6 +74,7 @@
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_selection.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -141,6 +142,11 @@ constexpr int32_t kNumNonGlobalParamsForAutomation = params::kSoundParamsForAuto
 constexpr int32_t kNumGlobalParamsForAutomation = params::kGlobalParamsForAutomation.size();
 
 namespace {
+
+/// The selection as the view's (kind, id) plumbing reads it: its runtime pair, NONE and kNoParamID for none.
+deluge::bridge::RuntimeParam selection(const std::optional<deluge::project::PluginParam>& selected) {
+	return deluge::bridge::runtimePairOf(selected);
+}
 
 /// Portamento, which a kit row's automation leaves out.
 constexpr ParamTarget kPortamento =
@@ -330,14 +336,9 @@ void AutomationView::initializeView() {
 			// if we're in a kit, we want to make sure the param selected is valid for current context
 			// e.g. only UNPATCHED_GLOBAL param kind's can be used with Kit Affect Entire enabled. An arp param is the
 			// kit's own arp's and a drum's alike, so it leaves the setting as it is.
-			if ((outputType == OutputType::KIT) && (clip->lastSelectedParamKind != params::Kind::NONE)
-			    && (clip->lastSelectedParamKind != params::Kind::ARP)) {
-				if (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL) {
-					clip->affectEntire = true;
-				}
-				else {
-					clip->affectEntire = false;
-				}
+			if (outputType == OutputType::KIT && clip->selectedParam
+			    && clip->selectedParam->target.space != deluge::project::ParamSpace::ARP) {
+				clip->affectEntire = clip->selectedParam->plugin == OwnerPlugin::GLOBAL_EFFECTABLE;
 			}
 
 			// if you're not in note editor, turn led off if it's on
@@ -378,7 +379,7 @@ void AutomationView::focusRegained() {
 		else {
 			// check if patch cable previously selected is still valid
 			// if not we'll reset parameter selection and go back to overview
-			if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			if (selection(clip->selectedParam).kind == params::Kind::PATCH_CABLE) {
 				bool patchCableExists = false;
 				ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
 				if (paramManager) {
@@ -387,14 +388,14 @@ void AutomationView::focusRegained() {
 					if (set) {
 						PatchSource s;
 						deluge::synth::CableTarget destination;
-						set->dissectParamId(clip->lastSelectedParamID, &destination, &s);
+						set->dissectParamId(selection(clip->selectedParam).index, &destination, &s);
 						if (set->getPatchCableIndex(s, destination) != kNoSelection) {
 							patchCableExists = true;
 						}
 					}
 				}
 				// a shortcut cable stays selected without its cable: the view draws its lane, and an edit makes it
-				if (!patchCableExists && !isShortcutCable(clip->lastSelectedParamID)) {
+				if (!patchCableExists && !isShortcutCable(selection(clip->selectedParam).index)) {
 					initParameterSelection();
 				}
 			}
@@ -501,12 +502,13 @@ UIType AutomationView::getUIContextType() {
 bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind paramKind, int32_t paramID) {
 	bool doRefreshGrid = false;
 	if (clip && !automationView.onArrangerView) {
-		if ((clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind)) {
+		if ((selection(clip->selectedParam).index == paramID) && (selection(clip->selectedParam).kind == paramKind)) {
 			doRefreshGrid = true;
 		}
 	}
 	else if (automationView.onArrangerView) {
-		if ((currentSong->lastSelectedParamID == paramID) && (currentSong->lastSelectedParamKind == paramKind)) {
+		if ((selection(currentSong->selectedParam).index == paramID)
+		    && (selection(currentSong->selectedParam).kind == paramKind)) {
 			doRefreshGrid = true;
 		}
 	}
@@ -574,8 +576,8 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+		                                                          selection(currentSong->selectedParam).index);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -849,12 +851,12 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = params::kNoParamID;
 		if (onArrangerView) {
-			lastSelectedParamKind = currentSong->lastSelectedParamKind;
-			lastSelectedParamID = currentSong->lastSelectedParamID;
+			lastSelectedParamKind = selection(currentSong->selectedParam).kind;
+			lastSelectedParamID = selection(currentSong->selectedParam).index;
 		}
 		else {
-			lastSelectedParamKind = clip->lastSelectedParamKind;
-			lastSelectedParamID = clip->lastSelectedParamID;
+			lastSelectedParamKind = selection(clip->selectedParam).kind;
+			lastSelectedParamID = selection(clip->selectedParam).index;
 		}
 		if (knobPosLeft != kNoSelection) {
 			knobPosLeft = view.calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID, knobPosLeft);
@@ -921,8 +923,8 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			modelStackWithParam =
-			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+			modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+			                                                          selection(currentSong->selectedParam).index);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1326,7 +1328,7 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 			if (onArrangerView) {
 				modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-				                                                          currentSong->lastSelectedParamID);
+				                                                          selection(currentSong->selectedParam).index);
 			}
 			else {
 				modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1427,8 +1429,8 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		if (onArrangerView) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			modelStackWithParam =
-			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+			modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+			                                                          selection(currentSong->selectedParam).index);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1572,8 +1574,8 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+		                                                          selection(currentSong->selectedParam).index);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1785,15 +1787,14 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		// if you are in a synth or a kit instrumentClip and the shortcut is valid, set current selected
 		// ParamID
 		const RuntimeParam selected = soundParam(cell);
-		clip->lastSelectedParamKind = selected.kind;
-		clip->lastSelectedParamID = selected.index;
+		clip->selectedParam = deluge::bridge::pluginParamOf(selected.kind, selected.index);
 		if (selected.kind == params::Kind::PATCH_CABLE) {
 			// a cable shortcut has one source, nearest the param in the cable word
 			clip->lastSelectedPatchSource =
 			    static_cast<PatchSource>((static_cast<uint32_t>(selected.index) >> 8) & 0xFF);
 		}
 
-		if (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE) {
+		if (selection(clip->selectedParam).kind != params::Kind::PATCH_CABLE) {
 			getLastSelectedNonGlobalParamArrayPosition(clip);
 		}
 	}
@@ -1818,12 +1819,10 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		}
 
 		if (onArrangerView) {
-			currentSong->lastSelectedParamKind = paramKind;
-			currentSong->lastSelectedParamID = paramID;
+			currentSong->selectedParam = deluge::bridge::pluginParamOf(paramKind, paramID);
 		}
 		else {
-			clip->lastSelectedParamKind = paramKind;
-			clip->lastSelectedParamID = paramID;
+			clip->selectedParam = deluge::bridge::pluginParamOf(paramKind, paramID);
 		}
 
 		getLastSelectedGlobalParamArrayPosition(clip);
@@ -1832,7 +1831,7 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	else if (outputType == OutputType::MIDI_OUT && getMIDICCForAutomation(xDisplay, yDisplay) != kNoParamID) {
 
 		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
-		clip->lastSelectedParamID = getMIDICCForAutomation(xDisplay, yDisplay);
+		clip->selectedParam = deluge::project::midi_cc_param(getMIDICCForAutomation(xDisplay, yDisplay));
 	}
 	// expression params, so sounds or midi/cv, or a single drum
 	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
@@ -1841,8 +1840,7 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	               && ((Kit*)output)->selectedDrum->type == DrumType::SOUND)))
 	         && params::expressionShortcut(xDisplay, yDisplay)) {
 		const RuntimeParam selected = soundParam(*params::expressionShortcut(xDisplay, yDisplay));
-		clip->lastSelectedParamID = selected.index;
-		clip->lastSelectedParamKind = selected.kind;
+		clip->selectedParam = deluge::bridge::pluginParamOf(selected.kind, selected.index);
 	}
 
 	else {
@@ -2112,7 +2110,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 
 			if (onArrangerView) {
 				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
-				                                                          currentSong->lastSelectedParamID);
+				                                                          selection(currentSong->selectedParam).index);
 			}
 			else {
 				Clip* clip = getCurrentClip();
@@ -2304,8 +2302,8 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+		                                                          selection(currentSong->selectedParam).index);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2392,8 +2390,8 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+		                                                          selection(currentSong->selectedParam).index);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2505,7 +2503,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			selectNonGlobalParam(offset, clip);
 		}
 		// don't have patch cable blinking logic figured out yet
-		if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+		if (selection(clip->selectedParam).kind == params::Kind::PATCH_CABLE) {
 			clip->lastSelectedParamShortcutX = kNoSelection;
 			clip->lastSelectedParamShortcutY = kNoSelection;
 		}
@@ -2533,8 +2531,8 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 
 		if (onArrangerView) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			modelStackWithParam =
-			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+			modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+			                                                          selection(currentSong->selectedParam).index);
 		}
 		else {
 			modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2579,8 +2577,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 				id = next.index;
 			}
 		}
-		currentSong->lastSelectedParamID = id;
-		currentSong->lastSelectedParamKind = kind;
+		currentSong->selectedParam = deluge::bridge::pluginParamOf(kind, id);
 		currentSong->lastSelectedParamArrayPosition = idx;
 	}
 	else if (clip->output->type == OutputType::AUDIO) {
@@ -2603,16 +2600,14 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 				id = next.index;
 			}
 		}
-		clip->lastSelectedParamID = id;
-		clip->lastSelectedParamKind = kind;
+		clip->selectedParam = deluge::bridge::pluginParamOf(kind, id);
 		clip->lastSelectedParamArrayPosition = idx;
 	}
 	else {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParam(params::kGlobalParamsForAutomation[idx]);
-		clip->lastSelectedParamID = id;
-		clip->lastSelectedParamKind = kind;
+		clip->selectedParam = deluge::bridge::pluginParamOf(kind, id);
 		clip->lastSelectedParamArrayPosition = idx;
 	}
 	automationParamType = AutomationParamType::PER_SOUND;
@@ -2627,7 +2622,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 		foundPatchCable = selectPatchCable(offset, clip);
 	}
 	// if we previously selected a patch cable, we'll see if there are any more to scroll through
-	else if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+	else if (selection(clip->selectedParam).kind == params::Kind::PATCH_CABLE) {
 		foundPatchCable = selectPatchCable(offset, clip);
 		// did we find another patch cable?
 		if (!foundPatchCable) {
@@ -2668,7 +2663,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 		// did we reach beginning or end of list?
 		// if yes, then let's scroll through patch cables
 		// but only if we haven't already scrolled through patch cables already above
-		if (!onAutomationOverview() && (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE)
+		if (!onAutomationOverview() && (selection(clip->selectedParam).kind != params::Kind::PATCH_CABLE)
 		    && (((offset > 0) && (idx < clip->lastSelectedParamArrayPosition))
 		        || ((offset < 0) && (idx > clip->lastSelectedParamArrayPosition)))) {
 			foundPatchCable = selectPatchCable(offset, clip);
@@ -2677,8 +2672,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 		// if we didn't find a patch cable, then we'll resume with scrolling the non-patch cable list
 		if (!foundPatchCable) {
 			auto [kind, id] = soundParam(params::kSoundParamsForAutomation[idx]);
-			clip->lastSelectedParamID = id;
-			clip->lastSelectedParamKind = kind;
+			clip->selectedParam = deluge::bridge::pluginParamOf(kind, id);
 			clip->lastSelectedParamArrayPosition = idx;
 		}
 	}
@@ -2742,17 +2736,16 @@ bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int
 	// cable selected easier is because the patch cable array gets re-indexed as patch cables get
 	// added or removed or values change. Thus you need to search for the previous patch cable to get
 	// the updated index and then you can find the adjacent patch cable in the list.
-	if (desc.word == clip->lastSelectedParamID) {
+	if (desc.word == selection(clip->selectedParam).index) {
 		foundCurrentPatchCable = true;
 	}
 	// if we found the patch cable we previously selected and we found another one
 	// or we hadn't selected a patch cable previously and found a patch cable
 	// select the one we found
-	else if ((foundCurrentPatchCable || (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE))
-	         && (desc.word != clip->lastSelectedParamID)) {
+	else if ((foundCurrentPatchCable || (selection(clip->selectedParam).kind != params::Kind::PATCH_CABLE))
+	         && (desc.word != selection(clip->selectedParam).index)) {
 		clip->lastSelectedPatchSource = cable->from;
-		clip->lastSelectedParamID = desc.word;
-		clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
+		clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::PATCH_CABLE, desc.word);
 		return true;
 	}
 	return false;
@@ -2762,26 +2755,25 @@ bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int
 void AutomationView::selectExpressionParam(int32_t offset, Clip* clip) {
 	// Start just outside the list so either direction enters at its respective end.
 	int32_t id = offset > 0 ? -1 : 0;
-	if (!onAutomationOverview() && clip->lastSelectedParamKind == params::Kind::EXPRESSION
-	    && clip->lastSelectedParamID < kNumExpressionDimensions) {
-		id = static_cast<int32_t>(clip->lastSelectedParamID);
+	if (!onAutomationOverview() && selection(clip->selectedParam).kind == params::Kind::EXPRESSION
+	    && selection(clip->selectedParam).index < kNumExpressionDimensions) {
+		id = static_cast<int32_t>(selection(clip->selectedParam).index);
 	}
 	id = (id + offset) % kNumExpressionDimensions;
 	if (id < 0) {
 		id += kNumExpressionDimensions;
 	}
-	clip->lastSelectedParamID = id;
-	clip->lastSelectedParamKind = params::Kind::EXPRESSION;
+	clip->selectedParam = deluge::bridge::pluginParamOf(params::Kind::EXPRESSION, id);
 	automationParamType = AutomationParamType::PER_SOUND;
 }
 
 // used with SelectEncoderAction to get the next midi CC
 void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
-	if (onAutomationOverview()) {
-		// NONE is outside the selectable range and would skip CC 0 when scrolling right.
-		clip->lastSelectedParamID = offset > 0 ? kNumCCExpression - 1 : 0;
-	}
-	clip->lastSelectedParamID = ((MIDIInstrument*)clip->output)->getNextSelectableCC(clip->lastSelectedParamID, offset);
+	// NONE is outside the selectable range and would skip CC 0 when scrolling right.
+	const int32_t from =
+	    onAutomationOverview() ? (offset > 0 ? kNumCCExpression - 1 : 0) : selection(clip->selectedParam).index;
+	clip->selectedParam =
+	    deluge::project::midi_cc_param(((MIDIInstrument*)clip->output)->getNextSelectableCC(from, offset));
 	automationParamType = AutomationParamType::PER_SOUND;
 }
 
@@ -2808,7 +2800,7 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 			if (onArrangerView) {
 				std::optional<RuntimeParam> cell =
 				    cellParam(OwnerPlugin::GLOBAL_EFFECTABLE, params::kGlobalParamShortcuts[x][y]);
-				if (cellIndex(cell, params::Kind::UNPATCHED_GLOBAL) == currentSong->lastSelectedParamID) {
+				if (cellIndex(cell, params::Kind::UNPATCHED_GLOBAL) == selection(currentSong->selectedParam).index) {
 					currentSong->lastSelectedParamShortcutX = x;
 					currentSong->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;
@@ -2816,7 +2808,7 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 				}
 			}
 			else if (clip->output->type == OutputType::MIDI_OUT) {
-				if (getMIDICCForAutomation(x, y) == clip->lastSelectedParamID) {
+				if (getMIDICCForAutomation(x, y) == selection(clip->selectedParam).index) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;
@@ -2825,8 +2817,8 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 			}
 			else {
 				// a cable selection has no shortcut of its own here, even the cables the grid holds
-				const params::Kind kind = clip->lastSelectedParamKind;
-				const int32_t id = clip->lastSelectedParamID;
+				const params::Kind kind = selection(clip->selectedParam).kind;
+				const int32_t id = selection(clip->selectedParam).index;
 				std::optional<RuntimeParam> sound =
 				    cellParam(OwnerPlugin::INSTRUMENT, params::kSoundParamShortcuts[x][y]);
 				std::optional<RuntimeParam> global =
@@ -2886,7 +2878,7 @@ void AutomationView::getLastSelectedNonGlobalParamArrayPosition(Clip* clip) {
 
 		auto [kind, id] = soundParam(params::kSoundParamsForAutomation[idx]);
 
-		if ((id == clip->lastSelectedParamID) && (kind == clip->lastSelectedParamKind)) {
+		if ((id == selection(clip->selectedParam).index) && (kind == selection(clip->selectedParam).kind)) {
 			clip->lastSelectedParamArrayPosition = idx;
 			break;
 		}
@@ -2899,13 +2891,14 @@ void AutomationView::getLastSelectedGlobalParamArrayPosition(Clip* clip) {
 		auto [kind, id] = globalParam(params::kGlobalParamsForAutomation[idx]);
 
 		if (onArrangerView) {
-			if ((id == currentSong->lastSelectedParamID) && (kind == currentSong->lastSelectedParamKind)) {
+			if ((id == selection(currentSong->selectedParam).index)
+			    && (kind == selection(currentSong->selectedParam).kind)) {
 				currentSong->lastSelectedParamArrayPosition = idx;
 				break;
 			}
 		}
 		else {
-			if ((id == clip->lastSelectedParamID) && (kind == clip->lastSelectedParamKind)) {
+			if ((id == selection(clip->selectedParam).index) && (kind == selection(clip->selectedParam).kind)) {
 				clip->lastSelectedParamArrayPosition = idx;
 				break;
 			}
@@ -2932,16 +2925,14 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 	initPadSelection();
 
 	if (onArrangerView) {
-		currentSong->lastSelectedParamID = params::kNoParamID;
-		currentSong->lastSelectedParamKind = params::Kind::NONE;
+		currentSong->selectedParam.reset();
 		currentSong->lastSelectedParamShortcutX = kNoSelection;
 		currentSong->lastSelectedParamShortcutY = kNoSelection;
 		currentSong->lastSelectedParamArrayPosition = 0;
 	}
 	else {
 		Clip* clip = getCurrentClip();
-		clip->lastSelectedParamID = params::kNoParamID;
-		clip->lastSelectedParamKind = params::Kind::NONE;
+		clip->selectedParam.reset();
 		clip->lastSelectedParamShortcutX = kNoSelection;
 		clip->lastSelectedParamShortcutY = kNoSelection;
 		clip->lastSelectedPatchSource = PatchSource::NONE;
@@ -3001,8 +2992,8 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (paramID == kNoParamID) {
-		paramID = clip->lastSelectedParamID;
-		paramKind = clip->lastSelectedParamKind;
+		paramID = selection(clip->selectedParam).index;
+		paramKind = selection(clip->selectedParam).kind;
 	}
 
 	// check if we're in the sound menu and not the settings menu
@@ -3034,8 +3025,7 @@ void AutomationView::selectParam(ModelStackWithAutoParam* modelStack, bool clipM
 	Clip* clip = getCurrentClip();
 
 	if (clipMinder) {
-		clip->lastSelectedParamID = p;
-		clip->lastSelectedParamKind = kind;
+		clip->selectedParam = deluge::bridge::pluginParamOf(kind, p);
 		clip->lastSelectedOutputType = clip->output->type;
 		clip->lastSelectedPatchSource = patchSource;
 		clip->lastSelectedParamShortcutX = kNoSelection;
@@ -3043,8 +3033,7 @@ void AutomationView::selectParam(ModelStackWithAutoParam* modelStack, bool clipM
 		clip->lastSelectedParamArrayPosition = 0;
 	}
 	else {
-		currentSong->lastSelectedParamID = p;
-		currentSong->lastSelectedParamKind = kind;
+		currentSong->selectedParam = deluge::bridge::pluginParamOf(kind, p);
 		currentSong->lastSelectedParamShortcutX = kNoSelection;
 		currentSong->lastSelectedParamShortcutY = kNoSelection;
 		currentSong->lastSelectedParamArrayPosition = 0;
@@ -3143,11 +3132,11 @@ bool AutomationView::onAutomationOverview() {
 
 bool AutomationView::inAutomationEditor() {
 	if (onArrangerView) {
-		if (currentSong->lastSelectedParamID == params::kNoParamID) {
+		if (selection(currentSong->selectedParam).index == params::kNoParamID) {
 			return false;
 		}
 	}
-	else if (getCurrentClip()->lastSelectedParamID == params::kNoParamID) {
+	else if (selection(getCurrentClip()->selectedParam).index == params::kNoParamID) {
 		return false;
 	}
 
