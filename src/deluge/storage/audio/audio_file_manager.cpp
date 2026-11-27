@@ -236,8 +236,11 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 		AudioFile* audioFile = (AudioFile*)audioFiles.getElement(e);
 
 		if (audioFile->type == AudioFileType::SAMPLE) {
-			// If it's a temp-recorded one
-			if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
+			// If it's a temp-recorded one - and its SampleRecorder isn't still writing it (see below). A recorder
+			// that's still finishing the file keeps a pointer to the Sample and writes its clusters, so the Sample
+			// stays until the recorder is done; it no longer belongs to any Song, so it'll be freed once unused.
+			if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()
+			    && !AudioEngine::isSampleBeingRecorded((Sample*)audioFile)) {
 
 				// if (ALPHA_OR_BETA_VERSION && audioFile->numReasons) FREEZE_WITH_ERROR("E281"); // It definitely
 				// shouldn't still have any reasons
