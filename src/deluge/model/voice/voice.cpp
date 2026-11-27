@@ -547,8 +547,10 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			}
 
 			int32_t transposedNoteCode = noteCodeWithMasterTranspose + sound.modulatorTranspose[m];
-			int32_t noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
-			int32_t octave = (transposedNoteCode + 120 - 4) / 12;
+			// Unsigned, like the carrier branches above: with large negative transposes the sum is negative, and a
+			// signed % would give a negative table index. Same result as before for everything else.
+			int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240 - 4) % 12;
+			int32_t octave = (uint16_t)(transposedNoteCode + 240 - 4) / 12 - 10;
 			int32_t shiftRightAmount = 20 - octave;
 
 			int32_t phaseIncrement;
