@@ -21,7 +21,6 @@
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
 #include "effects/words.h"
-#include "instruments/classic/words.h"
 #include "plugin/types/interpolation_mode.h"
 #include "plugin/types/voice_priority.h"
 #include "project/arrangement.h"
@@ -32,6 +31,11 @@
 #include "project/sequence_direction.h"
 #include "project/timeline_limits.h"
 #include "synth/modulation/patch_source.h"
+#include "synth/types/lfo_type.h"
+#include "synth/types/osc_type.h"
+#include "synth/types/polyphony_mode.h"
+#include "synth/types/sample_repeat_mode.h"
+#include "synth/types/synth_mode.h"
 #include "ui/gfx/oled/font.h"
 #include "ui/gfx/oled/glyphs.h"
 #include "ui/widgets/core/metrics.h"
@@ -329,7 +333,7 @@ enum class PerformanceEditingMode : uint8_t {
 	PARAM,
 };
 
-using deluge::instruments::classic::OscType;
+using deluge::synth::OscType;
 
 constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
@@ -355,14 +359,14 @@ enum LFO_ID {
 	LFO_COUNT = 4,
 };
 
-using deluge::instruments::classic::LFOType;
+using deluge::synth::LFOType;
 
 constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
 using deluge::effects::kNumModFXTypes;
 using deluge::effects::ModFXType;
 
-using deluge::instruments::classic::SynthMode;
+using deluge::synth::SynthMode;
 constexpr int kNumSynthModes = util::to_underlying(::SynthMode::DX7) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
@@ -373,7 +377,7 @@ enum WavFormat : uint8_t {
 	WAV_FORMAT_FLOAT = 3,
 };
 
-using deluge::instruments::classic::PolyphonyMode;
+using deluge::synth::PolyphonyMode;
 
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
@@ -385,14 +389,14 @@ constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
 using Error = deluge::Error;
 
-using deluge::instruments::classic::SampleRepeatMode;
+using deluge::synth::SampleRepeatMode;
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
 using FilterType = deluge::effects::FilterType;
 constexpr int32_t kNumFilterTypes = deluge::effects::kNumFilterTypes;
 
-constexpr int32_t kNumSources = static_cast<int32_t>(
-    deluge::instruments::classic::kSourceCount); // sources as in oscillators - within a Sound (synth).
+constexpr int32_t kNumSources =
+    static_cast<int32_t>(deluge::synth::kSourceCount); // sources as in oscillators - within a Sound (synth).
 
 enum class OldArpMode {
 	OFF,

@@ -17,67 +17,23 @@
 
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
+#include "synth/types/lfo_type.h"
+#include "synth/types/osc_type.h"
+#include "synth/types/polyphony_mode.h"
+#include "synth/types/sample_repeat_mode.h"
+#include "synth/types/synth_mode.h"
+
 #include <string_view>
 
 namespace deluge::instruments::classic {
 
-/// @brief The oscillator sources a sound has.
-inline constexpr size_t kSourceCount = 2;
-
-/// @brief How the sound makes its sound: its two sources subtractive, FM or ring-modulated, or a DX7.
-enum class SynthMode : uint8_t {
-	SUBTRACTIVE,
-	FM,
-	RINGMOD,
-	DX7, ///< The DX7 on the subtractive chain: one DX7 voice per unison part in place of the oscillators
-};
-
-/// @brief A source's oscillator. Saved by name (see to_string).
-enum class OscType : uint8_t {
-	SINE,
-	TRIANGLE,
-	SQUARE,
-	ANALOG_SQUARE,
-	SAW,
-	ANALOG_SAW_2,
-	SUPERSAW,
-	WAVETABLE,
-	SAMPLE,
-	DX7,
-	INPUT_L,
-	INPUT_R,
-	INPUT_STEREO,
-};
-
-/// @brief An LFO's shape.
-enum class LFOType : uint8_t {
-	SINE,
-	TRIANGLE,
-	SQUARE,
-	SAW,
-	SAMPLE_AND_HOLD,
-	RANDOM_WALK,
-	WARBLER,
-};
-
-/// @brief How a sound shares voices among its notes.
-enum class PolyphonyMode : uint8_t {
-	AUTO,
-	POLY,
-	MONO,
-	LEGATO,
-	CHOKE,
-};
-
-/// @brief How a sample source plays past its end. Saved as its index (`loopMode`).
-enum class SampleRepeatMode {
-	CUT,
-	ONCE,
-	LOOP,
-	STRETCH,
-};
+/// The synth's words, by which the instrument saves (the names below are their file forms).
+using synth::kSourceCount;
+using synth::LFOType;
+using synth::OscType;
+using synth::PolyphonyMode;
+using synth::SampleRepeatMode;
+using synth::SynthMode;
 
 /// @brief The file name of @p mode.
 /// @param mode The synth mode.
