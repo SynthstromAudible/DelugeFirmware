@@ -14,7 +14,7 @@ crate-type = ["staticlib", "rlib"]
 deluge_base_alloc = { path = "../../../../src/base/alloc" }
 deluge_storage_resource = { path = "../../../../src/storage/resource" }
 # Unconditional: the app's sample and wavetable header parsing calls it, with no C++ fallback.
-deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "89303a3632391a122baded3ff12199942c046b5a", features = ["c-abi"] }
+deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "d50b00d9ef4437b13e0ced897d7711760734d61e", features = ["c-abi"] }
 # Keep the rev with src/platform/device/Cargo.toml's deluge-sdk pin.
 # The sample crates below are optional, pulled in only by `sample_abi`.
 deluge_storage_sample_source = { path = "../../../../src/storage/sample/source", optional = true }
