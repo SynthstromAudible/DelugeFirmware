@@ -45,6 +45,12 @@
 #include "ui/scenes/bind/ports/ports.h"
 #include "ui/scenes/bind/ports/waveforms.h"
 #include "ui/scenes/services/peak_retry.h"
+#include "ui/scenes/services/waveform_paint.h"
+#include "ui/views/grid/audio_clip.h"
+#include "ui/views/grid/clip_sidebar.h"
+#include "ui/views/grid/pad_image.h"
+#include "ui/views/grid/playhead.h"
+#include "ui/views/oled/audio_clip.h"
 #include "ui/widgets/core/state.h"
 #include "ui/widgets/grid/columns.h"
 #include "ui/widgets/grid/scroll_transition.h"
@@ -223,6 +229,36 @@ public:
 	///        out when the overview goes (`reassessGreyout`).
 	bool greyout_changes_instantly() const override { return overview_shown_; }
 
+	/// @name What the two surfaces show, as the plain structs the views draw (`audio_clip/present.cpp`). Const: nothing
+	///       here writes the scene or reads a frame.
+	/// @{
+	/// @brief The words the OLED's struct points into, kept by the scene until the view returns.
+	struct NameText {
+		std::string name;            ///< The output's name, as its track row gives it.
+		std::array<char, 64> info{}; ///< The clip's line, formatted here.
+		size_t info_len = 0;         ///< Its length.
+	};
+	/// @brief The OLED: the output's type and name, and the clip's line, formatted into @p text.
+	/// @return None with no clip record or no track: the view draws nothing.
+	[[nodiscard]] std::optional<deluge::ui::views::oled::AudioClipName> present_name(NameText& text) const;
+	/// @brief Where the clip's start and end markers fall, and how they show this pass.
+	[[nodiscard]] deluge::ui::views::grid::ClipMarkers present_markers() const;
+	/// @brief The waveform's columns: each read from its source column (mirrored when @p reversed), and none from the
+	///        column the end marker holds while it is lit, or past it.
+	[[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, deluge::ui::gfx::grid::kDelugeGrid.main_cols>
+	present_waveform(const deluge::ui::scenes::services::WaveformFrame& wf,
+	                 const deluge::ui::views::grid::ClipMarkers& m, bool reversed) const;
+	/// @brief The clip's colour: the pastel hue its colour offset names.
+	[[nodiscard]] RGB present_colour() const;
+	/// @brief The SHIFT overview's pads, from the root views' port.
+	[[nodiscard]] deluge::ui::views::grid::PadImage present_overview() const;
+	/// @brief The sidebar: the macros while @p session_held, each row's held pad from @p held.
+	[[nodiscard]] deluge::ui::views::grid::ClipSidebar
+	present_sidebar(bool session_held, const std::array<bool, deluge::ui::gfx::grid::kDelugeGrid.rows>& held) const;
+	/// @brief The playhead at @p tick_col; @p flash moves the latch (`tick_squares_set_` as it was exchanged).
+	[[nodiscard]] deluge::ui::views::grid::Playhead present_playhead(int32_t tick_col, bool flash) const;
+	/// @}
+
 private:
 	/// @brief The view's own state as its focus comes back: the restore point and both markers down. The BACK LED
 	///        is `leds()`'s; the knobs' focus on the clip is the legacy root view's, which hosts this scene.
@@ -240,8 +276,6 @@ private:
 	[[nodiscard]] bool overview_wanted(bool shift) const;
 	/// @return Whether the overlay setting is "menu and clip", the one that shows the overview over a clip.
 	[[nodiscard]] bool overview_setting_on() const;
-	/// @brief `renderClipShortcutsOverview`'s pads: each main pad the colour of the menu shortcut it opens.
-	void paint_overview(deluge::ui::widgets::grid::GridFrame& main);
 
 	/// @brief `set_clip_length_equal_to_sample_length`'s edit and popup alone, for an input `handle` follows up.
 	void clip_length_to_sample_length();
@@ -368,10 +402,6 @@ private:
 	///        scroll a column a step; either holds input until it ends.
 	/// @param before_scroll The scroll before the input. @param before_zoom The zoom before it.
 	void note_slide(int32_t before_scroll, uint32_t before_zoom);
-	/// @brief The song's macros in the first sidebar column, the held pad brightened, and the clip-arm flash kept going
-	///        while any clip they name is armed.
-	/// @param f The root grid frame.
-	void render_macros(deluge::ui::widgets::grid::GridFrame& f);
 	/// @brief Clear the clip: its sample, and its automation unless the device keeps automation on a clear.
 	/// @return The l10n string id of the popup to show, or 0 with no clip to clear.
 	uint16_t clear_clip();
@@ -424,6 +454,8 @@ private:
 	/// The two side-scrollers' state: the output's name, and the clip's section-and-name line.
 	deluge::ui::widgets::core::ScrollText name_scroll_{};
 	deluge::ui::widgets::core::ScrollText info_scroll_{};
+	/// The OLED's words, alive until its view returns.
+	NameText name_text_{};
 	/// @}
 
 	/// The redraws of a frame whose read left columns pending, with no give-up. The scene keeps no columns: the

@@ -130,7 +130,8 @@ add_library(deluge_ui_scenes STATIC
     # (`AudioClipView` -> `ClipView` -> `ClipNavigationTimelineView` -> `TimelineView : public
     # RootUI`), and therefore the first for which `Scene::is_root()` is true. See
     # `audio_clip/audio_clip_scene.h`.
-    audio_clip/audio_clip_scene.cpp)
+    audio_clip/audio_clip_scene.cpp
+    audio_clip/present.cpp)
 target_include_directories(deluge_ui_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../../include

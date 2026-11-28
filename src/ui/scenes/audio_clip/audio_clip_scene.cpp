@@ -49,6 +49,9 @@
 #include "ui/gfx/grid/exp_table.h"
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/scenes/services/waveform_paint.h"
+#include "ui/views/grid/scroll_slide.h"
+#include "ui/views/grid/waveform.h"
+#include "ui/views/grid/zoom_slide.h"
 
 #include <algorithm>
 #include <array>
@@ -83,16 +86,6 @@ constexpr uint16_t sid(deluge::l10n::String s) {
 ///        `image[y][0 .. kDisplayWidth)` throughout).
 constexpr int32_t kMainCols = deluge::ui::gfx::grid::kDelugeGrid.main_cols;
 constexpr int32_t kRows = deluge::ui::gfx::grid::kDelugeGrid.rows;
-
-/// @brief The colour `PadLEDs::prepareColour` substitutes for a `coloursArray` entry of 2, which is
-///        the only non-zero value `graphicsRoutine` ever fills
-///        (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
-///
-/// `TickColour::Muted` is unreachable from this scene for the same reason, so the `muted_colour`
-/// argument `ui::widgets::grid::tick_squares` takes -- legacy's `mutedColourMenu.getRGB()`, a `gui/`
-/// menu-item read this layer may not make -- can never be consulted. Black is passed, and this note
-/// is why that is not a missing port.
-constexpr RGB kUnreachableMutedColour = deluge::gui::colours::black;
 
 } // namespace
 
@@ -388,19 +381,6 @@ deluge::ui::widgets::grid::GreyoutMask AudioClipScene::greyout_mask() const {
 	// `ClipView::getGreyoutColsAndRows`: every column, the sidebar's too, and no row.
 	return overview_shown_ ? deluge::ui::widgets::grid::GreyoutMask{.cols = 0xFFFFFFFFu, .rows = 0}
 	                       : deluge::ui::widgets::grid::GreyoutMask{};
-}
-
-void AudioClipScene::paint_overview(GridFrame& main) {
-	deluge::ui::scenes::bind::OverviewPads pads{};
-	if (deluge::ui::scenes::bind::RootViews* views = root_views(); views != nullptr) {
-		views->clip_shortcut_overview(pads);
-	}
-	for (size_t y = 0; y < pads.size() && y < static_cast<size_t>(main.bounds().h); ++y) {
-		for (size_t x = 0; x < pads[y].size() && x < static_cast<size_t>(kMainCols); ++x) {
-			const deluge::ui::scenes::bind::OverviewPad p = pads[y][x];
-			(void)main.pad(static_cast<int32_t>(x), static_cast<int32_t>(y), RGB{.r = p.r, .g = p.g, .b = p.b});
-		}
-	}
 }
 
 void AudioClipScene::note_slide(int32_t before_scroll, uint32_t before_zoom) {
@@ -1334,112 +1314,39 @@ void AudioClipScene::paint_main(GridFrame& main, GridFrame& retry_frame) {
 	// frame arrives cleared, so there is nothing to erase -- but the two arms still `return`, which
 	// means no waveform, no grey, no markers and (legacy's driver still substitutes) the cursor.
 	const deluge::ui::scenes::bind::ClipFacts* facts = clips();
-	if (info && clip_fact && facts != nullptr) {
-		const int32_t scroll = timeline_.x_scroll;
-		const uint32_t zoom = timeline_.x_zoom;
-
-		// `divide_round_negative` is transcribed in `ui/scenes/timeline/timeline.h`
-		// because `util/functions.h` is not reachable from this layer.
-		const int32_t end_square =
-		    timeline::divide_round_negative(loop_length() - scroll - 1, static_cast<int32_t>(zoom == 0 ? 1 : zoom));
-		const int32_t start_square =
-		    timeline::divide_round_negative(0 - scroll, static_cast<int32_t>(zoom == 0 ? 1 : zoom));
-
-		const auto [scroll_samples, zoom_samples] =
-		    facts->audio_clip_samples(*clip_, scroll, static_cast<int32_t>(zoom));
-
-		// `AudioClip::getColour`: the pastel hue its colour offset names.
-		const deluge::project::DocClip* record = doc();
-		const RGB rgb = RGB::fromHuePastel((record != nullptr ? record->colour_offset : 0) * -8 / 3);
-
-		// While the end marker blinks off, the waveform stops one column earlier so the
-		// dim red marker column is not painted over.
-		int32_t visible_end = end_square + 1;
-		if (end_marker_visible_ && blink_on_) {
-			visible_end--;
-		}
-		const int32_t x_end = std::min(kMainCols, visible_end);
-
-		// `AudioClipView::renderMainPads`'s `waveformRenderer.renderFullScreen`, split into its two halves: the scan
-		// (model) and the paint (toolkit).
-		//
-		// The scan's failure is legacy's own: `renderFullScreen` returns **before its own
-		// clear** (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`), so a frame it could not load leaves
-		// the image untouched and legacy asks to come back later. The port draws nothing for the
-		// same reason -- `SlicerScene::render_grid` makes the identical call -- and asks again every frame until the
-		// read is whole, as `AudioClipView::renderMainPads` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`)
-		// does. `info` came through the port, so the port is here.
-		const views::waveform::Window window{.scroll = scroll_samples, .zoom = zoom_samples};
-		const std::optional<deluge::ui::scenes::services::WaveformFrame> wf =
-		    deluge::ui::scenes::services::read_waveform(*shown, waveform(), window);
-		if (wf
-		    && retry_.after(wf->read, window, retry_frame.now_ms())
-		           == deluge::ui::scenes::services::PeakRetry::Next::ASK_AGAIN) {
-			retry_frame.grid_gate().request_repaint_after(deluge::ui::scenes::services::kPeakRetryPollMs,
-			                                              retry_frame.now_ms());
-		}
-		if (wf && !wf->read.pending()) {
-			std::array<deluge::ui::widgets::grid::PeakCol, kMainCols> peaks{};
-			const bool reversed = clip_fact->reversed;
-			for (int32_t x = 0; x < x_end; x++) {
-				// `renderOneCol`'s own source mapping (`waveform_renderer.cpp`): the reversal
-				// picks which SOURCE column an output column reads, which is why
-				// `ui::widgets::grid::waveform_full` takes no `reversed` flag (its header says so).
-				const int32_t src = reversed ? (kMainCols - 1 - x) : x;
-				if (const std::optional<views::waveform::Bar> bar = wf->read.bar(src, wf->centre, wf->span)) {
-					peaks[static_cast<size_t>(x)] = {.min24 = bar->bottom, .max24 = bar->top, .valid = true};
-				}
-			}
-
-			{
-				// `renderOneCol`'s coloured arm: `rgb` is engaged on this call site
-				// (`AudioClipView::renderMainPads`), so `brightness` is 256
-				// (`waveform_renderer.cpp`). `waveform_full`'s precondition, honoured.
-				deluge::ui::widgets::grid::waveform_full(
-				    main, peaks, deluge::ui::widgets::grid::kWaveformBarBrightnessColoured, rgb);
-
-				// The "grey regions + flashing columns" loop of `AudioClipView::renderMainPads`. `drawUndefinedArea` is
-				// the caller's fourth argument and defaults to true (`AudioClipView::renderMainPads` in
-				// `origin/main:src/deluge/gui/views/audio_clip_view.h`); `doAnyPendingGridRendering` calls the
-				// three-argument form (`gui/ui/ui.cpp`), so on the device it is always true.
-				for (int32_t y = 0; y < main.bounds().h; y++) {
-					// -------- END marker --------
-					if (end_square < kMainCols) {
-						if (end_square >= 0 && end_marker_visible_) {
-							(void)main.pad(end_square, y,
-							               blink_on_ ? deluge::gui::colours::red : deluge::gui::colours::red_dull);
-						}
-						int32_t x = end_square + 1;
-						if (x < kMainCols) {
-							x = std::max<int32_t>(x, 0);
-							for (int32_t g = x; g < kMainCols; g++) {
-								(void)main.pad(g, y, deluge::gui::colours::grey);
-							}
-						}
-					}
-
-					// -------- START marker --------
-					// Legacy's own commented-out grey fill is left out; what remains live is the
-					// green marker column when it is on screen, and a whole-width grey fill when
-					// the start marker has scrolled off the RIGHT of the display.
-					if (start_square >= 0) {
-						if (start_square < kMainCols) {
-							if (start_marker_visible_) {
-								(void)main.pad(start_square, y,
-								               blink_on_ ? deluge::gui::colours::green
-								                         : deluge::gui::colours::green.dim());
-							}
-						}
-						else {
-							for (int32_t g = 0; g < kMainCols; g++) {
-								(void)main.pad(g, y, deluge::gui::colours::grey);
-							}
-						}
-					}
-				}
-			}
-		}
+	if (!info || !clip_fact || facts == nullptr) {
+		return;
 	}
+	const auto [scroll_samples, zoom_samples] =
+	    facts->audio_clip_samples(*clip_, timeline_.x_scroll, static_cast<int32_t>(timeline_.x_zoom));
+
+	// `AudioClipView::renderMainPads`'s `waveformRenderer.renderFullScreen`, split into its two halves: the scan
+	// (model) and the paint (toolkit).
+	//
+	// The scan's failure is legacy's own: `renderFullScreen` returns **before its own
+	// clear** (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`), so a frame it could not load leaves
+	// the image untouched and legacy asks to come back later. The port draws nothing for the
+	// same reason -- `SlicerScene::render_grid` makes the identical call -- and asks again every frame until the
+	// read is whole, as `AudioClipView::renderMainPads` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`)
+	// does. `info` came through the port, so the port is here.
+	const views::waveform::Window window{.scroll = scroll_samples, .zoom = zoom_samples};
+	const std::optional<deluge::ui::scenes::services::WaveformFrame> wf =
+	    deluge::ui::scenes::services::read_waveform(*shown, waveform(), window);
+	if (wf
+	    && retry_.after(wf->read, window, retry_frame.now_ms())
+	           == deluge::ui::scenes::services::PeakRetry::Next::ASK_AGAIN) {
+		retry_frame.grid_gate().request_repaint_after(deluge::ui::scenes::services::kPeakRetryPollMs,
+		                                              retry_frame.now_ms());
+	}
+	if (!wf || wf->read.pending()) {
+		return;
+	}
+	// `renderOneCol`'s coloured arm: `rgb` is engaged on this call site (`AudioClipView::renderMainPads`), so
+	// `brightness` is 256 (`waveform_renderer.cpp`). Then the "grey regions + flashing columns" loop over it.
+	const deluge::ui::views::grid::ClipMarkers markers = present_markers();
+	deluge::ui::views::grid::waveform(main, present_waveform(*wf, markers, clip_fact->reversed),
+	                                  deluge::ui::widgets::grid::kWaveformBarBrightnessColoured, present_colour());
+	deluge::ui::views::grid::clip_markers(main, markers);
 }
 
 void AudioClipScene::render_grid(GridFrame& f) {
@@ -1455,7 +1362,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	if (overview_shown_) {
 		// `maybeRenderShortcutsOverview` returns before the view draws itself; a slide in flight ends with it.
 		finish_slides();
-		f.region(main_rect, [&](GridFrame& main) { paint_overview(main); });
+		f.region(main_rect, [&](GridFrame& main) { deluge::ui::views::grid::pads(main, present_overview()); });
 	}
 	// A slide the last input asked for starts from the last settled frame, and slides to the new view, painted into a
 	// grid of its own (`renderMainPads` into `imageStore`, as `TimelineView::setupScroll` and `initiateXZoom` do).
@@ -1474,8 +1381,8 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	bool slid = false;
 	if (scroll_.active || zoom_.active) {
 		f.region(main_rect, [&](GridFrame& main) {
-			slid = scroll_.active ? deluge::ui::widgets::grid::scroll_transition(main, scroll_)
-			                      : deluge::ui::widgets::grid::zoom_transition(main, zoom_);
+			slid = scroll_.active ? deluge::ui::views::grid::scroll_slide(main, scroll_)
+			                      : deluge::ui::views::grid::zoom_slide(main, zoom_);
 		});
 	}
 	if (!slid && !overview_shown_) {
@@ -1494,30 +1401,27 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		});
 	}
 
-	// `AudioClipView::renderSidebar`: both columns black, and the macros in the first while SESSION is held.
-	const std::array<RGB, kRows> black{};
-	deluge::ui::widgets::grid::sidebar_columns(f, black, black);
-	if (ui_mode_active(kUiModeHoldingSongButton)) {
-		render_macros(f);
+	// `AudioClipView::renderSidebar`: both columns black, and the macros in the first while SESSION is held, each held
+	// pad brightened; then `view.flashPlayEnable()` while any clip they name is armed (`bool armed =
+	// view.clipArmFlashOn`, forced true by an armed clip: it is what brings the phase back to off after the last armed
+	// clip disarms).
+	std::array<bool, kRows> held{};
+	for (int32_t y = 0; y < kRows; y++) {
+		held[static_cast<size_t>(y)] = f.held_pads().test(kMainCols, y);
+	}
+	const deluge::ui::views::grid::ClipSidebar sidebar =
+	    present_sidebar(ui_mode_active(kUiModeHoldingSongButton), held);
+	deluge::ui::views::grid::clip_sidebar(f, kMainCols, sidebar);
+	if (sidebar.macros && global_controls_ != nullptr
+	    && std::ranges::any_of(sidebar.cells, deluge::ui::widgets::grid::macro_wants_arm_flash)) {
+		global_controls_->flash_play_enable(f.now_ms());
 	}
 
 	// `graphicsRoutine`'s `PadLEDs::setTickSquares`, which the driver applies to the whole rendered image on its way
 	// out (`PadLEDs::prepareColour`, `hid/led/pad_leds.cpp`) -- hence last, and over the root frame rather than the
-	// main-column region. the `tickSquares` and `coloursArray` fill before it: every row gets the same column, and the
-	// colour is red (2) while recording linearly, normal (0) otherwise. With the cursor Fast the PIC flashes the square
-	// when `setTickSquares` is handed a new one.
-	const deluge::ui::widgets::grid::TickColour colour = recording_linearly()
-	                                                         ? deluge::ui::widgets::grid::TickColour::Red
-	                                                         : deluge::ui::widgets::grid::TickColour::Normal;
-	std::array<deluge::ui::widgets::grid::TickSquare, kRows> per_row{};
-	per_row.fill(deluge::ui::widgets::grid::TickSquare{.col = static_cast<uint8_t>(tick_col), .colour = colour});
-	if (flash_cursor() == project::FlashCursor::SLOW && tick_col != deluge::ui::widgets::grid::kNoTickSquare) {
-		deluge::ui::widgets::grid::tick_squares(f, per_row, kUnreachableMutedColour);
-	}
-	if (std::exchange(tick_squares_set_, false)) {
-		deluge::ui::widgets::grid::flash_tick_squares(f, per_row, flashed_ticks_,
-		                                              flash_cursor() == project::FlashCursor::FAST);
-	}
+	// main-column region.
+	deluge::ui::views::grid::playhead(f, present_playhead(tick_col, std::exchange(tick_squares_set_, false)),
+	                                  flashed_ticks_);
 }
 
 void AudioClipScene::leds(deluge::ui::widgets::core::LedFrame& frame) {
@@ -1530,157 +1434,11 @@ void AudioClipScene::leds(deluge::ui::widgets::core::LedFrame& frame) {
 	                ui_mode_active(kUiModeHoldingSongButton) ? kOn : kOff);
 }
 
-void AudioClipScene::render_macros(GridFrame& f) {
-	// `view.renderMacros(kDisplayWidth, y, -1, ...)` per row, then `view.flashPlayEnable()` if any reported armed.
-	namespace grid = deluge::ui::widgets::grid;
-	using deluge::ui::scenes::bind::MacroKind;
-	const deluge::ui::scenes::bind::SessionMacros* m = macros();
-	const bool flash_on = global_controls_ != nullptr && global_controls_->clip_arm_flash_on();
-	std::array<grid::MacroCell, deluge::ui::scenes::bind::SessionMacros::kSlots> cells{};
-	bool armed = false;
-	for (uint8_t y = 0; y < cells.size(); y++) {
-		const deluge::ui::scenes::bind::MacroFact fact =
-		    m != nullptr ? m->macro(y) : deluge::ui::scenes::bind::MacroFact{};
-		grid::MacroCell& cell = cells[y];
-		switch (fact.kind) {
-		case MacroKind::CLIP_LAUNCH:
-			// A clip launch whose clip the song does not hold draws as an unassigned slot, as legacy's `break` does.
-			cell.kind = fact.has_clip ? grid::MacroKind::ClipLaunch : grid::MacroKind::None;
-			break;
-		case MacroKind::OUTPUT_CYCLE:
-			cell.kind = grid::MacroKind::OutputCycle;
-			break;
-		case MacroKind::SECTION:
-			cell.kind = grid::MacroKind::Section;
-			break;
-		case MacroKind::NONE:
-			cell.kind = grid::MacroKind::None;
-			break;
-		}
-		cell.clip_active = fact.clip_active;
-		cell.clip_armed = fact.clip_armed;
-		cell.arm_flash = flash_on;
-		cell.held = f.held_pads().test(kMainCols, y);
-		// `bool armed = view.clipArmFlashOn`, forced true by an armed clip: it is what brings the phase back to off
-		// after the last armed clip disarms.
-		armed = armed || grid::macro_wants_arm_flash(cell);
-	}
-	grid::macros(f, kMainCols, cells, -1);
-	if (armed && global_controls_ != nullptr) {
-		global_controls_->flash_play_enable(f.now_ms());
-	}
-}
-
 void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	(void)role;
-	// `AudioClipView::renderOLED` is one call:
-	// `view.displayOutputName(getCurrentOutput(), false, getCurrentClip())`
-	// (`gui/views/view.cpp`), which flattens the output into five values and hands them
-	// to `View::drawOutputNameFromDetails`. `doBlink` is **false** here, so that
-	// function's whole first half -- the `IndicatorLED` block -- is skipped.
-	const deluge::project::DocClip* record = doc();
-	if (record == nullptr || !track()) {
-		return;
+	if (const std::optional<deluge::ui::views::oled::AudioClipName> name = present_name(name_text_)) {
+		deluge::ui::views::oled::audio_clip_name(f, *name, name_scroll_, info_scroll_);
 	}
-
-	// `displayOutputName`'s AUDIO arm (`views/view.cpp`): `channel` is the output's mode, and
-	// `editedByUser` stays at its initialiser because the `!= OutputType::AUDIO` branch is not
-	// taken. An `AudioClip`'s output is always an `AudioOutput` (`AudioClip::setOutput` is only
-	// ever handed one), so the type is `OutputType::AUDIO`.
-	const int32_t channel = audio_mode();
-	const std::string name = track_row(deluge::project::SettingGroupId::TRACK, "name");
-
-	// **`name_empty` is deliberately false even when the name IS empty**, and this is a real
-	// difference between the widget and this call site. `ui::widgets::oled::output_name`'s `name_empty`
-	// branch draws a SLOT (`ui::widgets::oled::output_name`), which is legacy's substitution for an unnamed
-	// **MIDI or CV** output (`views/view.cpp`). `drawOutputNameFromDetails`' name block is one
-	// `if (!isNameEmpty) ... else if (outputType == MIDI_OUT) ... else if (outputType == CV)`
-	// chain, and an `OutputType::AUDIO` output with no name matches **none** of the
-	// three -- so legacy draws the type text and nothing else. Passing the empty name with
-	// `name_empty = false` is what reproduces that: the widget takes its draw-the-name branch and
-	// draws an empty string. Measured against legacy in
-	// `tests/integration/ui/scenes/audio_clip_scene_spec.cpp`'s "unnamed output" example, which fails with
-	// `name_empty = out->name.empty()`.
-	const bool name_is_empty = name.empty();
-	deluge::ui::widgets::oled::OutputNameData data{
-	    .type_text = project::track_kind_name(project::TrackKind::AUDIO, channel),
-	    .name = name,
-	    .slot = 0,
-	    .sub_slot = -1,
-	    .name_empty = false,
-	    .edited = true,
-	};
-	deluge::ui::widgets::oled::output_name(f, f.bounds(), data);
-
-	// `View::drawOutputNameFromDetails`'s clip second line. It is drawn only inside the `!isNameEmpty` arm and
-	// only when a `clip` was passed -- `AudioClipView` passes one. `ui::widgets::oled::output_name`'s header
-	// says this line is the scene's, "being model data this struct does not carry".
-	if (name_is_empty) {
-		return;
-	}
-
-	// The y is legacy's `yPos = yPos + 14` over the name's own y, which
-	// `ui::widgets::oled::output_name` picks from the same profile value this does
-	// (`ui::widgets::oled::output_name`).
-	const bool tall = f.style.menu_base_y == deluge::ui::widgets::core::kMenuBaseY64;
-	const int32_t name_y =
-	    f.bounds().y + (tall ? deluge::ui::widgets::core::kOutputNameY64 : deluge::ui::widgets::core::kOutputNameY48);
-
-	// A name too wide for the panel scrolls, as legacy's side-scroller 0 does; one that fits stays as the widget
-	// centred it.
-	const int32_t name_h = deluge::ui::widgets::oled::text_height_for(f.style.title_font);
-	if (deluge::ui::gfx::oled::string_width_px(name, name_h) > f.bounds().w) {
-		(void)deluge::ui::widgets::oled::scroll_text(
-		    f, deluge::ui::gfx::oled::Rect{f.bounds().x, name_y, f.bounds().w, name_h}, name, f.style.title_font,
-		    name_scroll_);
-	}
-
-	// "Section N" when the clip has no name, "N: name" when it has one, with the
-	// section counted from one. Formatted by hand -- `deluge::string::fromInt` lives in `util/`,
-	// which this layer may not include, and there is no allocation in library code.
-	std::array<char, 64> buffer{};
-	size_t len = 0;
-	const auto append = [&](std::string_view s) {
-		for (const char c : s) {
-			if (len + 1 < buffer.size()) {
-				buffer[len++] = c;
-			}
-		}
-	};
-	const auto append_int = [&](uint32_t v) {
-		std::array<char, 12> digits{};
-		size_t n = 0;
-		do {
-			digits[n++] = static_cast<char>('0' + (v % 10));
-			v /= 10;
-		} while (v != 0 && n < digits.size());
-		while (n > 0) {
-			append(std::string_view{&digits[--n], 1});
-		}
-	};
-
-	const uint32_t section = static_cast<uint32_t>(record->section) + 1;
-	if (record->name.empty()) {
-		append("Section ");
-		append_int(section);
-	}
-	else {
-		append_int(section);
-		append(": ");
-		append(record->name);
-	}
-
-	// Centred when it fits; side-scroller 1 when it does not.
-	const int32_t row_h = deluge::ui::widgets::oled::text_height_for(f.style.row_font);
-	const std::string_view info{buffer.data(), len};
-	const deluge::ui::gfx::oled::Rect info_rect{f.bounds().x, name_y + 14, f.bounds().w, row_h};
-	if (deluge::ui::gfx::oled::string_width_px(info, row_h) > info_rect.w) {
-		(void)deluge::ui::widgets::oled::scroll_text(f, info_rect, info, f.style.row_font, info_scroll_);
-		return;
-	}
-	deluge::ui::widgets::oled::text(f, info_rect, info,
-	                                deluge::ui::widgets::oled::TextStyle{
-	                                    .font = f.style.row_font, .align = deluge::ui::widgets::oled::Align::Centre});
 }
 
 } // namespace deluge::ui::scenes::audio_clip

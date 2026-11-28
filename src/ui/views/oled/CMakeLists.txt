@@ -4,6 +4,7 @@ add_library(deluge_ui_views_oled STATIC
   detail/layout.cpp
   session.cpp
   arranger.cpp
+  audio_clip.cpp
   clip.cpp
   keyboard.cpp
   recording.cpp
