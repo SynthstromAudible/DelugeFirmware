@@ -1,0 +1,45 @@
+name: 2.0 Nightly Build
+
+on:
+  workflow_dispatch: # allows manual triggering
+  schedule:
+    - cron: "44 0 * * *" # runs daily at 00:44, offset from the main nightly
+
+jobs:
+  nightly-detect:
+    if: github.repository == 'SynthstromAudible/DelugeFirmware'
+    runs-on: ubuntu-latest
+    outputs:
+      new-commits: ${{ steps.count-commits.outputs.count }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: "next"
+          fetch-depth: 0
+      - name: Get new commits
+        id: count-commits
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "Manual dispatch, forcing build"
+            echo "count=1" >> "$GITHUB_OUTPUT"
+          else
+            count=$(git log --oneline --since '24 hours ago' | wc -l)
+            echo "Saw $count commits"
+            echo "count=$count" >> "$GITHUB_OUTPUT"
+          fi
+  nightly-build:
+    uses: ./.github/workflows/build.yml
+    needs: nightly-detect
+    if: needs.nightly-detect.outputs.new-commits > 0
+    with:
+      firmware-retention-days: 30
+      build-type: "Release"
+      build-tag: "nightly" # firmware version suffix; must be one of RELEASE_TYPE's values in CMakeLists.txt
+      branch: "next"
+  nightly-publish:
+    uses: ./.github/workflows/publish.yml
+    needs: nightly-build
+    with:
+      tag: "2.0-nightly"
+      build-tag: "nightly"
+      branch: "next"

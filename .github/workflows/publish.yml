@@ -6,6 +6,10 @@ on:
       tag:
         required: true
         type: string
+      build-tag:
+        # The build-tag the build was made with, when it differs from the release tag
+        required: false
+        type: string
       branch:
         type: string
   workflow_dispatch:
@@ -16,7 +20,12 @@ on:
         type: choice
         options:
           - nightly
+          - 2.0-nightly
           - beta
+      build-tag:
+        type: string
+        description: Build tag of the artifact, if different from the release tag
+        required: false
       branch:
         type: choice
         options:
@@ -44,12 +53,12 @@ jobs:
         if: inputs.run-id == null
         uses: actions/download-artifact@v8
         with:
-          name: ${{ inputs.tag }}_Release_build_bundle
+          name: ${{ inputs.build-tag || inputs.tag }}_Release_build_bundle
       - name: Download Build Artifact
         if: inputs.run-id != null
         uses: actions/download-artifact@v8
         with:
-          name: ${{ inputs.tag }}_Release_build_bundle
+          name: ${{ inputs.build-tag || inputs.tag }}_Release_build_bundle
           run-id: ${{inputs.run-id}}
       - name: Create readme for archive
         run: |
