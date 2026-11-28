@@ -22,6 +22,9 @@ struct RowText {
 ///        (`style.title_height + 3`), the rest `style.row_height` apart.
 int32_t row_y(const widgets::oled::OledFrame& f, int32_t row);
 
+/// @brief The y of the last text row: 8 rows above the frame's bottom, so its glyphs' ink ends on the last row.
+int32_t last_row_y(const widgets::oled::OledFrame& f);
+
 /// @brief The full-width rect from text row @p from_row's y to the frame's bottom.
 gfx::oled::Rect body_rect(const widgets::oled::OledFrame& f, int32_t from_row);
 

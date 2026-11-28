@@ -1,9 +1,12 @@
 #pragma once
+#include "ui/widgets/core/peaks.h"
 #include "ui/widgets/oled/timeline_strips.h"
 #include "unit/ui/widgets/support/frames.h"
 
 #include <array>
+#include <cmath>
 #include <cstdint>
+#include <vector>
 
 /// @file
 /// @brief What the views' specs share: pixel probes over the 48- and 64-row rigs, and the canvas sketches' data.
@@ -56,5 +59,30 @@ constexpr std::array<LaneSpan, 27> kSong{{
     {5, 44, 8, false}, {6, 16, 8, false},  {6, 32, 8, false},  {7, 6, 2, false},   {7, 22, 2, false},
     {7, 38, 2, false}, {7, 46, 8, true},
 }};
+
+/// The sketches' drum break: @p n columns of peaks, hits decaying from columns 4, 20, 36 ... 116 of a 128-column
+/// whole, seen @p zoom times closer from column @p offset; valid peaks at +-amp * (1 << 24).
+inline std::vector<widgets::core::PeakCol> break_peaks(int32_t n, float zoom = 1.f, float offset = 0.f) {
+	constexpr int32_t kHits[] = {4, 20, 36, 44, 52, 68, 84, 92, 100, 116};
+	const auto hash = [](int32_t i) {
+		const float x = std::sin(static_cast<float>(i) * 127.1f + 311.7f) * 43758.5453f;
+		return x - std::floor(x);
+	};
+	std::vector<widgets::core::PeakCol> cols(static_cast<size_t>(n));
+	for (int32_t x = 0; x < n; ++x) {
+		const float c = offset + static_cast<float>(x) * 128.f / static_cast<float>(n) / zoom;
+		float a = 0.05f;
+		for (int32_t k = 0; k < 10; ++k) {
+			const float d = c - static_cast<float>(kHits[k]);
+			if (d >= 0) {
+				a = std::fmax(a, (k % 2 ? 0.7f : 1.f) * std::exp(-d / 7.f));
+			}
+		}
+		a *= 0.6f + 0.4f * hash(static_cast<int32_t>(c * 3));
+		const auto v = static_cast<int32_t>(a * static_cast<float>(1 << 24));
+		cols[static_cast<size_t>(x)] = {.min24 = -v, .max24 = v, .valid = true};
+	}
+	return cols;
+}
 
 } // namespace deluge::ui::views::oled::test

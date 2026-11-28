@@ -14,6 +14,10 @@ int32_t row_y(const widgets::oled::OledFrame& f, int32_t row) {
 	return f.style.title_height + 3 + row * f.style.row_height;
 }
 
+int32_t last_row_y(const widgets::oled::OledFrame& f) {
+	return f.bounds().h - (kTextSpacingY - 1);
+}
+
 gfx::oled::Rect body_rect(const widgets::oled::OledFrame& f, int32_t from_row) {
 	const int32_t y = row_y(f, from_row);
 	return {0, y, f.bounds().w, std::max(0, f.bounds().h - y)};

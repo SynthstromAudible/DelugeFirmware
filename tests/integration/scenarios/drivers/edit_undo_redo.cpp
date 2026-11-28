@@ -1207,7 +1207,7 @@ void audioClipMarkerTarget(Song* song) {
 	// reason explained above, so the real UI's lengthInSamples clamp is simply skipped (nothing to clamp against).
 	auto* sample = static_cast<Sample*>(clip->sampleHolder.audioFile);
 	int32_t oldLength = clip->loopLength();
-	// Always lengthen (like clipLengthTarget's before*2): Clip::lengthChanged (`clip.cpp`) -- called from
+	// Always lengthen (like clipLengthTarget's before*2): Clip::lengthChanged (`model/clip/clip.cpp`) -- called from
 	// Song::setClipLength only on a DEcrease -- can trim automation into its OWN Consequence on this same Action, which
 	// addConsequence prepends ahead of ours (`action.cpp`: newest consequence becomes firstConsequence). That would
 	// make the `firstConsequence->type == CLIP_LENGTH` check in `AudioClipView::changeUnderlyingSampleLength`
