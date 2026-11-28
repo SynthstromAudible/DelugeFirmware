@@ -1949,6 +1949,35 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		r.scene.on_exit();
 	});
 
+	it("presents the status word, or the threshold meter's state", _ {
+		recorder_fakes::FakesRig r;
+		expect(r.enter(r.ctx())).to_be_true();
+		const deluge::ui::views::oled::RecorderStatus waiting = r.scene.present_status(128);
+		expect(static_cast<int>(waiting.mode)).to_equal(static_cast<int>(deluge::ui::views::oled::RecorderStatus::Mode::Word));
+		expect(waiting.word).to_equal(std::string_view{"Waiting"});
+		r.take().capturing = true;
+		expect(r.scene.present_status(128).word).to_equal(std::string_view{"Recording"});
+		r.take().threshold = true;
+		r.take().threshold_level = 0.5F;
+		r.host.audio.sample_timer = 0;
+		const deluge::ui::views::oled::RecorderStatus meter = r.scene.present_status(128);
+		expect(static_cast<int>(meter.mode)).to_equal(static_cast<int>(deluge::ui::views::oled::RecorderStatus::Mode::Meter));
+		expect(meter.meter.recording).to_be_true();
+		expect(meter.meter.blink_on).to_be_true();
+		expect(meter.meter.threshold_x).to_equal(deluge::ui::widgets::oled::threshold_meter_x(0.5F, 128));
+		r.scene.on_exit();
+	});
+
+	it("presents the shortcut blink: its pad, its step, and whether the step has played", _ {
+		recorder_fakes::FakesRig r;
+		expect(r.enter(r.ctx())).to_be_true();
+		const deluge::ui::views::grid::BlinkPads first = r.scene.present_blink(0);
+		expect(first.step).to_equal(0u);
+		expect(first.fire).to_be_true();
+		expect(first.plan).to_equal(deluge::ui::widgets::grid::exclusive_blink(0, recorder::kRecordShortcutY, 0));
+		r.scene.on_exit();
+	});
+
 	it("refuses with no ports at all, asking nothing of the fakes", _ {
 		recorder_fakes::FakesRig r;
 		MenuContext c = r.ctx();

@@ -83,6 +83,7 @@ add_library(deluge_ui_scenes STATIC
     # the audio recorder -- the one scene that replaces `origin/main:src/deluge/gui/ui/audio_recorder.cpp`'s
     # menu-driven half (its output-recording half stays on the legacy object; see the header).
     recorder/recorder_scene.cpp
+    recorder/present.cpp
     # the mod-encoder value popup -- the first of the three overlay scenes.
     overlay/param_popup_scene.cpp
     # the record count-in digit -- the second of the three overlay scenes. Not a port of
@@ -137,7 +138,8 @@ target_include_directories(deluge_ui_scenes PUBLIC
 if(NOT TARGET deluge_ui_scenes_bind)
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/bind ${CMAKE_CURRENT_BINARY_DIR}/bind)
 endif()
-target_link_libraries(deluge_ui_scenes PUBLIC deluge_ui_shell deluge_ui_scenes_bind deluge_ui_views_waveform deluge_base
+target_link_libraries(deluge_ui_scenes PUBLIC deluge_ui_shell deluge_ui_scenes_bind deluge_ui_views_waveform deluge_ui_views_oled
+                                              deluge_ui_views_grid deluge_base
                                               deluge_l10n deluge_arp)
 target_compile_options(deluge_ui_scenes PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 set_target_properties(deluge_ui_scenes PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)

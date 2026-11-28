@@ -8,7 +8,8 @@ and it formats nothing. The scene that will call it fills the struct from its po
 |---|---|---|
 | `deluge_ui_views_oled` (namespace `deluge::ui::views::oled`) | the views, one header per family, and their shared row layout (`detail/`) | `deluge_ui_widgets_oled` |
 
-A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmware path renders a view.
+A `STATIC` library built as C++26. The parity views (the "parity" column below) are drawn by their scene; the rest are
+not called yet. The pad pictures are the grid views' (`src/ui/views/grid/README.md`), whose rules are these.
 
 ## Rules
 
@@ -22,6 +23,10 @@ A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmw
 - **Includes:** only `ui/views/oled/`, `ui/widgets/oled/`, `ui/widgets/core/`, `ui/gfx/oled/` and the standard
   library (`scripts/layers.toml`, rule `ui-views-oled-includes-outside`).
 - No animation: a moving mark (a playhead, a fill) is a field of the struct.
+- **The frame's clock and gates are frame input.** A view may call a widget that reads `f.now_ms()`, arms `f.gate()`
+  or formats its own quantity (`scroll_text`, `zoom_transition`, `sample_position`); the view itself reads no clock
+  and formats no word, it only passes the frame on. Retained widget state (`TextEditState`, `ScrollText`) is a
+  trailing reference parameter of the view, never a field of its struct, a static or a member.
 
 ## The row layout (`detail/`)
 
@@ -39,16 +44,17 @@ A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmw
 
 ## The views
 
-| header | views |
-|---|---|
-| `session` | `session_resting`, `session_queued`, `clip_held`, `section_held` |
-| `arranger` | `arranger_resting`, `arranger_clip_held` |
-| `clip` | `instrument_clip_resting`, `audio_clip_resting`, `kit_clip_resting`, `cv_clip_resting` |
-| `keyboard` | `keyboard_playing`, `scale_held`, `velocity_drums` |
-| `recording` | `record_arming`, `count_in`, `overdub`, `resampling`, `stem_export` |
-| `editing` | `zoom_held`, `quantize_held`, `step_held`, `automation_lane_moment`, `slicer`, `moving_kit_row`, `randomized_drums`, `undo` |
-| `playing` | `auditioning_row`, `stutter_held`, `tap_tempo`, `midi_learn`, `mod_source_held`, `loading_song` |
-| `master` | `master_scope`, `master_scope_xy` |
+| header | views | parity |
+|---|---|---|
+| `session` | `session_resting`, `session_queued`, `clip_held`, `section_held` |  |
+| `arranger` | `arranger_resting`, `arranger_clip_held` |  |
+| `clip` | `instrument_clip_resting`, `audio_clip_resting`, `kit_clip_resting`, `cv_clip_resting` |  |
+| `keyboard` | `keyboard_playing`, `scale_held`, `velocity_drums` |  |
+| `recording` | `record_arming`, `count_in`, `overdub`, `resampling`, `stem_export` |  |
+| `editing` | `zoom_held`, `quantize_held`, `step_held`, `automation_lane_moment`, `slicer`, `moving_kit_row`, `randomized_drums`, `undo` |  |
+| `playing` | `auditioning_row`, `stutter_held`, `tap_tempo`, `midi_learn`, `mod_source_held`, `loading_song` |  |
+| `master` | `master_scope`, `master_scope_xy` |  |
+| `recorder` | `recorder_status` | the audio recorder |
 
 Each view's layout follows its sketch on the OLED canvas (boards "Resting", "Moments" and "Pages").
 

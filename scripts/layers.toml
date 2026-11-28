@@ -221,6 +221,12 @@ may_include = [
 ]
 
 [[library]]
+name = "ui-views-grid"
+root = "src/ui/views/grid"
+prefix = "ui/views/grid/"
+may_include = ["ui/widgets/grid/", "ui/widgets/core/", "ui/gfx/grid/"]
+
+[[library]]
 name = "ui-views-oled"
 root = "src/ui/views/oled"
 prefix = "ui/views/oled/"
@@ -354,6 +360,12 @@ name = "ui-views-oled-includes-outside"
 files = ["src/ui/views/oled/**"]
 pattern = '^(?!ui/views/oled/|ui/widgets/oled/|ui/widgets/core/|ui/gfx/oled/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the OLED views include only themselves, the OLED widgets, the core toolkit, OLED gfx and the standard library"
+
+[[rule]]
+name = "ui-views-grid-includes-outside"
+files = ["src/ui/views/grid/**"]
+pattern = '^(?!ui/views/grid/|ui/widgets/grid/|ui/widgets/core/|ui/gfx/grid/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+reason = "the grid views include only themselves, the pad widgets, the core toolkit, grid gfx and the standard library"
 
 [[rule]]
 name = "ui-oled-no-grid"

@@ -44,6 +44,30 @@ in `website/src/data/generated/menu-tree.json`.
 static and the stack stores `SceneId` values, so popping a scene runs `on_exit` and destroys
 nothing.
 
+## Surfaces
+
+A scene draws each surface it claims in three steps, so the pixels are a pure function of a struct:
+
+```
+scene          state, input, ports, clocks, repaint gates
+  render_<surface>(frame)   clock and gate work, then
+    present_<screen>(...)   const, model-aware, takes no frame: the scene's state -> a plain struct
+    views::{oled,grid}::<screen>(frame, struct)   pure: struct (and frame input) -> pixels
+```
+
+* **`render_*` keeps what a pure function cannot do:** reading `f.now_ms()`, advancing a blink or anchor, arming the
+  frame's gates, and any scene state the draw changes (written before the present call or after the view call).
+* **Present members** are `const` members of the scene defined in `<scene>/present.cpp`. They take the `Style` and the
+  surface's bounds where the picture depends on them, never a frame, and write nothing; scene state derived from the
+  panel or from drawn pixels is `render_*`'s.
+* **Views** are `views/oled/<scene>.{h,cpp}` and `views/grid/<screen>.{h,cpp}` (the libraries' READMEs hold their
+  rules). A view's struct holds values and `std::string_view`s only.
+* **Text storage:** the words a struct points to are literals, or live in a buffer the scene owns (a member or a local
+  of `render_*`) that outlives the view call. No heap.
+
+The scenes on views: the recorder (`present_status` and `present_blink`, over `views::oled::recorder_status` and
+`views::grid::blink`).
+
 ## Layer rules
 
 `scripts/check_layer_rules.py` enforces these; the include list itself is the comment at the top of
@@ -133,7 +157,7 @@ rest to units it owns by value. A unit is given the context and state per call (
 | unit | file | what it does |
 |---|---|---|
 | `MenuState`, `MenuTick`, `MenuWalkState` | `menu_state.h` | the path, the widgets' state, the tick's observations and the walk's choices, each reset by value |
-| presentation | `present.{h,cpp}` | node text, horizontal columns, notifications, row icons |
+| presentation | `menu/present.{h,cpp}` | node text, horizontal columns, notifications, row icons |
 | chains | `chains.{h,cpp}` | the horizontal-menu chains and where a named node lands |
 | `MenuWalk` | `walk.{h,cpp}` | re-rooting, descending, ascending, the range picker, the remembered rows, saved state |
 | `MenuView` | `menu/view.{h,cpp}` | the OLED render, and `owned_input`, the claims it makes |
@@ -563,7 +587,9 @@ ended (`bind::ViewActions`).
 The scene is a grid overlay that draws no pad region: the view beneath keeps its pads, greyed by the recorder's
 all-columns mask, and the scene adds only `opened()`'s shortcut blink on its source's (x, 4) pad.
 
-A threshold take (the song's threshold mode on) draws `main`'s level-meter screen through `ui::widgets::oled::threshold_meter`,
+The recorder's screen is `present_status` over `views::oled::recorder_status`, and its blink `present_blink` over
+`views::grid::blink` (see "Surfaces"). A threshold take (the song's threshold mode on) draws `main`'s level-meter
+screen through `ui::widgets::oled::threshold_meter`,
 blinking on the audio clock as legacy does, and the take counts as started once it has captured more than its
 pre-roll margin.
 

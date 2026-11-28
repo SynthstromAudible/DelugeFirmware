@@ -4,15 +4,14 @@
 #include "ui/scenes/recorder/recorder_scene.h"
 
 #include "base/error.h"
-#include "base/sample_rate.h"
+#include "ui/views/grid/blink.h"
+#include "ui/views/oled/recorder.h"
 #include "ui/widgets/oled/frame.h"
-#include "ui/widgets/oled/text.h"
 
 #include "base/notify/notice_queue.h"
 
 #include "ui/scenes/bind/ports/ports.h"
 #include "ui/scenes/bind/target.h"
-#include "ui/scenes/menu/shortcut_blink.h"
 #include "ui/widgets/grid/frame.h"
 
 #include "gui/l10n/strings.h"
@@ -37,26 +36,9 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
-/// The record dot's half-period while recording, and the threshold line's cycle while waiting, lit for its first 290 ms
-/// and from 570 ms on (`AudioRecorder::getThresholdMeterState` (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`)).
-/// @{
-constexpr uint32_t kRecordDotHalfPeriodMs = 480;
-constexpr uint32_t kThresholdBlinkCycleMs = 750;
-constexpr uint32_t kThresholdLitUntilMs = 290;
-constexpr uint32_t kThresholdLitFromMs = 570;
-/// @}
-
 constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
-
-/// The two words `AudioRecorder::renderOLED` draws. Literals, not l10n ids, because
-/// neither is in `gui/l10n/strings.h` -- exactly `BrowserScene::Descriptor::title`'s and
-/// `MarkerScene`'s situation and answer.
-/// @{
-constexpr std::string_view kWaiting = "Waiting";
-constexpr std::string_view kRecording = "Recording";
-/// @}
 
 /// `display->displayLoadingAnimationText("Working")`, raised the way `browser::Listing`
 /// raises the same thing: `Notices::drain` turns a `Working` notice into `SceneKind::Working` over
@@ -400,19 +382,7 @@ std::optional<uint32_t> RecorderScene::next_timer() const {
 void RecorderScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& f) {
 	(void)role;
 	const uint32_t now = f.now_ms();
-
-	if (threshold_take()) {
-		deluge::ui::widgets::oled::threshold_meter(f, meter_state(f.bounds().w));
-	}
-	else {
-		// `renderOLED`'s plain arm, through the toolkit rather than through `Canvas::drawStringCentred`
-		// (`scenes-no-frame-primitives`). `MetricBold13` is the face `kTextBigSizeY` (13) selects; the centring is over
-		// the frame's own width, which is legacy's `OLED_MAIN_WIDTH_PIXELS` on the shipped panel.
-		deluge::ui::widgets::oled::text(
-		    f, deluge::ui::gfx::oled::Rect{0, kStatusY, f.bounds().w, deluge::ui::gfx::oled::kTextBigSizeY},
-		    capturing() ? kRecording : kWaiting,
-		    {.font = deluge::ui::gfx::oled::FontId::MetricBold13, .align = deluge::ui::widgets::oled::Align::Centre});
-	}
+	deluge::ui::views::oled::recorder_status(f, present_status(f.bounds().w));
 
 	// This arm is not only about the `Waiting` -> `Recording` flip: `after_render()` runs only for a
 	// scene that drew this tick, so without a repaint the completion poll stops the moment the last
@@ -427,30 +397,6 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::Ole
 	}
 }
 
-deluge::ui::widgets::oled::ThresholdMeter RecorderScene::meter_state(int32_t width) const {
-	// The meter's ends from the input's levels (a mono take shows its one channel on both), the threshold's x, and the
-	// blink, on the audio clock legacy blinks by.
-	const uint32_t frames = ctx_.ports.audio != nullptr ? ctx_.ports.audio->audio_sample_timer() : 0;
-	const auto animation_ms = static_cast<uint32_t>(static_cast<uint64_t>(frames) * 1000 / base::kSampleRate);
-	const bind::InputLevels level = takes() != nullptr ? takes()->take_levels() : bind::InputLevels{};
-	const bind::InputTake t = take().value_or(bind::InputTake{});
-	const float right = t.channels == 2 ? level.right : level.left;
-	deluge::ui::widgets::oled::ThresholdMeter m{
-	    .level_end_x = {deluge::ui::widgets::oled::threshold_meter_x(level.left, width),
-	                    deluge::ui::widgets::oled::threshold_meter_x(right, width)},
-	    .threshold_x = deluge::ui::widgets::oled::threshold_meter_x(t.threshold_level, width),
-	    .recording = t.capturing,
-	};
-	if (m.recording) {
-		m.blink_on = (animation_ms / kRecordDotHalfPeriodMs) % 2 == 0;
-	}
-	else {
-		const uint32_t phase = animation_ms % kThresholdBlinkCycleMs;
-		m.blink_on = phase < kThresholdLitUntilMs || phase >= kThresholdLitFromMs;
-	}
-	return m;
-}
-
 void RecorderScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	// The pads are the view's beneath. `opened()` arms the blink only on success, and leaves the source blinks as the
 	// sound editor had them; the items the recorder opens from blink no patching source, so the plan is the one pad.
@@ -461,14 +407,10 @@ void RecorderScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	if (!blink_anchor_ms_.has_value()) {
 		blink_anchor_ms_ = now;
 	}
-	const menu::BlinkPlan plan =
-	    menu::exclusive_blink(static_cast<uint8_t>(std::max<int32_t>(ctx_.source_index, 0)), kRecordShortcutY, 0);
-	const uint32_t step = menu::blink_step(*blink_anchor_ms_, now);
-	if (step != blink_fired_step_) {
-		menu::fire_blink_step(f, plan, step);
-		blink_fired_step_ = step;
-	}
-	f.grid_gate().request_repaint_after(menu::ms_to_next_step(*blink_anchor_ms_, now), now);
+	const deluge::ui::views::grid::BlinkPads pads = present_blink(now);
+	deluge::ui::views::grid::blink(f, pads);
+	blink_fired_step_ = pads.step;
+	f.grid_gate().request_repaint_after(deluge::ui::widgets::grid::ms_to_next_step(*blink_anchor_ms_, now), now);
 }
 
 void RecorderScene::leds(deluge::ui::widgets::core::LedFrame& f) {

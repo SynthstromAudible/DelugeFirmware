@@ -51,7 +51,7 @@ against drift, not a proof.
 | `InputClaims`, `InputMask`, `FrameContext`, `FrameInput` (the accessors and claims both frames inherit, and the input-consumption contract) | `frame_context.h` |
 | `LedId`, `IndicatorId`, `BlinkRate`, `BlinkPhase`, `LedState`, `KnobIndicator`, `LedFrame` | `led_frame.h` |
 | `knob_indicator_levels`, `knob_indicator_blink` (a gold knob's 4-segment column) | `knob_indicator.h` |
-| `blink_lit`, `blink_next_flip_in` | `blink.h` |
+| `blink_lit`, `blink_next_flip_in` | `core/blink.h` |
 | `EncoderAcceleration`, `kGoldEncoderAcceleration`, `kHorizontalMenuAcceleration` (one acceleration curve shared with legacy's encoders) | `core/encoder_acceleration.h` |
 | text and layout constants (`kMenuBaseY48/64`, `kHorizontalMenuBaseY`, `kScrollTime`, ...), `text_height_of` | `metrics.h` |
 | `RepaintGate` | `repaint_gate.h` |
