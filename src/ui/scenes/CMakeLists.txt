@@ -80,6 +80,7 @@ add_library(deluge_ui_scenes STATIC
     browser/browser_scene.cpp
     # the sample marker editor.
     marker/marker_scene.cpp
+    marker/present.cpp
     # the audio recorder -- the one scene that replaces `origin/main:src/deluge/gui/ui/audio_recorder.cpp`'s
     # menu-driven half (its output-recording half stays on the legacy object; see the header).
     recorder/recorder_scene.cpp

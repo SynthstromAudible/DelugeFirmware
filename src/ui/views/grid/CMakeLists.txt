@@ -2,6 +2,9 @@
 # ui/widgets/grid, ui/widgets/core, ui/gfx/grid and the standard library (scripts/layers.toml).
 add_library(deluge_ui_views_grid STATIC
   blink.cpp
+  marker.cpp
+  playhead.cpp
+  waveform.cpp
 )
 target_include_directories(deluge_ui_views_grid PUBLIC ${SHARED_INCLUDE})
 # See src/ui/gfx/CMakeLists.txt for what DELUGE_COMMON_COMPILE_OPTIONS carries and why it is PRIVATE.

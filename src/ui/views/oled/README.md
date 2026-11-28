@@ -57,6 +57,7 @@ not called yet. The pad pictures are the grid views' (`src/ui/views/grid/README.
 | `playing` | `auditioning_row`, `stutter_held`, `tap_tempo`, `midi_learn`, `mod_source_held`, `loading_song` |  |
 | `master` | `master_scope`, `master_scope_xy` |  |
 | `recorder` | `recorder_status` | the audio recorder |
+| `marker` | `marker_position` | the marker editor |
 
 Each view's layout follows its sketch on the OLED canvas (boards "Resting", "Moments" and "Pages").
 

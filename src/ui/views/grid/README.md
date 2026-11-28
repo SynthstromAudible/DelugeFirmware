@@ -28,5 +28,8 @@ these differences.
 | header | views | parity |
 |---|---|---|
 | `blink` | `blink` (`BlinkPads`: a shortcut blink's plan, counter step and whether the step plays) | the audio recorder |
+| `waveform` | `waveform` (a sample's peaks as full-height bars over the main pads, monochrome or coloured) | the marker editor |
+| `playhead` | `playhead` (`Playhead`: each row's tick square, painted, flashed, or both; the flash latch is the trailing `last`) | the marker editor |
+| `marker` | `marker_overlay` (`MarkerOverlay`: each column's markers, their colours, the blink's suppression and flood) | the marker editor |
 
 Specs: `tests/unit/ui/views/grid/`.
