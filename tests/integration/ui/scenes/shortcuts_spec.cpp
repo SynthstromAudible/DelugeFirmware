@@ -1072,13 +1072,15 @@ describe shortcut_blink_plan("scenes::menu shortcut blink plan against main's sh
 		const PatchSource kSources[] = {PatchSource::ENVELOPE_1, PatchSource::ENVELOPE_3, PatchSource::LFO_GLOBAL_1,
 		                                PatchSource::AFTERTOUCH, PatchSource::RANDOM};
 		for (const uint8_t param : kParams) {
+			// Main's rows name the param by its number there, which is its id
+			const uint32_t id = deluge::instruments::classic::flat_param_id(param).value;
 			MenuState st{};
 			st.walk.patching_param = param;
 			st.path[0] = &nodes::source_selection_regular;
-			check("regular source list p" + std::to_string(param), nodes::source_selection_regular, st);
+			check("regular source list p" + std::to_string(id), nodes::source_selection_regular, st);
 			for (const PatchSource source : kSources) {
 				st.walk.patch_source = source;
-				const std::string tag = " p" + std::to_string(param) + " s" + std::to_string(static_cast<int>(source));
+				const std::string tag = " p" + std::to_string(id) + " s" + std::to_string(static_cast<int>(source));
 				st.path[0] = &nodes::patch_cable_strength_regular;
 				check("regular strength" + tag, nodes::patch_cable_strength_regular, st);
 				st.path[0] = &nodes::source_selection_range;

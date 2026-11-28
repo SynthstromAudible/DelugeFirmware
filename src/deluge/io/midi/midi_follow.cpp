@@ -1814,8 +1814,8 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		int32_t value = reader.readTagOrAttributeValueInt();
 		// Loop through patched sound params (a cable destination alone names its base's param, below)
 		for (uint8_t paramId = 0; paramId < params::GLOBAL_NONE; paramId++) {
-			const deluge::plugin::ParamInfo* row =
-			    deluge::plugin::find_param(deluge::instruments::classic::kParams, deluge::plugin::ParamId{paramId});
+			const deluge::plugin::ParamInfo* row = deluge::plugin::find_param(
+			    deluge::instruments::classic::kParams, deluge::instruments::classic::flat_param_id(paramId));
 			if ((row == nullptr || !row->flags.has(deluge::plugin::ParamFlag::DESTINATION_ONLY))
 			    && !strcmp(tag_name, params::paramNameForFile(params::Kind::PATCHED, paramId, true))) {
 				mapSound(value, *deluge::bridge::targetOf(OwnerPlugin::INSTRUMENT, params::Kind::PATCHED, paramId));

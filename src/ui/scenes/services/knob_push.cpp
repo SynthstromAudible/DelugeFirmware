@@ -453,8 +453,8 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		const auto second =
 		    level > 1 ? static_cast<PatchSource>(instruments::classic::detail::source_field(id.value, level - 1) - 1)
 		              : PatchSource::NONE;
-		const std::optional<instruments::classic::RuntimeSlot> destination =
-		    instruments::classic::runtime_slot(plugin::ParamId{id.value & 0xFFu});
+		const plugin::ParamId root = instruments::classic::cable_root(id);
+		const plugin::ParamId destination = instruments::classic::runtime_slot(root) ? root : plugin::ParamId{0};
 		std::string out = second == PatchSource::NONE ? std::string{text(source_display_string(first))}
 		                                              : std::string{source_short_name(first)};
 		out += " -> ";
@@ -462,10 +462,8 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 			out += source_short_name(second);
 			out += " -> ";
 		}
-		const uint32_t index = destination ? destination->index : 0;
-		out += l10n::envelope_param_name(plugin::ParamId{index}, inputs.envelopes, /*brief=*/true)
-		           .value_or(
-		               l10n::patched_param_short_name(plugin::ParamId{index}, fx.filter.lpf_mode, fx.filter.hpf_mode));
+		out += l10n::envelope_param_name(destination, inputs.envelopes, /*brief=*/true)
+		           .value_or(l10n::patched_param_short_name(destination, fx.filter.lpf_mode, fx.filter.hpf_mode));
 		return out;
 	}
 	if (assignment.plugin == project::OwnerPlugin::GLOBAL_EFFECTABLE) {

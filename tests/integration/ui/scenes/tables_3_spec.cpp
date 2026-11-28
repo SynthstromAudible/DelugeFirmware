@@ -644,6 +644,9 @@ describe tables_3_shape("scenes::menu settings and other roots tables: shape", $
 			if (index && unpatched_kind && *index >= 26) {
 				index = *index > 30 ? *index - 16 : *index - 15;
 			}
+			if (index && runtime.kind == deluge::plugin::ParamKind::PATCHED) {
+				index = spec::main_numbering::patched_index_of(*index);
+			}
 			expect(at + " index " + std::to_string(runtime.index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
 			if (!kind || *kind == static_cast<int32_t>(deluge::modulation::params::Kind::NONE)) {

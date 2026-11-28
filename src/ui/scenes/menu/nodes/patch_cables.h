@@ -416,7 +416,7 @@ constexpr Node with_patch_chain(Node n) {
 /// @param destination The patched param a cable from a source pad reaches.
 /// @return @p n with the patch-cable select chain attached.
 constexpr Node with_patch_chain(Node n, deluge::plugin::ParamId destination) {
-	n.bind.patch_destination = static_cast<uint8_t>(destination.value);
+	n.bind.patch_destination = static_cast<uint8_t>(deluge::instruments::classic::flat_index(destination));
 	return with_select_chain(n, &patched_param_chain, kPatchedParamChain);
 }
 

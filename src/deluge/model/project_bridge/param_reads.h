@@ -39,7 +39,7 @@ namespace deluge::bridge {
 /// @return The index into a sound's PatchedParamSet.
 [[nodiscard]] constexpr int32_t patchedIndex(plugin::ParamId id) {
 	assert(instruments::classic::kParamBlocks[0].contains(id));
-	return static_cast<int32_t>(id.value);
+	return static_cast<int32_t>(instruments::classic::flat_index(id));
 }
 
 /// @brief The runtime's index of an owner's unpatched param.

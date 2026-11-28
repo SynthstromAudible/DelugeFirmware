@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-LOCAL_PARAMS = 45  # params::LOCAL_LAST
+LOCAL_PARAMS = 48  # params::LOCAL_LAST
 NOISE_VOLUME = 3
 MODULATOR_VOLUME = (4, 5)
 ENV_ATTACK = (33, 34, 35, 36)

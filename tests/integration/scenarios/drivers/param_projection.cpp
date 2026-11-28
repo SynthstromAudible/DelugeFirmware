@@ -45,6 +45,7 @@
 #include <vector>
 
 #include "host/chains/params.h"
+#include "instruments/classic/params.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -867,6 +868,38 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				      "pm2 cable amount node");
 			}
 		}
+	}
+
+	// A sound-wide param's lane is one lane whichever way it is reached: the runtime set by its runtime index, the
+	// store and the model by its id. The runtime keeps the sound-wide params after the DX7's, so the two numberings
+	// differ.
+	{
+		namespace ip = deluge::instruments::classic::param;
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "store setupWithPatching");
+		PatchedParamSet* set = pm.getPatchedParamSet();
+		const int32_t runtime = deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
+		check(runtime != static_cast<int32_t>(ip::kVolumePostFX.value), "store: the runtime index is not the id");
+		set->params[runtime].setPlayed(4321);
+		setNodeIn(*set->docForParam(runtime), 0, 111, true);
+		setNodeIn(*set->docForParam(runtime), 24, -222, false);
+		const deluge::project::DocAutoParam* byId = set->domStore()->find(ip::kVolumePostFX);
+		check(byId != nullptr && byId->nodes.size() == 2 && byId->nodes[0].value == 111,
+		      "store: post-FX volume's automation read back by its id");
+		check(set->findDocParamForId(runtime) == byId, "store: post-FX volume's lane read back by its runtime index");
+		const deluge::project::DocAutoParam* other =
+		    set->domStore()->find(deluge::plugin::ParamId{static_cast<uint32_t>(runtime)});
+		check(other != nullptr && other->nodes.empty(), "store: the id equal to its runtime index holds no automation");
+
+		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
+		const deluge::project::DocAutoParam* projected = patchedStore(doc)->find(ip::kVolumePostFX);
+		check(projected != nullptr && projected->nodes.size() == 2 && projected->current_value == 4321,
+		      "store: the projected model holds the automation at the id");
+		ParamManagerForTimeline pm2;
+		check(pm2.setupWithPatching() == Error::NONE, "store pm2 setupWithPatching");
+		deluge::bridge::fromDocParamManager(doc, pm2);
+		check(pm2.getPatchedParamSet()->params[runtime].played() == 4321, "store: projected back to the runtime index");
+		expectSameParamInSet(pm2.getPatchedParamSet(), set, runtime, "store: projected back with its nodes");
 	}
 
 	// The DOM can *drive* the live manager — projecting a captured DocParamManager into a

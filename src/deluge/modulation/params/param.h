@@ -108,6 +108,11 @@ enum Local : ParamType {
 	LOCAL_ENV_2_RELEASE,
 	LOCAL_ENV_3_RELEASE,
 
+	/// The DX7 engine's own params (DX7 mode)
+	LOCAL_DX7_LEVEL,
+	LOCAL_DX7_AMP_MOD,
+	LOCAL_DX7_PITCH_ADJUST,
+
 	/// Special value used to chain in to the Global params.
 	LOCAL_LAST,
 };

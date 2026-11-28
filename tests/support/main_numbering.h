@@ -8,6 +8,7 @@
 ///        destination alone, and every unpatched param past them sits 15 lower (16 past a chain's arp rate).
 
 #include "arp/params.h"
+#include "instruments/classic/params.h"
 #include "project/param_address.h"
 
 #include <array>
@@ -26,6 +27,13 @@ inline constexpr uint32_t kPatchedArpRate = 54;
 /// @brief The arp id of main's patched param @p id, or nullopt for one that is not an arp param.
 [[nodiscard]] constexpr std::optional<uint32_t> arp_id_of_patched(uint32_t id) {
 	return id == kPatchedArpRate ? std::optional<uint32_t>{arp::param::kRate.value} : std::nullopt;
+}
+
+/// @brief This tree's runtime index of main's patched index @p index: main numbers a patched param by its id, which
+///        this tree's runtime keeps with the per-voice params first (instruments::classic::flat_index).
+/// @param index Main's patched index, not the arp rate's.
+[[nodiscard]] constexpr int32_t patched_index_of(int32_t index) {
+	return static_cast<int32_t>(instruments::classic::flat_index(plugin::ParamId{static_cast<uint32_t>(index)}));
 }
 
 /// @brief The arp id of main's unpatched runtime index @p index, or nullopt for one that is not an arp param.

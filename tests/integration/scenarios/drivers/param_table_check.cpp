@@ -71,7 +71,8 @@ using deluge::scenarios::driver::Io;
 /// modulation/params/param.cpp (isParamPan, isParamPitch, paramNeedsLPF) and param_set.cpp (the Unpatched and Patched
 /// sets' shouldParamIndicateMiddleValue, doesParamIdAllowAutomation, shouldRecordUnautomatedParamChange,
 /// shouldInterpolateWithFloat), with the set's kind as an argument: the oracle for each row's flags. The stutter rate's
-/// middle detent depends on the stutter's state and is left out.
+/// middle detent depends on the stutter's state and is left out. The DX7's params, which main lacks, answer as their
+/// oscillator A counterparts: its level as the volume, its amp mod as the pulse width, its pitch adjust as the pitch.
 namespace reference_predicates {
 using namespace params;
 
@@ -83,7 +84,7 @@ bool isParamPitch(Kind kind, int32_t paramID) {
 	if (kind == Kind::PATCHED) {
 		return (paramID == LOCAL_PITCH_ADJUST) || (paramID == LOCAL_OSC_A_PITCH_ADJUST)
 		       || (paramID == LOCAL_OSC_B_PITCH_ADJUST) || (paramID == LOCAL_MODULATOR_0_PITCH_ADJUST)
-		       || (paramID == LOCAL_MODULATOR_1_PITCH_ADJUST);
+		       || (paramID == LOCAL_MODULATOR_1_PITCH_ADJUST) || (paramID == LOCAL_DX7_PITCH_ADJUST);
 	}
 	if (kind == Kind::UNPATCHED_GLOBAL) {
 		return static_cast<UnpatchedGlobal>(paramID) == UNPATCHED_PITCH_ADJUST;
@@ -103,6 +104,7 @@ bool paramNeedsLPF(ParamType p, bool fromAutomation) {
 	case LOCAL_OSC_B_VOLUME:
 	case LOCAL_OSC_A_WAVE_INDEX:
 	case LOCAL_OSC_B_WAVE_INDEX:
+	case LOCAL_DX7_LEVEL:
 		return !fromAutomation;
 	case LOCAL_MODULATOR_0_VOLUME:
 	case LOCAL_MODULATOR_1_VOLUME:
@@ -142,6 +144,7 @@ bool patchedIndicatesMiddle(int32_t paramId) {
 	case LOCAL_OSC_B_PITCH_ADJUST:
 	case LOCAL_MODULATOR_0_PITCH_ADJUST:
 	case LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case LOCAL_DX7_PITCH_ADJUST:
 	case GLOBAL_DELAY_FEEDBACK:
 	case GLOBAL_DELAY_RATE:
 		return true;
@@ -173,7 +176,7 @@ deluge::plugin::ParamFlags flagsOf(Kind kind, int32_t index) {
 deluge::plugin::MappingKind mappingOf(Kind kind, int32_t index) {
 	using deluge::plugin::MappingKind;
 	if (kind == Kind::PATCHED) {
-		if (index == LOCAL_OSC_A_PHASE_WIDTH || index == LOCAL_OSC_B_PHASE_WIDTH) {
+		if (index == LOCAL_OSC_A_PHASE_WIDTH || index == LOCAL_OSC_B_PHASE_WIDTH || index == LOCAL_DX7_AMP_MOD) {
 			return MappingKind::UNIPOLAR;
 		}
 		return index == LOCAL_PAN ? MappingKind::PAN : MappingKind::STANDARD;
@@ -209,10 +212,11 @@ struct Checker {
 		if ((info.scope == ParamScope::PER_VOICE) != perVoice) {
 			fail(table, info, "its scope is not the runtime's");
 		}
-		// Main's flags, and on main's patched arp rate the one ours adds: its row is the matrix's destination alone
+		// Main's flags, and on main's patched arp rate the one ours adds: its row is the matrix's destination alone.
+		// Main numbers a patched param by its id.
 		const bool destination_only =
 		    kind == params::Kind::PATCHED
-		    && deluge::ui::scenes::spec::main_numbering::arp_id_of_patched(static_cast<uint32_t>(index)).has_value();
+		    && deluge::ui::scenes::spec::main_numbering::arp_id_of_patched(info.id.value).has_value();
 		const deluge::plugin::ParamFlags flags =
 		    destination_only ? reference_predicates::flagsOf(kind, index) | deluge::plugin::ParamFlag::DESTINATION_ONLY
 		                     : reference_predicates::flagsOf(kind, index);

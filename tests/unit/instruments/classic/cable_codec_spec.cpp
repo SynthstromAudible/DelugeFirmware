@@ -89,6 +89,29 @@ describe cable_codec("the Deluge instrument's cable decoder", ${
 		expect(to_string(cables[1].source)).to_equal(std::string_view("note"));
 	});
 
+	it("keeps an unknown destination at 89, out of the runtime's patched params", _ {
+		expect(kUnknownDestination.value).to_equal(89u);
+		expect(cable_word_of(kUnknownDestination) & 0xFFu).to_equal(89u);
+	});
+
+	it("gives a decoded cable onto a sound-wide param the runtime's word for it, and reads the word back", _ {
+		Value cables = Value::makeArray();
+		Value cable = Value::makeMap();
+		cable.set("source", Value::makeScalar("compressor"));
+		cable.set("destination", Value::makeScalar("volumePostReverbSend"));
+		cable.set("amount", Value::makeScalar("0x10000000"));
+		Value box = Value::makeMap();
+		box.set("patchCable", std::move(cable));
+		cables.append(std::move(box));
+		const std::vector<CableState> decoded = decode_cables(cables, [](const Value&) { return true; });
+		expect(decoded.size()).to_equal(size_t{1});
+		expect(decoded[0].destination.value).to_equal(param::kVolumePostReverbSend.value);
+		// The runtime keeps the reverb-send volume at 49: the word's low byte, with the sidechain (2) above it
+		const uint32_t word = cable_word_of(decoded[0].depth());
+		expect(word).to_equal(0xFFFF'0231u);
+		expect(cable_depth_of_word(word).value).to_equal(decoded[0].depth().value);
+	});
+
 	it("keeps at most 32 cables", _ {
 		Value many = Value::makeArray();
 		for (size_t i = 0; i < 40; ++i) {

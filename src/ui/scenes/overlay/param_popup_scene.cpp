@@ -112,9 +112,8 @@ void format_name(const PluginParam& param, PatchSource source1, PatchSource sour
 			out.append(source_short_name(source2));
 			out.append("->");
 		}
-		// A cable's word packs its sources above the destination, which is the low byte.
-		const deluge::plugin::ParamId destination{
-		    static_cast<uint8_t>(deluge::instruments::classic::cable_word_of(id))};
+		// The param at the root of the cable's chain of depths
+		const deluge::plugin::ParamId destination = deluge::instruments::classic::cable_root(id);
 		const std::optional<std::string_view> envelope_name =
 		    context.envelopes ? deluge::l10n::envelope_param_name(destination, *context.envelopes, /*brief=*/true)
 		                      : std::nullopt;

@@ -526,11 +526,11 @@ std::string_view patched_param_short_name(plugin::ParamId id, effects::FilterMod
 }
 
 std::string_view patched_param_short_name_at(uint32_t index) {
-	return patched_param_short_name(plugin::ParamId{index});
+	return patched_param_short_name(instruments::classic::flat_param_id(index));
 }
 
 std::string_view patched_param_short_name_at(uint32_t index, effects::FilterMode lpf, effects::FilterMode hpf) {
-	return patched_param_short_name(plugin::ParamId{index}, lpf, hpf);
+	return patched_param_short_name(instruments::classic::flat_param_id(index), lpf, hpf);
 }
 
 std::optional<std::string_view> envelope_param_name(plugin::ParamId id, const EnvelopeModes& modes, bool brief) {
@@ -565,7 +565,7 @@ std::optional<std::string_view> envelope_param_name_at(plugin::ParamKind kind, u
 	if (kind != plugin::ParamKind::PATCHED) {
 		return std::nullopt;
 	}
-	return envelope_param_name(plugin::ParamId{index}, modes, brief);
+	return envelope_param_name(instruments::classic::flat_param_id(index), modes, brief);
 }
 
 } // namespace deluge::l10n

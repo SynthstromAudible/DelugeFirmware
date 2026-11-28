@@ -55,7 +55,7 @@ int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::Slot
 			    != PatchCableAcceptance::DISALLOWED;
 			const bool port = deluge::instruments::classic::cable_allowed(
 			    static_cast<deluge::instruments::classic::PatchSource>(s),
-			    deluge::plugin::ParamId{static_cast<uint32_t>(p)}, *state, is_drum);
+			    deluge::instruments::classic::flat_param_id(static_cast<uint32_t>(p)), *state, is_drum);
 			if (legacy != port) {
 				if (found++ == 0) {
 					char line[96];

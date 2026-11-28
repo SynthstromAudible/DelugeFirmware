@@ -251,7 +251,10 @@ void Sound::initParams(ParamManager* paramManager) {
 	                     params::LOCAL_OSC_A_PITCH_ADJUST,
 	                     params::LOCAL_OSC_B_PITCH_ADJUST,
 	                     params::LOCAL_MODULATOR_0_PITCH_ADJUST,
-	                     params::LOCAL_MODULATOR_1_PITCH_ADJUST});
+	                     params::LOCAL_MODULATOR_1_PITCH_ADJUST,
+	                     params::LOCAL_DX7_LEVEL,
+	                     params::LOCAL_DX7_AMP_MOD,
+	                     params::LOCAL_DX7_PITCH_ADJUST});
 }
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
@@ -648,6 +651,12 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 
 	switch (p) {
 	case params::GLOBAL_NONE:
+		return PatchCableAcceptance::DISALLOWED;
+
+	// The DX7's own params take no cable yet
+	case params::LOCAL_DX7_LEVEL:
+	case params::LOCAL_DX7_AMP_MOD:
+	case params::LOCAL_DX7_PITCH_ADJUST:
 		return PatchCableAcceptance::DISALLOWED;
 
 	case params::LOCAL_VOLUME:

@@ -129,6 +129,10 @@ inline constexpr std::array<ParamRules, modulation::params::kNumParams> kParamRu
 	set(LOCAL_ENV_1_RELEASE, ChainKind::ADD, CurveKind::RELEASE_TABLE, false, 71680, 1073741824);
 	set(LOCAL_ENV_2_RELEASE, ChainKind::ADD, CurveKind::RELEASE_TABLE, false, 71680, 1073741824);
 	set(LOCAL_ENV_3_RELEASE, ChainKind::ADD, CurveKind::RELEASE_TABLE, false, 71680, 1073741824);
+	// The DX7's own params patch as oscillator A's volume, pulse width and pitch adjust
+	set(LOCAL_DX7_LEVEL, ChainKind::MULTIPLY, CurveKind::SQUARE, false, 134217728, 1073741824);
+	set(LOCAL_DX7_AMP_MOD, ChainKind::ADD, CurveKind::BIPOLAR, kBipolar, 0, 1073741824);
+	set(LOCAL_DX7_PITCH_ADJUST, ChainKind::ADD, CurveKind::EXPONENTIAL, false, kMaxSampleValue, 536870912);
 	set(GLOBAL_VOLUME_POST_FX, ChainKind::MULTIPLY, CurveKind::SQUARE, false, 134217728, 1073741824);
 	set(GLOBAL_VOLUME_POST_REVERB_SEND, ChainKind::MULTIPLY, CurveKind::SQUARE, false, 134217728, 1073741824);
 	set(GLOBAL_REVERB_AMOUNT, ChainKind::MULTIPLY, CurveKind::SQUARE, false, 134217728, 1073741824);
@@ -181,6 +185,7 @@ inline constexpr std::array<int32_t, modulation::params::kNumParams> kParamRange
 		return from == PatchSource::VELOCITY ? DepthMode::SQUARED_PITCH_VELOCITY : DepthMode::SQUARED_PITCH_OTHER;
 	case modulation::params::LOCAL_OSC_A_PITCH_ADJUST:
 	case modulation::params::LOCAL_OSC_B_PITCH_ADJUST:
+	case modulation::params::LOCAL_DX7_PITCH_ADJUST:
 	case modulation::params::LOCAL_MODULATOR_0_PITCH_ADJUST:
 	case modulation::params::LOCAL_MODULATOR_1_PITCH_ADJUST:
 	case modulation::params::GLOBAL_DELAY_RATE:

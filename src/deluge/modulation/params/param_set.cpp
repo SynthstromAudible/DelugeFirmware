@@ -131,10 +131,13 @@ deluge::project::DocParamSet* ParamSet::domStore() {
 }
 
 void ParamSet::projectFromStoreAfterRead(ParamCollectionSummary* summary) {
-	deluge::project::DocParamSet* store = domStoreRef_;
-	for (int32_t p = 0; p < getNumParams() && p < (int32_t)store->params.size(); p++) {
-		params[p].playBase(store->params[p]);
-		if (params[p].isAutomated(store->params[p])) {
+	for (int32_t p = 0; p < getNumParams(); p++) {
+		const deluge::project::DocAutoParam* lane = findDocParamForId(p);
+		if (lane == nullptr) {
+			continue;
+		}
+		params[p].playBase(*lane);
+		if (params[p].isAutomated(*lane)) {
 			paramHasAutomationNow(summary, p);
 		}
 	}
@@ -154,14 +157,16 @@ deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
 		domStore_ = std::move(own);
 		domStoreRef_ = domStore_.get();
 	}
-	return &domStoreRef_->params[p];
+	// The store holds its lanes in id order; p is the runtime's index
+	return &domStoreRef_->params[*deluge::bridge::laneIndexOf(*domStoreRef_, getParamKind(), p)];
 }
 
 deluge::project::DocAutoParam* ParamSet::findDocParamForId(int32_t paramId) {
-	if (domStoreRef_ == nullptr || paramId < 0 || static_cast<size_t>(paramId) >= domStoreRef_->params.size()) {
+	if (domStoreRef_ == nullptr) {
 		return nullptr;
 	}
-	return &domStoreRef_->params[paramId];
+	const std::optional<size_t> lane = deluge::bridge::laneIndexOf(*domStoreRef_, getParamKind(), paramId);
+	return lane ? &domStoreRef_->params[*lane] : nullptr;
 }
 
 void ParamSet::stripAutomation() {

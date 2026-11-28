@@ -92,14 +92,14 @@ inline ReferenceResult model_results(const PatchCase& c, const CompiledCase& com
 	sound.perform_initial_patching(compiled.block);
 	out.sound[0] = sound_finals;
 	voice.perform_initial_patching(compiled.block);
-	out.voice[0] = voice_finals;
+	out.voice[0] = reference_voice(voice_finals);
 	for (size_t b = 0; b < c.sources_changed.size(); ++b) {
 		voice_sources = c.sources[b + 1];
 		std::copy_n(c.sources[b + 1].begin(), kNumGlobalSources, sound_sources.begin());
 		sound.perform_patching(c.sources_changed[b], compiled.block);
 		out.sound[b + 1] = sound_finals;
 		voice.perform_patching(c.sources_changed[b], compiled.block);
-		out.voice[b + 1] = voice_finals;
+		out.voice[b + 1] = reference_voice(voice_finals);
 	}
 	return out;
 }

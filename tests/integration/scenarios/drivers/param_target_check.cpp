@@ -32,6 +32,7 @@
 #include "gui/views/performance_view.h"
 #include "host/chains/params.h"
 #include "instruments/classic/pages.h"
+#include "instruments/classic/params.h"
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_params.h"
@@ -234,8 +235,8 @@ void checkEditIds(Checker& check) {
 	if (classic::runtime_slot(classic::param::kCompressorShape)->index != params::UNPATCHED_SIDECHAIN_SHAPE
 	    || *chains::find_runtime_index(chains::param::kCompressorShape) != params::UNPATCHED_SIDECHAIN_SHAPE
 	    || *chains::find_runtime_index(chains::param::kSidechainCompressorVolume) != params::UNPATCHED_SIDECHAIN_VOLUME
-	    || classic::param::kVolumePostReverbSend.value != params::GLOBAL_VOLUME_POST_REVERB_SEND
-	    || classic::param::kVolume.value != params::LOCAL_VOLUME) {
+	    || classic::runtime_slot(classic::param::kVolumePostReverbSend)->index != params::GLOBAL_VOLUME_POST_REVERB_SEND
+	    || classic::runtime_slot(classic::param::kVolume)->index != params::LOCAL_VOLUME) {
 		check.fail("an edit's id", 0, 0, 0);
 	}
 	for (uint32_t p = 0; p < params::UNPATCHED_START + params::UNPATCHED_GLOBAL_MAX_NUM; ++p) {
@@ -307,8 +308,9 @@ void checkCell(Checker& check, const char* table, OwnerPlugin owner, std::option
 		}
 		return;
 	}
-	// The cells are main's: its unpatched params past the arp's sit 15 (16) higher, and the arp's own (a sound's arp
-	// rate, its patched 54, among them) are ours by arp id (support/main_numbering.h).
+	// The cells are main's: its patched params (in a cable's word too) at their ids (ours keep the per-voice ones
+	// first), its unpatched params past the arp's 15 (16) higher, and the arp's own (a sound's arp rate, its patched
+	// 54, among them) ours by arp id (support/main_numbering.h).
 	params::Kind kind = cell.kind;
 	int32_t index = cell.index;
 	if (kind == params::Kind::PATCHED) {
@@ -317,6 +319,17 @@ void checkCell(Checker& check, const char* table, OwnerPlugin owner, std::option
 			kind = params::Kind::ARP;
 			index = static_cast<int32_t>(*arp);
 		}
+		else {
+			index = static_cast<int32_t>(
+			    deluge::instruments::classic::flat_index(deluge::plugin::ParamId{static_cast<uint32_t>(index)}));
+		}
+	}
+	else if (kind == params::Kind::PATCH_CABLE) {
+		// A cable word names its param by main's patched number, the param's id
+		const deluge::synth::CableTarget word{static_cast<uint32_t>(index)};
+		index = static_cast<int32_t>(word.with_param(static_cast<uint8_t>(deluge::instruments::classic::flat_index(
+		                                                 deluge::plugin::ParamId{word.param_index()})))
+		                                 .word);
 	}
 	else if (kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
 		namespace numbering = deluge::ui::scenes::spec::main_numbering;
@@ -393,7 +406,7 @@ void checkMIDICCShortcuts(Checker& check) {
 					RuntimeParam param = *deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, *cell);
 					uint8_t cc = MIDI_CC_NONE;
 					if (param.kind == params::Kind::PATCHED) {
-						cc = follow.soundParamToCC[param.index];
+						cc = follow.soundParamToCC[cell->id.value]; // the sound map is keyed by id
 					}
 					else if (param.kind == params::Kind::UNPATCHED_SOUND) {
 						cc = follow.soundParamToCC[params::UNPATCHED_START + param.index];
@@ -424,7 +437,7 @@ void checkMIDICCShortcuts(Checker& check) {
 	expect("MIDI CC shortcut, default mappings");
 	// A patched param the sound map leaves unmapped (the master level, at 6,0) has no CC; nor does portamento (7,0),
 	// whose unpatched index is the global map's mod FX rate.
-	follow.soundParamToCC[params::GLOBAL_VOLUME_POST_FX] = MIDI_CC_NONE;
+	follow.soundParamToCC[deluge::instruments::classic::param::kVolumePostFX.value] = MIDI_CC_NONE;
 	expect("MIDI CC shortcut, patched param unmapped");
 	follow.soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO] = MIDI_CC_NONE;
 	expect("MIDI CC shortcut, portamento unmapped");
@@ -481,10 +494,9 @@ void checkMidiFollow(Checker& check) {
 		}
 		// Main's record names the param by its own kind: a sound's arp rate as patched
 		const int expected =
-		    unpatched  ? controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::UNPATCHED_SOUND,
-		                             static_cast<int32_t>(main_id - params::UNPATCHED_START))
-		    : arp_rate ? controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::PATCHED, static_cast<int32_t>(main_id))
-		               : controlling(Table::FOLLOW_CC_TO_SOUND, param->kind, param->index);
+		    unpatched ? controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::UNPATCHED_SOUND,
+		                            static_cast<int32_t>(main_id - params::UNPATCHED_START))
+		              : controlling(Table::FOLLOW_CC_TO_SOUND, params::Kind::PATCHED, static_cast<int32_t>(main_id));
 		std::optional<uint8_t> cc = follow.ccOf(OwnerPlugin::INSTRUMENT, target);
 		if (ccNumber(cc) != expected || ccNumber(cc) != cell.index) {
 			check.fail("follow sound CC", cell.cell, ccNumber(cc), cell.index);

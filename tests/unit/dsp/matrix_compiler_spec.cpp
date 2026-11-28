@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "support/spec_main.h"
@@ -272,7 +273,8 @@ describe matrix_compiler_spec_body("the matrix compiler", ${
 	it("sets every param's chain, curve and hybrid flag as the params' enum regions did", _{
 		int32_t differing = 0;
 		for (int32_t p = 0; p < params::kNumParams; ++p) {
-			differing += (chain_of(p) != region_chain(p) || curve_of(p) != region_curve(p) || is_patching_bipolar(p) != region_bipolar(p)) ? 1 : 0;
+			const int32_t r = regions::region_param(p);
+			differing += (chain_of(p) != region_chain(r) || curve_of(p) != region_curve(r) || is_patching_bipolar(p) != region_bipolar(r)) ? 1 : 0;
 		}
 		expect(differing).to_equal(0);
 	});
@@ -280,9 +282,28 @@ describe matrix_compiler_spec_body("the matrix compiler", ${
 	it("gives every param the neutral value and preset range it had", _{
 		int32_t differing = 0;
 		for (int32_t p = 0; p < params::kNumParams; ++p) {
-			differing += (kParamNeutral[p] != old_neutral(p) || kParamRange[p] != old_range(p)) ? 1 : 0;
+			const int32_t r = regions::region_param(p);
+			differing += (kParamNeutral[p] != old_neutral(r) || kParamRange[p] != old_range(r)) ? 1 : 0;
 		}
 		expect(differing).to_equal(0);
+	});
+
+	it("patches each of the DX7's params by every rule of its oscillator A counterpart", _{
+		const std::pair<int32_t, int32_t> kCounterparts[] = {{params::LOCAL_DX7_LEVEL, params::LOCAL_OSC_A_VOLUME},
+		                                                     {params::LOCAL_DX7_AMP_MOD, params::LOCAL_OSC_A_PHASE_WIDTH},
+		                                                     {params::LOCAL_DX7_PITCH_ADJUST, params::LOCAL_OSC_A_PITCH_ADJUST}};
+		for (const auto& [dx7, osc] : kCounterparts) {
+			expect(scope_of(dx7)).to_equal(scope_of(osc));
+			expect(chain_of(dx7)).to_equal(chain_of(osc));
+			expect(curve_of(dx7)).to_equal(curve_of(osc));
+			expect(is_patching_bipolar(dx7)).to_equal(is_patching_bipolar(osc));
+			expect(kParamNeutral[dx7]).to_equal(kParamNeutral[osc]);
+			expect(kParamRange[dx7]).to_equal(kParamRange[osc]);
+			for (uint8_t s = 0; s < kNumPatchSources; ++s) {
+				expect(static_cast<int>(depth_mode_of(static_cast<PatchSource>(s), dx7)))
+				    .to_equal(static_cast<int>(depth_mode_of(static_cast<PatchSource>(s), osc)));
+			}
+		}
 	});
 
 	it("gives each param a curve and a chain by its scope's regions", _{

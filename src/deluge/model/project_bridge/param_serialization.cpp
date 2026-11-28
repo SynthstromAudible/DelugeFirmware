@@ -72,7 +72,8 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, ParamId id, Serializer& out,
                               bool writeAutomation, bool onlyIfContainsSomething, const int32_t* valuesForOverride) {
 	// Byte-for-byte reproduction of ParamSet::writeParamAsAttribute.
-	const size_t p = *doc.indexOf(id); // the override arrays are indexed by position in the set
+	// The override arrays are a global effectable's, indexed by its runtime index: its store's position for the id
+	const size_t p = *doc.indexOf(id);
 	const DocAutoParam& param = doc.params[p];
 	// containsSomething(neutral=0): automated, or currentValue != 0 (as an unsigned compare).
 	if (onlyIfContainsSomething && param.nodes.empty() && static_cast<uint32_t>(param.current_value) == 0u) {
@@ -403,9 +404,10 @@ void serializePatchCables(std::span<const deluge::synth::CableRecord> cables,
 	     deluge::instruments::classic::encode_cables(states)) {
 		out.writeOpeningTagBeginning("patchCable", true);
 		out.writeAttribute("source", sourceToString(cable.route.source));
-		out.writeAttribute("destination",
-		                   params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
-		                                            static_cast<int32_t>(cable.route.destination.value)));
+		// The route names its destination by id; an id no row has (an unknown destination) is written "none"
+		const deluge::plugin::ParamInfo* destination =
+		    deluge::plugin::find_param(deluge::instruments::classic::kParams, cable.route.destination);
+		out.writeAttribute("destination", destination != nullptr ? destination->file_name.data() : "none");
 		out.writeAttribute("polarity", polarityToString(static_cast<Polarity>(cable.polarity)).data());
 		out.insertCommaIfNeeded();
 		out.write("\n");
