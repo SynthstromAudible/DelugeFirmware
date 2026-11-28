@@ -50,6 +50,7 @@
 #include "storage/flash_storage.h"
 #include "ui/views/waveform/view.h"
 
+#include "support/popup_capture.h"
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/project_address_printer.h"
 #include "support/shortcut_layout.h"
@@ -96,32 +97,6 @@ uint32_t idle_after(ScreensaverMode mode, uint8_t minutes) {
 	deluge::hid::display::Screensaver::settingsChanged();
 	return shellHostUI.shell().screensaver_idle_ms();
 }
-
-/// @brief A display that keeps the notification last drawn, how many it drew, and that one is up once drawn.
-struct NotificationDisplay final : deluge::hid::Display {
-	std::string title;
-	std::string value;
-	int draws = 0;
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return draws > 0; }
-	bool hasPopupOfType(PopupType type) override { return draws > 0 && type == PopupType::NOTIFICATION; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-	void displayNotification(std::string_view t, std::optional<std::string_view> v) override {
-		title = t;
-		value = v.value_or("");
-		draws++;
-	}
-};
 
 } // namespace
 
@@ -309,9 +284,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		deluge::gui::ui::wireShellGuestServices();
 	});
 	it("hands a showing knob popup to legacy's display when the guest closes, with its remaining lifetime", _ {
-		NotificationDisplay stub;
-		deluge::hid::Display* const saved = display;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		auto& popup = deluge::ui::scenes::overlay::param_popup_scene();
 		popup.tick(100'000);
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
@@ -328,34 +301,30 @@ describe boot_services("the three services, installed into the guest's own Shell
 		if (hook != nullptr) {
 			hook(5'000'800); // 800 ms after the show: 1200 ms left
 		}
-		expect(stub.title).to_equal(name);
-		expect(stub.value).to_equal(value);
+		expect(popups.last(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION)).to_equal(std::optional<std::string>{name + "\n" + value});
 		expect(uiTimerManager.isTimerSet(TimerName::DISPLAY)).to_be_true();
 		expect(uiTimerManager.getTimer(TimerName::DISPLAY).triggerTime - AudioEngine::audioSampleTimer)
 		    .to_equal(uint32_t(1200 * 44));
 		expect(popup.remaining_ms()).to_equal(uint32_t(0));
 
 		// Nothing showing: nothing handed.
-		stub.title.clear();
+		popups.clear();
 		if (hook != nullptr) {
 			hook(5'000'900);
 		}
-		expect(stub.title.empty()).to_be_true();
+		expect(popups.count(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION)).to_equal(size_t{0});
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
-		display = saved;
 	});
 
 	it("tells legacy's knob popup what the hand-off drew, so its next draw is not taken for a repeat", _ {
-		NotificationDisplay stub;
-		deluge::hid::Display* const saved = display;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		const uint32_t saved_timer = AudioEngine::audioSampleTimer;
 		namespace params = deluge::modulation::params;
 
 		AudioEngine::audioSampleTimer = 50'000'000;
 		view.displayModEncoderValuePopup(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME, 10);
-		const std::string legacy_value = stub.value;
-		expect(stub.draws).to_equal(1);
+		const std::optional<std::string> legacy_banner = popups.last(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION);
+		expect(popups.count(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION)).to_equal(size_t{1});
 
 		// The guest's popup moves the knob on, and its close hands that popup to legacy's display.
 		auto& popup = deluge::ui::scenes::overlay::param_popup_scene();
@@ -363,16 +332,15 @@ describe boot_services("the three services, installed into the guest's own Shell
 		(void)popup.show(deluge::ui::scenes::spec::plugin_param(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME), 30, PatchSource::NONE,
 		                 PatchSource::NONE, 6'000'000, {});
 		deluge::gui::ui::handOffGuestOverlays(6'000'000);
-		expect(stub.value).not_().to_equal(legacy_value);
+		expect(popups.last(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION)).not_().to_equal(legacy_banner);
 
 		// Legacy turns back to where it last drew: a change from what is showing, so it draws.
 		AudioEngine::audioSampleTimer += 10 * 44'100;
 		view.displayModEncoderValuePopup(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME, 10);
-		expect(stub.value).to_equal(legacy_value);
+		expect(popups.last(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION)).to_equal(legacy_banner);
 
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		AudioEngine::audioSampleTimer = saved_timer;
-		display = saved;
 	});
 
 	it("tells the guest's knobs whether the UI mode lets a mod button act, as View answers it", _ {
