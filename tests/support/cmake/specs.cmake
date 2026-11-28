@@ -57,6 +57,10 @@ endfunction()
 # TrackingAllocator's outstanding-allocation set (tests/unit/deluge/memory/tracking_allocator_spec.cpp) instead.
 option(DELUGE_TEST_SANITIZERS "Build the spec drivers with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
 
+# Each spec driver precompiles CppSpec's headers once instead of every spec parsing them: ~1.1 s less per spec TU, and
+# 30-40% less summed compile time for dsp_specs. -DDELUGE_TEST_PCH=OFF builds them as before.
+option(DELUGE_TEST_PCH "Precompile CppSpec's headers for each spec driver" ON)
+
 # Applies the sanitizers to one target. Nothing is instrumented globally: the CppSpec and etl dependencies are fetched
 # third-party code, and a sanitizer report from inside them is not a finding about ours. ASan's runtime intercepts
 # malloc/free process-wide regardless, so the uninstrumented framework objects are still covered for heap errors.
@@ -167,6 +171,29 @@ function(deluge_specs_driver name)
   target_compile_definitions(${name} PRIVATE _GLIBCXX_ASSERTIONS ${arg_DEFINITIONS})
   deluge_golden_root(${name})
   target_link_libraries(${name} PRIVATE c++spec ${arg_LIBRARIES})
+  # The precompiled header holds CppSpec's macro-free headers only. cppspec.hpp stays out: its `context`, `$` and `_`
+  # macros must come after the project headers (spec_main.h), and with #pragma once the later include of cppspec.hpp
+  # adds just the macros. Only the specs get it: SOURCES (the code under test and mocks) never include CppSpec, and
+  # force-including it would let them compile with a missing include of their own that only a PCH-off build shows. A
+  # spec that needs per-source flags must skip it too (SKIP_PRECOMPILE_HEADERS), or clang refuses the mismatch.
+  #
+  # ccache refuses a compile that uses a precompiled header unless its sloppiness allows pch_defines and time_macros,
+  # so the driver's compiles (its specs and SOURCES) go through a launcher that sets those two and nothing else:
+  # include_file_mtime/ctime would let ccache cache a compile whose header changed while it ran. It replaces any
+  # sloppiness set in ccache.conf for these compiles. time_macros means a cached spec keeps its __DATE__/__TIME__;
+  # none uses them. Library targets keep ccache's default checks.
+  if(DELUGE_TEST_PCH)
+    target_precompile_headers(${name} PRIVATE <class_description.hpp> <argparse.hpp> <runner.hpp>
+                                              <formatters/progress.hpp> <formatters/verbose.hpp>
+                                              <formatters/junit_xml.hpp>)
+    if(arg_SOURCES)
+      set_source_files_properties(${arg_SOURCES} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    endif()
+    if(DELUGE_CCACHE_PROGRAM AND CMAKE_CXX_COMPILER_LAUNCHER STREQUAL DELUGE_CCACHE_PROGRAM)
+      set_property(TARGET ${name} PROPERTY CXX_COMPILER_LAUNCHER ${CMAKE_COMMAND} -E env
+        CCACHE_SLOPPINESS=pch_defines,time_macros ${DELUGE_CCACHE_PROGRAM})
+    endif()
+  endif()
   target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${DELUGE_REPO_ROOT}/tests ${arg_INCLUDES})
   if(arg_NEON)
     deluge_test_neon(${name})
