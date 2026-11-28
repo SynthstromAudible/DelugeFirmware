@@ -2,6 +2,10 @@
 /// @brief `AudioClipScene` against legacy's `AudioClipView` on the same input: the differential driver's cases for the
 ///        audio clip view, and the driver's own examples.
 ///
+/// Legacy's side of every case is also frozen under `tests/golden/ui/audio_clip_oracle/`, one file per case
+/// (`support/differential/frozen.h`): the frozen comparison replays it, so the cases keep their reference once the
+/// legacy view is gone. The freezer example writes the files only when `AUDIO_CLIP_ORACLE_OUT` names a directory.
+///
 /// Each case plays its steps into legacy, puts the song back, plays them into the scene, and compares the OLED, the
 /// pads and the clip's model after every step (`support/differential/differential.h`). The input alphabet holds the
 /// arms the scene has ported; an arm joins it when its port lands, so a case that differs is a bug in the scene or a
@@ -9,6 +13,7 @@
 
 #include "support/audio_clip_rig.h"
 #include "support/differential/differential.h"
+#include "support/differential/frozen.h"
 
 #include "base/notify/notice_queue.h"
 #include "hid/matrix/matrix_driver.h"
@@ -16,6 +21,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <utility>
 
@@ -404,133 +412,199 @@ diff::Case scripted(std::string name, std::initializer_list<Gesture> gestures) {
 	return c;
 }
 
+/// @brief One case and the rig state it starts from.
+struct CaseRun {
+	diff::Case c;
+	Sentinel start{};
+	void (*setup)(Rig&) = [](Rig&) {};
+	void (*teardown)(Rig&) = [](Rig&) {};
+};
+
+/// The song's macros before the macros case set its own.
+std::array<deluge::project::SessionMacro, 8> g_saved_macros{};
+
+/// @brief Playing, with the flash cursor at @p Setting.
+template <uint8_t Setting>
+void start_playing(Rig&) {
+	PadLEDs::flashCursor = Setting;
+	playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+	playbackHandler.ticksLeftInCountIn = 0;
+}
+
+void stop_playing(Rig&) {
+	playbackHandler.playbackState = 0;
+}
+
+/// @brief Every case the view is compared on: the scripted gestures, the seeded walks over the ported arms, the walk
+///        while playing under each flash cursor setting, and the session macros.
+std::vector<CaseRun> audio_clip_cases() {
+	std::vector<CaseRun> runs;
+	runs.push_back(
+	    {.c = scripted("scroll and zoom",
+	                   {turn(EncoderRole::Horizontal, +1), turn(EncoderRole::Horizontal, -1),
+	                    holding(ButtonId::XEnc, turn(EncoderRole::Horizontal, -1)), turn(EncoderRole::Horizontal, +2),
+	                    holding(ButtonId::XEnc, turn(EncoderRole::Horizontal, +1))})});
+	runs.push_back({.c = scripted("markers and length",
+	                              {pad_tap(15, 4), pad_tap(6, 4), pad_tap(6, 4),
+	                               holding(ButtonId::Shift, turn(EncoderRole::Horizontal, +1)),
+	                               holding(ButtonId::Shift, holding(ButtonId::XEnc, turn(EncoderRole::Horizontal, -1))),
+	                               holding(ButtonId::XEnc, tap(ButtonId::YEnc))})});
+	runs.push_back({.c = scripted("clear and colour", {holding(ButtonId::Shift, turn(EncoderRole::Vertical, +3)),
+	                                                   holding(ButtonId::XEnc, tap(ButtonId::Back))})});
+	// SESSION stays held to the end: a release a millisecond after the press is a short press, which leaves the view.
+	runs.push_back({.c = scripted("session macros", {{Step::press(ButtonId::Session, true)},
+	                                                 pad_tap(16, 0),
+	                                                 pad_tap(16, 3),
+	                                                 pad_tap(16, 2),
+	                                                 holding(ButtonId::Shift, pad_tap(16, 0)),
+	                                                 holding(ButtonId::AffectEntire, pad_tap(16, 0)),
+	                                                 {Step::pad(16, 1, true)}}),
+	                .setup =
+	                    [](Rig& r) {
+		                    std::array<deluge::project::SessionMacro, 8>& macros =
+		                        r.f.song->project.arrangement.session_macros;
+		                    g_saved_macros = macros;
+		                    using Kind = deluge::project::SessionMacroKind;
+		                    macros[0] = {.kind = Kind::CLIP_LAUNCH, .clip_id = r.f.clip->id()};
+		                    macros[1] = {.kind = Kind::OUTPUT_CYCLE, .output_id = r.f.output->id()};
+		                    macros[2] = {.kind = Kind::SECTION, .section = 0};
+		                    macros[3] = {.kind = Kind::CLIP_LAUNCH, .clip_id = 0xFFFF'FFFFu}; // not in the song
+	                    },
+	                .teardown = [](Rig& r) { r.f.song->project.arrangement.session_macros = g_saved_macros; }});
+	const std::vector<Gesture> alphabet = ported_alphabet();
+	for (uint64_t seed = 1; seed <= 8; ++seed) {
+		runs.push_back({.c = diff::random_walk("audio clip walk", seed, alphabet, 80)});
+	}
+	const Sentinel playing{.last_processed_pos = 240};
+	const auto walk_playing = [&alphabet](uint8_t setting) {
+		diff::Case c = diff::random_walk("playing walk", 9, alphabet, 40);
+		c.name += std::format(" flash cursor {}", setting);
+		return c;
+	};
+	runs.push_back({.c = walk_playing(FLASH_CURSOR_SLOW),
+	                .start = playing,
+	                .setup = start_playing<FLASH_CURSOR_SLOW>,
+	                .teardown = stop_playing});
+	runs.push_back({.c = walk_playing(FLASH_CURSOR_FAST),
+	                .start = playing,
+	                .setup = start_playing<FLASH_CURSOR_FAST>,
+	                .teardown = stop_playing});
+	runs.push_back({.c = walk_playing(FLASH_CURSOR_OFF),
+	                .start = playing,
+	                .setup = start_playing<FLASH_CURSOR_OFF>,
+	                .teardown = stop_playing});
+	return runs;
+}
+
+/// @brief Where legacy's frozen frames are: `tests/golden/ui/audio_clip_oracle/`.
+std::filesystem::path oracle_dir() {
+	return std::filesystem::path{GOLDEN_ROOT} / "ui" / "audio_clip_oracle";
+}
+
 } // namespace
 
 // clang-format off
 // NOLINTBEGIN(readability-function-cognitive-complexity)
-describe audio_clip_differential_spec_body(
-    "scenes/audio_clip AudioClipScene against AudioClipView", $ {
-	    context("the differential driver", _ {
-		    it("reports nothing when every frame agrees", _ {
-			    ScriptedSide a{{frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed)}};
-			    ScriptedSide b{{frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed)}};
-			    const diff::Case c = taps(2);
-			    expect(diff::report(c, diff::run(c, a, b))).to_equal(std::string{});
-		    });
+describe audio_clip_differential_spec_body("scenes/audio_clip AudioClipScene against AudioClipView", $ {
+	context("the differential driver", _ {
+		it("reports nothing when every frame agrees", _ {
+			ScriptedSide a{{frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed)}};
+			ScriptedSide b{{frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed)}};
+			const diff::Case c = taps(2);
+			expect(diff::report(c, diff::run(c, a, b))).to_equal(std::string{});
+		});
 
-		    it("reports the first step whose frames differ, and which field", _ {
-			    ScriptedSide a{{frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed)}};
-			    ScriptedSide b{{frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kBlue)}};
-			    const auto d = diff::run(taps(2), a, b);
-			    expect(d.value_or(diff::Divergence{.step = 99}).step).to_equal(size_t{2});
-			    expect(d.value_or(diff::Divergence{}).field).to_equal(std::string{"pads"});
-		    });
+		it("reports the first step whose frames differ, and which field", _ {
+			ScriptedSide a{{frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed)}};
+			ScriptedSide b{{frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kBlue)}};
+			const auto d = diff::run(taps(2), a, b);
+			expect(d.value_or(diff::Divergence{.step = 99}).step).to_equal(size_t{2});
+			expect(d.value_or(diff::Divergence{}).field).to_equal(std::string{"pads"});
+		});
 
-		    it("does not report a pad a D-row masks", _ {
-			    ScriptedSide a{{frame_with_pad(3, 5, kRed), frame_with_pad(3, 5, kRed)}};
-			    ScriptedSide b{{frame_with_pad(3, 5, kRed), frame_with_pad(3, 5, kBlue)}};
-			    diff::Case c = taps(1);
-			    c.mask.mask_pad(3, 5, 201);
-			    expect(diff::report(c, diff::run(c, a, b))).to_equal(std::string{});
-		    });
+		it("does not report a pad a D-row masks", _ {
+			ScriptedSide a{{frame_with_pad(3, 5, kRed), frame_with_pad(3, 5, kRed)}};
+			ScriptedSide b{{frame_with_pad(3, 5, kRed), frame_with_pad(3, 5, kBlue)}};
+			diff::Case c = taps(1);
+			c.mask.mask_pad(3, 5, 201);
+			expect(diff::report(c, diff::run(c, a, b))).to_equal(std::string{});
+		});
 
-		    it("walks the same steps for the same seed, and other steps for another", _ {
-			    const std::vector<Gesture> alphabet = ported_alphabet();
-			    const diff::Case first = diff::random_walk("w", 7, alphabet, 50);
-			    const diff::Case again = diff::random_walk("w", 7, alphabet, 50);
-			    const diff::Case other = diff::random_walk("w", 8, alphabet, 50);
-			    expect(steps_text(again)).to_equal(steps_text(first));
-			    expect(steps_text(other)).not_().to_equal(steps_text(first));
-		    });
-	    });
+		it("walks the same steps for the same seed, and other steps for another", _ {
+			const std::vector<Gesture> alphabet = ported_alphabet();
+			const diff::Case first = diff::random_walk("w", 7, alphabet, 50);
+			const diff::Case again = diff::random_walk("w", 7, alphabet, 50);
+			const diff::Case other = diff::random_walk("w", 8, alphabet, 50);
+			expect(steps_text(again)).to_equal(steps_text(first));
+			expect(steps_text(other)).not_().to_equal(steps_text(first));
+		});
+	});
 
-	    context("the audio clip view", _ {
-		    it("agrees with legacy on scrolling and zooming", _ {
-			    Rig r;
-			    LegacySide legacy{r};
-			    SceneSide scene{r};
-			    const diff::Case c = scripted(
-			        "scroll and zoom", {turn(EncoderRole::Horizontal, +1), turn(EncoderRole::Horizontal, -1),
-			                            holding(ButtonId::XEnc, turn(EncoderRole::Horizontal, -1)),
-			                            turn(EncoderRole::Horizontal, +2),
-			                            holding(ButtonId::XEnc, turn(EncoderRole::Horizontal, +1))});
-			    expect(diff::report(c, diff::run(c, legacy, scene))).to_equal(std::string{});
-		    });
+	context("the audio clip view", _ {
+		it("records legacy's frames for every case, when AUDIO_CLIP_ORACLE_OUT names a directory", _ {
+			// The freezer: run only by hand, before the legacy view is deleted (`tests/golden/README.md`).
+			const char* out_dir = std::getenv("AUDIO_CLIP_ORACLE_OUT");
+			if (out_dir == nullptr) {
+				return;
+			}
+			for (const CaseRun& run : audio_clip_cases()) {
+				Rig r;
+				run.setup(r);
+				LegacySide legacy{r, run.start};
+				const std::vector<diff::Frame> frames = diff::record(run.c, legacy);
+				run.teardown(r);
+				std::ofstream file{std::filesystem::path{out_dir} / diff::frozen_file_name(run.c.name),
+				                   std::ios::binary};
+				const std::string text = diff::frozen_encode(frames);
+				file << text;
+				expect(static_cast<bool>(file)).to_equal(true);
+				// The file gives back exactly what was recorded.
+				const std::optional<std::vector<diff::Frame>> back = diff::frozen_decode(text);
+				expect(back.has_value()).to_equal(true);
+				if (back) {
+					expect(back->size()).to_equal(frames.size());
+					bool same = back->size() == frames.size();
+					for (size_t i = 0; same && i < frames.size(); ++i) {
+						same = (*back)[i].oled == frames[i].oled && (*back)[i].pads == frames[i].pads
+						       && (*back)[i].model == frames[i].model && (*back)[i].popups == frames[i].popups;
+					}
+					expect(same).to_equal(true);
+				}
+			}
+		});
 
-		    it("agrees with legacy on the end marker and the length edits", _ {
-			    Rig r;
-			    LegacySide legacy{r};
-			    SceneSide scene{r};
-			    const diff::Case c = scripted(
-			        "markers and length",
-			        {pad_tap(15, 4), pad_tap(6, 4), pad_tap(6, 4),
-			         holding(ButtonId::Shift, turn(EncoderRole::Horizontal, +1)),
-			         holding(ButtonId::Shift, holding(ButtonId::XEnc, turn(EncoderRole::Horizontal, -1))),
-			         holding(ButtonId::XEnc, tap(ButtonId::YEnc))});
-			    expect(diff::report(c, diff::run(c, legacy, scene))).to_equal(std::string{});
-		    });
+		it("agrees with legacy's frozen frames on every case: the scripted gestures, the walks and the macros", _ {
+			for (const CaseRun& run : audio_clip_cases()) {
+				const std::optional<std::string> text = diff::read_file(oracle_dir() / diff::frozen_file_name(run.c.name));
+				expect(text.has_value()).to_equal(true);
+				const std::optional<std::vector<diff::Frame>> frames =
+				    text ? diff::frozen_decode(*text) : std::nullopt;
+				expect(frames.has_value()).to_equal(true);
+				if (!frames) {
+					continue;
+				}
+				expect(frames->size()).to_equal(run.c.steps.size() + 1);
+				Rig r;
+				run.setup(r);
+				diff::FrozenSide legacy{*frames};
+				SceneSide scene{r, run.start};
+				expect(diff::report(run.c, diff::run(run.c, legacy, scene))).to_equal(std::string{});
+				run.teardown(r);
+			}
+		});
 
-		    it("agrees with legacy on BACK with X held, and the colour", _ {
-			    Rig r;
-			    LegacySide legacy{r};
-			    SceneSide scene{r};
-			    const diff::Case c =
-			        scripted("clear and colour", {holding(ButtonId::Shift, turn(EncoderRole::Vertical, +3)),
-			                                      holding(ButtonId::XEnc, tap(ButtonId::Back))});
-			    expect(diff::report(c, diff::run(c, legacy, scene))).to_equal(std::string{});
-		    });
-
-		    it("agrees with legacy on the session macros while SESSION is held, each kind and its modifiers", _ {
-			    Rig r;
-			    std::array<deluge::project::SessionMacro, 8>& macros = r.f.song->project.arrangement.session_macros;
-			    const std::array<deluge::project::SessionMacro, 8> saved = macros;
-			    using Kind = deluge::project::SessionMacroKind;
-			    macros[0] = {.kind = Kind::CLIP_LAUNCH, .clip_id = r.f.clip->id()};
-			    macros[1] = {.kind = Kind::OUTPUT_CYCLE, .output_id = r.f.output->id()};
-			    macros[2] = {.kind = Kind::SECTION, .section = 0};
-			    macros[3] = {.kind = Kind::CLIP_LAUNCH, .clip_id = 0xFFFF'FFFFu}; // a clip the song does not hold
-			    LegacySide legacy{r};
-			    SceneSide scene{r};
-			    // SESSION stays held to the end: a release a millisecond after the press is a short press, which leaves
-			    // the view.
-			    const diff::Case c = scripted(
-			        "session macros",
-			        {{Step::press(ButtonId::Session, true)}, pad_tap(16, 0), pad_tap(16, 3), pad_tap(16, 2),
-			         holding(ButtonId::Shift, pad_tap(16, 0)), holding(ButtonId::AffectEntire, pad_tap(16, 0)),
-			         {Step::pad(16, 1, true)}});
-			    expect(diff::report(c, diff::run(c, legacy, scene))).to_equal(std::string{});
-			    macros = saved;
-		    });
-
-		    it("agrees with legacy on seeded walks over every ported arm", _ {
-			    const std::vector<Gesture> alphabet = ported_alphabet();
-			    for (uint64_t seed = 1; seed <= 8; ++seed) {
-				    Rig r;
-				    LegacySide legacy{r};
-				    SceneSide scene{r};
-				    const diff::Case c = diff::random_walk("audio clip walk", seed, alphabet, 80);
-				    expect(diff::report(c, diff::run(c, legacy, scene))).to_equal(std::string{});
-			    }
-		    });
-
-		    it("agrees with legacy while playing, under each flash cursor setting", _ {
-			    const std::vector<Gesture> alphabet = ported_alphabet();
-			    for (const uint8_t setting : {FLASH_CURSOR_SLOW, FLASH_CURSOR_FAST, FLASH_CURSOR_OFF}) {
-				    Rig r;
-				    PadLEDs::flashCursor = setting;
-				    playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
-				    playbackHandler.ticksLeftInCountIn = 0;
-				    const Sentinel playing{.last_processed_pos = 240};
-				    LegacySide legacy{r, playing};
-				    SceneSide scene{r, playing};
-				    diff::Case c = diff::random_walk("playing walk", 9, alphabet, 40);
-				    c.name += std::format(" flash cursor {}", setting);
-				    expect(diff::report(c, diff::run(c, legacy, scene))).to_equal(std::string{});
-				    playbackHandler.playbackState = 0;
-			    }
-		    });
-	    });
-    });
+		it("still agrees with the live legacy view on every case, while it exists", _ {
+			for (const CaseRun& run : audio_clip_cases()) {
+				Rig r;
+				run.setup(r);
+				LegacySide legacy{r, run.start};
+				SceneSide scene{r, run.start};
+				expect(diff::report(run.c, diff::run(run.c, legacy, scene))).to_equal(std::string{});
+				run.teardown(r);
+			}
+		});
+	});
+});
 // NOLINTEND(readability-function-cognitive-complexity)
 // clang-format on
 DELUGE_SPEC(audio_clip_differential_spec, audio_clip_differential_spec_body)
