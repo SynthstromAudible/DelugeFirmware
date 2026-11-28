@@ -257,9 +257,10 @@ fn a_kit_drums_dx7_moves_its_rows_params_onto_the_dx7s() {
 }
 
 #[test]
-fn a_dx7_mode_sound_keeps_no_oscillator_engine_param() {
+fn a_dx7_mode_sound_keeps_no_oscillator_engine_param_and_no_zero_pitch_adjust() {
     let (doc, _) = run(r#"<sound mode="subtractive"><osc1 type="dx7"/><osc2 type="saw"/>
-        <defaultParams oscAVolume="0x7FFFFFFF" oscAPulseWidth="0x00000000" oscAWavetablePosition="0x00000000"
+        <defaultParams oscAVolume="0x7FFFFFFF" oscAPulseWidth="0x00000000" oscAPitchAdjust="0x00000000"
+                       oscAWavetablePosition="0x00000000"
                        oscBVolume="0x80000000" oscBPulseWidth="0x00000000" oscBWavetablePosition="0x00000000"
                        noiseVolume="0x80000000" modulator1Amount="0x80000000" modulator1Feedback="0x80000000"
                        modulator2Amount="0x80000000" modulator2Feedback="0x80000000" carrier1Feedback="0x80000000"

@@ -56,12 +56,14 @@
 #include "ui/scenes/bind/knob_assignment.h"
 #include "util/misc.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -394,6 +396,46 @@ void checkShortcutsAndOrders(Checker& check) {
 	      deluge::modulation::params::kGlobalParamsForAutomation, Table::AUTOMATION_GLOBAL);
 }
 
+/// A DX7-mode sound's automation reaches the DX7's own params through oscillator A's shortcuts and list entries, at
+/// their places, as `main` reached a DX7 on oscillator 1; an oscillator param with no DX7 counterpart is offered
+/// nowhere, and every other mode's targets stand.
+void checkDx7Automation(Checker& check) {
+	namespace ip = deluge::instruments::classic::param;
+	using deluge::instruments::classic::SynthMode;
+	const auto offered = [](SynthMode mode, deluge::plugin::ParamId id) {
+		return automationTargetFor(mode, deluge::project::engine_target(id.value));
+	};
+	const std::pair<deluge::plugin::ParamId, deluge::plugin::ParamId> kStandsFor[] = {
+	    {ip::kOscAVolume, ip::kDx7Level}, {ip::kOscAPhaseWidth, ip::kDx7AmpMod}, {ip::kOscAPitch, ip::kDx7Pitch}};
+	for (const auto& [osc, dx7] : kStandsFor) {
+		const std::optional<ParamTarget> target = offered(SynthMode::DX7, osc);
+		if (!target || target->id != dx7) {
+			check.fail("DX7 automation counterpart", static_cast<int>(osc.value),
+			           target ? static_cast<int>(target->id.value) : -1, static_cast<int>(dx7.value));
+		}
+		if (offered(SynthMode::SUBTRACTIVE, osc) != deluge::project::engine_target(osc.value)) {
+			check.fail("subtractive automation target", static_cast<int>(osc.value), 0, 0);
+		}
+		// The entry is on a shortcut pad and in the list, so the DX7's param has a place in both
+		bool on_pad = false;
+		for (const auto& column : deluge::modulation::params::kSoundParamShortcuts) {
+			for (const auto& cell : column) {
+				on_pad = on_pad || cell == deluge::project::engine_target(osc.value);
+			}
+		}
+		const bool listed = std::ranges::contains(deluge::modulation::params::kSoundParamsForAutomation,
+		                                          deluge::project::engine_target(osc.value));
+		if (!on_pad || !listed) {
+			check.fail("DX7 counterpart's place", static_cast<int>(osc.value), on_pad, listed);
+		}
+	}
+	for (const deluge::plugin::ParamId parked : {ip::kOscBVolume, ip::kNoiseVolume, ip::kModulator1Volume}) {
+		if (offered(SynthMode::DX7, parked)) {
+			check.fail("DX7 automation offers a parked param", static_cast<int>(parked.value), 0, 0);
+		}
+	}
+}
+
 /// A MIDI clip's automation overview shows, at each sound shortcut, the CC MIDI follow maps to that param in a sound's
 /// map, and none when the sound map has none; the expression shortcuts show their pseudo-CCs.
 void checkMIDICCShortcuts(Checker& check) {
@@ -712,6 +754,7 @@ int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	checkReads(check);
 	checkShortcutsAndOrders(check);
 	checkMIDICCShortcuts(check);
+	checkDx7Automation(check);
 	checkMidiFollow(check);
 	checkPerformanceTables(check);
 	checkKnobs(check);

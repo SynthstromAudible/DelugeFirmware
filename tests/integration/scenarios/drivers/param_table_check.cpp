@@ -475,7 +475,7 @@ void checkInitState(Checker& check) {
 			++check.disagreements;
 		}
 		for (int32_t p = 0; p < set.getNumParams(); ++p) {
-			const deluge::project::DocAutoParam* lane = set.findDocParamForId(p);
+			const deluge::project::DocAutoParam* lane = set.findDocParamForKey(p);
 			if (lane == nullptr || lane->current_value != set.getValue(p)) {
 				std::fprintf(check.io.err, "init %s %d: cursor %d, lane %d\n", owner, p, set.getValue(p),
 				             lane == nullptr ? 0 : lane->current_value);

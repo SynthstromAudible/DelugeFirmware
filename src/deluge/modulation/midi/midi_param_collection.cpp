@@ -133,7 +133,7 @@ deluge::project::DocAutoParam* MIDIParamCollection::docParamForId(int32_t paramI
 	return nullptr;
 }
 
-deluge::project::DocAutoParam* MIDIParamCollection::findDocParamForId(int32_t paramId) {
+deluge::project::DocAutoParam* MIDIParamCollection::findDocParamForKey(int32_t paramId) {
 	int32_t i = params.firstAtOrAfter(paramId);
 	if (i >= std::ssize(params) || params[i].cc != paramId) {
 		return nullptr;
@@ -411,7 +411,7 @@ void MIDIParamCollection::forEachAppendedKey(ParamCollection& other, const Param
 	// Each CC of this collection the other collection has a lane for
 	auto& otherCollection = static_cast<MIDIParamCollection&>(other);
 	for (const MIDIParam& param : params) {
-		if (otherCollection.findDocParamForId(param.cc) != nullptr) {
+		if (otherCollection.findDocParamForKey(param.cc) != nullptr) {
 			visit(param.cc);
 		}
 	}
@@ -421,7 +421,7 @@ void MIDIParamCollection::forEachLane(
     deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	for (int32_t i = 0; i < std::ssize(params); i++) {
 		const int32_t cc = params[i].cc;
-		const deluge::project::DocAutoParam* lane = findDocParamForId(cc);
+		const deluge::project::DocAutoParam* lane = findDocParamForKey(cc);
 		if (lane != nullptr && !lane->nodes.empty()) {
 			visit(cc, *lane);
 		}

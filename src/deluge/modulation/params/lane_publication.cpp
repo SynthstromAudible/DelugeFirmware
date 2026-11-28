@@ -204,7 +204,7 @@ void applyLaneRequests() {
 				project::set_base(*lane, request.value);
 			}
 		}
-		else if (project::DocAutoParam* lane = collection->findDocParamForId(request.paramId);
+		else if (project::DocAutoParam* lane = collection->findDocParamForKey(request.paramId);
 		         lane != nullptr && !lane->nodes.empty()) {
 			const int32_t last = std::ssize(lane->nodes) - 1;
 			if (lane->nodes[last].pos == request.value) {

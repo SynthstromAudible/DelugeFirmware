@@ -270,7 +270,7 @@ std::string parkedIn(ParamManager& manager, deluge::instruments::classic::SynthM
 			if (!slot || slot->set != classic::RuntimeSet::PATCHED || classic::param_is_live(mode, row.id)) {
 				continue;
 			}
-			const deluge::project::DocAutoParam* lane = patched->findDocParamForId(slot->index);
+			const deluge::project::DocAutoParam* lane = patched->findDocParamForKey(slot->index);
 			if (lane != nullptr && (lane->current_value != row.default_value || !lane->nodes.empty())) {
 				return std::string{"parked value "} + std::string{row.file_name};
 			}

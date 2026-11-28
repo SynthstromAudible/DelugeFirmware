@@ -175,6 +175,14 @@ fn audible(sound: &Node, osc: &str) -> bool {
     }
 }
 
+/// Whether a param's text is a zero with no automation: what the firmware leaves unwritten for a pitch adjust.
+fn holds_nothing(value: &Node) -> bool {
+    value.text().is_some_and(|text| {
+        let text = text.trim();
+        !automated(value) && text.strip_prefix("0x").map_or(text == "0", |hex| u32::from_str_radix(hex, 16) == Ok(0))
+    })
+}
+
 /// Whether a param's text holds automation: nodes after its value's 8 hex digits.
 fn automated(value: &Node) -> bool {
     value
@@ -221,7 +229,12 @@ fn move_onto_dx7(params: &mut Node, osc: &str, whose: &str) -> Vec<String> {
             .iter()
             .position(|(key, _)| key == param.value_on(osc))
         {
-            moved.push((param.dx7.to_string(), entries.remove(at).1));
+            let value = entries.remove(at).1;
+            // The firmware writes a pitch adjust only when it holds something
+            if param.dx7 == "dx7PitchAdjust" && holds_nothing(&value) {
+                continue;
+            }
+            moved.push((param.dx7.to_string(), value));
         }
     }
     entries.retain(|(key, value)| {

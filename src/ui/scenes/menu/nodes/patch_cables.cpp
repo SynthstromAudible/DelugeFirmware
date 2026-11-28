@@ -42,6 +42,7 @@
 #include "instruments/classic/cable_acceptance.h"
 #include "instruments/classic/cable_codec.h"
 #include "instruments/classic/cables.h"
+#include "instruments/classic/engine_params.h"
 #include "instruments/classic/params.h"
 #include "instruments/classic/state_access.h"
 #include "plugin/types/param_mapping.h"
@@ -168,11 +169,30 @@ std::optional<deluge::project::ParamAddress> sound_address(const MenuContext& ct
 	                                     .clip_id = ctx.addresses.clip->clip_id};
 }
 
+/// @brief The typed state of the sound @p ctx edits, or null.
+const deluge::instruments::classic::SoundState* sound_state_of(const MenuContext& ctx) {
+	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
+	                                                        : nullptr;
+}
+
 /// @brief The cables of the sound @p ctx edits, in the engine's order; empty where it edits none.
 deluge::ui::scenes::bind::CableList cables_of(const MenuContext& ctx) {
 	const std::optional<deluge::project::ParamAddress> owner = sound_address(ctx);
-	return owner && ctx.ports.sound != nullptr ? ctx.ports.sound->cables(*owner)
-	                                           : deluge::ui::scenes::bind::CableList{};
+	deluge::ui::scenes::bind::CableList all =
+	    owner && ctx.ports.sound != nullptr ? ctx.ports.sound->cables(*owner) : deluge::ui::scenes::bind::CableList{};
+	// A cable rooted at a param of an engine the sound is not playing is kept but not offered
+	const deluge::instruments::classic::SoundState* state = sound_state_of(ctx);
+	if (state == nullptr) {
+		return all;
+	}
+	const auto mode = deluge::instruments::classic::synth_mode(*state);
+	deluge::ui::scenes::bind::CableList offered;
+	for (const deluge::ui::scenes::bind::CableFact& cable : all) {
+		if (deluge::instruments::classic::target_is_live(mode, cable.depth)) {
+			offered.items[offered.count++] = cable;
+		}
+	}
+	return offered;
 }
 
 /// @brief A cable's two ends, as legacy's `PatchCable` holds them: its source, and its destination descriptor (the
@@ -215,12 +235,6 @@ std::optional<deluge::ui::scenes::bind::CableFact> find_cable(const MenuContext&
 std::optional<int32_t> cable_value(const MenuContext& ctx, PatchSource from, deluge::synth::CableTarget destination) {
 	const std::optional<deluge::project::ParamAddress> address = cable_address(ctx, from, destination);
 	return address && ctx.ports.controls != nullptr ? ctx.ports.controls->param_value(*address) : std::nullopt;
-}
-
-/// @brief The typed state of the sound @p ctx edits, or null.
-const deluge::instruments::classic::SoundState* sound_state_of(const MenuContext& ctx) {
-	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
-	                                                        : nullptr;
 }
 
 /// @brief The destination's short name (`l10n::patched_param_short_name`), the morph params named after what the
@@ -1069,6 +1083,14 @@ bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth
 	// to another cable's range: a global source can control any range, a local one only a cable that goes to a local
 	// param.
 	if (!destination.is_param()) {
+		// The range of a cable rooted at a parked engine's param takes no cable
+		const deluge::instruments::classic::SoundState* state = sound_state_of(ctx);
+		if (state != nullptr
+		    && !deluge::instruments::classic::param_is_live(
+		        deluge::instruments::classic::synth_mode(*state),
+		        deluge::instruments::classic::flat_param_id(destination.param_index()))) {
+			return false;
+		}
 		if (source < PatchSource::ENVELOPE_0) {
 			return true;
 		}

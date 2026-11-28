@@ -662,10 +662,13 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::GLOBAL_NONE:
 		return PatchCableAcceptance::DISALLOWED;
 
-	// The DX7's own params take every source their oscillator A counterparts take in DX7 mode
+	// The DX7's own params take their oscillator A counterparts' rules: the level and the pitch adjust patch while the
+	// DX7 (source 0) can sound, and are only edited while it cannot; the amplitude modulation as the pulse width
 	case params::LOCAL_DX7_LEVEL:
-	case params::LOCAL_DX7_AMP_MOD:
 	case params::LOCAL_DX7_PITCH_ADJUST:
+		return isSourceActiveEverDisregardingMissingSample(0, paramManager) ? PatchCableAcceptance::ALLOWED
+		                                                                    : PatchCableAcceptance::EDITABLE;
+	case params::LOCAL_DX7_AMP_MOD:
 		return PatchCableAcceptance::ALLOWED;
 
 	case params::LOCAL_VOLUME:
@@ -2192,9 +2195,12 @@ bool Sound::learnedKnobTurns(Song* song, int32_t p) {
 	return deluge::bridge::learnedKnobTurns(song, *effectsOwner(), address, param);
 }
 
-const uint8_t patchedParamsWhichShouldBeZeroIfNoKnobAssigned[] = {
-    params::LOCAL_PITCH_ADJUST, params::LOCAL_OSC_A_PITCH_ADJUST, params::LOCAL_OSC_B_PITCH_ADJUST,
-    params::LOCAL_MODULATOR_0_PITCH_ADJUST, params::LOCAL_MODULATOR_1_PITCH_ADJUST};
+const uint8_t patchedParamsWhichShouldBeZeroIfNoKnobAssigned[] = {params::LOCAL_PITCH_ADJUST,
+                                                                  params::LOCAL_OSC_A_PITCH_ADJUST,
+                                                                  params::LOCAL_OSC_B_PITCH_ADJUST,
+                                                                  params::LOCAL_MODULATOR_0_PITCH_ADJUST,
+                                                                  params::LOCAL_MODULATOR_1_PITCH_ADJUST,
+                                                                  params::LOCAL_DX7_PITCH_ADJUST};
 
 void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager,
                                                                                      Song* song) {

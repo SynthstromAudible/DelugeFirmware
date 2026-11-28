@@ -115,7 +115,7 @@ void appendRepeat(uint32_t repeat, int32_t offset, ManagerWalk walk) {
 		    mine, source,
 		    [&](ParamCollection& collection, ParamCollection& other, const ParamCollectionSummary& otherSummary) {
 			    collection.forEachAppendedKey(other, otherSummary, [&](int32_t key) {
-				    const project::DocAutoParam* src = other.findDocParamForId(key);
+				    const project::DocAutoParam* src = other.findDocParamForKey(key);
 				    if (appendRepeatToCopy(collection, key, repeat, src, args) || src == nullptr
 				        || src->nodes.empty()) {
 					    return;

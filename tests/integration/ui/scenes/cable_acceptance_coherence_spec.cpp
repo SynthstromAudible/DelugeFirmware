@@ -6,8 +6,10 @@
 #include "gui/ui/shell_host/host_ports.h"
 #include "instruments/classic/cable_acceptance.h"
 
+#include "instruments/classic/params.h"
 #include "instruments/classic/settings.h"
 #include "instruments/classic/words.h"
+#include "io/midi/follow_host.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/instrument/kit.h"
@@ -19,6 +21,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "project/instrument_slot.h"
+#include "ui/controls/facts.h"
 
 #include "support/song_fixture.h"
 
@@ -215,6 +218,64 @@ describe cable_acceptance_coherence("a sound's cable acceptance, against the run
 		expect(sound.maySourcePatchToParam(PatchSource::LFO_GLOBAL_2, params::LOCAL_DX7_LEVEL, &manager)
 		       == PatchCableAcceptance::DISALLOWED)
 		    .to_equal(false);
+	});
+
+	it("patches the DX7's level and pitch adjust only while the DX7 can sound, as oscillator A's", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
+		ParamManager& manager = f.clip->paramManager;
+		PatchedParamSet* patched = manager.getPatchedParamSet();
+		expect(set_setting(sound, *f.song, slot, "mode", deluge::instruments::classic::to_string(SynthMode::DX7)))
+		    .to_equal(true);
+		const auto acceptance = [&](uint8_t p) {
+			return static_cast<int>(sound.maySourcePatchToParam(PatchSource::LFO_GLOBAL_1, p, &manager));
+		};
+		patched->params[params::LOCAL_DX7_LEVEL].setBase(*patched->docForParam(params::LOCAL_DX7_LEVEL), INT32_MIN);
+		expect(acceptance(params::LOCAL_DX7_LEVEL)).to_equal(static_cast<int>(PatchCableAcceptance::EDITABLE));
+		expect(acceptance(params::LOCAL_DX7_PITCH_ADJUST)).to_equal(static_cast<int>(PatchCableAcceptance::EDITABLE));
+		expect(acceptance(params::LOCAL_DX7_AMP_MOD)).to_equal(static_cast<int>(PatchCableAcceptance::ALLOWED));
+		patched->params[params::LOCAL_DX7_LEVEL].setBase(*patched->docForParam(params::LOCAL_DX7_LEVEL), 0x40000000);
+		expect(acceptance(params::LOCAL_DX7_LEVEL)).to_equal(static_cast<int>(PatchCableAcceptance::ALLOWED));
+		expect(acceptance(params::LOCAL_DX7_PITCH_ADJUST)).to_equal(static_cast<int>(PatchCableAcceptance::ALLOWED));
+	});
+
+	it("zeroes the DX7's pitch adjust with no knob on it, as oscillator A's", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
+		ParamManager& manager = f.clip->paramManager;
+		PatchedParamSet* patched = manager.getPatchedParamSet();
+		expect(set_setting(sound, *f.song, slot, "mode", deluge::instruments::classic::to_string(SynthMode::DX7)))
+		    .to_equal(true);
+		patched->params[params::LOCAL_DX7_PITCH_ADJUST].setBase(*patched->docForParam(params::LOCAL_DX7_PITCH_ADJUST),
+		                                                        0x100);
+		sound.ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&manager, f.song);
+		expect(patched->docForParam(params::LOCAL_DX7_PITCH_ADJUST)->current_value).to_equal(0);
+	});
+
+	it("moves a knob or a followed CC on oscillator A's volume onto the DX7's level in DX7 mode, and refuses osc B's", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
+		namespace ip = deluge::instruments::classic::param;
+		const auto at = [&](deluge::plugin::ParamId id) {
+			return deluge::project::ParamAddress::of(deluge::project::OwnerId::instrument(*f.instrument->id()),
+			                                         deluge::project::engine_target(id.value));
+		};
+		const deluge::ui::controls::Facts& facts = deluge::midi::followFacts();
+		expect(set_setting(sound, *f.song, slot, "mode", deluge::instruments::classic::to_string(SynthMode::DX7)))
+		    .to_equal(true);
+		expect(facts.playing_address(at(ip::kOscAVolume))->id.value).to_equal(ip::kDx7Level.value);
+		expect(facts.playing_address(at(ip::kOscAPitch))->id.value).to_equal(ip::kDx7Pitch.value);
+		expect(facts.playing_address(at(ip::kOscBVolume)).has_value()).to_equal(false);
+		expect(facts.playing_address(at(ip::kLpfFrequency))->id.value).to_equal(ip::kLpfFrequency.value);
+		expect(set_setting(sound, *f.song, slot, "mode", deluge::instruments::classic::to_string(SynthMode::SUBTRACTIVE)))
+		    .to_equal(true);
+		expect(facts.playing_address(at(ip::kOscBVolume))->id.value).to_equal(ip::kOscBVolume.value);
 	});
 
 	it("agrees on a kit's drum in every state acceptance reads", _ {

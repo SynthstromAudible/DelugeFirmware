@@ -132,7 +132,7 @@ deluge::project::DocParamSet* ParamSet::domStore() {
 
 void ParamSet::projectFromStoreAfterRead(ParamCollectionSummary* summary) {
 	for (int32_t p = 0; p < getNumParams(); p++) {
-		const deluge::project::DocAutoParam* lane = findDocParamForId(p);
+		const deluge::project::DocAutoParam* lane = findDocParamForKey(p);
 		if (lane == nullptr) {
 			continue;
 		}
@@ -161,11 +161,11 @@ deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
 	return &domStoreRef_->params[*deluge::bridge::laneIndexOf(*domStoreRef_, getParamKind(), p)];
 }
 
-deluge::project::DocAutoParam* ParamSet::findDocParamForId(int32_t paramId) {
+deluge::project::DocAutoParam* ParamSet::findDocParamForKey(int32_t index) {
 	if (domStoreRef_ == nullptr) {
 		return nullptr;
 	}
-	const std::optional<size_t> lane = deluge::bridge::laneIndexOf(*domStoreRef_, getParamKind(), paramId);
+	const std::optional<size_t> lane = deluge::bridge::laneIndexOf(*domStoreRef_, getParamKind(), index);
 	return lane ? &domStoreRef_->params[*lane] : nullptr;
 }
 
@@ -869,7 +869,7 @@ deluge::project::DocAutoParam* ParamSet::laneToAppendTo(int32_t paramId) {
 void ParamSet::forEachLane(deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	// The lanes the render's lookup finds: the bound store's, or an unbound set's params' own
 	for (int32_t p = 0; p < numParams_; p++) {
-		const deluge::project::DocAutoParam* lane = findDocParamForId(p);
+		const deluge::project::DocAutoParam* lane = findDocParamForKey(p);
 		if (lane != nullptr && !lane->nodes.empty()) {
 			visit(p, *lane);
 		}

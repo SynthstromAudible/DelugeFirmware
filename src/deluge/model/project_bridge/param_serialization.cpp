@@ -364,7 +364,7 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 
 	patchedAttr("dx7Level", ip::kDx7Level);
 	patchedAttr("dx7AmpMod", ip::kDx7AmpMod);
-	patchedAttr("dx7PitchAdjust", ip::kDx7Pitch);
+	patchedAttr("dx7PitchAdjust", ip::kDx7Pitch, true);
 
 	out.writeOpeningTagEnd();
 

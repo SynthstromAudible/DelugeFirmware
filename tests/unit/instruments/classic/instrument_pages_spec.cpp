@@ -284,6 +284,19 @@ describe instrument_pages("the Deluge instrument's pages", ${
 				expect(instruments::classic::remap_for_mode(SynthMode::RINGMOD, SynthMode::SUBTRACTIVE, knobs)).to_equal(knobs);
 			}
 		});
+		it("moves oscillator A's volume, pulse width and pitch knobs onto the DX7's own into DX7 mode, and back", _{
+			const auto depth = *instruments::classic::cable_depth_id(instruments::classic::PatchSource::LFO_GLOBAL_1, ip::kOscAVolume);
+			const Knobs osc = with_pair(with_pair(device_knobs(), 2, ip::kOscAVolume, ip::kOscAPhaseWidth), 3, ip::kOscAPitch, depth);
+			const Knobs dx7 = with_pair(with_pair(device_knobs(), 2, ip::kDx7Level, ip::kDx7AmpMod), 3, ip::kDx7Pitch,
+			                            *instruments::classic::cable_depth_id(instruments::classic::PatchSource::LFO_GLOBAL_1, ip::kDx7Level));
+			expect(instruments::classic::remap_for_mode(SynthMode::SUBTRACTIVE, SynthMode::DX7, osc)).to_equal(dx7);
+			expect(instruments::classic::remap_for_mode(SynthMode::DX7, SynthMode::SUBTRACTIVE, dx7)).to_equal(osc);
+			// A knob on a parked param with no DX7 counterpart stays (it turns nothing while parked)
+			const Knobs osc_b = with_pair(device_knobs(), 2, ip::kOscBVolume, ip::kOscAVolume);
+			expect(instruments::classic::remap_for_mode(SynthMode::SUBTRACTIVE, SynthMode::DX7, osc_b))
+			    .to_equal(with_pair(device_knobs(), 2, ip::kOscBVolume, ip::kDx7Level));
+			expect(instruments::classic::remap_for_mode(SynthMode::SUBTRACTIVE, SynthMode::DX7, device_knobs())).to_equal(device_knobs());
+		});
 		it("goes into FM from ring modulation and out to it as from and to subtractive", _{
 			expect(instruments::classic::remap_for_mode(SynthMode::RINGMOD, SynthMode::FM, device_knobs())).to_equal(kFm);
 			expect(instruments::classic::remap_for_mode(SynthMode::FM, SynthMode::RINGMOD, kFm)).to_equal(device_knobs());

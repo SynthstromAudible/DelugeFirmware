@@ -38,9 +38,14 @@ constexpr std::array kOscillatorReads{param::kOscAVolume,
                                       param::kModulator2Feedback,
                                       param::kEnv1Attack};
 
+/// The ids each engine owns, pinned apart from the code's lists: the oscillator engines' slots' volume, pitch, pulse
+/// width and wavetable position, the noise, the carriers' feedback and the modulators; the DX7's own three.
+constexpr std::array<uint32_t, 17> kPinnedOscillatorIds{0, 1, 3, 4, 5, 7, 8, 9, 10, 19, 20, 21, 22, 26, 27, 28, 29};
+constexpr std::array<uint32_t, 3> kPinnedDx7Ids{55, 56, 57};
+
 bool owned(ParamId id) {
-	return std::ranges::find(kOscillatorEngineParams, id) != kOscillatorEngineParams.end()
-	       || std::ranges::find(kDx7EngineParams, id) != kDx7EngineParams.end();
+	return std::ranges::find(kPinnedOscillatorIds, id.value) != kPinnedOscillatorIds.end()
+	       || std::ranges::find(kPinnedDx7Ids, id.value) != kPinnedDx7Ids.end();
 }
 
 } // namespace
@@ -67,6 +72,16 @@ describe engine_params("which engine owns each of the Deluge instrument's params
 		}
 	});
 
+	it("owns exactly the pinned params per engine", _ {
+		for (const deluge::plugin::ParamInfo& row : kParams) {
+			const bool oscillator = std::ranges::find(kPinnedOscillatorIds, row.id.value) != kPinnedOscillatorIds.end();
+			const bool dx7 = std::ranges::find(kPinnedDx7Ids, row.id.value) != kPinnedDx7Ids.end();
+			expect(std::string{row.file_name} + (param_is_live(SynthMode::FM, row.id) ? " fm" : " -")
+			       + (param_is_live(SynthMode::DX7, row.id) ? " dx7" : " -"))
+			    .to_equal(std::string{row.file_name} + (dx7 ? " -" : " fm") + (oscillator ? " -" : " dx7"));
+		}
+	});
+
 	it("gives every param no engine owns, the sound's, to every mode", _ {
 		for (const deluge::plugin::ParamInfo& row : kParams) {
 			for (const SynthMode mode : kModes) {
@@ -76,6 +91,18 @@ describe engine_params("which engine owns each of the Deluge instrument's params
 				}
 			}
 		}
+	});
+
+	it("names a parked oscillator A volume, pulse width or pitch by the DX7's own in DX7 mode, and back", _ {
+		expect(playing_param(SynthMode::DX7, param::kOscAVolume)->value).to_equal(param::kDx7Level.value);
+		expect(playing_param(SynthMode::DX7, param::kOscAPhaseWidth)->value).to_equal(param::kDx7AmpMod.value);
+		expect(playing_param(SynthMode::DX7, param::kOscAPitch)->value).to_equal(param::kDx7Pitch.value);
+		expect(playing_param(SynthMode::DX7, param::kOscBVolume).has_value()).to_equal(false);
+		expect(playing_param(SynthMode::SUBTRACTIVE, param::kDx7Level)->value).to_equal(param::kOscAVolume.value);
+		expect(playing_param(SynthMode::SUBTRACTIVE, param::kOscAVolume)->value).to_equal(param::kOscAVolume.value);
+		const ParamId on_osc = *cable_depth_id(PatchSource::LFO_GLOBAL_1, param::kOscAVolume);
+		expect(playing_target(SynthMode::DX7, on_osc)->value)
+		    .to_equal(cable_depth_id(PatchSource::LFO_GLOBAL_1, param::kDx7Level)->value);
 	});
 
 	it("keeps a cable's depth live while the param it roots at is", _ {

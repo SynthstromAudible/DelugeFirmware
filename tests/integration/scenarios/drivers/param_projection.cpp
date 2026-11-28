@@ -887,7 +887,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		const deluge::project::DocAutoParam* byId = set->domStore()->find(ip::kVolumePostFX);
 		check(byId != nullptr && byId->nodes.size() == 2 && byId->nodes[0].value == 111,
 		      "store: post-FX volume's automation read back by its id");
-		check(set->findDocParamForId(runtime) == byId, "store: post-FX volume's lane read back by its runtime index");
+		check(set->findDocParamForKey(runtime) == byId, "store: post-FX volume's lane read back by its runtime index");
 		const deluge::project::DocAutoParam* other =
 		    set->domStore()->find(deluge::plugin::ParamId{static_cast<uint32_t>(runtime)});
 		check(other != nullptr && other->nodes.empty(), "store: the id equal to its runtime index holds no automation");

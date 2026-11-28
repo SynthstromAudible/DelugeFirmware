@@ -105,8 +105,8 @@ public:
 	/// @return The param's DOM store slot (never null; the store is created on first use).
 	deluge::project::DocAutoParam* docForParam(int32_t p);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override { return docForParam(paramId); }
-	/// @copydoc ParamCollection::findDocParamForId
-	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
+	/// @copydoc ParamCollection::findDocParamForKey
+	deluge::project::DocAutoParam* findDocParamForKey(int32_t index) override;
 	/// @copydoc ParamCollection::forEachLane
 	void forEachLane(deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) override;
 	/// @copydoc ParamCollection::forEachAppendedKey

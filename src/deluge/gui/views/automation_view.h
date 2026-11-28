@@ -286,4 +286,13 @@ class MidiFollow;
 
 /// @brief The MIDI CC a MIDI clip's automation overview shows at pad (@p x, @p y): the CC @p follow maps to the
 /// sound shortcut there, or the expression shortcut's pseudo-CC; kNoParamID when there is none.
+/// @brief What a sound's automation offers in a shortcut's or a list entry's @p target place: the target while its
+///        engine plays; in DX7 mode an oscillator A param's DX7 counterpart (`instruments::classic::playing_target`),
+///        as `main` reached a DX7 on oscillator 1 through oscillator A's entries; nothing for another parked param.
+/// @param mode   The sound's synth mode; none for an owner that is no sound, whose targets all stand.
+/// @param target The shortcut's or entry's param.
+/// @return The param offered, or nullopt.
+std::optional<deluge::project::ParamTarget> automationTargetFor(std::optional<SynthMode> mode,
+                                                                const deluge::project::ParamTarget& target);
+
 uint32_t automationMIDICCShortcut(const MidiFollow& follow, int32_t x, int32_t y);

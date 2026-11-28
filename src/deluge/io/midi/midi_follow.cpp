@@ -905,8 +905,10 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, Clip* clip, int32_t ccNumber
 	}
 
 	const deluge::ui::controls::KnobFocus focus = deluge::midi::followFocus(*clip);
-	const std::optional<deluge::project::ParamAddress> address =
+	const std::optional<deluge::project::ParamAddress> followed =
 	    deluge::ui::controls::resolve_follow(focus, followTablesOf(*this), static_cast<uint8_t>(ccNumber));
+	const std::optional<deluge::project::ParamAddress> address =
+	    followed ? facts.playing_address(*followed) : std::nullopt;
 	const std::optional<int32_t> currentValue =
 	    address ? deluge::ui::controls::value_for_move(facts, *address, region) : std::nullopt;
 	if (!currentValue) {
