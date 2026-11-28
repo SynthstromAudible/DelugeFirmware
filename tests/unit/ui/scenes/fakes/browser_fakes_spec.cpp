@@ -15,6 +15,7 @@
 #include "project/device_settings.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
+#include "ui/widgets/core/style.h"
 #include "ui/widgets/grid/keyboard.h"
 
 #include "fakes.h"
@@ -139,6 +140,65 @@ describe browser_fakes("the browser, the context menu and the rename scene over 
 		r.turn(1);
 		expect(browser_scene().file_index()).to_equal(1);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"B"});
+	});
+
+	it("presents the listed rows: each name as drawn, the folder, and the selection", _ {
+		deluge::ui::scenes::bind::test::ModelFixture f;
+		f.host.catalogue.entries = {{"A.XML", false}, {"B", true}, {"C.XML", false}, {"D.XML", false}};
+		f.host.catalogue.folder = "MIDI_DEVICES/DEFINITION";
+		MenuContext ctx{};
+		ctx.model = &f.song;
+		ctx.addresses.track = deluge::ui::scenes::bind::test::kMidiTrack;
+		ctx.addresses.instrument = deluge::plugin::SettingContext::Instrument::MIDI;
+		ctx.ports = f.ports();
+		Rig r;
+		browser_scene().set_dispatch(&Deferred::dispatch);
+		browser_scene().open(ctx);
+		r.shell.init(SceneId{kBrowserSceneKind, static_cast<uint16_t>(BrowserId::MidiDeviceDefinition)});
+		r.shell.tick(0);
+		Deferred::run();
+		r.step();
+		r.step();
+		std::array<deluge::ui::views::oled::BrowserRow, deluge::ui::scenes::browser::kMaxBrowserRows> rows{};
+		deluge::ui::scenes::browser::BrowserScene::BrowserText text;
+		const deluge::ui::views::oled::BrowserList list =
+		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, rows, text);
+		expect(std::string{list.title}).to_equal(std::string{"Load midi device"});
+		expect(std::string{list.entered}).to_equal(std::string{"A"});
+		expect(list.file_icon_pt2 != nullptr).to_equal(true);
+		expect(list.rows.size()).to_equal(std::size_t{3});
+		if (list.rows.size() == 3) {
+			expect(std::string{list.rows[0].label}).to_equal(std::string{"A"});
+			expect(list.rows[0].selected).to_be_true();
+			expect(list.rows[0].scrolls).to_be_false();
+			expect(std::string{list.rows[1].label}).to_equal(std::string{"B"});
+			expect(list.rows[1].folder).to_be_true();
+			expect(list.rows[1].selected).to_be_false();
+			expect(std::string{list.rows[2].label}).to_equal(std::string{"C"});
+		}
+	});
+
+	it("presents the DX7 browser's keys dark: they type, and show nothing", _ {
+		deluge::ui::scenes::bind::test::ModelFixture f;
+		f.host.catalogue.entries = {{"BANK.SYX", false}};
+		f.host.catalogue.folder = "DX7";
+		MenuContext ctx{};
+		ctx.model = &f.song;
+		ctx.addresses.slot = deluge::ui::scenes::bind::test::kSynth;
+		ctx.ports = f.ports();
+		Rig r;
+		browser_scene().set_dispatch(&Deferred::dispatch);
+		browser_scene().open(ctx);
+		r.shell.init(SceneId{kBrowserSceneKind, static_cast<uint16_t>(BrowserId::DxSyx)});
+		r.shell.tick(0);
+		Deferred::run();
+		r.step();
+		r.step();
+		expect(browser_scene().browser_id()).to_equal(BrowserId::DxSyx);
+		const deluge::ui::views::grid::KeyboardPads keys = browser_scene().present_keys();
+		expect(keys.dark).to_be_true();
+		expect(keys.home_row).to_equal(deluge::ui::widgets::grid::kTextKeyboardHomeRow);
+		expect(keys.layout).to_equal(deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty);
 	});
 
 	it("runs each reset on the device actions port", _ {

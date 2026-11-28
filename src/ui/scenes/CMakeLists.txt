@@ -79,6 +79,7 @@ add_library(deluge_ui_scenes STATIC
     # the one scene that replaces the two `gui/ui/browser/` subclasses the menu tree
     # reaches -- `SampleBrowser` and `LoadMidiDeviceDefinitionUI` -- over the seam above.
     browser/browser_scene.cpp
+    browser/present.cpp
     # the sample marker editor.
     marker/marker_scene.cpp
     marker/present.cpp

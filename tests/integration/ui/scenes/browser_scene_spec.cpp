@@ -532,7 +532,7 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		// Three files and two folders, sorted. `CLIPS` and `KICKS` are directories.
 		expect(catalogue_order()).to_equal(std::string("CLAP.WAV,CLIPS,KICKS,SNARE.WAV,TOM.WAV"));
 		// `arrivedInNewFolder` with no search string selects entry 0 and shows its name with the
-		// extension stripped (`Browser::setEnteredTextFromCurrentFilename` in `browser.cpp`).
+		// extension stripped (`Browser::setEnteredTextFromCurrentFilename` in `gui/ui/browser/browser.cpp`).
 		expect(browser_scene().file_index()).to_equal(0);
 		expect(browser_scene().scroll()).to_equal(0);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLAP"});
@@ -683,7 +683,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		expect(static_cast<int>(FileCatalogue::fileItems.size())).to_equal(0);
 
 		// Legacy's `if (listingInProgress_) return;` at the top of `padAction`/`backButtonAction`
-		// (`browser.cpp`): the press reaches the scene and does nothing at all -- it
+		// (`gui/ui/browser/browser.cpp`): the press reaches the scene and does nothing at all -- it
 		// does not close the browser and does not start a second listing.
 		r.button(kBackX, kBackY, true, 10);
 		r.tick(10);
@@ -1456,7 +1456,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICK1"});
 
 		// BACK ascends. `goUpOneDirectoryLevelImpl` assigns the segment it dropped to `enteredText`
-		// and lists starting at it (`browser.cpp`), so the folder just left is selected.
+		// and lists starting at it (`gui/ui/browser/browser.cpp`), so the folder just left is selected.
 		r.button(kBackX, kBackY, true, r.clock + 10);
 		r.step();
 		expect(browser_scene().listing_in_flight()).to_be_true();
@@ -1560,7 +1560,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 
-		// `goUpOneDirectoryLevel`'s synchronous root test (`browser.cpp`): "SAMPLES" has
+		// `goUpOneDirectoryLevel`'s synchronous root test (`gui/ui/browser/browser.cpp`): "SAMPLES" has
 		// no slash, so there is no level to ascend and `backButtonAction` exits instead.
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES"});
 		r.button(kBackX, kBackY, true, r.clock + 10);
@@ -1587,7 +1587,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		// viewport, so it moves to the LAST visible row -- 4 - 3 + 1.
 		expect(browser_scene().scroll()).to_equal(2);
 
-		// Past the end with nothing culled: legacy wraps to 0 (`Browser::selectEncoderAction` in `browser.cpp`).
+		// Past the end with nothing culled: legacy wraps to 0 (`Browser::selectEncoderAction` in `gui/ui/browser/browser.cpp`).
 		r.turn(1, r.clock + 10);
 		r.step();
 		expect(browser_scene().file_index()).to_equal(0);
@@ -1612,7 +1612,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 
 		// `QwertyUI::padAction`'s normal-key arm (`qwerty_ui.cpp`) appends the character and calls
 		// `Browser::predictExtendedText`, which searches the cached window
-		// and selects what it finds (`browser.cpp`).
+		// and selects what it finds (`gui/ui/browser/browser.cpp`).
 		r.type('S');
 		expect(browser_scene().file_index()).to_equal(3);
 		// The found entry's name REPLACES the typed text, and the cursor stays where the typing left
@@ -1867,7 +1867,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.open_and_land(context_of(f), BrowserId::Sample);
 
 		// "KICKS" is a folder at index 2, past the first visible row: the search selects it AND
-		// `clampFileSelectionAndScroll` brings it on screen (`browser.cpp`).
+		// `clampFileSelectionAndScroll` brings it on screen (`gui/ui/browser/browser.cpp`).
 		r.type('K');
 		expect(browser_scene().file_index()).to_equal(2);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICKS"});
@@ -1875,7 +1875,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 
 		// A character no entry starts with is refused: `predictExtendedText`'s `notFound` arm with
 		// `mayDefaultToBrandNewNameOnEntry` false puts the selected file's name back
-		// (`Browser::continuePrediction` in `browser.cpp`) and `padAction` undoes the cursor advance (`qwerty_ui.cpp`).
+		// (`Browser::continuePrediction` in `gui/ui/browser/browser.cpp`) and `padAction` undoes the cursor advance (`qwerty_ui.cpp`).
 		r.type('Q');
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICKS"});
 		expect(browser_scene().file_index()).to_equal(2);
@@ -1897,7 +1897,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		expect(browser_scene().cursor()).to_equal(0);
 
 		// 'Z' sorts past every entry, so the cached-window search runs off the right-hand end
-		// (`Browser::continuePrediction` in `browser.cpp`) and the scene dispatches a re-read rather than answering.
+		// (`Browser::continuePrediction` in `gui/ui/browser/browser.cpp`) and the scene dispatches a re-read rather than answering.
 		r.type('Z');
 		expect(browser_scene().listing_in_flight()).to_be_true();
 		r.land();
@@ -1963,7 +1963,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		// `QwertyUI::padAction` (`qwerty_ui.cpp`): "First character must be alphanumerical". The cursor is at 0 on
-		// arrival (`Browser::applyListingSelection` in `browser.cpp`), so this is the first character.
+		// arrival (`Browser::applyListingSelection` in `gui/ui/browser/browser.cpp`), so this is the first character.
 		expect(browser_scene().cursor()).to_equal(0);
 		r.type('.');
 		expect(browser_scene().cursor()).to_equal(0);
@@ -3854,6 +3854,106 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 	});
 });
 
+describe browser_present("scenes::browser::BrowserScene present", $ {
+	it("presents as many rows as the taller panel's style has room for", _ {
+		deluge::ui::scenes::bind::test::FakeCatalogue catalogue;
+		CleanBrowser clean;
+		spec::SongFixture f = spec::make_midi_song();
+		catalogue.entries = {{"A.XML", false}, {"B.XML", false}, {"C.XML", false}, {"D.XML", false},
+		                     {"E.XML", false}, {"F.XML", false}, {"G.XML", false}, {"H.XML", false}};
+		catalogue.folder = "MIDI_DEVICES/DEFINITION";
+		MenuContext ctx = context_of(f);
+		ctx.ports.catalogue = &catalogue;
+		Rig r64{board_64(), profile_64()};
+		r64.open_and_land(ctx, BrowserId::MidiDeviceDefinition);
+		std::array<deluge::ui::views::oled::BrowserRow, browser::kMaxBrowserRows> rows{};
+		BrowserScene::BrowserText text;
+		const deluge::ui::views::oled::BrowserList list =
+		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle64, 128, rows, text);
+		expect(list.rows.size()).to_equal(std::size_t{5});
+		if (list.rows.size() == 5) {
+			expect(std::string{list.rows[4].label}).to_equal(std::string{"E"});
+		}
+	});
+
+	it("presents the second folder's names through the text the first one's were copied into", _ {
+		deluge::ui::scenes::bind::test::FakeCatalogue catalogue;
+		CleanBrowser clean;
+		spec::SongFixture f = spec::make_midi_song();
+		catalogue.entries = {{"A.XML", false}, {"B", true}, {"C.XML", false}};
+		catalogue.folder = "MIDI_DEVICES/DEFINITION";
+		MenuContext ctx = context_of(f);
+		ctx.ports.catalogue = &catalogue;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::MidiDeviceDefinition);
+		BrowserScene::BrowserText text;
+		std::array<deluge::ui::views::oled::BrowserRow, browser::kMaxBrowserRows> first{};
+		const deluge::ui::views::oled::BrowserList one =
+		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, first, text);
+		expect(std::string{one.rows[1].label}).to_equal(std::string{"B"});
+		catalogue.entries = {{"KICK.XML", false}, {"SNARE", true}, {"TOM.XML", false}};
+		catalogue.folder = "MIDI_DEVICES/DEFINITION/B";
+		r.step();
+		std::array<deluge::ui::views::oled::BrowserRow, browser::kMaxBrowserRows> second{};
+		const deluge::ui::views::oled::BrowserList two =
+		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, second, text);
+		expect(two.rows.size()).to_equal(std::size_t{3});
+		if (two.rows.size() == 3) {
+			expect(std::string{two.rows[0].label}).to_equal(std::string{"KICK"});
+			expect(std::string{two.rows[1].label}).to_equal(std::string{"SNARE"});
+			expect(std::string{two.rows[2].label}).to_equal(std::string{"TOM"});
+		}
+	});
+
+	it("presents the favourites over the banks, the current favourite and bank flashing when a period turns", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		FakeFavourites fake;
+		fake.slots[2] = 4;
+		fake.current = 2;
+		fake.bank = 1;
+		UseFavourites use(fake, FavouritesDefaultLayoutFavoritesAndBanks);
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		tap(r, 9, 7);
+		r.settle();
+		const std::optional<deluge::ui::views::grid::FavouritePads> now = browser_scene().present_favourites(r.clock);
+		expect(now.has_value()).to_be_true();
+		if (now.has_value()) {
+			expect(now->row).to_equal(6);
+			expect(now->colours).to_equal(deluge::ui::widgets::grid::favourite_row_colours(fake.slots));
+			expect(now->banks).to_equal(std::optional{deluge::ui::widgets::grid::favourite_bank_colours()});
+			expect(now->flash_favourite.has_value()).to_be_false();
+		}
+		const std::optional<deluge::ui::views::grid::FavouritePads> later =
+		    browser_scene().present_favourites(r.clock + browser::kFavouriteFlashMs);
+		expect(later.has_value()).to_be_true();
+		if (later.has_value()) {
+			expect(later->flash_favourite).to_equal(std::optional<uint8_t>{2});
+			expect(later->flash_bank).to_equal(std::optional<uint8_t>{1});
+		}
+	});
+
+	it("presents the file selector's BROWSE blink, its step played on the pass that drew it", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		const MenuContext ctx = sound_context(f);
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Menu);
+		const deluge::ui::views::grid::BlinkPads drawn = browser_scene().present_browse_blink(r.clock);
+		expect(drawn.plan).to_equal(
+		    deluge::ui::widgets::grid::exclusive_blink(static_cast<uint8_t>(ctx.source_index), 5, 0));
+		expect(drawn.fire).to_be_false();
+		const deluge::ui::views::grid::BlinkPads next =
+		    browser_scene().present_browse_blink(r.clock + deluge::ui::widgets::grid::kBlinkCycleMs);
+		expect(next.step).to_equal(drawn.step + 2);
+		expect(next.fire).to_be_true();
+	});
+});
+
 describe browser_scene_reference_rows("browser_scene: the reference rows", $ {
 	it("parses browser_scene.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = spec::OracleTable::named("browser_scene");
@@ -3871,4 +3971,5 @@ describe browser_scene_reference_rows("browser_scene: the reference rows", $ {
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
                 browser_navigation, browser_typing, browser_accept, browser_main_pixels, browser_goldens,
                 browser_long_press, browser_slicer_doors, browser_preview, browser_pads, browser_keyboard,
-                browser_scroll, browser_record_delete, browser_favourites, browser_scene_reference_rows)
+                browser_scroll, browser_record_delete, browser_favourites, browser_present,
+                browser_scene_reference_rows)

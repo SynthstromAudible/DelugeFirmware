@@ -78,7 +78,7 @@ DELUGE_SCENARIO_DECLARE(save_roundtrip);
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate must drive the REAL gesture, not
 /// the save machinery underneath it, or it would miss whatever the gesture itself does. Mirrors
-/// `BrowserListingAbProbe`'s friendship in `browser.h`.
+/// `BrowserListingAbProbe`'s friendship in `gui/ui/browser/browser.h`.
 class SaveRoundtripProbe {
 public:
 	/// Put the save browser on a folder, exactly as reaching the save screen does.

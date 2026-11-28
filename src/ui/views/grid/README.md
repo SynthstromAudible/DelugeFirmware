@@ -27,10 +27,11 @@ these differences.
 
 | header | views | parity |
 |---|---|---|
-| `blink` | `blink` (`BlinkPads`: a shortcut blink's plan, counter step and whether the step plays) | the audio recorder |
-| `waveform` | `waveform` (a sample's peaks as full-height bars over the main pads, monochrome or coloured) | the marker editor |
+| `blink` | `blink` (`BlinkPads`: a shortcut blink's plan, counter step and whether the step plays) | the audio recorder, the file browser |
+| `waveform` | `waveform` (a sample's peaks as full-height bars over the main pads, monochrome or coloured) | the marker editor, the file browser |
 | `playhead` | `playhead` (`Playhead`: each row's tick square, painted, flashed, or both; the flash latch is the trailing `last`) | the marker editor |
 | `marker` | `marker_overlay` (`MarkerOverlay`: each column's markers, their colours, the blink's suppression and flood) | the marker editor |
-| `keyboard` | `keyboard` (`KeyboardPads`: the text keyboard's layout and home row, optionally painted dark; the keyboard's state is the trailing `kb`) | the rename editor |
+| `keyboard` | `keyboard` (`KeyboardPads`: the text keyboard's layout and home row, optionally painted dark; the keyboard's state is the trailing `kb`) | the rename editor, the file browser |
+| `favourites` | `favourites` (`FavouritePads`: the favourites row's colours, the bank row's beneath it or none, and the favourite and bank to flash; returns each row's `Response`) | the file browser |
 
 Specs: `tests/unit/ui/views/grid/`.

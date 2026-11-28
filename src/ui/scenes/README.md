@@ -72,7 +72,10 @@ The scenes on views: the recorder (`present_status` and `present_blink`, over `v
 `present_playhead`, over `views::oled::marker_position`, `views::grid::waveform`, `views::grid::marker_overlay` and
 `views::grid::playhead`), and the rename editor (`present_window` and `present_keys`, over
 `views::oled::rename_window` and `views::grid::keyboard`; the keyboard's repeat and the cursor's blink stay in the
-scene).
+scene), and the file browser (`present_list`, `present_keys`, `present_favourites` and `present_browse_blink`, over
+`views::oled::browser_list`, `views::grid::keyboard`, `views::grid::favourites` and `views::grid::blink`, with the
+preview through `views::grid::waveform`; the list's names are copied into the scene's `BrowserText`, and the flashes'
+anchors, the visible-row count and the waveform's retry stay in the scene).
 
 ## Layer rules
 
@@ -691,8 +694,8 @@ pads. They share one read and one paint, and none of them holds the sample.
 
 * **The scenes keep no peak cache.** A frame reads its waveform's 16 columns through the waveforms port
   (`services::read_waveform`: `peaks` at the view's window, then `info`, whose range scales the bars) and paints the
-  PEAK columns (`services::peak_cols` and `views::grid::waveform` in the marker editor, `services::paint_columns`
-  elsewhere, or the audio clip view's coloured bars).
+  PEAK columns (`services::peak_cols` and `views::grid::waveform` in the marker editor and the sample browser,
+  `services::paint_columns` elsewhere, or the audio clip view's coloured bars).
 * **`src/ui/views/waveform/` holds the arithmetic** (`deluge_ui_views_waveform`, header-only, standard library only): the window
   (`Window`), the view's navigation (`WaveformView`: open, scroll, zoom and the marker pins), the column answers
   (`ColumnState`, `ColumnRead`, `PeakRead`) and the paint arithmetic (`Bar`, `bar_of`, `single_row_brightness`, in

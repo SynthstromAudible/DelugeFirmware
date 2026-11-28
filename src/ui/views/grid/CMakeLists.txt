@@ -2,6 +2,7 @@
 # ui/widgets/grid, ui/widgets/core, ui/gfx/grid and the standard library (scripts/layers.toml).
 add_library(deluge_ui_views_grid STATIC
   blink.cpp
+  favourites.cpp
   keyboard.cpp
   marker.cpp
   playhead.cpp

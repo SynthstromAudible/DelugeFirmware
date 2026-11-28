@@ -44,7 +44,7 @@
 /// one catalogue -- one list of entries, one folder, one cull window -- so two
 /// listings running over it would not merely lose a request, they would interleave two directory
 /// reads into one vector. Legacy says the same thing with `listingInProgress_` and the comment at
-/// `browser.h` ("One active listing at a time (browser state is already static/shared, e.g.
+/// `gui/ui/browser/browser.h` ("One active listing at a time (browser state is already static/shared, e.g.
 /// fileItems)").
 ///
 /// So the seam is a three-state machine with **exactly-once delivery**:
@@ -174,7 +174,7 @@ enum class RequestOutcome : uint8_t {
 ///    so several `Listing`s exist at once over one catalogue.
 /// 2. **Legacy claims through the same call.** `Browser::beginListing`
 ///    guards with its own static `listingInProgress_`
-///    (`browser.h`), which only ever guarded `Browser` against `Browser`. For as long as the
+///    (`gui/ui/browser/browser.h`), which only ever guarded `Browser` against `Browser`. For as long as the
 ///    legacy UI and the scenes stack coexist, a legacy
 ///    browser listing and a scenes listing were mutually invisible over one shared `fileItems`.
 ///    Both now claim the catalogue itself, so the invariant is structural rather than a convention

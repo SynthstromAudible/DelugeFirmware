@@ -59,6 +59,7 @@ not called yet. The pad pictures are the grid views' (`src/ui/views/grid/README.
 | `recorder` | `recorder_status` | the audio recorder |
 | `marker` | `marker_position` | the marker editor |
 | `rename` | `rename_window` (`RenameWindow`: the title and the name, with the text editor's state as the trailing `edit`) | the rename editor |
+| `browser` | `browser_list` (`BrowserList`: the title, the file icons, the edited name and the rows, each a name, a folder flag, the selection and whether it side-scrolls; the text editor's state and the row's scroller are the trailing `edit` and `row_scroll`), `browser_text_x` | the file browser |
 
 Each view's layout follows its sketch on the OLED canvas (boards "Resting", "Moments" and "Pages").
 
