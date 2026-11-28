@@ -1557,6 +1557,7 @@ baseline = [
   "tests/golden/instrument",
   "tests/golden/shell",
   "tests/golden/ui/widgets",
+  "tests/golden/ui/views",
   "tests/golden/ui/shell",
   "tests/unit/dsp/hop_scheduler_records.h",
   "tests/unit/dsp/pitch_shift_component_records.h",
