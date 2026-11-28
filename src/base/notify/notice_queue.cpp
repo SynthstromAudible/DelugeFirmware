@@ -35,7 +35,7 @@ void set_notice_observer(NoticeObserver observer) {
 
 bool NoticeQueue::push(const Notice& n) {
 	if (g_observer != nullptr) {
-		g_observer(n);
+		g_observer(n, NoticeTurn::Pushed);
 	}
 	uint32_t head = head_.load(std::memory_order_relaxed);
 	uint32_t tail = tail_.load(std::memory_order_acquire);
@@ -56,6 +56,9 @@ bool NoticeQueue::pop(Notice& out) {
 	}
 	out = ring_[tail % kNoticeCapacity];
 	tail_.store(tail + 1, std::memory_order_release);
+	if (g_observer != nullptr) {
+		g_observer(out, NoticeTurn::Popped);
+	}
 	return true;
 }
 

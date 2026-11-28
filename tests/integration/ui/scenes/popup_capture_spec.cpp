@@ -6,6 +6,7 @@
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/strings.h"
+#include "gui/ui/notify_drain.h"
 #include "hid/display/display.h"
 
 #include "cppspec.hpp"
@@ -87,6 +88,17 @@ describe popup_capture_spec_body("spec::PopupCapture", $ {
 		}
 		expect(seen[0]).to_equal(std::string{"notification: LPF MODE\n12DB"});
 		drain_notices();
+	});
+
+	it("records a notice legacy's drain shows once, not again when the drain puts it on the display", _ {
+		drain_notices();
+		PopupCapture capture;
+		deluge::base::notify::notice_text("SAVED");
+		deluge::base::notify::notice_notification("LPF MODE", "12DB");
+		drain_notifications();
+		expect(capture.seen()).to_equal(std::vector<std::string>{"popup: SAVED", "notification: LPF MODE\n12DB"});
+		display->displayPopup("SAVED");
+		expect(capture.seen().size()).to_equal(size_t{3});
 	});
 
 	it("answers hasPopup and hasPopupOfType as the popup on show, until it is cancelled", _ {

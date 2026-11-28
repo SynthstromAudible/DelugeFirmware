@@ -6,9 +6,11 @@
 ///        `Result`. A spec asserts on what the user would see (`seen`), so a port that moves a popup from one route to
 ///        another keeps its spec; `events` keeps the route for the few specs that pin one.
 ///
-/// A `PopupCapture` installs itself for its scope: legacy's `display` points at its recorder, and every notice pushed
-/// is shown to it as it is pushed (`notify::set_notice_observer`), whoever drains the queue later. One is active at a
-/// time; a nested one takes over and gives the outer one back when it goes.
+/// A `PopupCapture` installs itself for its scope: legacy's `display` points at its recorder, and every notice is shown
+/// to it as it is pushed (`notify::set_notice_observer`), whoever drains the queue later. A notice popped and shown at
+/// once on legacy's display (`notify_drain`) is one popup, not two: the display call that matches the notice just
+/// popped is not recorded again. One capture is active at a time; a nested one takes over and gives the outer one back
+/// when it goes.
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
@@ -17,6 +19,7 @@
 #include "hid/display/display.h"
 #include "ui/shell/scene.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -145,6 +148,11 @@ public:
 		return out;
 	}
 
+	/// @return How many events so far are of @p kind, whichever way they came.
+	[[nodiscard]] size_t count(PopupEvent::Kind kind) const {
+		return static_cast<size_t>(std::ranges::count(events_, kind, &PopupEvent::kind));
+	}
+
 	/// @brief Forget every event so far.
 	void clear() { events_.clear(); }
 
@@ -214,42 +222,51 @@ private:
 		return capture;
 	}
 
-	/// @brief A notice as it is pushed, as the event `notify_drain` turns it into.
-	static void observe(const deluge::base::notify::Notice& n) {
+	/// @brief A notice pushed, recorded as the event `notify_drain` turns it into; or popped, kept until the next event
+	///        so legacy's display showing it is not recorded twice.
+	static void observe(const deluge::base::notify::Notice& n, deluge::base::notify::NoticeTurn turn) {
 		PopupCapture* capture = active();
 		if (capture == nullptr) {
 			return;
 		}
+		PopupEvent e = event_of(n);
+		if (turn == deluge::base::notify::NoticeTurn::Pushed) {
+			capture->add(e.kind, std::move(e.text), PopupEvent::Route::NOTICE);
+			return;
+		}
+		// `notify_drain` takes a banner down with a plain cancel, and only when one is up.
+		if (e.kind == PopupEvent::Kind::CANCEL_NOTIFICATION) {
+			e.kind = PopupEvent::Kind::CANCEL;
+		}
+		capture->popped_ = std::move(e);
+	}
+
+	/// @return @p n as the event the user sees, its route left to the caller.
+	static PopupEvent event_of(const deluge::base::notify::Notice& n) {
 		using deluge::base::notify::Notice;
 		const std::string text = n.string_id != 0 ? string_text(n.string_id) : std::string{n.text};
 		switch (n.kind) {
 		case Notice::Kind::Error:
-			capture->add(PopupEvent::Kind::ERROR_CODE, std::to_string(n.error_code), PopupEvent::Route::NOTICE);
-			break;
+			return {.kind = PopupEvent::Kind::ERROR_CODE, .text = std::to_string(n.error_code)};
 		case Notice::Kind::Text:
-			capture->add(n.severity == Notice::Severity::Warn ? PopupEvent::Kind::PERSISTENT : PopupEvent::Kind::POPUP,
-			             text, PopupEvent::Route::NOTICE);
-			break;
+			return {.kind =
+			            n.severity == Notice::Severity::Warn ? PopupEvent::Kind::PERSISTENT : PopupEvent::Kind::POPUP,
+			        .text = text};
 		case Notice::Kind::Console:
-			capture->add(PopupEvent::Kind::CONSOLE, text, PopupEvent::Route::NOTICE);
-			break;
+			return {.kind = PopupEvent::Kind::CONSOLE, .text = text};
 		case Notice::Kind::Working:
-			capture->add(PopupEvent::Kind::WORKING, text, PopupEvent::Route::NOTICE);
-			break;
+			return {.kind = PopupEvent::Kind::WORKING, .text = text};
 		case Notice::Kind::ClearWorking:
-			capture->add(PopupEvent::Kind::CLEAR_WORKING, "", PopupEvent::Route::NOTICE);
-			break;
+			return {.kind = PopupEvent::Kind::CLEAR_WORKING};
 		case Notice::Kind::CancelPopup:
-			capture->add(PopupEvent::Kind::CANCEL, "", PopupEvent::Route::NOTICE);
-			break;
+			return {.kind = PopupEvent::Kind::CANCEL};
 		case Notice::Kind::Notification:
-			capture->add(PopupEvent::Kind::NOTIFICATION, banner(n.notification_title(), n.notification_value()),
-			             PopupEvent::Route::NOTICE);
-			break;
+			return {.kind = PopupEvent::Kind::NOTIFICATION,
+			        .text = banner(n.notification_title(), n.notification_value())};
 		case Notice::Kind::CancelNotification:
-			capture->add(PopupEvent::Kind::CANCEL_NOTIFICATION, "", PopupEvent::Route::NOTICE);
-			break;
+			return {.kind = PopupEvent::Kind::CANCEL_NOTIFICATION};
 		}
+		return {};
 	}
 
 	/// @return The English text of l10n string @p id.
@@ -261,6 +278,10 @@ private:
 	}
 
 	void add(PopupEvent::Kind kind, std::string text, PopupEvent::Route route) {
+		const std::optional<PopupEvent> popped = std::exchange(popped_, std::nullopt);
+		if (route == PopupEvent::Route::DISPLAY && popped.has_value() && popped->kind == kind && popped->text == text) {
+			return; // the notice just popped, shown: recorded when it was pushed
+		}
 		if (mode_ == Mode::RECORD) {
 			events_.push_back(PopupEvent{.kind = kind, .text = std::move(text), .route = route});
 		}
@@ -271,6 +292,8 @@ private:
 	deluge::hid::Display* saved_display_;
 	Recorder recorder_;
 	std::vector<PopupEvent> events_;
+	/// The notice popped last, as legacy's display would show it, until the next event.
+	std::optional<PopupEvent> popped_;
 };
 
 } // namespace deluge::ui::scenes::spec
