@@ -169,7 +169,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	unpack_7bit_to_8bit(load_buf + pos, size, data + 9, packed_size);
 
 	// Pad LED Progress Bar Step
-	uint32_t pad = (18 * 8 * pos) / (load_bufsize - 0xffff);
+	uint32_t pad = std::min<uint32_t>((18 * 8 * pos) / (load_bufsize - 0xffff), 18 * 8 - 1);
 	uint8_t col = pad % 18;
 	uint8_t row = pad / 18;
 	PadLEDs::image[row][col] = RGB((255 / 7) * row, 0, 255 - (255 / 7) * row);
