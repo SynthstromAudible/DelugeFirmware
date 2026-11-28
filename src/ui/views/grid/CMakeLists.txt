@@ -5,9 +5,11 @@ add_library(deluge_ui_views_grid STATIC
   favourites.cpp
   keyboard.cpp
   marker.cpp
+  pad_image.cpp
   playhead.cpp
   slicer.cpp
   waveform.cpp
+  zoom_slide.cpp
 )
 target_include_directories(deluge_ui_views_grid PUBLIC ${SHARED_INCLUDE})
 # See src/ui/gfx/CMakeLists.txt for what DELUGE_COMMON_COMPILE_OPTIONS carries and why it is PRIVATE.

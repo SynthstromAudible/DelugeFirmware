@@ -224,9 +224,8 @@ describe browser_fakes("the browser, the context menu and the rename scene over 
 		r.step();
 		r.step();
 		std::array<deluge::ui::views::oled::BrowserRow, deluge::ui::scenes::browser::kMaxBrowserRows> rows{};
-		deluge::ui::scenes::browser::BrowserScene::BrowserText text;
 		const deluge::ui::views::oled::BrowserList list =
-		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, rows, text);
+		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, rows);
 		expect(std::string{list.title}).to_equal(std::string{"Load midi device"});
 		expect(std::string{list.entered}).to_equal(std::string{"A"});
 		expect(list.file_icon_pt2 != nullptr).to_equal(true);
@@ -265,7 +264,24 @@ describe browser_fakes("the browser, the context menu and the rename scene over 
 		expect(keys.layout).to_equal(deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty);
 	});
 
-	it("draws an unselected name's tail past a long run of bytes with no glyph", _ {
+	it("presents the preview's peaks in the main columns only", _ {
+		deluge::ui::scenes::bind::test::ModelFixture f;
+		Rig r;
+		open_midi(r, f, {{"A.XML", false}});
+		deluge::ui::scenes::services::WaveformFrame wf{.read = deluge::ui::views::waveform::PeakRead::all_past_end(),
+		                                               .centre = 0,
+		                                               .span = 1 << 24};
+		for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
+			wf.read.set(c, deluge::ui::views::waveform::ColumnRead::of({.min = -(1 << 22), .max = 1 << 22}));
+		}
+		const auto cols = browser_scene().present_waveform(wf, 4);
+		expect(cols[3].valid).to_be_true();
+		expect(cols[3].max24).to_be_greater_than(0);
+		expect(cols[3].min24).to_be_less_than(0);
+		expect(cols[4].valid).to_be_false();
+	});
+
+	it("presents an unselected long name whole, so its tail past a run of bytes with no glyph inks", _ {
 		const std::string run = glyphless_run();
 		std::string with_tail;
 		{
@@ -273,9 +289,8 @@ describe browser_fakes("the browser, the context menu and the rename scene over 
 			Rig r;
 			open_midi(r, f, {{"A.XML", false}, {run + "TAIL.XML", false}});
 			std::array<deluge::ui::views::oled::BrowserRow, deluge::ui::scenes::browser::kMaxBrowserRows> rows{};
-			deluge::ui::scenes::browser::BrowserScene::BrowserText text;
 			const deluge::ui::views::oled::BrowserList list =
-			    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, rows, text);
+			    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, rows);
 			expect(list.rows.size()).to_equal(std::size_t{2});
 			if (list.rows.size() == 2) {
 				expect(list.rows[1].selected).to_be_false();
@@ -287,31 +302,6 @@ describe browser_fakes("the browser, the context menu and the rename scene over 
 		Rig r;
 		open_midi(r, f, {{"A.XML", false}, {run + ".XML", false}});
 		expect(r.fake.pbm(0) == with_tail).to_equal(false);
-	});
-
-	it("keeps every glyph of a long ASCII name that reaches the row", _ {
-		std::string name;
-		for (int32_t i = 0; i < 30; i++) {
-			name += "ABCDE";
-		}
-		deluge::ui::scenes::bind::test::ModelFixture f;
-		Rig r;
-		open_midi(r, f, {{"A.XML", false}, {name + ".XML", false}});
-		std::array<deluge::ui::views::oled::BrowserRow, deluge::ui::scenes::browser::kMaxBrowserRows> rows{};
-		deluge::ui::scenes::browser::BrowserScene::BrowserText text;
-		deluge::ui::views::oled::BrowserList list =
-		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, rows, text);
-		expect(list.rows.size()).to_equal(std::size_t{2});
-		if (list.rows.size() == 2) {
-			rows[1].label = name;
-			list.rows = std::span<const deluge::ui::views::oled::BrowserRow>{rows.data(), 2};
-			deluge::ui::test::Rig48 full;
-			deluge::ui::widgets::oled::TextEditState edit{};
-			edit.cursor_lit = true;
-			deluge::ui::widgets::core::ScrollText scroll{};
-			deluge::ui::views::oled::browser_list(full.frame, list, edit, scroll);
-			expect(r.fake.pbm(0)).to_equal(full.pbm());
-		}
 	});
 
 	it("presents the favourites over the banks, the current favourite and bank flashing when a period turns", _ {

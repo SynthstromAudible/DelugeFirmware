@@ -1384,7 +1384,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::Oled
 	visible_rows_ = std::min(f.style.menu_rows < 1 ? 1 : f.style.menu_rows, static_cast<int32_t>(kMaxBrowserRows));
 
 	std::array<deluge::ui::views::oled::BrowserRow, kMaxBrowserRows> rows{};
-	const deluge::ui::views::oled::BrowserList list = present_list(f.style, f.bounds().w, rows, list_text_);
+	const deluge::ui::views::oled::BrowserList list = present_list(f.style, f.bounds().w, rows);
 	for (const deluge::ui::views::oled::BrowserRow& row : list.rows) {
 		if (row.selected && !row.scrolls) {
 			row_scroll_ = deluge::ui::widgets::core::ScrollText{};
@@ -1467,11 +1467,7 @@ void BrowserScene::render_waveform(deluge::ui::widgets::grid::GridFrame& f) {
 		// were last sent, so these keep the last one painted. A redraw still waiting on that sample's clusters is
 		// dropped with it.
 		retry_.restart();
-		for (int32_t y = 0; y < rows; y++) {
-			for (int32_t x = 0; x < main_cols; x++) {
-				(void)f.pad(x, y, waveform_shown_[y][x]);
-			}
-		}
+		deluge::ui::views::grid::pads(f, waveform_shown_);
 		return;
 	}
 	const uint32_t now = f.now_ms();
@@ -1487,14 +1483,13 @@ void BrowserScene::render_waveform(deluge::ui::widgets::grid::GridFrame& f) {
 	f.region(
 	    deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::widgets::grid::GridFrame& main) {
 		    if (wf) {
-			    // `renderOneCol`'s monochrome arm: `renderFullScreen` passes no colour.
-			    deluge::ui::views::grid::waveform(main, services::peak_cols(wf->read, wf->centre, wf->span, main_cols),
+			    deluge::ui::views::grid::waveform(main, present_waveform(*wf, main_cols),
 			                                      deluge::ui::widgets::grid::kWaveformBarBrightnessMono, std::nullopt);
 		    }
 	    });
 	for (int32_t y = 0; y < rows; y++) {
 		for (int32_t x = 0; x < main_cols; x++) {
-			waveform_shown_[y][x] = f.peek(x, y);
+			waveform_shown_.pads[y][x] = f.peek(x, y);
 		}
 	}
 	if (!wf) {

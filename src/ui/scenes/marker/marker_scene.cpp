@@ -22,6 +22,7 @@
 #include "ui/scenes/services/view_state.h"
 #include "ui/scenes/services/waveform_paint.h"
 #include "ui/views/grid/waveform.h"
+#include "ui/views/grid/zoom_slide.h"
 
 #include "base/divide.h"
 #include "ui/views/waveform/view.h"
@@ -1041,7 +1042,7 @@ void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 		bool slid = false;
 		f.region(deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h},
 		         [&](deluge::ui::widgets::grid::GridFrame& main) {
-			         slid = deluge::ui::widgets::grid::zoom_transition(main, zoom_);
+			         slid = deluge::ui::views::grid::zoom_slide(main, zoom_);
 		         });
 		if (slid) {
 			playing_ = false;

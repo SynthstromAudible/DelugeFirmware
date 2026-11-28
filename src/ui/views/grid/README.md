@@ -17,7 +17,7 @@ these differences.
 - **A view may return `widgets::core::Response`** (or a struct of them): drawing is hit-testing, and on the grid pads
   are input. The same struct and the same frame input give the same pixels and the same `Response`. An OLED view
   returns `void`.
-- **Retained widget state** (a keyboard's held keys, `WaveformState`, a tick-flash latch) is a reference parameter
+- **Retained widget state** (a keyboard's held keys, `WaveformState`, a tick-flash latch, a zoom's slide) is a reference parameter
   after the struct, so a trailing reference marks exactly the state a view may update.
 - **Includes:** only `ui/views/grid/`, `ui/widgets/grid/`, `ui/widgets/core/`, `ui/gfx/grid/` and the standard library
   (`scripts/layers.toml`, rule `ui-views-grid-includes-outside`).
@@ -33,6 +33,8 @@ these differences.
 | `marker` | `marker_overlay` (`MarkerOverlay`: each column's markers, their colours, the blink's suppression and flood) | the marker editor |
 | `slicer` | `slice_marks` (`SliceMarks`: the manual mode's squashed waveform, each slice's mark, and the 64 slots) | the slicer |
 | `keyboard` | `keyboard` (`KeyboardPads`: the text keyboard's layout and home row, optionally painted dark; the keyboard's state is the trailing `kb`) | the rename editor, the file browser |
+| `pad_image` | `pads` (`PadImage`: the 16x8 main pads as a scene kept them, painted back) | the file browser |
+| `zoom_slide` | `zoom_slide` (a horizontal zoom's running step over the main pads; the slide is the trailing `z`) | the marker editor |
 | `favourites` | `favourites` (`FavouritePads`: the favourites row's colours, the bank row's beneath it or none, and the favourite and bank to flash; returns each row's `Response`) | the file browser |
 
 Specs: `tests/unit/ui/views/grid/`.

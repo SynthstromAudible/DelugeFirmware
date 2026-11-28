@@ -89,9 +89,11 @@
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/gfx/oled/icon.h"
 #include "ui/scenes/services/peak_retry.h"
+#include "ui/scenes/services/waveform_paint.h"
 #include "ui/views/grid/blink.h"
 #include "ui/views/grid/favourites.h"
 #include "ui/views/grid/keyboard.h"
+#include "ui/views/grid/pad_image.h"
 #include "ui/views/oled/browser.h"
 #include "ui/views/waveform/view.h"
 
@@ -563,12 +565,6 @@ public:
 	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
 	int32_t favourite_row() const;
 
-	/// @brief The list rows' names, copied out of the catalogue for one pass of the list: each name's bytes up to the
-	///        first that starts a glyph past the row's right edge, so the copy draws what the whole name draws. A
-	///        name whose visible bytes outgrow its slot is drawn from the catalogue instead.
-	struct BrowserText {
-		std::array<std::array<char, kMaxEnteredChars>, kMaxBrowserRows> labels{};
-	};
 	/// @name What the surfaces show (`browser/present.cpp`)
 	/// @{
 	/// @brief What the list shows: the descriptor's title and icons, the edited name, and the rows from the top of the
@@ -576,12 +572,11 @@ public:
 	///        selection, the one row of the name being typed.
 	/// @param style The panel's style.
 	/// @param width The panel's width, the right edge a selected name side-scrolls past.
-	/// @param rows  Where the rows are written; the list's `rows` is its front.
-	/// @param text  Where the rows' names are copied.
-	[[nodiscard]] deluge::ui::views::oled::BrowserList present_list(const deluge::ui::widgets::core::Style& style,
-	                                                                int32_t width,
-	                                                                std::span<deluge::ui::views::oled::BrowserRow> rows,
-	                                                                BrowserText& text) const;
+	/// @param rows  Where the rows are written; the list's `rows` is its front. Their names point into the catalogue,
+	///              alive until it next changes.
+	[[nodiscard]] deluge::ui::views::oled::BrowserList
+	present_list(const deluge::ui::widgets::core::Style& style, int32_t width,
+	             std::span<deluge::ui::views::oled::BrowserRow> rows) const;
 	/// @brief What the pads show while the keyboard is up: the keyboard in this scene's layout, dark for DX7 banks.
 	[[nodiscard]] deluge::ui::views::grid::KeyboardPads present_keys() const;
 	/// @brief What the favourites rows show over the keyboard, with the current favourite and bank flashed when a
@@ -591,6 +586,9 @@ public:
 	/// @brief The BROWSE pad's blink at @p now_ms: the plan `browse_blink_` names, and whether its step plays.
 	/// @param now_ms The frame's time.
 	[[nodiscard]] deluge::ui::views::grid::BlinkPads present_browse_blink(uint32_t now_ms) const;
+	/// @brief The preview's columns from @p wf, the first @p main_cols of them.
+	[[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
+	present_waveform(const services::WaveformFrame& wf, int32_t main_cols) const;
 	/// @}
 	/// @brief Use @p favourites in place of the host's, or null to put the host's back. For specs.
 	void set_favourites(bind::Favourites* favourites) { favourites_override_ = favourites; }
@@ -894,8 +892,6 @@ private:
 	uint32_t favourite_flash_step_ = 0;
 	/// The selected row's side-scroller, armed while the cursor is at the start.
 	deluge::ui::widgets::core::ScrollText row_scroll_{};
-	/// The list's names for the pass that draws it.
-	BrowserText list_text_{};
 	/// The host changed the pads, or the list, between ticks; the next tick repaints them.
 	bool pads_changed_ = false;
 	/// A main-pad press `render_grid` saw with the keyboard hidden, for `after_render`.
@@ -904,7 +900,7 @@ private:
 	/// `waveformBasicNavigator.opened()` does.
 	views::waveform::WaveformView view_{};
 	/// The waveform last painted, kept on the pads once the preview gives its sample up.
-	RGB waveform_shown_[deluge::ui::gfx::grid::kDelugeGrid.rows][deluge::ui::gfx::grid::kDelugeGrid.main_cols]{};
+	deluge::ui::views::grid::PadImage waveform_shown_{};
 	uint64_t nav_identity_ = 0;
 	/// The redraws of a render whose read left columns pending.
 	services::PeakRetry retry_{};

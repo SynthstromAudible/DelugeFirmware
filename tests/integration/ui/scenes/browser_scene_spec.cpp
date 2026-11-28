@@ -3867,16 +3867,15 @@ describe browser_present("scenes::browser::BrowserScene present", $ {
 		Rig r64{board_64(), profile_64()};
 		r64.open_and_land(ctx, BrowserId::MidiDeviceDefinition);
 		std::array<deluge::ui::views::oled::BrowserRow, browser::kMaxBrowserRows> rows{};
-		BrowserScene::BrowserText text;
 		const deluge::ui::views::oled::BrowserList list =
-		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle64, 128, rows, text);
+		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle64, 128, rows);
 		expect(list.rows.size()).to_equal(std::size_t{5});
 		if (list.rows.size() == 5) {
 			expect(std::string{list.rows[4].label}).to_equal(std::string{"E"});
 		}
 	});
 
-	it("presents the second folder's names through the text the first one's were copied into", _ {
+	it("presents the second folder's names once the catalogue lists it, not the first one's", _ {
 		deluge::ui::scenes::bind::test::FakeCatalogue catalogue;
 		CleanBrowser clean;
 		spec::SongFixture f = spec::make_midi_song();
@@ -3886,17 +3885,16 @@ describe browser_present("scenes::browser::BrowserScene present", $ {
 		ctx.ports.catalogue = &catalogue;
 		Rig r;
 		r.open_and_land(ctx, BrowserId::MidiDeviceDefinition);
-		BrowserScene::BrowserText text;
 		std::array<deluge::ui::views::oled::BrowserRow, browser::kMaxBrowserRows> first{};
 		const deluge::ui::views::oled::BrowserList one =
-		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, first, text);
+		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, first);
 		expect(std::string{one.rows[2].label}).to_equal(std::string{"KICKS"});
 		catalogue.entries = {{"KICK.XML", false}, {"SNARE", true}, {"A.XML", false}};
 		catalogue.folder = "MIDI_DEVICES/DEFINITION/B";
 		r.step();
 		std::array<deluge::ui::views::oled::BrowserRow, browser::kMaxBrowserRows> second{};
 		const deluge::ui::views::oled::BrowserList two =
-		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, second, text);
+		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, second);
 		expect(two.rows.size()).to_equal(std::size_t{3});
 		if (two.rows.size() == 3) {
 			expect(std::string{two.rows[0].label}).to_equal(std::string{"KICK"});

@@ -3,13 +3,15 @@
 #include "project/device_settings.h"
 #include "ui/gfx/oled/font.h"
 #include "ui/scenes/browser/browser_scene.h"
-#include "ui/widgets/core/metrics.h"
+#include "ui/scenes/services/waveform_paint.h"
+#include "ui/widgets/core/style.h"
 #include "ui/widgets/grid/favourites.h"
 #include "ui/widgets/grid/keyboard.h"
 #include "ui/widgets/grid/shortcut_blink.h"
 #include "ui/widgets/oled/text.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -22,33 +24,8 @@ static_assert(deluge::ui::widgets::core::kDelugeStyle48.menu_rows <= static_cast
                   && deluge::ui::widgets::core::kDelugeStyle64.menu_rows <= static_cast<int32_t>(kMaxBrowserRows),
               "the list's storage holds every shipped style's rows");
 
-namespace {
-
-/// @brief How many of @p name's bytes can ink a row @p room px wide: every byte up to the first whose glyph starts a
-///        cell past the row's right edge, the pen laid out as `string_width_px` lays it (width, spacing, kerning).
-///        The cell of slack covers a kerning pull back across the edge. A byte with no glyph advances nothing in the
-///        row font, so a name of them leaves its visible tail in the count however long it is.
-size_t visible_bytes(std::string_view name, int32_t room, int32_t height) {
-	int32_t pen = 0;
-	uint8_t previous = 0;
-	for (size_t k = 0; k < name.size(); k++) {
-		const auto c = static_cast<uint8_t>(name[k]);
-		if (k > 0) {
-			pen += ui::gfx::oled::kerning_px(previous, c, height);
-		}
-		if (pen > room + widgets::core::kTextSpacingX) {
-			return k;
-		}
-		pen += ui::gfx::oled::char_width_px(c, height) + ui::gfx::oled::char_spacing_px(c, height, false);
-		previous = c;
-	}
-	return name.size();
-}
-
-} // namespace
-
 views::oled::BrowserList BrowserScene::present_list(const widgets::core::Style& style, int32_t width,
-                                                    std::span<views::oled::BrowserRow> rows, BrowserText& text) const {
+                                                    std::span<views::oled::BrowserRow> rows) const {
 	const Descriptor& d = descriptor(id_);
 	// Legacy reads `display->getNumBrowserAndMenuLines()`, which is a hard-coded 3 on every panel
 	// (`hid/display/oled.h`); the port reads `Style::menu_rows`, which is 3 on the shipped
@@ -78,18 +55,12 @@ views::oled::BrowserList BrowserScene::present_list(const widgets::core::Style& 
 			break;
 		}
 		const bind::CatalogueEntry item = *entry_at(i);
-		const std::string_view name = row_label(item.name, item.folder);
-		// The bytes that can ink the row are copied; a name whose visible part outgrows the copy (a long run of
-		// bytes with no glyph before its tail) is drawn from the catalogue, which no render changes.
-		std::array<char, kMaxEnteredChars>& label = text.labels[n];
-		const size_t len = visible_bytes(name, width - text_x, height);
-		std::string_view shown = name;
-		if (len <= label.size()) {
-			std::copy_n(name.begin(), len, label.begin());
-			shown = std::string_view{label.data(), len};
-		}
+		// The name points into the catalogue, which nothing changes between this and the list's draw.
 		const bool selected = i == file_index_;
-		rows[n++] = {.label = shown, .folder = item.folder, .selected = selected, .scrolls = selected && scrolls};
+		rows[n++] = {.label = row_label(item.name, item.folder),
+		             .folder = item.folder,
+		             .selected = selected,
+		             .scrolls = selected && scrolls};
 	}
 	return {.title = d.title,
 	        .file_icon = d.file_icon,
@@ -144,6 +115,13 @@ views::grid::BlinkPads BrowserScene::present_browse_blink(uint32_t now_ms) const
 	                                               browse_blink_ == BrowseBlink::Menu ? uint8_t{0} : uint8_t{1}),
 	        .step = step,
 	        .fire = step != blink_fired_step_};
+}
+
+std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
+BrowserScene::present_waveform(const services::WaveformFrame& wf, int32_t main_cols) const {
+	// `renderOneCol`'s monochrome arm, as `renderFullScreen` passes no colour. A column the card could not give is
+	// invalid, so black.
+	return services::peak_cols(wf.read, wf.centre, wf.span, main_cols);
 }
 
 } // namespace deluge::ui::scenes::browser
