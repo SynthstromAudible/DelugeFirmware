@@ -128,18 +128,21 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.open();
 		r.tick(0);
 
-		// Markers down on both sides.
-		expect(r.scene().max_length()).to_equal(legacy_view.getMaxLength());
-		expect(r.scene().max_zoom()).to_equal(legacy_view.getMaxZoom());
+		// Markers down.
+		LEGACY_ONLY(keep_number(self, "max/down", "length", legacy_view.getMaxLength());
+		            keep_number(self, "max/down", "zoom", legacy_view.getMaxZoom()););
+		expect(int64_t{r.scene().max_length()}).to_equal(number_answer("max/down", "length"));
+		expect(int64_t{r.scene().max_zoom()}).to_equal(number_answer("max/down", "zoom"));
 		expect(r.scene().max_length()).to_equal(static_cast<uint32_t>(r.f.clip->loopLength()));
 
-		// End marker up on both sides, each through its own front door.
-		expect(raise_legacy_end_marker(r)).to_be_true();
+		// The end marker up.
+		LEGACY_ONLY(expect(raise_legacy_end_marker(r)).to_be_true();
+		            keep_number(self, "max/end_marker", "length", legacy_view.getMaxLength());
+		            keep_number(self, "max/end_marker", "zoom", legacy_view.getMaxZoom()); lower_legacy_end_marker(r););
 		r.scene().set_end_marker_visible(true);
-		expect(r.scene().max_length()).to_equal(legacy_view.getMaxLength());
-		expect(r.scene().max_zoom()).to_equal(legacy_view.getMaxZoom());
+		expect(int64_t{r.scene().max_length()}).to_equal(number_answer("max/end_marker", "length"));
+		expect(int64_t{r.scene().max_zoom()}).to_equal(number_answer("max/end_marker", "zoom"));
 		expect(r.scene().max_length()).to_equal(static_cast<uint32_t>(r.f.clip->loopLength()) + 1);
-		lower_legacy_end_marker(r);
 	});
 
 	it("answers scrollable_and_zoomable from the clip, as setupScroll's guard does", _ {
@@ -173,7 +176,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.open();
 		r.tick(0);
 		// 16 columns of waveform, so well over one bar per column even at the quietest.
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
+		LEGACY_ONLY(keep_pads(self, "render/48"););
+		expect_pads_match(self, r, pads_answer("render/48"), PadExpectation::waveform(16));
 	});
 
 	it("draws the new sample's waveform when the clip's sample changes under it", _ {
@@ -187,7 +191,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		deluge::base::notify::raise(
 		    deluge::base::notify::Dirty::GridMain); // a repaint, which says nothing of the sample
 		r.tick(10);
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
+		LEGACY_ONLY(keep_pads(self, "render/new_sample"););
+		expect_pads_match(self, r, pads_answer("render/new_sample"), PadExpectation::waveform(16));
 		r.f.clip->sampleHolder.audioFile = r.sample;
 	});
 
@@ -199,7 +204,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.seed(Sentinel{});
 		r.open();
 		r.tick(0);
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
+		LEGACY_ONLY(keep_pads(self, "render/64"););
+		expect_pads_match(self, r, pads_answer("render/64"), PadExpectation::waveform(16));
 	});
 
 	it("draws the same waveform and grey region as legacy when the clip is scrolled", _ {
@@ -212,7 +218,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.open();
 		r.tick(0);
 		// The grey region alone is 4 columns x 8 rows.
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(32 + 12));
+		LEGACY_ONLY(keep_pads(self, "render/scrolled"););
+		expect_pads_match(self, r, pads_answer("render/scrolled"), PadExpectation::waveform(32 + 12));
 	});
 
 	it("draws the same waveform and grey region as legacy when the clip is zoomed out", _ {
@@ -222,7 +229,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.seed(Sentinel{.x_zoom = 96});
 		r.open();
 		r.tick(0);
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(64 + 8));
+		LEGACY_ONLY(keep_pads(self, "render/zoomed_out"););
+		expect_pads_match(self, r, pads_answer("render/zoomed_out"), PadExpectation::waveform(64 + 8));
 	});
 
 	it("draws the same pads as legacy for a reversed sample", _ {
@@ -231,7 +239,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.f.clip->sampleControls.reversed = true;
 		r.open();
 		r.tick(0);
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
+		LEGACY_ONLY(keep_pads(self, "render/reversed"););
+		expect_pads_match(self, r, pads_answer("render/reversed"), PadExpectation::waveform(16));
 		r.f.clip->sampleControls.reversed = false;
 	});
 
@@ -247,7 +256,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		// the setter and watching the port render the frame from before it.
 		// `raise_legacy_end_marker` asserts legacy's flag took, by reading legacy's own
 		// `getMaxLength`.
-		expect(raise_legacy_end_marker(r)).to_be_true();
+		LEGACY_ONLY(expect(raise_legacy_end_marker(r)).to_be_true(););
 		r.scene().set_end_marker_visible(true);
 		// Both start on the bright half: legacy's `padAction` sets `blinkOn = true`
 		// (`AudioClipView::padAction`), the port's setter does the same.
@@ -255,22 +264,22 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.tick(0);
 		// The end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15, and on
 		// the bright phase it is `colours::red` (`AudioClipView::renderMainPads` in `audio_clip_view.cpp`).
-		expect_pads_match(self, r, legacy_pads(),
+		LEGACY_ONLY(keep_pads(self, "end_marker/bright"););
+		expect_pads_match(self, r, pads_answer("end_marker/bright"),
 		                  PadExpectation::waveform(16).and_column(15, deluge::gui::colours::red));
 
 		// One blink phase later, both should be on the dim half -- legacy through its own
 		// `AudioClipView::timerCallback` (`gui/views/audio_clip_view.cpp`), the port through the deadline
 		// `next_timer()` armed on the tick above, with no input at all.
-		(void)legacy_view.timerCallback();
+		LEGACY_ONLY((void)legacy_view.timerCallback(););
 		r.tick(deluge::ui::scenes::audio_clip::kMarkerBlinkMs);
 		expect(r.scene().blink_on()).to_be_false();
 		// The subject of this half: on the dim phase the end column is `colours::red_dull`
 		// (`AudioClipView::renderMainPads` in `audio_clip_view.cpp`), where the bright phase drew
 		// `colours::red`. The end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15.
-		expect_pads_match(self, r, legacy_pads(),
+		LEGACY_ONLY(keep_pads(self, "end_marker/dim"); lower_legacy_end_marker(r););
+		expect_pads_match(self, r, pads_answer("end_marker/dim"),
 		                  PadExpectation::waveform(16).and_column(15, deluge::gui::colours::red_dull));
-
-		lower_legacy_end_marker(r);
 	});
 
 	// --- the playhead ---------------------------------------------------------------------------
@@ -282,7 +291,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.tick(0);
 		// `graphicsRoutine`'s first arm (`audio_clip_view.cpp`) -> 255.
 		expect(r.scene().last_tick_square()).to_equal(255);
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
+		LEGACY_ONLY(keep_pads(self, "cursor/stopped"););
+		expect_pads_match(self, r, pads_answer("cursor/stopped"), PadExpectation::waveform_without_cursor(16));
 	});
 
 	it("draws the play cursor in the same column as legacy, at three positions", _ {
@@ -297,7 +307,9 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 			// 0 and zoom 48, tick `pos` is column `pos / 48`.
 			expect(r.scene().last_tick_square()).to_equal(pos / 48);
 			// The cursor alone is a whole column of `kPlayheadColour`, on top of the waveform.
-			expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_with_cursor(16 + 8));
+			const std::string key = std::format("cursor/at_{}", pos);
+			LEGACY_ONLY(keep_pads(self, key););
+			expect_pads_match(self, r, pads_answer(key), PadExpectation::waveform_with_cursor(16 + 8));
 		}
 		playbackHandler.playbackState = 0;
 	});
@@ -310,7 +322,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.open();
 		r.tick(0);
 		expect(r.scene().last_tick_square()).to_equal(255);
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
+		LEGACY_ONLY(keep_pads(self, "cursor/count_in"););
+		expect_pads_match(self, r, pads_answer("cursor/count_in"), PadExpectation::waveform_without_cursor(16));
 		playbackHandler.ticksLeftInCountIn = 0;
 		playbackHandler.playbackState = 0;
 	});
@@ -323,7 +336,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.open();
 		r.tick(0);
 		expect(r.scene().last_tick_square()).to_equal(255);
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
+		LEGACY_ONLY(keep_pads(self, "cursor/inactive"););
+		expect_pads_match(self, r, pads_answer("cursor/inactive"), PadExpectation::waveform_without_cursor(16));
 		r.f.clip->activeIfNoSolo = true;
 		playbackHandler.playbackState = 0;
 	});
@@ -347,7 +361,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		// The next frame, as legacy's next graphics routine: the scene is no longer frame-driven, and still
 		// draws the frame that takes the cursor away.
 		r.tick(deluge::ui::shell::kGraphicsRoutineMs);
-		expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
+		LEGACY_ONLY(keep_pads(self, "cursor/flash_off"););
+		expect_pads_match(self, r, pads_answer("cursor/flash_off"), PadExpectation::waveform_without_cursor(16));
 		playbackHandler.playbackState = 0;
 	});
 
@@ -476,7 +491,9 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 			r.f.clip->lastProcessedPos = step * 48;
 			r.tick(static_cast<uint32_t>(step) * deluge::ui::shell::kGraphicsRoutineMs);
 			expect(r.scene().last_tick_square()).to_equal(step);
-			expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_with_cursor(16 + 8));
+			const std::string key = std::format("cursor/quiet_{}", step);
+			LEGACY_ONLY(keep_pads(self, key););
+			expect_pads_match(self, r, pads_answer(key), PadExpectation::waveform_with_cursor(16 + 8));
 			// And the next frame stays due, rather than this being a one-shot.
 			expect(r.shell.next_wake())
 			    .to_equal(std::optional<uint32_t>{(static_cast<uint32_t>(step) + 1)
@@ -530,7 +547,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.seed(Sentinel{});
 		r.open();
 		r.tick(0);
-		expect(r.oled()).to_equal(legacy_oled());
+		LEGACY_ONLY(deluge::ui::scenes::spec::keep_page(self, "audio_clip_named_output", legacy_oled()););
+		expect(r.oled()).to_equal(deluge::ui::scenes::spec::AudioClipPages::page("audio_clip_named_output"));
 	});
 
 	it("draws the same OLED page as legacy for a named output and a named clip", _ {
@@ -541,7 +559,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.seed(Sentinel{});
 		r.open();
 		r.tick(0);
-		expect(r.oled()).to_equal(legacy_oled());
+		LEGACY_ONLY(deluge::ui::scenes::spec::keep_page(self, "audio_clip_named_clip", legacy_oled()););
+		expect(r.oled()).to_equal(deluge::ui::scenes::spec::AudioClipPages::page("audio_clip_named_clip"));
 		name_clip(r, "");
 	});
 
@@ -564,7 +583,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 			}
 			return pbm.substr(0, at);
 		};
-		expect(top_rows(first)).to_equal(top_rows(legacy_oled()));
+		LEGACY_ONLY(deluge::ui::scenes::spec::keep_page(self, "audio_clip_too_wide", legacy_oled()););
+		expect(top_rows(first)).to_equal(top_rows(deluge::ui::scenes::spec::AudioClipPages::page("audio_clip_too_wide")));
 		// Legacy's side-scrollers pause 400 ms, then step a pixel each 15 ms; nothing in this process runs
 		// legacy's OLED timer, so the scrolled frames are the scene's alone.
 		r.tick(400 + 15 * 4);
@@ -579,7 +599,8 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.seed(Sentinel{});
 		r.open();
 		r.tick(0);
-		expect(r.oled()).to_equal(legacy_oled());
+		LEGACY_ONLY(deluge::ui::scenes::spec::keep_page(self, "audio_clip_unnamed_output", legacy_oled()););
+		expect(r.oled()).to_equal(deluge::ui::scenes::spec::AudioClipPages::page("audio_clip_unnamed_output"));
 	});
 
 	it("draws the same OLED page as legacy in each of the three audio output modes", _ {
@@ -592,7 +613,9 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 			deluge::edits::audioModeFor(*r.f.output, m);
 			r.open();
 			r.tick(0);
-			expect(r.oled()).to_equal(legacy_oled());
+			const std::string page = std::format("audio_clip_mode_{}", static_cast<int32_t>(m));
+			LEGACY_ONLY(deluge::ui::scenes::spec::keep_page(self, page, legacy_oled()););
+			expect(r.oled()).to_equal(deluge::ui::scenes::spec::AudioClipPages::page(page));
 		}
 		deluge::edits::audioModeFor(*r.f.output, AudioOutputMode::player);
 	});
@@ -633,14 +656,16 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		// Press: both sides reach `TimelineView::buttonAction`'s X_ENC arm
 		// (`gui/views/timeline_view.cpp`) and enter the mode.
 		(void)in.press(ButtonId::XEnc, true);
-		(void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
-		expect(r.scene().ui_mode()).to_equal(currentUIMode);
+		LEGACY_ONLY((void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
+		            keep_number(self, "x_enc_mode", "pressed", currentUIMode););
+		expect(int64_t{r.scene().ui_mode()}).to_equal(number_answer("x_enc_mode", "pressed"));
 		expect(r.scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeHoldingHorizontalEncoder);
 
 		// Release: both leave it.
 		(void)in.press(ButtonId::XEnc, false);
-		(void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), false);
-		expect(r.scene().ui_mode()).to_equal(currentUIMode);
+		LEGACY_ONLY((void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), false);
+		            keep_number(self, "x_enc_mode", "released", currentUIMode););
+		expect(int64_t{r.scene().ui_mode()}).to_equal(number_answer("x_enc_mode", "released"));
 		expect(r.scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeNone);
 		currentUIMode = UI_MODE_NONE;
 	});
@@ -658,16 +683,16 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		currentUIMode = UI_MODE_NONE;
 
 		(void)in.press(ButtonId::Shift, true);
-		legacy_hold(ButtonId::Shift, true);
 		(void)in.press(ButtonId::XEnc, true);
-		(void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
+		LEGACY_ONLY(legacy_hold(ButtonId::Shift, true);
+		            (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
+		            keep_number(self, "x_enc_mode", "with_shift", currentUIMode); legacy_hold(ButtonId::Shift, false););
 
-		expect(r.scene().ui_mode()).to_equal(currentUIMode);
+		expect(int64_t{r.scene().ui_mode()}).to_equal(number_answer("x_enc_mode", "with_shift"));
 		expect(r.scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeNone);
 
 		(void)in.press(ButtonId::XEnc, false);
 		(void)in.press(ButtonId::Shift, false);
-		legacy_hold(ButtonId::Shift, false);
 		currentUIMode = UI_MODE_NONE;
 	});
 
@@ -737,19 +762,17 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		Rig r;
 		Input in;
 
-		// --- legacy, from its own sentinel ---
-		r.reseed(Sentinel{});
-		r.f.clip->name = "TAKE";
-		currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
-		(void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true);
-		currentUIMode = UI_MODE_NONE;
-		const bool legacy_sample_gone = r.f.clip->sampleHolder.audioFile == nullptr;
-		const bool legacy_name_gone = r.f.clip->name.empty();
+		LEGACY_ONLY(r.reseed(Sentinel{}); r.f.clip->name = "TAKE";
+		            currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
+		            (void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true); currentUIMode = UI_MODE_NONE;
+		            keep_number(self, "clear", "sample_gone", r.f.clip->sampleHolder.audioFile == nullptr);
+		            keep_number(self, "clear", "name_gone", r.f.clip->name.empty());
+		            r.f.clip->sampleHolder.setAudioFile(r.sample););
+		const bool legacy_sample_gone = number_answer("clear", "sample_gone") != 0;
+		const bool legacy_name_gone = number_answer("clear", "name_gone") != 0;
 		expect(legacy_sample_gone).to_be_true();
 		expect(legacy_name_gone).to_be_true();
 
-		// --- the port, from the same sentinel, re-seeded ---
-		r.f.clip->sampleHolder.setAudioFile(r.sample);
 		r.reseed(Sentinel{});
 		r.f.clip->name = "TAKE";
 		r.open_scene_only();
@@ -780,11 +803,11 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		Rig r;
 		Input in;
 
-		r.reseed(Sentinel{});
-		currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON | UI_MODE_HOLDING_SONG_BUTTON;
-		(void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true);
-		currentUIMode = UI_MODE_NONE;
-		expect(r.f.clip->sampleHolder.audioFile).not_().to_be_null(); // legacy did NOT clear
+		LEGACY_ONLY(r.reseed(Sentinel{});
+		            currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON | UI_MODE_HOLDING_SONG_BUTTON;
+		            (void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true); currentUIMode = UI_MODE_NONE;
+		            keep_number(self, "clear_song_held", "sample_kept", r.f.clip->sampleHolder.audioFile != nullptr););
+		expect(number_answer("clear_song_held", "sample_kept")).to_equal(int64_t{1}); // legacy did NOT clear
 
 		r.reseed(Sentinel{});
 		r.open_scene_only();
@@ -813,17 +836,16 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		Rig r;
 		Input in;
 
-		// --- legacy ---
-		r.reseed(Sentinel{});
-		NavProbe::set_remembered_scroll(480);
-		currentUIMode = UI_MODE_HOLDING_SONG_BUTTON;
-		(void)legacy_view.horizontalEncoderAction(1);
-		currentUIMode = UI_MODE_NONE;
-		const int32_t legacy_follow = NavProbe::remembered_scroll();
-		const int32_t legacy_scroll = r.f.song->persistentView.xScroll[NAVIGATION_CLIP];
-		const uint32_t legacy_zoom = r.f.song->persistentView.xZoom[NAVIGATION_CLIP];
+		LEGACY_ONLY(r.reseed(Sentinel{}); NavProbe::set_remembered_scroll(480);
+		            currentUIMode = UI_MODE_HOLDING_SONG_BUTTON; (void)legacy_view.horizontalEncoderAction(1);
+		            currentUIMode = UI_MODE_NONE;
+		            keep_number(self, "refused_turn", "follow", NavProbe::remembered_scroll());
+		            keep_number(self, "refused_turn", "scroll", r.f.song->persistentView.xScroll[NAVIGATION_CLIP]);
+		            keep_number(self, "refused_turn", "zoom", r.f.song->persistentView.xZoom[NAVIGATION_CLIP]););
+		const int64_t legacy_follow = number_answer("refused_turn", "follow");
+		const int64_t legacy_scroll = number_answer("refused_turn", "scroll");
+		const int64_t legacy_zoom = number_answer("refused_turn", "zoom");
 
-		// --- the port ---
 		r.reseed(Sentinel{});
 		r.open_scene_only();
 		r.scene().timeline().scroll_before_following = 480;
@@ -831,14 +853,14 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		(void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		(void)in.press(ButtonId::Session, false);
 
-		expect(r.scene().timeline().scroll_before_following).to_equal(legacy_follow);
+		expect(int64_t{r.scene().timeline().scroll_before_following}).to_equal(legacy_follow);
 		expect(r.scene().timeline().scroll_before_following)
 		    .to_equal(deluge::ui::scenes::timeline::kNotFollowing);
 		// ...and the turn really was REFUSED on both sides, which is what makes this example
 		// about the clear rather than about the gesture.
-		expect(r.scene().timeline().x_scroll).to_equal(legacy_scroll);
+		expect(int64_t{r.scene().timeline().x_scroll}).to_equal(legacy_scroll);
 		expect(r.scene().timeline().x_scroll).to_equal(0);
-		expect(r.scene().timeline().x_zoom).to_equal(legacy_zoom);
+		expect(int64_t{r.scene().timeline().x_zoom}).to_equal(legacy_zoom);
 		expect(r.scene().timeline().x_zoom).to_equal(48u);
 	});
 
@@ -852,18 +874,15 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		Rig r;
 		Input in;
 
-		// --- legacy ---
-		r.reseed(Sentinel{});
-		NavProbe::set_remembered_scroll(480);
-		currentUIMode = UI_MODE_NONE;
-		legacy_hold(ButtonId::Shift, true);
-		(void)legacy_view.horizontalEncoderAction(1);
-		legacy_hold(ButtonId::Shift, false);
-		const int32_t legacy_follow = NavProbe::remembered_scroll();
-		const int32_t legacy_length = r.f.clip->loopLength();
-		expect(legacy_follow).to_equal(480); // legacy really does keep it
+		LEGACY_ONLY(r.reseed(Sentinel{}); NavProbe::set_remembered_scroll(480); currentUIMode = UI_MODE_NONE;
+		            legacy_hold(ButtonId::Shift, true); (void)legacy_view.horizontalEncoderAction(1);
+		            legacy_hold(ButtonId::Shift, false);
+		            keep_number(self, "shift_length_edit", "follow", NavProbe::remembered_scroll());
+		            keep_number(self, "shift_length_edit", "length", r.f.clip->loopLength()););
+		const int64_t legacy_follow = number_answer("shift_length_edit", "follow");
+		const int64_t legacy_length = number_answer("shift_length_edit", "length");
+		expect(legacy_follow).to_equal(int64_t{480}); // legacy really does keep it
 
-		// --- the port ---
 		r.reseed(Sentinel{});
 		r.open_scene_only();
 		r.scene().timeline().scroll_before_following = 480;
@@ -871,9 +890,9 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		(void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
 		(void)in.press(ButtonId::Shift, false);
 
-		expect(r.scene().timeline().scroll_before_following).to_equal(legacy_follow);
+		expect(int64_t{r.scene().timeline().scroll_before_following}).to_equal(legacy_follow);
 		// ...and the edit itself happened, so this is not passing because the turn did nothing.
-		expect(r.f.clip->loopLength()).to_equal(legacy_length);
+		expect(int64_t{r.f.clip->loopLength()}).to_equal(legacy_length);
 		expect(r.f.clip->loopLength()).to_be_greater_than(768);
 	});
 
@@ -888,14 +907,14 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		constexpr int32_t kColumn = 9;
 
 		r.reseed(s);
-		expect(reset_legacy_markers(r)).to_be_true();
 		const ModelSnapshot seeded = model_snapshot(r);
-		expect(raise_legacy_end_marker(r)).to_be_true();
-		(void)legacy_view.padAction(kColumn, 0, 1);
-		const ModelSnapshot legacy = model_snapshot(r);
-		(void)actionLogger.revert(BEFORE, false, false);
-		const ModelSnapshot legacy_undone = model_snapshot(r);
-		lower_legacy_end_marker(r);
+		LEGACY_ONLY(expect(reset_legacy_markers(r)).to_be_true(); expect(raise_legacy_end_marker(r)).to_be_true();
+		            (void)legacy_view.padAction(kColumn, 0, 1);
+		            keep_snapshot(self, "undo_drag", "edited", model_snapshot(r));
+		            (void)actionLogger.revert(BEFORE, false, false);
+		            keep_snapshot(self, "undo_drag", "undone", model_snapshot(r)); lower_legacy_end_marker(r););
+		const ModelSnapshot legacy = snapshot_answer("undo_drag", "edited");
+		const ModelSnapshot legacy_undone = snapshot_answer("undo_drag", "undone");
 
 		r.reseed(s);
 		r.open_scene_only();
@@ -917,16 +936,16 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		Input in;
 
-		r.reseed(Sentinel{});
-		r.f.clip->name = "TAKE";
-		currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
-		(void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true);
-		currentUIMode = UI_MODE_NONE;
-		(void)actionLogger.revert(BEFORE, false, false);
-		const bool legacy_sample_back = r.f.clip->sampleHolder.audioFile != nullptr;
-		const std::string legacy_name = r.f.clip->name;
+		LEGACY_ONLY(r.reseed(Sentinel{}); r.f.clip->name = "TAKE";
+		            currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
+		            (void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true); currentUIMode = UI_MODE_NONE;
+		            (void)actionLogger.revert(BEFORE, false, false);
+		            keep_number(self, "undo_clear", "sample_back", r.f.clip->sampleHolder.audioFile != nullptr);
+		            deluge::ui::scenes::spec::keep(self, "audio_clip_scene_spec", "undo_clear", "name", r.f.clip->name);
+		            r.f.clip->sampleHolder.setAudioFile(r.sample););
+		const bool legacy_sample_back = number_answer("undo_clear", "sample_back") != 0;
+		const std::string legacy_name = answers().value("undo_clear", "name");
 
-		r.f.clip->sampleHolder.setAudioFile(r.sample);
 		r.reseed(Sentinel{});
 		r.f.clip->name = "TAKE";
 		r.open_scene_only();
@@ -954,17 +973,16 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 		r.reseed(s);
 		const ModelSnapshot seeded = model_snapshot(r);
-		playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
-		currentUIMode = UI_MODE_NONE;
-		legacy_hold(ButtonId::Shift, true);
-		(void)legacy_view.horizontalEncoderAction(-1);
-		const int32_t legacy_shortened = r.f.clip->loopLength();
-		(void)legacy_view.horizontalEncoderAction(1);
-		legacy_hold(ButtonId::Shift, false);
-		currentUIMode = UI_MODE_NONE;
-		const ModelSnapshot legacy = model_snapshot(r);
-		const int32_t legacy_steps = undo_steps();
-		playbackHandler.playbackState = 0;
+		LEGACY_ONLY(playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		            currentUIMode = UI_MODE_NONE; legacy_hold(ButtonId::Shift, true);
+		            (void)legacy_view.horizontalEncoderAction(-1);
+		            keep_number(self, "coalesce", "shortened", r.f.clip->loopLength());
+		            (void)legacy_view.horizontalEncoderAction(1); legacy_hold(ButtonId::Shift, false);
+		            currentUIMode = UI_MODE_NONE; keep_snapshot(self, "coalesce", "after", model_snapshot(r));
+		            keep_number(self, "coalesce", "steps", undo_steps()); playbackHandler.playbackState = 0;);
+		const int64_t legacy_shortened = number_answer("coalesce", "shortened");
+		const ModelSnapshot legacy = snapshot_answer("coalesce", "after");
+		const int64_t legacy_steps = number_answer("coalesce", "steps");
 
 		r.reseed(s);
 		playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
@@ -978,11 +996,11 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		const int32_t port_steps = undo_steps();
 		playbackHandler.playbackState = 0;
 
-		expect(port_shortened).to_equal(legacy_shortened);
+		expect(int64_t{port_shortened}).to_equal(legacy_shortened);
 		expect(port_shortened).to_be_less_than(seeded.loop_length);
 		expect(port).to_equal(legacy);
 		expect(port).to_equal(seeded); // the lengthen undid the shorten
-		expect(port_steps).to_equal(legacy_steps);
+		expect(int64_t{port_steps}).to_equal(legacy_steps);
 		nullifyUIs();
 	});
 
@@ -1007,13 +1025,11 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		Input in;
 		const Sentinel s{};
 
-		r.reseed(s);
-		currentUIMode = UI_MODE_NONE;
-		legacy_hold(ButtonId::Shift, true);
-		(void)legacy_view.horizontalEncoderAction(1);
-		legacy_hold(ButtonId::Shift, false);
-		currentUIMode = UI_MODE_NONE;
-		const int32_t legacy_after = actionLogger.firstAction[BEFORE]->xScrollClip[AFTER];
+		LEGACY_ONLY(r.reseed(s); currentUIMode = UI_MODE_NONE; legacy_hold(ButtonId::Shift, true);
+		            (void)legacy_view.horizontalEncoderAction(1); legacy_hold(ButtonId::Shift, false);
+		            currentUIMode = UI_MODE_NONE;
+		            keep_number(self, "redo_view", "scroll", actionLogger.firstAction[BEFORE]->xScrollClip[AFTER]););
+		const int64_t legacy_after = number_answer("redo_view", "scroll");
 
 		r.reseed(s);
 		r.open_scene_only();
@@ -1022,7 +1038,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		(void)in.press(ButtonId::Shift, false);
 		const int32_t port_after = actionLogger.firstAction[BEFORE]->xScrollClip[AFTER];
 
-		expect(port_after).to_equal(legacy_after);
+		expect(int64_t{port_after}).to_equal(legacy_after);
 		expect(port_after).to_equal(r.scene().timeline().x_scroll);
 		expect(port_after).not_().to_equal(s.x_scroll); // the lengthen really scrolled
 		nullifyUIs();
@@ -1124,16 +1140,13 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		// the sentinel alone, and shorter than the seeded 768 so the edit is a real change.
 		constexpr int32_t kColumn = 9;
 
-		// --- legacy: raise its marker through its own gesture, then drag through it too ---
 		r.reseed(s);
-		expect(reset_legacy_markers(r)).to_be_true();
 		const ModelSnapshot seeded = model_snapshot(r);
-		expect(raise_legacy_end_marker(r)).to_be_true();
-		(void)legacy_view.padAction(kColumn, 0, 1);
-		const ModelSnapshot legacy = model_snapshot(r);
-		lower_legacy_end_marker(r);
+		LEGACY_ONLY(expect(reset_legacy_markers(r)).to_be_true(); expect(raise_legacy_end_marker(r)).to_be_true();
+		            (void)legacy_view.padAction(kColumn, 0, 1);
+		            keep_snapshot(self, "end_drag", "edited", model_snapshot(r)); lower_legacy_end_marker(r););
+		const ModelSnapshot legacy = snapshot_answer("end_drag", "edited");
 
-		// --- the port, from the same re-seeded start ---
 		r.reseed(s);
 		r.open_scene_only();
 		expect(model_snapshot(r)).to_equal(seeded); // the re-seed really put it back
@@ -1160,15 +1173,14 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		const Sentinel s{};
 		constexpr int32_t kColumn = 4; // a new start of `4 * 48 = 192` ticks
 
-		// --- legacy ---
 		r.reseed(s);
-		expect(reset_legacy_markers(r)).to_be_true();
 		const ModelSnapshot seeded = model_snapshot(r);
-		(void)legacy_view.padAction(0, 0, 1); // start square at scroll 0 is column 0
-		(void)legacy_view.padAction(kColumn, 0, 1);
-		const ModelSnapshot legacy = model_snapshot(r);
+		LEGACY_ONLY(expect(reset_legacy_markers(r)).to_be_true();
+		            (void)legacy_view.padAction(0, 0, 1); // start square at scroll 0 is column 0
+		            (void)legacy_view.padAction(kColumn, 0, 1);
+		            keep_snapshot(self, "start_drag", "edited", model_snapshot(r)););
+		const ModelSnapshot legacy = snapshot_answer("start_drag", "edited");
 
-		// --- the port ---
 		r.reseed(s);
 		r.open_scene_only();
 		(void)in.pad(0, 0, true);
@@ -1181,10 +1193,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		// `audio_clip_view.cpp`).
 		expect(port.loop_length).to_equal(576);
 
-		// Legacy's start latch is private and nothing else puts it down; every example that
-		// drives legacy's `padAction` opens with `reset_legacy_markers`, but put it down here
-		// too rather than leaving the next example to clean up after this one.
-		expect(reset_legacy_markers(r)).to_be_true();
+		LEGACY_ONLY(expect(reset_legacy_markers(r)).to_be_true(););
 
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::TrimFromStartOfAudioClip, saved);
 	});
@@ -1200,12 +1209,11 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 		r.reseed(s);
 		r.f.clip->sampleControls.reversed = true;
-		expect(reset_legacy_markers(r)).to_be_true();
 		const ModelSnapshot seeded = model_snapshot(r);
-		expect(raise_legacy_end_marker(r)).to_be_true();
-		(void)legacy_view.padAction(kColumn, 0, 1);
-		const ModelSnapshot legacy = model_snapshot(r);
-		lower_legacy_end_marker(r);
+		LEGACY_ONLY(expect(reset_legacy_markers(r)).to_be_true(); expect(raise_legacy_end_marker(r)).to_be_true();
+		            (void)legacy_view.padAction(kColumn, 0, 1);
+		            keep_snapshot(self, "reversed_drag", "edited", model_snapshot(r)); lower_legacy_end_marker(r););
+		const ModelSnapshot legacy = snapshot_answer("reversed_drag", "edited");
 
 		r.reseed(s);
 		r.f.clip->sampleControls.reversed = true;
@@ -1235,14 +1243,12 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 			r.reseed(s);
 			const ModelSnapshot seeded = model_snapshot(r);
-			currentUIMode = UI_MODE_NONE;
-			legacy_hold(ButtonId::Shift, true);
-			legacy_hold(ButtonId::XEnc, true);
-			(void)legacy_view.horizontalEncoderAction(offset);
-			legacy_hold(ButtonId::XEnc, false);
-			legacy_hold(ButtonId::Shift, false);
-			currentUIMode = UI_MODE_NONE;
-			const ModelSnapshot legacy = model_snapshot(r);
+			const std::string column = offset > 0 ? "longer" : "shorter";
+			LEGACY_ONLY(currentUIMode = UI_MODE_NONE; legacy_hold(ButtonId::Shift, true);
+			            legacy_hold(ButtonId::XEnc, true); (void)legacy_view.horizontalEncoderAction(offset);
+			            legacy_hold(ButtonId::XEnc, false); legacy_hold(ButtonId::Shift, false);
+			            currentUIMode = UI_MODE_NONE; keep_snapshot(self, "no_stretch", column, model_snapshot(r)););
+			const ModelSnapshot legacy = snapshot_answer("no_stretch", column);
 
 			r.reseed(s);
 			r.open_scene_only();
@@ -1276,8 +1282,9 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 		r.reseed(s);
 		const ModelSnapshot seeded = model_snapshot(r);
-		legacy_view.setClipLengthEqualToSampleLength();
-		const ModelSnapshot legacy = model_snapshot(r);
+		LEGACY_ONLY(legacy_view.setClipLengthEqualToSampleLength();
+		            keep_snapshot(self, "to_sample_length", "edited", model_snapshot(r)););
+		const ModelSnapshot legacy = snapshot_answer("to_sample_length", "edited");
 
 		r.reseed(s);
 		r.open_scene_only();
@@ -1298,12 +1305,11 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 		r.reseed(s);
 		const ModelSnapshot seeded = model_snapshot(r);
-		currentUIMode = UI_MODE_NONE;
-		legacy_hold(ButtonId::YEnc, true);
-		(void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
-		legacy_hold(ButtonId::YEnc, false);
-		currentUIMode = UI_MODE_NONE;
-		const ModelSnapshot legacy = model_snapshot(r);
+		LEGACY_ONLY(currentUIMode = UI_MODE_NONE; legacy_hold(ButtonId::YEnc, true);
+		            (void)legacy_view.buttonAction(legacy_button(ButtonId::XEnc), true);
+		            legacy_hold(ButtonId::YEnc, false); currentUIMode = UI_MODE_NONE;
+		            keep_snapshot(self, "to_sample_length_chord", "edited", model_snapshot(r)););
+		const ModelSnapshot legacy = snapshot_answer("to_sample_length_chord", "edited");
 
 		r.reseed(s);
 		r.open_scene_only();
@@ -1327,14 +1333,15 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		currentUIMode = UI_MODE_NONE;
 
 		const AudioOutputMode start = r.f.output->mode;
-		legacy_view.selectEncoderAction(1);
-		const AudioOutputMode after_legacy = r.f.output->mode;
-		expect(after_legacy).not_().to_equal(start); // legacy really moved it
+		LEGACY_ONLY(legacy_view.selectEncoderAction(1);
+		            keep_number(self, "select_turn", "mode", static_cast<int64_t>(r.f.output->mode));
+		            deluge::edits::audioModeFor(*r.f.output, start););
+		const int64_t after_legacy = number_answer("select_turn", "mode");
+		expect(after_legacy).not_().to_equal(static_cast<int64_t>(start)); // legacy really moved it
 
-		deluge::edits::audioModeFor(*r.f.output, start);
 		r.open_scene_only();
 		(void)in.turn(deluge::ui::widgets::core::EncoderRole::Select, 1);
-		expect(r.f.output->mode).to_equal(after_legacy);
+		expect(static_cast<int64_t>(r.f.output->mode)).to_equal(after_legacy);
 
 		deluge::edits::audioModeFor(*r.f.output, AudioOutputMode::player);
 	});
@@ -1348,18 +1355,18 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		currentUIMode = UI_MODE_NONE;
 
 		const int16_t start = r.f.clip->colourOffset();
-		legacy_hold(ButtonId::Shift, true);
-		(void)legacy_view.verticalEncoderAction(3);
-		legacy_hold(ButtonId::Shift, false);
-		const int16_t after_legacy = r.f.clip->colourOffset();
-		expect(after_legacy).not_().to_equal(start);
+		LEGACY_ONLY(legacy_hold(ButtonId::Shift, true); (void)legacy_view.verticalEncoderAction(3);
+		            legacy_hold(ButtonId::Shift, false);
+		            keep_number(self, "colour_turn", "offset", r.f.clip->colourOffset());
+		            r.f.clip->setColourOffset(start););
+		const int64_t after_legacy = number_answer("colour_turn", "offset");
+		expect(after_legacy).not_().to_equal(int64_t{start});
 
-		r.f.clip->setColourOffset(start);
 		r.open_scene_only();
 		(void)in.press(ButtonId::Shift, true);
 		(void)in.turn(deluge::ui::widgets::core::EncoderRole::Vertical, 3);
 		(void)in.press(ButtonId::Shift, false);
-		expect(r.f.clip->colourOffset()).to_equal(after_legacy);
+		expect(int64_t{r.f.clip->colourOffset()}).to_equal(after_legacy);
 
 		r.f.clip->setColourOffset(start);
 	});
@@ -1373,31 +1380,31 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		// A 4096-tick clip, so one screen right (48 * 16 = 768 ticks) is genuinely inside
 		// `getMaxLength()` and the turn is ALLOWED. At the sentinel's own 768 it would be
 		// refused, which is the other example's subject rather than this one's.
-		r.reseed(Sentinel{.loop_length = 4096});
-		currentUIMode = UI_MODE_NONE;
-		(void)legacy_view.horizontalEncoderAction(1);
-		const int32_t legacy_scroll_long = r.f.song->persistentView.xScroll[NAVIGATION_CLIP];
+		LEGACY_ONLY(r.reseed(Sentinel{.loop_length = 4096}); currentUIMode = UI_MODE_NONE;
+		            (void)legacy_view.horizontalEncoderAction(1);
+		            keep_number(self, "plain_turn", "scroll", r.f.song->persistentView.xScroll[NAVIGATION_CLIP]););
+		const int64_t legacy_scroll_long = number_answer("plain_turn", "scroll");
 
 		r.reseed(Sentinel{.loop_length = 4096});
 		r.open_scene_only();
 		(void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, 1);
-		expect(r.scene().timeline().x_scroll).to_equal(legacy_scroll_long);
+		expect(int64_t{r.scene().timeline().x_scroll}).to_equal(legacy_scroll_long);
 		expect(r.scene().timeline().x_scroll).to_equal(48 * kDisplayWidth); // one screen
 
 		// --- zoom: the horizontal encoder's button held (`TimelineView::horizontalEncoderAction` in
 		// `timeline_view.cpp`) ---
-		r.reseed(Sentinel{.loop_length = 4096});
-		currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
-		(void)legacy_view.horizontalEncoderAction(-1);
-		currentUIMode = UI_MODE_NONE;
-		const uint32_t legacy_zoom = r.f.song->persistentView.xZoom[NAVIGATION_CLIP];
-		expect(legacy_zoom).to_equal(96u); // zoomed OUT one step
+		LEGACY_ONLY(r.reseed(Sentinel{.loop_length = 4096});
+		            currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON;
+		            (void)legacy_view.horizontalEncoderAction(-1); currentUIMode = UI_MODE_NONE;
+		            keep_number(self, "plain_turn", "zoom", r.f.song->persistentView.xZoom[NAVIGATION_CLIP]););
+		const int64_t legacy_zoom = number_answer("plain_turn", "zoom");
+		expect(legacy_zoom).to_equal(int64_t{96}); // zoomed OUT one step
 
 		r.reseed(Sentinel{.loop_length = 4096});
 		r.open_scene_only();
 		(void)in.press(ButtonId::XEnc, true);
 		(void)in.turn(deluge::ui::widgets::core::EncoderRole::Horizontal, -1);
-		expect(r.scene().timeline().x_zoom).to_equal(legacy_zoom);
+		expect(int64_t{r.scene().timeline().x_zoom}).to_equal(legacy_zoom);
 		(void)in.press(ButtonId::XEnc, false);
 	});
 
@@ -1414,15 +1421,16 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		expect(r.scene().timeline().x_scroll).to_equal(768);
 
 		// Legacy's own answer, from legacy's own function, over the same model.
-		r.f.song->persistentView.xScroll[NAVIGATION_CLIP] = 768;
-		legacy_view.clipNeedsReRendering(r.f.clip);
-		const int32_t legacy_scroll = r.f.song->persistentView.xScroll[NAVIGATION_CLIP];
-		expect(legacy_scroll).to_equal(0);
+		LEGACY_ONLY(r.f.song->persistentView.xScroll[NAVIGATION_CLIP] = 768;
+		            legacy_view.clipNeedsReRendering(r.f.clip);
+		            keep_number(self, "content_change", "past_end", r.f.song->persistentView.xScroll[NAVIGATION_CLIP]););
+		const int64_t legacy_scroll = number_answer("content_change", "past_end");
+		expect(legacy_scroll).to_equal(int64_t{0});
 
 		deluge::base::notify::DirtySet dirty;
 		dirty.raise(deluge::base::notify::Dirty::ClipContent);
 		audio_clip_scene().on_model_changed(dirty);
-		expect(r.scene().timeline().x_scroll).to_equal(legacy_scroll);
+		expect(int64_t{r.scene().timeline().x_scroll}).to_equal(legacy_scroll);
 	});
 
 	it("leaves the scroll alone when the view is still inside the clip", _ {
@@ -1434,9 +1442,10 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.reseed(Sentinel{.x_scroll = 384, .loop_length = 4096});
 		r.open_scene_only();
 
-		r.f.song->persistentView.xScroll[NAVIGATION_CLIP] = 384;
-		legacy_view.clipNeedsReRendering(r.f.clip);
-		expect(r.f.song->persistentView.xScroll[NAVIGATION_CLIP]).to_equal(384);
+		LEGACY_ONLY(r.f.song->persistentView.xScroll[NAVIGATION_CLIP] = 384;
+		            legacy_view.clipNeedsReRendering(r.f.clip);
+		            keep_number(self, "content_change", "inside", r.f.song->persistentView.xScroll[NAVIGATION_CLIP]););
+		expect(number_answer("content_change", "inside")).to_equal(int64_t{384});
 
 		deluge::base::notify::DirtySet dirty;
 		dirty.raise(deluge::base::notify::Dirty::ClipContent);
@@ -1472,6 +1481,12 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.f.clip->recorder = recorder;
 		expect(deluge::ui::scenes::menu::relevance::audio_clip_has_sample(ctx)).to_be_false();
 		r.f.clip->recorder = nullptr;
+	});
+
+	it("asked every frozen answer of legacy's, and read every frozen page", _ {
+		expect(answers().size()).to_be_greater_than(size_t{0});
+		expect(answers().unasked()).to_equal(std::string{});
+		expect(deluge::ui::scenes::spec::AudioClipPages::unread("audio_clip_")).to_equal(std::string{});
 	});
 });
 // NOLINTEND(readability-function-cognitive-complexity)

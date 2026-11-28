@@ -72,6 +72,7 @@
 #include "storage/flash_storage.h"
 
 #include "fakes.h"
+#include "support/audio_clip_answers.h"
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
 #include "support/song_fixture.h"
 
@@ -80,14 +81,18 @@
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/audio_clip_freezer.h"
 #include "support/matchers/value_matchers.h"
 
 #include <algorithm>
 #include <array>
+#include <charconv>
+#include <climits>
 #include <cstdint>
 #include <cstring>
 #include <format>
 #include <ostream>
+#include <sstream>
 #include <string>
 
 #include "support/menu_context.h"
@@ -666,6 +671,68 @@ ModelSnapshot model_snapshot(const Rig& r) {
 	return ModelSnapshot{r.f.clip->loopLength(), r.f.clip->sampleHolder.startPos, r.f.clip->sampleHolder.endPos};
 }
 
+// --- legacy's frozen answers ------------------------------------------------------------------
+
+/// @brief `audio_clip_scene_spec`'s table of legacy's answers (`support/audio_clip_answers.h`).
+deluge::ui::scenes::spec::OracleTable& answers() {
+	return deluge::ui::scenes::spec::audio_clip_answers("audio_clip_scene_spec");
+}
+
+/// @brief @p p as an answer holds it: eight lines from the top row down, each eighteen `rrggbb`, sidebar included.
+std::string pads_text(const LegacyPads& p) {
+	std::string out;
+	for (int32_t y = kDisplayHeight - 1; y >= 0; y--) {
+		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+			const RGB& c = p.image[y][x];
+			out += std::format("{}{:02x}{:02x}{:02x}", x == 0 ? "" : " ", c.r, c.g, c.b);
+		}
+		out += '\n';
+	}
+	return out;
+}
+
+/// @brief The pads the row (@p path, `pads`) holds; all black when it holds none, which no example's expectation
+///        accepts.
+LegacyPads pads_answer(std::string_view path) {
+	LegacyPads out;
+	std::istringstream in{answers().value(path, "pads")};
+	std::string cell;
+	for (int32_t y = kDisplayHeight - 1; y >= 0; y--) {
+		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+			if (!(in >> cell) || cell.size() != 6) {
+				return LegacyPads{};
+			}
+			const uint32_t v = static_cast<uint32_t>(std::stoul(cell, nullptr, 16));
+			out.image[y][x] = RGB{
+			    .r = static_cast<uint8_t>(v >> 16), .g = static_cast<uint8_t>(v >> 8), .b = static_cast<uint8_t>(v)};
+		}
+	}
+	return out;
+}
+
+/// @brief @p s as an answer holds it: the loop length, the start and the end.
+std::string snapshot_text(const ModelSnapshot& s) {
+	return std::format("{} {} {}", s.loop_length, s.start_pos, s.end_pos);
+}
+
+/// @brief The model the row (@p path, @p column) holds; all zero when it holds none.
+ModelSnapshot snapshot_answer(std::string_view path, std::string_view column) {
+	ModelSnapshot s;
+	std::istringstream in{answers().value(path, column)};
+	if (!(in >> s.loop_length >> s.start_pos >> s.end_pos)) {
+		return ModelSnapshot{};
+	}
+	return s;
+}
+
+/// @brief The number the row (@p path, @p column) holds; `INT64_MIN` when it holds none.
+int64_t number_answer(std::string_view path, std::string_view column) {
+	const std::string v = answers().value(path, column);
+	int64_t n = 0;
+	const auto [end, ec] = std::from_chars(v.data(), v.data() + v.size(), n);
+	return ec == std::errc{} && end == v.data() + v.size() ? n : INT64_MIN;
+}
+
 /// @brief Assert @p port and @p legacy agree AND that both actually moved off @p seeded.
 ///
 /// The second half is the blindness check, made a property of the helper rather than a habit: see
@@ -909,6 +976,24 @@ int32_t undo_steps() {
 		n++;
 	}
 	return n;
+}
+
+/// @brief Freeze, or check, legacy's pads as (@p path, `pads`).
+template <typename Self>
+void keep_pads(Self& self, std::string_view path) {
+	deluge::ui::scenes::spec::keep(self, "audio_clip_scene_spec", path, "pads", pads_text(legacy_pads()));
+}
+
+/// @brief Freeze, or check, legacy's number @p v as (@p path, @p column).
+template <typename Self>
+void keep_number(Self& self, std::string_view path, std::string_view column, int64_t v) {
+	deluge::ui::scenes::spec::keep(self, "audio_clip_scene_spec", path, column, std::to_string(v));
+}
+
+/// @brief Freeze, or check, what legacy left in the model as (@p path, @p column).
+template <typename Self>
+void keep_snapshot(Self& self, std::string_view path, std::string_view column, const ModelSnapshot& s) {
+	deluge::ui::scenes::spec::keep(self, "audio_clip_scene_spec", path, column, snapshot_text(s));
 }
 
 bool reset_legacy_markers(Rig& r) {
