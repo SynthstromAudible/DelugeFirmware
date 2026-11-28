@@ -1418,12 +1418,13 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		drum.writeParamsToFile(smSerializer, &pm, true);
+		drum.writeParamsToFile(smSerializer, &pm, true, /*dx7Mode=*/false);
 		int32_t engLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), pcs->records().records(),
-		                                     doc.cable_depths, smSerializer, true, doc.arp ? &*doc.arp : nullptr);
+		                                     doc.cable_depths, smSerializer, true, doc.arp ? &*doc.arp : nullptr,
+		                                     /*dx7Mode=*/false);
 		int32_t domLen = smSerializer.bytesWritten();
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
@@ -1450,7 +1451,9 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("soundParams");
-		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), {}, {}, smSerializer, true);
+		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), {}, {}, smSerializer, true,
+		                                     nullptr,
+		                                     /*dx7Mode=*/false);
 		smSerializer.writeClosingTag("soundParams", true);
 		int32_t rtLen = smSerializer.bytesWritten();
 		rtBuf[rtLen] = '\0';

@@ -72,6 +72,8 @@
 			"lpfMorph": "0x7FFFFFFF",
 			"hpfMorph": "0x80000000",
 			"waveFold": "0xDC28F5B2",
+			"dx7Level": "0x7FFFFFFF",
+			"dx7AmpMod": "0x00000000",
 			"ratchetProbability": "0x80000000",
 			"ratchetAmount": "0x80000000",
 			"sequenceLength": "0x80000000",

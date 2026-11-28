@@ -404,6 +404,7 @@ void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* 
 		switch (p) {
 		case params::LOCAL_OSC_A_VOLUME:
 		case params::LOCAL_OSC_B_VOLUME:
+		case params::LOCAL_DX7_LEVEL:
 		case params::LOCAL_MODULATOR_0_VOLUME:
 		case params::LOCAL_MODULATOR_1_VOLUME:
 			recalculateAllVoicePhaseIncrements(modelStack);
@@ -1339,10 +1340,10 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 	return true;
 }
 
-// In DX7 mode source 0 is the DX7, which reads osc A's level, and source 1 is none
+// In DX7 mode source 0 is the DX7, whose level is its own, and source 1 is none
 bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager) {
-	if (getSynthMode() == SynthMode::DX7 && s != 0) {
-		return false;
+	if (getSynthMode() == SynthMode::DX7) {
+		return s == 0 && getSmoothedPatchedParamValue(params::LOCAL_DX7_LEVEL, *paramManager) != -2147483648;
 	}
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || getSmoothedPatchedParamValue(params::LOCAL_OSC_A_VOLUME + s, *paramManager) != -2147483648)
@@ -1350,8 +1351,10 @@ bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramMan
 }
 
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
-	if (getSynthMode() == SynthMode::DX7 && s != 0) {
-		return false;
+	if (getSynthMode() == SynthMode::DX7) {
+		return s == 0
+		       && paramManager->getPatchedParamSet()->params[params::LOCAL_DX7_LEVEL].containsSomething(
+		           paramManager->getPatchedParamSet()->playedLane(params::LOCAL_DX7_LEVEL), -2147483648);
 	}
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].containsSomething(
@@ -1841,7 +1844,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			facts.source_ever_active[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			facts.source_active_currently[s] = isSourceActiveCurrently(s, paramManager);
 		}
-		// The DX7 reads osc A's level: source 0's rule
+		// The DX7 is source 0 in DX7 mode, active by its own level
 		facts.dx7_active_currently = getSynthMode() == SynthMode::DX7 && facts.source_active_currently[0];
 		facts.dx7_patch_changed = dx7Patch.changed;
 		const deluge::synth::BlockValues blockValues =
@@ -2473,17 +2476,15 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 	return Error::NONE;
 }
 
-void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
+void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation, bool dx7Mode) {
 	// Serialize from the value DOM (deluge::project). serializeSoundParams emits the patched + unpatched flat attrs,
 	// the shared effects param block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
 	// <patchCables> block and the shared tags.
 	deluge::project::DocParamManager doc = deluge::bridge::toDocParamManagerFromStore(*paramManager);
-	// A DX7-mode sound's voice plays oscillator A's level, pulse width and pitch in place of the DX7's own params,
-	// so no sound saves those
 	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
 	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND),
 	                                     paramManager->getPatchCableSet()->records().records(), doc.cable_depths,
-	                                     writer, writeAutomation, doc.arp ? &*doc.arp : nullptr, /*dx7Mode=*/false);
+	                                     writer, writeAutomation, doc.arp ? &*doc.arp : nullptr, dx7Mode);
 }
 
 void Sound::deriveConfig() {
@@ -2653,7 +2654,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	if (paramManager) {
 		writer.writeOpeningTagBeginning("defaultParams");
-		Sound::writeParamsToFile(writer, paramManager, false);
+		Sound::writeParamsToFile(writer, paramManager, false, getSynthMode() == SynthMode::DX7);
 		writer.writeClosingTag("defaultParams");
 	}
 

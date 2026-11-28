@@ -103,10 +103,12 @@ struct Played {
 
 int32_t dummy_patch = 0;
 
-/// The DX7 engine's setup.
+/// The DX7 engine's setup: the DX7's level full, its amplitude modulation and pitch adjust at their middle, as the
+/// rig's oscillator A.
 NoteSetup dx7_setup() {
 	NoteSetup setup = note_setup(OscType::DX7);
 	setup.dx7 = {.patch = &dummy_patch, .ever_active = true};
+	setup.initial_patching.preset_values[params::LOCAL_DX7_LEVEL] = deluge::dsp::Q<31>::from_raw(kMax);
 	return setup;
 }
 
@@ -116,7 +118,7 @@ NoteSetup dx7_setup() {
 Played play(SynthMode mode, const NoteSetup& setup, const std::function<void(RenderConfig&)>& shape,
             bool patch_change = false, bool level_change = false) {
 	NoteSetup quieter = setup;
-	quieter.initial_patching.preset_values[params::LOCAL_OSC_A_VOLUME] = deluge::dsp::Q<31>::from_raw(0x40000000);
+	quieter.initial_patching.preset_values[params::LOCAL_DX7_LEVEL] = deluge::dsp::Q<31>::from_raw(0x40000000);
 	DxRig dx;
 	Rig& rig = *dx.rig;
 	RenderConfig cfg = config(mode, OscType::DX7);
@@ -241,6 +243,12 @@ describe dx7_engine_spec_body("the DX7 engine", ${
 		const Played transposed = play(SynthMode::DX7, up, as_is);
 		const Played plain = play(SynthMode::DX7, dx7_setup(), as_is);
 		expect(transposed.calls == plain.calls).to_equal(false);
+	});
+
+	it("plays at its own level, whatever oscillator A's volume", _{
+		NoteSetup osc_a_silent = dx7_setup();
+		osc_a_silent.initial_patching.preset_values[params::LOCAL_OSC_A_VOLUME] = deluge::dsp::Q<31>::from_raw(kMin);
+		expect(fingerprint(play(SynthMode::DX7, osc_a_silent, as_is))).to_equal(std::string{kFreeRunning});
 	});
 
 	it("never sounds osc 2, whatever its setup", _{

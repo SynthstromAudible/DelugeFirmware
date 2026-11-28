@@ -658,6 +658,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(const deluge::bridge::LaneTar
 	switch (lane.param_id) {
 	case params::LOCAL_OSC_A_VOLUME:
 	case params::LOCAL_OSC_B_VOLUME:
+	case params::LOCAL_DX7_LEVEL:
 	case params::LOCAL_NOISE_VOLUME:
 	case params::LOCAL_MODULATOR_0_VOLUME:
 	case params::LOCAL_MODULATOR_1_VOLUME:

@@ -33,8 +33,9 @@ fn a_dx7_on_osc_1_with_a_silent_osc_2_becomes_the_dx7_engine() {
         &doc,
         r#"<sound mode="dx7">
         <dx7 transpose="-12" cents="5" retrigPhase="-1" patch="ABCD" engineMode="1"/>
-        <defaultParams oscAVolume="0x7FFFFFFF" oscBVolume="0x80000000" oscBPulseWidth="0x10000000">
-            <patchCables><patchCable source="velocity" destination="oscAVolume" amount="0x3FFFFFE8"/></patchCables>
+        <defaultParams oscAVolume="0x7FFFFFFF" oscBVolume="0x80000000" oscBPulseWidth="0x10000000"
+                       dx7Level="0x7FFFFFFF">
+            <patchCables><patchCable source="velocity" destination="dx7Level" amount="0x3FFFFFE8"/></patchCables>
         </defaultParams>
     </sound>"#,
     );
@@ -79,63 +80,116 @@ fn an_unwritten_synced_or_patched_other_volume_counts_audible() {
     }
 }
 
-#[test]
-fn a_dx7_on_osc_2_takes_osc_1s_params_cables_knobs_and_clip_automation() {
-    let (doc, notes) = run(r#"<song>
+/// A song whose instrument `Bell` plays a DX7 on `osc` (its params named with `letter`) with a value, a cable, a mod
+/// knob, a MIDI knob and clip automation on each of the three params it takes, and an instrument `Other` with none.
+fn dx7_song(osc: &str, letter: &str) -> String {
+    let other = if osc == "osc1" { "osc2" } else { "osc1" };
+    format!(
+        r#"<song>
         <instruments>
             <sound presetName="Bell" mode="subtractive">
-                <osc1 type="square"/>
-                <osc2 type="dx7" transpose="7" dx7patch="AB"/>
-                <defaultParams oscAVolume="0x80000000" oscAPulseWidth="0x00000000" oscBVolume="0x40000000"
-                               oscBPulseWidth="0x10000000" oscBPitchAdjust="0x00000100" volume="0x4CCCCCA8">
+                <{osc} type="dx7" transpose="7" dx7patch="AB"/>
+                <{other} type="square"/>
+                <defaultParams osc{letter}Volume="0x40000000" osc{letter}PulseWidth="0x10000000"
+                               osc{letter}PitchAdjust="0x00000100" volume="0x4CCCCCA8" waveFold="0x80000000">
                     <patchCables>
-                        <patchCable source="velocity" destination="oscBVolume" amount="0x3FFFFFE8"/>
-                        <patchCable source="lfo1" destination="oscAPitchAdjust" amount="0x10000000"/>
+                        <patchCable source="velocity" destination="osc{letter}Volume" amount="0x3FFFFFE8"/>
+                        <patchCable source="lfo1" destination="osc{letter}PulseWidth" amount="0x10000000">
+                            <depthControlledBy><patchCable source="envelope2" amount="0x08000000"/></depthControlledBy>
+                        </patchCable>
+                        <patchCable source="lfo2" destination="osc{letter}PitchAdjust" amount="0x20000000"/>
                     </patchCables>
                 </defaultParams>
-                <modKnobs><modKnob controlsParam="oscBVolume"/><modKnob controlsParam="volume"/></modKnobs>
+                <modKnobs><modKnob controlsParam="osc{letter}Volume"/><modKnob controlsParam="osc{letter}PulseWidth"
+                    patchAmountFromSource="lfo1"/><modKnob controlsParam="volume"/></modKnobs>
+                <midiKnobs><midiKnob controlsParam="osc{letter}PitchAdjust" cc="74"/></midiKnobs>
             </sound>
             <sound presetName="Other" mode="subtractive"><osc1 type="saw"/></sound>
         </instruments>
         <sessionClips>
             <instrumentClip instrumentPresetName="Bell">
-                <soundParams oscAVolume="0x80000000" oscBVolume="0x2000000000000000000000FF"/>
+                <soundParams osc{letter}Volume="0x2000000000000000000000FF" osc{letter}PulseWidth="0x30000000"
+                             osc{letter}PitchAdjust="0x0000020000000000000000F0" pan="0x00000000"/>
             </instrumentClip>
-            <instrumentClip instrumentPresetName="Other"><soundParams oscBVolume="0x20000000"/></instrumentClip>
+            <instrumentClip instrumentPresetName="Other"><soundParams osc{letter}Volume="0x20000000"/></instrumentClip>
         </sessionClips>
-    </song>"#);
-    same(
-        &doc,
+    </song>"#
+    )
+}
+
+/// What `dx7_song(_, letter)` upgrades to: the DX7's params hold the oscillator's values, cables, knobs and clip
+/// automation, and the oscillator's params their defaults (a pitch adjust's is not written).
+fn dx7_song_upgraded(letter: &str) -> String {
+    format!(
         r#"<song>
         <instruments>
             <sound presetName="Bell" mode="dx7">
                 <dx7 transpose="7" patch="AB"/>
-                <defaultParams oscAVolume="0x40000000" oscAPulseWidth="0x10000000" oscAPitchAdjust="0x00000100"
-                               volume="0x4CCCCCA8">
+                <defaultParams osc{letter}Volume="0x7FFFFFFF" osc{letter}PulseWidth="0x00000000" volume="0x4CCCCCA8"
+                               waveFold="0x80000000" dx7Level="0x40000000" dx7AmpMod="0x10000000"
+                               dx7PitchAdjust="0x00000100">
                     <patchCables>
-                        <patchCable source="velocity" destination="oscAVolume" amount="0x3FFFFFE8"/>
+                        <patchCable source="velocity" destination="dx7Level" amount="0x3FFFFFE8"/>
+                        <patchCable source="lfo1" destination="dx7AmpMod" amount="0x10000000">
+                            <depthControlledBy><patchCable source="envelope2" amount="0x08000000"/></depthControlledBy>
+                        </patchCable>
+                        <patchCable source="lfo2" destination="dx7PitchAdjust" amount="0x20000000"/>
                     </patchCables>
                 </defaultParams>
-                <modKnobs><modKnob controlsParam="oscAVolume"/><modKnob controlsParam="volume"/></modKnobs>
+                <modKnobs><modKnob controlsParam="dx7Level"/><modKnob controlsParam="dx7AmpMod"
+                    patchAmountFromSource="lfo1"/><modKnob controlsParam="volume"/></modKnobs>
+                <midiKnobs><midiKnob controlsParam="dx7PitchAdjust" cc="74"/></midiKnobs>
             </sound>
             <sound presetName="Other" mode="subtractive"><osc1 type="saw"/></sound>
         </instruments>
         <sessionClips>
             <instrumentClip instrumentPresetName="Bell">
-                <soundParams oscAVolume="0x2000000000000000000000FF"/>
+                <soundParams osc{letter}Volume="0x7FFFFFFF" osc{letter}PulseWidth="0x00000000" pan="0x00000000"
+                             dx7Level="0x2000000000000000000000FF" dx7AmpMod="0x30000000"
+                             dx7PitchAdjust="0x0000020000000000000000F0"/>
             </instrumentClip>
-            <instrumentClip instrumentPresetName="Other"><soundParams oscBVolume="0x20000000"/></instrumentClip>
+            <instrumentClip instrumentPresetName="Other"><soundParams osc{letter}Volume="0x20000000"/></instrumentClip>
         </sessionClips>
-    </song>"#,
-    );
-    assert_eq!(
-        notes,
-        vec!["osc1's cable from lfo1 to oscAPitchAdjust dropped".to_string()]
+    </song>"#
+    )
+}
+
+#[test]
+fn a_dx7_on_osc_1_takes_osc_as_params_cables_knobs_and_clip_automation() {
+    let (doc, notes) = run(&dx7_song("osc1", "A"));
+    same(&doc, &dx7_song_upgraded("A"));
+    // The other oscillator, a square at its unwritten (full) volume, could sound
+    assert_eq!(notes, vec!["osc2 dropped: square".to_string()]);
+}
+
+#[test]
+fn a_dx7_on_osc_2_takes_osc_bs_params_cables_knobs_and_clip_automation() {
+    let (doc, notes) = run(&dx7_song("osc2", "B"));
+    same(&doc, &dx7_song_upgraded("B"));
+    assert_eq!(notes, vec!["osc1 dropped: square".to_string()]);
+}
+
+#[test]
+fn a_dx7_on_osc_2_leaves_osc_as_params_and_cables_as_they_are() {
+    let (doc, _) = run(r#"<sound mode="subtractive">
+        <osc1 type="square"/><osc2 type="dx7"/>
+        <defaultParams oscAVolume="0x80000000" oscAPitchAdjust="0x00000100" oscBVolume="0x40000000">
+            <patchCables><patchCable source="lfo1" destination="oscAPitchAdjust" amount="0x10000000"/></patchCables>
+        </defaultParams>
+    </sound>"#);
+    same(
+        &doc,
+        r#"<sound mode="dx7"><dx7/>
+        <defaultParams oscAVolume="0x80000000" oscAPitchAdjust="0x00000100" oscBVolume="0x7FFFFFFF"
+                       dx7Level="0x40000000">
+            <patchCables><patchCable source="lfo1" destination="oscAPitchAdjust" amount="0x10000000"/></patchCables>
+        </defaultParams>
+    </sound>"#,
     );
 }
 
 #[test]
-fn a_kit_drums_dx7_on_osc_2_moves_its_rows_params() {
+fn a_kit_drums_dx7_moves_its_rows_params_onto_the_dx7s() {
     let (doc, _) = run(r#"<song>
         <instruments>
             <kit presetName="Kit">
@@ -163,7 +217,7 @@ fn a_kit_drums_dx7_on_osc_2_moves_its_rows_params() {
                 <soundSources>
                     <sound mode="subtractive"><osc1 type="saw"/></sound>
                     <sound mode="dx7"><dx7/>
-                        <defaultParams oscAVolume="0x7FFFFFFF"/></sound>
+                        <defaultParams oscAVolume="0x80000000" oscBVolume="0x7FFFFFFF" dx7Level="0x7FFFFFFF"/></sound>
                 </soundSources>
             </kit>
         </instruments>
@@ -171,7 +225,7 @@ fn a_kit_drums_dx7_on_osc_2_moves_its_rows_params() {
             <instrumentClip instrumentPresetName="Kit">
                 <noteRows>
                     <noteRow drumIndex="0"><soundParams oscBVolume="0x10000000"/></noteRow>
-                    <noteRow drumIndex="1"><soundParams oscAVolume="0x20000000"/></noteRow>
+                    <noteRow drumIndex="1"><soundParams oscBVolume="0x7FFFFFFF" dx7Level="0x20000000"/></noteRow>
                 </noteRows>
             </instrumentClip>
         </sessionClips>

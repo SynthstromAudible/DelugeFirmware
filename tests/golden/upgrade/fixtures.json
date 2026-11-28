@@ -65,11 +65,11 @@
   },
   "upgrade/sound/dx7_osc1.synth.XML": {
     "kind": "SYNTH",
-    "sha256": "a7eb234c8ce22a1c58f012c1571c8e665c08bbb3bd5a284230194160d79033c0"
+    "sha256": "5425e5a690c145d6e3c8cf5f699b788ba09b91ea1192db1007983297c2b8fbf6"
   },
   "upgrade/sound/dx7_osc2.synth.XML": {
     "kind": "SYNTH",
-    "sha256": "7972c435f8f4b1dd8afb6b208588effc3d13e19c467136e54e6081bcc9fe24b9"
+    "sha256": "fa316b87080f4f6d27101564aff8ce969f76a95198210c7bd12a6d3e708b80c0"
   },
   "upgrade/sound/early_sample.synth.XML": {
     "kind": "SYNTH",

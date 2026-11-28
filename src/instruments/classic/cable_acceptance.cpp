@@ -70,7 +70,7 @@ bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFact
 		return false;
 	}
 	const bool fm = state.mode == SynthMode::FM;
-	// The DX7 reads osc A's params; it plays no second oscillator and no noise
+	// The DX7 plays no second oscillator and no noise
 	const bool dx7 = state.mode == SynthMode::DX7;
 	// The DX7's own params are reached only in DX7 mode, by the sources their oscillator A counterparts take there
 	if (destination == param::kDx7Level || destination == param::kDx7AmpMod || destination == param::kDx7Pitch) {

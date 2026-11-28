@@ -65,6 +65,8 @@
 			"modFXOffset": "0x00000000",
 			"modFXFeedback": "0x00000000",
 			"waveFold": "0x00000000",
+			"dx7Level": "0x7FFFFFFF",
+			"dx7AmpMod": "0x00000000",
 			"envelope1": {
 				"attack": "0x80000000",
 				"decay": "0xE6666654",

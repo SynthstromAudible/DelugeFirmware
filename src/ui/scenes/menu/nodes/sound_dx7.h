@@ -11,13 +11,14 @@
 /// | node | what it edits | `main`'s column for a DX7 |
 /// |---|---|---|
 /// | `dx7_engine` | the synth mode; SELECT enters "DX7 source" (`dx_menu`) | oscillator 1's type, DX7 |
-/// | `dx7_transpose` | `dx7/transpose` and `dx7/cents` | oscillator 1's transpose |
-/// | `dx7_amp_mod` | oscillator A's pulse width, the DX7's amplitude modulation | oscillator 1's pulse width |
+/// | `dx7_transpose` | `dx7/transpose` and `dx7/cents`; MIDI learn takes the DX7's pitch adjust | oscillator 1's transpose |
+/// | `dx7_amp_mod` | the DX7's amplitude modulation (`dx7AmpMod`) | oscillator 1's pulse width |
 /// | `dx7_phase` | `dx7/retrigPhase` | oscillator 1's retrigger phase |
-/// | `dx7_level` | oscillator A's volume, the DX7's level | the mixer's oscillator 1 level |
+/// | `dx7_level` | the DX7's level (`dx7Level`) | the mixer's oscillator 1 level |
 // clang-format on
 ///
-/// @note The DX7 reads oscillator A's volume and pulse width until it has params of its own. It starts each operator's
+/// @note The DX7's level, amplitude modulation and pitch adjust are its own params, which `main`'s DX7 oscillator took
+///       from oscillator 1's volume, pulse width and pitch adjust. It starts each operator's
 ///       phase itself, so the retrigger phase plays nothing (a retriggered DX7 renders as a free-running one,
 ///       `dx7_engine_spec`); `main` showed the column for a DX7 oscillator all the same, and so does this page. Each
 ///       column shows in DX7 mode alone, and appends to OSC1's children, so no column of `main`'s moves.
@@ -50,12 +51,12 @@ inline constexpr Node dx7_transpose = with_patch_chain(
                                                        .path = "dx7/transpose",
                                                        .whole_kit = false}),
                                          2),
-                     sound_param(deluge::instruments::classic::param::kOscAPitch)));
+                     sound_param(deluge::instruments::classic::param::kDx7Pitch)));
 
 inline constexpr Node dx7_amp_mod =
     with_column_draw(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_PULSE_WIDTH),
-                                            sound_param(deluge::instruments::classic::param::kOscAPhaseWidth),
-                                            Hint::None, param_shows::kOnDx7, 0, Scaling::HalfPrecision)),
+                                            sound_param(deluge::instruments::classic::param::kDx7AmpMod), Hint::None,
+                                            param_shows::kOnDx7, 0, Scaling::HalfPrecision)),
                      pulse_width_draw);
 
 // The retrigger phase's screen, as `retrigger_phase_screen` (`sound_osc.h`) builds the oscillators'.
@@ -76,7 +77,7 @@ inline constexpr Node dx7_phase = with_default_edit_pos(
     1);
 
 inline constexpr Node dx7_level = with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_VOLUME_LEVEL),
-                                                         sound_param(deluge::instruments::classic::param::kOscAVolume),
+                                                         sound_param(deluge::instruments::classic::param::kDx7Level),
                                                          Hint::Bar, param_shows::kOnDx7));
 
 } // namespace deluge::ui::scenes::menu::nodes

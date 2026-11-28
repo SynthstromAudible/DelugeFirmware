@@ -180,7 +180,7 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
                           std::span<const deluge::synth::CableRecord> cables,
                           const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation,
-                          const DocParamSet* arp = nullptr, bool dx7Mode = false);
+                          const DocParamSet* arp, bool dx7Mode);
 
 /// @brief Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
