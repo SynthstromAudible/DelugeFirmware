@@ -14,13 +14,14 @@
 /// (`check_layer_rules.py`, `scenes-no-frame-primitives`):
 ///
 ///   * `renderMainPads`' `waveformRenderer.renderFullScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`)
-///     -> `services::read_waveform` then `services::paint_columns` (the read through the waveform's address, then
-///     `ui::widgets::grid::waveform_full`).
-///   * `renderColumn` / `renderMarkerInCol` -> `ui::widgets::grid::marker_column` /
-///     `marker_tint`.
-///   * `renderOLED`'s `drawScreenTitle` -> `ui::widgets::oled::title`.
-///   * its lock icon + `invertArea` -> `ui::widgets::oled::title_badge`.
-///   * its time and sample-count lines -> `ui::widgets::oled::sample_position`.
+///     -> `services::read_waveform`, then `present_waveform` (`services::peak_cols`) and `views::grid::waveform`
+///     (`ui::widgets::grid::waveform_full`).
+///   * `renderColumn` / `renderMarkerInCol` -> `present_overlay` and `views::grid::marker_overlay`
+///     (`ui::widgets::grid::marker_column` / `marker_tint`).
+///   * `graphicsRoutine`'s playhead -> `present_playhead` and `views::grid::playhead`.
+///   * `renderOLED` -> `present_position` and `views::oled::marker_position`: `drawScreenTitle` as
+///     `ui::widgets::oled::title`, its lock icon + `invertArea` as `ui::widgets::oled::title_badge`, its time and
+///     sample-count lines as `ui::widgets::oled::sample_position`.
 ///
 /// The read and the navigation are not widgets: the read goes through the context's waveforms port
 /// (`ui/scenes/bind/ports/waveforms.h`), which answers each column as a peak, pending or past the end, and the
@@ -87,7 +88,11 @@
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/services/peak_retry.h"
 #include "ui/scenes/services/view_state.h"
+#include "ui/scenes/services/waveform_paint.h"
 #include "ui/shell/scene.h"
+#include "ui/views/grid/marker.h"
+#include "ui/views/grid/playhead.h"
+#include "ui/views/oled/marker.h"
 #include "ui/views/waveform/view.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/core/response.h"
@@ -176,6 +181,24 @@ public:
 	deluge::ui::shell::SceneKind kind() const override { return kMarkerSceneKind; }
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
 	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
+	/// @name What the surfaces show (`marker/present.cpp`)
+	/// @{
+	/// @brief The screen: the selected marker's name through `reverseRemap`, the loop lock, its position and the
+	///        sample's rate from @p info.
+	[[nodiscard]] deluge::ui::views::oled::MarkerPosition present_position(const bind::WaveformInfo& info) const;
+	/// @brief The waveform's columns from @p wf, the first @p main_cols of them.
+	[[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
+	present_waveform(const services::WaveformFrame& wf, int32_t main_cols) const;
+	/// @brief The markers at @p cols (`pins()`, read once by the frame) over the first @p main_cols columns, with the
+	///        blink's phase applied.
+	[[nodiscard]] deluge::ui::views::grid::MarkerOverlay
+	present_overlay(const std::array<views::waveform::MarkerPin, project::kSampleMarkerCount>& cols,
+	                int32_t main_cols) const;
+	/// @brief The playhead in the first @p main_cols columns, as the device's flash cursor shows it.
+	/// @param pos Where the newest voice plays (`play_position()`, read once by the frame); none when nothing plays.
+	[[nodiscard]] deluge::ui::views::grid::Playhead present_playhead(int32_t main_cols,
+	                                                                 std::optional<int64_t> pos) const;
+	/// @}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	void tick(uint32_t dt_ms) override;
@@ -376,7 +399,7 @@ private:
 	/// condition for re-arming the blink timer.
 	///
 	/// @note **Two different widths decide "on screen" in this scene, and they can disagree.**
-	///       This one is `render_grid`'s `main.bounds().w` -- the frame it was actually given. The
+	///       This one is `render_grid`'s main width, `bounds().w` of the frame it was actually given. The
 	///       *scroll* and *hit-test* arms (`select_encoder`'s `old_col >= 0 && old_col <
 	///       kMainCols`, `pad_action`'s column tests, and `pins()`' unset markers)
 	///       use `kMainCols`, the Deluge grid's main width, because they are transcriptions of legacy, which has

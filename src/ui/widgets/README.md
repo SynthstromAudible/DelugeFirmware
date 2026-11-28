@@ -23,7 +23,7 @@ All three are `STATIC` libraries built as C++26.
 - No mutable globals and no heap. Frames are per-tick stack aggregates that own nothing; widget
   state is POD the caller keeps between ticks.
 - Widgets are plain functions, not templates. The only templates are `OledFrame::region`,
-  `GridFrame::region`, and the two legacy-bridge adapters in `grid/keyboard.h`.
+  `GridFrame::region`, and the two legacy-bridge adapters in `widgets/grid/keyboard.h`.
 - A widget reads input only through its frame's accessors, never through the snapshot behind it
   (see "The input-consumption contract").
 
@@ -51,7 +51,7 @@ against drift, not a proof.
 | `InputClaims`, `InputMask`, `FrameContext`, `FrameInput` (the accessors and claims both frames inherit, and the input-consumption contract) | `frame_context.h` |
 | `LedId`, `IndicatorId`, `BlinkRate`, `BlinkPhase`, `LedState`, `KnobIndicator`, `LedFrame` | `led_frame.h` |
 | `knob_indicator_levels`, `knob_indicator_blink` (a gold knob's 4-segment column) | `knob_indicator.h` |
-| `blink_lit`, `blink_next_flip_in` | `blink.h` |
+| `blink_lit`, `blink_next_flip_in` | `core/blink.h` |
 | `EncoderAcceleration`, `kGoldEncoderAcceleration`, `kHorizontalMenuAcceleration` (one acceleration curve shared with legacy's encoders) | `core/encoder_acceleration.h` |
 | text and layout constants (`kMenuBaseY48/64`, `kHorizontalMenuBaseY`, `kScrollTime`, ...), `text_height_of` | `metrics.h` |
 | `RepaintGate` | `repaint_gate.h` |
@@ -97,10 +97,11 @@ against drift, not a proof.
 | `NoteFill`, `NoteCell`, `ClipRowData`, `row`, `clip_row` | `rows.h` |
 | `LaunchStyle`, `StatusColours`, `StatusPad`, `AuditionPad`, `status_colour`, `status_pad`, `audition_colour`, `audition_pad`, `sidebar_columns` | `sidebar.h` |
 | `MacroKind`, `MacroCell`, `macro_colour`, `macro_wants_arm_flash`, `macros`; `NoteSquare`, `VelocityData`, `velocity_colour`, `velocity_column`; `AutomationData`, `automation_colour`, `automation_column`; `vu_max_row`, `vu_row_colour`, `vu_meter`; `TickColour`, `TickSquare`, `tick_colour`, `tick_squares` | `grid/columns.h` |
-| `PeakCol` (core's, by its grid name), `waveform_col_colour`, `waveform_row`, `waveform_full` | `grid/waveform.h` |
+| `PeakCol` (core's, by its grid name), `waveform_col_colour`, `waveform_row`, `waveform_full` | `widgets/grid/waveform.h` |
+| `BlinkPlan`, `ParamBlink`, `SourceBlink`, `exclusive_blink`, `blink_step`, `ms_to_next_step`, `fire_blink_step`, the blink constants | `grid/shortcut_blink.h` |
 | `kMaxMarkers`, `MarkerStack`, `marker_tint`, `marker_column` | `markers.h` |
-| `KeyboardLayoutKind`, `TextKeyboardState`, `text_keyboard_char_at`, `text_keyboard_key_colour`, `text_keyboard_is_shift_pad`, `text_keyboard` | `grid/keyboard.h` |
-| legacy bridges: `LegacyImage`, `copy_legacy_image`, `copy_legacy_column`, `keyboard<Layout>`, `control_column<Column>` | `grid/keyboard.h` |
+| `KeyboardLayoutKind`, `TextKeyboardState`, `text_keyboard_char_at`, `text_keyboard_key_colour`, `text_keyboard_is_shift_pad`, `text_keyboard` | `widgets/grid/keyboard.h` |
+| legacy bridges: `LegacyImage`, `copy_legacy_image`, `copy_legacy_column`, `keyboard<Layout>`, `control_column<Column>` | `widgets/grid/keyboard.h` |
 | `GreyoutMask`, `greyout`, `GestureEvent`, `HoldPolicy`, `gesture` | `effects.h` |
 
 `row`, `clip_row`, `status_pad`, `audition_pad` and `text_keyboard` return a `Response`. The
@@ -112,7 +113,7 @@ Grid compositing and the transition tweens (`composite`, `fade`, `scroll_*`, `sm
 `zoom`, `explode`, `expand_collapse`) live one layer down in `ui/gfx/grid/` and are driven by the
 shell, not by widgets; see `src/ui/gfx/README.md`.
 
-### Legacy bridges (`grid/keyboard.h`)
+### Legacy bridges (`widgets/grid/keyboard.h`)
 
 `keyboard(GridFrame&, Layout&)` and `control_column(GridFrame&, int32_t, Column&, void*)` let a
 scene drive the legacy `KeyboardLayout` and `ControlColumn` classes through a `GridFrame`. They are
@@ -282,4 +283,4 @@ which byte-compares, so a fix changes the port and the oracle together.
 ## Known gaps
 
 - Native keyboard layouts and control columns: the legacy `KeyboardLayout`/`ControlColumn`
-  classes still render through the `grid/keyboard.h` bridges.
+  classes still render through the `widgets/grid/keyboard.h` bridges.

@@ -116,6 +116,8 @@ HOST_APP_TARGETS = [
     "deluge_ui_widgets_core",
     "deluge_ui_widgets_oled",
     "deluge_ui_widgets_grid",
+    "deluge_ui_views_oled",
+    "deluge_ui_views_grid",
     "deluge_ui_shell",
     "deluge_base_notify",
     "deluge_ui_scenes",

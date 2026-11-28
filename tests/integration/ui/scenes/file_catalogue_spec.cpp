@@ -178,7 +178,7 @@ bool window_is_contiguous(const std::vector<std::string>& sorted) {
 ///
 /// Each of `FileCatalogue`'s four operations that needs it takes `interpretNoteNames` as an argument, and four
 /// `Browser` members pass the per-browser `shouldInterpretNoteNamesForThisBrowser` through to it
-/// (`browser.cpp`: `readFileItemsForFolder`, `sortFileItems`, `getNewFileItem`,
+/// (`gui/ui/browser/browser.cpp`: `readFileItemsForFolder`, `sortFileItems`, `getNewFileItem`,
 /// `cullSomeFileItems`), so a delegate that passed a hardcoded `false` -- or the wrong browser's
 /// flag -- would be a silent behaviour change on a real card full of note-named samples. So every
 /// one of the four is driven with the flag set BOTH ways, over inputs whose two answers differ.

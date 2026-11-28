@@ -69,6 +69,7 @@ add_library(deluge_ui_scenes STATIC
     menu/nodes/sound_unison.cpp
     menu/nodes/sound_voice.cpp
     # the one scene that replaces legacy's five-class `gui/ui/rename/` directory.
+    rename/present.cpp
     rename/rename_scene.cpp
     # the one scene that replaces legacy's `gui::ContextMenu` hierarchy.
     context_menu/context_menu_scene.cpp
@@ -78,11 +79,14 @@ add_library(deluge_ui_scenes STATIC
     # the one scene that replaces the two `gui/ui/browser/` subclasses the menu tree
     # reaches -- `SampleBrowser` and `LoadMidiDeviceDefinitionUI` -- over the seam above.
     browser/browser_scene.cpp
+    browser/present.cpp
     # the sample marker editor.
     marker/marker_scene.cpp
+    marker/present.cpp
     # the audio recorder -- the one scene that replaces `origin/main:src/deluge/gui/ui/audio_recorder.cpp`'s
     # menu-driven half (its output-recording half stays on the legacy object; see the header).
     recorder/recorder_scene.cpp
+    recorder/present.cpp
     # the mod-encoder value popup -- the first of the three overlay scenes.
     overlay/param_popup_scene.cpp
     # the record count-in digit -- the second of the three overlay scenes. Not a port of
@@ -121,6 +125,7 @@ add_library(deluge_ui_scenes STATIC
     # the slicer -- state, render and the three encoder arms. NOT a root scene: legacy's
     # `Slicer` is a plain `UI` opened over the sample browser. See `slicing/slicer_scene.h`.
     slicing/slicer_scene.cpp
+    slicing/present.cpp
     # the audio clip view -- render and navigation. The FIRST root scene in the tree
     # (`AudioClipView` -> `ClipView` -> `ClipNavigationTimelineView` -> `TimelineView : public
     # RootUI`), and therefore the first for which `Scene::is_root()` is true. See
@@ -131,13 +136,15 @@ target_include_directories(deluge_ui_scenes PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/../../../include
 )
 # deluge_ui_shell already brings deluge_ui_widgets_core/deluge_ui_widgets_oled/deluge_ui_widgets_grid/
-# deluge_base_notify PUBLIC (src/ui/shell/CMakeLists.txt). deluge_base: the number formatting the menu pages use.
+# deluge_base_notify PUBLIC (src/ui/shell/CMakeLists.txt). deluge_ui_views_oled and deluge_ui_views_grid are what the
+# scenes draw through. deluge_base: the number formatting the menu pages use.
 # deluge_l10n: the strings, the names and the error texts, and src/deluge as the root its headers resolve from.
 # deluge_ui_scenes_bind: what a menu node edits, bound to the model's records and the engines' descriptors.
 if(NOT TARGET deluge_ui_scenes_bind)
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/bind ${CMAKE_CURRENT_BINARY_DIR}/bind)
 endif()
-target_link_libraries(deluge_ui_scenes PUBLIC deluge_ui_shell deluge_ui_scenes_bind deluge_ui_views_waveform deluge_base
+target_link_libraries(deluge_ui_scenes PUBLIC deluge_ui_shell deluge_ui_scenes_bind deluge_ui_views_waveform deluge_ui_views_oled
+                                              deluge_ui_views_grid deluge_base
                                               deluge_l10n deluge_arp)
 target_compile_options(deluge_ui_scenes PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 set_target_properties(deluge_ui_scenes PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)

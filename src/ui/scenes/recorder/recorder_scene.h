@@ -142,8 +142,9 @@
 #include "ui/scenes/bind/ports/take_actions.h"
 #include "ui/scenes/menu/context.h"
 #include "ui/shell/scene.h"
+#include "ui/views/grid/blink.h"
+#include "ui/views/oled/recorder.h"
 #include "ui/widgets/grid/effects.h"
-#include "ui/widgets/oled/threshold_meter.h"
 
 #include <cstdint>
 #include <optional>
@@ -168,19 +169,6 @@ inline constexpr deluge::ui::shell::SceneKind kRecorderSceneKind =
 /// 10 ms is one tick of the shipped UI loop, i.e. "next tick", spelled as a duration because that is
 /// what both APIs take. The same number and the same argument as `browser::kListingPollMs`.
 inline constexpr uint32_t kRecorderPollMs = 10;
-
-/// @brief The row `render_oled` draws its status word on, in frame-local coordinates.
-///
-/// `AudioRecorder::renderOLED` is one call:
-/// `drawStringCentred(text, 19, kTextBigSpacingX, kTextBigSizeY)`. That 19 is an *absolute* canvas
-/// row and the frame's origin already accounts for the bezel, so the frame-local row is
-/// `19 - OLED_MAIN_TOPMOST_PIXEL` = 14 on the shipped panel -- exactly the subtraction
-/// `MarkerScene::body_y` makes in the other direction (its legacy expression spells the bezel out,
-/// this one does not).
-///
-/// @note On a panel with no bezel the word therefore sits 14 rows from the top of the frame rather
-///       than at absolute row 19; legacy's bare literal has no opinion about such a panel at all.
-inline constexpr int32_t kStatusY = 14;
 
 /// @brief The row of the recorder's shortcut pad, on its source's column: `AudioRecorder::opened`'s
 ///        `setupShortcutBlink(currentSourceIndex, 4, 0)`, the cell `kSoundCells` (`menu/shortcuts.cpp`) gives
@@ -236,6 +224,14 @@ public:
 	///        is armed.
 	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
 
+	/// @brief What the recorder screen shows: the status word, or `AudioRecorder::getThresholdMeterState`'s meter
+	///        (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`), for a panel @p width wide. The word points at
+	///        literals.
+	[[nodiscard]] deluge::ui::views::oled::RecorderStatus present_status(int32_t width) const;
+	/// @brief The shortcut pad's blink at @p now_ms: the plan, the counter's step on the anchor, and whether that step
+	///        has not played yet. Reads the anchor `render_grid` set.
+	[[nodiscard]] deluge::ui::views::grid::BlinkPads present_blink(uint32_t now_ms) const;
+
 	/// @name Observable state
 	/// For specs, and for whoever wires the menu items up.
 	/// @{
@@ -262,9 +258,6 @@ private:
 	/// @brief The take port.
 	/// @return The context's `take_actions`, or null.
 	[[nodiscard]] bind::TakeActions* takes() const;
-	/// @brief `AudioRecorder::getThresholdMeterState` (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`), for a panel
-	/// @p width wide.
-	deluge::ui::widgets::oled::ThresholdMeter meter_state(int32_t width) const;
 	/// @brief `AudioRecorder::endRecordingSoon`, through `TakeActions::end_soon`.
 	void end_recording_soon();
 	/// @brief `AudioRecorder::finishRecording`, through `TakeActions::finish`.

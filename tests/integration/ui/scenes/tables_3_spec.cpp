@@ -2111,7 +2111,7 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 	// `midi_device_choice` write-back `nodes/settings.h` recorded as owed.
 	//
 	// **These are NOT `Node::dynamic_children` nodes**, as one might expect them to be. A submenu row is labelled by
-	// `display_text` (`MenuView::render_vertical`; `present.cpp`) -- a `Binding::name_text` hook with no row index, or
+	// `display_text` (`MenuView::render_vertical`; `menu/present.cpp`) -- a `Binding::name_text` hook with no row index, or
 	// the `Node::name` l10n id -- and `Devices` labels its rows with
 	// `MIDICable::getDisplayName()` (`Devices::drawPixelsForOled` in
 	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) -- a runtime string with no id at all -- while the two
