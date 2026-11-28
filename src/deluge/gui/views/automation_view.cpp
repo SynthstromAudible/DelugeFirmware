@@ -1356,7 +1356,7 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 	else if (isAudioClip) {
 		// removing time stretching by re-calculating clip length based on length of audio sample
 		if (on && Buttons::isButtonPressed(deluge::hid::button::Y_ENC) && currentUIMode == UI_MODE_NONE) {
-			audioClipView.setClipLengthEqualToSampleLength();
+			setAudioClipLengthToSampleLength(*static_cast<AudioClip*>(getCurrentClip()));
 			return false;
 		}
 		// if shift is pressed then we're resizing the clip without time stretching
@@ -2158,8 +2158,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	// Shift and x pressed - edit length of audio clip without timestretching
 	else if (getCurrentClip()->type == ClipType::AUDIO && isNoUIModeActive()
 	         && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
-		ActionResult result = audioClipView.editClipLengthWithoutTimestretching(offset);
-		return result;
+		return editAudioClipLengthWithoutTimestretching(*static_cast<AudioClip*>(getCurrentClip()), offset);
 	}
 
 	// Or, let parent deal with it

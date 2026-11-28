@@ -72,6 +72,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
@@ -2027,6 +2028,28 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		// `guide.audioFileHolder`, which `AudioClip::AudioClip` points at the clip's own `sampleHolder` member
 		// permanently -- the address of a member, never null. So no `AudioClip` can take it, and `STRING_FOR_NO_SAMPLE`
 		// is dead code.
+	});
+
+	it("SetClipLengthToSampleLength: over an audio clip's automation view, the automation view makes the same edit", _ {
+		select_language();
+		UiStackGuard ui_guard;
+		spec::QuietAudio quiet;
+		DisplayGuard display_guard;
+		ActionLogGuard log_guard;
+		Rig r;
+		const spec::AudioSongFixture f = seat_audio_clip_with_sample();
+		setRootUILowLevel(&automationView);
+		const int32_t seeded = f.clip->loopLength();
+		const int32_t from_sample = f.clip->sampleHolder.getLoopLengthAtSystemSampleRate(true);
+		expect(from_sample).not_().to_equal(seeded);
+
+		expect(press_child_leaving_request(r, nodes::audio_clip_actions, nodes::set_clip_length)).to_be_true();
+		deluge::gui::ui::dispatchShellActions();
+
+		expect(f.clip->loopLength()).to_equal(from_sample);
+		expect(static_cast<int>(display_guard.recorder.popups.size())).to_equal(1);
+		expect(display_guard.recorder.popups.empty() ? std::string{} : display_guard.recorder.popups[0])
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_CLIP_LENGTH_ADJUSTED)));
 	});
 
 	it("OpenSongMidiLearn: arms MIDI learn and opens the context menu, which is both statements", _ {

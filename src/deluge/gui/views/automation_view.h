@@ -106,6 +106,15 @@ public:
 
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset) override;
+	/// @brief Make @p clip exactly as long as its sample, dropping the time-stretch, with the length's popup: the X and
+	///        Y chord and the menu's action over an audio clip's automation.
+	/// @param clip The current clip.
+	void setAudioClipLengthToSampleLength(AudioClip& clip);
+	/// @brief SHIFT, X and a turn over an audio clip: its length by a square, the sample's end moved with it so the
+	///        audio keeps its speed.
+	/// @param clip The current clip. @param offset Signed detents.
+	/// @return DEALT_WITH.
+	ActionResult editAudioClipLengthWithoutTimestretching(AudioClip& clip, int32_t offset);
 	uint32_t getMaxLength() override;
 	uint32_t getMaxZoom() override;
 	[[nodiscard]] int32_t getNavSysId() const override;

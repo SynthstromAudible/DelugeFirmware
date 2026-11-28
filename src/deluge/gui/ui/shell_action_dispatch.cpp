@@ -31,6 +31,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
@@ -40,6 +41,7 @@
 #include "hid/display/screensaver.h" // Screensaver::settingsChanged, for reapplyLiveSettingsAfterReset
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // getCurrentOutputType
@@ -361,7 +363,15 @@ void performMenuAction(const MenuActionRequest& req) {
 		// clip from the song. Closing that here -- with a null test, or by reading the argument --
 		// would be behaviour legacy does not have, which the no-new-UI/UX rule forbids. It is
 		// reported instead.
-		audioClipView.setClipLengthEqualToSampleLength();
+		// The automation view over an audio clip makes the edit with its own scroll and zoom; the audio clip view, its.
+		if (getRootUI() == &automationView) {
+			if (::Clip* clip = getCurrentClip(); clip != nullptr && clip->type == ClipType::AUDIO) {
+				automationView.setAudioClipLengthToSampleLength(*static_cast<AudioClip*>(clip));
+			}
+		}
+		else {
+			audioClipView.setClipLengthEqualToSampleLength();
+		}
 		break;
 
 	case MenuAction::OpenSongMidiLearn:
