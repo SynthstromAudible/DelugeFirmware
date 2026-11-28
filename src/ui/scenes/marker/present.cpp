@@ -1,5 +1,7 @@
-// What the marker editor's two surfaces show, as the plain structs the views draw. Const members: nothing here writes
-// the scene or reads a frame.
+/// @file
+/// @brief What the marker editor's two surfaces show, as the plain structs the views draw. Const members: nothing here
+///        writes the scene or reads a frame.
+
 #include "base/divide.h"
 #include "project/device_settings.h"
 #include "project/sample_marker.h"

@@ -657,8 +657,7 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 void SlicerScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& f) {
 	(void)role;
-	char buffer[12];
-	deluge::ui::views::oled::slicer_count(f, present_count(std::span<char, 12>{buffer}));
+	deluge::ui::views::oled::slicer_count(f, present_count(count_text_));
 }
 
 void SlicerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
@@ -685,7 +684,7 @@ void SlicerScene::render_pads(deluge::ui::widgets::grid::GridFrame& f) {
 	// and `(i / 4) % 4`, which has no meaning at any other size. `drawColBar` centres
 	// its bars on `kDisplayHeight >> 1` too (`WaveformRenderer::drawColBar`,
 	// `gui/waveform/waveform_renderer.cpp`), not on whatever height it was handed -- so
-	// asking for exactly `kDisplayHeight` is what makes `ui::widgets::grid::waveform_full`, which centres on
+	// asking for exactly `kDisplayHeight` is what makes `views::grid::waveform`, whose bars centre on
 	// `f.bounds().h >> 1`, agree with it.
 	//
 	// A frame that cannot grant all of that is handled by `GridFrame` itself: `pad()` outside

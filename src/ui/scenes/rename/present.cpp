@@ -1,5 +1,7 @@
-// What the rename editor's two surfaces show, as the plain structs the views draw. Const members: nothing here writes
-// the scene or reads a frame.
+/// @file
+/// @brief What the rename editor's two surfaces show, as the plain structs the views draw. Const members: nothing here
+///        writes the scene or reads a frame.
+
 #include "ui/scenes/profile.h"
 #include "ui/scenes/rename/rename_scene.h"
 #include "ui/widgets/grid/keyboard.h"

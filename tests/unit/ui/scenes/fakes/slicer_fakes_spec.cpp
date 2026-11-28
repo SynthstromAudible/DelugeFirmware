@@ -235,13 +235,13 @@ describe slicer_fakes("slicing::SlicerScene over the ports' fakes", ${
 		SlicerScene scene;
 		scene.set_ports(&h.ports);
 		scene.open(a_wav());
-		std::array<char, 12> digits{};
-		const deluge::ui::views::oled::SlicerCount region = scene.present_count(digits);
+		SlicerScene::SlicerCountText text{};
+		const deluge::ui::views::oled::SlicerCount region = scene.present_count(text);
 		expect(std::string{region.label}).to_equal(std::string{"Num. slices"});
 		expect(std::string{region.digits}).to_equal(std::string{"16"});
 		scene.set_mode(deluge::ui::scenes::slicing::Mode::Manual);
 		expect(scene.add_slice_at(4000)).to_be_true();
-		const deluge::ui::views::oled::SlicerCount manual = scene.present_count(digits);
+		const deluge::ui::views::oled::SlicerCount manual = scene.present_count(text);
 		expect(std::string{manual.digits}).to_equal(std::string{"2"});
 	});
 

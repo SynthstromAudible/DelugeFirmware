@@ -1459,6 +1459,36 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		deluge::gui::shell_host::input_take()->numSamplesCaptured = 0;
 	});
 
+	it("draws the waiting screen on a 64-row panel", _ {
+		Guards g;
+		Rig r64{board_64(), profile_64()};
+		r64.open();
+		r64.tick(0);
+		expect_golden(self, "ui/scenes/recorder_waiting_64.pbm", r64.fake.pbm(0));
+	});
+
+	it("draws the threshold meter's waiting screen on a 48-row panel", _ {
+		Guards g;
+		AudioClockAt clock{0};
+		Rig r;
+		r.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+		r.open();
+		r.tick(0);
+		expect(recorder_scene().threshold_take()).to_be_true();
+		expect_golden(self, "ui/scenes/recorder_threshold_48.pbm", r.fake.pbm(0));
+	});
+
+	it("draws the threshold meter's waiting screen on a 64-row panel", _ {
+		Guards g;
+		AudioClockAt clock{0};
+		Rig r64{board_64(), profile_64()};
+		r64.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+		r64.open();
+		r64.tick(0);
+		expect(recorder_scene().threshold_take()).to_be_true();
+		expect_golden(self, "ui/scenes/recorder_threshold_64.pbm", r64.fake.pbm(0));
+	});
+
 	// --- the SAMPLE RECORDER page ---------------------------------------------------------------------
 
 	it("lands Shift + its shortcut pad on the SAMPLE RECORDER page, focused on source 0's item, and opens nothing", _ {

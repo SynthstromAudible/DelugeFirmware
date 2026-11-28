@@ -325,9 +325,13 @@ public:
 	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
 	/// @name What the surfaces show (`slicing/present.cpp`)
 	/// @{
+	/// @brief Where the screen's count is formatted: legacy's own 12-byte `intToString` buffer.
+	struct SlicerCountText {
+		char digits[12];
+	};
 	/// @brief The screen: the heading and the slice count of the current mode.
-	/// @param digits Where the count is formatted; the result points into it.
-	[[nodiscard]] deluge::ui::views::oled::SlicerCount present_count(std::span<char, 12> digits) const;
+	/// @param text Where the count is formatted; the result points into it.
+	[[nodiscard]] deluge::ui::views::oled::SlicerCount present_count(SlicerCountText& text) const;
 	/// @brief The waveform's columns from @p wf over the 16 main columns.
 	[[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
 	present_waveform(const services::WaveformFrame& wf) const;
@@ -487,6 +491,8 @@ private:
 	bool playing_ = false;
 	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
 	std::array<uint8_t, deluge::ui::gfx::grid::kDelugeGrid.rows> last_ticks_{};
+	/// The screen's count for the pass that draws it.
+	SlicerCountText count_text_{};
 };
 
 /// @brief The application's one slicer.

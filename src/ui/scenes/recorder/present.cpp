@@ -1,5 +1,7 @@
-// What the recorder scene's two surfaces show, as the plain structs the views draw. Const members: nothing here writes
-// the scene or reads a frame.
+/// @file
+/// @brief What the recorder scene's two surfaces show, as the plain structs the views draw. Const members: nothing here
+///        writes the scene or reads a frame.
+
 #include "base/sample_rate.h"
 #include "ui/scenes/bind/ports/ports.h"
 #include "ui/scenes/recorder/recorder_scene.h"

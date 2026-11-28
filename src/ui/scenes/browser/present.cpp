@@ -1,5 +1,7 @@
-// What the browser's two surfaces show, as the plain structs the views draw. Const members: nothing here writes the
-// scene or reads a frame.
+/// @file
+/// @brief What the browser's two surfaces show, as the plain structs the views draw. Const members: nothing here writes
+///        the scene or reads a frame.
+
 #include "project/device_settings.h"
 #include "ui/gfx/oled/font.h"
 #include "ui/scenes/browser/browser_scene.h"
