@@ -48,8 +48,10 @@ void position_bar(OledFrame& f, gfx::oled::Rect r, int32_t total, int32_t start,
 	const int64_t whole = std::max(1, total);
 	const int32_t x0 = std::max(r.x, r.x + static_cast<int32_t>(int64_t{start} * r.w / whole));
 	const int32_t x1 = std::min(r.x + r.w - 1, r.x + static_cast<int32_t>((int64_t{start} + len) * r.w / whole) - 1);
-	for (int32_t y = r.y; y < r.y + r.h && x0 <= x1; y++) {
-		f.hline(y, x0, x1);
+	// at least one column while the window has any length, so it never vanishes at a high zoom
+	const int32_t x1_shown = len > 0 ? std::max(x1, std::min(x0, r.x + r.w - 1)) : x1;
+	for (int32_t y = r.y; y < r.y + r.h && x0 <= x1_shown; y++) {
+		f.hline(y, x0, x1_shown);
 	}
 }
 

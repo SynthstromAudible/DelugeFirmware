@@ -108,12 +108,18 @@ describe duck_graph_w("ui::widgets::oled::duck_graph", $ {
 	});
 
 	it("keeps the focused handle on top when attack and release are 0", _ {
+		// volume 0, attack 0, release 0: the attack and release handles land on the same pixel
+		const DuckGraph d{.volume = 0.f, .shape = 0.f, .attack = 0.f, .release = 0.f};
+		const DuckHandles h{.attack = 2, .release = 3};
 		uitest::Rig48 r;
 		const PageBody b = page_body(r.frame);
-		duck_graph(r.frame, {.volume = -1.f, .shape = 0.f, .attack = 0.f, .release = 0.f},
-		           {.attack = 2, .release = 3}, 2);
 		const DuckX x = duck_x(b, 0.f, 0.f);
-		expect(r.lit(x.attack_end, b.y_at(0.f) + kTop)).to_be_true();
+		expect(x.attack_end).to_equal(x.release_end);
+		duck_graph(r.frame, d, h, 2);
+		expect(r.lit(x.attack_end, b.y_at(1.f) + kTop)).to_be_true(); // focused: interior inverted
+		uitest::Rig48 q;
+		duck_graph(q.frame, d, h, 3);
+		expect(q.lit(x.attack_end, b.y_at(1.f) + kTop)).to_be_true(); // either way round
 	});
 
 	it("clamps out-of-range values", _ {

@@ -24,7 +24,7 @@ bool in_scale(uint16_t mask, int32_t semitone) {
 } // namespace
 
 void octave(OledFrame& f, gfx::oled::Rect r, uint16_t scale_mask, int32_t root) {
-	const int32_t ww = r.w / 7;
+	const int32_t ww = (r.w - 1) / 7; // keys share edges: 7 keys are 7 * ww + 1 wide
 	const int32_t bw = ww * 2 / 3;
 	const int32_t bh = r.h * 3 / 5;
 	for (int32_t i = 0; i < 7; i++) {

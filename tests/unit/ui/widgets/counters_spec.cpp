@@ -126,6 +126,12 @@ describe position_bar_w("ui::widgets::oled::position_bar", $ {
 		expect(r.lit(1, 38 + kTop)).to_be_false();
 	});
 
+	it("keeps a window narrower than a column at least one column wide", _ {
+		uitest::Rig48 r;
+		position_bar(r.frame, {0, 36, 128, 5}, 1000, 500, 4);
+		expect(r.lit(64, 36 + kTop)).to_be_true();
+	});
+
 	it("fills the track when the window covers the whole", _ {
 		uitest::Rig48 r;
 		position_bar(r.frame, {0, 36, 128, 5}, 64, 0, 80);

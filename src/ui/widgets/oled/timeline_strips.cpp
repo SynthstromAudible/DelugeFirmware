@@ -36,7 +36,27 @@ bool clip_span(const gfx::oled::Rect& r, int32_t& x0, int32_t& x1) {
 
 void window_marks(OledFrame& f, gfx::oled::Rect r, int32_t x, int32_t w, int32_t playhead_x) {
 	if (w > 0) {
-		dotted_box(f, r.x + x, r.y, r.x + x + w - 1, r.y + r.h - 1);
+		// clipped to the strip: a window longer than the clip keeps the edges that are on it
+		const int32_t bx0 = r.x + x;
+		const int32_t bx1 = r.x + x + w - 1;
+		const int32_t lo = std::max(bx0, r.x);
+		const int32_t hi = std::min(bx1, r.x + r.w - 1);
+		const int32_t y0 = r.y;
+		const int32_t y1 = r.y + r.h - 1;
+		for (int32_t xx = bx0; xx <= hi; xx += 2) {
+			if (xx >= lo) {
+				f.pixel(xx, y0);
+				f.pixel(xx, y1);
+			}
+		}
+		for (int32_t y = y0; y <= y1; y += 2) {
+			if (bx0 >= lo && bx0 <= hi) {
+				f.pixel(bx0, y);
+			}
+			if (bx1 >= lo && bx1 <= hi) {
+				f.pixel(bx1, y);
+			}
+		}
 	}
 	if (playhead_x >= 0 && playhead_x < r.w) {
 		f.invert({r.x + playhead_x, r.y, 1, r.h});
@@ -45,7 +65,8 @@ void window_marks(OledFrame& f, gfx::oled::Rect r, int32_t x, int32_t w, int32_t
 
 void overview(OledFrame& f, gfx::oled::Rect r, int32_t lanes, int32_t units, std::span<const LaneSpan> spans,
               int32_t window_start, int32_t window_len, int32_t playhead) {
-	const int32_t lane_h = r.h / std::max(1, lanes);
+	lanes = std::max(1, lanes);
+	const auto lane_row = [&](int32_t lane) { return r.y + lane * r.h / lanes; };
 	const bool any_selected = std::ranges::any_of(spans, [](const LaneSpan& s) { return s.selected; });
 	for (const LaneSpan& s : spans) {
 		int32_t x0 = column(r, s.start, units);
@@ -54,8 +75,9 @@ void overview(OledFrame& f, gfx::oled::Rect r, int32_t lanes, int32_t units, std
 		if (s.lane < 0 || s.lane >= lanes || !clip_span(r, x0, x1)) {
 			continue;
 		}
-		const int32_t y0 = r.y + s.lane * lane_h;
-		const int32_t y1 = y0 + lane_h - 2;
+		// a lane is the rows up to the next lane's, its spans one row shorter, at least one row
+		const int32_t y0 = lane_row(s.lane);
+		const int32_t y1 = std::max(y0, lane_row(s.lane + 1) - 2);
 		if (s.muted) {
 			dotted_box(f, x0, y0, x1, y1);
 		}
@@ -70,7 +92,7 @@ void overview(OledFrame& f, gfx::oled::Rect r, int32_t lanes, int32_t units, std
 	}
 	const int32_t wx = column(r, window_start, units) - r.x;
 	const int32_t ww = column(r, static_cast<int64_t>(window_start) + window_len, units) - r.x - wx;
-	window_marks(f, r, wx, window_len > 0 ? ww : 0, playhead >= 0 ? column(r, playhead, units) - r.x : -1);
+	window_marks(f, r, wx, window_len > 0 ? std::max(1, ww) : 0, playhead >= 0 ? column(r, playhead, units) - r.x : -1);
 }
 
 void note_strip(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, std::span<const StripNote> notes, uint8_t low,
@@ -90,7 +112,8 @@ void note_strip(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, std::span
 	}
 	const int32_t wx = column(r, window_start, length_ticks) - r.x;
 	const int32_t ww = column(r, static_cast<int64_t>(window_start) + window_len, length_ticks) - r.x - wx;
-	window_marks(f, r, wx, window_len > 0 ? ww : 0, playhead >= 0 ? column(r, playhead, length_ticks) - r.x : -1);
+	window_marks(f, r, wx, window_len > 0 ? std::max(1, ww) : 0,
+	             playhead >= 0 ? column(r, playhead, length_ticks) - r.x : -1);
 }
 
 void quantize_graph(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, int32_t grid_ticks,
@@ -152,7 +175,8 @@ void automation_lane(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, std:
 	}
 	const int32_t wx = column(r, window_start, length_ticks) - r.x;
 	const int32_t ww = column(r, static_cast<int64_t>(window_start) + window_len, length_ticks) - r.x - wx;
-	window_marks(f, r, wx, window_len > 0 ? ww : 0, playhead >= 0 ? column(r, playhead, length_ticks) - r.x : -1);
+	window_marks(f, r, wx, window_len > 0 ? std::max(1, ww) : 0,
+	             playhead >= 0 ? column(r, playhead, length_ticks) - r.x : -1);
 }
 
 } // namespace deluge::ui::widgets::oled

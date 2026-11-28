@@ -12,12 +12,12 @@ namespace deluge::ui::widgets::oled {
 
 /// @brief One octave in @p r, the notes of a scale filled.
 ///
-/// Seven white keys `ww = r.w / 7` wide and as tall as @p r, outlined, neighbours sharing their edge; five black keys
-/// `ww * 2 / 3` wide and `r.h * 3 / 5` tall, each centred on the edge between its two white keys. A white key in the
-/// scale is also filled, inset 2 px inside its outline so filled neighbours stay apart; a black key is cleared first,
-/// then outlined when out of the scale or filled inside a cleared 1-px border when in it, so either reads over a filled
-/// white key. The root additionally gets a 1-px line on the row under @p r across its key. Bit n of @p scale_mask is
-/// the semitone n above C.
+/// Seven white keys `ww = (r.w - 1) / 7` wide (the octave is `7 * ww + 1` wide, inside @p r) and as tall as @p r,
+/// outlined, neighbours sharing their edge; five black keys `ww * 2 / 3` wide and `r.h * 3 / 5` tall, each centred on
+/// the edge between its two white keys. A white key in the scale is also filled, inset 2 px inside its outline so
+/// filled neighbours stay apart; a black key is cleared first, then outlined when out of the scale or filled inside a
+/// cleared 1-px border when in it, so either reads over a filled white key. The root additionally gets a 1-px line on
+/// the row under @p r across its key. Bit n of @p scale_mask is the semitone n above C.
 /// @param root The root's semitone above C, 0..11; anything else marks none.
 void octave(OledFrame& f, gfx::oled::Rect r, uint16_t scale_mask, int32_t root);
 

@@ -14,7 +14,9 @@ namespace deluge::ui::widgets::oled {
 /// @brief The pads' window and the playhead over a strip.
 ///
 /// The window `[x, x + w)` (columns relative to @p r) as a dotted box over @p r's full height, its dots on even
-/// offsets from the box's top-left corner; none when @p w <= 0. Then the playhead column @p playhead_x (relative to
+/// offsets from the box's top-left corner, clipped to @p r (an edge off the strip is not drawn); none when @p w <= 0.
+/// The strips below keep a window of any length at least one column wide. Then the playhead column @p playhead_x
+/// (relative to
 /// @p r) inverted over @p r's height; none when negative. Shared by the strips here and by any scene marking a window
 /// over `oled::waveform`.
 void window_marks(OledFrame& f, gfx::oled::Rect r, int32_t x, int32_t w, int32_t playhead_x);
@@ -30,7 +32,8 @@ struct LaneSpan {
 
 /// @brief The whole arrangement in @p r.
 ///
-/// Lane i is `r.h / lanes` rows tall from `r.y + i * (r.h / lanes)`, its spans one row shorter. A unit u is column
+/// Lane i starts on row `y + i * h / lanes` of @p r and runs to the next lane's row; its spans are one row shorter, at
+/// least one row (so lanes that outnumber the rows share rows rather than vanish). A unit u is column
 /// `r.x + u * r.w / units`; a span runs from its start's column to two before its end's (so back-to-back instances
 /// keep a blank column between them), at least one column, clipped to @p r. Spans are filled; a muted span is a dotted
 /// outline instead; when any span is selected it alone is filled and the others are solid outlines (the "clip held"

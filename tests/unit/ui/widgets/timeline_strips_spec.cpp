@@ -29,6 +29,29 @@ int32_t lit_count(uitest::Rig48& r) {
 	return n;
 }
 
+/// No lit pixel outside @p a (local coordinates on the 48-row rig).
+bool inside(uitest::Rig48& r, Rect a) {
+	for (int32_t y = 0; y < 43; y++) {
+		for (int32_t x = 0; x < 128; x++) {
+			const bool in = x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h;
+			if (!in && r.lit(x, y + kTop)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+int32_t lit_in(uitest::Rig48& r, Rect a) {
+	int32_t n = 0;
+	for (int32_t y = a.y; y < a.y + a.h; y++) {
+		for (int32_t x = a.x; x < a.x + a.w; x++) {
+			n += r.lit(x, y + kTop) ? 1 : 0;
+		}
+	}
+	return n;
+}
+
 /// The arrangement of the canvas's "Arranger · idle" sketch.
 constexpr std::array<LaneSpan, 27> kSong{{
     {0, 0, 8, false},  {0, 8, 16, false},  {0, 24, 16, false}, {0, 40, 8, false},  {0, 48, 8, false},
@@ -70,6 +93,24 @@ describe window_marks_w("ui::widgets::oled::window_marks", $ {
 		}
 	});
 
+	it("clips a window longer than the strip to the strip", _ {
+		uitest::Rig48 r;
+		uitest::Rig48 o;
+		const Rect a{10, 17, 60, 20};
+		note_strip(r.frame, a, 96, {}, 0, 127, 0, 768, -1);
+		overview(o.frame, a, 4, 4, {}, 0, 16, -1);
+		expect(inside(r, a)).to_be_true();
+		expect(inside(o, a)).to_be_true();
+		expect(r.lit(10, 17 + kTop)).to_be_true(); // the box's left edge stays
+	});
+
+	it("keeps a window narrower than a column at least one column wide", _ {
+		uitest::Rig48 r;
+		const Rect a{0, 30, 128, 11};
+		note_strip(r.frame, a, 64 * 384, {}, 48, 72, 1000, 48, -1);
+		expect(lit_in(r, a)).to_be_greater_than(0);
+	});
+
 	it("draws nothing for w <= 0 and playhead < 0", _ {
 		uitest::Rig48 r;
 		window_marks(r.frame, {0, 17, 128, 24}, 10, 0, -1);
@@ -93,6 +134,25 @@ describe overview_w("ui::widgets::oled::overview", $ {
 		expect(r.lit(14, 17 + 3 + kTop)).to_be_true();
 		expect(r.lit(15, 17 + 3 + kTop)).to_be_false();
 		expect(r.lit(16, 17 + 3 + kTop)).to_be_true();
+	});
+
+	it("keeps every lane when there are more lanes than rows", _ {
+		uitest::Rig48 r;
+		const Rect a{0, 17, 128, 20};
+		const std::array<LaneSpan, 2> two{{{29, 0, 32, false}, {28, 32, 32, true}}};
+		overview(r.frame, a, 30, 64, two, 0, 0, -1);
+		expect(inside(r, a)).to_be_true();
+		expect(lit_in(r, {0, 17, 64, 20})).to_be_greater_than(0);  // lane 29's span
+		expect(lit_in(r, {64, 17, 64, 20})).to_be_greater_than(0); // lane 28's muted span
+	});
+
+	it("draws a span on a one-row lane", _ {
+		uitest::Rig48 r;
+		const Rect a{0, 17, 128, 20};
+		const std::array<LaneSpan, 2> two{{{5, 0, 32, false}, {6, 32, 32, true}}};
+		overview(r.frame, a, 20, 64, two, 0, 0, -1);
+		expect(r.lit(10, 17 + 5 + kTop)).to_be_true();
+		expect(inside(r, a)).to_be_true();
 	});
 
 	it("dots a muted span's outline", _ {

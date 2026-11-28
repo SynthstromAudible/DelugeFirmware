@@ -18,7 +18,7 @@ namespace {
 constexpr int32_t kTop = 5; // the 48-row rig's hidden rows: canvas row = local row + 5
 constexpr uint16_t kCMajor = 0b1010'1011'0101;
 constexpr uint16_t kCMinor = 0b0101'1010'1101;
-constexpr Rect kKeys{8, 15, 112, 20}; // white keys 16 wide, black keys 10 wide and 12 tall
+constexpr Rect kKeys{8, 15, 113, 20}; // white keys 16 wide, black keys 10 wide and 12 tall
 
 } // namespace
 
@@ -40,6 +40,21 @@ describe octave_w("ui::widgets::oled::octave", $ {
 		expect(r.lit(kKeys.x + 16 + 1, y)).to_be_false();  // a gap inside D's outline
 	});
 
+	it("stays inside its rect", _ {
+		for (const Rect a : {Rect{8, 15, 112, 20}, Rect{20, 15, 70, 20}}) {
+			uitest::Rig48 r;
+			octave(r.frame, a, kCMajor, -1);
+			for (int32_t y = 0; y < 43; y++) {
+				for (int32_t x = 0; x < 128; x++) {
+					const bool in = x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h;
+					if (!in) {
+						expect(r.lit(x, y + kTop)).to_be_false();
+					}
+				}
+			}
+		}
+	});
+
 	it("draws an empty scale as outlines only", _ {
 		uitest::Rig48 r;
 		octave(r.frame, kKeys, 0, 0);
@@ -59,7 +74,7 @@ describe octave_w("ui::widgets::oled::octave", $ {
 		octave(r48.frame, kKeys, kCMinor, 0);
 		expect_golden(self, "ui/widgets/octave_48.pbm", r48.pbm());
 		uitest::Rig64 r64;
-		octave(r64.frame, {8, 16, 112, 36}, kCMinor, 0);
+		octave(r64.frame, {8, 16, 113, 36}, kCMinor, 0);
 		expect_golden(self, "ui/widgets/octave_64.pbm", r64.pbm());
 	});
 });
