@@ -23,8 +23,9 @@
 ///
 /// **Drawing.** The waveform comes from the waveforms port at the clip's AUDIO_CLIP address, and a frame whose read
 /// left a column pending asks again until it is answered. The play cursor is frame-driven while it can move. Text too
-/// wide for the panel scrolls (`scroll_text`). The scroll and zoom animations of the firmware are not carried: the view
-/// moves at once.
+/// wide for the panel scrolls (`scroll_text`). A scroll slides the pads a column a step and a zoom slides them about
+/// the pin square (the shared `scroll_transition` and `zoom_transition`); the mode word holds a scroll or a zoom while
+/// it runs, so input waits for it.
 ///
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on `Action` in
 ///          `ui/shell/scene.h`.
@@ -46,6 +47,8 @@
 #include "ui/scenes/services/peak_retry.h"
 #include "ui/widgets/core/state.h"
 #include "ui/widgets/grid/columns.h"
+#include "ui/widgets/grid/scroll_transition.h"
+#include "ui/widgets/grid/zoom_transition.h"
 
 #include <array>
 #include <cstdint>
@@ -78,6 +81,10 @@ inline constexpr uint32_t kExclusiveUiModesMask = 255;
 inline constexpr uint32_t kUiModeHoldingSongButton = 65;
 /// @brief X held: a flag bit.
 inline constexpr uint32_t kUiModeHoldingHorizontalEncoder = 1u << 31;
+/// @brief A zoom sliding: an exclusive value; input waits for it.
+inline constexpr uint32_t kUiModeHorizontalZoom = 2;
+/// @brief A scroll sliding: a flag bit; input waits for it.
+inline constexpr uint32_t kUiModeHorizontalScroll = 1u << 29;
 /// @}
 
 /// @brief The `SceneKind` this scene is registered under (`ui/scenes/registry.h`).
@@ -139,6 +146,14 @@ public:
 	[[nodiscard]] timeline::TimelineState& timeline() { return timeline_; }
 	[[nodiscard]] const timeline::TimelineState& timeline() const { return timeline_; }
 	/// @}
+
+	/// @brief End a running or pending slide at once, as its last step would: the view shows itself and input is
+	///        taken again. A host that does not run the slide's frames (a spec comparing settled frames) calls it.
+	void finish_slides();
+	/// @return Whether a scroll or zoom is sliding, or starts on the next frame.
+	[[nodiscard]] bool sliding() const {
+		return pending_slide_.kind != PendingSlide::Kind::NONE || scroll_.active || zoom_.active;
+	}
 
 	/// @brief The play cursor's column, as this scene last computed it.
 	/// @return The column, or `ui::widgets::grid::kNoTickSquare` for no cursor.
@@ -307,6 +322,14 @@ private:
 	/// @brief Put the end marker down, as most buttons do.
 	/// @return True if the end marker was up and has been put down.
 	bool deactivate_marker_if_necessary();
+	/// @brief Paint the view's main columns into @p main: the waveform, the grey beyond the clip and the markers.
+	/// @param main A frame over the main columns.
+	/// @param retry_frame The frame whose gate asks again for a column still pending.
+	void paint_main(deluge::ui::widgets::grid::GridFrame& main, deluge::ui::widgets::grid::GridFrame& retry_frame);
+	/// @brief Note a slide for the next frame when the view is not where it was: a zoom slides about the pin square, a
+	///        scroll a column a step; either holds input until it ends.
+	/// @param before_scroll The scroll before the input. @param before_zoom The zoom before it.
+	void note_slide(int32_t before_scroll, uint32_t before_zoom);
 	/// @brief The song's macros in the first sidebar column, the held pad brightened, and the clip-arm flash kept going
 	///        while any clip they name is armed.
 	/// @param f The root grid frame.
@@ -349,6 +372,17 @@ private:
 	const deluge::project::Song* model_ = nullptr;
 	const deluge::ui::scenes::bind::Ports* ports_ = nullptr;
 	deluge::ui::scenes::services::GlobalControls* global_controls_ = nullptr;
+	/// The slide the next frame starts, if the view moved.
+	struct PendingSlide {
+		enum class Kind : uint8_t { NONE, SCROLL, ZOOM };
+		Kind kind = Kind::NONE;
+		int8_t direction = 1;                     ///< SCROLL: +1 when the view moved right
+		deluge::ui::gfx::grid::ZoomParams zoom{}; ///< ZOOM: the two levels and the pin square
+	} pending_slide_;
+	/// The main columns as last settled (what a slide starts from), and the two slides.
+	std::optional<deluge::ui::gfx::grid::PadGrid> shown_;
+	deluge::ui::widgets::grid::ScrollTransition scroll_;
+	deluge::ui::widgets::grid::ZoomTransition zoom_;
 	/// The two side-scrollers' state: the output's name, and the clip's section-and-name line.
 	deluge::ui::widgets::core::ScrollText name_scroll_{};
 	deluge::ui::widgets::core::ScrollText info_scroll_{};

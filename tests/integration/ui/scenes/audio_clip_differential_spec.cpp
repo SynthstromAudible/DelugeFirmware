@@ -280,6 +280,9 @@ public:
 			break;
 		}
 		lowering_->end_tick(at_ms);
+		// The slide a step starts ends before the next deliberate input, as legacy's side finishes its own: the
+		// cases compare settled views.
+		audio_clip_scene().finish_slides();
 	}
 
 	[[nodiscard]] diff::Frame frame(uint32_t case_ms) override {

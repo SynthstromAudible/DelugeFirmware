@@ -22,6 +22,7 @@
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/services/global_controls.h"
 
+#include "base/divide.h"
 #include "base/notify/notice_queue.h"
 #include "music/note_length.h"
 #include "project/timeline_limits.h"
@@ -229,6 +230,9 @@ bool AudioClipScene::on_enter(const SceneId& id) {
 	// one object for every entry, so a latch left by the last visit (X held as the view was left) must not survive it.
 	// A resume keeps it: a menu opened and closed over the view leaves a held X held.
 	ui_mode_ = kUiModeNone;
+	// Nor a slide: the view opens settled, with nothing on the pads yet to slide from.
+	finish_slides();
+	shown_.reset();
 	focus_regained();
 	return true;
 }
@@ -319,9 +323,46 @@ bool AudioClipScene::scrollable_and_zoomable() const {
 // Input
 
 Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
+	const int32_t before_scroll = timeline_.x_scroll;
+	const uint32_t before_zoom = timeline_.x_zoom;
 	Result r = dispatch(event, ctx);
+	note_slide(before_scroll, before_zoom);
 	publish_navigation();
 	return r;
+}
+
+void AudioClipScene::note_slide(int32_t before_scroll, uint32_t before_zoom) {
+	if (timeline_.x_zoom != before_zoom) {
+		// `initiateXZoom`'s pin square (`TimelineView::calculateZoomPinSquares`): where the two views line up.
+		const int64_t moved = static_cast<int64_t>(static_cast<int32_t>(static_cast<uint32_t>(before_scroll)
+		                                                                - static_cast<uint32_t>(timeline_.x_scroll)))
+		                      << 16;
+		const int32_t pin = static_cast<int32_t>(
+		    base::trunc_div(moved, static_cast<int64_t>(timeline_.x_zoom) - static_cast<int64_t>(before_zoom)));
+		pending_slide_ = PendingSlide{.kind = PendingSlide::Kind::ZOOM,
+		                              .zoom = deluge::ui::gfx::grid::ZoomParams{
+		                                  .old_zoom = static_cast<int32_t>(before_zoom),
+		                                  .new_zoom = static_cast<int32_t>(timeline_.x_zoom),
+		                                  .pin_square_from = pin,
+		                                  .pin_square_to = pin,
+		                                  .t = 0,
+		                              }};
+		enter_ui_mode(kUiModeHorizontalZoom);
+	}
+	else if (timeline_.x_scroll != before_scroll && scrollable_and_zoomable()) {
+		// `initiateXScroll`, behind `setupScroll`'s guard: a take recorded with no clock does not slide.
+		pending_slide_ = PendingSlide{.kind = PendingSlide::Kind::SCROLL,
+		                              .direction = static_cast<int8_t>(timeline_.x_scroll > before_scroll ? 1 : -1)};
+		enter_ui_mode(kUiModeHorizontalScroll);
+	}
+}
+
+void AudioClipScene::finish_slides() {
+	pending_slide_ = PendingSlide{};
+	scroll_.active = false;
+	zoom_.active = false;
+	exit_ui_mode(kUiModeHorizontalScroll);
+	exit_ui_mode(kUiModeHorizontalZoom);
 }
 
 void AudioClipScene::publish_navigation() {
@@ -1200,11 +1241,7 @@ int32_t AudioClipScene::compute_tick_square() {
 // ---------------------------------------------------------------------------------------------
 // Rendering
 
-void AudioClipScene::render_grid(GridFrame& f) {
-	// `graphicsRoutine` before the render, as the main loop runs it (`origin/main:src/deluge/deluge.cpp`'s loop calls
-	// `UI::graphicsRoutine` before `doAnyPendingUIRendering`).
-	const int32_t tick_col = compute_tick_square();
-
+void AudioClipScene::paint_main(GridFrame& main, GridFrame& retry_frame) {
 	const deluge::ui::scenes::bind::Waveforms* shown = waveforms();
 	const std::optional<deluge::ui::scenes::bind::WaveformInfo> info =
 	    clip_ && shown != nullptr ? shown->info(waveform()) : std::nullopt;
@@ -1252,8 +1289,10 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		const std::optional<deluge::ui::scenes::services::WaveformFrame> wf =
 		    deluge::ui::scenes::services::read_waveform(*shown, waveform(), window);
 		if (wf
-		    && retry_.after(wf->read, window, f.now_ms()) == deluge::ui::scenes::services::PeakRetry::Next::ASK_AGAIN) {
-			f.grid_gate().request_repaint_after(deluge::ui::scenes::services::kPeakRetryPollMs, f.now_ms());
+		    && retry_.after(wf->read, window, retry_frame.now_ms())
+		           == deluge::ui::scenes::services::PeakRetry::Next::ASK_AGAIN) {
+			retry_frame.grid_gate().request_repaint_after(deluge::ui::scenes::services::kPeakRetryPollMs,
+			                                              retry_frame.now_ms());
 		}
 		if (wf && !wf->read.pending()) {
 			std::array<deluge::ui::widgets::grid::PeakCol, kMainCols> peaks{};
@@ -1268,7 +1307,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 				}
 			}
 
-			f.region(deluge::ui::gfx::grid::Rect{0, 0, kMainCols, f.bounds().h}, [&](GridFrame& main) {
+			{
 				// `renderOneCol`'s coloured arm: `rgb` is engaged on this call site
 				// (`AudioClipView::renderMainPads`), so `brightness` is 256
 				// (`waveform_renderer.cpp`). `waveform_full`'s precondition, honoured.
@@ -1314,8 +1353,55 @@ void AudioClipScene::render_grid(GridFrame& f) {
 						}
 					}
 				}
-			});
+			}
 		}
+	}
+}
+
+void AudioClipScene::render_grid(GridFrame& f) {
+	// `graphicsRoutine` before the render, as the main loop runs it (`origin/main:src/deluge/deluge.cpp`'s loop calls
+	// `UI::graphicsRoutine` before `doAnyPendingUIRendering`).
+	const int32_t tick_col = compute_tick_square();
+
+	const deluge::ui::gfx::grid::Rect main_rect{0, 0, kMainCols, f.bounds().h};
+	const deluge::ui::gfx::grid::GridDimensions main_dims{static_cast<uint8_t>(kMainCols), 0,
+	                                                      static_cast<uint8_t>(f.bounds().h)};
+
+	// A slide the last input asked for starts from the last settled frame, and slides to the new view, painted into a
+	// grid of its own (`renderMainPads` into `imageStore`, as `TimelineView::setupScroll` and `initiateXZoom` do).
+	if (pending_slide_.kind != PendingSlide::Kind::NONE) {
+		const PendingSlide p = std::exchange(pending_slide_, PendingSlide{});
+		if (shown_.has_value() && shown_->dims() == main_dims) {
+			deluge::ui::gfx::grid::PadGrid& to =
+			    p.kind == PendingSlide::Kind::SCROLL
+			        ? deluge::ui::widgets::grid::begin_scroll(scroll_, *shown_, p.direction, f.now_ms())
+			        : deluge::ui::widgets::grid::begin_zoom(zoom_, *shown_, p.zoom, f.now_ms());
+			GridFrame bare = deluge::ui::widgets::grid::root_grid_frame(
+			    to, f.ctx, deluge::ui::widgets::core::InputMask::none(), nullptr, nullptr, true);
+			paint_main(bare, f);
+		}
+	}
+	bool slid = false;
+	if (scroll_.active || zoom_.active) {
+		f.region(main_rect, [&](GridFrame& main) {
+			slid = scroll_.active ? deluge::ui::widgets::grid::scroll_transition(main, scroll_)
+			                      : deluge::ui::widgets::grid::zoom_transition(main, zoom_);
+		});
+	}
+	if (!slid) {
+		// No slide running, or its last step has passed: input is taken again, and the view draws itself.
+		exit_ui_mode(kUiModeHorizontalScroll);
+		exit_ui_mode(kUiModeHorizontalZoom);
+		f.region(main_rect, [&](GridFrame& main) {
+			paint_main(main, f);
+			// What a slide starts from: the main columns as they settled, before the cursor goes over them.
+			shown_.emplace(main_dims);
+			for (int32_t y = 0; y < main_dims.rows; y++) {
+				for (int32_t x = 0; x < kMainCols; x++) {
+					shown_->set(static_cast<uint8_t>(x), static_cast<uint8_t>(y), main.peek(x, y));
+				}
+			}
+		});
 	}
 
 	// `AudioClipView::renderSidebar`: both columns black, and the macros in the first while SESSION is held.

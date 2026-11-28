@@ -772,7 +772,7 @@ struct Input {
 		Result last;
 		UiEvent e{UiEvent::Kind::AllReleased};
 		while (lowering.next(e)) {
-			last = audio_clip_scene().handle(e, ctx());
+			last = settled(audio_clip_scene().handle(e, ctx()));
 		}
 		lowering.end_tick(at_ms);
 		return last;
@@ -785,8 +785,8 @@ struct Input {
 	/// @return The `Result` the scene returned.
 	Result turn(deluge::ui::widgets::core::EncoderRole role, int8_t delta, uint32_t at_ms = 0) {
 		now_ms = at_ms;
-		return audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = role, .delta = delta},
-		                                 ctx());
+		return settled(
+		    audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = role, .delta = delta}, ctx()));
 	}
 
 	/// @brief Strike or release a pad and hand the event to the scene.
@@ -795,12 +795,20 @@ struct Input {
 	/// @param on True to strike.
 	/// @return The `Result` the scene returned.
 	Result pad(int32_t x, int32_t y, bool on) {
-		return audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Pad,
-		                                         .x = static_cast<uint8_t>(x),
-		                                         .y = static_cast<uint8_t>(y),
-		                                         .velocity = static_cast<uint8_t>(on ? 64 : 0),
-		                                         .on = on},
-		                                 ctx());
+		return settled(audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Pad,
+		                                                 .x = static_cast<uint8_t>(x),
+		                                                 .y = static_cast<uint8_t>(y),
+		                                                 .velocity = static_cast<uint8_t>(on ? 64 : 0),
+		                                                 .on = on},
+		                                         ctx()));
+	}
+
+	/// @brief End the slide @p r's input started, as the frames between two of a user's inputs would: these
+	///        examples hand the scene input without running frames, and compare settled views.
+	/// @param r The scene's result. @return @p r.
+	static Result settled(Result r) {
+		audio_clip_scene().finish_slides();
+		return r;
 	}
 
 	/// @brief Whether @p r asked for a popup carrying @p string_id.

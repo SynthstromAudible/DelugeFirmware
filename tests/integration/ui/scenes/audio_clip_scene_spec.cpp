@@ -65,6 +65,22 @@
 
 #include "support/spec_main.h"
 
+namespace {
+/// @brief The rig's whole grid as text, one pad's colour after another, for comparing frames.
+std::string grid_text(Rig& r) {
+	std::string out;
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	for (uint8_t y = 0; y < 8; y++) {
+		for (uint8_t x = 0; x < 18; x++) {
+			const auto c = g.at(x, y);
+			out += std::to_string(c.r) + ',' + std::to_string(c.g) + ',' + std::to_string(c.b) + ' ';
+		}
+		out += '\n';
+	}
+	return out;
+}
+} // namespace
+
 // clang-format off
 // NOLINTBEGIN(readability-function-cognitive-complexity)
 describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
@@ -377,6 +393,73 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		// A visible marker arms the blink instead, at the phase's own interval.
 		r.scene().set_end_marker_visible(true);
 		expect(r.scene().next_timer().value()).to_equal(deluge::ui::scenes::audio_clip::kMarkerBlinkMs);
+	});
+
+	// --- the scroll and zoom slides -----------------------------------------------------------------
+
+	it("slides a scroll in a column a step, holding the pads until its last step, then settles on the new view", _ {
+		Rig r;
+		r.seed(Sentinel{});
+		r.open();
+		r.tick(0);
+		const std::string before = grid_text(r);
+		// Zoomed out so the clip spans two screens, then a scroll right.
+		r.f.song->persistentView.xZoom[NAVIGATION_CLIP] = 24;
+		r.open();
+		r.tick(100);
+		const std::string settled_left = grid_text(r);
+		(void)audio_clip_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::widgets::core::EncoderRole::Horizontal,
+		            .delta = 1},
+		    UiContext{{}, {}, false, false, 101, deluge_profile()});
+		r.tick(101); // the frame the input asked for: the slide's first step
+		expect(audio_clip_scene().sliding()).to_equal(true);
+		expect((audio_clip_scene().ui_mode() & deluge::ui::scenes::audio_clip::kUiModeHorizontalScroll) != 0).to_equal(true);
+		r.tick(101 + 5 * deluge::ui::widgets::grid::kScrollStepMs);
+		const std::string mid = grid_text(r);
+		expect(mid).not_().to_equal(settled_left);
+		// A pad struck mid-slide does nothing, as legacy's mode word refuses it.
+		(void)audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Pad, .x = 15, .y = 0, .velocity = 64, .on = true},
+		                                UiContext{{}, {}, false, false, 140, deluge_profile()});
+		expect(audio_clip_scene().end_marker_visible()).to_equal(false);
+		r.tick(101 + 15 * deluge::ui::widgets::grid::kScrollStepMs);
+		expect(audio_clip_scene().sliding()).to_equal(false);
+		expect(audio_clip_scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeNone);
+		const std::string settled_right = grid_text(r);
+		expect(settled_right).not_().to_equal(mid);
+		expect(settled_right).not_().to_equal(settled_left);
+		(void)before;
+	});
+
+	it("slides a zoom about the pin square for its 110 ms, holding input, then settles", _ {
+		Rig r;
+		r.seed(Sentinel{});
+		r.open();
+		r.tick(0);
+		const std::string settled_before = grid_text(r);
+		const deluge::ui::shell::ButtonSet x = [] {
+			deluge::ui::shell::ButtonSet b{};
+			b.set(ButtonId::XEnc, true);
+			return b;
+		}();
+		(void)audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::XEnc},
+		                                UiContext{x, {}, false, false, 1, deluge_profile()});
+		(void)audio_clip_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::widgets::core::EncoderRole::Horizontal,
+		            .delta = -1},
+		    UiContext{x, {}, false, false, 2, deluge_profile()});
+		r.tick(2); // the frame the input asked for: the slide's first step
+		expect(audio_clip_scene().sliding()).to_equal(true);
+		expect((audio_clip_scene().ui_mode() & 255) == deluge::ui::scenes::audio_clip::kUiModeHorizontalZoom).to_equal(true);
+		r.tick(2 + 55);
+		const std::string mid = grid_text(r);
+		expect(mid).not_().to_equal(settled_before);
+		r.tick(2 + deluge::ui::widgets::grid::kZoomSpeed + deluge::ui::widgets::grid::kZoomStepMs);
+		expect(audio_clip_scene().sliding()).to_equal(false);
+		expect(audio_clip_scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeHoldingHorizontalEncoder);
+		expect(grid_text(r)).not_().to_equal(mid);
+		(void)audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::XEnc},
+		                                UiContext{{}, {}, false, false, 300, deluge_profile()});
 	});
 
 	it("keeps the cursor tracking across twelve quiet frames, with no input at all", _ {
