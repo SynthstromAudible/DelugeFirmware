@@ -30,7 +30,9 @@ namespace {
 int g_focus_hooks = 0;
 
 ShellRootView<deluge::ui::scenes::audio_clip::AudioClipScene> testAudioClipRoot{
-    &audio_clip_scene, deluge::ui::scenes::audio_clip::kAudioClipSceneKind, UIType::AUDIO_CLIP,
+    &audio_clip_scene, deluge::ui::scenes::audio_clip::kAudioClipSceneKind,
+    deluge::gui::ui::RootViewTraits{
+        .type = UIType::AUDIO_CLIP, .knobs = UIModControllableContext::CLIP, .clip_minder = true, .triplets = false},
     [] { g_focus_hooks++; }};
 
 /// @brief The runtime's stack, emptied and its root host forgotten, whichever way an example ends; the legacy UI
@@ -134,6 +136,56 @@ describe shell_root_view_spec_body("gui::ui::ShellRootView over the shared shell
 		(void)testAudioClipRoot.padAction(15, 4, 0);
 		expect(audio_clip_scene().end_marker_visible()).to_equal(true);
 		expect(stack().top().kind()).to_equal(menu::kMenuSceneKind);
+	});
+
+	it("answers the legacy view's own traits: a clip screen with the clip's knobs, no triplets, no timeline view", _ {
+		Guard guard;
+		Rig r;
+		expect(open_root(r)).to_be_true();
+		expect(testAudioClipRoot.toClipMinder() != nullptr).to_equal(true);
+		expect(rootUIIsClipMinderScreen()).to_be_true();
+		expect(testAudioClipRoot.getUIModControllableContext() == UIModControllableContext::CLIP).to_equal(true);
+		expect(testAudioClipRoot.supportsTriplets()).to_be_false();
+		expect(testAudioClipRoot.toTimelineView() == nullptr).to_equal(true);
+		expect(testAudioClipRoot.getUIType() == UIType::AUDIO_CLIP).to_equal(true);
+	});
+
+	it("binds its scene to the current clip again when its focus comes back on another", _ {
+		Guard guard;
+		Rig r;
+		expect(open_root(r)).to_be_true();
+		const std::optional<deluge::project::ClipAddress> shown = audio_clip_scene().clip();
+		expect(shown.has_value()).to_be_true();
+		// Undo returns to the view on another clip through `focusRegained`, not `opened`.
+		audio_clip_scene().open(std::nullopt, &r.f.song->project);
+		testAudioClipRoot.focusRegained();
+		expect(audio_clip_scene().clip() == shown).to_equal(true);
+	});
+
+	it("answers the root scene's greyout while it is the current UI, and leaves it to the menu over it", _ {
+		Guard guard;
+		Rig r;
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay,
+		                           static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip));
+		expect(open_root(r)).to_be_true();
+		uint32_t cols = 0;
+		uint32_t rows = 0;
+		expect(testAudioClipRoot.getGreyoutColsAndRows(&cols, &rows)).to_be_false();
+		// SHIFT through the view's own feed: the overview greys every column.
+		(void)testAudioClipRoot.buttonAction(deluge::hid::button::SHIFT, true);
+		(void)testAudioClipRoot.timerCallback();
+		expect(audio_clip_scene().overview_shown()).to_be_true();
+		expect(testAudioClipRoot.getGreyoutColsAndRows(&cols, &rows)).to_be_true();
+		expect(cols).to_equal(0xFFFFFFFFu);
+		expect(rows).to_equal(0u);
+		// With the menu over it, the view is not the current UI and answers nothing.
+		expect(open_menu_over(r)).to_be_true();
+		expect(testAudioClipRoot.getGreyoutColsAndRows(&cols, &rows)).to_be_false();
+		shellHostUI.closeNow();
+		(void)testAudioClipRoot.buttonAction(deluge::hid::button::SHIFT, false);
+		(void)testAudioClipRoot.timerCallback();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay, saved);
 	});
 
 	it("loses its root scene, and its root host, when the UIs are taken down for a new song", _ {

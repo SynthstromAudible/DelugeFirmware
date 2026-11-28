@@ -26,21 +26,41 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "hid/encoder_input.h"
+#include "hid/led/pad_leds.h"
+#include "model/clip/clip_minder.h"
 #include "model/edits/clip_address_for.h"
 #include "model/song/song.h"
 #include "ui/shell/scene.h"
+#include "ui/widgets/grid/effects.h"
 
 #include <algorithm>
 #include <cstdint>
 
 namespace deluge::gui::ui {
 
+/// @brief What a root view answers about itself when legacy code asks it, which its scene cannot: the legacy view's
+///        own answers.
+struct RootViewTraits {
+	/// What `getUIType()` answers, which legacy code compares.
+	UIType type;
+	/// What the gold knobs edit while the view is the root (`getUIModControllableContext`).
+	UIModControllableContext knobs = UIModControllableContext::NONE;
+	/// Whether the view is a clip screen: `toClipMinder()` answers its own `ClipMinder`, which is what
+	/// `rootUIIsClipMinderScreen()` and the clip-screen arms of the menus, knobs and undo ask.
+	bool clip_minder = false;
+	/// `supportsTriplets()`.
+	bool triplets = true;
+};
+
 /// @brief A legacy root view whose body is a scene.
 ///
 /// The scene is the root of the shared shell (`ShellRuntime`): a menu the guest opens over this view goes on top of
 /// it, and closes back to it. While this view is the current UI it feeds the shell like the guest does; while a menu
 /// is open over it, the input the menu leaves (a pad outside its regions) reaches the root scene directly.
-/// @tparam SceneT A root scene (`is_root()`) with `open(std::optional<project::ClipAddress>, const project::Song*)`.
+/// It is not a `TimelineView`: `toTimelineView()` answers null, so legacy's timeline arms (undo's scroll animation,
+/// the triplets LED) are told apart and answered by the scene instead.
+/// @tparam SceneT A root scene (`is_root()`) with `open(std::optional<project::ClipAddress>, const project::Song*)`
+///                and `clip()`, the clip it shows.
 template <typename SceneT>
 class ShellRootView final : public RootUI {
 public:
@@ -50,12 +70,12 @@ public:
 
 	/// @param scene    The scene's singleton.
 	/// @param kind     The kind it is registered under.
-	/// @param type     What `getUIType()` answers: the legacy view's own type, which legacy code compares.
+	/// @param traits   The legacy view's own answers about itself.
 	/// @param focus    The `View` half of a focus coming back, or null.
 	/// @param runtime  The shell it hosts the scene on.
-	ShellRootView(SceneT& (*scene)(), deluge::ui::shell::SceneKind kind, UIType type, FocusHook focus,
+	ShellRootView(SceneT& (*scene)(), deluge::ui::shell::SceneKind kind, RootViewTraits traits, FocusHook focus,
 	              ShellRuntime& (*runtime)() = &shellRuntime)
-	    : scene_(scene), kind_(kind), type_(type), focus_(focus), runtime_(runtime) {}
+	    : scene_(scene), kind_(kind), traits_(traits), focus_(focus), runtime_(runtime) {}
 
 	/// @return The scene.
 	[[nodiscard]] SceneT& scene() const { return scene_(); }
@@ -70,6 +90,7 @@ public:
 		}
 		rt.setRootHost(this);
 		rt.shell().boot();
+		greyout_ = {};
 		focusRegained();
 		return true;
 	}
@@ -79,9 +100,25 @@ public:
 			focus_();
 		}
 		ShellRuntime& rt = runtime_();
+		// The view showed whichever clip is current; undo comes back to it on another clip without opening it again.
+		if (currentSong != nullptr) {
+			::Clip* clip = currentSong->getCurrentClip();
+			const std::optional<deluge::project::ClipAddress> at =
+			    clip != nullptr ? deluge::edits::clipAddressFor(*clip) : std::nullopt;
+			if (at != scene().clip()) {
+				scene().open(at, &currentSong->project);
+			}
+		}
 		if (rt.shell().stack().depth() > 0) {
 			rt.shell().stack().input_top().on_resume();
 		}
+		ShellRuntime::armTickSoon();
+	}
+
+	/// @brief The song's clip scroll and zoom changed under the view (an undo): the scene takes them, sliding, as
+	///        `TimelineView::initiateXScroll` and `initiateXZoom` did.
+	void navigationRestored() {
+		scene().navigation_restored();
 		ShellRuntime::armTickSoon();
 	}
 
@@ -145,6 +182,13 @@ public:
 		ShellRuntime::armTickSoon();
 	}
 
+	/// @brief Nothing: the press already reached the shell through `buttonAction`, which `Buttons::buttonAction` calls
+	///        first; its knobs take it there, where `root_knobs` would take it a second time.
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override {
+		(void)whichModEncoder;
+		(void)on;
+	}
+
 	void modButtonAction(uint8_t whichButton, bool on) override {
 		if (whichButton >= std::size(deluge::hid::button::ZmodButtonX)) {
 			return;
@@ -160,6 +204,7 @@ public:
 		const uint32_t now = rt.nowMs();
 		rt.tick(now, this);
 		rt.rearm(now, this);
+		reassessGreyout();
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -173,14 +218,53 @@ public:
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override {
-		(void)occupancyMask;
+		if (image == nullptr) {
+			return true;
+		}
 		runtime_().copyGrid(whichRows, image, kDisplayWidth, kDisplayWidth + kSideBarWidth);
+		if (occupancyMask != nullptr) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				PadLEDs::refreshSidebarOccupancy(image[y], occupancyMask[y]);
+			}
+		}
 		return true;
 	}
 
+	/// @brief The root scene's greyout while this view is the current UI (`ClipView::getGreyoutColsAndRows` asks
+	///        `getCurrentUI() == this`); false, "obey the UI under me", otherwise or when it greys nothing.
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override {
+		const deluge::ui::widgets::grid::GreyoutMask mask = greyoutMask();
+		if (mask.cols == 0 && mask.rows == 0) {
+			return false;
+		}
+		*cols = mask.cols;
+		*rows = mask.rows;
+		return true;
+	}
+
+	ClipMinder* toClipMinder() override { return traits_.clip_minder ? &minder_ : nullptr; }
+	[[nodiscard]] bool supportsTriplets() const override { return traits_.triplets; }
+	UIModControllableContext getUIModControllableContext() override { return traits_.knobs; }
+
+	/// @brief Redraw requests: the scene takes the model's changes itself (`Shell::apply_dirty`), so each only wakes
+	/// the
+	///        shell.
+	/// @{
+	void playbackEnded() override { ShellRuntime::armTickSoon(); }
+	void clipNeedsReRendering(Clip* clip) override {
+		(void)clip;
+		ShellRuntime::armTickSoon();
+	}
+	void sampleNeedsReRendering(Sample* sample) override {
+		(void)sample;
+		ShellRuntime::armTickSoon();
+	}
+	void midiLearnFlash() override { ShellRuntime::armTickSoon(); }
+	/// @}
+
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override { runtime_().copyOled(canvas); }
 
-	UIType getUIType() override { return type_; }
+	UIType getUIType() override { return traits_.type; }
 
 private:
 	/// @return The profile's button at matrix cell (@p x, @p y), or `None`.
@@ -193,6 +277,24 @@ private:
 
 	/// @return Whether this view is the current UI (nothing open over it).
 	[[nodiscard]] bool current() const { return getCurrentUI() == this; }
+
+	/// @return The root scene's greyout while this view is current, else nothing.
+	[[nodiscard]] deluge::ui::widgets::grid::GreyoutMask greyoutMask() const {
+		const deluge::ui::shell::Scene* root = runtime_().shell().stack().root();
+		return current() && root != nullptr ? root->greyout_mask() : deluge::ui::widgets::grid::GreyoutMask{};
+	}
+
+	/// @brief Tell the pad driver when the greyout changed, as legacy's views do through `reassessGreyout`: at once
+	///        where the scene says so (an overview appearing), fading otherwise.
+	void reassessGreyout() {
+		const deluge::ui::widgets::grid::GreyoutMask now = greyoutMask();
+		if (now.cols == greyout_.cols && now.rows == greyout_.rows) {
+			return;
+		}
+		greyout_ = now;
+		const deluge::ui::shell::Scene* root = runtime_().shell().stack().root();
+		PadLEDs::reassessGreyout(root != nullptr && root->greyout_changes_instantly());
+	}
 
 	/// @brief An encoder turn: fed while current, otherwise the root scene's alone.
 	void feedTurn(deluge::ui::widgets::core::EncoderRole role, int32_t offset) {
@@ -210,9 +312,13 @@ private:
 
 	SceneT& (*scene_)();
 	deluge::ui::shell::SceneKind kind_;
-	UIType type_;
+	RootViewTraits traits_;
 	FocusHook focus_;
 	ShellRuntime& (*runtime_)();
+	/// What `toClipMinder()` answers when the view is a clip screen.
+	ClipMinder minder_;
+	/// The greyout the pad driver was last told of.
+	deluge::ui::widgets::grid::GreyoutMask greyout_{};
 };
 
 } // namespace deluge::gui::ui
