@@ -25,7 +25,18 @@ NoticeQueue& notices() {
 	return g_notices;
 }
 
+namespace {
+NoticeObserver g_observer = nullptr;
+} // namespace
+
+void set_notice_observer(NoticeObserver observer) {
+	g_observer = observer;
+}
+
 bool NoticeQueue::push(const Notice& n) {
+	if (g_observer != nullptr) {
+		g_observer(n);
+	}
 	uint32_t head = head_.load(std::memory_order_relaxed);
 	uint32_t tail = tail_.load(std::memory_order_acquire);
 	bool overwrote = false;

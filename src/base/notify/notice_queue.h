@@ -91,6 +91,12 @@ private:
 /// @return The global NoticeQueue.
 NoticeQueue& notices();
 
+/// @brief A function shown every notice as it is pushed, before any consumer takes it.
+using NoticeObserver = void (*)(const Notice&);
+/// @brief Show every pushed notice to @p observer as well (a spec's popup capture); null shows none, the firmware's
+///        state. The observer runs on the pushing thread and must not push.
+void set_notice_observer(NoticeObserver observer);
+
 // The raise-side helpers. They cannot propagate a full queue -- their callers are model code deep
 // in the audio/playback paths with no way to handle it and nowhere to put it -- so instead of
 // discarding the fact, each one counts the drop. `dropped_notices()` is the shell's diagnostic:
