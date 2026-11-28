@@ -293,7 +293,7 @@ constexpr DocParamAttr kEnvelope4[] = {
 void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
                           std::span<const deluge::synth::CableRecord> cables,
                           const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation,
-                          const DocParamSet* arp) {
+                          const DocParamSet* arp, bool dx7Mode) {
 	// Byte-for-byte reproduction of Sound::writeParamsToFile. Two unpatched flat attrs lead, then the
 	// patched flat attrs; the pitchAdjust family is onlyIfContainsSomething; the shared effects
 	// attrs sit before the community attrs (lpfMorph/hpfMorph/waveFold).
@@ -353,6 +353,13 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 	writeDocParamAsAttribute(patched, "lpfMorph", ip::kLpfMorph, out, writeAutomation);
 	writeDocParamAsAttribute(patched, "hpfMorph", ip::kHpfMorph, out, writeAutomation);
 	writeDocParamAsAttribute(patched, "waveFold", ip::kWaveFold, out, writeAutomation);
+
+	// The DX7's own params, which only a DX7-mode sound plays
+	if (dx7Mode) {
+		writeDocParamAsAttribute(patched, "dx7Level", ip::kDx7Level, out, writeAutomation);
+		writeDocParamAsAttribute(patched, "dx7AmpMod", ip::kDx7AmpMod, out, writeAutomation);
+		writeDocParamAsAttribute(patched, "dx7PitchAdjust", ip::kDx7Pitch, out, writeAutomation);
+	}
 
 	out.writeOpeningTagEnd();
 
@@ -685,6 +692,9 @@ constexpr DocParamAttr kSoundPatchedAttrs[] = {
     {"lpfMorph", ip::kLpfMorph},
     {"hpfMorph", ip::kHpfMorph},
     {"waveFold", ip::kWaveFold},
+    {"dx7Level", ip::kDx7Level},
+    {"dx7AmpMod", ip::kDx7AmpMod},
+    {"dx7PitchAdjust", ip::kDx7Pitch},
 };
 } // namespace
 

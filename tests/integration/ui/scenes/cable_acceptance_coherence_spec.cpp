@@ -107,7 +107,7 @@ int32_t disagreements_everywhere(Sound& sound, Song& song, ParamManager& manager
 			return 1;
 		}
 	}
-	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD}) {
+	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD, SynthMode::DX7}) {
 		if (!set_setting(sound, song, slot, "mode", deluge::instruments::classic::to_string(mode))) {
 			first = "mode " + std::to_string(static_cast<int>(mode)) + " refused";
 			return found + 1;

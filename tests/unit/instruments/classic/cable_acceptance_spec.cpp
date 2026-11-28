@@ -85,6 +85,36 @@ describe cable_acceptance("which sources a Deluge sound lets patch to which para
 		expect(allowed(PatchSource::X, param::kPitch)).to_be_false();
 		expect(allowed(PatchSource::Y, param::kPitch)).to_be_true();
 	});
+
+	it("lets a cable reach the DX7's params only in DX7 mode", _ {
+		const SoundState dx7 = deluge::test::with(subtractive(), "mode", to_string(SynthMode::DX7));
+		for (const ParamId id : {param::kDx7Level, param::kDx7AmpMod, param::kDx7Pitch}) {
+			for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD}) {
+				const SoundState other = deluge::test::with(subtractive(), "mode", to_string(mode));
+				expect(allowed(PatchSource::VELOCITY, id, other)).to_equal(false);
+				expect(allowed(PatchSource::LFO_GLOBAL_1, id, other)).to_equal(false);
+			}
+			expect(allowed(PatchSource::VELOCITY, id, dx7)).to_equal(true);
+			expect(allowed(PatchSource::ENVELOPE_1, id, dx7)).to_equal(true);
+			// A drum takes no note-tracking cable, onto these as onto oscillator A's
+			expect(allowed(PatchSource::NOTE, id, dx7, true)).to_equal(false);
+		}
+	});
+
+	it("gives each DX7 param, in DX7 mode, exactly the sources its oscillator A counterpart takes there", _ {
+		const std::pair<ParamId, ParamId> kCounterparts[] = {{param::kDx7Level, param::kOscAVolume},
+		                                                     {param::kDx7AmpMod, param::kOscAPhaseWidth},
+		                                                     {param::kDx7Pitch, param::kOscAPitch}};
+		const SoundState dx7 = deluge::test::with(subtractive(), "mode", to_string(SynthMode::DX7));
+		for (const auto& [id, osc] : kCounterparts) {
+			for (const bool drum : {false, true}) {
+				for (uint8_t s = 0; s < static_cast<uint8_t>(PatchSource::NONE); ++s) {
+					const auto source = static_cast<PatchSource>(s);
+					expect(allowed(source, id, dx7, drum)).to_equal(allowed(source, osc, dx7, drum));
+				}
+			}
+		}
+	});
 });
 
 CPPSPEC_SPEC(cable_acceptance)

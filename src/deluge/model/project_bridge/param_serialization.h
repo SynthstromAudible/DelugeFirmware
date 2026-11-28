@@ -176,10 +176,11 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 /// @param writeAutomation  Whether to write the automation nodes.
 /// @param arp              The sound's arp params, which the arp/probability/spread attrs and arpeggiatorRate come
 ///                         from; null for none, which saves the arp's starting values.
+/// @param dx7Mode          Whether the DX7's own params are written (dx7Level, dx7AmpMod, dx7PitchAdjust).
 void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
                           std::span<const deluge::synth::CableRecord> cables,
                           const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation,
-                          const DocParamSet* arp = nullptr);
+                          const DocParamSet* arp = nullptr, bool dx7Mode = false);
 
 /// @brief Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).

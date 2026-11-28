@@ -653,11 +653,20 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::GLOBAL_NONE:
 		return PatchCableAcceptance::DISALLOWED;
 
-	// The DX7's own params take no cable yet
+	// The DX7's own params are reached only in DX7 mode, by the sources their oscillator A counterparts take there
 	case params::LOCAL_DX7_LEVEL:
 	case params::LOCAL_DX7_AMP_MOD:
-	case params::LOCAL_DX7_PITCH_ADJUST:
-		return PatchCableAcceptance::DISALLOWED;
+	case params::LOCAL_DX7_PITCH_ADJUST: {
+		if (getSynthMode() != SynthMode::DX7) {
+			return PatchCableAcceptance::DISALLOWED;
+		}
+		const uint8_t counterpart = p == params::LOCAL_DX7_LEVEL     ? params::LOCAL_OSC_A_VOLUME
+		                            : p == params::LOCAL_DX7_AMP_MOD ? params::LOCAL_OSC_A_PHASE_WIDTH
+		                                                             : params::LOCAL_OSC_A_PITCH_ADJUST;
+		return maySourcePatchToParam(s, counterpart, paramManager) == PatchCableAcceptance::DISALLOWED
+		           ? PatchCableAcceptance::DISALLOWED
+		           : PatchCableAcceptance::ALLOWED;
+	}
 
 	case params::LOCAL_VOLUME:
 		return (
@@ -2469,10 +2478,12 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	// the shared effects param block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
 	// <patchCables> block and the shared tags.
 	deluge::project::DocParamManager doc = deluge::bridge::toDocParamManagerFromStore(*paramManager);
+	// A DX7-mode sound's voice plays oscillator A's level, pulse width and pitch in place of the DX7's own params,
+	// so no sound saves those
 	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
 	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND),
 	                                     paramManager->getPatchCableSet()->records().records(), doc.cable_depths,
-	                                     writer, writeAutomation, doc.arp ? &*doc.arp : nullptr);
+	                                     writer, writeAutomation, doc.arp ? &*doc.arp : nullptr, /*dx7Mode=*/false);
 }
 
 void Sound::deriveConfig() {

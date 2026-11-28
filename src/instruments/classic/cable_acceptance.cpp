@@ -50,6 +50,15 @@ struct CableFacts {
 	plugin::SyncLevel lfo3_sync;
 };
 
+/// The oscillator A param whose cable rules the DX7's param @p dx7 takes: its level the volume's, its amp mod the
+/// pulse width's, its pitch adjust the pitch's.
+constexpr plugin::ParamId dx7_counterpart(plugin::ParamId dx7) {
+	if (dx7 == param::kDx7Level) {
+		return param::kOscAVolume;
+	}
+	return dx7 == param::kDx7AmpMod ? param::kOscAPhaseWidth : param::kOscAPitch;
+}
+
 bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFacts& state, bool is_drum) {
 	if (source == PatchSource::NOTE && is_drum) {
 		return false;
@@ -63,11 +72,14 @@ bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFact
 	const bool fm = state.mode == SynthMode::FM;
 	// The DX7 reads osc A's params; it plays no second oscillator and no noise
 	const bool dx7 = state.mode == SynthMode::DX7;
-	const auto is = [&](plugin::ParamId id) { return destination == id; };
-	// The DX7's own params take no cable yet
-	if (is(param::kDx7Level) || is(param::kDx7AmpMod) || is(param::kDx7Pitch)) {
-		return false;
+	// The DX7's own params are reached only in DX7 mode, by the sources their oscillator A counterparts take there
+	if (destination == param::kDx7Level || destination == param::kDx7AmpMod || destination == param::kDx7Pitch) {
+		if (!dx7) {
+			return false;
+		}
+		destination = dx7_counterpart(destination);
 	}
+	const auto is = [&](plugin::ParamId id) { return destination == id; };
 	if (is(param::kVolume)) {
 		return !is_envelope(source) && source != PatchSource::SIDECHAIN;
 	}

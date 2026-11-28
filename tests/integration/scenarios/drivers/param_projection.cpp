@@ -42,6 +42,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include "host/chains/params.h"
@@ -1481,6 +1482,73 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		       & (1u << (params::LOCAL_ENV_0_ATTACK & 31)))
 		          != 0,
 		      "sound-rt envelope automation flag set");
+	}
+
+	// The DX7's own params are read from a sound's params by name, by the live reader and the store reader alike; the
+	// writer writes them only when asked to, for a DX7-mode sound.
+	{
+		namespace ip = deluge::instruments::classic::param;
+		static char dx7Buf[256];
+		static char dx7BufDoc[256];
+		const char* kDx7Params = "<soundParams dx7Level=\"0x40000000\" dx7AmpMod=\"0x20000000\" "
+		                         "dx7PitchAdjust=\"0x10000000\"></soundParams>";
+		const int32_t dx7Len = static_cast<int32_t>(std::strlen(kDx7Params));
+		std::memcpy(dx7Buf, kDx7Params, dx7Len + 1);
+		std::memcpy(dx7BufDoc, kDx7Params, dx7Len + 1);
+
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "dx7 read setup");
+		{
+			XMLDeserializer reader(reinterpret_cast<uint8_t*>(dx7Buf), dx7Len);
+			reader.openXMLFile("soundParams");
+			const char* tag;
+			while (*(tag = reader.readNextTagOrAttributeName())) {
+				if (!deluge::bridge::readSoundParamTag(reader, tag, *pm.getPatchedParamSet(),
+				                                       *pm.getPatchedParamSetSummary(), *pm.getUnpatchedParamSet(),
+				                                       *pm.getUnpatchedParamSetSummary(), 2147483647)) {
+					reader.exitTag();
+				}
+			}
+		}
+		PatchedParamSet* set = pm.getPatchedParamSet();
+		check(set->params[params::LOCAL_DX7_LEVEL].played() == 0x40000000, "dx7Level read");
+		check(set->params[params::LOCAL_DX7_AMP_MOD].played() == 0x20000000, "dx7AmpMod read");
+		check(set->params[params::LOCAL_DX7_PITCH_ADJUST].played() == 0x10000000, "dx7PitchAdjust read");
+
+		ParamManagerForTimeline pmDoc;
+		check(pmDoc.setupWithPatching() == Error::NONE, "dx7 doc read setup");
+		deluge::project::DocParamSet store = deluge::bridge::toDocParamSet(*pmDoc.getPatchedParamSet());
+		deluge::project::DocParamSet unpatched = deluge::bridge::toDocParamSet(*pmDoc.getUnpatchedParamSet());
+		{
+			XMLDeserializer reader(reinterpret_cast<uint8_t*>(dx7BufDoc), dx7Len);
+			reader.openXMLFile("soundParams");
+			const char* tag;
+			while (*(tag = reader.readNextTagOrAttributeName())) {
+				if (!deluge::bridge::readSoundParamTagToDoc(reader, tag, store, unpatched, 2147483647)) {
+					reader.exitTag();
+				}
+			}
+		}
+		check(store.find(ip::kDx7Level)->current_value == 0x40000000, "dx7Level read into the store");
+		check(store.find(ip::kDx7AmpMod)->current_value == 0x20000000, "dx7AmpMod read into the store");
+		check(store.find(ip::kDx7Pitch)->current_value == 0x10000000, "dx7PitchAdjust read into the store");
+
+		static char outBuf[16384];
+		const auto written = [&](bool dx7Mode) {
+			smSerializer.setMemoryBuffer(outBuf, sizeof(outBuf));
+			smSerializer.reset();
+			smSerializer.writeOpeningTagBeginning("soundParams");
+			deluge::bridge::serializeSoundParams(store, unpatched, {}, {}, smSerializer, false, nullptr, dx7Mode);
+			smSerializer.writeClosingTag("soundParams", true);
+			outBuf[smSerializer.bytesWritten()] = '\0';
+			return std::string(outBuf);
+		};
+		check(written(false).find("dx7") == std::string::npos, "dx7 params not written outside DX7 mode");
+		const std::string dx7Written = written(true);
+		check(dx7Written.find("dx7Level=\"0x40000000\"") != std::string::npos
+		          && dx7Written.find("dx7AmpMod=\"0x20000000\"") != std::string::npos
+		          && dx7Written.find("dx7PitchAdjust=\"0x10000000\"") != std::string::npos,
+		      "dx7 params written in DX7 mode");
 	}
 
 	// The Song value-override path. Song serializes its global-effectable block with a
