@@ -662,8 +662,13 @@ void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 		}
 
 		// Ok, we need the max values between xSourceLeftEdge and xSourceRightEdge
+		// The source columns are 0..kDisplayWidth - 1, and renderOneColForCollapseAnimationZoomedOut() includes both
+		// edges
 		int32_t xSourceLeftEdgeLimited = std::max(xSourceLeftEdge, 0_i32);
-		int32_t xSourceRightEdgeLimited = std::min(xSourceRightEdge, kDisplayWidth);
+		int32_t xSourceRightEdgeLimited = std::min(xSourceRightEdge, kDisplayWidth - 1);
+		if (xSourceLeftEdgeLimited > xSourceRightEdgeLimited) {
+			continue;
+		}
 
 		int32_t xDest = xDestSquareRightEdge - 1;
 		waveformRenderer.renderOneColForCollapseAnimationZoomedOut(

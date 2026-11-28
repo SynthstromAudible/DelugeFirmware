@@ -691,6 +691,15 @@ adjustNodeJustReached:
 					int32_t iNew = nodes.insertAtKey(
 					    posOverridingEnds); // Can only do this now, after updating nodeJustReached, above
 					if (iNew != -1) {
+						// The insert shifted the later nodes and may have moved the array, and nodeJustReached is read
+						// again below when reversed. (Only reversed: otherwise a redundant node may have been
+						// deleted above, so iJustReached isn't valid any more - and isn't needed.)
+						if (reversed) {
+							if (iNew <= iJustReached) {
+								iJustReached++;
+							}
+							nodeJustReached = nodes.getElement(iJustReached);
+						}
 						iRight = iNew;
 						nextNodeInOurDirection = nodes.getElement(iRight);
 						nextNodeInOurDirection->value = valueOverridingEnds;
@@ -2965,6 +2974,11 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 				int32_t sourceI = resultingIndexes[0];
 				int32_t stopAtI = resultingIndexes[1];
 				int32_t destI = 0;
+				// Whether the second pass (the nodes after the wrap, at the start of the array) has been done. This
+				// used to be inferred from stopAtI != numNodesToStealAfterWrap, which is wrong whenever the first
+				// pass's end index happens to equal that count - then the second pass was skipped and its part of
+				// the allocated block was left uninitialised.
+				bool doneAfterWrap = false;
 
 goAgain:
 				while (sourceI < stopAtI) {
@@ -2980,7 +2994,8 @@ goAgain:
 					destI++;
 				}
 
-				if (stopAtI != numNodesToStealAfterWrap) {
+				if (!doneAfterWrap) {
+					doneAfterWrap = true;
 					sourceI = 0;
 					stopAtI = numNodesToStealAfterWrap;
 					goto goAgain;

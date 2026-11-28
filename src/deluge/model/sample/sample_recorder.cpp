@@ -134,6 +134,7 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 gotError:
 		sample->~Sample();
 		delugeDealloc(sample_memory);
+		sample = nullptr; // The caller destroys this recorder next, and ~SampleRecorder() detaches any sample
 		return error;
 	}
 
@@ -473,9 +474,9 @@ aborted:
 					}
 				}
 				else if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
-					if (outputRecordingFrom) {
-						name = outputRecordingFrom->name.get();
-					}
+					// The source output can already have let go of this recorder (outputRecordingFrom is then null)
+					// if capture finished before the file got created
+					name = outputRecordingFrom ? outputRecordingFrom->name.get() : inputChannelToString(mode);
 				}
 				else {
 					name = inputChannelToString(mode);

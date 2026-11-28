@@ -293,6 +293,12 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 		        ? loopStartPointBytesRaw - sample->audioDataStartPosBytes
 		        : sample->audioDataStartPosBytes + sample->audioDataLengthBytes - loopStartPointBytesRaw - 1;
 		int32_t loopStartPointSamples = loopStartPointBytes / bytesPerSample - cache->skipSamplesAtStart;
+		// The cache starts at the start marker. A loop start before that (loopStartPos isn't validated against
+		// startPos, e.g. when loaded from a file) would make the loop longer than the cached part, and jumping back
+		// would land before the start of the cache - so loop back to the start of the cache instead.
+		if (loopStartPointSamples < 0) {
+			loopStartPointSamples = 0;
+		}
 
 		// Loop end point
 		int32_t loopEndPointBytesRaw = guide->getLoopEndPlaybackAtByte();

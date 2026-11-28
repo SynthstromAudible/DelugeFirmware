@@ -3698,6 +3698,7 @@ void Song::deleteOutput(Output* output) {
 	}
 
 	output->deleteBackedUpParamManagers(this);
+	Browser::forgetOutput(output);
 	void* toDealloc = dynamic_cast<void*>(output);
 	output->~Output();
 	delugeDealloc(toDealloc);

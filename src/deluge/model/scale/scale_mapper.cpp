@@ -80,8 +80,8 @@ void ScaleMapper::computeInitialChanges(NoteSet sourceScale, NoteSet initialScal
 }
 
 void ScaleMapper::flushTransitionScaleStore(NoteSet initialScale) {
-	for (int i = 0; i < kMaxScaleSize; i++) {
-		transitionScaleStore[i].clear();
+	for (auto& transitionScale : transitionScaleStore) {
+		transitionScale.clear();
 	}
 	transitionScaleStore[initialScale.count()] = initialScale;
 }

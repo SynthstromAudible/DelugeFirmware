@@ -584,8 +584,16 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		}
 	}
 	else if (b == SAVE && currentUIMode == UI_MODE_AUDITIONING) {
+		// Saving an auditioned row is for kit rows with a sound drum. In other clips there may be no NoteRow on that
+		// row, and kit rows can have no Drum.
+		if (!on || getCurrentOutputType() != OutputType::KIT) {
+			return ActionResult::DEALT_WITH;
+		}
+		if (inCardRoutine) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(lastAuditionedYDisplay, currentSong, nullptr);
-		if (noteRow->drum->type == DrumType::SOUND) {
+		if (noteRow && noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
 			saveKitRowUI.setup((SoundDrum*)noteRow->drum, &noteRow->paramManager);
 			AudioEngine::stopAnyPreviewing();
 			cancelAllAuditioning();
@@ -1475,7 +1483,12 @@ ramError:
 				break;
 			}
 			if (selectedDrumOnly) {
-				noteRowId = getCurrentKit()->getDrumIndex(getCurrentKit()->selectedDrum);
+				// Paste into the selected drum's NoteRow. Its index in the Kit's drum list is not a NoteRow index
+				// (the two orders differ, and it's -1 with no drum selected).
+				Drum* selectedDrum = getCurrentKit()->selectedDrum;
+				if (!selectedDrum || !getCurrentInstrumentClip()->getNoteRowForDrum(selectedDrum, &noteRowId)) {
+					break;
+				}
 			}
 
 			NoteRow* thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(noteRowId);
@@ -2692,6 +2705,11 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 							if (error != Error::NONE) {
 								display->displayError(Error::INSUFFICIENT_RAM);
 							}
+
+							// addCorrespondingNotes() rebuilds the note array and can free the old one, so firstNote
+							// and lastNote (the new note at squareStart) must be found again in the new array
+							firstNote = lastNote =
+							    noteRow->notes.getElement(noteRow->notes.search(squareStart, GREATER_OR_EQUAL));
 						}
 					}
 
@@ -2837,6 +2855,10 @@ void InstrumentClipView::endEditPadPress(uint8_t i) {
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		if (editPadPresses[i].stolenMPE[m].num) {
 			delugeDealloc(editPadPresses[i].stolenMPE[m].nodes);
+			// Not every place that reuses this slot resets it (the automation editor's pad presses don't), so leave it
+			// empty rather than pointing at freed memory
+			editPadPresses[i].stolenMPE[m].nodes = nullptr;
+			editPadPresses[i].stolenMPE[m].num = 0;
 		}
 	}
 }
@@ -3340,7 +3362,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 multiplePresses:
 
 		int32_t leftMostPos = 2147483647;
-		int32_t leftMostIndex;
+		int32_t leftMostIndex = -1;
 		// Find the leftmost one. There may be more than one...
 		for (int32_t i = 0; i < edit_targets.size(); i++) {
 			if (edit_targets[i].isActive) {
@@ -3379,6 +3401,12 @@ multiplePresses:
 					}
 				}
 			}
+		}
+
+		// A blurred square whose notes can't be found sets no index; with no leftmost note there's nothing to base the
+		// edit on
+		if (leftMostIndex < 0) {
+			return;
 		}
 
 		int32_t originalParameter = 0;
@@ -4832,8 +4860,13 @@ void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip
 	// If the Kit arpeggiator is active and playback is stopped, we must reset it so notes are reassigned
 	// If playback is active, the rendering will take care of it
 	if (isKit && !playbackHandler.isEitherClockActive()) {
-		clip->noteRows.getElement(noteRowToShiftI)->drum->arpeggiator.reset();
-		clip->noteRows.getElement(noteRowToSwapWithI)->drum->arpeggiator.reset();
+		// Kit NoteRows can have no Drum
+		for (int32_t i : {noteRowToShiftI, noteRowToSwapWithI}) {
+			Drum* drum = clip->noteRows.getElement(i)->drum;
+			if (drum) {
+				drum->arpeggiator.reset();
+			}
+		}
 		((Kit*)output)->arpeggiator.reset();
 	}
 }
@@ -4922,9 +4955,10 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
 void InstrumentClipView::scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack,
                                                           InstrumentClip* clip, bool isKit, bool keepYNoteOverride) {
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-	// if (!action) return; // Couldn't happen?
-
-	action->updateYScrollClipViewAfter(clip);
+	// getNewAction() returns null e.g. while recording to the arrangement, or if out of memory
+	if (action) {
+		action->updateYScrollClipViewAfter(clip);
+	}
 
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		if (editPadPresses[i].isActive) {

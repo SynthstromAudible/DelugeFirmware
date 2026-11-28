@@ -93,6 +93,7 @@ extern "C" void disk_timerproc(UINT msPassed);
 
 Song* currentSong = nullptr;
 Song* preLoadedSong = nullptr;
+bool preLoadedSongIsComplete = false;
 
 bool sdRoutineLock = false;
 

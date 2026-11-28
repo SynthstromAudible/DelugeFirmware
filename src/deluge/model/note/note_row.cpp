@@ -531,7 +531,11 @@ addNewNote:
 					newLength = note->length + squareStart + squareWidth - noteEnd;
 				}
 
+				// When wrap-editing, complexSetNoteLength() rebuilds the note array and can free the old one, so find
+				// the note again by its position (which doesn't change) rather than keep the old pointer.
+				int32_t notePos = note->pos;
 				complexSetNoteLength(note, newLength, modelStack, action);
+				note = notes.getElement(notes.search(notePos, GREATER_OR_EQUAL));
 
 				*firstNote = *lastNote = note;
 
@@ -3071,8 +3075,11 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	// Go through each Note within the original length
 	for (int32_t i = 0; i < numNotesBefore; i++) {
 		Note* note = notes.getElement(i);
+		// Copy what we need: the loop below can delete this note from the array (when its first repeat fails its
+		// iterance), after which `note` points at a different note or at memory the array no longer uses
 		Iterance iterance = note->iterance;
 		int32_t pos = note->pos;
+		int32_t noteLength = note->length;
 
 		// If it's iteration dependent
 		if (iterance != kDefaultIteranceValue) {
@@ -3095,7 +3102,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				if (pingponging && (whichRepeatTotal & 1)) {
 					thisRepeatedNotePos = -thisRepeatedNotePos;
 					if (noteTailsAllowed) {
-						thisRepeatedNotePos += (oldLoopLength - note->length);
+						thisRepeatedNotePos += (oldLoopLength - noteLength);
 						if (thisRepeatedNotePos < 0) {
 							thisRepeatedNotePos =
 							    oldLoopLength
@@ -3253,6 +3260,10 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 
 // TODO: make this compatible with reverse playback
 void NoteRow::silentlyResumePlayback(ModelStackWithNoteRow* modelStack) {
+
+	if (!notes.getNumElements()) {
+		return; // No notes, so the play-pos can't be inside one (and the lookup below would have no element)
+	}
 
 	int32_t effectiveCurrentPos = modelStack->getLastProcessedPos(); // Why did we not opt for the "actual" one?
 
@@ -4278,7 +4289,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	}
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
-	if (numToInsert == 1 && notes.getElement(0)->length == otherNoteRowLength) {
+	// (This row can be empty - then there's no note of ours to extend, so take the normal path)
+	if (numToInsert == 1 && notes.getNumElements() && notes.getElement(0)->length == otherNoteRowLength) {
 		Sound* sound = nullptr;
 		ParamManagerForTimeline* paramManagerNow = nullptr;
 

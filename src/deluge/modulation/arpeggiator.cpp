@@ -796,6 +796,10 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	               &shouldPlayNote, &shouldPlayBassNote, &shouldPlayRandomStep, &shouldPlayReverseNote,
 	               &shouldPlayChordNote);
 
+	// Clamp the index to the real range, as the synth arpeggiator does: stepping can leave it at -1 (e.g. octave mode
+	// ALTERNATE at the top octave with a single note) and it indexes the chord offsets table below
+	whichNoteCurrentlyOnPostArp = std::clamp<int16_t>(whichNoteCurrentlyOnPostArp, 0, std::max(numActiveNotes - 1, 0));
+
 	if (shouldCarryOnRhythmNote && shouldPlayNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;

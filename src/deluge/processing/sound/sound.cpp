@@ -3208,6 +3208,22 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 
 	// Effective volume has changed. Need to pass that change onto Voices
 	for (const ActiveVoice& voice : voices_) {
+		// Parts from oldNum up weren't set up by this Voice's note-on, so their state is stale or uninitialised (the
+		// count can also jump by more than one, e.g. with affect-entire on a kit). Start them like the last existing
+		// part. Samples and DX7 need per-part resources (a VoiceSample, a DxVoice) that the part doesn't have, so
+		// they start inactive - samples are set up below, a DX7 part sounds from the next note.
+		for (int32_t u = std::max(oldNum, 1_i32); u < newNum; u++) {
+			for (int32_t s = 0; s < kNumSources; s++) {
+				VoiceUnisonPartSource& newPart = voice->unisonParts[u].sources[s];
+				VoiceUnisonPartSource const& oldPart = voice->unisonParts[oldNum - 1].sources[s];
+				bool needsOwnResources = sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::DX7;
+				newPart.active = oldPart.active && !needsOwnResources;
+				newPart.oscPos = oldPart.oscPos;
+				newPart.phaseIncrementStoredValue = oldPart.phaseIncrementStoredValue;
+				newPart.carrierFeedback = oldPart.carrierFeedback;
+			}
+		}
+
 		if (synthMode == SynthMode::SUBTRACTIVE) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				bool sourceEverActive = voice->noteLocks.sourceEverActive(modelStack, s);
@@ -3215,19 +3231,15 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 				if (sourceEverActive && synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
 				    && voice->guides[s].audioFileHolder && voice->guides[s].audioFileHolder->audioFile) {
 
-					// For samples, set the current play pos for the new unison part, if num unison went up
-					if (newNum > oldNum) {
+					// For samples, set the current play pos for each new unison part, if num unison went up
+					for (int32_t u = std::max(oldNum, 1_i32); u < newNum; u++) {
 
-						VoiceUnisonPartSource* newPart = &voice->unisonParts[oldNum].sources[s];
+						VoiceUnisonPartSource* newPart = &voice->unisonParts[u].sources[s];
 						VoiceUnisonPartSource* oldPart = &voice->unisonParts[oldNum - 1].sources[s];
 
 						newPart->active = oldPart->active;
 
 						if (newPart->active) {
-							newPart->oscPos = oldPart->oscPos;
-							newPart->phaseIncrementStoredValue = oldPart->phaseIncrementStoredValue;
-							newPart->carrierFeedback = oldPart->carrierFeedback;
-
 							newPart->voiceSample = AudioEngine::solicitVoiceSample();
 							if (newPart->voiceSample == nullptr) {
 								newPart->active = false;
@@ -3254,9 +3266,11 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 							// TODO: should really check success of that...
 						}
 					}
-					else if (newNum < oldNum) {
+
+					// Release the removed parts' samples, if num unison went down
+					for (int32_t u = newNum; u < oldNum; u++) {
 						for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-							voice->unisonParts[newNum].sources[s].unassign(false);
+							voice->unisonParts[u].sources[s].unassign(false);
 						}
 					}
 				}

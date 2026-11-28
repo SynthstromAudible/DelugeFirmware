@@ -464,11 +464,12 @@ void AutomationView::initializeView() {
 
 	if (!onArrangerView) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		Output* output = clip->output;
-		OutputType outputType = output->type;
 
-		// only applies to instrument clips (not audio)
+		// only applies to instrument clips (not audio) - getCurrentInstrumentClip() is null for an audio clip
 		if (clip) {
+			Output* output = clip->output;
+			OutputType outputType = output->type;
+
 			// check if we for some reason, left the automation view, then switched clip types, then came back in
 			// if you did that...reset the parameter selection and save the current parameter type selection
 			// so we can check this again next time it happens
@@ -495,13 +496,13 @@ void AutomationView::initializeView() {
 			if (clip->wrapEditing) {
 				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
 			}
-		}
 
-		// if we're in the note editor and we're in a kit,
-		// check that the lastAuditionedYDisplay is in sync with the selected drum
-		if (inNoteEditor()) {
-			if (outputType == OutputType::KIT) {
-				potentiallyVerticalScrollToSelectedDrum(clip, output);
+			// if we're in the note editor and we're in a kit,
+			// check that the lastAuditionedYDisplay is in sync with the selected drum
+			if (inNoteEditor()) {
+				if (outputType == OutputType::KIT) {
+					potentiallyVerticalScrollToSelectedDrum(clip, output);
+				}
 			}
 		}
 	}
@@ -3398,8 +3399,10 @@ bool AutomationView::getAffectEntire() {
 			return false;
 		}
 	}
-	// otherwise if you're not in the kit sound menu, use the clip affect entire state
-	return getCurrentInstrumentClip()->affectEntire;
+	// otherwise if you're not in the kit sound menu, use the clip affect entire state (audio clips have none, and
+	// getCurrentInstrumentClip() is null for them)
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	return clip != nullptr && clip->affectEntire;
 }
 
 void AutomationView::blinkShortcuts() {

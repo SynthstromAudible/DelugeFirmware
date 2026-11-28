@@ -517,12 +517,12 @@ doLoading:
 		}
 	}
 
-	int32_t sourceBytePos;
+	// Set before the first goto getOut, which passes it to updateClustersForPercLookahead()
+	int32_t sourceBytePos = audioDataStartPosBytes + startPosSamples * bytesPerSample;
 	int32_t numSamples = (endPosSamples - startPosSamples) * playDirection;
 	if (numSamples <= 0) {
 		goto getOut; // This probably would have already been dealt with above - not quite sure
 	}
-	sourceBytePos = audioDataStartPosBytes + startPosSamples * bytesPerSample;
 
 	do {
 

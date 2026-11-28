@@ -981,8 +981,13 @@ void Browser::selectEncoderAction(int8_t offset) {
 				__builtin_unreachable();
 			}
 
+			// Prefix (at most 10 chars, "MidiDevice"), then an int32 (up to 11 chars with the sign - the slot goes
+			// negative if turned down far enough), then possibly 'A', then the terminator
 			int32_t filePrefixLength = strlen(filePrefix);
-			char searchString[16];
+			char searchString[32];
+			if (filePrefixLength > (int32_t)sizeof(searchString) - 13) {
+				filePrefixLength = sizeof(searchString) - 13;
+			}
 			memcpy(searchString, filePrefix, filePrefixLength);
 			char* searchStringNumbersStart = searchString + filePrefixLength;
 			intToString(thisSlot.slot, searchStringNumbersStart, 1);
@@ -1563,6 +1568,17 @@ void Browser::displayText(bool blinkImmediately) {
 	}
 }
 
+// FileItems for presets that are loaded in the song (or hibernating) point at the Instrument, and the browser stays
+// open across things that can free it - e.g. a save into the slot of a hibernating Instrument deletes that Instrument.
+void Browser::forgetOutput(Output const* output) {
+	for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
+		FileItem* item = (FileItem*)fileItems.getElementAddress(i);
+		if (item->instrument != nullptr && static_cast<Output const*>(item->instrument) == output) {
+			item->instrument = nullptr;
+		}
+	}
+}
+
 FileItem* Browser::getCurrentFileItem() {
 	if (fileIndexSelected == -1) {
 		return nullptr;
@@ -1620,13 +1636,15 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (Buttons::isShiftButtonPressed()) {
-				String filePath;
-				Error error = getCurrentFilePath(&filePath);
-				if (error != Error::NONE) {
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
-				}
 				if (favouritesManager.isEmpty(x)) {
-					if (!getCurrentFileItem()->isFolder) {
+					// No file item when the folder is empty - getCurrentFilePath() needs one too
+					FileItem* currentFileItem = getCurrentFileItem();
+					if (currentFileItem && !currentFileItem->isFolder) {
+						String filePath;
+						Error error = getCurrentFilePath(&filePath);
+						if (error != Error::NONE) {
+							display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
+						}
 						favouritesManager.setFavourite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
 						favouritesChanged();
 					}

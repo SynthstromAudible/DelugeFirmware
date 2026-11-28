@@ -259,8 +259,9 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 	}
 
 	if (display->haveOLED()) {
-		char buffer[15];
-		sprintf(buffer, "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
+		// Three numbers of up to 11 chars each (very long clips have bar counts in the millions) plus " : " twice
+		char buffer[40];
+		snprintf(buffer, sizeof(buffer), "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
 		display->popupTextTemporary(buffer);
 	}
 	else {

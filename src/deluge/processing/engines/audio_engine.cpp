@@ -274,6 +274,15 @@ PLACE_SDRAM_BSS char sampleForPreviewMemory[sizeof(SoundDrum)];
 
 SampleRecorder* firstRecorder = nullptr;
 
+bool isSampleBeingRecorded(Sample const* sample) {
+	for (SampleRecorder* recorder = firstRecorder; recorder != nullptr; recorder = recorder->next) {
+		if (recorder->sample == sample) {
+			return true;
+		}
+	}
+	return false;
+}
+
 // Let's keep these grouped - the stuff we're gonna access regularly during audio rendering
 int32_t cpuDireness = 0;
 uint32_t timeDirenessChanged;

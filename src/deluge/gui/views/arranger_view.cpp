@@ -1247,6 +1247,20 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 	view.setActiveModControllableTimelineCounter(clip);
 }
 
+// While a pad is held, the arranger keeps the pressed ClipInstance by index (pressedClipInstanceIndex) and by pointer
+// (lastInteractedClipInstance). Arrangement recording starting (playback started while the pad is held) inserts a
+// ClipInstance into the same array, which shifts the ones after it and can move the whole array.
+void ArrangerView::clipInstanceInsertedElsewhere(Output* output, int32_t index) {
+	if (output == pressedClipInstanceOutput && pressedClipInstanceIndex >= index) {
+		pressedClipInstanceIndex++;
+	}
+	if (lastInteractedClipInstance && output == currentSong->getOutputFromIndex(lastInteractedOutputIndex)) {
+		ClipInstance* clipInstance =
+		    output->clipInstances.getElement(output->clipInstances.search(lastInteractedPos, GREATER_OR_EQUAL));
+		lastInteractedClipInstance = (clipInstance && clipInstance->pos == lastInteractedPos) ? clipInstance : nullptr;
+	}
+}
+
 void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance) {
 	lastInteractedOutputIndex = yDisplay + currentSong->arrangementYScroll;
 	lastInteractedPos = clipInstance->pos;
@@ -1397,6 +1411,9 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 				// To the right is allowed
 				else {
 					clipInstance = createClipInstance(output, y, squareStart);
+					if (!clipInstance) {
+						return; // Out of memory (createClipInstance() has shown the error)
+					}
 				}
 			}
 		}
@@ -1420,6 +1437,10 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 	// Or, if no ClipInstance anywhere to the left, make a new one
 	else {
 		clipInstance = createClipInstance(output, y, squareStart);
+	}
+
+	if (!clipInstance) {
+		return; // createClipInstance() ran out of memory (and has shown the error)
 	}
 
 	recordEditPadPress(output, clipInstance, x, y, xScroll);
@@ -2135,14 +2156,20 @@ itsInvalid:
 
 	// Or if it has...
 	else {
+		// The ClipInstance is taken out of its old place before it's inserted in the new one, so make sure that insert
+		// can't fail first (and don't let the delete give memory back, in case it's the same array)
+		if (!newOutputToDragInto->clipInstances.ensureEnoughSpaceAllocated(1)) {
+			display->displayError(Error::INSUFFICIENT_RAM);
+			goto itsInvalid;
+		}
+
 		if (action) {
 			action->recordClipInstanceExistenceChange(pressedClipInstanceOutput, clipInstance,
 			                                          ExistenceChangeType::DELETE);
 		}
-		pressedClipInstanceOutput->clipInstances.deleteAtIndex(pressedClipInstanceIndex);
+		pressedClipInstanceOutput->clipInstances.deleteAtIndex(pressedClipInstanceIndex, 1, false);
 
-		pressedClipInstanceIndex = newOutputToDragInto->clipInstances.insertAtKey(newStartPos);
-		// TODO: error check
+		pressedClipInstanceIndex = newOutputToDragInto->clipInstances.insertAtKey(newStartPos); // Can't fail now
 		clipInstance = newOutputToDragInto->clipInstances.getElement(pressedClipInstanceIndex);
 		clipInstance->clip = clip;
 		clipInstance->length = length;

@@ -41,6 +41,7 @@ class Sound;
 class ParamManagerForTimeline;
 class LiveInputBuffer;
 class SampleRecorder;
+class Sample;
 class Voice;
 class VoiceSample;
 class TimeStretcher;
@@ -241,6 +242,8 @@ extern int32_t reverbSidechainVolume;
 extern int32_t reverbSidechainShape;
 extern int32_t reverbPan;
 extern SampleRecorder* firstRecorder;
+// Whether any SampleRecorder still refers to this Sample (i.e. is still recording or finishing writing it)
+bool isSampleBeingRecorded(Sample const* sample);
 extern Metronome metronome;
 extern RMSFeedbackCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;

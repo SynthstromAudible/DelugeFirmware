@@ -34,6 +34,7 @@ FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory
 }
 
 class Instrument;
+class Output;
 class FileItem;
 class NumericLayerScrollingText;
 class Song;
@@ -77,6 +78,8 @@ public:
 	Error createFoldersRecursiveIfNotExists(const char* path);
 	void selectEncoderAction(int8_t offset) override;
 	static FileItem* getCurrentFileItem();
+	/// Clears FileItems' pointers to an Output that is about to be freed
+	static void forgetOutput(Output const* output);
 	Error readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
 	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
 	                             int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);

@@ -389,8 +389,10 @@ void Voice::setupPorta(const Sound& sound) {
 	portaEnvelopePos = 0;
 	int32_t semitoneAdjustment = sound.lastNoteCode - noteCodeAfterArpeggiation;
 
-	int32_t noteWithinOctave = (semitoneAdjustment + 120) % 12;
-	int32_t octave = (semitoneAdjustment + 120) / 12;
+	// Two notes can be more than 120 semitones apart, and a signed % would then give a negative table index. The
+	// unsigned form (as in calculatePhaseIncrements()) gives the same result for everything else.
+	int32_t noteWithinOctave = (uint16_t)(semitoneAdjustment + 240) % 12;
+	int32_t octave = (uint16_t)(semitoneAdjustment + 240) / 12 - 10;
 
 	int32_t phaseIncrement = noteIntervalTable[noteWithinOctave];
 
@@ -546,8 +548,10 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 			}
 
 			int32_t transposedNoteCode = noteCodeWithMasterTranspose + sound.modulatorTranspose[m];
-			int32_t noteWithinOctave = (transposedNoteCode + 120 - 4) % 12;
-			int32_t octave = (transposedNoteCode + 120 - 4) / 12;
+			// Unsigned, like the carrier branches above: with large negative transposes the sum is negative, and a
+			// signed % would give a negative table index. Same result as before for everything else.
+			int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240 - 4) % 12;
+			int32_t octave = (uint16_t)(transposedNoteCode + 240 - 4) / 12 - 10;
 			int32_t shiftRightAmount = 20 - octave;
 
 			int32_t phaseIncrement;

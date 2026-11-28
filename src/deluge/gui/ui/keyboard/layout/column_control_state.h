@@ -43,7 +43,8 @@ enum ColumnControlFunction : int8_t {
 
 using namespace deluge::gui::ui::keyboard::controls;
 
-struct ColumnControlState {
+// Everything except the pointers to the active columns, so it can be copied memberwise.
+struct ColumnControlStateData {
 	VelocityColumn velocityColumn{64};
 
 	ModColumn modColumn{};
@@ -58,10 +59,28 @@ struct ColumnControlState {
 	ColumnControlFunction lastLeftFunc = VELOCITY; // Used to restore the left column function after a temporary change
 	ColumnControlFunction rightColFunc = MOD;
 	bool rightColSetAtRuntime = false;
+};
+
+struct ColumnControlState : ColumnControlStateData {
+	// These point at columns inside this object, chosen by leftColFunc / rightColFunc
 	ControlColumn* leftCol = &velocityColumn;
 	ControlColumn* rightCol = &modColumn;
 
+	ColumnControlState() = default;
+	// A copy (e.g. when a clip is cloned) must point at its own columns. A memberwise copy would keep pointing into
+	// the source object, which is freed when the source clip is deleted.
+	ColumnControlState(const ColumnControlState& other) : ColumnControlStateData(other) { pointAtOwnColumns(); }
+	ColumnControlState& operator=(const ColumnControlState& other) {
+		ColumnControlStateData::operator=(other);
+		pointAtOwnColumns();
+		return *this;
+	}
+
 	ControlColumn* getColumnForFunc(ColumnControlFunction func);
+	void pointAtOwnColumns() {
+		leftCol = getColumnForFunc(leftColFunc);
+		rightCol = getColumnForFunc(rightColFunc);
+	}
 
 	void writeToFile(Serializer& writer);
 	void readFromFile(Deserializer& reader);

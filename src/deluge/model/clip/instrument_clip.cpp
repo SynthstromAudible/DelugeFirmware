@@ -45,6 +45,7 @@
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
@@ -3158,6 +3159,19 @@ useRootNote:
 	}
 }
 
+namespace {
+// Whether any Clip other than `clip` (of the same Kit) has a NoteRow for the Drum
+bool drumIsUsedByAnotherClipOf(Song* song, InstrumentClip* clip, Drum* drum) {
+	for (Clip* other : AllClips::everywhere(song)) {
+		if (other != clip && other->output == clip->output
+		    && static_cast<InstrumentClip*>(other)->getNoteRowForDrum(drum) != nullptr) {
+			return true;
+		}
+	}
+	return false;
+}
+} // namespace
+
 // Returns whether whole Clip should be deleted
 bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
@@ -3183,10 +3197,10 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 				// effect. Thanks
 
 				// We'd ultimately love to just delete the Drum. But beware that multiple NoteRows in different Clips
-				// may have the same Drum. We used to just delete it, leading to a crash sometimes! Now, if we just do
-				// this for the active Clip, it should be ok right, cos no other Clip is going to be doing anything on
-				// its NoteRow?
-				if (clipIsActive && noteRow->drum) {
+				// may have the same Drum. We used to just delete it, leading to a crash sometimes! Now we only do this
+				// for the active Clip - but other Clips of this Kit can survive Song::deleteSoundsWhichWontSound()
+				// (e.g. the one the view is showing), so also check that none of them has a NoteRow for the Drum.
+				if (clipIsActive && noteRow->drum && !drumIsUsedByAnotherClipOf(song, this, noteRow->drum)) {
 
 					// Voices must not outlive their Sound - kill any before it's deallocated below, in all builds
 					if (noteRow->drum->type == DrumType::SOUND
@@ -3624,7 +3638,8 @@ bool InstrumentClip::isScrollWithinRange(int32_t scrollAmount, int32_t newYNote)
 	}
 
 	else if (output->type == OutputType::CV) {
-		int32_t newVoltage = cvEngine.calculateVoltage(newYNote, ((CVInstrument*)output)->getChannel());
+		// getChannel() is 2 in "both" mode, which isn't a CV channel; pitch is on getPitchChannel()
+		int32_t newVoltage = cvEngine.calculateVoltage(newYNote, ((CVInstrument*)output)->getPitchChannel());
 		if (scrollAmount >= 0) {
 			if (newVoltage >= 65536 && newYNote > getTopYNote()) {
 				return false;
@@ -4626,7 +4641,7 @@ void InstrumentClip::recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t ve
 void InstrumentClip::yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song) {
 	if (output->type == OutputType::KIT) {
 		int32_t noteRowIndex = yDisplay + yScroll;
-		if (noteRowIndex >= 0 && noteRowIndex <= noteRows.getNumElements()) {
+		if (noteRowIndex >= 0 && noteRowIndex < noteRows.getNumElements()) {
 			NoteRow* noteRow = noteRows.getElement(noteRowIndex);
 			if (noteRow->drum) {
 				noteRow->drum->auditioned = false;

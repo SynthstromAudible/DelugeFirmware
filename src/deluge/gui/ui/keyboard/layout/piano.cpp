@@ -104,6 +104,7 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 				// Highlight incomming notes
 				else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
 				             == RuntimeFeatureStateToggle::On
+				         && note < kHighestKeyboardNote // The top octaves go past the end of the highlight array
 				         && getHighlightedNotes()[note] != 0) {
 					image[y][x] = colourSource.adjust(getHighlightedNotes()[note], 1);
 				}

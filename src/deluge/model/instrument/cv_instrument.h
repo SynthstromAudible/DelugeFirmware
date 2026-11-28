@@ -78,9 +78,7 @@ public:
 
 	void setCV2Mode(CVMode mode);
 
-private:
-	void updatePitchBendOutput(bool outputToo = true);
-	// returns -1 if  no pitch
+	// The CV channel that carries pitch. In "both" mode (channel 2) that's CV 1.
 	int32_t getPitchChannel() {
 		auto c = getChannel();
 		if (c > 1) {
@@ -88,6 +86,9 @@ private:
 		}
 		return c;
 	}
+
+private:
+	void updatePitchBendOutput(bool outputToo = true);
 	void setMode(CVInstrumentMode channel) {
 		clearModes();
 		switch (channel) {
