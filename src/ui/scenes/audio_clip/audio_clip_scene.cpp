@@ -1197,6 +1197,10 @@ void AudioClipScene::on_model_changed(const deluge::base::notify::DirtySet& dirt
 	// `AudioClipView::clipNeedsReRendering`, `sampleNeedsReRendering` and `playbackEnded`. Two of the three are pure
 	// `uiNeedsRendering` calls, which `Shell::apply_dirty` already does for these facts; what is left is the
 	// scroll-back-left legacy hides inside `clipNeedsReRendering`.
+	// `sampleNeedsReRendering`: a sample finished loading (an undo's, a claim's), so a waveform waiting on it is drawn.
+	if (dirty.has(deluge::base::notify::Dirty::SampleReady) && clip_) {
+		retry_.restart();
+	}
 	if (!dirty.has(deluge::base::notify::Dirty::ClipContent) || !clip_) {
 		return;
 	}

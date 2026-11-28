@@ -2,6 +2,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "hid/display/display.h"
@@ -26,6 +27,11 @@ void drain_notifications() {
 	const DirtySet d = dirty().drain(DirtyConsumer::Legacy);
 	// The shell keeps its own copy of every fact; a guest asleep when one arrives is woken for it.
 	shellHostUI.wakeForPendingFacts();
+	// So is a root view whose body is a scene, while it is the current UI: an undo or a sample load redraws it.
+	if (const ::UI* root = deluge::gui::ui::shellRuntime().rootHost();
+	    root != nullptr && getCurrentUI() == root && dirty().pending(DirtyConsumer::Shell)) {
+		deluge::gui::ui::ShellRuntime::armTickSoon();
+	}
 	if (d.any()) {
 		const LegacyRedraw r = legacy_redraw_for(d);
 		RootUI* root = getRootUI();

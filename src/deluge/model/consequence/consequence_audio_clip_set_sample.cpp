@@ -69,6 +69,9 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 		}
 	}
 
+	// The clip's sample is another now: a view drawing its waveform starts again.
+	clip->notify_content_changed();
+
 	filePathToRevertTo = filePathBeforeRevert;
 	nameToRevertTo = nameBeforeRevert;
 	endPosToRevertTo = endPosBeforeRevert;
