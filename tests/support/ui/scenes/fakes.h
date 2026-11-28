@@ -18,6 +18,7 @@
 #include <array>
 #include <bitset>
 #include <cstdint>
+#include <format>
 #include <map>
 #include <optional>
 #include <set>
@@ -640,6 +641,25 @@ struct RecordingViewActions final : ViewActions {
 	}
 };
 
+/// @brief RootViews that records every request, and answers the two that answer as a spec sets them.
+struct RecordingRootViews final : RootViews {
+	std::vector<std::string> calls; ///< every request, in order: "session", "automation", "shortcut x y on|off",
+	                                ///< "output +n" and "clip menu"
+	bool takes_shortcuts = false;   ///< what `menu_shortcut_pad` answers
+	bool menu_opens = true;         ///< what `open_clip_menu` answers
+	void to_session_or_arranger() override { calls.emplace_back("session"); }
+	void to_automation() override { calls.emplace_back("automation"); }
+	[[nodiscard]] bool menu_shortcut_pad(uint8_t x, uint8_t y, bool on) override {
+		calls.push_back(std::format("shortcut {} {} {}", x, y, on ? "on" : "off"));
+		return takes_shortcuts;
+	}
+	void next_audio_output(int8_t direction) override { calls.push_back(std::format("output {:+}", direction)); }
+	[[nodiscard]] bool open_clip_menu() override {
+		calls.emplace_back("clip menu");
+		return menu_opens;
+	}
+};
+
 /// @brief CardActions that records every release asked of it, and refuses the paths a spec lists as in use.
 struct RecordingCardActions final : CardActions {
 	std::vector<std::string> released;         ///< every path asked, in order
@@ -764,6 +784,7 @@ struct FakeHost {
 	RecordingTakeActions take_actions;           ///< the take actions' recorder
 	RecordingIndicators indicators;              ///< the indicators' recorder
 	RecordingViewActions view_actions;           ///< the view actions' recorder
+	RecordingRootViews root_views;               ///< the root views' recorder
 	FakeCatalogue catalogue;                     ///< the card catalogue's fake
 	RecordingCardActions card_actions;           ///< the card actions' recorder
 	FakeFavourites favourites;                   ///< the favourites bank's fake
@@ -803,6 +824,7 @@ struct FakeHost {
 		        .take_actions = &take_actions,
 		        .indicators = &indicators,
 		        .view_actions = &view_actions,
+		        .root_views = &root_views,
 		        .catalogue = &catalogue,
 		        .card_actions = &card_actions,
 		        .favourites = &favourites};

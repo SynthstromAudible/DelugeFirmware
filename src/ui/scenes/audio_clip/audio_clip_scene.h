@@ -479,6 +479,8 @@ private:
 	[[nodiscard]] const deluge::ui::scenes::bind::ClipFacts* clips() const;
 	/// @return Where the clip edits go, or null.
 	[[nodiscard]] deluge::ui::scenes::bind::ClipWrites* clip_writes() const;
+	/// @brief Where the arms that leave the view, or open a menu over it, go.
+	[[nodiscard]] deluge::ui::scenes::bind::RootViews* root_views() const;
 	/// @return Where the setting writes go, or null.
 	[[nodiscard]] deluge::ui::scenes::bind::WriteSink* writes() const;
 	/// @return The device's settings, or null.

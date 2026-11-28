@@ -96,6 +96,9 @@ namespace deluge::gui::shell_host {
 /// @brief The host's ViewActions: each the call the legacy opener it names makes on the root view.
 [[nodiscard]] deluge::ui::scenes::bind::ViewActions& view_actions();
 
+/// @brief The host's RootViews: each the call the audio clip view's own arm makes to leave the clip or open a menu.
+[[nodiscard]] deluge::ui::scenes::bind::RootViews& root_views();
+
 /// @brief Give the overlays, the slicer and the audio clip scene the app's ports they read. Idempotent; the boot and
 ///        every guest open call it.
 void install_scene_ports();

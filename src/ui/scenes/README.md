@@ -643,7 +643,12 @@ root-gated arms (SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach 
 * **It reads and acts through the ports the host installs** (`set_ports`) and the song's record `open` names: the clip
   and its play state on `ClipFacts`, the clocks and the arrangement's mode on `Transport`, the tempo grab on
   `TransportActions`, its clip edits on `ClipWrites` and the edit sink, and its waveform at the
-  clip's AUDIO_CLIP address ("The waveform views" below). Its timeline starts from `ClipFacts::clip_navigation`.
+  clip's AUDIO_CLIP address ("The waveform views" below). Its timeline starts from `ClipFacts::clip_navigation`, and
+  its scroll and zoom go back there (`ClipWrites::set_clip_navigation`). The arms that leave the clip or open a menu
+  go to `RootViews`: SESSION's short press, CLIP, SELECT, shift and a select turn, and every main pad, offered first
+  to the menu's shortcuts, which the host decides as `menuShortcutPadAction` does.
+* **The play cursor is frame-driven** (`Scene::frame_driven`): woken every 15 ms frame while it is live, as legacy's
+  graphics routine redraws it, not on every tick.
 
 **A spec that compares a rendered grid against legacy must make the comparison non-vacuous.** With no
 card mounted the waveform scan fails on most arms and both sides draw black, so a pad-for-pad match

@@ -121,13 +121,15 @@ AudioClipScene& opened(AudioClipScene& scene, AudioClipHost& h) {
 	return scene;
 }
 
-/// @brief The context an event runs in: the buttons in @p held down, no shift.
+/// @brief The context an event runs in: the buttons in @p held down, shift as @p shift says, at @p now_ms.
 struct Context {
 	ButtonSet held{};
 	deluge::ui::widgets::core::PadMask pads{};
+	bool shift = false;
+	uint32_t now_ms = 0;
 	/// @return The context.
 	[[nodiscard]] UiContext get() const {
-		return UiContext{held, pads, false, false, 0, deluge::ui::shell::deluge_profile()};
+		return UiContext{held, pads, shift, false, now_ms, deluge::ui::shell::deluge_profile()};
 	}
 };
 
@@ -152,11 +154,11 @@ Result turn_horizontal(AudioClipScene& scene, int32_t delta) {
 	                    Context{}.get());
 }
 
-/// @brief Turn the select encoder by @p delta detents, shift up.
-Result turn_select(AudioClipScene& scene, int32_t delta) {
+/// @brief Turn the select encoder by @p delta detents, in @p ctx (shift up by default).
+Result turn_select(AudioClipScene& scene, int32_t delta, const Context& ctx = {}) {
 	return scene.handle(
 	    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = EncoderRole::Select, .delta = static_cast<int8_t>(delta)},
-	    Context{}.get());
+	    ctx.get());
 }
 
 /// @brief The popup string @p r raises, or 0.
@@ -480,6 +482,79 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(h.host.waveforms.reads.back().in.scroll).to_equal(int64_t{1000});
 		expect(lit_main_pads(scrolled)).to_equal(0);
 		expect(scrolled.gate.next_deadline()).to_equal(std::optional<uint32_t>{moved + kPeakRetryPollMs});
+	});
+
+	context("the arms that leave the view or open a menu", _ {
+		it("leaves the clip for the song on a short SESSION press, and not on a long one", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			(void)button(scene, ButtonId::Session, true, Context{.now_ms = 0});
+			(void)button(scene, ButtonId::Session, false, Context{.now_ms = 100});
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"session"});
+			(void)button(scene, ButtonId::Session, true, Context{.now_ms = 1000});
+			(void)button(scene, ButtonId::Session, false,
+			             Context{.now_ms = 1000 + deluge::ui::scenes::timeline::kShortPressMs + 1});
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"session"});
+		});
+
+		it("opens the automation view on CLIP with no UI mode, and not while SESSION is held", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			expect(button(scene, ButtonId::Clip, true).handled).to_be_true();
+			(void)button(scene, ButtonId::Clip, false);
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"automation"});
+			(void)button(scene, ButtonId::Session, true);
+			(void)button(scene, ButtonId::Clip, true);
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"automation"});
+		});
+
+		it("offers every main pad to the menu's shortcuts first, and runs no marker gesture on one the menu takes", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			h.host.root_views.takes_shortcuts = true;
+			(void)tap(scene, 15, 2); // the end column
+			expect(h.host.root_views.calls)
+			    .to_equal(std::vector<std::string>{"shortcut 15 2 on", "shortcut 15 2 off"});
+			expect(scene.end_marker_visible()).to_be_false();
+			// One the menu leaves runs the marker gesture, and one it takes then puts the marker down.
+			h.host.root_views.takes_shortcuts = false;
+			(void)tap(scene, 15, 2);
+			expect(scene.end_marker_visible()).to_be_true();
+			h.host.root_views.takes_shortcuts = true;
+			(void)tap(scene, 5, 2);
+			expect(scene.end_marker_visible()).to_be_false();
+			expect(h.host.clip_writes.calls.empty()).to_be_true();
+		});
+
+		it("moves the clip to the next audio output on shift and a select turn, writing no mode", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			(void)turn_select(scene, 1, Context{.shift = true});
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"output +1"});
+			expect(h.host.writes.requests.empty()).to_be_true();
+		});
+
+		it("opens the clip's menu on SELECT, putting the end marker down, and claims the release too", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			(void)tap(scene, 15, 2);
+			expect(scene.end_marker_visible()).to_be_true();
+			h.host.root_views.calls.clear(); // the tap's shortcut offers
+			h.host.root_views.menu_opens = false;
+			expect(button(scene, ButtonId::SelectEnc, true).handled).to_be_true();
+			// A menu that does not open leaves the marker up.
+			expect(scene.end_marker_visible()).to_be_true();
+			h.host.root_views.menu_opens = true;
+			(void)button(scene, ButtonId::SelectEnc, true);
+			expect(scene.end_marker_visible()).to_be_false();
+			expect(button(scene, ButtonId::SelectEnc, false).handled).to_be_true();
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"clip menu", "clip menu"});
+		});
 	});
 });
 // clang-format on

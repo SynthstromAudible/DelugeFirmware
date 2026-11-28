@@ -126,6 +126,10 @@ deluge::ui::scenes::bind::ClipWrites* AudioClipScene::clip_writes() const {
 	return bind::port_of(ports_, &bind::Ports::clip_writes);
 }
 
+deluge::ui::scenes::bind::RootViews* AudioClipScene::root_views() const {
+	return bind::port_of(ports_, &bind::Ports::root_views);
+}
+
 deluge::ui::scenes::bind::WriteSink* AudioClipScene::writes() const {
 	return bind::port_of(ports_, &bind::Ports::writes);
 }
@@ -475,24 +479,24 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 			(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 			return r;
 		}
-		// `uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC)` and
-		// `ClipMinder::transitionToArrangerOrSession()`. **NOT PORTED**, and it is the whole point
-		// of the short press: that function (`model/clip/clip_minder.cpp`) names
-		// `arrangerView` and `sessionView`, two `scenes-no-root-ui` globals, and neither view is
-		// ported. The latch above is ported because three of this scene's own arms branch
-		// on it; the exit it guards is not ported.
+		// `uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC)` and `ClipMinder::transitionToArrangerOrSession()`, both
+		// the host's.
+		if (deluge::ui::scenes::bind::RootViews* v = root_views()) {
+			v->to_session_or_arranger();
+		}
 		return r;
 	}
 
 	// ---- CLIP_VIEW ----
 	if (b == ButtonId::Clip) {
-		// `changeRootUI(&automationView)` -- `automationView` is a `scenes-no-root-ui` global and there is no
-		// `AutomationScene`, so the body is **not ported**. The event is still claimed, because legacy claims it: this
-		// arm falls through to the closing DEALT_WITH of `AudioClipView::buttonAction`, so `Buttons::buttonAction`'s
-		// tail never runs (`hid/buttons.cpp`) and neither `View::buttonAction` nor the tail has a `CLIP_VIEW` arm to
-		// run anyway. Claiming it keeps the routing identical; the missing navigation is recorded here and in the class
-		// doc.
+		// `if (on && currentUIMode == UI_MODE_NONE) changeRootUI(&automationView)`, the root change the host's. Claimed
+		// on every path, because legacy falls through to the closing DEALT_WITH of `AudioClipView::buttonAction`.
 		r.handled = true;
+		if (on && no_ui_mode_active()) {
+			if (deluge::ui::scenes::bind::RootViews* v = root_views()) {
+				v->to_automation();
+			}
+		}
 		return r;
 	}
 
@@ -549,16 +553,18 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 
 	// ---- SELECT_ENC without shift (`AudioClipView::buttonAction` in `audio_clip_view.cpp`) ----
 	if (b == ButtonId::SelectEnc && !ctx.shift) {
-		// `soundEditor.setup(getCurrentClip())` + `openUI(&soundEditor)`
-		// (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`). The menu is `menu::MenuScene`, but nothing in this
-		// library pushes that scene -- resolving a `MenuContext` for a clip and filing a `Push` is the application's
-		// wiring, exactly as `MarkerScene` records for its own shortcut jump (`ui/scenes/marker/marker_scene.h`). **Not
-		// ported**, and therefore not claimed: the event falls through, where `services::GlobalControls` gates its own
-		// `SELECT_ENC` arm on shift and does nothing with it either. The divergence is legacy's
-		// `goto deactivateMarkerIfNecessary` after `openUI` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`),
-		// which puts the end marker down as the editor opens; with no editor to open, putting it down would be a
-		// gesture with no cause.
-		return Result::unhandled();
+		// `openMenu(getCurrentClip(), ...)`, site 5 of `gui/ui/menu_entry.cpp`'s table, the host's; a menu that opens
+		// takes the end marker down (`goto deactivateMarkerIfNecessary`), one that refuses leaves it. Claimed on every
+		// path: legacy's arm ends in the closing DEALT_WITH.
+		r.handled = true;
+		if (on && no_ui_mode_active()) {
+			if (deluge::ui::scenes::bind::RootViews* v = root_views(); v != nullptr && v->open_clip_menu()) {
+				if (deactivate_marker_if_necessary()) {
+					(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
+				}
+			}
+		}
+		return r;
 	}
 
 	// ---- BACK while the horizontal encoder button is held ----
@@ -634,12 +640,16 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 	// counterpart: the shell's SD gate is `InputLowering::set_sd_busy`, which defers and retries rather than asking a
 	// scene (`ui/shell/scene.h`'s `Action` warning names that split).
 	//
-	// The shortcut call (`menuShortcutPadAction`) is **not ported**, for
-	// `MarkerScene`'s reason (`ui/scenes/marker/marker_scene.h`): `MenuScene` owns the shortcut
-	// tables, and jumping into a menu item from here means filing navigation nothing yet consumes.
-	// The consequence is behavioural and worth stating plainly: on a pad that IS a shortcut, legacy
-	// opens the editor and puts BOTH markers down, while this port runs the marker
-	// gesture below instead.
+	// `menuShortcutPadAction(x, y, on)`, press and release alike (its first statement writes a latch on either): the
+	// host decides from the shortcut settings and the menu's tables whether the pad is a shortcut. A pad the menu
+	// takes puts BOTH markers down and runs nothing else.
+	if (deluge::ui::scenes::bind::RootViews* v = root_views();
+	    v != nullptr && v->menu_shortcut_pad(event.x, event.y, on)) {
+		set_end_marker_visible(false);
+		set_start_marker_visible(false);
+		(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
+		return r;
+	}
 
 	if (!on || !no_ui_mode_active()) {
 		return r;
@@ -717,12 +727,12 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 		return false;
 	}
 	if (shift) {
-		// `View::navigateThroughAudioOutputsForAudioClip` is **not ported**. Two of its
-		// three halves are outside this layer: it builds a `ModelStack` for `Clip::changeOutput`
-		// and `Output::pickAnActiveClipIfPossible` (`gui/views/view.cpp`), and it ends in
-		// `setActiveModControllableTimelineCounter`, which is `services::ModKnobs`' --
-		// the same handle `renderSidebar`'s macro arm lacks. It is a `View` method shared with the
-		// session view, so it belongs with `services::ModKnobs` rather than being rebuilt here.
+		// `View::navigateThroughAudioOutputsForAudioClip`, the host's: it moves the clip to another output, which the
+		// OLED names.
+		if (deluge::ui::scenes::bind::RootViews* v = root_views()) {
+			v->next_audio_output(static_cast<int8_t>(offset));
+			return true;
+		}
 		return false;
 	}
 	// `AudioClipView::selectEncoderAction`'s `else` branch (`audio_clip_view.cpp`): the track's mode, scrolled as
