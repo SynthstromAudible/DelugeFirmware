@@ -70,7 +70,6 @@ MarkerScene::present_waveform(const services::WaveformFrame& wf, int32_t main_co
 views::grid::MarkerOverlay
 MarkerScene::present_overlay(const std::array<views::waveform::MarkerPin, kSampleMarkerCount>& cols,
                              int32_t main_cols) const {
-
 	// The blink, as `timerCallback` draws it rather than as `renderMainPads`
 	// does -- see the class docstring for why the two disagree.
 	uint32_t suppress = 0;

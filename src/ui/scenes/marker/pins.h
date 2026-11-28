@@ -1,9 +1,8 @@
 #pragma once
 
 /// @file
-/// @brief What `marker/marker_scene.cpp` and `marker/present.cpp` share about the markers' pins: a marker's index and a
-/// pin's
-///        column for comparisons.
+/// @brief What `marker/marker_scene.cpp` and `marker/present.cpp` share about the markers' pins: a marker's index
+///        and a pin's column for comparisons.
 
 #include "project/sample_marker.h"
 #include "ui/views/waveform/view.h"
