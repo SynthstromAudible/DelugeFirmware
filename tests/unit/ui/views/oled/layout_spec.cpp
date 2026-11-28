@@ -17,7 +17,7 @@ using gfx::oled::kTextSpacingX;
 describe text_rows_v("ui::views::oled::detail::text_rows", $ {
 	it("clips the left text short of the right", _ {
 		uitest::Rig48 r;
-		const std::array<detail::RowText, 1> rows{{{"A VERY LONG SAMPLE NAME", "C#3"}}};
+		const std::array<RowText, 1> rows{{{"A VERY LONG SAMPLE NAME", "C#3"}}};
 		detail::text_rows(r.frame, rows);
 		const int32_t right_x = 128 - 3 * kTextSpacingX;
 		const int32_t y = detail::row_y(r.frame, 0);
@@ -28,7 +28,7 @@ describe text_rows_v("ui::views::oled::detail::text_rows", $ {
 
 	it("draws nothing for empty text", _ {
 		uitest::Rig48 r;
-		const std::array<detail::RowText, 2> rows{{{"", ""}, {"", ""}}};
+		const std::array<RowText, 2> rows{{{"", ""}, {"", ""}}};
 		detail::text_rows(r.frame, rows);
 		expect(lit_count(r)).to_equal(0);
 	});
@@ -40,6 +40,41 @@ describe text_rows_v("ui::views::oled::detail::text_rows", $ {
 		uitest::Rig64 r64;
 		expect(detail::row_y(r64.frame, 0)).to_equal(r64.style.title_height + 3);
 		expect(detail::row_y(r64.frame, 1) - detail::row_y(r64.frame, 0)).to_equal(r64.style.row_height);
+	});
+
+	it("starts a name too wide for the frame at the left edge", _ {
+		constexpr std::string_view kLong = "SATURDAY JAM 2026 V3";
+		uitest::Rig48 a;
+		detail::name_centred(a.frame, 17, kLong);
+		uitest::Rig48 b;
+		b.frame.glyphs(kLong, 0, 17, gfx::oled::kTextTitleSpacingX, gfx::oled::kTextTitleSizeY);
+		expect(a.pbm()).to_equal(b.pbm());
+	});
+
+	it("starts a row too wide for the frame at the left edge", _ {
+		constexpr std::string_view kLong = "C3 EB3 G3 BB3 D4 F4 A4 C5";
+		uitest::Rig48 a;
+		detail::text_centred(a.frame, 35, kLong);
+		uitest::Rig48 b;
+		b.frame.glyphs(kLong, 0, 35, kTextSpacingX, gfx::oled::kTextSpacingY);
+		expect(a.pbm()).to_equal(b.pbm());
+	});
+
+	it("shrinks a big value too wide for the frame", _ {
+		uitest::Rig48 r;
+		detail::big_text(r.frame, "CM7#11/G13 ADD9");
+		const int32_t y = detail::row_y(r.frame, 0) - 1;
+		expect(lit_in(r, 0, y, 1, 20)).to_equal(0);
+		expect(lit_in(r, 127, y, 1, 20)).to_equal(0);
+		expect(lit_in(r, 1, y, 126, 20)).to_be_greater_than(0);
+	});
+
+	it("draws only the rows that fit", _ {
+		uitest::Rig64 r;
+		const std::array<RowText, 6> rows{{{"A", "1"}, {"B", "2"}, {"C", "3"}, {"D", "4"}, {"E", "5"}, {"F", "6"}}};
+		detail::text_rows(r.frame, rows);
+		expect(lit_in(r, 0, 60, 128, 4)).to_equal(0);  // row 5 (y 60) would be cut off
+		expect(lit_in(r, 0, 51, 128, 9)).to_be_greater_than(0); // row 4 fits
 	});
 
 	it("gives the body the rest of the frame", _ {

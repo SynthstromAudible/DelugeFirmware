@@ -46,7 +46,7 @@ A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmw
 | `clip` | `instrument_clip_resting`, `audio_clip_resting`, `kit_clip_resting`, `cv_clip_resting` |
 | `keyboard` | `keyboard_playing`, `scale_held`, `velocity_drums` |
 | `recording` | `record_arming`, `count_in`, `overdub`, `resampling`, `stem_export` |
-| `editing` | `zoom_held`, `quantize_held`, `step_held`, `automation_moment`, `slicer`, `moving_kit_row`, `randomized_drums`, `undo` |
+| `editing` | `zoom_held`, `quantize_held`, `step_held`, `automation_lane_moment`, `slicer`, `moving_kit_row`, `randomized_drums`, `undo` |
 | `playing` | `auditioning_row`, `stutter_held`, `tap_tempo`, `midi_learn`, `mod_source_held`, `loading_song` |
 | `master` | `master_scope`, `master_scope_xy` |
 

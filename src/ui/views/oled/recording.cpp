@@ -18,8 +18,7 @@ void count_in(widgets::oled::OledFrame& f, const CountIn& d) {
 	widgets::oled::title_note(f, d.title, d.note);
 	detail::big_text(f, d.beat);
 	constexpr int32_t kBoxes = 5;
-	widgets::oled::beat_boxes(f, {0, f.bounds().h - kBoxes, f.bounds().w, kBoxes}, d.beats,
-	                          std::clamp(d.beats_done, 0, std::max(0, d.beats)));
+	widgets::oled::beat_boxes(f, {0, f.bounds().h - kBoxes, f.bounds().w, kBoxes}, d.beats, d.beats_done);
 }
 
 void overdub(widgets::oled::OledFrame& f, const Overdub& d) {
@@ -40,7 +39,10 @@ void resampling(widgets::oled::OledFrame& f, const Resampling& d) {
 		f.hline(y, mark_x, mark_x + kMark - 1);
 	}
 	const int32_t top = detail::row_y(f, 0);
-	widgets::oled::text(f, {0, top + 2, w, 13}, d.elapsed,
+	// the elapsed time stops 4 px short of the stop label, as a row's label does
+	const int32_t stop_x = w - static_cast<int32_t>(d.stop_label.size()) * gfx::oled::kTextSpacingX;
+	const int32_t elapsed_w = d.stop_label.empty() ? w : std::max(0, stop_x - 4);
+	widgets::oled::text(f, {0, top + 2, elapsed_w, 13}, d.elapsed,
 	                    {.font = gfx::oled::FontId::MetricBold13, .align = widgets::oled::Align::Left});
 	detail::text_pair(f, top + 5, {{}, d.stop_label});
 	widgets::oled::level_lines(f, {0, f.bounds().h - 2, w, 2}, d.level_l, d.level_r);

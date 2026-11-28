@@ -15,7 +15,7 @@ using namespace deluge::ui::views::oled::test;
 
 namespace {
 
-constexpr std::array<detail::RowText, 3> kSources{{{"LEAD 2", "MIDI"}, {"VOX", "INPUT L"}, {"BREAK 04", "MIX"}}};
+constexpr std::array<RowText, 3> kSources{{{"LEAD 2", "MIDI"}, {"VOX", "INPUT L"}, {"BREAK 04", "MIX"}}};
 constexpr CountIn kCountIn{.title = "COUNT-IN", .note = "REC", .beat = "3", .beats = 4, .beats_done = 1};
 constexpr Overdub kOverdub{.title = "OVERDUB", .pass = "PASS 3", .position = "2.3", .progress = 0.55f};
 constexpr Resampling kResampling{
@@ -104,6 +104,16 @@ describe overdub_v("ui::views::oled::overdub", $ {
 });
 
 describe resampling_v("ui::views::oled::resampling", $ {
+	it("stops the elapsed time short of a long stop label", _ {
+		uitest::Rig48 r;
+		Resampling d = kResampling;
+		d.stop_label = "STOP AT 4 BARS"; // 14 characters: starts at column 128 - 84 = 44
+		resampling(r.frame, d);
+		const int32_t top = detail::row_y(r.frame, 0);
+		expect(lit_in(r, 44 - 4, top, 4, 16)).to_equal(0);
+		expect(lit_in(r, 0, top, 40, 16)).to_be_greater_than(0);
+	});
+
 	it("keeps a long title off the record mark", _ {
 		uitest::Rig48 r;
 		Resampling d = kResampling;

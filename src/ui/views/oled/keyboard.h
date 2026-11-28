@@ -37,7 +37,8 @@ struct VelocityDrums {
 	int32_t velocity;      ///< 0..127, clamped.
 };
 
-/// @brief The title over the velocity as `int_value`'s continuous value (digits and bar). Reads no input.
+/// @brief The title, the velocity's digits big (through `int_value`), and the velocity as a `progress` bar along the
+///        last 8 rows, inset 12 px each side. Reads no input.
 void velocity_drums(widgets::oled::OledFrame& f, const VelocityDrums& d);
 
 } // namespace deluge::ui::views::oled

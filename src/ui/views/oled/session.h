@@ -64,9 +64,9 @@ void clip_held(widgets::oled::OledFrame& f, const ClipHeld& d);
 
 /// @brief Holding a section pad.
 struct SectionHeld {
-	std::string_view name;                 ///< "SECTION B".
-	std::string_view position;             ///< "2/6": the title's note.
-	std::span<const detail::RowText> rows; ///< REPEATS 4, CLIPS 3, PLAYED 1 OF 4.
+	std::string_view name;         ///< "SECTION B".
+	std::string_view position;     ///< "2/6": the title's note.
+	std::span<const RowText> rows; ///< REPEATS 4, CLIPS 3, PLAYED 1 OF 4.
 };
 
 /// @brief `title_note(name, position)` over `text_rows(rows)`.

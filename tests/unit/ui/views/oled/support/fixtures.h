@@ -32,6 +32,17 @@ inline int32_t lit_in(uitest::Rig48& r, int32_t x, int32_t y, int32_t w, int32_t
 	return n;
 }
 
+/// Lit pixels in the rect {x, y, w, h} of the 64-row rig (no hidden rows).
+inline int32_t lit_in(uitest::Rig64& r, int32_t x, int32_t y, int32_t w, int32_t h) {
+	int32_t n = 0;
+	for (int32_t yy = y; yy < y + h; yy++) {
+		for (int32_t xx = x; xx < x + w; xx++) {
+			n += r.lit(xx, yy) ? 1 : 0;
+		}
+	}
+	return n;
+}
+
 /// Lit pixels on the 48-row rig's visible area.
 inline int32_t lit_count(uitest::Rig48& r) {
 	return lit_in(r, 0, 0, 128, 43);

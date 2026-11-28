@@ -43,13 +43,17 @@ void text_pair(widgets::oled::OledFrame& f, int32_t y, RowText row) {
 void text_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s) {
 	if (!s.empty()) {
 		const auto w = static_cast<int32_t>(s.size()) * kTextSpacingX;
-		f.glyphs(s, (f.bounds().w - w) / 2, y, kTextSpacingX, kTextSpacingY);
+		f.glyphs(s, std::max(0, (f.bounds().w - w) / 2), y, kTextSpacingX, kTextSpacingY);
 	}
 }
 
 void text_rows(widgets::oled::OledFrame& f, std::span<const RowText> rows, int32_t first_row) {
 	for (size_t i = 0; i < rows.size(); i++) {
-		text_pair(f, row_y(f, first_row + static_cast<int32_t>(i)), rows[i]);
+		const int32_t y = row_y(f, first_row + static_cast<int32_t>(i));
+		if (y + kTextSpacingY - 1 > f.bounds().h) {
+			break; // the rest would be cut off by the frame's bottom
+		}
+		text_pair(f, y, rows[i]);
 	}
 }
 
@@ -61,12 +65,15 @@ void title_short_of(widgets::oled::OledFrame& f, std::string_view s, int32_t rig
 
 void big_text(widgets::oled::OledFrame& f, std::string_view s) {
 	widgets::oled::text(f, {0, row_y(f, 0) - 1, f.bounds().w, 20}, s,
-	                    {.font = gfx::oled::FontId::MetricBold20, .align = widgets::oled::Align::Centre});
+	                    {.font = gfx::oled::FontId::MetricBold20,
+	                     .align = widgets::oled::Align::Centre,
+	                     // only when it must: shrink's centring is a pixel off plain centring for a value that fits
+	                     .shrink = widgets::oled::measure(s, gfx::oled::FontId::MetricBold20).w > f.bounds().w});
 }
 
 void name_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s) {
 	const int32_t w = widgets::oled::measure(s, gfx::oled::FontId::MetricBold9).w;
-	f.glyphs(s, (f.bounds().w - w) / 2, y, gfx::oled::kTextTitleSpacingX, gfx::oled::kTextTitleSizeY);
+	f.glyphs(s, std::max(0, (f.bounds().w - w) / 2), y, gfx::oled::kTextTitleSpacingX, gfx::oled::kTextTitleSizeY);
 }
 
 void list_rows(widgets::oled::OledFrame& f, std::span<const widgets::oled::ListRow> rows, int16_t current) {

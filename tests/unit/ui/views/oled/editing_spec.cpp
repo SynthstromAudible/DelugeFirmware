@@ -30,7 +30,7 @@ QuantizeHeld quantize(std::span<const int32_t> notes) {
 	        .amount = 0.6f};
 }
 
-AutomationMoment automation(std::span<const LaneNode> nodes) {
+AutomationLaneMoment automation(std::span<const LaneNode> nodes) {
 	return {.param = "LPF FREQ",
 	        .note = "AUTO",
 	        .length_ticks = 128 * 24,
@@ -123,6 +123,14 @@ describe step_held_v("ui::views::oled::step_held", $ {
 		expect(a.pbm()).to_equal(b.pbm());
 	});
 
+	it("underlines the focused column under its label at 64 rows", _ {
+		widgets::oled::MeterColumn vel{.hint = widgets::oled::Hint::Bar, .norm = 0.8f, .raw = 100};
+		std::array<Column, 1> cols{{{.label = "VEL", .render = widgets::oled::meter_column, .ctx = &vel}}};
+		uitest::Rig64 r;
+		step_held(r.frame, {.title = "C3 STEP 5", .columns = cols});
+		expect(lit_in(r, 0, 43, 128, 21)).to_equal(0); // nothing below the 43-row layout
+	});
+
 	it("matches its goldens", _ {
 		widgets::oled::MeterColumn vel{.hint = widgets::oled::Hint::Bar, .norm = 0.8f, .raw = 100};
 		widgets::oled::MeterColumn prob{.hint = widgets::oled::Hint::Percent, .norm = 0.75f, .raw = 37}; // the hint doubles raw
@@ -143,13 +151,13 @@ describe step_held_v("ui::views::oled::step_held", $ {
 	});
 });
 
-describe automation_moment_v("ui::views::oled::automation_moment", $ {
+describe automation_lane_moment_v("ui::views::oled::automation_lane_moment", $ {
 	it("draws the empty value's line with no nodes", _ {
 		uitest::Rig48 r;
-		AutomationMoment d = automation({});
+		AutomationLaneMoment d = automation({});
 		d.window_len = 0;
 		d.playhead = -1;
-		automation_moment(r.frame, d);
+		automation_lane_moment(r.frame, d);
 		const auto b = detail::body_rect(r.frame, 0);
 		expect(lit_in(r, b.x, b.y, b.w, b.h)).to_be_greater_than(0);
 	});
@@ -157,11 +165,11 @@ describe automation_moment_v("ui::views::oled::automation_moment", $ {
 	it("matches its goldens", _ {
 		const auto nodes = swell_lane();
 		uitest::Rig48 r48;
-		automation_moment(r48.frame, automation(nodes));
-		expect_golden(self, "ui/views/oled/automation_moment_48.pbm", r48.pbm());
+		automation_lane_moment(r48.frame, automation(nodes));
+		expect_golden(self, "ui/views/oled/automation_lane_moment_48.pbm", r48.pbm());
 		uitest::Rig64 r64;
-		automation_moment(r64.frame, automation(nodes));
-		expect_golden(self, "ui/views/oled/automation_moment_64.pbm", r64.pbm());
+		automation_lane_moment(r64.frame, automation(nodes));
+		expect_golden(self, "ui/views/oled/automation_lane_moment_64.pbm", r64.pbm());
 	});
 });
 
@@ -240,5 +248,5 @@ describe undo_v("ui::views::oled::undo", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(editing_spec, zoom_held_v, quantize_held_v, step_held_v, automation_moment_v, slicer_v, list_moments_v,
+DELUGE_SPEC(editing_spec, zoom_held_v, quantize_held_v, step_held_v, automation_lane_moment_v, slicer_v, list_moments_v,
             undo_v)

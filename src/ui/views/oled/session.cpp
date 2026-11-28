@@ -4,6 +4,7 @@
 #include "ui/widgets/oled/counters.h"
 #include "ui/widgets/oled/text.h"
 
+#include <algorithm>
 #include <cstdint>
 
 namespace deluge::ui::views::oled {
@@ -70,7 +71,7 @@ void clip_held(widgets::oled::OledFrame& f, const ClipHeld& d) {
 	// three rows clear of the text row, as the sketch has it, so the strip's top note never touches the words
 	gfx::oled::Rect strip = detail::body_rect(f, 1);
 	strip.y += 3;
-	strip.h -= 3;
+	strip.h = std::max(0, strip.h - 3);
 	widgets::oled::note_strip(f, strip, d.length_ticks, d.notes, d.low, d.high, 0, 0, -1);
 }
 

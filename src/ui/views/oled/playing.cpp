@@ -22,20 +22,18 @@ void auditioning_row(widgets::oled::OledFrame& f, const AuditioningRow& d) {
 void stutter_held(widgets::oled::OledFrame& f, const StutterHeld& d) {
 	widgets::oled::title(f, d.title);
 	detail::big_text(f, d.rate);
-	widgets::oled::beat_boxes(f, {0, f.bounds().h - 5, f.bounds().w, 4}, d.repeats,
-	                          std::clamp(d.repeats_done, 0, std::max(0, d.repeats)), 6, 2);
+	widgets::oled::beat_boxes(f, {0, f.bounds().h - 5, f.bounds().w, 4}, d.repeats, d.repeats_done, 6, 2);
 }
 
 void tap_tempo(widgets::oled::OledFrame& f, const TapTempo& d) {
 	widgets::oled::title(f, d.title);
 	detail::big_text(f, d.tempo);
-	widgets::oled::beat_boxes(f, {0, f.bounds().h - 5, f.bounds().w, 5}, d.taps,
-	                          std::clamp(d.taps_done, 0, std::max(0, d.taps)));
+	widgets::oled::beat_boxes(f, {0, f.bounds().h - 5, f.bounds().w, 5}, d.taps, d.taps_done);
 }
 
 void midi_learn(widgets::oled::OledFrame& f, const MidiLearn& d) {
 	widgets::oled::title(f, d.title);
-	const std::array<detail::RowText, 2> rows{{{d.target, d.value}, {d.cc, d.channel}}};
+	const std::array<RowText, 2> rows{{{d.target, d.value}, {d.cc, d.channel}}};
 	detail::text_rows(f, rows);
 	const int32_t h = f.bounds().h;
 	const int32_t x1 = f.bounds().w - 1;

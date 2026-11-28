@@ -25,13 +25,16 @@ void quantize_held(widgets::oled::OledFrame& f, const QuantizeHeld& d) {
 
 void step_held(widgets::oled::OledFrame& f, const StepHeld& d) {
 	// a view draws and never reads input: the columns go in a region granted none
-	f.region(f.bounds(), false, [&](widgets::oled::OledFrame& g) {
+	// `columns` lays its labels out at fixed rows for the 128x43 visible panel but draws its focus rule 3 rows above
+	// its rect's bottom: give it that panel's height, so on a taller frame the rule stays under the labels
+	const int32_t h = std::min(f.bounds().h, gfx::oled::kDelugeOled.visible_height());
+	f.region({0, 0, f.bounds().w, h}, false, [&](widgets::oled::OledFrame& g) {
 		widgets::core::ColumnsState state{};
 		widgets::oled::columns(g, g.bounds(), state, d.columns, d.title);
 	});
 }
 
-void automation_moment(widgets::oled::OledFrame& f, const AutomationMoment& d) {
+void automation_lane_moment(widgets::oled::OledFrame& f, const AutomationLaneMoment& d) {
 	widgets::oled::title_note(f, d.param, d.note);
 	widgets::oled::automation_lane(f, detail::body_rect(f, 0), d.length_ticks, d.nodes, d.empty_value, d.window_start,
 	                               d.window_len, d.playhead);
@@ -58,7 +61,7 @@ void randomized_drums(widgets::oled::OledFrame& f, const ListMoment& d) {
 
 void undo(widgets::oled::OledFrame& f, const Undo& d) {
 	widgets::oled::title_note(f, d.title, d.left);
-	const std::array<detail::RowText, 3> rows{{{d.what, {}}, {d.where, {}}, {d.redo_label, d.redo_hint}}};
+	const std::array<RowText, 3> rows{{{d.what, {}}, {d.where, {}}, {d.redo_label, d.redo_hint}}};
 	detail::text_rows(f, rows);
 }
 

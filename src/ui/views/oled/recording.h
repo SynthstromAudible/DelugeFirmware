@@ -13,9 +13,9 @@ namespace deluge::ui::views::oled {
 
 /// @brief Viewing record arming: what will record, from where.
 struct RecordArming {
-	std::string_view title;                   ///< "ARMED".
-	std::string_view count;                   ///< "3": the title's note.
-	std::span<const detail::RowText> sources; ///< Each armed output and its source: "LEAD 2" / "MIDI".
+	std::string_view title;           ///< "ARMED".
+	std::string_view count;           ///< "3": the title's note.
+	std::span<const RowText> sources; ///< Each armed output and its source: "LEAD 2" / "MIDI".
 };
 
 /// @brief `title_note(title, count)` over a text row per source.
@@ -27,7 +27,7 @@ struct CountIn {
 	std::string_view note;  ///< "REC": the title's note.
 	std::string_view beat;  ///< "3": the beat counting down, big.
 	int32_t beats;          ///< The bar's beats ...
-	int32_t beats_done;     ///< ... and how many have passed (clamped to 0..beats).
+	int32_t beats_done;     ///< ... and how many have passed (`beat_boxes` clamps it to 0..beats).
 };
 
 /// @brief `title_note(title, note)`, the beat big, and the bar's `beat_boxes` (8 wide, 5 apart) on the last 5 rows.

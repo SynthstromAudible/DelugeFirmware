@@ -103,6 +103,14 @@ describe velocity_drums_v("ui::views::oled::velocity_drums", $ {
 		expect(a.pbm()).to_equal(b.pbm());
 	});
 
+	it("keeps its bar clear of the digits at 64 rows", _ {
+		uitest::Rig64 r;
+		velocity_drums(r.frame, {.drum = "SNARE 2", .velocity = 96});
+		expect(lit_in(r, 0, 64 - 10, 128, 10)).to_be_greater_than(0); // the bar along the bottom
+		expect(lit_in(r, 0, 64 - 12, 128, 2)).to_equal(0);            // a gap above it
+		expect(lit_in(r, 0, 20, 128, 30)).to_be_greater_than(0);      // the digits
+	});
+
 	it("matches its goldens", _ {
 		uitest::Rig48 r48;
 		velocity_drums(r48.frame, {.drum = "SNARE 2", .velocity = 96});

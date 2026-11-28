@@ -47,11 +47,12 @@ struct StepHeld {
 	std::span<const widgets::oled::Column> columns; ///< The step's parameters, each with its render.
 };
 
-/// @brief `columns` over the frame with the title, unfocused and reading no input.
+/// @brief `columns` with the title, in the frame's top 43 rows (the visible height of the 128x48 panel `columns` is
+///        laid out for), reading no input.
 void step_held(widgets::oled::OledFrame& f, const StepHeld& d);
 
 /// @brief The automation moment: a parameter's whole lane.
-struct AutomationMoment {
+struct AutomationLaneMoment {
 	std::string_view param; ///< "LPF FREQ".
 	std::string_view note;  ///< "AUTO": the title's note.
 	int32_t length_ticks;   ///< The clip's length.
@@ -63,7 +64,7 @@ struct AutomationMoment {
 };
 
 /// @brief `title_note(param, note)` over `automation_lane` in the body.
-void automation_moment(widgets::oled::OledFrame& f, const AutomationMoment& d);
+void automation_lane_moment(widgets::oled::OledFrame& f, const AutomationLaneMoment& d);
 
 /// @brief The slicer.
 struct Slicer {

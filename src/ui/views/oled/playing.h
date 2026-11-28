@@ -31,7 +31,7 @@ struct StutterHeld {
 	std::string_view title; ///< "STUTTER".
 	std::string_view rate;  ///< "1/16": big.
 	int32_t repeats;        ///< The repeats in view ...
-	int32_t repeats_done;   ///< ... and how many have played (clamped to 0..repeats).
+	int32_t repeats_done;   ///< ... and how many have played (`beat_boxes` clamps it to 0..repeats).
 };
 
 /// @brief The title, the rate big, and the repeats as `beat_boxes` 6 wide and 2 apart, 4 rows tall, one row above
@@ -43,7 +43,7 @@ struct TapTempo {
 	std::string_view title; ///< "TAP TEMPO".
 	std::string_view tempo; ///< "122.4": big.
 	int32_t taps;           ///< The taps a reading takes ...
-	int32_t taps_done;      ///< ... and how many have landed (clamped to 0..taps).
+	int32_t taps_done;      ///< ... and how many have landed (`beat_boxes` clamps it to 0..taps).
 };
 
 /// @brief The title, the tempo big, and the taps as `beat_boxes` (8 wide, 5 apart) on the last 5 rows.

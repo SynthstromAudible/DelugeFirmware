@@ -11,13 +11,18 @@
 /// @brief The row layout the OLED views share: text rows under the title band, the body below a row, a big value and
 ///        a centred name.
 
-namespace deluge::ui::views::oled::detail {
+namespace deluge::ui::views::oled {
 
-/// @brief One row of text: a label on the left and a value ending at the right edge. Either may be empty.
+/// @brief One row of text: a label on the left and a value ending at the right edge. Either may be empty. Part of the
+///        views' data (a section's rows, the armed sources), so it lives beside them rather than in `detail`.
 struct RowText {
 	std::string_view left;
 	std::string_view right;
 };
+
+} // namespace deluge::ui::views::oled
+
+namespace deluge::ui::views::oled::detail {
 
 /// @brief The y of text row @p row: the first row starts 3 px under the title band's rule
 ///        (`style.title_height + 3`), the rest `style.row_height` apart.
@@ -34,20 +39,22 @@ gfx::oled::Rect body_rect(const widgets::oled::OledFrame& f, int32_t from_row);
 ///        An empty string draws nothing.
 void text_pair(widgets::oled::OledFrame& f, int32_t y, RowText row);
 
-/// @brief One row of Apple7 text at @p y, centred across the frame.
+/// @brief One row of Apple7 text at @p y, centred across the frame; from the left edge when wider than the frame.
 void text_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s);
 
-/// @brief `text_pair` for each of @p rows on text rows `first_row`, `first_row + 1`, ...
+/// @brief `text_pair` for each of @p rows on text rows `first_row`, `first_row + 1`, ..., as many as fit whole above
+///        the frame's bottom.
 void text_rows(widgets::oled::OledFrame& f, std::span<const RowText> rows, int32_t first_row = 0);
 
 /// @brief A screen title clipped to stop 4 px before column @p right_x, with the separator rule still across the
 ///        frame: room on the title band's right for a mark the view draws itself.
 void title_short_of(widgets::oled::OledFrame& f, std::string_view s, int32_t right_x);
 
-/// @brief A big value in MetricBold20, centred across the frame at `row_y(f, 0) - 1`.
+/// @brief A big value in MetricBold20, centred across the frame at `row_y(f, 0) - 1`, shrunk to fit when wider.
 void big_text(widgets::oled::OledFrame& f, std::string_view s);
 
-/// @brief A name in the title face (MetricBold9), centred across the frame at @p y.
+/// @brief A name in the title face (MetricBold9), centred across the frame at @p y; from the left edge when wider
+///        than the frame, so its start shows (as `output_name` does).
 void name_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s);
 
 /// @brief @p rows in `list` at `menu_rect(f)`, scrolled to and selecting @p current (< 0: from the top, none

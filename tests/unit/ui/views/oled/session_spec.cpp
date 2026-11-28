@@ -31,7 +31,7 @@ constexpr SessionQueued kQueued{.position = "17.3.1",
                                 .metronome = true,
                                 .progress = 0.4f};
 
-constexpr std::array<detail::RowText, 3> kSectionRows{{{"REPEATS", "4"}, {"CLIPS", "3"}, {"PLAYED", "1 OF 4"}}};
+constexpr std::array<RowText, 3> kSectionRows{{{"REPEATS", "4"}, {"CLIPS", "3"}, {"PLAYED", "1 OF 4"}}};
 
 ClipHeld clip_held_data() {
 	return {.name = "LEAD 2",
@@ -121,6 +121,14 @@ describe clip_held_v("ui::views::oled::clip_held", $ {
 	});
 });
 
+describe clip_held_short_v("ui::views::oled::clip_held on a short frame", $ {
+	it("draws in a frame too short for its strip", _ {
+		uitest::Rig48 r;
+		r.frame.region({0, 0, 128, 20}, false, [&](widgets::oled::OledFrame& g) { clip_held(g, clip_held_data()); });
+		expect(lit_in(r, 0, 20, 128, 23)).to_equal(0);
+	});
+});
+
 describe section_held_v("ui::views::oled::section_held", $ {
 	it("draws with empty text", _ {
 		uitest::Rig48 r;
@@ -141,4 +149,4 @@ describe section_held_v("ui::views::oled::section_held", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(session_spec, session_resting_v, session_queued_v, clip_held_v, section_held_v)
+DELUGE_SPEC(session_spec, session_resting_v, session_queued_v, clip_held_v, clip_held_short_v, section_held_v)
