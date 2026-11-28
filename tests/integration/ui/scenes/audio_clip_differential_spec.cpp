@@ -16,6 +16,10 @@
 #include "support/differential/frozen.h"
 
 #include "base/notify/notice_queue.h"
+#include "gui/views/audio_clip_view.h"
+#include "hid/button.h"
+#include "hid/buttons.h"
+#include "hid/display/oled.h"
 #include "hid/matrix/matrix_driver.h"
 #include "processing/engines/audio_engine.h"
 
@@ -133,6 +137,93 @@ private:
 		popups += '\n';
 	}
 };
+
+// --- the live legacy view, which LegacySide drives ------------------------------------------
+
+/// @brief The legacy global (`AudioClipView audioClipView`, `gui/views/audio_clip_view.cpp`),
+///        aliased so every oracle call below says out loud which side it is driving.
+AudioClipView& legacy_view = ::audioClipView;
+
+/// @brief Drive legacy's own four functions and compose nothing. See the file docstring.
+LegacyPads legacy_pads() {
+	std::memset(PadLEDs::image, 0, sizeof(PadLEDs::image));
+	legacy_view.graphicsRoutine();
+	(void)legacy_view.renderMainPads(0xFFFFFFFFu, PadLEDs::image, nullptr, true);
+	(void)legacy_view.renderSidebar(0xFFFFFFFFu, PadLEDs::image, nullptr);
+
+	LegacyPads out;
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+			out.image[y][x] = PadLEDs::prepareColour(x, y, PadLEDs::image[y][x]);
+		}
+	}
+	return out;
+}
+
+/// @brief The 128x48 canvas `AudioClipView::renderOLED` would have
+///        shown, as a PBM.
+///
+/// `renderOLED`'s one call, `view.displayOutputName`, ignores the canvas it is handed and writes
+/// into `hid::display::OLED::main` (`gui/views/view.cpp`), so that is what is read back.
+std::string legacy_oled() {
+	deluge::hid::display::OLED::clearMainImage();
+	legacy_view.renderOLED(deluge::hid::display::OLED::main);
+	return page_major_to_pbm(deluge::hid::display::OLED::main.bytes().data(), 128, 48);
+}
+
+/// @brief The legacy `deluge::hid::Button` for @p b, through the same matrix cell.
+///
+/// **This is what keeps the two sides driven from one sentinel on the input side too**: an example
+/// names a `ButtonId`, and both the port's `UiEvent` and legacy's `buttonAction` argument are
+/// derived from it -- neither from the other. `deluge::hid::button::fromXY` (`hid/button.h`) is
+/// legacy's own constructor, so this is a mapping and not a second table.
+/// @param b The port's button id.
+/// @return Legacy's.
+deluge::hid::Button legacy_button(ButtonId b) {
+	const auto [x, y] = matrix_xy(b);
+	return deluge::hid::button::fromXY(x, y);
+}
+
+/// @brief Hold or release @p b on LEGACY's side, without going through `Buttons::buttonAction`.
+///
+/// See the `extern` block at the top of this file for why that function cannot be called here. This writes only what
+/// `isButtonPressed`/`isShiftButtonPressed` read (`hid/buttons.cpp`), which is all the arms under test consult -- it
+/// deliberately does NOT run `buttonAction`'s pre-section (the code ahead of its `getCurrentUI()->buttonAction` call),
+/// because none of that (the mod-button fan-out, the BACK long-press timer, the sticky-shift bookkeeping) is what these
+/// examples are about, and every bit of it reaches a null `getCurrentUI()` or a `uiTimerManager` this port has no
+/// counterpart for.
+/// @param b  The button.
+/// @param on True to hold.
+void legacy_hold(ButtonId b, bool on) {
+	const auto xy = deluge::hid::button::toXY(legacy_button(b));
+	::Buttons::buttonStates[xy.x][xy.y] = on;
+	if (b == ButtonId::Shift) {
+		::Buttons::shiftCurrentlyPressed = on;
+		::Buttons::shiftCurrentlyStuck = false;
+	}
+}
+
+/// @brief Put legacy's two private marker latches down from ANY state, through legacy's own
+///        gestures, and confirm it from legacy's own accessor.
+///
+/// `AudioClipView` is a process singleton, `endMarkerVisible`/`startMarkerVisible` are private and
+/// the class is `final`, and **`focusRegained()` -- legacy's own reset (`audio_clip_view.cpp`)
+/// -- cannot be called here**: it goes on to `view.focusRegained()`, which segfaults in a spec
+/// process (`View::focusRegained`).
+///
+/// So the reset is legacy's own `padAction`: one tap on the end column lowers whichever marker was up (its end-marker
+/// and start-marker toggle-off arms both name that column) or raises the end marker if neither was, and
+/// `getMaxLength()` then says which of those happened.
+/// @param r The rig.
+/// @return True once both latches are down, as far as `getMaxLength()` can see.
+bool reset_legacy_markers(Rig& r) {
+	const int32_t end = end_square_of(r);
+	(void)legacy_view.padAction(end, 0, 1);
+	if (legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength()) + 1) {
+		(void)legacy_view.padAction(end, 0, 1);
+	}
+	return legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength());
+}
 
 /// @brief Legacy's `AudioClipView`, driven through its own hooks with legacy's held-button state set first.
 class LegacySide final : public diff::Side {
@@ -496,11 +587,6 @@ std::vector<CaseRun> audio_clip_cases() {
 	return runs;
 }
 
-/// @brief Where legacy's frozen frames are: `tests/golden/ui/audio_clip_oracle/`.
-std::filesystem::path oracle_dir() {
-	return std::filesystem::path{GOLDEN_ROOT} / "ui" / "audio_clip_oracle";
-}
-
 } // namespace
 
 // clang-format off
@@ -575,7 +661,7 @@ describe audio_clip_differential_spec_body("scenes/audio_clip AudioClipScene aga
 
 		it("agrees with legacy's frozen frames on every case: the scripted gestures, the walks and the macros", _ {
 			for (const CaseRun& run : audio_clip_cases()) {
-				const std::optional<std::string> text = diff::read_file(oracle_dir() / diff::frozen_file_name(run.c.name));
+				const std::optional<std::string> text = diff::read_file(deluge::ui::scenes::spec::audio_clip_oracle_dir() / diff::frozen_file_name(run.c.name));
 				expect(text.has_value()).to_equal(true);
 				const std::optional<std::vector<diff::Frame>> frames =
 				    text ? diff::frozen_decode(*text) : std::nullopt;

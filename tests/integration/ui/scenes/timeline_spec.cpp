@@ -1,20 +1,21 @@
 /// @file
 /// @brief `timeline::TimelineState` -- the port of legacy's `TimelineView` ->
-///        `ClipNavigationTimelineView` -> `ClipView` scroll/zoom arithmetic -- driven against
-///        **those classes themselves**, through the one concrete subclass it targets
-///        (`audioClipView`) and, for the triplet arms it disables, `instrumentClipView`.
+///        `ClipNavigationTimelineView` -> `ClipView` scroll/zoom arithmetic -- against those classes: the
+///        arithmetic live through `instrumentClipView`, and the audio clip view's gestures through legacy
+///        `AudioClipView`'s answers, frozen under `tests/golden/ui/audio_clip_oracle/` (`timeline_spec.tsv` and the
+///        `pixels/timeline_*` pages, `support/audio_clip_answers.h`) before that view was deleted.
 ///
 /// @par Each side from its own sentinel
 ///
 /// Every example declares a `Sentinel` -- scroll, zoom, triplets, clip length -- and seeds it into
-/// the **`Song`** twice: once before the port runs (which reaches it through `TimelineState::adopt`)
-/// and once again before legacy runs (which reads `currentSong->persistentView.xScroll[NAVIGATION_CLIP]` itself).
-/// Neither side is ever handed the other's numbers. The limits legacy asks its own virtuals for
-/// (`AudioClipView::getMaxZoom`/`getMaxLength`) reach the port as
-/// `Clip::getMaxZoom()`/`Clip::getMaxLength()` (`model/clip/clip.cpp`) --
-/// the same model question, asked of the model rather than of legacy's answer.
+/// the **`Song`**, which the port reaches through `TimelineState::adopt` and `instrumentClipView` reads as
+/// `currentSong->persistentView.xScroll[NAVIGATION_CLIP]` itself. Neither side is handed the other's numbers. The
+/// arithmetic examples run with triplets off unless they are about triplets, so `inTripletsView()` is false and
+/// `instrumentClipView` runs the same arms every clip view does. The limits the audio clip view asked its own
+/// virtuals for (`getMaxZoom`/`getMaxLength`) reach the port as `Clip::getMaxZoom()`/`Clip::getMaxLength()`
+/// (`model/clip/clip.cpp`).
 ///
-/// @par The one-detent ceiling, measured
+/// @par The one-detent ceiling, as it was measured
 ///
 /// Legacy's scroll and zoom each end in a `PadLEDs` transition the port does not carry
 /// (`src/ui/scenes/timeline/timeline.h`). `TimelineView::initiateXScroll` sets `UI_MODE_HORIZONTAL_SCROLL`
@@ -44,17 +45,16 @@
 ///   * **`TimelineState::tick_square`'s auto-scroll arm.** `ClipView::getTickSquare` is protected
 ///     (`gui/views/clip_view.h`) and its follow arm is gated on `getCurrentlyRecordingLinearly()` and
 ///     `getCurrentUI() == this` -- a live recorder and a real root UI, neither of which this
-///     fixture has. The pointer-to-member handle below reaches the *body*; the arms it can reach
-///     from a non-recording clip are compared, the recording ones are named uncovered here.
+///     fixture had. Its frozen answers come from the body, reached through a pointer-to-member handle; the arms
+///     it reaches from a non-recording clip are compared, the recording ones are named uncovered here.
 ///
-/// @note The spec may include `gui/` and `hid/` (it drives the legacy views); the library may not.
+/// @note The spec may include `gui/` and `hid/` (it drives `instrumentClipView`); the library may not.
 ///       Same rule `marker_scene_spec.cpp` runs under.
 
 #include "gui/ui/shell_host/host_ports.h"
 #include "ui/scenes/timeline/timeline.h"
 
 #include "gui/ui/ui.h"
-#include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
 #include "hid/display/display.h"
@@ -73,7 +73,6 @@
 #include "unit/ui/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
-#include "support/audio_clip_freezer.h"
 
 #include <charconv>
 #include <climits>
@@ -127,27 +126,6 @@ struct Sentinel {
 	int32_t loop_length = 768;
 };
 
-/// @brief `ClipView::getTickSquare` is protected (`gui/views/clip_view.h`).
-///
-/// A class derived from `ClipView` may name it, and `&TickProbe::getTickSquare` then has type
-/// `int32_t (ClipView::*)()` -- a legal handle to legacy's own body, with no cast anywhere and no
-/// second instance of anything. `TickProbe` is never constructed (it is abstract).
-struct TickProbe : ClipView {
-	static constexpr int32_t (ClipView::*kGetTickSquare)() = &TickProbe::getTickSquare;
-
-	/// @brief `ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording`
-	///        (`clip_navigation_timeline_view.h`), which is protected and static.
-	///
-	/// Setting it to -1 is `ClipNavigationTimelineView::focusRegained`'s entire body
-	/// (`clip_navigation_timeline_view.cpp`); the real `focusRegained` is not called because
-	/// `AudioClipView`'s (`audio_clip_view.cpp`) also drags in `view.focusRegained()` and
-	/// `setActiveModControllableTimelineCounter`, neither of which this comparison is about.
-	/// @{
-	static void set_remembered_scroll(int32_t value) { xScrollBeforeFollowingAutoExtendingLinearRecording = value; }
-	static int32_t remembered_scroll() { return xScrollBeforeFollowingAutoExtendingLinearRecording; }
-	/// @}
-};
-
 /// @brief `deluge_boot`'s own `display = new OLED` (`src/deluge/deluge.cpp`).
 ///
 /// A spec process never calls `deluge_boot()` (see `support/song_fixture.h` for why), so the
@@ -171,19 +149,8 @@ struct Rig {
 		currentUIMode = UI_MODE_NONE;
 	}
 
-	/// @brief Put @p s into the `Song`, which is what BOTH sides read from.
-	///
-	/// It also expires any max-zoom delay a *previous* example armed. That latch
-	/// (`TimelineView::delayHorizontalZoomUntil`, `timeline_view.h`) is a member of the `audioClipView` **singleton**,
-	/// and it is compared against `AudioEngine::audioSampleTimer` (`TimelineView::horizontalEncoderAction`), which a
-	/// spec process never advances -- so once armed it stays armed for the rest of the process and silently refuses
-	/// every later zoom in that direction. Not hypothetical: without this line the three "forgets the restore point"
-	/// examples below leave legacy at zoom 12 while the port zooms to 6. Advancing the timer past `kShortPressTime` is
-	/// **legacy's own expiry** (`TimelineView::horizontalEncoderAction` clears the latch), not a reach into private
-	/// state, and it is safe here because every `PadLEDs::recordTransitionBegin` in this file happens *after* the last
-	/// `seed()` of its example, so no transition is ever handed a jumped clock.
+	/// @brief Put @p s into the `Song`, which is what the port and `instrumentClipView` read from.
 	void seed(const Sentinel& s) const {
-		AudioEngine::audioSampleTimer += 2 * kShortPressTime;
 		f.song->persistentView.xScroll[NAVIGATION_CLIP] = s.x_scroll;
 		f.song->persistentView.xZoom[NAVIGATION_CLIP] = s.x_zoom;
 		f.song->persistentView.tripletsOn = s.triplets_on;
@@ -192,8 +159,7 @@ struct Rig {
 		currentUIMode = UI_MODE_NONE;
 	}
 
-	/// @brief A port state adopted from the song, with `AudioClipView`'s own
-	///        `supportsTriplets() == false` (`audio_clip_view.h`).
+	/// @brief A port state adopted from the song, with an audio clip's `supportsTriplets() == false`.
 	[[nodiscard]] TimelineState port() const {
 		TimelineState s;
 		s.adopt(*deluge::gui::shell_host::host_ports().clips->clip_navigation()); // the fixture's song is current
@@ -212,19 +178,6 @@ struct Rig {
 
 	[[nodiscard]] uint32_t max_zoom() const { return static_cast<uint32_t>(f.clip->getMaxZoom()); }
 	[[nodiscard]] uint32_t max_length() const { return static_cast<uint32_t>(f.clip->getMaxLength()); }
-
-	[[nodiscard]] int32_t song_scroll() const { return f.song->persistentView.xScroll[NAVIGATION_CLIP]; }
-	[[nodiscard]] uint32_t song_zoom() const { return f.song->persistentView.xZoom[NAVIGATION_CLIP]; }
-
-	/// @brief `TimelineView::buttonAction`'s X_ENC arm (`timeline_view.cpp`), which is how
-	///        legacy is told the horizontal encoder's button is held.
-	static void hold_x_enc(bool on) { audioClipView.buttonAction(deluge::hid::button::X_ENC, on); }
-
-	/// @brief Clear the transition mode `initiateXZoom` left behind,
-	///        keeping the held-button mode, so legacy will consider a second detent.
-	static void clear_zoom_transition() { currentUIMode &= ~UI_MODE_HORIZONTAL_ZOOM; }
-	/// @brief The same for `initiateXScroll`.
-	static void clear_scroll_transition() { currentUIMode &= ~UI_MODE_HORIZONTAL_SCROLL; }
 };
 
 /// @brief `timeline_spec`'s table of legacy's answers (`support/audio_clip_answers.h`).
@@ -238,12 +191,6 @@ int64_t tnum(std::string_view path, std::string_view column) {
 	int64_t n = 0;
 	const auto [end, ec] = std::from_chars(v.data(), v.data() + v.size(), n);
 	return ec == std::errc{} && end == v.data() + v.size() ? n : INT64_MIN;
-}
-
-/// @brief Freeze, or check, legacy's number @p v as (@p path, @p column).
-template <typename Self>
-void tkeep(Self& self, std::string_view path, std::string_view column, int64_t v) {
-	deluge::ui::scenes::spec::keep(self, "timeline_spec", path, column, std::to_string(v));
 }
 
 /// @brief The 128x48 popup canvas, as a PBM string -- the surface `display->popupTextTemporary`
@@ -347,9 +294,8 @@ describe timeline_spec_body(
 	    it(
 	        "agrees with TimelineView::getPosFromSquare in triplets view, both zoom branches", _ {
 		        // `getPosFromSquare` has three arms (`timeline_view.cpp`): zoom below the triplets
-		        // level, zoom below twice it, and everything else. `instrumentClipView` is used rather than
-		        // `audioClipView` because `AudioClipView::supportsTriplets()` is false
-		        // (`audio_clip_view.h`) and `inTripletsView()` would be false on every arm.
+		        // level, zoom below twice it, and everything else. `instrumentClipView` supports triplets, so
+		        // `inTripletsView()` follows the song's `tripletsOn` here.
 		        Rig r;
 		        for (uint32_t zoom : {3U, 6U, 12U, 24U}) {
 			        const Sentinel s{.x_scroll = 144, .x_zoom = zoom, .triplets_on = true, .triplets_level = 12};
@@ -456,8 +402,6 @@ describe timeline_spec_body(
 		        const bool port_moved = port.scroll(1, r.max_length());
 
 		        r.seed(s);
-		        LEGACY_ONLY(audioClipView.horizontalEncoderAction(1);
-		                    tkeep(self, "scroll_page", "scroll", r.song_scroll()););
 		        expect(int64_t{port.x_scroll}).to_equal(tnum("scroll_page", "scroll"));
 		        expect(port_moved).to_be_true();
 		        expect(port.x_scroll).to_equal(6 * kDisplayWidth);
@@ -476,8 +420,6 @@ describe timeline_spec_body(
 		        const bool port_moved = port.scroll(-1, r.max_length());
 
 		        r.seed(s);
-		        LEGACY_ONLY(audioClipView.horizontalEncoderAction(-1);
-		                    tkeep(self, "scroll_clamp", "scroll", r.song_scroll()););
 		        expect(int64_t{port.x_scroll}).to_equal(tnum("scroll_clamp", "scroll"));
 		        expect(port_moved).to_be_true();
 		        expect(port.x_scroll).to_equal(0);
@@ -497,8 +439,6 @@ describe timeline_spec_body(
 		        const bool port_moved = port.scroll(1, r.max_length());
 
 		        r.seed(s);
-		        LEGACY_ONLY(audioClipView.horizontalEncoderAction(1);
-		                    tkeep(self, "scroll_refused", "scroll", r.song_scroll()););
 		        expect(int64_t{port.x_scroll}).to_equal(tnum("scroll_refused", "scroll"));
 		        expect(port_moved).to_be_false();
 		        expect(port.x_scroll).to_equal(0);
@@ -520,11 +460,6 @@ describe timeline_spec_body(
 		        (void)port.scroll(1, r.max_length());
 
 		        r.seed(s);
-		        LEGACY_ONLY(
-		            audioClipView.horizontalEncoderAction(1);
-		            tkeep(self, "scroll_second_page", "scroll_mode", (currentUIMode & UI_MODE_HORIZONTAL_SCROLL) != 0);
-		            Rig::clear_scroll_transition(); audioClipView.horizontalEncoderAction(1);
-		            tkeep(self, "scroll_second_page", "scroll", r.song_scroll()););
 		        expect(tnum("scroll_second_page", "scroll_mode")).to_equal(int64_t{1});
 		        expect(int64_t{port.x_scroll}).to_equal(tnum("scroll_second_page", "scroll"));
 		        expect(port.x_scroll).to_equal(2 * 6 * kDisplayWidth);
@@ -543,9 +478,6 @@ describe timeline_spec_body(
 		        const ZoomOutcome outcome = port.zoom(1, r.max_zoom(), 1000);
 
 		        r.seed(s);
-		        LEGACY_ONLY(Rig::hold_x_enc(true); audioClipView.horizontalEncoderAction(1);
-		                    tkeep(self, "zoom_in", "scroll", r.song_scroll());
-		                    tkeep(self, "zoom_in", "zoom", r.song_zoom()); Rig::hold_x_enc(false););
 		        expect(int64_t{port.x_zoom}).to_equal(tnum("zoom_in", "zoom"));
 		        expect(int64_t{port.x_scroll}).to_equal(tnum("zoom_in", "scroll"));
 		        expect(outcome).to_equal(ZoomOutcome::Zoomed);
@@ -567,9 +499,6 @@ describe timeline_spec_body(
 		        const ZoomOutcome outcome = port.zoom(-1, r.max_zoom(), 1000);
 
 		        r.seed(s);
-		        LEGACY_ONLY(Rig::hold_x_enc(true); audioClipView.horizontalEncoderAction(-1);
-		                    tkeep(self, "zoom_out_snap", "scroll", r.song_scroll());
-		                    tkeep(self, "zoom_out_snap", "zoom", r.song_zoom()); Rig::hold_x_enc(false););
 		        expect(int64_t{port.x_zoom}).to_equal(tnum("zoom_out_snap", "zoom"));
 		        expect(int64_t{port.x_scroll}).to_equal(tnum("zoom_out_snap", "scroll"));
 		        expect(outcome).to_equal(ZoomOutcome::Zoomed);
@@ -591,9 +520,6 @@ describe timeline_spec_body(
 		        const ZoomOutcome outcome = port.zoom(1, r.max_zoom(), 1000);
 
 		        r.seed(s);
-		        LEGACY_ONLY(Rig::hold_x_enc(true); audioClipView.horizontalEncoderAction(1);
-		                    tkeep(self, "zoom_floor", "scroll", r.song_scroll());
-		                    tkeep(self, "zoom_floor", "zoom", r.song_zoom()); Rig::hold_x_enc(false););
 		        expect(int64_t{port.x_zoom}).to_equal(tnum("zoom_floor", "zoom"));
 		        expect(int64_t{port.x_scroll}).to_equal(tnum("zoom_floor", "scroll"));
 		        expect(outcome).to_equal(ZoomOutcome::Refused);
@@ -614,8 +540,6 @@ describe timeline_spec_body(
 		        const ZoomOutcome outcome = port.zoom(-1, r.max_zoom(), 1000);
 
 		        r.seed(s);
-		        LEGACY_ONLY(Rig::hold_x_enc(true); audioClipView.horizontalEncoderAction(-1);
-		                    tkeep(self, "zoom_ceiling", "zoom", r.song_zoom()); Rig::hold_x_enc(false););
 		        expect(int64_t{port.x_zoom}).to_equal(tnum("zoom_ceiling", "zoom"));
 		        expect(outcome).to_equal(ZoomOutcome::Refused);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(768);
@@ -626,9 +550,8 @@ describe timeline_spec_body(
 	        "holds the second detent back when a zoom lands on the clip's own max zoom", _ {
 		        // `TimelineView::horizontalEncoderAction` (`timeline_view.cpp`): landing exactly on `getMaxZoom()` arms
 		        // a `kShortPressTime` delay in that direction, and the next detent the same way is dropped. Legacy
-		        // measures it against `AudioEngine::audioSampleTimer`, which does not advance in a spec process, so its
-		        // delay is always "still running"; the port is driven at the same `now_ms` for both detents so it is
-		        // too.
+		        // measured it against `AudioEngine::audioSampleTimer`, which did not advance while it was frozen, so
+		        // its delay was "still running"; the port is driven at the same `now_ms` for both detents so it is too.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 96};
@@ -638,12 +561,6 @@ describe timeline_spec_body(
 		        const ZoomOutcome second = port.zoom(1, r.max_zoom(), 1000);
 
 		        r.seed(s);
-		        LEGACY_ONLY(
-		            Rig::hold_x_enc(true); audioClipView.horizontalEncoderAction(1);
-		            tkeep(self, "zoom_delay", "zoom_mode_first", (currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0);
-		            Rig::clear_zoom_transition(); audioClipView.horizontalEncoderAction(1);
-		            tkeep(self, "zoom_delay", "zoom_mode_second", (currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0);
-		            tkeep(self, "zoom_delay", "zoom", r.song_zoom()); Rig::hold_x_enc(false););
 		        // Legacy ends at 48 whether the second detent was dropped by the delay latch,
 		        // by the `isUIModeActiveExclusively` gate, or because `initiateXZoom` never
 		        // armed the mode at all -- so the example pins WHICH. The first detent really did
@@ -708,9 +625,6 @@ describe timeline_spec_body(
 		        (void)port.scroll(1, r.max_length());
 
 		        r.seed(s);
-		        LEGACY_ONLY(TickProbe::set_remembered_scroll(480); audioClipView.horizontalEncoderAction(1);
-		                    tkeep(self, "follow_scroll", "scroll", r.song_scroll());
-		                    tkeep(self, "follow_scroll", "follow", TickProbe::remembered_scroll()););
 		        expect(int64_t{port.scroll_before_following}).to_equal(tnum("follow_scroll", "follow"));
 		        expect(port.scroll_before_following).to_equal(-1);
 		        // ...and the scroll really did happen, so this is not passing because nothing ran.
@@ -731,10 +645,6 @@ describe timeline_spec_body(
 		        (void)port.zoom(1, r.max_zoom(), 1000);
 
 		        r.seed(s);
-		        LEGACY_ONLY(TickProbe::set_remembered_scroll(480); Rig::hold_x_enc(true);
-		                    audioClipView.horizontalEncoderAction(1); tkeep(self, "follow_zoom", "zoom", r.song_zoom());
-		                    tkeep(self, "follow_zoom", "follow", TickProbe::remembered_scroll());
-		                    Rig::hold_x_enc(false););
 		        expect(int64_t{port.scroll_before_following}).to_equal(tnum("follow_zoom", "follow"));
 		        expect(port.scroll_before_following).to_equal(-1);
 		        expect(int64_t{port.x_zoom}).to_equal(tnum("follow_zoom", "zoom"));
@@ -758,10 +668,6 @@ describe timeline_spec_body(
 		        const ZoomOutcome outcome = port.zoom(1, r.max_zoom(), 1000);
 
 		        r.seed(s);
-		        LEGACY_ONLY(
-		            TickProbe::set_remembered_scroll(480); Rig::hold_x_enc(true);
-		            audioClipView.horizontalEncoderAction(1); tkeep(self, "follow_refused", "zoom", r.song_zoom());
-		            tkeep(self, "follow_refused", "follow", TickProbe::remembered_scroll()); Rig::hold_x_enc(false););
 		        expect(outcome).to_equal(ZoomOutcome::Refused);
 		        expect(int64_t{port.x_zoom}).to_equal(tnum("follow_refused", "zoom"));
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(3);
@@ -782,9 +688,6 @@ describe timeline_spec_body(
 		        const bool port_moved = port.scroll_right_to_end_of_length_if_necessary(s.loop_length);
 
 		        r.seed(s);
-		        LEGACY_ONLY(tkeep(self, "scroll_right_to_end", "moved",
-		                          audioClipView.scrollRightToEndOfLengthIfNecessary(s.loop_length));
-		                    tkeep(self, "scroll_right_to_end", "scroll", r.song_scroll()););
 		        const bool legacy_moved = tnum("scroll_right_to_end", "moved") != 0;
 		        expect(port_moved).to_equal(legacy_moved);
 		        expect(int64_t{port.x_scroll}).to_equal(tnum("scroll_right_to_end", "scroll"));
@@ -804,9 +707,6 @@ describe timeline_spec_body(
 		        const bool port_moved = port.scroll_right_to_end_of_length_if_necessary(s.loop_length);
 
 		        r.seed(s);
-		        LEGACY_ONLY(tkeep(self, "scroll_right_on_screen", "moved",
-		                          audioClipView.scrollRightToEndOfLengthIfNecessary(s.loop_length));
-		                    tkeep(self, "scroll_right_on_screen", "scroll", r.song_scroll()););
 		        const bool legacy_moved = tnum("scroll_right_on_screen", "moved") != 0;
 		        expect(port_moved).to_equal(legacy_moved);
 		        expect(port_moved).to_be_false();
@@ -825,8 +725,6 @@ describe timeline_spec_body(
 		        const bool port_moved = port.scroll_left_if_too_far_right(600);
 
 		        r.seed(s);
-		        LEGACY_ONLY(tkeep(self, "scroll_left", "moved", audioClipView.scrollLeftIfTooFarRight(600));
-		                    tkeep(self, "scroll_left", "scroll", r.song_scroll()););
 		        const bool legacy_moved = tnum("scroll_left", "moved") != 0;
 		        expect(port_moved).to_equal(legacy_moved);
 		        expect(port_moved).to_be_true();
@@ -845,9 +743,6 @@ describe timeline_spec_body(
 		        const bool port_moved = port.zoom_to_max(r.max_zoom());
 
 		        r.seed(s);
-		        LEGACY_ONLY(tkeep(self, "zoom_to_max", "moved", audioClipView.zoomToMax());
-		                    tkeep(self, "zoom_to_max", "zoom", r.song_zoom());
-		                    tkeep(self, "zoom_to_max", "scroll", r.song_scroll()););
 		        const bool legacy_moved = tnum("zoom_to_max", "moved") != 0;
 		        expect(port_moved).to_equal(legacy_moved);
 		        expect(int64_t{port.x_zoom}).to_equal(tnum("zoom_to_max", "zoom"));
@@ -862,8 +757,6 @@ describe timeline_spec_body(
 		        const bool port_in_only_moved = port_in_only.zoom_to_max(r.max_zoom(), true);
 
 		        r.seed(s);
-		        LEGACY_ONLY(tkeep(self, "zoom_to_max", "in_only_moved", audioClipView.zoomToMax(true));
-		                    tkeep(self, "zoom_to_max", "in_only_zoom", r.song_zoom()););
 		        const bool legacy_in_only_moved = tnum("zoom_to_max", "in_only_moved") != 0;
 		        expect(port_in_only_moved).to_equal(legacy_in_only_moved);
 		        expect(port_in_only_moved).to_be_false();
@@ -887,9 +780,6 @@ describe timeline_spec_body(
 
 		        for (uint32_t number : {0U, 1U, 96U, 97U, 191U, 384U, 767U}) {
 			        const std::string page = std::format("timeline_bars_beats_{}", number);
-			        LEGACY_ONLY(deluge::hid::display::OLED::popup.clear();
-			                    audioClipView.displayNumberOfBarsAndBeats(number, s.x_zoom, true, "FAR");
-			                    deluge::ui::scenes::spec::keep_page(self, page, popup_pbm()););
 			        const std::string legacy = deluge::ui::scenes::spec::AudioClipPages::page(page);
 
 			        const BarsBeats bb = TimelineState::bars_and_beats(number, one_bar, true);
@@ -914,15 +804,13 @@ describe timeline_spec_body(
 
 	    it(
 	        "puts the play position in the same square ClipView::getTickSquare does", _ {
-		        // Driven through legacy's own protected body -- see `TickProbe`. The clip is not recording
-		        // linearly, and `scroll_before_following` is `kNotFollowing` on both sides, so both take
-		        // the else arm's no-op path and the comparison is of the square itself.
+		        // The clip is not recording linearly, and `scroll_before_following` is `kNotFollowing` on both sides,
+		        // so both took the else arm's no-op path and the comparison is of the square itself.
 		        StoppedTransport stopped;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 96, .x_zoom = 6};
 		        r.seed(s);
 		        r.f.clip->lastProcessedPos = 96 + 5 * 6;
-		        TickProbe::set_remembered_scroll(-1);
 		        TimelineState port = r.port();
 		        const TimelineState::TickSquare ported =
 		            port.tick_square(static_cast<int32_t>(r.f.clip->getLivePos()),
@@ -931,9 +819,6 @@ describe timeline_spec_body(
 		                                                            .clip_unarmed = true,
 		                                                            .max_length = r.max_length()});
 
-		        LEGACY_ONLY(r.seed(s); r.f.clip->lastProcessedPos = 96 + 5 * 6; TickProbe::set_remembered_scroll(-1);
-		                    tkeep(self, "tick_square", "square", (audioClipView.*TickProbe::kGetTickSquare)());
-		                    tkeep(self, "tick_square", "scroll", r.song_scroll()););
 		        const int64_t legacy = tnum("tick_square", "square");
 		        expect(int64_t{ported.square}).to_equal(legacy);
 		        expect(ported.square).to_equal(5);
@@ -963,10 +848,6 @@ describe timeline_spec_body(
 		                                                            .clip_unarmed = true,
 		                                                            .max_length = r.max_length()});
 
-		        LEGACY_ONLY(r.seed(s); r.f.clip->lastProcessedPos = 0; TickProbe::set_remembered_scroll(6);
-		                    (void)(audioClipView.*TickProbe::kGetTickSquare)();
-		                    tkeep(self, "follow_stops", "scroll", r.song_scroll());
-		                    tkeep(self, "follow_stops", "follow", TickProbe::remembered_scroll()););
 		        expect(ported.scrolled).to_be_true();
 		        expect(int64_t{port.x_scroll}).to_equal(tnum("follow_stops", "scroll"));
 		        expect(port.x_scroll).to_equal(6);
@@ -987,10 +868,6 @@ describe timeline_spec_body(
 		                                                                  .clip_unarmed = true,
 		                                                                  .max_length = r.max_length()});
 
-		        LEGACY_ONLY(r.seed(s); r.f.clip->lastProcessedPos = 0; TickProbe::set_remembered_scroll(12);
-		                    (void)(audioClipView.*TickProbe::kGetTickSquare)();
-		                    tkeep(self, "follow_stops_suppressed", "scroll", r.song_scroll());
-		                    tkeep(self, "follow_stops_suppressed", "follow", TickProbe::remembered_scroll()););
 		        expect(not_restored.scrolled).to_be_false();
 		        expect(int64_t{suppressed.x_scroll}).to_equal(tnum("follow_stops_suppressed", "scroll"));
 		        expect(suppressed.x_scroll).to_equal(480);

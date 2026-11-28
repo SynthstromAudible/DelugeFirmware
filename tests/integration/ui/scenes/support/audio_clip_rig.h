@@ -18,9 +18,9 @@
 #pragma once
 
 /// @file
-/// @brief The audio clip scene's spec rig, shared by the specs that drive `AudioClipScene` and legacy's
-///        `AudioClipView` side by side: the fixture song and sample, the scene's shell over fake surfaces, legacy's
-///        frame read back, and input fed to both sides from one button id.
+/// @brief The audio clip scene's spec rig, shared by the specs that drive `AudioClipScene`: the fixture song and
+///        sample, the scene's shell over fake surfaces, input fed from one button id, and legacy `AudioClipView`'s
+///        frozen answers read back (`support/audio_clip_answers.h`).
 ///
 /// @note Each spec file is its own process, so the helpers stay in an anonymous namespace here.
 
@@ -45,8 +45,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/language.h"
 #include "gui/ui/ui.h"
-#include "gui/views/audio_clip_view.h"
-#include "gui/views/clip_navigation_timeline_view.h"
 #include "gui/views/session_view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
@@ -81,7 +79,6 @@
 #include "unit/ui/gfx/support/golden.h"
 
 #include "cppspec.hpp"
-#include "support/audio_clip_freezer.h"
 #include "support/matchers/value_matchers.h"
 
 #include <algorithm>
@@ -436,43 +433,12 @@ struct Rig {
 	std::string grid() { return fake.state(); }
 };
 
-// --- the legacy oracle ------------------------------------------------------------------------
-
-/// @brief The legacy global (`AudioClipView audioClipView`, `gui/views/audio_clip_view.cpp`),
-///        aliased so every oracle call below says out loud which side it is driving.
-AudioClipView& legacy_view = ::audioClipView;
+// --- the pads -----------------------------------------------------------------------------------
 
 /// @brief One full pad image, sidebar included, as the DEVICE would show it.
 struct LegacyPads {
 	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
 };
-
-/// @brief Drive legacy's own four functions and compose nothing. See the file docstring.
-LegacyPads legacy_pads() {
-	std::memset(PadLEDs::image, 0, sizeof(PadLEDs::image));
-	legacy_view.graphicsRoutine();
-	(void)legacy_view.renderMainPads(0xFFFFFFFFu, PadLEDs::image, nullptr, true);
-	(void)legacy_view.renderSidebar(0xFFFFFFFFu, PadLEDs::image, nullptr);
-
-	LegacyPads out;
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-			out.image[y][x] = PadLEDs::prepareColour(x, y, PadLEDs::image[y][x]);
-		}
-	}
-	return out;
-}
-
-/// @brief The 128x48 canvas `AudioClipView::renderOLED` would have
-///        shown, as a PBM.
-///
-/// `renderOLED`'s one call, `view.displayOutputName`, ignores the canvas it is handed and writes
-/// into `hid::display::OLED::main` (`gui/views/view.cpp`), so that is what is read back.
-std::string legacy_oled() {
-	deluge::hid::display::OLED::clearMainImage();
-	legacy_view.renderOLED(deluge::hid::display::OLED::main);
-	return page_major_to_pbm(deluge::hid::display::OLED::main.bytes().data(), 128, 48);
-}
 
 /// @brief Where the port's pads first differ from a legacy image, and how many differ.
 ///
@@ -777,38 +743,6 @@ std::pair<uint8_t, uint8_t> matrix_xy(ButtonId b) {
 	return {255, 255};
 }
 
-/// @brief The legacy `deluge::hid::Button` for @p b, through the same matrix cell.
-///
-/// **This is what keeps the two sides driven from one sentinel on the input side too**: an example
-/// names a `ButtonId`, and both the port's `UiEvent` and legacy's `buttonAction` argument are
-/// derived from it -- neither from the other. `deluge::hid::button::fromXY` (`hid/button.h`) is
-/// legacy's own constructor, so this is a mapping and not a second table.
-/// @param b The port's button id.
-/// @return Legacy's.
-deluge::hid::Button legacy_button(ButtonId b) {
-	const auto [x, y] = matrix_xy(b);
-	return deluge::hid::button::fromXY(x, y);
-}
-
-/// @brief Hold or release @p b on LEGACY's side, without going through `Buttons::buttonAction`.
-///
-/// See the `extern` block at the top of this file for why that function cannot be called here. This writes only what
-/// `isButtonPressed`/`isShiftButtonPressed` read (`hid/buttons.cpp`), which is all the arms under test consult -- it
-/// deliberately does NOT run `buttonAction`'s pre-section (the code ahead of its `getCurrentUI()->buttonAction` call),
-/// because none of that (the mod-button fan-out, the BACK long-press timer, the sticky-shift bookkeeping) is what these
-/// examples are about, and every bit of it reaches a null `getCurrentUI()` or a `uiTimerManager` this port has no
-/// counterpart for.
-/// @param b  The button.
-/// @param on True to hold.
-void legacy_hold(ButtonId b, bool on) {
-	const auto xy = deluge::hid::button::toXY(legacy_button(b));
-	::Buttons::buttonStates[xy.x][xy.y] = on;
-	if (b == ButtonId::Shift) {
-		::Buttons::shiftCurrentlyPressed = on;
-		::Buttons::shiftCurrentlyStuck = false;
-	}
-}
-
 /// @brief A real `InputLowering`, so `UiContext::held` and `::shift` are the shell's own answers
 ///        rather than a struct the example filled in.
 ///
@@ -892,28 +826,6 @@ struct Input {
 	}
 };
 
-/// @brief `ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording`
-///        (`gui/views/clip_navigation_timeline_view.h`) is **protected and static**.
-///
-/// A class derived from it may name it, and a static member function of that class is a legal
-/// handle with no cast anywhere. `NavProbe` is never constructed (it is abstract). The identical
-/// trick `tests/integration/ui/scenes/timeline_spec.cpp`'s `TickProbe` uses, and for its reason.
-struct NavProbe : ClipNavigationTimelineView {
-	static void set_remembered_scroll(int32_t value) { xScrollBeforeFollowingAutoExtendingLinearRecording = value; }
-	static int32_t remembered_scroll() { return xScrollBeforeFollowingAutoExtendingLinearRecording; }
-};
-
-/// @brief Raise legacy's END marker through legacy's own front door, and prove it took.
-///
-/// `AudioClipView::endMarkerVisible` is **private** and the class is `final`, so there is no probe
-/// subclass to reach it with (the trick `timeline_spec.cpp`'s `TickProbe` uses for
-/// `ClipView::getTickSquare` needs a protected member). What there IS is `padAction`
-/// (`audio_clip_view.cpp`), which sets it, and `getMaxLength`, which is
-/// **public** and returns `loopLength + 1` if and only if it is set. So the flag is raised by
-/// legacy's own gesture and read back through legacy's own accessor; the caller asserts on the
-/// return.
-/// @param r The rig.
-/// @return True if `endMarkerVisible` is now set.
 /// @brief The display column the clip's end falls in, computed from the SENTINEL's own scroll,
 ///        zoom and length -- `padAction`'s `endSquareDisplay` (`audio_clip_view.cpp`).
 ///
@@ -926,39 +838,6 @@ int32_t end_square_of(const Rig& r) {
 	                             static_cast<int32_t>(r.f.song->persistentView.xZoom[NAVIGATION_CLIP]));
 }
 
-bool raise_legacy_end_marker(Rig& r) {
-	// `AudioClipView::padAction`'s `x == endSquareDisplay` arm (`gui/views/audio_clip_view.cpp`). `endSquareDisplay` is
-	// computed by legacy itself inside `padAction`; the column handed in is the one the SENTINEL implies, and the
-	// return value is what says the two agreed.
-	const int32_t end_square =
-	    divide_round_negative(r.f.clip->loopLength() - r.f.song->persistentView.xScroll[NAVIGATION_CLIP] - 1,
-	                          static_cast<int32_t>(r.f.song->persistentView.xZoom[NAVIGATION_CLIP]));
-	(void)legacy_view.padAction(end_square, 0, 1);
-	return legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength()) + 1;
-}
-
-/// @brief Put legacy's END marker back down, through the same gesture.
-void lower_legacy_end_marker(Rig& r) {
-	const int32_t end_square =
-	    divide_round_negative(r.f.clip->loopLength() - r.f.song->persistentView.xScroll[NAVIGATION_CLIP] - 1,
-	                          static_cast<int32_t>(r.f.song->persistentView.xZoom[NAVIGATION_CLIP]));
-	// `AudioClipView::padAction`'s toggle-off arm: tapping the marker's own column toggles it off.
-	(void)legacy_view.padAction(end_square, 0, 1);
-}
-
-/// @brief Put legacy's two private marker latches down from ANY state, through legacy's own
-///        gestures, and confirm it from legacy's own accessor.
-///
-/// `AudioClipView` is a process singleton, `endMarkerVisible`/`startMarkerVisible` are private and
-/// the class is `final`, and **`focusRegained()` -- legacy's own reset (`audio_clip_view.cpp`)
-/// -- cannot be called here**: it goes on to `view.focusRegained()`, which segfaults in a spec
-/// process (`View::focusRegained`).
-///
-/// So the reset is legacy's own `padAction`: one tap on the end column lowers whichever marker was up (its end-marker
-/// and start-marker toggle-off arms both name that column) or raises the end marker if neither was, and
-/// `getMaxLength()` then says which of those happened.
-/// @param r The rig.
-/// @return True once both latches are down, as far as `getMaxLength()` can see.
 /// @brief Name the clip's track @p name through its record, as a rename does.
 void name_track(Rig& r, const char* name) {
 	deluge::edits::trackSettingFor(*r.f.output, "name", deluge::serialization::Value::makeScalar(name));
@@ -976,33 +855,6 @@ int32_t undo_steps() {
 		n++;
 	}
 	return n;
-}
-
-/// @brief Freeze, or check, legacy's pads as (@p path, `pads`).
-template <typename Self>
-void keep_pads(Self& self, std::string_view path) {
-	deluge::ui::scenes::spec::keep(self, "audio_clip_scene_spec", path, "pads", pads_text(legacy_pads()));
-}
-
-/// @brief Freeze, or check, legacy's number @p v as (@p path, @p column).
-template <typename Self>
-void keep_number(Self& self, std::string_view path, std::string_view column, int64_t v) {
-	deluge::ui::scenes::spec::keep(self, "audio_clip_scene_spec", path, column, std::to_string(v));
-}
-
-/// @brief Freeze, or check, what legacy left in the model as (@p path, @p column).
-template <typename Self>
-void keep_snapshot(Self& self, std::string_view path, std::string_view column, const ModelSnapshot& s) {
-	deluge::ui::scenes::spec::keep(self, "audio_clip_scene_spec", path, column, snapshot_text(s));
-}
-
-bool reset_legacy_markers(Rig& r) {
-	const int32_t end = end_square_of(r);
-	(void)legacy_view.padAction(end, 0, 1);
-	if (legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength()) + 1) {
-		(void)legacy_view.padAction(end, 0, 1);
-	}
-	return legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength());
 }
 
 } // namespace
