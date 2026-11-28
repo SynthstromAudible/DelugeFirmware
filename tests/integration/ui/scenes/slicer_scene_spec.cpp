@@ -76,6 +76,7 @@
 #include "support/fake_ports.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
+#include "support/popup_capture.h"
 #include "support/slicer_scene_fixtures.h"
 #include "support/song_fixture.h"
 
@@ -117,7 +118,6 @@ using sf::kNumClusters;
 using sf::kSampleLength;
 using sf::Rig;
 using sf::seed_port;
-using sf::SlicerDisplay;
 
 namespace {
 
@@ -242,9 +242,8 @@ void expect_tables_match(Self& self, std::string_view path) {
 describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 	before_each([] {
-		static SlicerDisplay d;
 		if (display == nullptr) {
-			display = &d;
+			display = &deluge::ui::scenes::spec::quiet_display();
 		}
 	});
 

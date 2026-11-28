@@ -27,6 +27,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/host_ports.h"
 #include "support/peak_seed.h"
+#include "support/popup_capture.h"
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/menu/context.h"
@@ -206,28 +207,9 @@ const BoardProfile& profile_64() {
 	return p;
 }
 
-/// @brief The minimum `Display` legacy needs: `display` is null in a spec process
-///        (`hid/display/display.cpp`) and several arms of `padAction` reach it.
-struct QuietDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
 void ensure_display() {
 	if (display == nullptr) {
-		display = new QuietDisplay;
+		display = &deluge::ui::scenes::spec::quiet_display();
 	}
 	// `l10n::chosenLanguage` (`gui/l10n/l10n.cpp`) is null until the app constructs its `Display`,
 	// and legacy's clip-clear arm calls `deluge::l10n::get(...)` unconditionally

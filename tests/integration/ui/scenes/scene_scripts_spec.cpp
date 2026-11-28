@@ -111,6 +111,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host/host_ports.h"
 #include "support/peak_seed.h"
+#include "support/popup_capture.h"
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/menu/bindings.h"
 #include "ui/scenes/menu/context.h"
@@ -258,29 +259,9 @@ Sample* make_sample() {
 	return s;
 }
 
-/// @brief The minimum `Display` the model reaches for; `display` is null in a spec process
-///        (`hid/display/display.cpp`). `menu_scripts_spec.cpp`'s `ScriptDisplay`.
-struct ScriptDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
 void install_display() {
-	static ScriptDisplay d;
 	if (display == nullptr) {
-		display = &d;
+		display = &deluge::ui::scenes::spec::quiet_display();
 	}
 }
 

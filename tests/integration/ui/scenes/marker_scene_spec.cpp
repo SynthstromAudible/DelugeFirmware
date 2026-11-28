@@ -88,6 +88,7 @@
 #include "support/menu_over_root.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
+#include "support/popup_capture.h"
 #include "support/slot_record.h"
 #include "support/song_fixture.h"
 
@@ -143,7 +144,6 @@ using mf::kBytesPerFrame;
 using mf::kSampleLength;
 using mf::kZoomMax;
 using mf::make_sample;
-using mf::MarkerDisplay;
 using mf::Rig;
 
 namespace {
@@ -428,9 +428,8 @@ struct FakeMarkerRig {
 describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	before_each([] {
-		static MarkerDisplay d;
 		if (display == nullptr) {
-			display = &d;
+			display = &deluge::ui::scenes::spec::quiet_display();
 		}
 	});
 

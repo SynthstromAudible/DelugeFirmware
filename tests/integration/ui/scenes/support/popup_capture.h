@@ -60,13 +60,39 @@ struct PopupEvent {
 	}
 };
 
+/// @brief Legacy's display for code that needs one to call and whose popups no example asks about: it draws nothing,
+///        keeps nothing, and answers that no popup is up.
+struct QuietDisplay final : deluge::hid::Display {
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+	void displayPopup(char const* /*text*/, int8_t /*num_flashes*/, bool /*align_right*/, uint8_t /*draw_dot*/,
+	                  int32_t /*blink_speed*/, PopupType /*type*/) override {}
+	void popupText(char const* /*text*/, PopupType /*type*/) override {}
+	void popupTextTemporary(char const* /*text*/, PopupType /*type*/) override {}
+	void cancelPopup() override {}
+	void freezeWithError(char const* /*text*/) override {}
+	void displayError(Error /*error*/) override {}
+	void removeWorkingAnimation() override {}
+	void displayLoadingAnimationText(char const* /*text*/, bool /*delayed*/, bool /*transparent*/) override {}
+	void removeLoadingAnimation() override {}
+	bool hasPopup() override { return false; }
+	bool hasPopupOfType(PopupType /*type*/) override { return false; }
+	void consoleText(char const* /*text*/) override {}
+	void timerRoutine() override {}
+};
+
+/// @return The process's one `QuietDisplay`, for a spec that installs it as `display` and leaves it there.
+inline QuietDisplay& quiet_display() {
+	static QuietDisplay d;
+	return d;
+}
+
 /// @brief Records every popup event while it is in scope. See the file docstring.
 class PopupCapture {
 public:
 	/// What the capture keeps.
 	enum class Mode : uint8_t {
 		RECORD, ///< Every event.
-		QUIET,  ///< Nothing: a display for code that needs one to call, whose popups no example asks about.
+		QUIET,  ///< Nothing, and no popup is ever up (`QuietDisplay`), for one scope.
 	};
 
 	explicit PopupCapture(Mode mode = Mode::RECORD)
@@ -163,8 +189,10 @@ private:
 			capture_->add(PopupEvent::Kind::NOTIFICATION, banner(title, value.value_or("")),
 			              PopupEvent::Route::DISPLAY);
 		}
-		bool hasPopup() override { return shown_.has_value(); }
-		bool hasPopupOfType(PopupType type) override { return shown_.has_value() && *shown_ == type; }
+		bool hasPopup() override { return capture_->mode_ == Mode::RECORD && shown_.has_value(); }
+		bool hasPopupOfType(PopupType type) override {
+			return capture_->mode_ == Mode::RECORD && shown_.has_value() && *shown_ == type;
+		}
 		void consoleText(char const* text) override {
 			capture_->add(PopupEvent::Kind::CONSOLE, text != nullptr ? text : "", PopupEvent::Route::DISPLAY);
 		}

@@ -20,6 +20,7 @@
 #include "storage/storage_manager.h"
 
 #include "support/menu_context.h"
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include <array>
@@ -29,24 +30,6 @@
 namespace deluge::ui::scenes::spec::outputitems {
 
 using deluge::ui::scenes::menu::MenuContext;
-
-/// @brief The minimum `Display` the output items need: `display` is null in a spec process.
-struct QuietDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
 
 /// @brief An audio clip whose output records from a specific track, in a song with four outputs.
 ///

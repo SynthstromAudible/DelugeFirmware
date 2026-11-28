@@ -38,6 +38,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "project/note_probability.h"
 #include "support/peak_seed.h"
+#include "support/popup_capture.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/menu/bindings.h"
@@ -143,25 +144,6 @@ struct ScratchCard {
 
 /// The path `SoundRig`'s holder names, and therefore the one a press on the landed selection files.
 constexpr std::string_view kChosenPath = "SAMPLES/OSC_A/A1.WAV";
-
-/// @brief The minimum `Display` the scenes need; `display` is null in a spec process
-///        (`hid/display/display.cpp`). `sample_items_spec.cpp`'s, unchanged.
-struct QuietDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
 
 [[noreturn]] void spec_bail(const char* what) {
 	std::fprintf(stderr, "browser_choice_spec: %s\n", what);
@@ -895,9 +877,8 @@ describe browser_choice_host("gui::ui's browser host, performing on the press", 
 	// shipped dispatcher would run it.
 
 	before_each([] {
-		static QuietDisplay d;
 		if (display == nullptr) {
-			display = &d;
+			display = &deluge::ui::scenes::spec::quiet_display();
 		}
 	});
 
@@ -977,9 +958,8 @@ describe browser_choice_claim(
 	    // is gone, is a claim request naming the chosen file -- which `ClaimSpy` records whole.
 
 	    before_each([] {
-		    static QuietDisplay d;
 		    if (display == nullptr) {
-			    display = &d;
+			    display = &deluge::ui::scenes::spec::quiet_display();
 		    }
 	    });
 
@@ -1181,9 +1161,8 @@ describe browser_choice_reroot(
 	    //       left, and it re-roots to depth 0 (`handle`'s `Replace` arm).
 
 	    before_each([] {
-		    static QuietDisplay d;
 		    if (display == nullptr) {
-			    display = &d;
+			    display = &deluge::ui::scenes::spec::quiet_display();
 		    }
 	    });
 
@@ -1312,9 +1291,8 @@ describe browser_choice_reroot(
 // clang-format off
 describe browser_choice_preview("the browser host and the browser scene's preview", $ {
 	before_each([] {
-		static QuietDisplay d;
 		if (display == nullptr) {
-			display = &d;
+			display = &deluge::ui::scenes::spec::quiet_display();
 		}
 	});
 
@@ -1664,9 +1642,8 @@ describe browser_choice_preview("the browser host and the browser scene's previe
 describe browser_choice_long_press(
     "the browser host performing the sample browser's folder menus", $ {
 	    before_each([] {
-		    static QuietDisplay d;
 		    if (display == nullptr) {
-			    display = &d;
+			    display = &deluge::ui::scenes::spec::quiet_display();
 		    }
 	    });
 
