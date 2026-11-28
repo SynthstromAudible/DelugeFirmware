@@ -36,6 +36,16 @@ public:
 	virtual void setupPlaybackBounds(bool reversed);
 	[[nodiscard]] virtual uint32_t getLoopStartPlaybackAtByte() const { return startPlaybackAtByte; }
 	[[nodiscard]] virtual uint32_t getLoopEndPlaybackAtByte() const { return endPlaybackAtByte; }
+	// Called by the low-level reader just before it jumps back to the loop start
+	void onLoopRestart() {
+		if (loopPassesAlternate()) {
+			turnAround();
+		}
+	}
+	// Ping-pong: each pass through the loop runs the opposite way to the one before
+	[[nodiscard]] virtual bool loopPassesAlternate() const { return false; }
+	// Switches to the orientation of the next pass through the loop, when loopPassesAlternate()
+	virtual void turnAround() {}
 	uint64_t getSyncedNumSamplesIn();
 	int32_t getNumSamplesLaggingBehindSync(VoiceSample* voiceSample);
 	int32_t adjustPitchToCorrectDriftFromSync(VoiceSample* voiceSample, int32_t phaseIncrement);

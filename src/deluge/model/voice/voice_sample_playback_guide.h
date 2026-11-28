@@ -33,6 +33,9 @@ public:
 	int32_t getBytePosToStartPlayback(bool justLooped) override;
 	int32_t getBytePosToEndOrLoopPlayback() override;
 	LoopType getLoopingType(const Source& source) const;
+	[[nodiscard]] bool loopPassesAlternate() const override { return pingpongAllowed; }
+	void turnAround() override { setPingpongReversed(!pingpongReversed); }
+	void setPingpongReversed(bool reversed);
 
 	[[nodiscard]] uint32_t getLoopStartPlaybackAtByte() const override { return loopStartPlaybackAtByte; }
 	[[nodiscard]] uint32_t getLoopEndPlaybackAtByte() const override {
@@ -44,4 +47,6 @@ public:
 	uint32_t loopEndPlaybackAtByte;   // 0 means disabled
 
 	bool noteOffReceived;
+	bool pingpongAllowed{false};  // Bounce at the loop boundaries instead of jumping back. Set before each render
+	bool pingpongReversed{false}; // Ping-pong is on its way back, against the Source's own direction
 };

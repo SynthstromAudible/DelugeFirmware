@@ -54,8 +54,33 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 	timeStretcher = nullptr; // Just in case
 	fudging = false;
 	forAudioClip = false;
+	pingpongReversed = false;
 	cancelLoopCrossfade();
 }
+
+namespace {
+// In ping-pong, the next pass through the loop runs the other way, starting from the edge we're about to reach. While
+// the incoming pass of a loop crossfade is set up or read, the guide is turned around to its orientation
+class NextLoopPassOrientation {
+public:
+	NextLoopPassOrientation(SamplePlaybackGuide* guide, bool turned) : guide_{guide}, turned_{turned} {
+		if (turned_) {
+			guide_->turnAround();
+		}
+	}
+	~NextLoopPassOrientation() {
+		if (turned_) {
+			guide_->turnAround();
+		}
+	}
+	NextLoopPassOrientation(const NextLoopPassOrientation&) = delete;
+	NextLoopPassOrientation& operator=(const NextLoopPassOrientation&) = delete;
+
+private:
+	SamplePlaybackGuide* guide_;
+	bool turned_;
+};
+} // namespace
 
 // Once we're within the crossfade length of the loop end, start the next pass through the loop alongside us. It starts
 // as far into the loop as we are into the crossfade, so the two finish the crossfade together, just as we hit the end.
@@ -90,7 +115,14 @@ void VoiceSample::considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Samp
 	int32_t incomingOffsetBytes = (length - samplesLeft) * bytesPerSample;
 	loopIncoming->oscPos = oscPos;
 	loopIncoming->interpolationBufferSizeLastTime = 0;
-	if (loopIncoming->setupClusersForInitialPlay(guide, sample, incomingOffsetBytes, true, priorityRating)) {
+	// Fixed for the whole crossfade, in case the repeat mode changes during it
+	loopIncomingTurned = guide->loopPassesAlternate();
+	bool success;
+	{
+		NextLoopPassOrientation orientation{guide, loopIncomingTurned};
+		success = loopIncoming->setupClusersForInitialPlay(guide, sample, incomingOffsetBytes, true, priorityRating);
+	}
+	if (success) {
 		loopCrossfadeLength = samplesLeft;
 	}
 	else {
@@ -103,6 +135,9 @@ bool VoiceSample::finishLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample
                                       int32_t priorityRating) {
 	static_cast<SampleLowLevelReader&>(*this) = std::move(*loopIncoming);
 	loopCrossfadeLength = 0;
+	if (loopIncomingTurned) {
+		guide->turnAround(); // Ping-pong: we're now heading back the other way
+	}
 
 	// The incoming reader didn't obey the markers, and a note-off may have moved the end since, so work out again where
 	// to stop or loop
@@ -131,6 +166,7 @@ bool VoiceSample::readLoopCrossfadeIncoming(SamplePlaybackGuide* guide, Sample* 
                                             int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
                                             int32_t interpolationBufferSize, int32_t whichKernel,
                                             int32_t priorityRating) {
+	NextLoopPassOrientation orientation{guide, loopIncomingTurned};
 	int32_t jumpAmount = sample->byteDepth * numChannels * guide->playDirection;
 	while (numSamples) {
 		int32_t numSamplesNow = numSamples;
@@ -1279,6 +1315,7 @@ readNonTimestretched:
 				}
 				return false;
 			}
+			jumpAmount = bytesPerSample * guide->playDirection; // Ping-pong may have just turned around
 
 			// While crossfading, this pass reads with its own fading-out copy of the amplitude
 			int32_t* readAmplitude = &amplitude;

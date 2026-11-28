@@ -625,14 +625,14 @@ void Voice::noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage
 
 	if (sound.synthMode != SynthMode::FM) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			if (sound.sources[s].oscType == OscType::SAMPLE && guides[s].loopEndPlaybackAtByte) {
+			if (sound.sources[s].oscType == OscType::SAMPLE) {
 				for (int32_t u = 0; u < sound.numUnison; u++) {
 					if (unisonParts[u].sources[s].active) {
+						VoiceSample* voiceSample = unisonParts[u].sources[s].voiceSample;
+						guides[s].setPingpongReversed(voiceSample->pingpongReversed);
 
-						bool success =
-						    unisonParts[u].sources[s].voiceSample->noteOffWhenLoopEndPointExists(this, &guides[s]);
-
-						if (!success) {
+						if (guides[s].loopEndPlaybackAtByte
+						    && !voiceSample->noteOffWhenLoopEndPointExists(this, &guides[s])) {
 							unisonParts[u].sources[s].unassign(false);
 						}
 					}
@@ -685,9 +685,16 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(
-			    &guides[s], sample, source.sampleControls.isCurrentlyReversed(), markerType, loopingType,
-			    getPriorityRating());
+			VoiceSample* voiceSample = voiceUnisonPartSource->voiceSample;
+			MarkerType markerTypeForPart = markerType;
+			if (voiceSample->pingpongReversed) {
+				guides[s].setPingpongReversed(true);
+				markerTypeForPart = static_cast<MarkerType>(kNumMarkerTypes - 1 - util::to_underlying(markerType));
+			}
+			bool stillActive =
+			    voiceSample->sampleZoneChanged(&guides[s], sample, source.sampleControls.isCurrentlyReversed(),
+			                                   markerTypeForPart, loopingType, getPriorityRating());
+			guides[s].setPingpongReversed(false);
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);
@@ -2090,6 +2097,11 @@ pitchTooHigh:
 				goto instantUnassign;
 			}
 
+			// Ping-pong can't turn a time stretcher around, so that just loops
+			guides[s].pingpongAllowed = sound.sources[s].repeatMode == SampleRepeatMode::PINGPONG
+			                            && timeStretchRatio == kMaxSampleValue && !voiceSample->timeStretcher;
+			guides[s].setPingpongReversed(voiceSample->pingpongReversed);
+
 			// If user unmuted mid-note...
 			bool tryToStartMidNote = voiceSample->pendingSamplesLate;
 			if (tryToStartMidNote) [[unlikely]] {
@@ -2155,8 +2167,10 @@ pitchTooHigh:
 				if (!voiceSample->doneFirstRenderYet && !tryToStartMidNote
 				    && portaEnvelopePos == 0xFFFFFFFF) { // No porta
 
-					// The cached loop would just jump, without the crossfade
-					if (sound.sources[s].loopCrossfadeMs && loopingType != LoopType::NONE) {
+					// The cache is recorded in one direction only, and a cached loop would just jump, without the
+					// crossfade
+					if (sound.sources[s].repeatMode == SampleRepeatMode::PINGPONG
+					    || (sound.sources[s].loopCrossfadeMs && loopingType != LoopType::NONE)) {
 						goto dontUseCache;
 					}
 
@@ -2251,6 +2265,7 @@ dontUseCache: {}
 			    timeStretchRatio, sourceAmplitude, amplitudeIncrement, interpolationBufferSize,
 			    sound.sources[s].sampleControls.interpolationMode, getPriorityRating(),
 			    (sound.sources[s].loopCrossfadeMs * sample->sampleRate) / 1000);
+			voiceSample->pingpongReversed = guides[s].pingpongReversed;
 
 			if (stereoUnison) {
 				if (numChannels == 2) {

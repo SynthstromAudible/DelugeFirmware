@@ -96,10 +96,15 @@ public:
 	SampleCache* cache = nullptr;
 	bool doneFirstRenderYet = false;
 	bool fudging = false;
-	bool forAudioClip = false;   // This is a wee bit of a hack - but we need to be able to know this
-	bool writingToCache = false; // Value is only valid if cache assigned
+	bool forAudioClip = false;     // This is a wee bit of a hack - but we need to be able to know this
+	bool writingToCache = false;   // Value is only valid if cache assigned
+	bool pingpongReversed = false; // Each unison part bounces on its own, but they share one guide
 
 private:
+	// The loop crossfade's incoming pass runs the other way (ping-pong). Kept with the bools above, where it fits in
+	// their padding
+	bool loopIncomingTurned = false;
+
 	// Out of line so it doesn't bloat render() and push its hot path out of the instruction cache
 	[[gnu::noinline]] void considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample,
 	                                                     int32_t wantedLength, int32_t priorityRating);

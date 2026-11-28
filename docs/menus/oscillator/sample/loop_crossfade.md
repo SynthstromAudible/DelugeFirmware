@@ -6,6 +6,9 @@ alongside it. Over the crossfade time, the end of the loop fades out while its s
 next pass carries on alone. The crossfade time is measured in the sample's own time, so it gets shorter as the sample is
 played higher, and it is limited to half the loop length.
 
+In PINGPONG repeat mode, the next pass runs the other way, so it starts from the loop boundary being reached rather than
+the loop start, and each turnaround is crossfaded.
+
 It needs PITCH/SPEED linked and SPEED at 0. With them unlinked, any note that isn't at the sample's own pitch (other
 keys, unison detune, vibrato) is time-stretched, and the loop then jumps without a crossfade.
 
