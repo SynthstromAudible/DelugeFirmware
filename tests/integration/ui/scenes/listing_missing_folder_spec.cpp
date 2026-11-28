@@ -89,7 +89,7 @@ describe listing_missing_folder("the async listing seam on a card without the de
 		expect(static_cast<int>(result->count)).to_equal(0);
 		expect(static_cast<int>(FileCatalogue::numFileItemsDeletedAtStart)).to_equal(0);
 		expect(folder_on_card("DX7")).to_be_true();
-		expect(drain_notices().error).to_equal(0);
+		expect(clean.popups.count(PopupKind::ERROR_CODE)).to_equal(size_t{0});
 	});
 
 	it("falls back from a missing folder to the default one, and creates that when it is missing too", _ {
@@ -114,7 +114,7 @@ describe listing_missing_folder("the async listing seam on a card without the de
 		expect(static_cast<int>(result->count)).to_equal(0);
 		expect(folder_on_card("SAMPLES")).to_be_true();
 		expect(folder_on_card("SAMPLES/KICKS")).to_be_false();
-		expect(drain_notices().error).to_equal(0);
+		expect(clean.popups.count(PopupKind::ERROR_CODE)).to_equal(size_t{0});
 	});
 
 	it("reports a missing folder with no default as FOLDER_DOESNT_EXIST, and creates nothing", _ {
@@ -131,9 +131,8 @@ describe listing_missing_folder("the async listing seam on a card without the de
 		expect(result.has_value()).to_be_true();
 		expect(error_of(*result)).to_equal(static_cast<int>(Error::FOLDER_DOESNT_EXIST));
 		expect(folder_on_card("NOPE")).to_be_false();
-		NoticeTally tally = drain_notices();
-		expect(tally.error).to_equal(1);
-		expect(static_cast<int>(tally.last_error_code)).to_equal(static_cast<int>(Error::FOLDER_DOESNT_EXIST));
+		expect(clean.popups.count(PopupKind::ERROR_CODE)).to_equal(size_t{1});
+		expect(clean.popups.last(PopupKind::ERROR_CODE)).to_equal(error_text(static_cast<int>(Error::FOLDER_DOESNT_EXIST)));
 	});
 
 	it("fails with the card's error when the default folder cannot be made, and reads no further", _ {
@@ -155,9 +154,8 @@ describe listing_missing_folder("the async listing seam on a card without the de
 		expect(result.has_value()).to_be_true();
 		expect(error_of(*result)).to_equal(static_cast<int>(Error::SD_CARD));
 		expect(folder_on_card("BAD*DIR")).to_be_false();
-		NoticeTally tally = drain_notices();
-		expect(tally.error).to_equal(1);
-		expect(static_cast<int>(tally.last_error_code)).to_equal(static_cast<int>(Error::SD_CARD));
+		expect(clean.popups.count(PopupKind::ERROR_CODE)).to_equal(size_t{1});
+		expect(clean.popups.last(PopupKind::ERROR_CODE)).to_equal(error_text(static_cast<int>(Error::SD_CARD)));
 	});
 });
 // clang-format on
