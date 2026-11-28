@@ -98,13 +98,14 @@ open	src/deluge/modulation/params/param_collection_summary.h	^ParamCollectionSum
 open	src/deluge/modulation/params/param_manager.cpp	^ParamManagerForTimeline::processCurrentPos\(ModelStackWithThreeMainThings\*, int, bool, bool, bool\)$	audio×interaction	state: a param manager's play position, set by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
 open	src/deluge/modulation/params/param_set.cpp	^ParamSet::processCurrentPos\(ModelStackWithParamCollection\*, int, bool, bool, bool\)$	audio×interaction	state: a param set's play position, set by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
 open	src/deluge/gui/ui/ui.cpp	^uiStackEmpty\(\)$	audio×interaction	state: global 'numUIsOpen' (the render's getCurrentUI() read, from renderSamplePreview, reaches it through uiStackEmpty())
-open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock\(DelugeStereoSample const\*, DelugeStereoSample\*, unsigned int\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (the render's per-block advance; read by the interaction tier's input and timer routines)
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock\(DelugeStereoSample const\*, DelugeStereoSample\*, unsigned int, unsigned int\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (the render's per-block advance; read by the interaction tier's input and timer routines)
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::setDireness\(\)$	audio×interaction	state: global 'AudioEngine::bypassCulling' (the render's culling decision, read against the interaction tier's write; first seen 2026-11-28, once in 5 runs)
 # Index by shared state (state → entries). The second invariant's to-do list.
 #   Render-routine globals (audioSampleTimer, renderingBufferOutputPos, renderInStereo,
 #     bypassCulling): deluge_app_render, AudioEngine::renderAppBlock,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
 #     Sound::renderingVoicesInStereo, deluge::model::hostFxInputs, inputRoutine, deluge::recording::beginOutputRecording, PlaybackHandler::doSongSwap,
-#     deluge::sample::advance_peak_scan
+#     deluge::sample::advance_peak_scan, AudioEngine::setDireness
 #   Reverb (reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender): updateReverbParams, getReverbParamsFromSong, renderReverb
 #     (AudioEngine::reverb's knobs and model reach the render through effects::Reverb::publish and
 #     begin_change/commit, inside AudioExcludedSections; a song swap at a launch rebuilds it on the audio tier, and
