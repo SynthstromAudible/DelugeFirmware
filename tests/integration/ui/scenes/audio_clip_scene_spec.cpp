@@ -47,10 +47,34 @@
 
 #include "model/consequence/consequence_audio_clip_set_sample.h"
 #include "model/model_stack.h"
+#include "util/menu_entry.h"
 
 #include "support/spec_main.h"
 
 namespace {
+/// @brief Press or release @p b through the rig's own shell at @p at_ms, and render the frame.
+void press_through_shell(Rig& r, ButtonId b, bool on, uint32_t at_ms) {
+	const auto [x, y] = matrix_xy(b);
+	r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
+	r.tick(at_ms);
+}
+
+/// @brief Whether every main pad of @p r is @p colours' pad greyed at full strength; and how many were not black,
+///        through @p lit.
+bool main_pads_are_greyed(Rig& r, const RGB (&colours)[kDisplayHeight][kDisplayWidth], int32_t& lit) {
+	const deluge::ui::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	bool same = true;
+	lit = 0;
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			RGB c = colours[y][x];
+			lit += c == RGB{} ? 0 : 1;
+			same = same && g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == c.greyOut(6500000);
+		}
+	}
+	return same;
+}
+
 /// @brief The rig's whole grid as text, one pad's colour after another, for comparing frames.
 std::string grid_text(Rig& r) {
 	std::string out;
@@ -495,6 +519,102 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.tick(t);
 		expect(r.scene().blink_on()).to_equal(frozen);
 		expect(r.scene().next_timer().has_value()).to_be_false();
+	});
+
+	// --- the SHIFT shortcut overview -------------------------------------------------------------
+
+	it("covers the main pads with the shortcut overview while SHIFT is held, greying every column at once", _ {
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay,
+		                           static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip));
+		Rig r;
+		r.seed(Sentinel{});
+		r.open();
+		r.tick(0);
+		const std::string waveform = grid_text(r);
+		expect(audio_clip_scene().overview_shown()).to_be_false();
+
+		press_through_shell(r, ButtonId::Shift, true, 20);
+		expect(audio_clip_scene().overview_shown()).to_be_true();
+		expect(audio_clip_scene().greyout_mask().cols).to_equal(0xFFFFFFFFu);
+		expect(audio_clip_scene().greyout_mask().rows).to_equal(0u);
+		expect(audio_clip_scene().greyout_changes_instantly()).to_be_true();
+		// The pads are the host's overview for this clip (`renderClipShortcutsOverview`'s colours), greyed.
+		RGB colours[kDisplayHeight][kDisplayWidth]{};
+		deluge::gui::ui::clipShortcutsOverviewColours(colours);
+		int32_t lit = 0;
+		expect(main_pads_are_greyed(r, colours, lit)).to_be_true();
+		expect(lit).to_be_greater_than(0);
+
+		// Released, the view draws itself again, and the greyout goes.
+		press_through_shell(r, ButtonId::Shift, false, 40);
+		expect(audio_clip_scene().overview_shown()).to_be_false();
+		expect(audio_clip_scene().greyout_mask().cols).to_equal(0u);
+		expect(audio_clip_scene().greyout_changes_instantly()).to_be_false();
+		expect(grid_text(r)).to_equal(waveform);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay, saved);
+	});
+
+	it("ends the overview on any other press, and starts it again on the next SHIFT edge", _ {
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay,
+		                           static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip));
+		Rig r;
+		r.seed(Sentinel{});
+		r.open();
+		r.tick(0);
+		const std::string waveform = grid_text(r);
+		press_through_shell(r, ButtonId::Shift, true, 20);
+		expect(audio_clip_scene().overview_shown()).to_be_true();
+		// `ClipView::maybeStartShortcutOverview`'s other press: the overview ends with SHIFT still held.
+		press_through_shell(r, ButtonId::YEnc, true, 40);
+		press_through_shell(r, ButtonId::YEnc, false, 60);
+		expect(audio_clip_scene().overview_shown()).to_be_false();
+		expect(grid_text(r)).to_equal(waveform);
+		// Released and pressed again, SHIFT starts it afresh.
+		press_through_shell(r, ButtonId::Shift, false, 80);
+		press_through_shell(r, ButtonId::Shift, true, 100);
+		expect(audio_clip_scene().overview_shown()).to_be_true();
+		press_through_shell(r, ButtonId::Shift, false, 120);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay, saved);
+	});
+
+	it("ends the overview on a horizontal or a vertical turn, as stopShortcutOverview does", _ {
+		spec_fixture::QuietAudio quiet;
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay,
+		                           static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip));
+		for (const auto role :
+		     {deluge::ui::widgets::core::EncoderRole::Horizontal, deluge::ui::widgets::core::EncoderRole::Vertical}) {
+			Rig r;
+			Input in;
+			r.reseed(Sentinel{});
+			r.open_scene_only();
+			(void)in.press(ButtonId::Shift, true);
+			expect(audio_clip_scene().overview_shown()).to_be_true();
+			(void)in.turn(role, 1);
+			expect(audio_clip_scene().overview_shown()).to_be_false();
+			(void)in.press(ButtonId::Shift, false);
+			r.reseed(Sentinel{});
+		}
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay, saved);
+	});
+
+	it("shows no overview with the setting on the menu only, its factory value", _ {
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay,
+		                           static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly));
+		Rig r;
+		r.seed(Sentinel{});
+		r.open();
+		r.tick(0);
+		const std::string waveform = grid_text(r);
+		press_through_shell(r, ButtonId::Shift, true, 20);
+		expect(audio_clip_scene().overview_shown()).to_be_false();
+		expect(audio_clip_scene().greyout_mask().cols).to_equal(0u);
+		expect(grid_text(r)).to_equal(waveform);
+		press_through_shell(r, ButtonId::Shift, false, 40);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay, saved);
 	});
 
 	// --- the OLED page --------------------------------------------------------------------------

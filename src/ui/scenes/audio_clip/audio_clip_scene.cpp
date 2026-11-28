@@ -35,6 +35,7 @@
 #include "ui/widgets/oled/scroll_text.h"
 #include "ui/widgets/oled/text.h"
 
+#include "ui/scenes/bind/ports/root_views.h"
 #include "ui/scenes/bind/ports/waveforms.h"
 
 #include "gui/l10n/strings.h"
@@ -106,6 +107,10 @@ void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, cons
 	clip_ = model != nullptr ? clip : std::nullopt;
 	model_ = model;
 	retry_.restart();
+	adopt_navigation();
+}
+
+void AudioClipScene::adopt_navigation() {
 	if (model_ != nullptr) {
 		if (const deluge::ui::scenes::bind::ClipFacts* c = clips(); c != nullptr) {
 			if (const std::optional<deluge::ui::scenes::bind::ClipNavigation> n = c->clip_navigation()) {
@@ -113,11 +118,18 @@ void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, cons
 			}
 		}
 		// `adopt` copies the song's triplets setting, but `supportsTriplets()` is a property of the VIEW
-		// (`audio_clip_view.h` returns false) and is not in the song. Restored after every
-		// adopt, so `in_triplets_view()` answers what `AudioClipView` answers.
+		// (`AudioClipView::supportsTriplets` returned false) and is not in the song. Restored after every adopt, so
+		// `in_triplets_view()` answers what the view answered.
 		timeline_.supports_triplets = false;
 	}
 	published_ = {.x_scroll = timeline_.x_scroll, .x_zoom = timeline_.x_zoom};
+}
+
+void AudioClipScene::navigation_restored() {
+	const int32_t before_scroll = timeline_.x_scroll;
+	const uint32_t before_zoom = timeline_.x_zoom;
+	adopt_navigation();
+	note_slide(before_scroll, before_zoom);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -250,6 +262,8 @@ void AudioClipScene::focus_regained() {
 	// whose whole body is the restore-point clear -- `TimelineState::focus_regained()` -- and then resets the
 	// shortcut-overview latch and asks for a redraw, which the shell owns.
 	timeline_.focus_regained();
+	// `ClipView::focusRegained`: returning from a shortcut's menu starts a fresh overview if SHIFT is still active.
+	overview_exited_ = false;
 	end_marker_visible_ = false;
 	start_marker_visible_ = false;
 	// **And nothing else.** `blink_on_` and `blink_accum_ms_` are deliberately NOT reset here:
@@ -325,10 +339,66 @@ bool AudioClipScene::scrollable_and_zoomable() const {
 Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
 	const int32_t before_scroll = timeline_.x_scroll;
 	const uint32_t before_zoom = timeline_.x_zoom;
+	// `maybeStartShortcutOverview` and `stopShortcutOverview` run first in the arms that call them.
+	note_overview_input(event, ctx.shift);
 	Result r = dispatch(event, ctx);
 	note_slide(before_scroll, before_zoom);
 	publish_navigation();
+	overview_shown_ = overview_wanted(ctx.shift);
 	return r;
+}
+
+void AudioClipScene::note_overview_input(const UiEvent& event, bool shift) {
+	using deluge::ui::shell::ButtonId;
+	// Every button reaches the view's `buttonAction` first (`Buttons::buttonAction` in
+	// `origin/main:src/deluge/hid/buttons.cpp`), the encoders' own buttons too.
+	if (event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton) {
+		const ButtonId b = event.button;
+		// Instrument changes keep the overview and refresh it for the new instrument; both SHIFT edges restart it,
+		// because releasing the physical SHIFT can leave it latched.
+		const bool changing_instrument =
+		    shift && (b == ButtonId::Synth || b == ButtonId::Kit || b == ButtonId::Midi || b == ButtonId::Cv);
+		if ((b == ButtonId::Shift || changing_instrument) && overview_setting_on()) {
+			overview_exited_ = false;
+		}
+		else if (event.on) {
+			overview_exited_ = true;
+		}
+	}
+	else if (event.kind == UiEvent::Kind::Encoder
+	         && (event.encoder == deluge::ui::widgets::core::EncoderRole::Horizontal
+	             || event.encoder == deluge::ui::widgets::core::EncoderRole::Vertical)) {
+		overview_exited_ = true;
+	}
+}
+
+bool AudioClipScene::overview_setting_on() const {
+	return bind::read_device<deluge::project::ShortcutOverlay>(
+	           device(), deluge::project::device_path::feature(deluge::project::Feature::SHORTCUT_OVERLAY))
+	       == deluge::project::ShortcutOverlay::MENU_AND_CLIP;
+}
+
+bool AudioClipScene::overview_wanted(bool shift) const {
+	return shift && !overview_exited_ && overview_setting_on();
+}
+
+deluge::ui::widgets::grid::GreyoutMask AudioClipScene::greyout_mask() const {
+	// `ClipView::getGreyoutColsAndRows`: every column, the sidebar's too, and no row.
+	return overview_shown_ ? deluge::ui::widgets::grid::GreyoutMask{.cols = 0xFFFFFFFFu, .rows = 0}
+	                       : deluge::ui::widgets::grid::GreyoutMask{};
+}
+
+void AudioClipScene::paint_overview(GridFrame& main) {
+	deluge::ui::scenes::bind::OverviewPads pads{};
+	if (deluge::ui::scenes::bind::RootViews* views = root_views(); views != nullptr) {
+		views->clip_shortcut_overview(pads);
+	}
+	for (size_t y = 0; y < pads.size() && y < static_cast<size_t>(main.bounds().h); ++y) {
+		for (size_t x = 0; x < pads[y].size() && x < static_cast<size_t>(kMainCols); ++x) {
+			const deluge::ui::scenes::bind::OverviewPad p = pads[y][x];
+			(void)main.pad(static_cast<int32_t>(x), static_cast<int32_t>(y), RGB{.r = p.r, .g = p.g, .b = p.b});
+		}
+	}
 }
 
 void AudioClipScene::note_slide(int32_t before_scroll, uint32_t before_zoom) {
@@ -1367,9 +1437,15 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	const deluge::ui::gfx::grid::GridDimensions main_dims{static_cast<uint8_t>(kMainCols), 0,
 	                                                      static_cast<uint8_t>(f.bounds().h)};
 
+	overview_shown_ = overview_wanted(f.ctx.input.shift);
+	if (overview_shown_) {
+		// `maybeRenderShortcutsOverview` returns before the view draws itself; a slide in flight ends with it.
+		finish_slides();
+		f.region(main_rect, [&](GridFrame& main) { paint_overview(main); });
+	}
 	// A slide the last input asked for starts from the last settled frame, and slides to the new view, painted into a
 	// grid of its own (`renderMainPads` into `imageStore`, as `TimelineView::setupScroll` and `initiateXZoom` do).
-	if (pending_slide_.kind != PendingSlide::Kind::NONE) {
+	if (!overview_shown_ && pending_slide_.kind != PendingSlide::Kind::NONE) {
 		const PendingSlide p = std::exchange(pending_slide_, PendingSlide{});
 		if (shown_.has_value() && shown_->dims() == main_dims) {
 			deluge::ui::gfx::grid::PadGrid& to =
@@ -1388,7 +1464,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 			                      : deluge::ui::widgets::grid::zoom_transition(main, zoom_);
 		});
 	}
-	if (!slid) {
+	if (!slid && !overview_shown_) {
 		// No slide running, or its last step has passed: input is taken again, and the view draws itself.
 		exit_ui_mode(kUiModeHorizontalScroll);
 		exit_ui_mode(kUiModeHorizontalZoom);

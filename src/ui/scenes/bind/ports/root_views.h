@@ -4,9 +4,28 @@
 /// @brief What a root scene asks of the other root views and of the menu: leaving the clip, and the menus a press
 ///        opens. The host performs each as the legacy view's arm does.
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace deluge::ui::scenes::bind {
+
+/// @brief One main pad's colour in a clip's SHIFT shortcut overview, by channel.
+struct OverviewPad {
+	uint8_t r = 0;
+	uint8_t g = 0;
+	uint8_t b = 0;
+	bool operator==(const OverviewPad&) const = default;
+};
+
+/// The main grid the overview covers.
+/// @{
+inline constexpr size_t kOverviewColumns = 16;
+inline constexpr size_t kOverviewRows = 8;
+/// @}
+
+/// @brief The overview's pads, `[y][x]` with y = 0 the bottom row.
+using OverviewPads = std::array<std::array<OverviewPad, kOverviewColumns>, kOverviewRows>;
 
 /// @brief What a root scene asks of the other root views; the host performs each as the legacy view does. Each acts
 ///        on the current clip, which is the clip the root scene shows.
@@ -30,6 +49,10 @@ public:
 	/// @brief Open the current clip's own menu (SELECT without shift), as `openMenu`'s site 5 does.
 	/// @return True when the menu opened.
 	[[nodiscard]] virtual bool open_clip_menu() = 0;
+	/// @brief The SHIFT shortcut overview over the current clip (`renderClipShortcutsOverview`): each main pad the
+	///        colour of the menu shortcut it opens here, black where it opens nothing.
+	/// @param pads Filled, every pad.
+	virtual void clip_shortcut_overview(OverviewPads& pads) = 0;
 };
 
 } // namespace deluge::ui::scenes::bind

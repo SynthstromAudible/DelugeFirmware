@@ -14,6 +14,9 @@ namespace deluge::gui::shell_host {
 namespace {
 
 /// The other root views and the menu, each reached as the audio clip view's own arm reaches it.
+static_assert(deluge::ui::scenes::bind::kOverviewColumns == kDisplayWidth
+              && deluge::ui::scenes::bind::kOverviewRows == kDisplayHeight);
+
 class HostRootViews final : public deluge::ui::scenes::bind::RootViews {
 public:
 	void to_session_or_arranger() override {
@@ -44,6 +47,17 @@ public:
 		return deluge::gui::ui::openMenu(getCurrentClip(), /*sourceIndex=*/0, /*performanceView=*/false,
 		                                 /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
 		                                 /*kitGlobalFx=*/false);
+	}
+
+	void clip_shortcut_overview(deluge::ui::scenes::bind::OverviewPads& pads) override {
+		RGB colours[kDisplayHeight][kDisplayWidth]{};
+		deluge::gui::ui::clipShortcutsOverviewColours(colours);
+		for (size_t y = 0; y < pads.size(); ++y) {
+			for (size_t x = 0; x < pads[y].size(); ++x) {
+				const RGB c = colours[y][x];
+				pads[y][x] = {.r = c.r, .g = c.g, .b = c.b};
+			}
+		}
 	}
 };
 

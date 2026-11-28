@@ -659,6 +659,14 @@ struct RecordingRootViews final : RootViews {
 		calls.emplace_back("clip menu");
 		return menu_opens;
 	}
+	/// @brief What `clip_shortcut_overview` answers: pad (x, y) is (x * 16, y * 32, 7), so every pad differs.
+	void clip_shortcut_overview(deluge::ui::scenes::bind::OverviewPads& pads) override {
+		for (size_t y = 0; y < pads.size(); ++y) {
+			for (size_t x = 0; x < pads[y].size(); ++x) {
+				pads[y][x] = {.r = static_cast<uint8_t>(x * 16), .g = static_cast<uint8_t>(y * 32), .b = 7};
+			}
+		}
+	}
 };
 
 /// @brief SessionMacros over eight facts a spec sets, recording every activation.

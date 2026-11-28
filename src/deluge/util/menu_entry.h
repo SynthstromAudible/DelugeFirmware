@@ -227,6 +227,10 @@ bool editKitAffectEntire();
 void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
+/// @brief The overview's colours alone, `[y][x]`, with no greyout or send: what the audio clip scene paints, through
+///        `RootViews::clip_shortcut_overview`.
+void clipShortcutsOverviewColours(RGB colours[kDisplayHeight][kDisplayWidth]);
+
 /// @brief Shift + the keyboard's DX column pad for operator @p op: `DxParam::openForOpOrGlobal` under the menu.
 ///
 /// With the guest closed it opens on the DX7 parameter page at the operator's param (`dx::column_param`), its pad

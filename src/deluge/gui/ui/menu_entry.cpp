@@ -374,11 +374,7 @@ bool editKitAffectEntire() {
 	return getCurrentOutputType() == OutputType::KIT && clip != nullptr && clip->affectEntire;
 }
 
-void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
-                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	// Grey-out before the overlay, cancelling any fade in either direction.
-	PadLEDs::doGreyoutInstantly();
-	PadLEDs::sendOutSidebarColoursSoon();
+void clipShortcutsOverviewColours(RGB colours[kDisplayHeight][kDisplayWidth]) {
 	const menu::MenuContext ctx =
 	    resolveContext(getCurrentClip(), 0, /*performanceView=*/false,
 	                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false, editKitAffectEntire());
@@ -392,9 +388,23 @@ void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
 	const deluge::project::ShortcutsVersion version = menu::shortcuts_version(asked);
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			image[y][x] = editingNothing ? deluge::gui::colours::black
-			                             : menu::shortcut_colour(asked, version, static_cast<uint8_t>(x),
-			                                                     static_cast<uint8_t>(y), askRelevance);
+			colours[y][x] = editingNothing ? deluge::gui::colours::black
+			                               : menu::shortcut_colour(asked, version, static_cast<uint8_t>(x),
+			                                                       static_cast<uint8_t>(y), askRelevance);
+		}
+	}
+}
+
+void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
+                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	// Grey-out before the overlay, cancelling any fade in either direction.
+	PadLEDs::doGreyoutInstantly();
+	PadLEDs::sendOutSidebarColoursSoon();
+	RGB colours[kDisplayHeight][kDisplayWidth]{};
+	clipShortcutsOverviewColours(colours);
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			image[y][x] = colours[y][x];
 			occupancyMask[y][x] = 64;
 		}
 	}

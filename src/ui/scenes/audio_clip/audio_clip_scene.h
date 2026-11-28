@@ -136,6 +136,16 @@ public:
 	///        the X and Y chord, and the menu's action of the same name.
 	void set_clip_length_equal_to_sample_length();
 
+	/// @brief Take the song's clip scroll and zoom again after something else changed them (an undo), sliding to them
+	///        as `initiateXScroll` and `initiateXZoom` do.
+	void navigation_restored();
+
+	/// @return The clip the scene shows, or nothing.
+	[[nodiscard]] const std::optional<deluge::project::ClipAddress>& clip() const { return clip_; }
+
+	/// @return Whether the SHIFT shortcut overview covers the main pads (`ClipView::shouldRenderShortcutsOverview`).
+	[[nodiscard]] bool overview_shown() const { return overview_shown_; }
+
 	/// @brief The scene's mode word.
 	/// @return `kUiModeNone`, or an OR of `kUiModeHoldingSongButton` / `kUiModeHoldingHorizontalEncoder`.
 	[[nodiscard]] uint32_t ui_mode() const { return ui_mode_; }
@@ -202,11 +212,32 @@ public:
 	/// @brief The grid only: neither the cursor nor the marker blink touches the OLED page, whose scrolling text arms
 	///        its own repaints.
 	RepaintSurfaces timer_repaints() const override { return {.oled = false, .grid = true}; }
+	/// @brief Every column, sidebar included, while the shortcut overview shows (`ClipView::getGreyoutColsAndRows`);
+	///        nothing otherwise.
+	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override;
+	/// @brief True while the overview shows, whose greyout `renderClipShortcutsOverview` applies at once; it fades
+	///        out when the overview goes (`reassessGreyout`).
+	bool greyout_changes_instantly() const override { return overview_shown_; }
 
 private:
 	/// @brief The view's own state as its focus comes back: the restore point and both markers down. The BACK LED
 	///        is `leds()`'s; the knobs' focus on the clip is the legacy root view's, which hosts this scene.
 	void focus_regained();
+
+	/// @brief `ClipView::maybeStartShortcutOverview` for a button edge, and `stopShortcutOverview` for the turns that
+	///        call it: a SHIFT edge, or SHIFT with an instrument button, starts the overview afresh while the setting
+	///        is "menu and clip"; any other press, and a horizontal or vertical turn, ends it until the next.
+	/// @param shift Whether SHIFT is held (or latched) as the event arrives.
+	void note_overview_input(const deluge::ui::shell::UiEvent& event, bool shift);
+	/// @brief Take the song's clip scroll and zoom, with `supportsTriplets()` false as the view has it.
+	void adopt_navigation();
+	/// @return Whether the overview shows with SHIFT @p shift (held or latched): the setting is "menu and clip" and
+	///         nothing has ended it since it started.
+	[[nodiscard]] bool overview_wanted(bool shift) const;
+	/// @return Whether the overlay setting is "menu and clip", the one that shows the overview over a clip.
+	[[nodiscard]] bool overview_setting_on() const;
+	/// @brief `renderClipShortcutsOverview`'s pads: each main pad the colour of the menu shortcut it opens.
+	void paint_overview(deluge::ui::widgets::grid::GridFrame& main);
 
 	/// @brief The play cursor's column for this frame, latched when it moves.
 	/// @return The column for every row, or `ui::widgets::grid::kNoTickSquare`.
@@ -404,6 +435,11 @@ private:
 	/// @{
 	bool end_marker_visible_ = false;
 	bool start_marker_visible_ = false;
+	/// @}
+	/// The shortcut overview: ended by an input since it last started (`exitedShortcutOverview`), and on the pads.
+	/// @{
+	bool overview_exited_ = false;
+	bool overview_shown_ = false;
 	/// @}
 	/// The markers' blink phase.
 	bool blink_on_ = false;
