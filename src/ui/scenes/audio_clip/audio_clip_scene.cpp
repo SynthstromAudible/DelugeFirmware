@@ -20,6 +20,7 @@
 ///        `audio_clip_scene.h` for the predicates, the playhead rule and the sidebar.
 
 #include "ui/scenes/audio_clip/audio_clip_scene.h"
+#include "ui/scenes/services/global_controls.h"
 
 #include "base/notify/notice_queue.h"
 #include "project/timeline_limits.h"
@@ -128,6 +129,10 @@ deluge::ui::scenes::bind::ClipWrites* AudioClipScene::clip_writes() const {
 
 deluge::ui::scenes::bind::RootViews* AudioClipScene::root_views() const {
 	return bind::port_of(ports_, &bind::Ports::root_views);
+}
+
+deluge::ui::scenes::bind::SessionMacros* AudioClipScene::macros() const {
+	return bind::port_of(ports_, &bind::Ports::macros);
 }
 
 deluge::ui::scenes::bind::WriteSink* AudioClipScene::writes() const {
@@ -615,14 +620,14 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 	if (x >= kMainCols) {
 		// The first sidebar column, and only while the song button is held.
 		if (x == kMainCols && ui_mode_active(kUiModeHoldingSongButton)) {
-			if (on) {
-				(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
+			// A press redraws the column with the held pad brightened; the release runs the macro
+			// (`view.activateMacro(y)`) with the two buttons it reads, and redraws it dimmed again.
+			if (!on && event.y < deluge::ui::scenes::bind::SessionMacros::kSlots) {
+				if (deluge::ui::scenes::bind::SessionMacros* m = macros()) {
+					m->activate(event.y, {.affect_entire = ctx.held.has(ButtonId::AffectEntire), .shift = ctx.shift});
+				}
 			}
-			// The `view.activateMacro(y)` here is **not ported**, for the reason
-			// `renderSidebar`'s macro arm is not (see the class docstring's `@warning`): the macros
-			// live on `View`, whose port is `services::GlobalControls`, and this scene holds no
-			// handle to it. Nothing draws the macros here either, so the gesture has nothing to act
-			// on and nothing to show.
+			(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 		}
 		return r;
 	}
@@ -1299,10 +1304,12 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		}
 	}
 
-	// `AudioClipView::renderSidebar`: both columns black. The macro arm is not ported;
-	// see the class docstring's warning.
+	// `AudioClipView::renderSidebar`: both columns black, and the macros in the first while SESSION is held.
 	const std::array<RGB, kRows> black{};
 	deluge::ui::widgets::grid::sidebar_columns(f, black, black);
+	if (ui_mode_active(kUiModeHoldingSongButton)) {
+		render_macros(f);
+	}
 
 	// `graphicsRoutine`'s `PadLEDs::setTickSquares`, which the driver applies to the whole rendered image on its way
 	// out (`PadLEDs::prepareColour`, `hid/led/pad_leds.cpp`) -- hence last, and over the root frame rather than the
@@ -1320,6 +1327,47 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	if (std::exchange(tick_squares_set_, false)) {
 		deluge::ui::widgets::grid::flash_tick_squares(f, per_row, flashed_ticks_,
 		                                              flash_cursor() == project::FlashCursor::FAST);
+	}
+}
+
+void AudioClipScene::render_macros(GridFrame& f) {
+	// `view.renderMacros(kDisplayWidth, y, -1, ...)` per row, then `view.flashPlayEnable()` if any reported armed.
+	namespace grid = deluge::ui::widgets::grid;
+	using deluge::ui::scenes::bind::MacroKind;
+	const deluge::ui::scenes::bind::SessionMacros* m = macros();
+	const bool flash_on = global_controls_ != nullptr && global_controls_->clip_arm_flash_on();
+	std::array<grid::MacroCell, deluge::ui::scenes::bind::SessionMacros::kSlots> cells{};
+	bool armed = false;
+	for (uint8_t y = 0; y < cells.size(); y++) {
+		const deluge::ui::scenes::bind::MacroFact fact =
+		    m != nullptr ? m->macro(y) : deluge::ui::scenes::bind::MacroFact{};
+		grid::MacroCell& cell = cells[y];
+		switch (fact.kind) {
+		case MacroKind::CLIP_LAUNCH:
+			// A clip launch whose clip the song does not hold draws as an unassigned slot, as legacy's `break` does.
+			cell.kind = fact.has_clip ? grid::MacroKind::ClipLaunch : grid::MacroKind::None;
+			break;
+		case MacroKind::OUTPUT_CYCLE:
+			cell.kind = grid::MacroKind::OutputCycle;
+			break;
+		case MacroKind::SECTION:
+			cell.kind = grid::MacroKind::Section;
+			break;
+		case MacroKind::NONE:
+			cell.kind = grid::MacroKind::None;
+			break;
+		}
+		cell.clip_active = fact.clip_active;
+		cell.clip_armed = fact.clip_armed;
+		cell.arm_flash = flash_on;
+		cell.held = f.held_pads().test(kMainCols, y);
+		// `bool armed = view.clipArmFlashOn`, forced true by an armed clip: it is what brings the phase back to off
+		// after the last armed clip disarms.
+		armed = armed || grid::macro_wants_arm_flash(cell);
+	}
+	grid::macros(f, kMainCols, cells, -1);
+	if (armed && global_controls_ != nullptr) {
+		global_controls_->flash_play_enable(f.now_ms());
 	}
 }
 

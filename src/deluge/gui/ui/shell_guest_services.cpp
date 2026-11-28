@@ -50,6 +50,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
+#include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/marker/marker_scene.h"
@@ -487,6 +488,8 @@ void wireShellGuestServices() {
 
 	// The ports the overlays read: the count-in's transport and the screensaver's device settings.
 	deluge::gui::shell_host::install_scene_ports();
+	// The clip-arm flash the audio clip view's macros column reads and re-arms.
+	deluge::ui::scenes::audio_clip::audio_clip_scene().set_global_controls(&services.controls);
 
 	// Installs the services into the guest's `Shell`. Safe over a live set:
 	// it re-seats `services_`, the `Router`'s copy and the deduplicated tick list together, so a

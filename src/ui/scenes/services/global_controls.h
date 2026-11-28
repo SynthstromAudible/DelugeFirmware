@@ -191,8 +191,8 @@
 /// `View::midiLearnFlash`, which is `services::MidiLearn`'s
 /// (`services/midi_learn.h`). So what this service owns is the
 /// clip-arm phase and its 60 ms (`widgets::core::kFastFlashTime`, `ui/widgets/core/metrics.h`) deadline;
-/// `clip_arm_flash_on()` is the fact, and the scenes that paint armed clips (the unported `SessionScene`)
-/// are its consumers.
+/// `clip_arm_flash_on()` is the fact, and the scenes that paint armed clips (the audio clip view's macros column
+/// while SESSION is held) are its consumers.
 ///
 /// @note `View::flashPlayRoutine` does **not** re-arm its own timer -- the re-arm lives in
 ///       `SessionView::flashPlayRoutine` (`gui/views/session_view.cpp`), which calls `view.flashPlayEnable()` again
@@ -339,8 +339,8 @@ public:
 
 	/// @brief Arm the flash -- `View::flashPlayEnable`.
 	///
-	/// Legacy sets `TimerName::PLAY_ENABLE_FLASH` to `kFastFlashTime`; here that is a deadline
-	/// `tick()` fires and `next_timer()` reports.
+	/// Legacy sets `TimerName::PLAY_ENABLE_FLASH` to `kFastFlashTime` when it is not already set; here that is a
+	/// deadline `tick()` fires and `next_timer()` reports, and a call while one is armed leaves it where it is.
 	/// @param now_ms The tick's wall clock to measure the deadline from.
 	void flash_play_enable(uint32_t now_ms);
 	/// @brief Disarm it and clear the phase -- `View::flashPlayDisable`.
@@ -351,8 +351,7 @@ public:
 	void flash_play_disable();
 	/// @brief `View::clipArmFlashOn` (`gui/views/view.h`) -- the phase armed clips blink at.
 	///
-	/// The consumers are the scenes that paint armed clips, which are unported; nothing in this
-	/// repository reads it yet.
+	/// The consumers are the scenes that paint armed clips: the audio clip view's macros column.
 	bool clip_arm_flash_on() const { return clip_arm_flash_on_; }
 
 	/// @}
@@ -379,6 +378,11 @@ public:
 
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
 	std::optional<uint32_t> next_timer() const override;
+	/// @brief The grid while the clip-arm flash is armed: its phase's readers are pad renderers, and
+	///        `View::flashPlayRoutine` asks the current UI to redraw its sidebar when it toggles. Nothing otherwise.
+	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override {
+		return {.oled = false, .grid = clip_arm_flash_deadline_ms_.has_value()};
+	}
 	/// @}
 
 	/// @name Observable state, for specs and for the root scenes that will read it

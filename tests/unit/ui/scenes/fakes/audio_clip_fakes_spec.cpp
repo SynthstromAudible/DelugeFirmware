@@ -484,6 +484,78 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(scrolled.gate.next_deadline()).to_equal(std::optional<uint32_t>{moved + kPeakRetryPollMs});
 	});
 
+	context("the session macros, while SESSION is held", _ {
+		it("draws the song's macros in the first sidebar column, dimmed at rest, and nothing once SESSION goes up", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			using deluge::ui::scenes::bind::MacroFact;
+			using deluge::ui::scenes::bind::MacroKind;
+			h.host.macros.slots[0] = MacroFact{.kind = MacroKind::CLIP_LAUNCH, .has_clip = true, .clip_active = true};
+			h.host.macros.slots[1] = MacroFact{.kind = MacroKind::CLIP_LAUNCH, .has_clip = true};
+			h.host.macros.slots[2] = MacroFact{.kind = MacroKind::OUTPUT_CYCLE};
+			h.host.macros.slots[3] = MacroFact{.kind = MacroKind::SECTION};
+			h.host.macros.slots[4] = MacroFact{.kind = MacroKind::CLIP_LAUNCH, .has_clip = false, .clip_active = true};
+			GridRig rig;
+			render(rig, scene, 0);
+			for (uint8_t y = 0; y < 8; y++) {
+				expect(rig.grid.at(16, y)).to_equal(RGB{});
+			}
+			(void)button(scene, ButtonId::Session, true);
+			render(rig, scene, 10);
+			// `View::renderMacros`' colours, each divided by 8 at rest (`adjust(255, 8)`).
+			expect(rig.grid.at(16, 0)).to_equal(RGB{0, 31, 0});   // a playing clip: green
+			expect(rig.grid.at(16, 1)).to_equal(RGB{31, 0, 0});   // a stopped clip: red
+			expect(rig.grid.at(16, 2)).to_equal(RGB{0, 8, 31});   // an output cycle
+			expect(rig.grid.at(16, 3)).to_equal(RGB{31, 0, 16});  // a section
+			expect(rig.grid.at(16, 4)).to_equal(RGB{0, 0, 0});    // a clip the song does not hold: unassigned
+			expect(rig.grid.at(17, 0)).to_equal(RGB{});           // the second column stays black
+			(void)button(scene, ButtonId::Session, false, Context{.now_ms = 2000});
+			render(rig, scene, 2000);
+			expect(rig.grid.at(16, 0)).to_equal(RGB{});
+		});
+
+		it("brightens a held macro pad, and runs its macro on the release with AFFECT_ENTIRE and SHIFT as held", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			using deluge::ui::scenes::bind::MacroFact;
+			using deluge::ui::scenes::bind::MacroKind;
+			using deluge::ui::scenes::bind::MacroPress;
+			h.host.macros.slots[2] = MacroFact{.kind = MacroKind::OUTPUT_CYCLE};
+			Context song;
+			song.held.set(ButtonId::Session, true);
+			(void)button(scene, ButtonId::Session, true);
+			const Result down = scene.handle(
+			    UiEvent{.kind = UiEvent::Kind::Pad, .x = 16, .y = 2, .velocity = 64, .on = true}, song.get());
+			expect(down.handled).to_be_true();
+			GridRig rig;
+			rig.input.held_pads.set(16, 2, true);
+			render(rig, scene, 10);
+			expect(rig.grid.at(16, 2)).to_equal(RGB{0, 64, 255});
+			expect(h.host.macros.activations.empty()).to_be_true();
+			Context release = song;
+			release.held.set(ButtonId::AffectEntire, true);
+			release.shift = true;
+			(void)scene.handle(UiEvent{.kind = UiEvent::Kind::Pad, .x = 16, .y = 2, .velocity = 0, .on = false},
+			                   release.get());
+			expect(h.host.macros.activations.size()).to_equal(size_t{1});
+			if (!h.host.macros.activations.empty()) {
+				expect(h.host.macros.activations.front().first).to_equal(uint8_t{2});
+				expect(h.host.macros.activations.front().second == MacroPress{.affect_entire = true, .shift = true})
+				    .to_equal(true);
+			}
+		});
+
+		it("runs no macro from a sidebar pad with SESSION up", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			(void)tap(scene, 16, 2);
+			expect(h.host.macros.activations.empty()).to_be_true();
+		});
+	});
+
 	context("the arms that leave the view or open a menu", _ {
 		it("leaves the clip for the song on a short SESSION press, and not on a long one", _ {
 			AudioClipHost h;

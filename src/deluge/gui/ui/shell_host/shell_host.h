@@ -99,6 +99,9 @@ namespace deluge::gui::shell_host {
 /// @brief The host's RootViews: each the call the audio clip view's own arm makes to leave the clip or open a menu.
 [[nodiscard]] deluge::ui::scenes::bind::RootViews& root_views();
 
+/// @brief The host's SessionMacros: the current song's eight macros, run as `View::activateMacro` runs them.
+[[nodiscard]] deluge::ui::scenes::bind::SessionMacros& session_macros();
+
 /// @brief Give the overlays, the slicer and the audio clip scene the app's ports they read. Idempotent; the boot and
 ///        every guest open call it.
 void install_scene_ports();

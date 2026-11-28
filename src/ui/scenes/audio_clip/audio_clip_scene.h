@@ -128,16 +128,11 @@
 /// two colour helpers would have been the wrong widget for it -- which is the answer to the
 /// question, not an omission.
 ///
-/// @warning **The macro arm is not ported here.** Its three reads are all outside this layer:
-///          `view.clipArmFlashOn` (`View::clipArmFlashOn` -- ported, but on
-///          `services::GlobalControls::clip_arm_flash_on()`, which this scene holds no handle to),
-///          `matrixDriver.isPadPressed` (`hid/matrix/`, no seam) and `view.flashPlayEnable()`
-///          (`views/view.cpp`, likewise on `GlobalControls`). Its gate,
-///          `UI_MODE_HOLDING_SONG_BUTTON`, is set by `AudioClipView::buttonAction`'s
-///          `SESSION_VIEW` arm (`audio_clip_view.cpp`), so
-///          nothing in this scene reaches it. `View::renderMacros` is shared with `SessionView`,
-///          so the widget it wants belongs with `SessionScene` rather than being invented here for
-///          one unreachable arm.
+/// The macro arm reads the song's macros through `bind::SessionMacros`, paints them with the shared
+/// `ui::widgets::grid::macros` (`View::renderMacros`' port, which `SessionScene` will share), takes the arm flash's
+/// phase from `services::GlobalControls::clip_arm_flash_on()` and re-arms it there (`view.flashPlayEnable()`), and
+/// reads the held pad from the frame (`matrixDriver.isPadPressed`). Its gate, `UI_MODE_HOLDING_SONG_BUTTON`, is set
+/// by the SESSION arm.
 ///
 /// @par The transitions, the UI modes and the two collapse gates
 ///
@@ -226,6 +221,10 @@ struct DocClip;
 class Song;
 } // namespace deluge::project
 
+namespace deluge::ui::scenes::services {
+class GlobalControls;
+} // namespace deluge::ui::scenes::services
+
 namespace deluge::ui::scenes::audio_clip {
 
 /// @brief How long one blink phase lasts: `widgets::core::kSampleMarkerBlinkTime` (`ui/widgets/core/metrics.h`), the
@@ -287,6 +286,9 @@ public:
 	/// no clocks, writes nothing, and `next_timer` reads "not live".
 	/// @param ports The set, or null. Borrowed, not owned; it must outlive the scene's use of it.
 	void set_ports(const deluge::ui::scenes::bind::Ports* ports) { ports_ = ports; }
+	/// @brief Give the scene the global controls whose clip-arm flash its macros column reads and re-arms.
+	/// @param controls The service, or null (the column then shows the flash's off phase and arms nothing).
+	void set_global_controls(deluge::ui::scenes::services::GlobalControls* controls) { global_controls_ = controls; }
 
 	/// @name The two marker latches
 	/// `AudioClipView::endMarkerVisible` / `startMarkerVisible` (`audio_clip_view.h`). They
@@ -336,8 +338,7 @@ public:
 	/// @brief The port's `currentUIMode`, restricted to the two values this scene can set.
 	///
 	/// Exposed because it is the condition three of legacy's arms branch on and the spec has to
-	/// assert it directly -- there is no rendered consequence of `UI_MODE_HOLDING_SONG_BUTTON` in
-	/// this port at all (the sidebar macro arm it gates is not ported; see the `@warning` above).
+	/// assert it directly.
 	/// @return `kUiModeNone`, or an OR of `kUiModeHoldingSongButton` / `kUiModeHoldingHorizontalEncoder`.
 	[[nodiscard]] uint32_t ui_mode() const { return ui_mode_; }
 
@@ -481,6 +482,8 @@ private:
 	[[nodiscard]] deluge::ui::scenes::bind::ClipWrites* clip_writes() const;
 	/// @brief Where the arms that leave the view, or open a menu over it, go.
 	[[nodiscard]] deluge::ui::scenes::bind::RootViews* root_views() const;
+	/// @brief The song's session macros, which the SESSION hold shows and runs.
+	[[nodiscard]] deluge::ui::scenes::bind::SessionMacros* macros() const;
 	/// @return Where the setting writes go, or null.
 	[[nodiscard]] deluge::ui::scenes::bind::WriteSink* writes() const;
 	/// @return The device's settings, or null.
@@ -572,6 +575,10 @@ private:
 	/// @brief `buttonAction`'s `deactivateMarkerIfNecessary` tail (`audio_clip_view.cpp`).
 	/// @return True if the end marker was up and has been put down.
 	bool deactivate_marker_if_necessary();
+	/// @brief `AudioClipView::renderSidebar`'s macro arm: the song's macros in the first sidebar column, the held pad
+	///        brightened, and the arm flash re-armed while any clip they name is armed.
+	/// @param f The root grid frame.
+	void render_macros(deluge::ui::widgets::grid::GridFrame& f);
 	/// @brief `buttonAction`'s `BACK` arm's body (`audio_clip_view.cpp`).
 	/// @return The l10n string id of the popup legacy shows, or 0 with no clip to clear.
 	uint16_t clear_clip();
@@ -609,6 +616,7 @@ private:
 	std::optional<deluge::project::ClipAddress> clip_;
 	const deluge::project::Song* model_ = nullptr;
 	const deluge::ui::scenes::bind::Ports* ports_ = nullptr;
+	deluge::ui::scenes::services::GlobalControls* global_controls_ = nullptr;
 	/// @}
 
 	/// The redraws of a frame whose read left columns pending, with no give-up: `AudioClipView::renderMainPads`

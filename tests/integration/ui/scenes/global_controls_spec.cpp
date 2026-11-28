@@ -1367,6 +1367,25 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.next_timer().has_value()).to_be_false();
 	});
 
+	it("time: does not postpone a flash already scheduled, and its toggle repaints the pads that read the phase", _ {
+		// `View::flashPlayEnable` arms only when `PLAY_ENABLE_FLASH` is not already set: a view that re-arms on every
+		// render must not push the flash back for ever.
+		GcRig rig;
+		expect(rig.gc.timer_repaints().grid).to_be_false();
+		rig.gc.tick(40'000, 0);
+		rig.gc.flash_play_enable(40'000);
+		rig.gc.tick(40'030, 30);
+		rig.gc.flash_play_enable(40'030);
+		expect(*rig.gc.next_timer()).to_equal(GlobalControls::kClipArmFlashMs - 30);
+		// The phase's readers are pad renderers (`View::flashPlayRoutine` asks the current UI for its sidebar), so the
+		// armed flash repaints the grid and nothing else.
+		expect(rig.gc.timer_repaints().grid).to_be_true();
+		expect(rig.gc.timer_repaints().oled).to_be_false();
+		rig.gc.tick(40'000 + GlobalControls::kClipArmFlashMs, 30);
+		expect(rig.gc.clip_arm_flash_on()).to_be_true();
+		expect(rig.gc.timer_repaints().grid).to_be_false();
+	});
+
 	it("time: blinks SYNC_SCALING on the shared normal phase, which the shell wakes for", _ {
 		// The blinking SYNC_SCALING LED (`View::setTimeBaseScaleLedState`, `blinkLed(SYNC_SCALING)`): declared on the phase every
 		// normal blink shares, whose toggles the shell wakes for (`shell::led_next_change`), so the service asks for

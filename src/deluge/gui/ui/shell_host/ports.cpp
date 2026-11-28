@@ -37,6 +37,7 @@ const ui::scenes::bind::Ports& host_ports() {
 	    .indicators = &gui::shell_host::indicators(),
 	    .view_actions = &gui::shell_host::view_actions(),
 	    .root_views = &gui::shell_host::root_views(),
+	    .macros = &gui::shell_host::session_macros(),
 	    .catalogue = &gui::shell_host::catalogue(),
 	    .card_actions = &gui::shell_host::card_actions(),
 	    .favourites = &gui::shell_host::favourites(),

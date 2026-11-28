@@ -660,6 +660,14 @@ struct RecordingRootViews final : RootViews {
 	}
 };
 
+/// @brief SessionMacros over eight facts a spec sets, recording every activation.
+struct FakeSessionMacros final : SessionMacros {
+	std::array<MacroFact, kSlots> slots{};                   ///< what each slot shows
+	std::vector<std::pair<uint8_t, MacroPress>> activations; ///< every activation, in order
+	[[nodiscard]] MacroFact macro(uint8_t y) const override { return y < kSlots ? slots[y] : MacroFact{}; }
+	void activate(uint8_t y, MacroPress press) override { activations.emplace_back(y, press); }
+};
+
 /// @brief CardActions that records every release asked of it, and refuses the paths a spec lists as in use.
 struct RecordingCardActions final : CardActions {
 	std::vector<std::string> released;         ///< every path asked, in order
@@ -785,6 +793,7 @@ struct FakeHost {
 	RecordingIndicators indicators;              ///< the indicators' recorder
 	RecordingViewActions view_actions;           ///< the view actions' recorder
 	RecordingRootViews root_views;               ///< the root views' recorder
+	FakeSessionMacros macros;                    ///< the session macros' fake
 	FakeCatalogue catalogue;                     ///< the card catalogue's fake
 	RecordingCardActions card_actions;           ///< the card actions' recorder
 	FakeFavourites favourites;                   ///< the favourites bank's fake
@@ -825,6 +834,7 @@ struct FakeHost {
 		        .indicators = &indicators,
 		        .view_actions = &view_actions,
 		        .root_views = &root_views,
+		        .macros = &macros,
 		        .catalogue = &catalogue,
 		        .card_actions = &card_actions,
 		        .favourites = &favourites};

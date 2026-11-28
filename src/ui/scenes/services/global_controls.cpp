@@ -690,8 +690,11 @@ void GlobalControls::leds(deluge::ui::widgets::core::LedFrame& frame) {
 // -- Time ------------------------------------------------------------------------------------------
 
 void GlobalControls::flash_play_enable(uint32_t now_ms) {
-	// `View::flashPlayEnable`: `setTimer(PLAY_ENABLE_FLASH, kFastFlashTime)`.
-	clip_arm_flash_deadline_ms_ = now_ms + kClipArmFlashMs;
+	// `View::flashPlayEnable`: `setTimer(PLAY_ENABLE_FLASH, kFastFlashTime)`, only when it is not already set --
+	// scrolling and redrawing must not postpone a flash already scheduled.
+	if (!clip_arm_flash_deadline_ms_.has_value()) {
+		clip_arm_flash_deadline_ms_ = now_ms + kClipArmFlashMs;
+	}
 }
 
 void GlobalControls::flash_play_disable() {

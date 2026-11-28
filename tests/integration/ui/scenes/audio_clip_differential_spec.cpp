@@ -11,8 +11,11 @@
 #include "support/differential/differential.h"
 
 #include "base/notify/notice_queue.h"
+#include "hid/matrix/matrix_driver.h"
 #include "processing/engines/audio_engine.h"
 
+#include <algorithm>
+#include <array>
 #include <memory>
 #include <utility>
 
@@ -144,6 +147,9 @@ public:
 		r_.reseed(start_);
 		currentUIMode = UI_MODE_NONE;
 		recorder_.popups.clear();
+		for (auto& column : matrixDriver.padStates) {
+			std::ranges::fill(column, false);
+		}
 		// Seconds pass between visits on the device, so a zoom pause armed in an earlier case
 		// (`delayHorizontalZoomUntil`, on the one legacy view) has expired.
 		base_samples_ = AudioEngine::audioSampleTimer + kGapBetweenCasesMs * kSamplesPerMs;
@@ -169,6 +175,8 @@ public:
 			break;
 		}
 		case Step::Kind::Pad:
+			// What `isPadPressed` reads, which the macros column brightens a held pad from.
+			matrixDriver.padStates[s.x][s.y] = s.down;
 			(void)legacy_view.padAction(s.x, s.y, s.down ? 64 : 0);
 			break;
 		case Step::Kind::Encoder:
@@ -247,6 +255,7 @@ public:
 			r_.shell.stack().pop(SceneKind::Null);
 		}
 		lowering_ = std::make_unique<InputLowering>(deluge_profile(), deluge::ui::shell::LoweringConfig{});
+		r_.shell.lowering().forget_held_pads();
 		restore_sample(r_);
 		r_.reseed(start_);
 		currentUIMode = UI_MODE_NONE;
@@ -277,6 +286,10 @@ public:
 			break;
 		}
 		case Step::Kind::Pad:
+			// The shell's own lowering holds the pad too, as the frame reads it (the macros column brightens a held
+			// pad); its queue is dropped, so the shell does not route the pad a second time.
+			r_.shell.lowering().on_host_pad(s.x, s.y, s.down ? 64 : 0, false, at_ms);
+			r_.shell.lowering().discard_pending();
 			note(audio_clip_scene().handle(UiEvent{.kind = UiEvent::Kind::Pad,
 			                                       .x = s.x,
 			                                       .y = s.y,
@@ -485,6 +498,28 @@ describe audio_clip_differential_spec_body(
 			        scripted("clear and colour", {holding(ButtonId::Shift, turn(EncoderRole::Vertical, +3)),
 			                                      holding(ButtonId::XEnc, tap(ButtonId::Back))});
 			    expect(diff::report(c, diff::run(c, legacy, scene))).to_equal(std::string{});
+		    });
+
+		    it("agrees with legacy on the session macros while SESSION is held, each kind and its modifiers", _ {
+			    Rig r;
+			    std::array<deluge::project::SessionMacro, 8>& macros = r.f.song->project.arrangement.session_macros;
+			    const std::array<deluge::project::SessionMacro, 8> saved = macros;
+			    using Kind = deluge::project::SessionMacroKind;
+			    macros[0] = {.kind = Kind::CLIP_LAUNCH, .clip_id = r.f.clip->id()};
+			    macros[1] = {.kind = Kind::OUTPUT_CYCLE, .output_id = r.f.output->id()};
+			    macros[2] = {.kind = Kind::SECTION, .section = 0};
+			    macros[3] = {.kind = Kind::CLIP_LAUNCH, .clip_id = 0xFFFF'FFFFu}; // a clip the song does not hold
+			    LegacySide legacy{r};
+			    SceneSide scene{r};
+			    // SESSION stays held to the end: a release a millisecond after the press is a short press, which leaves
+			    // the view.
+			    const diff::Case c = scripted(
+			        "session macros",
+			        {{Step::press(ButtonId::Session, true)}, pad_tap(16, 0), pad_tap(16, 3), pad_tap(16, 2),
+			         holding(ButtonId::Shift, pad_tap(16, 0)), holding(ButtonId::AffectEntire, pad_tap(16, 0)),
+			         {Step::pad(16, 1, true)}});
+			    expect(diff::report(c, diff::run(c, legacy, scene))).to_equal(std::string{});
+			    macros = saved;
 		    });
 
 		    it("agrees with legacy on seeded walks over every ported arm", _ {
