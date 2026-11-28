@@ -58,6 +58,7 @@ private:
 class ParamLocks final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
+	int32_t getOccupiedSlots() const override { return 2; }
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void readValueAgain() override;
 	void selectEncoderAction(int32_t offset) override;

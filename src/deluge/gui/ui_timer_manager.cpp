@@ -21,6 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/note_clipboard.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -147,6 +148,10 @@ void UITimerManager::routine() {
 
 				case TimerName::SELECTED_NOTE_PULSE:
 					instrumentClipView.pulseSelectedNote();
+					break;
+
+				case TimerName::NOTE_CLIPBOARD_BLINK:
+					deluge::gui::noteClipboard.blinkClipboardNote();
 					break;
 
 				case TimerName::MATRIX_DRIVER:

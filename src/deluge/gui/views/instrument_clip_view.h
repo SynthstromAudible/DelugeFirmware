@@ -53,6 +53,13 @@ class ModelStackWithNoteRow;
 /// samples (roughly 44 per ms). Only once it is held does another press to its right on the same row edit the note's
 /// length, and do the mod encoders edit the held step's automation.
 constexpr int32_t kEditPadHoldTime = 80 * 44;
+namespace deluge::gui {
+class NoteClipboard;
+}
+
+namespace deluge::gui::menu_item::note {
+class Placement;
+}
 
 struct EditPadPress {
 	bool isActive;
@@ -73,6 +80,7 @@ struct EditPadPress {
 	uint32_t intendedPos;     // For "blurred squares", means start of square
 	uint32_t intendedLength;  // For "blurred squares", means length of square
 	uint16_t intendedLockSet; // The note's parameter locks while it's lifted out of its row by a vertical drag
+	int32_t nudgeBasePos{};   // Absolute grid origin for a released note's nudge display.
 };
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
@@ -82,6 +90,9 @@ static constexpr const char* PATTERN_FILE_VERSION = "0.0.1";
 enum class NudgeMode { QUANTIZE, QUANTIZE_ALL };
 
 class InstrumentClipView final : public ClipView, public InstrumentClipMinder {
+	friend class deluge::gui::menu_item::note::Placement;
+	friend class deluge::gui::NoteClipboard;
+
 public:
 	InstrumentClipView();
 	bool opened() override;
@@ -322,7 +333,7 @@ public:
 	                              bool allowTogglingBetweenPresetsAndCustom = true);
 
 	// other note functions
-	void editNoteRepeat(int32_t offset);
+	int32_t editNoteRepeat(int32_t offset, bool displayValue = true);
 
 	// pulse selected note
 	void pulseSelectedNote();
@@ -393,7 +404,12 @@ private:
 	std::array<RGB, kDisplayHeight> rowBlurColour;
 
 	// note functions
-	void nudgeNotes(int32_t offset);
+	void nudgeNotes(int32_t offset, bool displayValue = true, int32_t* value = nullptr);
+	void moveNotePosition(int32_t offset);
+	void adjustNoteLength(int32_t offset);
+	void moveNotePitch(int32_t offset, bool fine = false);
+	void moveNotePlacement(int32_t offset, bool pitch, bool fine = false);
+	void moveHeldNotesHorizontally(int32_t offset, ModelStackWithTimelineCounter* modelStack);
 	void displayProbability(uint8_t probability, bool prevBase);
 	void displayIterance(Iterance iterance);
 	void displayFill(uint8_t mode);
@@ -403,7 +419,10 @@ private:
 	Note* get_remembered_note(int32_t selection_index = -1);
 	ModelStackWithNoteRow* get_note_edit_row(ModelStackWithTimelineCounter* model_stack, const EditPadPress& target);
 	friend class NoteLockEditor; // Edits the notes the note editor targets
+	void clearRememberedNotes();
+	bool hasFloatingNoteSelection() const;
 	EditPadPress remembered_notes[kEditPadPressBufferSize]{};
+	bool remembered_note_floating[kEditPadPressBufferSize]{};
 	int32_t remembered_note_row_ids[kEditPadPressBufferSize]{};
 	int32_t remembered_note_count = 0;
 

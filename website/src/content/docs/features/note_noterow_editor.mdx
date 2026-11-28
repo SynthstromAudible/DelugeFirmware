@@ -34,6 +34,43 @@ You can select another note by pressing the note (:key[PAD]) on the grid. You ca
 
 You can vertical scroll (:key[TURN VERTICAL]), horizontal scroll (:key[TURN HORIZONTAL]), and zoom in / out (:key[PRESS TURN HORIZONTAL]) to find note(s) you want to edit.
 
+### Note Position, Length, Nudge, Repeats and Pitch
+
+With horizontal menus enabled, the note editor has five pages. Press Cross Screen Edit to go to the next page, or Scale to go to the previous page. The first page contains Velocity, Probability, Iterance and Fill. The second page contains **Pitch** on the left and **Locks** on the right, each occupying half the page. Select Locks and press Select to view or edit the selected note’s parameter locks. The third page contains:
+
+- **Note Position:** the one-based grid column counted from the beginning of the clip at the current zoom. Turn Select to move the selected note(s) by grid columns. The selection keeps its spacing and note lengths, skips occupied positions as a group, and wraps around each note row's loop in either direction. If no clear placement is found within one revolution of the shortest selected row, the notes stay where they are.
+- **Note Nudge:** the timing offset shown by the Hold Note + Press and Turn Horizontal shortcut. Turn Select to nudge left or right by one tick.
+- **Note Repeats:** the number of notes in the selected grid square, as shown by Hold Note + Press and Turn Vertical. Turn Select to decrease or increase it. Select one square at a time for this control; multiple selected squares show `--`.
+- **Note Length:** the leftmost selected note's duration in ticks (`t`). Turn Select to resize selected notes by one grid column at the current zoom, with a minimum of one tick and a maximum at the next note. Works for held and remembered selections, including notes in blurred squares, and supports undo. Instruments that do not allow note tails cannot edit length.
+
+On the second page:
+
+- **Note Pitch:** the selected note's code (for example, C3), or its row index in a kit. Turn Select to move up or down using the same scale and row behavior as holding a note and turning Vertical. For an accidental, the first ordinary turn snaps it to the in-scale note on its current displayed row; subsequent turns move through the scale. This also applies to held-note Vertical turns outside the note editor. If the selection includes accidentals, that first turn snaps them while leaving the other selected notes on their current rows. Hold Select or Shift while turning Select to fine-edit by one semitone at a time, including pitches outside the scale. Both shortcuts work with held and released selections and retain note locks. As with held-note Vertical movement, a normal pitch move carries the original note over an occupied destination without replacing the existing note; keep turning to place it on a free row.
+
+Use Synth, Kit, MIDI and CV to select the four columns, then turn Select to edit. These controls also work after releasing the selected pads. Position and Pitch move individual notes; as with the vertical shortcut, zoom in to select individual notes within a blurred square before moving them. The same controls are available in the vertical menu when horizontal menus are disabled.
+
+### Cut, Copy, Paste and Delete
+
+The fourth horizontal page contains **Cut**, **Copy**, **Paste Firmly** and **Paste Gently**. The icons show scissors, overlapping pages, and clipboards labeled **Firmly** and **Gently**. **Delete** is on its own fifth page. Use Synth, Kit, MIDI and CV to select a column, then press Select to perform the action.
+
+1. Hold one or more note pads, or release them to keep the selection, then press Select on **Copy** or **Cut**. Blurred squares include all their notes.
+2. Press a destination grid pad. It anchors the pattern's top-left corner: its earliest position and highest displayed row. The copied shape extends rightward and downward from that pad, keeping the notes' relative spacing. A valid placement appears in grey, including note tails; no notes are changed yet. Press another pad to reposition it. You can scroll or zoom to reach another part of the clip.
+3. Select **Paste Firmly** or **Paste Gently** to see that mode's preview, then press Select to commit. Firmly replaces notes in the destination rectangle spanned by the copied pattern, including its gaps. Gently keeps existing notes and adds clipboard notes using the existing gentle-paste rules: occupied note starts are skipped, and pasted tails stop at the next existing note.
+
+While the clipboard contains notes, musical notes pulse on the Firmly and Gently clipboard icons every few seconds while the outline stays visible. One copied note appears as a large centered note; multiple notes use smaller symbols, up to six. Press **Back** to clear a populated clipboard and leave paste mode while staying in the menu; the display shows **Clipboard cleared**. With an empty clipboard, Back navigates out normally. Holding Back clears the clipboard and exits all open menus as usual. Clearing a pending cut keeps the original notes. **Copy** always copies the current selection, replacing any previous clipboard contents.
+
+Copy creates duplicates. Cut removes the originals only when the paste succeeds; a gentle cut requires room for the complete selection so no source notes are lost. Notes retain their timing offsets, row spacing, velocity, release velocity, probability, iterance and fill. Both modes use the same placement and loop boundaries. **Delete** removes the selected notes immediately. Paste, Cut/Paste and Delete can be undone.
+
+Leaving the note editor cancels an uncommitted cut and its preview; copied notes remain available for further pastes. Kit notes paste onto existing kit rows, and melodic notes onto melodic rows.
+
+In the clip grid and the note editor:
+
+- **Learn + note pads:** copy the notes. Press multiple pads during the same Learn hold to add them to the clipboard. Hold Learn before pressing the notes. The display shows **Notes copied**.
+- **Shift + Learn + grid pad:** **Paste Firmly**, replacing the destination pattern area.
+- **Shift + Cross Screen Edit + grid pad:** **Paste Gently**, adding to the existing notes.
+
+Hold the modifiers first, then press the destination grid square (empty or occupied). Paste commits immediately; releasing the square does not delete the pasted notes. Successful pastes show **Notes pasted**. These selected-note shortcuts use a separate clipboard from the existing Learn + Horizontal and Shift + Cross Screen Edit + Horizontal whole-screen pattern commands.
+
 ### Note Actions
 
 While in the note editing menu with a note selected, you are able to perform other functions as if you were holding that note, including:

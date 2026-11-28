@@ -22,6 +22,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/note_clipboard.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -687,6 +688,13 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
+				if (inNoteEditor() && deluge::gui::noteClipboard.hasNotes()) {
+					deluge::gui::noteClipboard.clearClipboard();
+					// Buttons has already armed BACK_MENU_EXIT. Leave it running so a held
+					// Back still exits every menu after clearing, while a tap stays here.
+					return ActionResult::DEALT_WITH;
+				}
+
 				MenuItem* currentMenuItem = getCurrentMenuItem();
 
 				// Special case if we're editing a range
@@ -731,6 +739,11 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				openUI(&saveInstrumentPresetUI);
 			}
 		}
+	}
+
+	// Note-editor Learn arms pad copying; it is not parameter MIDI learn.
+	else if (b == LEARN && inNoteEditor()) {
+		return instrumentClipView.handleNoteEditorButtonAction(b, on, inCardRoutine);
 	}
 
 	// MIDI learn button
@@ -991,6 +1004,7 @@ ActionResult SoundEditor::exitCompletely() {
 		if (getCurrentMenuItem() == &noteParamLockValueMenu) {
 			noteParamLockValueMenu.commit();
 		}
+		deluge::gui::noteClipboard.exitEditor();
 		instrumentClipView.exitNoteEditor();
 		// refresh grid to potentially unhighlight edited notes
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);

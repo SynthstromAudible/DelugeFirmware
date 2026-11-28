@@ -101,6 +101,7 @@ add_executable(UnitTests
         encoder_acceleration_tests.cpp
         rgb_tests.cpp
         notes_state_tests.cpp
+        note_edit_math_tests.cpp
         iterance_migration_tests.cpp
         waveform_peak_math_tests.cpp
         midi_queue_tests.cpp

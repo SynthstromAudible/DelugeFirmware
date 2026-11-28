@@ -130,11 +130,13 @@
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
+#include "gui/menu_item/note/clipboard.h"
 #include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
 #include "gui/menu_item/note/iterance_step_toggle.h"
 #include "gui/menu_item/note/param_locks.h"
+#include "gui/menu_item/note/placement.h"
 #include "gui/menu_item/note/probability.h"
 #include "gui/menu_item/note/velocity.h"
 #include "gui/menu_item/note_row/fill.h"
@@ -1637,6 +1639,27 @@ PLACE_SDRAM_BSS menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
 PLACE_SDRAM_BSS menu_item::note::ParamLocks noteParamLocksMenu{STRING_FOR_NOTE_EDITOR_PARAM_LOCKS};
 PLACE_SDRAM_BSS menu_item::note::ParamLockValue noteParamLockValueMenu{STRING_FOR_NOTE_EDITOR_PARAM_LOCKS};
 
+using NotePlacement = menu_item::note::Placement;
+PLACE_SDRAM_BSS NotePlacement notePositionMenu{STRING_FOR_NOTE_POSITION, STRING_FOR_NOTE_EDITOR_POSITION,
+                                               NotePlacement::Kind::POSITION};
+PLACE_SDRAM_BSS NotePlacement noteLengthMenu{STRING_FOR_NOTE_LENGTH, STRING_FOR_NOTE_EDITOR_LENGTH,
+                                             NotePlacement::Kind::LENGTH};
+PLACE_SDRAM_BSS NotePlacement noteNudgeMenu{STRING_FOR_NOTE_NUDGE, STRING_FOR_NOTE_EDITOR_NUDGE,
+                                            NotePlacement::Kind::NUDGE};
+PLACE_SDRAM_BSS NotePlacement noteRepeatsMenu{STRING_FOR_NOTE_REPEATS, STRING_FOR_NOTE_EDITOR_REPEATS,
+                                              NotePlacement::Kind::REPEATS};
+PLACE_SDRAM_BSS NotePlacement notePitchMenu{STRING_FOR_NOTE_PITCH, STRING_FOR_NOTE_EDITOR_PITCH,
+                                            NotePlacement::Kind::PITCH};
+
+using NoteClipboardMenu = menu_item::note::Clipboard;
+PLACE_SDRAM_BSS NoteClipboardMenu noteCutMenu{STRING_FOR_CUT, NoteClipboardMenu::Operation::CUT};
+PLACE_SDRAM_BSS NoteClipboardMenu noteCopyMenu{STRING_FOR_NOTE_COPY, NoteClipboardMenu::Operation::COPY};
+PLACE_SDRAM_BSS NoteClipboardMenu notePasteFirmlyMenu{STRING_FOR_NOTE_PASTE_FIRMLY,
+                                                      NoteClipboardMenu::Operation::PASTE_FIRMLY};
+PLACE_SDRAM_BSS NoteClipboardMenu notePasteGentlyMenu{STRING_FOR_NOTE_PASTE_GENTLY,
+                                                      NoteClipboardMenu::Operation::PASTE_GENTLY};
+PLACE_SDRAM_BSS NoteClipboardMenu noteDeleteMenu{STRING_FOR_DELETE, NoteClipboardMenu::Operation::DELETE};
+
 // Root menu for Note Editor
 PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                   {
@@ -1644,8 +1667,19 @@ PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
                                                       &noteProbabilityMenu,
                                                       &noteIteranceMenu,
                                                       &noteFillMenu,
+                                                      &notePitchMenu,
                                                       &noteParamLocksMenu,
-                                                  }};
+                                                      &notePositionMenu,
+                                                      &noteNudgeMenu,
+                                                      &noteRepeatsMenu,
+                                                      &noteLengthMenu,
+                                                      &noteCutMenu,
+                                                      &noteCopyMenu,
+                                                      &notePasteFirmlyMenu,
+                                                      &notePasteGentlyMenu,
+                                                      &noteDeleteMenu,
+                                                  },
+                                                  HorizontalMenu::FIXED};
 
 PLACE_SDRAM_BSS menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
 PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1,
