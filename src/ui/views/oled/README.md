@@ -38,6 +38,7 @@ A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmw
 | header | views |
 |---|---|
 | `session` | `session_resting`, `session_queued`, `clip_held`, `section_held` |
+| `arranger` | `arranger_resting`, `arranger_clip_held` |
 
 Each view's layout follows its sketch on the OLED canvas (boards "Resting", "Moments" and "Pages").
 

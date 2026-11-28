@@ -11,6 +11,7 @@
 namespace deluge::ui::views::oled::test {
 
 namespace uitest = deluge::ui::test;
+using widgets::oled::LaneSpan;
 using widgets::oled::StripNote;
 
 /// The 48-row rig's hidden rows: canvas row = local row + 5.
@@ -44,6 +45,16 @@ constexpr std::array<StripNote, 24> kClip{{
     {36 * kStep, 4 * kStep, 67}, {40 * kStep, 2 * kStep, 70}, {42 * kStep, 2 * kStep, 72}, {44 * kStep, 4 * kStep, 67},
     {48 * kStep, 4 * kStep, 65}, {52 * kStep, 2 * kStep, 63}, {54 * kStep, 2 * kStep, 62}, {56 * kStep, 8 * kStep, 60},
     {0 * kStep, 8 * kStep, 48},  {16 * kStep, 8 * kStep, 51}, {32 * kStep, 8 * kStep, 53}, {48 * kStep, 8 * kStep, 55},
+}};
+
+/// The arrangement of the canvas's "Arranger · idle" sketch: 8 lanes over 64 bars.
+constexpr std::array<LaneSpan, 27> kSong{{
+    {0, 0, 8, false},  {0, 8, 16, false},  {0, 24, 16, false}, {0, 40, 8, false},  {0, 48, 8, false},
+    {1, 8, 16, false}, {1, 24, 16, false}, {1, 44, 12, false}, {2, 4, 4, false},   {2, 8, 8, false},
+    {2, 16, 8, false}, {2, 24, 8, false},  {2, 32, 8, false},  {2, 44, 12, false}, {3, 8, 32, false},
+    {3, 40, 8, true},  {4, 0, 8, false},   {4, 16, 16, false}, {4, 40, 16, false}, {5, 24, 16, false},
+    {5, 44, 8, false}, {6, 16, 8, false},  {6, 32, 8, false},  {7, 6, 2, false},   {7, 22, 2, false},
+    {7, 38, 2, false}, {7, 46, 8, true},
 }};
 
 } // namespace deluge::ui::views::oled::test
