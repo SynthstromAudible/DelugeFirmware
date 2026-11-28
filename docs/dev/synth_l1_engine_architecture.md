@@ -124,10 +124,21 @@ settings are `synth::SoundConfig` (`DelugeSynth::derive`).
   the oscillators' levels are, held on a filter-gain change or a slow first attack) and pans them across the unison
   spread. Its note-on reads `Dx7Setup` (the patch, the DX7's pitch, whether it can sound) and marks the voice's slots
   inactive; its render reads `Dx7Controls` and the block's `dx7_active_currently` / `dx7_patch_changed`. It has no
-  noise source. The voice fills its controls from osc A's params until the DX7 has params of its own.
+  noise source. The voice fills its controls from the DX7's own params: its level, amplitude modulation and pitch
+  adjust (`dx7Level`, `dx7AmpMod`, `dx7PitchAdjust`).
 
 The engines are rows of `engine_table.h` (each names its engine, its saved state, its mode and whether its state holds
-the two oscillator slots); the saved `EngineState` variant is generated from them. The voice holds **one of each** in
+the two oscillator slots); the saved `EngineState` variant is generated from them.
+
+Each engine owns the params it reads (`instruments/classic/engine_params.h`, one list per row): the oscillator
+engines the slots' volume, pitch adjust, pulse width and wavetable position, the noise, FM's carrier feedback and its
+modulators; the DX7 its level, amplitude modulation and pitch adjust. Every other param is the sound's (the voice
+chain, the envelopes, the LFOs, the effects, the wave fold, which folds any engine's output). `param_is_live(mode, id)`
+answers which are reachable and saved: only the playing engine's and the sound's. Cables, knobs, MIDI learn, the menus
+and automation refuse a parked engine's params, the render skips its cables, and a save writes none of them; a mode
+change keeps their values and cables in memory, so they come back when the engine plays again. Subtractive, ring
+modulation and FM share one list, so they are not exclusive of each other: splitting them changes every sound's file,
+which comes with save-format B's engine record. The voice holds **one of each** in
 an `EngineSet` (`engine_set.h`), whose `for_mode()` picks the mode's row. A sound's mode
 can change under a sounding voice (undo, a preset applied, a load — only a settings Edit's `bridge::applyChange` stops
 the voices for a new engine), so every engine keeps its state while another plays, and the unison parts and
