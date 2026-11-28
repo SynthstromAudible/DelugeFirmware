@@ -368,7 +368,7 @@ void commitWorkingCopies() {
 				idle[i] = live(entry) && entry.hold == Hold::WRITES;
 				continue;
 			}
-			if (project::DocAutoParam* model = entry.collection->findDocParamForId(entry.paramId)) {
+			if (project::DocAutoParam* model = entry.collection->findDocParamForKey(entry.paramId)) {
 				*model = *entry.copy;
 				markLanesChanged(*entry.collection);
 			}

@@ -43,9 +43,11 @@ DocParamSet toDocParamSet(ParamSet& paramSet) {
 	DocParamSet doc;
 	doc.first = firstParamId(paramSet.getParamKind());
 	int32_t numParams = paramSet.getNumParams();
-	doc.params.reserve(numParams);
+	doc.params.resize(numParams);
+	// The doc holds its lanes in id order; p is the runtime's index
 	for (int32_t p = 0; p < numParams; p++) {
-		doc.params.push_back(toDocAutoParam(paramSet.params[p].played(), paramSet.docForParam(p)->nodes));
+		doc.params[*laneIndexOf(doc, paramSet.getParamKind(), p)] =
+		    toDocAutoParam(paramSet.params[p].played(), paramSet.docForParam(p)->nodes);
 	}
 	return doc;
 }
@@ -57,10 +59,10 @@ DocParamSet toDocParamSetFromStore(ParamSet& paramSet) {
 	DocParamSet doc;
 	doc.first = firstParamId(paramSet.getParamKind());
 	int32_t numParams = paramSet.getNumParams();
-	doc.params.reserve(numParams);
+	doc.params.resize(numParams);
 	for (int32_t p = 0; p < numParams; p++) {
 		deluge::project::DocAutoParam* slot = paramSet.docForParam(p);
-		doc.params.push_back(toDocAutoParam(slot->current_value, slot->nodes));
+		doc.params[*laneIndexOf(doc, paramSet.getParamKind(), p)] = toDocAutoParam(slot->current_value, slot->nodes);
 	}
 	return doc;
 }
@@ -68,10 +70,13 @@ DocParamSet toDocParamSetFromStore(ParamSet& paramSet) {
 void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet) {
 	// Owner-resolve each param's node store (docForParam), so the projection lands in the set's DOM store
 	// (where the engine reads it) rather than the AutoParam's inline storage.
-	int32_t count = std::min(static_cast<int32_t>(doc.params.size()), paramSet.getNumParams());
-	for (int32_t p = 0; p < count; p++) {
+	for (int32_t p = 0; p < paramSet.getNumParams(); p++) {
+		const std::optional<size_t> lane = laneIndexOf(doc, paramSet.getParamKind(), p);
+		if (!lane) {
+			continue;
+		}
 		int32_t value = 0;
-		fromDocAutoParam(doc.params[p], value, paramSet.docForParam(p)->nodes);
+		fromDocAutoParam(doc.params[*lane], value, paramSet.docForParam(p)->nodes);
 		paramSet.params[p].setPlayed(value);
 	}
 }
@@ -228,8 +233,8 @@ bool setUnpatchedValueDomFirst(DocParamManager& store, int32_t p, int32_t value,
 	if (!unpatched || p < 0 || p >= static_cast<int32_t>(unpatched->params.size())) {
 		return false;
 	}
-	// The base (params[p] is the runtime's index p) and what plays. Only the value changed, not the nodes, which the
-	// engine owner-resolves from this same store.
+	// The base (params[p] is the runtime's index p: a global effectable's store keeps its lanes in runtime order) and
+	// what plays. Only the value changed, not the nodes, which the engine owner-resolves from this same store.
 	engineParam.setBase(unpatched->params[p], value);
 	return true;
 }

@@ -57,7 +57,7 @@ void retargetRangeAfterRetype(SoundTarget& target, RangesRetype retype) {
 	}
 }
 
-void setOscTypeFor(SoundTarget& target, deluge::instruments::classic::OscType type) {
+void setOscTypeFor(SoundTarget& target, deluge::synth::OscType type) {
 	const RangesRetypeWatch watch{*target.source};
 	deluge::edits::settingFor(
 	    *target.sound, deluge::edits::oscSettingPath(target.sourceIndex, "type"),

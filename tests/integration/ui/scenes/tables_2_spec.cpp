@@ -330,6 +330,9 @@ describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 			else if (index && (node_kind == deluge::plugin::ParamKind::UNPATCHED_SOUND || node_kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL)) {
 				index = spec::main_numbering::index_of(*index);
 			}
+			else if (index && node_kind == deluge::plugin::ParamKind::PATCHED) {
+				index = spec::main_numbering::patched_index_of(*index);
+			}
 			expect(at + " index " + std::to_string(runtime.index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
 			if (node_kind == deluge::plugin::ParamKind::ARP) {

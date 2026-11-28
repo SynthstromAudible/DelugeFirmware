@@ -64,6 +64,13 @@ struct KitRow {
 class Facts {
 public:
 	virtual ~Facts() = default;
+	/// @brief The address a knob or a followed CC aimed at @p address moves: the address itself, or, on a sound playing
+	/// another engine than the param's, the param that stands for it there (a DX7's level for oscillator A's volume);
+	/// nullopt where none does, and the knob moves nothing.
+	[[nodiscard]] virtual std::optional<project::ParamAddress>
+	playing_address(const project::ParamAddress& address) const {
+		return address;
+	}
 	/// @brief The value the param at @p address plays now: the engine's cursor, which automation moves at the
 	/// playhead, a latch or override holds, and stutter-type effects and recording change, where the record holds the
 	/// saved base value; nullopt where the song holds no such param.

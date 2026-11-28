@@ -51,6 +51,7 @@
 #include "processing/sound/source_resources.h"
 
 #include "support/known_differences.h"
+#include "support/main_numbering.h"
 #include "support/menu_engine.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
@@ -255,7 +256,10 @@ describe tables_1_shape("scenes::menu sound-subtree tables: shape", $ {
 				expect(table().find(e.path, "param_kind")).to_be_null();
 				continue;
 			}
-			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
+			std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
+			if (index && spec::runtime_of(e.node->bind.param).kind == deluge::plugin::ParamKind::PATCHED) {
+				index = spec::main_numbering::patched_index_of(*index);
+			}
 			const std::string at = e.path + " " + text_of(e.node->name);
 			expect(at + " index " + std::to_string(spec::runtime_of(e.node->bind.param).index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));

@@ -11,6 +11,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "support/printers/param_id_printer.h"
 
@@ -24,7 +25,7 @@ struct Pinned {
 	std::string_view name;
 };
 /// Every row, forever: an id never changes its name, and a name never changes its id.
-constexpr std::array<Pinned, 67> kPinned{{
+constexpr std::array<Pinned, 70> kPinned{{
     {0, "oscAVolume"},
     {1, "oscBVolume"},
     {2, "volume"},
@@ -80,6 +81,9 @@ constexpr std::array<Pinned, 67> kPinned{{
     {52, "lfo1Rate"},
     {53, "lfo3Rate"},
     {54, "arpRate"},
+    {55, "dx7Level"},
+    {56, "dx7AmpMod"},
+    {57, "dx7PitchAdjust"},
     {90, "stutterRate"},
     {91, "bass"},
     {92, "treble"},
@@ -93,7 +97,7 @@ constexpr std::array<Pinned, 67> kPinned{{
     {100, "compressorThreshold"},
     {101, "portamento"},
 }};
-constexpr std::array<uint32_t, 6> kCentred{23, 25, 26, 27, 28, 29};
+constexpr std::array<uint32_t, 7> kCentred{23, 25, 26, 27, 28, 29, 57};
 namespace plugin = deluge::plugin;
 
 /// The rows written out field for field: the oracle the table's rows must equal, however the table builds them.
@@ -163,23 +167,55 @@ describe params("the Deluge instrument's param table", ${
 		}
 	});
 
-	it("pins every row's runtime index: patched ids as they are, unpatched ids from 90", _ {
+	it("pins every row's runtime index: the per-voice params first, the DX7's after them, the sound-wide ones three on, unpatched ids from 90", _ {
 		for (const Pinned& row : kPinned) {
 			auto slot = runtime_slot(ParamId{row.id});
 			expect(slot).to_have_value();
-			if (row.id < kUnpatchedFirstId) {
-				expect(static_cast<int>(slot->set)).to_equal(static_cast<int>(RuntimeSet::PATCHED));
-				expect(static_cast<uint32_t>(slot->index)).to_equal(row.id);
+			uint32_t want = row.id;
+			if (row.id >= 90) {
+				want = row.id - 90;
 			}
-			else {
-				expect(static_cast<int>(slot->set)).to_equal(static_cast<int>(RuntimeSet::UNPATCHED));
-				expect(static_cast<uint32_t>(slot->index)).to_equal(row.id - 90);
+			else if (row.id >= 55) {
+				want = row.id - 55 + 45;
 			}
+			else if (row.id >= 45) {
+				want = row.id + 3;
+			}
+			expect(static_cast<int>(slot->set))
+			    .to_equal(static_cast<int>(row.id < kUnpatchedFirstId ? RuntimeSet::PATCHED : RuntimeSet::UNPATCHED));
+			expect(static_cast<uint32_t>(slot->index)).to_equal(want);
 			expect(param_id(*slot).value).to_equal(row.id);
 		}
-		expect(runtime_slot(ParamId{55})).not_().to_have_value();
+		expect(*runtime_slot(param::kVolumePostFX)).to_equal(RuntimeSlot{RuntimeSet::PATCHED, 48});
+		expect(*runtime_slot(param::kDx7Level)).to_equal(RuntimeSlot{RuntimeSet::PATCHED, 45});
+		expect(*runtime_slot(param::kArpRate)).to_equal(RuntimeSlot{RuntimeSet::PATCHED, 57});
+		expect(runtime_slot(ParamId{58})).not_().to_have_value();
 		expect(runtime_slot(ParamId{89})).not_().to_have_value();
 		expect(runtime_slot(ParamId{117})).not_().to_have_value();
+	});
+
+	it("gives a patched runtime index its param's id, and a host space's index as its own id", _ {
+		using deluge::plugin::ParamKind;
+		expect(runtime_param_id(ParamKind::PATCHED, 45)->value).to_equal(param::kDx7Level.value);
+		expect(runtime_param_id(ParamKind::PATCHED, 48)->value).to_equal(param::kVolumePostFX.value);
+		expect(runtime_param_id(ParamKind::PATCHED, 57)->value).to_equal(param::kArpRate.value);
+		for (const ParamKind kind : {ParamKind::STATIC, ParamKind::MIDI, ParamKind::EXPRESSION, ParamKind::ARP}) {
+			expect(runtime_param_id(kind, 45)->value).to_equal(45u);
+			expect(runtime_param_id(kind, 48)->value).to_equal(48u);
+		}
+		expect(param_row_at(ParamKind::PATCHED, 48)->file_name).to_equal(std::string_view{"volumePostFX"});
+		expect(param_row_at(ParamKind::PATCHED, 45)->file_name).to_equal(std::string_view{"dx7Level"});
+		expect(is_bipolar(ParamKind::PATCHED, param::kDx7Pitch)).to_equal(true);
+		expect(is_bipolar(ParamKind::PATCHED, param::kDelayRate)).to_equal(false);
+	});
+
+	it("names a param in a packed word by its runtime index, and every other byte as it is", _ {
+		expect(flat_index(param::kVolumePostFX)).to_equal(48u);
+		expect(flat_index(param::kDx7Pitch)).to_equal(47u);
+		expect(flat_index(param::kStutterRate)).to_equal(90u);
+		for (uint32_t flat = 0; flat < 256; ++flat) {
+			expect(flat_index(flat_param_id(flat))).to_equal(flat);
+		}
 	});
 
 	it("names each constant for its row", _ {
@@ -187,15 +223,32 @@ describe params("the Deluge instrument's param table", ${
 		expect(param::kPan.value).to_equal(23u);
 		expect(param::kVolumePostFX.value).to_equal(45u);
 		expect(param::kArpRate.value).to_equal(54u);
+		expect(param::kDx7Level.value).to_equal(55u);
+		expect(param::kDx7AmpMod.value).to_equal(56u);
+		expect(param::kDx7Pitch.value).to_equal(57u);
 		expect(param::kStutterRate.value).to_equal(90u);
 		expect(param::kPortamento.value).to_equal(101u);
 	});
 
-	it("scopes the voice params per voice and the rest per sound", _ {
+	it("scopes the voice params and the DX7's per voice and the rest per sound", _ {
 		for (const auto& row : kParams) {
-			bool perVoice = row.id.value <= 44;
+			bool perVoice = row.id.value <= 44 || (row.id.value >= 55 && row.id.value <= 57);
 			expect(static_cast<int>(row.scope))
 			    .to_equal(static_cast<int>(perVoice ? ParamScope::PER_VOICE : ParamScope::PER_SOUND));
+			expect(is_sound_wide(row.id)).to_equal(!perVoice);
+		}
+	});
+
+	it("gives each of the DX7's params every field of its oscillator A counterpart's row but its id and name", _ {
+		const std::pair<ParamId, ParamId> kCounterparts[] = {{param::kDx7Level, param::kOscAVolume},
+		                                                     {param::kDx7AmpMod, param::kOscAPhaseWidth},
+		                                                     {param::kDx7Pitch, param::kOscAPitch}};
+		for (const auto& [dx7, osc] : kCounterparts) {
+			plugin::ParamInfo mirrored = *deluge::plugin::find_param(kParams, osc);
+			const plugin::ParamInfo& row = *deluge::plugin::find_param(kParams, dx7);
+			mirrored.id = row.id;
+			mirrored.file_name = row.file_name;
+			expect(row_text(row)).to_equal(row_text(mirrored));
 		}
 	});
 
@@ -208,7 +261,7 @@ describe params("the Deluge instrument's param table", ${
 
 	it("stores its ids in two blocks that hold every row and nothing else", _ {
 		expect(kParamBlocks[0].first.value).to_equal(0u);
-		expect(kParamBlocks[0].count).to_equal(55u);
+		expect(kParamBlocks[0].count).to_equal(58u);
 		expect(kParamBlocks[1].first.value).to_equal(90u);
 		expect(kParamBlocks[1].count).to_equal(12u);
 		for (const auto& row : kParams) {

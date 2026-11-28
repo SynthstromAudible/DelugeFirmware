@@ -77,9 +77,11 @@ public:
 	///
 	/// The render's lookup (ModelStackWithAutoParam::doc()): a store the render grew could move under another tier
 	/// reading it.
-	/// @param paramId The param id within this collection.
+	/// @param key The param's key in this collection: a param set's runtime index, a cable set's packed cable word, a
+	/// MIDI
+	///            collection's CC (the ModelStack's paramId).
 	/// @return The param's node store, or nullptr when it has none yet.
-	virtual deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) { return nullptr; }
+	virtual deluge::project::DocAutoParam* findDocParamForKey(int32_t key) { return nullptr; }
 
 	/// @brief Whether this collection resolves params against an external (project-tree) DOM store rather than its
 	///        own engine-inline storage.
@@ -158,7 +160,7 @@ public:
 	/// @brief [interaction] Lane @p paramId of this collection to append a repeat to, made where the collection makes
 	///        its lanes as they are first written.
 	/// @return It, or nullptr when this collection has no such lane.
-	virtual deluge::project::DocAutoParam* laneToAppendTo(int32_t paramId) { return findDocParamForId(paramId); }
+	virtual deluge::project::DocAutoParam* laneToAppendTo(int32_t paramId) { return findDocParamForKey(paramId); }
 
 	/// @brief [interaction] Call @p visit with each of this collection's lanes as a repeat of @p other appended at
 	///        @p oldLength would leave them, changing none: a lane the repeat changes as a copy with the repeat

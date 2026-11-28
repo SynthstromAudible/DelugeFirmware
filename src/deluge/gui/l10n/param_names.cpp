@@ -87,6 +87,12 @@ std::optional<std::string_view> patched_name(plugin::ParamId id) {
 		return getView(String::STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
 	case instruments::classic::param::kOscAPitch.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
+	case instruments::classic::param::kDx7Level.value:
+		return getView(String::STRING_FOR_PARAM_LOCAL_DX7_LEVEL);
+	case instruments::classic::param::kDx7AmpMod.value:
+		return getView(String::STRING_FOR_PARAM_LOCAL_DX7_AMP_MOD);
+	case instruments::classic::param::kDx7Pitch.value:
+		return getView(String::STRING_FOR_PARAM_LOCAL_DX7_PITCH_ADJUST);
 	case instruments::classic::param::kOscBPitch.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
 	case instruments::classic::param::kModulator1Pitch.value:
@@ -309,6 +315,12 @@ std::optional<std::string_view> patched_short(plugin::ParamId id) {
 		return "Pitch";
 	case instruments::classic::param::kOscAPitch.value:
 		return "Osc1 pitch";
+	case instruments::classic::param::kDx7Level.value:
+		return "DX7 level";
+	case instruments::classic::param::kDx7AmpMod.value:
+		return "DX7 amp mod";
+	case instruments::classic::param::kDx7Pitch.value:
+		return "DX7 pitch";
 	case instruments::classic::param::kOscBPitch.value:
 		return "Osc2 pitch";
 	case instruments::classic::param::kModulator1Pitch.value:
@@ -526,11 +538,11 @@ std::string_view patched_param_short_name(plugin::ParamId id, effects::FilterMod
 }
 
 std::string_view patched_param_short_name_at(uint32_t index) {
-	return patched_param_short_name(plugin::ParamId{index});
+	return patched_param_short_name(instruments::classic::flat_param_id(index));
 }
 
 std::string_view patched_param_short_name_at(uint32_t index, effects::FilterMode lpf, effects::FilterMode hpf) {
-	return patched_param_short_name(plugin::ParamId{index}, lpf, hpf);
+	return patched_param_short_name(instruments::classic::flat_param_id(index), lpf, hpf);
 }
 
 std::optional<std::string_view> envelope_param_name(plugin::ParamId id, const EnvelopeModes& modes, bool brief) {
@@ -565,7 +577,7 @@ std::optional<std::string_view> envelope_param_name_at(plugin::ParamKind kind, u
 	if (kind != plugin::ParamKind::PATCHED) {
 		return std::nullopt;
 	}
-	return envelope_param_name(plugin::ParamId{index}, modes, brief);
+	return envelope_param_name(instruments::classic::flat_param_id(index), modes, brief);
 }
 
 } // namespace deluge::l10n

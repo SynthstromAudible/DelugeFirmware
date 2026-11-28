@@ -29,7 +29,8 @@ deluge::synth::CableTarget knobWord(const KnobTarget& target) {
 	if (deluge::instruments::classic::is_cable_depth(target->id)) {
 		return {deluge::bridge::cableWordOf(target->id)};
 	}
-	return deluge::synth::CableTarget::param(static_cast<uint8_t>(target->id.value));
+	return deluge::synth::CableTarget::param(
+	    static_cast<uint8_t>(deluge::instruments::classic::flat_index(target->id)));
 }
 
 KnobTarget knobTargetOf(deluge::synth::CableTarget word) {

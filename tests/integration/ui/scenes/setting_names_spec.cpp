@@ -378,7 +378,7 @@ describe setting_names_spec_body("The host's name table", $ {
 		for (uint32_t id = 102; id <= 116; ++id) {
 			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state)).to_equal(none);
 		}
-		for (uint32_t id = 55; id < 90; ++id) {
+		for (uint32_t id = 58; id < 90; ++id) {
 			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state)).to_equal(none);
 		}
 		expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{101}, state))

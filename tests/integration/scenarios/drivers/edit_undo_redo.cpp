@@ -199,7 +199,7 @@ void laneAgreementTarget(Song* song) {
 			return;
 		}
 		checked++;
-		if (lane->paramCollection->findDocParamForId(lane->paramId) != resolved) {
+		if (lane->paramCollection->findDocParamForKey(lane->paramId) != resolved) {
 			mismatches++;
 		}
 	};
@@ -239,10 +239,10 @@ void laneAgreementTarget(Song* song) {
 		ParamManagerForTimeline fresh;
 		if (fresh.setupWithPatching() == Error::NONE) {
 			PatchedParamSet* set = fresh.getPatchedParamSet();
-			check(set->findDocParamForId(0) == nullptr, "a fresh set starts unbound");
+			check(set->findDocParamForKey(0) == nullptr, "a fresh set starts unbound");
 			const deluge::project::LaneView unbound = set->playedLane(0);
 			check(unbound.empty() && unbound.base == 0, "an unbound set's lane plays as an unautomated one");
-			check(set->findDocParamForId(0) == nullptr, "reading an unbound set creates no store");
+			check(set->findDocParamForKey(0) == nullptr, "reading an unbound set creates no store");
 
 			// The render's lookup of an unbound set's lane misses: it gets the unheld lane, writes nothing to it,
 			// and a write something else made there is found, counted and undone at the next miss.
@@ -254,7 +254,7 @@ void laneAgreementTarget(Song* song) {
 				deluge::memory::RenderBlock block;
 				deluge::project::DocAutoParam* missed = lane->doc();
 				check(missed != nullptr && isUnheldLane(*missed), "the render's miss reads the unheld lane");
-				check(set->findDocParamForId(0) == nullptr, "the render's miss creates no store");
+				check(set->findDocParamForKey(0) == nullptr, "the render's miss creates no store");
 #if ALPHA_OR_BETA_VERSION
 				const uint32_t before = deluge::modulation::unheldLaneWrites;
 				deluge::project::set_base(*missed, 5);

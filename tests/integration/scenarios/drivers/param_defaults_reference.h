@@ -33,7 +33,7 @@ struct Default {
 };
 
 // clang-format off
-inline constexpr std::array<Default, 125> kDefaults{{
+inline constexpr std::array<Default, 128> kDefaults{{
     {Table::INSTRUMENT, 0, 2147483647},
     {Table::INSTRUMENT, 1, 2147483647},
     {Table::INSTRUMENT, 2, 0},
@@ -89,6 +89,9 @@ inline constexpr std::array<Default, 125> kDefaults{{
     {Table::INSTRUMENT, 52, 429496702},
     {Table::INSTRUMENT, 53, 429496702},
     {Table::INSTRUMENT, 54, 0},
+    {Table::INSTRUMENT, 55, 2147483647},
+    {Table::INSTRUMENT, 56, 0},
+    {Table::INSTRUMENT, 57, 0},
     {Table::INSTRUMENT, 90, 0},
     {Table::INSTRUMENT, 91, 0},
     {Table::INSTRUMENT, 92, 0},

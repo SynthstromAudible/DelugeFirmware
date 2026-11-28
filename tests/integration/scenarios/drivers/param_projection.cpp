@@ -42,9 +42,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include "host/chains/params.h"
+#include "instruments/classic/params.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -869,6 +871,38 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
+	// A sound-wide param's lane is one lane whichever way it is reached: the runtime set by its runtime index, the
+	// store and the model by its id. The runtime keeps the sound-wide params after the DX7's, so the two numberings
+	// differ.
+	{
+		namespace ip = deluge::instruments::classic::param;
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "store setupWithPatching");
+		PatchedParamSet* set = pm.getPatchedParamSet();
+		const int32_t runtime = deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
+		check(runtime != static_cast<int32_t>(ip::kVolumePostFX.value), "store: the runtime index is not the id");
+		set->params[runtime].setPlayed(4321);
+		setNodeIn(*set->docForParam(runtime), 0, 111, true);
+		setNodeIn(*set->docForParam(runtime), 24, -222, false);
+		const deluge::project::DocAutoParam* byId = set->domStore()->find(ip::kVolumePostFX);
+		check(byId != nullptr && byId->nodes.size() == 2 && byId->nodes[0].value == 111,
+		      "store: post-FX volume's automation read back by its id");
+		check(set->findDocParamForKey(runtime) == byId, "store: post-FX volume's lane read back by its runtime index");
+		const deluge::project::DocAutoParam* other =
+		    set->domStore()->find(deluge::plugin::ParamId{static_cast<uint32_t>(runtime)});
+		check(other != nullptr && other->nodes.empty(), "store: the id equal to its runtime index holds no automation");
+
+		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
+		const deluge::project::DocAutoParam* projected = patchedStore(doc)->find(ip::kVolumePostFX);
+		check(projected != nullptr && projected->nodes.size() == 2 && projected->current_value == 4321,
+		      "store: the projected model holds the automation at the id");
+		ParamManagerForTimeline pm2;
+		check(pm2.setupWithPatching() == Error::NONE, "store pm2 setupWithPatching");
+		deluge::bridge::fromDocParamManager(doc, pm2);
+		check(pm2.getPatchedParamSet()->params[runtime].played() == 4321, "store: projected back to the runtime index");
+		expectSameParamInSet(pm2.getPatchedParamSet(), set, runtime, "store: projected back with its nodes");
+	}
+
 	// The DOM can *drive* the live manager — projecting a captured DocParamManager into a
 	// manager that holds DIFFERENT/stale state fully restores it, including the summary automation flags
 	// (set for newly-automated params, cleared for params that were automated only in the target).
@@ -1384,12 +1418,13 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		drum.writeParamsToFile(smSerializer, &pm, true);
+		drum.writeParamsToFile(smSerializer, &pm, true, SynthMode::SUBTRACTIVE);
 		int32_t engLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), pcs->records().records(),
-		                                     doc.cable_depths, smSerializer, true, doc.arp ? &*doc.arp : nullptr);
+		                                     doc.cable_depths, smSerializer, true, doc.arp ? &*doc.arp : nullptr,
+		                                     SynthMode::SUBTRACTIVE);
 		int32_t domLen = smSerializer.bytesWritten();
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
@@ -1416,7 +1451,8 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.setMemoryBuffer(rtBuf, sizeof(rtBuf));
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("soundParams");
-		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), {}, {}, smSerializer, true);
+		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), {}, {}, smSerializer, true,
+		                                     nullptr, SynthMode::SUBTRACTIVE);
 		smSerializer.writeClosingTag("soundParams", true);
 		int32_t rtLen = smSerializer.bytesWritten();
 		rtBuf[rtLen] = '\0';
@@ -1448,6 +1484,80 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		       & (1u << (params::LOCAL_ENV_0_ATTACK & 31)))
 		          != 0,
 		      "sound-rt envelope automation flag set");
+	}
+
+	// The DX7's own params are read from a sound's params by name, by the live reader and the store reader alike; the
+	// writer writes each engine's params only for a sound playing that engine.
+	{
+		namespace ip = deluge::instruments::classic::param;
+		static char dx7Buf[256];
+		static char dx7BufDoc[256];
+		const char* kDx7Params = "<soundParams dx7Level=\"0x40000000\" dx7AmpMod=\"0x20000000\" "
+		                         "dx7PitchAdjust=\"0x10000000\"></soundParams>";
+		const int32_t dx7Len = static_cast<int32_t>(std::strlen(kDx7Params));
+		std::memcpy(dx7Buf, kDx7Params, dx7Len + 1);
+		std::memcpy(dx7BufDoc, kDx7Params, dx7Len + 1);
+
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "dx7 read setup");
+		{
+			XMLDeserializer reader(reinterpret_cast<uint8_t*>(dx7Buf), dx7Len);
+			reader.openXMLFile("soundParams");
+			const char* tag;
+			while (*(tag = reader.readNextTagOrAttributeName())) {
+				if (!deluge::bridge::readSoundParamTag(reader, tag, *pm.getPatchedParamSet(),
+				                                       *pm.getPatchedParamSetSummary(), *pm.getUnpatchedParamSet(),
+				                                       *pm.getUnpatchedParamSetSummary(), 2147483647)) {
+					reader.exitTag();
+				}
+			}
+		}
+		PatchedParamSet* set = pm.getPatchedParamSet();
+		check(set->params[params::LOCAL_DX7_LEVEL].played() == 0x40000000, "dx7Level read");
+		check(set->params[params::LOCAL_DX7_AMP_MOD].played() == 0x20000000, "dx7AmpMod read");
+		check(set->params[params::LOCAL_DX7_PITCH_ADJUST].played() == 0x10000000, "dx7PitchAdjust read");
+
+		ParamManagerForTimeline pmDoc;
+		check(pmDoc.setupWithPatching() == Error::NONE, "dx7 doc read setup");
+		deluge::project::DocParamSet store = deluge::bridge::toDocParamSet(*pmDoc.getPatchedParamSet());
+		deluge::project::DocParamSet unpatched = deluge::bridge::toDocParamSet(*pmDoc.getUnpatchedParamSet());
+		{
+			XMLDeserializer reader(reinterpret_cast<uint8_t*>(dx7BufDoc), dx7Len);
+			reader.openXMLFile("soundParams");
+			const char* tag;
+			while (*(tag = reader.readNextTagOrAttributeName())) {
+				if (!deluge::bridge::readSoundParamTagToDoc(reader, tag, store, unpatched, 2147483647)) {
+					reader.exitTag();
+				}
+			}
+		}
+		check(store.find(ip::kDx7Level)->current_value == 0x40000000, "dx7Level read into the store");
+		check(store.find(ip::kDx7AmpMod)->current_value == 0x20000000, "dx7AmpMod read into the store");
+		check(store.find(ip::kDx7Pitch)->current_value == 0x10000000, "dx7PitchAdjust read into the store");
+
+		static char outBuf[16384];
+		const auto written = [&](SynthMode mode) {
+			smSerializer.setMemoryBuffer(outBuf, sizeof(outBuf));
+			smSerializer.reset();
+			smSerializer.writeOpeningTagBeginning("soundParams");
+			deluge::bridge::serializeSoundParams(store, unpatched, {}, {}, smSerializer, false, nullptr, mode);
+			smSerializer.writeClosingTag("soundParams", true);
+			outBuf[smSerializer.bytesWritten()] = '\0';
+			return std::string(outBuf);
+		};
+		check(written(SynthMode::SUBTRACTIVE).find("dx7") == std::string::npos,
+		      "dx7 params not written outside DX7 mode");
+		const std::string dx7Written = written(SynthMode::DX7);
+		check(dx7Written.find("dx7Level=\"0x40000000\"") != std::string::npos
+		          && dx7Written.find("dx7AmpMod=\"0x20000000\"") != std::string::npos
+		          && dx7Written.find("dx7PitchAdjust=\"0x10000000\"") != std::string::npos,
+		      "dx7 params written in DX7 mode");
+		// A DX7-mode sound saves none of the oscillator engines' params, and a subtractive one none of the DX7's
+		check(dx7Written.find("oscAVolume") == std::string::npos && dx7Written.find("noiseVolume") == std::string::npos
+		          && dx7Written.find("modulator1Amount") == std::string::npos,
+		      "oscillator params not written in DX7 mode");
+		check(written(SynthMode::SUBTRACTIVE).find("oscAVolume") != std::string::npos,
+		      "oscillator params written outside DX7 mode");
 	}
 
 	// The Song value-override path. Song serializes its global-effectable block with a

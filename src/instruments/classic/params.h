@@ -92,6 +92,9 @@ inline constexpr ParamId kModFXRate{51};
 inline constexpr ParamId kLfo1Rate{52};
 inline constexpr ParamId kLfo3Rate{53};
 inline constexpr ParamId kArpRate{54};
+inline constexpr ParamId kDx7Level{55};  ///< The DX7's level (DX7 mode)
+inline constexpr ParamId kDx7AmpMod{56}; ///< The DX7's amplitude modulation (DX7 mode)
+inline constexpr ParamId kDx7Pitch{57};  ///< The DX7's pitch adjust (DX7 mode)
 inline constexpr ParamId kStutterRate{90};
 inline constexpr ParamId kBass{91};
 inline constexpr ParamId kTreble{92};
@@ -116,7 +119,7 @@ inline constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
 
 /// @brief Every param the Deluge instrument has, in id order. An effect's row is its effect param (effects/params.h)
 /// at the instrument's id, default and scope.
-inline constexpr std::array<plugin::ParamInfo, 67> kParams{{
+inline constexpr std::array<plugin::ParamInfo, 70> kParams{{
     {.id = param::kOscAVolume,
      .file_name = "oscAVolume",
      .scope = plugin::ParamScope::PER_VOICE,
@@ -270,6 +273,19 @@ inline constexpr std::array<plugin::ParamInfo, 67> kParams{{
     {.id = param::kLfo1Rate, .file_name = "lfo1Rate", .default_value = 429496702},
     {.id = param::kLfo3Rate, .file_name = "lfo3Rate", .default_value = 429496702},
     {.id = param::kArpRate, .file_name = "arpRate", .flags = plugin::ParamFlag::DESTINATION_ONLY},
+    {.id = param::kDx7Level,
+     .file_name = "dx7Level",
+     .scope = plugin::ParamScope::PER_VOICE,
+     .default_value = std::numeric_limits<int32_t>::max(),
+     .flags = plugin::ParamFlag::SMOOTHED_USER_ONLY},
+    {.id = param::kDx7AmpMod,
+     .file_name = "dx7AmpMod",
+     .scope = plugin::ParamScope::PER_VOICE,
+     .mapping = plugin::MappingKind::UNIPOLAR},
+    {.id = param::kDx7Pitch,
+     .file_name = "dx7PitchAdjust",
+     .scope = plugin::ParamScope::PER_VOICE,
+     .flags = plugin::ParamFlag::CENTRED | plugin::ParamFlag::MIDDLE_DETENT},
     effects::row(param::kStutterRate, effects::params::kStutterRate),
     effects::row(param::kBass, effects::params::kBass),
     effects::row(param::kTreble, effects::params::kTreble),
@@ -295,7 +311,7 @@ static_assert(effects::built_from(kParams, kBitcrushIds, effects::params::kBitcr
 
 /// @brief The two runs of ids the instrument's params are stored in: its patched params, then its unpatched ones.
 inline constexpr std::array<plugin::ParamBlock, 2> kParamBlocks{{
-    {.first = plugin::ParamId{0}, .count = 55},
+    {.first = plugin::ParamId{0}, .count = 58},
     {.first = plugin::ParamId{kUnpatchedFirstId}, .count = 12},
 }};
 
@@ -309,13 +325,31 @@ struct RuntimeSlot {
 	[[nodiscard]] constexpr bool operator==(const RuntimeSlot&) const = default;
 };
 
+namespace detail {
+/// The first sound-wide patched id; the per-voice ones before it keep their own index in the runtime.
+inline constexpr uint32_t kSoundWideFirstId = param::kVolumePostFX.value;
+/// The DX7's ids, which the runtime keeps after the per-voice params above and before the sound-wide ones.
+inline constexpr uint32_t kDx7FirstId = param::kDx7Level.value;
+inline constexpr uint32_t kDx7Count = 3;
+} // namespace detail
+
 /// @brief Where the runtime keeps the param @p id, or nullopt when the instrument has no such param. This map is
 /// the only way the runtime's numbering may change.
+///
+/// The runtime keeps the per-voice params first: ids 0-44 at their own index, the DX7's (55-57) after them, then the
+/// sound-wide ones (45-54) three on. The unpatched params are kept from @c kUnpatchedFirstId on.
 /// @param id A param id.
 /// @return The runtime slot, or nullopt.
 [[nodiscard]] constexpr std::optional<RuntimeSlot> runtime_slot(plugin::ParamId id) {
 	if (kParamBlocks[0].contains(id)) {
-		return RuntimeSlot{RuntimeSet::PATCHED, static_cast<uint8_t>(id.value)};
+		uint32_t index = id.value;
+		if (id.value >= detail::kDx7FirstId) {
+			index = id.value - detail::kDx7FirstId + detail::kSoundWideFirstId;
+		}
+		else if (id.value >= detail::kSoundWideFirstId) {
+			index = id.value + detail::kDx7Count;
+		}
+		return RuntimeSlot{.set = RuntimeSet::PATCHED, .index = static_cast<uint8_t>(index)};
 	}
 	if (kParamBlocks[1].contains(id)) {
 		return RuntimeSlot{RuntimeSet::UNPATCHED, static_cast<uint8_t>(id.value - kUnpatchedFirstId)};
@@ -323,12 +357,77 @@ struct RuntimeSlot {
 	return std::nullopt;
 }
 
-/// @brief The id of the param the runtime keeps at @p slot.
+/// @brief The id of the param the runtime keeps at @p slot: the inverse of @c runtime_slot.
 /// @param slot A runtime slot.
 /// @return The param's id.
 [[nodiscard]] constexpr plugin::ParamId param_id(RuntimeSlot slot) {
-	return plugin::ParamId{slot.set == RuntimeSet::PATCHED ? slot.index : kUnpatchedFirstId + slot.index};
+	if (slot.set == RuntimeSet::UNPATCHED) {
+		return plugin::ParamId{kUnpatchedFirstId + slot.index};
+	}
+	if (slot.index < detail::kSoundWideFirstId) {
+		return plugin::ParamId{slot.index};
+	}
+	if (slot.index < detail::kSoundWideFirstId + detail::kDx7Count) {
+		return plugin::ParamId{slot.index - detail::kSoundWideFirstId + detail::kDx7FirstId};
+	}
+	return plugin::ParamId{slot.index - detail::kDx7Count};
 }
+
+/// @brief Whether @p id is a param of the whole sound (its row's scope), not of each voice.
+/// @param id A param id of the instrument.
+/// @return True for a sound-wide row; false for a per-voice one and for an id with no row.
+[[nodiscard]] constexpr bool is_sound_wide(plugin::ParamId id) {
+	const plugin::ParamInfo* row = plugin::find_param(kParams, id);
+	return row != nullptr && row->scope == plugin::ParamScope::PER_SOUND;
+}
+
+/// @brief The index the runtime's packed words name the param @p id by: a cable word's destination byte, a mod
+/// knob's flat index. A patched param is named by its runtime index, any other value (an unpatched param's id, the
+/// unknown destination) as it is, so the map is one to one on every byte.
+/// @param id A param id, or a value no param has.
+/// @return The flat index.
+[[nodiscard]] constexpr uint32_t flat_index(plugin::ParamId id) {
+	const std::optional<RuntimeSlot> slot = runtime_slot(id);
+	return slot && slot->set == RuntimeSet::PATCHED ? slot->index : id.value;
+}
+
+/// @brief The id the runtime's packed words name by the flat index @p flat: the inverse of @c flat_index.
+/// @param flat A cable word's destination byte or a mod knob's flat index.
+/// @return The param's id, or @p flat as it is where no patched param has that index.
+[[nodiscard]] constexpr plugin::ParamId flat_param_id(uint32_t flat) {
+	return flat < kParamBlocks[0].count
+	           ? param_id(RuntimeSlot{.set = RuntimeSet::PATCHED, .index = static_cast<uint8_t>(flat)})
+	           : plugin::ParamId{flat};
+}
+
+namespace detail {
+/// Whether the map is one to one on the patched block and keeps every per-voice row before every sound-wide one.
+consteval bool runtime_order_holds() {
+	const std::optional<RuntimeSlot> first = runtime_slot(param::kVolumePostFX);
+	if (!first) {
+		return false;
+	}
+	const uint32_t first_sound_wide = first->index;
+	for (const plugin::ParamInfo& row : kParams) {
+		const std::optional<RuntimeSlot> slot = runtime_slot(row.id);
+		if (!slot || param_id(*slot) != row.id) {
+			return false;
+		}
+		if (slot->set == RuntimeSet::PATCHED
+		    && (slot->index < first_sound_wide) != (row.scope == plugin::ParamScope::PER_VOICE)) {
+			return false;
+		}
+	}
+	for (uint32_t flat = 0; flat < 256; ++flat) {
+		if (flat_index(flat_param_id(flat)) != flat) {
+			return false;
+		}
+	}
+	return true;
+}
+} // namespace detail
+
+static_assert(detail::runtime_order_holds());
 
 static_assert(kParams.size() == kParamBlocks[0].count + kParamBlocks[1].count);
 
@@ -341,11 +440,12 @@ inline constexpr plugin::ParamId kExpressionSlide{1};
 /// @brief The id of the MPE Z axis (pressure) in the host's expression space.
 inline constexpr plugin::ParamId kExpressionPressure{2};
 
-/// @brief The first of the sound's global patched params: the per-voice ones have lower ids.
+/// @brief The first of the sound's global patched params in the runtime's order, which keeps the per-voice ones before
+/// it; whether a param is sound-wide is its row's scope (@c is_sound_wide).
 inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 
-/// @brief The index the runtime keeps the constant param @p id at within its set: the id for a patched param, the id
-/// less @c kUnpatchedFirstId for an unpatched one. An id of no block does not compile.
+/// @brief The index the runtime keeps the constant param @p id at within its set (@c runtime_slot). An id of no block
+/// does not compile.
 /// @param id A param id of the instrument.
 /// @return The index in its runtime set.
 [[nodiscard]] consteval uint8_t runtime_index(plugin::ParamId id) {
@@ -357,8 +457,8 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 }
 
 /// @brief The id of the param at @p index of a @p kind collection, as the runtime numbers its collections: the
-/// patched set from 0, an unpatched set (an unnamed one included) from @c kUnpatchedFirstId, and a host space (MPE
-/// expression, MIDI CC) by its own index.
+/// patched set through @c param_id, an unpatched set (an unnamed one included) from @c kUnpatchedFirstId, and a host
+/// space (MPE expression, MIDI CC, the arp, a static param) by its own index.
 /// @param kind  The runtime collection kind.
 /// @param index The param's index in its collection.
 /// @return The id, or nullopt for a patch cable, whose index is a packed word and no id, and for an index at or above
@@ -375,6 +475,10 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	case plugin::ParamKind::PATCH_CABLE:
 		return std::nullopt;
 	case plugin::ParamKind::PATCHED:
+		if (index >= kParamBlocks[0].count) {
+			return plugin::ParamId{index};
+		}
+		return param_id(RuntimeSlot{.set = RuntimeSet::PATCHED, .index = static_cast<uint8_t>(index)});
 	case plugin::ParamKind::STATIC:
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::EXPRESSION:
@@ -409,7 +513,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 }
 
 /// @brief The table row of the param at @p index of a @p kind collection. The tables keep each block's rows dense and
-/// in id order, so the row is found at its own position without a scan; an index off that layout is looked up.
+/// in id order, so the row is found at its id's position without a scan; an id off that layout is looked up.
 /// @param kind  The runtime collection kind.
 /// @param index The param's index in its collection.
 /// @return The row, or nullptr when the collection has no such param.
@@ -422,6 +526,7 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 	std::size_t at = index;
 	switch (kind) {
 	case plugin::ParamKind::PATCHED:
+		at = id->value;
 		break;
 	case plugin::ParamKind::NONE:
 	case plugin::ParamKind::UNPATCHED_SOUND:
@@ -480,7 +585,10 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 		return id.value >= kUnpatchedFirstId && is_bipolar_at(kind, id.value - kUnpatchedFirstId);
 	case plugin::ParamKind::PATCH_CABLE:
 		return true;
-	case plugin::ParamKind::PATCHED:
+	case plugin::ParamKind::PATCHED: {
+		const std::optional<RuntimeSlot> slot = runtime_slot(id);
+		return slot && slot->set == RuntimeSet::PATCHED && is_bipolar_at(kind, slot->index);
+	}
 	case plugin::ParamKind::STATIC:
 	case plugin::ParamKind::MIDI:
 	case plugin::ParamKind::EXPRESSION:

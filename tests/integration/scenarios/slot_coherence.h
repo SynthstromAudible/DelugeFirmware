@@ -42,6 +42,9 @@ struct CoherenceChecks {
 	bool decode = true;        ///< the record encoded at the slot's magnitude, then decoded == the record
 	bool chains = true;        ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
 	bool song_settings = true; ///< every setting group's record == its engine copy (songSettingsIncoherence)
+	/// no sound holds a param of an engine it is not playing (parkedIncoherence): a check for a song just loaded, as a
+	/// mode switch keeps the parked engine's params
+	bool parked = false;
 	/// The leg is expected to break: each break is printed as EXPECTED-INCOHERENT, not FAIL.
 	bool expect_incoherent = false;
 };
@@ -58,6 +61,13 @@ std::optional<deluge::serialization::Value> encodedSlot(::Song& song, deluge::pr
 /// @param checks Which equations to hold the sound to.
 /// @return The break as "<check> at <where>", or empty if the sound is coherent.
 std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks checks = {});
+
+/// @brief Find the first param of an engine a sound of @p song is not playing that the sound holds: a value other than
+///        the param's default or automation (in any of its clips' or kit rows' param sets), a cable rooted at it, a mod
+///        knob or a learned MIDI knob on it. The current file form never holds one.
+/// @param song The song.
+/// @return The break as "<owner>: parked <what> <param>", or empty if no sound holds one.
+std::string parkedIncoherence(::Song& song);
 
 /// @brief Find the first host chain of @p song that is not its owner's runtime state encoded.
 /// @param song The song whose kit, audio-track and master chains are checked.

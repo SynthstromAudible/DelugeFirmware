@@ -38,67 +38,71 @@ namespace instrument = deluge::instruments::classic;
 namespace host_chain = deluge::host::chains;
 
 // The runtime's numbering may move only with the engines' maps; these anchor each run's ends and sizes.
-static_assert(instrument::param::kVolumePostFX.value == params::FIRST_GLOBAL);
+static_assert(instrument::runtime_index(instrument::param::kVolumePostFX) == params::FIRST_GLOBAL);
 static_assert(instrument::kExpressionPitchBend.value == X_PITCH_BEND);
 static_assert(instrument::kExpressionSlide.value == Y_SLIDE_TIMBRE);
 static_assert(instrument::kExpressionPressure.value == Z_PRESSURE);
-// Each legacy enumerator names the neutral id at its index; a new enumerator adds its assert.
+// Each legacy enumerator is the runtime index of its param's id; a new enumerator adds its assert.
 // patched params
-static_assert(instrument::param::kOscAVolume.value == params::LOCAL_OSC_A_VOLUME);
-static_assert(instrument::param::kOscBVolume.value == params::LOCAL_OSC_B_VOLUME);
-static_assert(instrument::param::kVolume.value == params::LOCAL_VOLUME);
-static_assert(instrument::param::kNoiseVolume.value == params::LOCAL_NOISE_VOLUME);
-static_assert(instrument::param::kModulator1Volume.value == params::LOCAL_MODULATOR_0_VOLUME);
-static_assert(instrument::param::kModulator2Volume.value == params::LOCAL_MODULATOR_1_VOLUME);
-static_assert(instrument::param::kWaveFold.value == params::LOCAL_FOLD);
-static_assert(instrument::param::kModulator1Feedback.value == params::LOCAL_MODULATOR_0_FEEDBACK);
-static_assert(instrument::param::kModulator2Feedback.value == params::LOCAL_MODULATOR_1_FEEDBACK);
-static_assert(instrument::param::kCarrier1Feedback.value == params::LOCAL_CARRIER_0_FEEDBACK);
-static_assert(instrument::param::kCarrier2Feedback.value == params::LOCAL_CARRIER_1_FEEDBACK);
-static_assert(instrument::param::kLpfResonance.value == params::LOCAL_LPF_RESONANCE);
-static_assert(instrument::param::kHpfResonance.value == params::LOCAL_HPF_RESONANCE);
-static_assert(instrument::param::kEnv1Sustain.value == params::LOCAL_ENV_0_SUSTAIN);
-static_assert(instrument::param::kEnv2Sustain.value == params::LOCAL_ENV_1_SUSTAIN);
-static_assert(instrument::param::kEnv3Sustain.value == params::LOCAL_ENV_2_SUSTAIN);
-static_assert(instrument::param::kEnv4Sustain.value == params::LOCAL_ENV_3_SUSTAIN);
-static_assert(instrument::param::kLpfMorph.value == params::LOCAL_LPF_MORPH);
-static_assert(instrument::param::kHpfMorph.value == params::LOCAL_HPF_MORPH);
-static_assert(instrument::param::kOscAPhaseWidth.value == params::LOCAL_OSC_A_PHASE_WIDTH);
-static_assert(instrument::param::kOscBPhaseWidth.value == params::LOCAL_OSC_B_PHASE_WIDTH);
-static_assert(instrument::param::kOscAWavetablePosition.value == params::LOCAL_OSC_A_WAVE_INDEX);
-static_assert(instrument::param::kOscBWavetablePosition.value == params::LOCAL_OSC_B_WAVE_INDEX);
-static_assert(instrument::param::kPan.value == params::LOCAL_PAN);
-static_assert(instrument::param::kLpfFrequency.value == params::LOCAL_LPF_FREQ);
-static_assert(instrument::param::kPitch.value == params::LOCAL_PITCH_ADJUST);
-static_assert(instrument::param::kOscAPitch.value == params::LOCAL_OSC_A_PITCH_ADJUST);
-static_assert(instrument::param::kOscBPitch.value == params::LOCAL_OSC_B_PITCH_ADJUST);
-static_assert(instrument::param::kModulator1Pitch.value == params::LOCAL_MODULATOR_0_PITCH_ADJUST);
-static_assert(instrument::param::kModulator2Pitch.value == params::LOCAL_MODULATOR_1_PITCH_ADJUST);
-static_assert(instrument::param::kHpfFrequency.value == params::LOCAL_HPF_FREQ);
-static_assert(instrument::param::kLfo2Rate.value == params::LOCAL_LFO_LOCAL_FREQ_1);
-static_assert(instrument::param::kLfo4Rate.value == params::LOCAL_LFO_LOCAL_FREQ_2);
-static_assert(instrument::param::kEnv1Attack.value == params::LOCAL_ENV_0_ATTACK);
-static_assert(instrument::param::kEnv2Attack.value == params::LOCAL_ENV_1_ATTACK);
-static_assert(instrument::param::kEnv3Attack.value == params::LOCAL_ENV_2_ATTACK);
-static_assert(instrument::param::kEnv4Attack.value == params::LOCAL_ENV_3_ATTACK);
-static_assert(instrument::param::kEnv1Decay.value == params::LOCAL_ENV_0_DECAY);
-static_assert(instrument::param::kEnv2Decay.value == params::LOCAL_ENV_1_DECAY);
-static_assert(instrument::param::kEnv3Decay.value == params::LOCAL_ENV_2_DECAY);
-static_assert(instrument::param::kEnv4Decay.value == params::LOCAL_ENV_3_DECAY);
-static_assert(instrument::param::kEnv1Release.value == params::LOCAL_ENV_0_RELEASE);
-static_assert(instrument::param::kEnv2Release.value == params::LOCAL_ENV_1_RELEASE);
-static_assert(instrument::param::kEnv3Release.value == params::LOCAL_ENV_2_RELEASE);
-static_assert(instrument::param::kEnv4Release.value == params::LOCAL_ENV_3_RELEASE);
-static_assert(instrument::param::kVolumePostFX.value == params::GLOBAL_VOLUME_POST_FX);
-static_assert(instrument::param::kVolumePostReverbSend.value == params::GLOBAL_VOLUME_POST_REVERB_SEND);
-static_assert(instrument::param::kReverbAmount.value == params::GLOBAL_REVERB_AMOUNT);
-static_assert(instrument::param::kModFXDepth.value == params::GLOBAL_MOD_FX_DEPTH);
-static_assert(instrument::param::kDelayFeedback.value == params::GLOBAL_DELAY_FEEDBACK);
-static_assert(instrument::param::kDelayRate.value == params::GLOBAL_DELAY_RATE);
-static_assert(instrument::param::kModFXRate.value == params::GLOBAL_MOD_FX_RATE);
-static_assert(instrument::param::kLfo1Rate.value == params::GLOBAL_LFO_FREQ_1);
-static_assert(instrument::param::kLfo3Rate.value == params::GLOBAL_LFO_FREQ_2);
-static_assert(instrument::param::kArpRate.value == params::GLOBAL_ARP_RATE);
+static_assert(instrument::runtime_index(instrument::param::kOscAVolume) == params::LOCAL_OSC_A_VOLUME);
+static_assert(instrument::runtime_index(instrument::param::kOscBVolume) == params::LOCAL_OSC_B_VOLUME);
+static_assert(instrument::runtime_index(instrument::param::kVolume) == params::LOCAL_VOLUME);
+static_assert(instrument::runtime_index(instrument::param::kNoiseVolume) == params::LOCAL_NOISE_VOLUME);
+static_assert(instrument::runtime_index(instrument::param::kModulator1Volume) == params::LOCAL_MODULATOR_0_VOLUME);
+static_assert(instrument::runtime_index(instrument::param::kModulator2Volume) == params::LOCAL_MODULATOR_1_VOLUME);
+static_assert(instrument::runtime_index(instrument::param::kWaveFold) == params::LOCAL_FOLD);
+static_assert(instrument::runtime_index(instrument::param::kModulator1Feedback) == params::LOCAL_MODULATOR_0_FEEDBACK);
+static_assert(instrument::runtime_index(instrument::param::kModulator2Feedback) == params::LOCAL_MODULATOR_1_FEEDBACK);
+static_assert(instrument::runtime_index(instrument::param::kCarrier1Feedback) == params::LOCAL_CARRIER_0_FEEDBACK);
+static_assert(instrument::runtime_index(instrument::param::kCarrier2Feedback) == params::LOCAL_CARRIER_1_FEEDBACK);
+static_assert(instrument::runtime_index(instrument::param::kLpfResonance) == params::LOCAL_LPF_RESONANCE);
+static_assert(instrument::runtime_index(instrument::param::kHpfResonance) == params::LOCAL_HPF_RESONANCE);
+static_assert(instrument::runtime_index(instrument::param::kEnv1Sustain) == params::LOCAL_ENV_0_SUSTAIN);
+static_assert(instrument::runtime_index(instrument::param::kEnv2Sustain) == params::LOCAL_ENV_1_SUSTAIN);
+static_assert(instrument::runtime_index(instrument::param::kEnv3Sustain) == params::LOCAL_ENV_2_SUSTAIN);
+static_assert(instrument::runtime_index(instrument::param::kEnv4Sustain) == params::LOCAL_ENV_3_SUSTAIN);
+static_assert(instrument::runtime_index(instrument::param::kLpfMorph) == params::LOCAL_LPF_MORPH);
+static_assert(instrument::runtime_index(instrument::param::kHpfMorph) == params::LOCAL_HPF_MORPH);
+static_assert(instrument::runtime_index(instrument::param::kOscAPhaseWidth) == params::LOCAL_OSC_A_PHASE_WIDTH);
+static_assert(instrument::runtime_index(instrument::param::kOscBPhaseWidth) == params::LOCAL_OSC_B_PHASE_WIDTH);
+static_assert(instrument::runtime_index(instrument::param::kOscAWavetablePosition) == params::LOCAL_OSC_A_WAVE_INDEX);
+static_assert(instrument::runtime_index(instrument::param::kOscBWavetablePosition) == params::LOCAL_OSC_B_WAVE_INDEX);
+static_assert(instrument::runtime_index(instrument::param::kPan) == params::LOCAL_PAN);
+static_assert(instrument::runtime_index(instrument::param::kLpfFrequency) == params::LOCAL_LPF_FREQ);
+static_assert(instrument::runtime_index(instrument::param::kPitch) == params::LOCAL_PITCH_ADJUST);
+static_assert(instrument::runtime_index(instrument::param::kOscAPitch) == params::LOCAL_OSC_A_PITCH_ADJUST);
+static_assert(instrument::runtime_index(instrument::param::kOscBPitch) == params::LOCAL_OSC_B_PITCH_ADJUST);
+static_assert(instrument::runtime_index(instrument::param::kModulator1Pitch) == params::LOCAL_MODULATOR_0_PITCH_ADJUST);
+static_assert(instrument::runtime_index(instrument::param::kModulator2Pitch) == params::LOCAL_MODULATOR_1_PITCH_ADJUST);
+static_assert(instrument::runtime_index(instrument::param::kHpfFrequency) == params::LOCAL_HPF_FREQ);
+static_assert(instrument::runtime_index(instrument::param::kLfo2Rate) == params::LOCAL_LFO_LOCAL_FREQ_1);
+static_assert(instrument::runtime_index(instrument::param::kLfo4Rate) == params::LOCAL_LFO_LOCAL_FREQ_2);
+static_assert(instrument::runtime_index(instrument::param::kEnv1Attack) == params::LOCAL_ENV_0_ATTACK);
+static_assert(instrument::runtime_index(instrument::param::kEnv2Attack) == params::LOCAL_ENV_1_ATTACK);
+static_assert(instrument::runtime_index(instrument::param::kEnv3Attack) == params::LOCAL_ENV_2_ATTACK);
+static_assert(instrument::runtime_index(instrument::param::kEnv4Attack) == params::LOCAL_ENV_3_ATTACK);
+static_assert(instrument::runtime_index(instrument::param::kEnv1Decay) == params::LOCAL_ENV_0_DECAY);
+static_assert(instrument::runtime_index(instrument::param::kEnv2Decay) == params::LOCAL_ENV_1_DECAY);
+static_assert(instrument::runtime_index(instrument::param::kEnv3Decay) == params::LOCAL_ENV_2_DECAY);
+static_assert(instrument::runtime_index(instrument::param::kEnv4Decay) == params::LOCAL_ENV_3_DECAY);
+static_assert(instrument::runtime_index(instrument::param::kEnv1Release) == params::LOCAL_ENV_0_RELEASE);
+static_assert(instrument::runtime_index(instrument::param::kEnv2Release) == params::LOCAL_ENV_1_RELEASE);
+static_assert(instrument::runtime_index(instrument::param::kEnv3Release) == params::LOCAL_ENV_2_RELEASE);
+static_assert(instrument::runtime_index(instrument::param::kEnv4Release) == params::LOCAL_ENV_3_RELEASE);
+static_assert(instrument::runtime_index(instrument::param::kDx7Level) == params::LOCAL_DX7_LEVEL);
+static_assert(instrument::runtime_index(instrument::param::kDx7AmpMod) == params::LOCAL_DX7_AMP_MOD);
+static_assert(instrument::runtime_index(instrument::param::kDx7Pitch) == params::LOCAL_DX7_PITCH_ADJUST);
+static_assert(instrument::runtime_index(instrument::param::kVolumePostFX) == params::GLOBAL_VOLUME_POST_FX);
+static_assert(instrument::runtime_index(instrument::param::kVolumePostReverbSend)
+              == params::GLOBAL_VOLUME_POST_REVERB_SEND);
+static_assert(instrument::runtime_index(instrument::param::kReverbAmount) == params::GLOBAL_REVERB_AMOUNT);
+static_assert(instrument::runtime_index(instrument::param::kModFXDepth) == params::GLOBAL_MOD_FX_DEPTH);
+static_assert(instrument::runtime_index(instrument::param::kDelayFeedback) == params::GLOBAL_DELAY_FEEDBACK);
+static_assert(instrument::runtime_index(instrument::param::kDelayRate) == params::GLOBAL_DELAY_RATE);
+static_assert(instrument::runtime_index(instrument::param::kModFXRate) == params::GLOBAL_MOD_FX_RATE);
+static_assert(instrument::runtime_index(instrument::param::kLfo1Rate) == params::GLOBAL_LFO_FREQ_1);
+static_assert(instrument::runtime_index(instrument::param::kLfo3Rate) == params::GLOBAL_LFO_FREQ_2);
+static_assert(instrument::runtime_index(instrument::param::kArpRate) == params::GLOBAL_ARP_RATE);
 // a sound's unpatched params
 static_assert(instrument::param::kStutterRate.value == params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE);
 static_assert(instrument::param::kBass.value == params::UNPATCHED_START + params::UNPATCHED_BASS);
@@ -269,6 +273,13 @@ std::optional<deluge::project::ParamTarget> targetOf(OwnerPlugin owner, params::
 		return std::nullopt;
 	}
 	return deluge::ui::controls::follow_target(owner, turned, instrument::has_engine_param);
+}
+
+std::optional<size_t> laneIndexOf(const deluge::project::DocParamSet& store, params::Kind kind, int32_t index) {
+	if (index < 0) {
+		return std::nullopt;
+	}
+	return store.indexOf(paramIdOf(kind, index));
 }
 
 deluge::plugin::ParamId firstParamId(params::Kind kind) {

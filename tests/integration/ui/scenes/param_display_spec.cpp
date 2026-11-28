@@ -193,7 +193,7 @@ describe param_display_spec_body("The param tables' display against the menu nod
 	it("has the standard display on every param but the ones the tables name", _ {
 		// A display a row lacks is the standard one, so a row that changes it must be named here.
 		expect(non_standard(deluge::instruments::classic::kParams))
-		    .to_equal(std::vector<std::string>{"oscAPhaseWidth", "oscBPhaseWidth", "pan", "compressorThreshold"});
+		    .to_equal(std::vector<std::string>{"oscAPhaseWidth", "oscBPhaseWidth", "pan", "dx7AmpMod", "compressorThreshold"});
 		expect(non_standard(deluge::host::chains::kParams))
 		    .to_equal(std::vector<std::string>{"compressorThreshold", "pan"});
 	});

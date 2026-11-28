@@ -5,6 +5,8 @@
 // Sound::maySourcePatchToParam (a function of source and param), and folds every result into one digest: the cables'
 // order (the order a save walks), the usable count, each usable cable's range link, the Destinations of both
 // globalities and sourcesPatchedToAnything. The digest is pinned: any change to the routing or the save order fails.
+// The topologies name params by id (the 55 patched params the digest was pinned with) and the runtime by its index;
+// the digest folds the ids back, so it is the routing's whatever the runtime's numbering.
 //
 // Every case is also compiled by the synth library's compile_routing, which must agree with the runtime field by
 // field.
@@ -21,6 +23,7 @@
 #include "synth/modulation/patch_routing.h"
 #include "definitions_cxx.hpp"
 #include "instruments/classic/cable_records.h"
+#include "instruments/classic/params.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection_summary.h"
 #include "modulation/patch/patch_cable.h"
@@ -44,6 +47,22 @@ namespace params = deluge::modulation::params;
 Io io{};
 
 constexpr int32_t kCases = 20000;
+/// The patched ids the topologies draw from: the params the digest was pinned with.
+constexpr uint32_t kDrawnParams = 55;
+
+/// @p word with its param byte the runtime's index of the id the topology drew (synth::CableTarget's layout).
+deluge::synth::CableTarget runtimeTarget(deluge::synth::CableTarget word) {
+	return word.with_param(
+	    static_cast<uint8_t>(deluge::instruments::classic::flat_index(deluge::plugin::ParamId{word.param_index()})));
+}
+
+/// @p word with its param byte the id the runtime's index names: the inverse of runtimeTarget.
+uint32_t idWord(uint32_t word) {
+	const deluge::synth::CableTarget target{word};
+	return target
+	    .with_param(static_cast<uint8_t>(deluge::instruments::classic::flat_param_id(target.param_index()).value))
+	    .word;
+}
 /// The digest of kCases topologies routed by setupPatching.
 constexpr uint32_t kPinnedDigest = 0xc5bf140e;
 
@@ -66,7 +85,8 @@ struct TopologyCable {
 
 struct Topology {
 	std::vector<TopologyCable> cables;
-	std::array<std::bitset<params::kNumParams>, kNumPatchSources> usable{};
+	/// Whether a source may patch to each param, by id.
+	std::array<std::bitset<kDrawnParams>, kNumPatchSources> usable{};
 };
 
 PatchSource randomSource(Rng& rng) {
@@ -75,15 +95,15 @@ PatchSource randomSource(Rng& rng) {
 
 /// A param a depth cable may name: never the unknown placeholder, which no loaded depth cable targets.
 uint32_t randomRangeParam(Rng& rng) {
-	uint32_t p = rng.below(params::kNumParams);
+	uint32_t p = rng.below(kDrawnParams);
 	return p == params::PLACEHOLDER_RANGE ? 0 : p;
 }
 
 Topology randomTopology(uint32_t seed) {
 	Rng rng{(seed * 2654435761u) + 1};
 	Topology t;
-	for (std::bitset<params::kNumParams>& row : t.usable) {
-		for (int32_t p = 0; p < params::kNumParams; p++) {
+	for (std::bitset<kDrawnParams>& row : t.usable) {
+		for (uint32_t p = 0; p < kDrawnParams; p++) {
 			row[p] = rng.below(5) != 0;
 		}
 	}
@@ -97,7 +117,7 @@ Topology randomTopology(uint32_t seed) {
 		deluge::synth::CableTarget target;
 		const uint32_t kind = rng.below(20);
 		if (kind < 13 || t.cables.empty()) {
-			target = deluge::synth::CableTarget::param(static_cast<int32_t>(rng.below(params::kNumParams)));
+			target = deluge::synth::CableTarget::param(static_cast<int32_t>(rng.below(kDrawnParams)));
 		}
 		else if (kind < 18) {
 			const TopologyCable& other = t.cables[rng.below(t.cables.size())];
@@ -119,6 +139,9 @@ Topology randomTopology(uint32_t seed) {
 		}
 		t.cables.push_back({from, target, rng.below(2) != 0 ? Polarity::BIPOLAR : Polarity::UNIPOLAR});
 	}
+	for (TopologyCable& c : t.cables) {
+		c.target = runtimeTarget(c.target);
+	}
 	return t;
 }
 
@@ -131,7 +154,7 @@ bool usableIn(const Topology& t, PatchSource from, deluge::synth::CableTarget ta
 	if (s == PatchSource::NOT_AVAILABLE) {
 		s = from;
 	}
-	return t.usable[std::to_underlying(s)][target.param_index()];
+	return t.usable[std::to_underlying(s)][deluge::instruments::classic::flat_param_id(target.param_index()).value];
 }
 
 uint32_t fold(uint32_t h, uint32_t v) {
@@ -152,7 +175,7 @@ uint32_t foldSet(uint32_t h, const PatchCableSet& set) {
 	h = fold(h, set.numUsablePatchCables);
 	for (int32_t c = 0; c < set.numPatchCables; c++) {
 		h = fold(h, std::to_underlying(set.patchCables[c].from));
-		h = fold(h, set.patchCables[c].destination.word);
+		h = fold(h, idWord(set.patchCables[c].destination.word));
 		h = fold(h, std::to_underlying(set.patchCables[c].polarity));
 	}
 	for (int32_t c = 0; c < set.numUsablePatchCables; c++) {
@@ -161,7 +184,7 @@ uint32_t foldSet(uint32_t h, const PatchCableSet& set) {
 	for (int32_t g = 0; g < 2; g++) {
 		h = fold(h, set.sourcesPatchedToAnything[g]);
 		for (const deluge::synth::RoutedDestination* d = set.destinations[g]; d != nullptr && d->sources != 0; d++) {
-			h = fold(h, d->target.word);
+			h = fold(h, idWord(d->target.word));
 			h = fold(h, d->sources);
 			h = fold(h, d->first_cable);
 			h = fold(h, d->end_cable);
@@ -195,7 +218,8 @@ bool agrees(const Topology& t, const PatchCableSet& set, int32_t seed) {
 	const auto usable =
 	    deluge::synth::usability_of(records.records(), [&](PatchSource s, deluge::synth::CableTarget target) {
 		    return target != deluge::synth::CableTarget::param(params::PLACEHOLDER_RANGE)
-		           && t.usable[std::to_underlying(s)][target.param_index()];
+		           && t.usable[std::to_underlying(s)]
+		                      [deluge::instruments::classic::flat_param_id(target.param_index()).value];
 	    });
 	static deluge::synth::RoutingBuild b;
 	deluge::synth::compile_routing(records.records(), usable, b);

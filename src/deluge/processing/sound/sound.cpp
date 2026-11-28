@@ -36,6 +36,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "instruments/classic/codec.h"
 #include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/engine_params.h"
 #include "instruments/classic/pages.h"
 #include "instruments/classic/sound_state.h"
 #include "instruments/classic/state_access.h"
@@ -251,7 +252,10 @@ void Sound::initParams(ParamManager* paramManager) {
 	                     params::LOCAL_OSC_A_PITCH_ADJUST,
 	                     params::LOCAL_OSC_B_PITCH_ADJUST,
 	                     params::LOCAL_MODULATOR_0_PITCH_ADJUST,
-	                     params::LOCAL_MODULATOR_1_PITCH_ADJUST});
+	                     params::LOCAL_MODULATOR_1_PITCH_ADJUST,
+	                     params::LOCAL_DX7_LEVEL,
+	                     params::LOCAL_DX7_AMP_MOD,
+	                     params::LOCAL_DX7_PITCH_ADJUST});
 }
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
@@ -401,6 +405,7 @@ void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* 
 		switch (p) {
 		case params::LOCAL_OSC_A_VOLUME:
 		case params::LOCAL_OSC_B_VOLUME:
+		case params::LOCAL_DX7_LEVEL:
 		case params::LOCAL_MODULATOR_0_VOLUME:
 		case params::LOCAL_MODULATOR_1_VOLUME:
 			recalculateAllVoicePhaseIncrements(modelStack);
@@ -644,11 +649,27 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		return PatchCableAcceptance::DISALLOWED; // Can't patch local source to global param
 	}
 
+	// Only the playing engine's params, and the sound's own, take a cable
+	if (p != 255
+	    && !deluge::instruments::classic::param_is_live(getSynthMode(),
+	                                                    deluge::instruments::classic::flat_param_id(p))) {
+		return PatchCableAcceptance::DISALLOWED;
+	}
+
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	switch (p) {
 	case params::GLOBAL_NONE:
 		return PatchCableAcceptance::DISALLOWED;
+
+	// The DX7's own params take their oscillator A counterparts' rules: the level and the pitch adjust patch while the
+	// DX7 (source 0) can sound, and are only edited while it cannot; the amplitude modulation as the pulse width
+	case params::LOCAL_DX7_LEVEL:
+	case params::LOCAL_DX7_PITCH_ADJUST:
+		return isSourceActiveEverDisregardingMissingSample(0, paramManager) ? PatchCableAcceptance::ALLOWED
+		                                                                    : PatchCableAcceptance::EDITABLE;
+	case params::LOCAL_DX7_AMP_MOD:
+		return PatchCableAcceptance::ALLOWED;
 
 	case params::LOCAL_VOLUME:
 		return (
@@ -696,9 +717,6 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 			return PatchCableAcceptance::DISALLOWED;
 		}
 	case params::LOCAL_OSC_B_PITCH_ADJUST:
-		if (getSynthMode() == SynthMode::DX7) {
-			return PatchCableAcceptance::DISALLOWED; // the DX7 plays no second oscillator
-		}
 		return (isSourceActiveEverDisregardingMissingSample(1, paramManager)) ? PatchCableAcceptance::ALLOWED
 		                                                                      : PatchCableAcceptance::EDITABLE;
 
@@ -1321,10 +1339,10 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 	return true;
 }
 
-// In DX7 mode source 0 is the DX7, which reads osc A's level, and source 1 is none
+// In DX7 mode source 0 is the DX7, whose level is its own, and source 1 is none
 bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager) {
-	if (getSynthMode() == SynthMode::DX7 && s != 0) {
-		return false;
+	if (getSynthMode() == SynthMode::DX7) {
+		return s == 0 && getSmoothedPatchedParamValue(params::LOCAL_DX7_LEVEL, *paramManager) != -2147483648;
 	}
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || getSmoothedPatchedParamValue(params::LOCAL_OSC_A_VOLUME + s, *paramManager) != -2147483648)
@@ -1332,8 +1350,10 @@ bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramMan
 }
 
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
-	if (getSynthMode() == SynthMode::DX7 && s != 0) {
-		return false;
+	if (getSynthMode() == SynthMode::DX7) {
+		return s == 0
+		       && paramManager->getPatchedParamSet()->params[params::LOCAL_DX7_LEVEL].containsSomething(
+		           paramManager->getPatchedParamSet()->playedLane(params::LOCAL_DX7_LEVEL), -2147483648);
 	}
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].containsSomething(
@@ -1823,7 +1843,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			facts.source_ever_active[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			facts.source_active_currently[s] = isSourceActiveCurrently(s, paramManager);
 		}
-		// The DX7 reads osc A's level: source 0's rule
+		// The DX7 is source 0 in DX7 mode, active by its own level
 		facts.dx7_active_currently = getSynthMode() == SynthMode::DX7 && facts.source_active_currently[0];
 		facts.dx7_patch_changed = dx7Patch.changed;
 		const deluge::synth::BlockValues blockValues =
@@ -2175,9 +2195,12 @@ bool Sound::learnedKnobTurns(Song* song, int32_t p) {
 	return deluge::bridge::learnedKnobTurns(song, *effectsOwner(), address, param);
 }
 
-const uint8_t patchedParamsWhichShouldBeZeroIfNoKnobAssigned[] = {
-    params::LOCAL_PITCH_ADJUST, params::LOCAL_OSC_A_PITCH_ADJUST, params::LOCAL_OSC_B_PITCH_ADJUST,
-    params::LOCAL_MODULATOR_0_PITCH_ADJUST, params::LOCAL_MODULATOR_1_PITCH_ADJUST};
+const uint8_t patchedParamsWhichShouldBeZeroIfNoKnobAssigned[] = {params::LOCAL_PITCH_ADJUST,
+                                                                  params::LOCAL_OSC_A_PITCH_ADJUST,
+                                                                  params::LOCAL_OSC_B_PITCH_ADJUST,
+                                                                  params::LOCAL_MODULATOR_0_PITCH_ADJUST,
+                                                                  params::LOCAL_MODULATOR_1_PITCH_ADJUST,
+                                                                  params::LOCAL_DX7_PITCH_ADJUST};
 
 void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager,
                                                                                      Song* song) {
@@ -2455,7 +2478,7 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 	return Error::NONE;
 }
 
-void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
+void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation, SynthMode mode) {
 	// Serialize from the value DOM (deluge::project). serializeSoundParams emits the patched + unpatched flat attrs,
 	// the shared effects param block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
 	// <patchCables> block and the shared tags.
@@ -2463,7 +2486,7 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
 	                                     **deluge::bridge::storeFor(doc, params::Kind::UNPATCHED_SOUND),
 	                                     paramManager->getPatchCableSet()->records().records(), doc.cable_depths,
-	                                     writer, writeAutomation, doc.arp ? &*doc.arp : nullptr);
+	                                     writer, writeAutomation, doc.arp ? &*doc.arp : nullptr, mode);
 }
 
 void Sound::deriveConfig() {
@@ -2633,7 +2656,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	if (paramManager) {
 		writer.writeOpeningTagBeginning("defaultParams");
-		Sound::writeParamsToFile(writer, paramManager, false);
+		Sound::writeParamsToFile(writer, paramManager, false, getSynthMode());
 		writer.writeClosingTag("defaultParams");
 	}
 
@@ -2656,7 +2679,11 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 				writer.closeTag(true);
 				continue;
 			}
-			const deluge::synth::CableTarget word = deluge::modulation::knobWord(target);
+			// A knob on a param of an engine that is not playing is saved as no knob
+			const bool live = !target || target->space != deluge::project::ParamSpace::ENGINE
+			                  || deluge::instruments::classic::target_is_live(getSynthMode(), target->id);
+			const deluge::synth::CableTarget word =
+			    live ? deluge::modulation::knobWord(target) : deluge::synth::CableTarget{};
 			writer.writeAttribute("controlsParam",
 			                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND, word.param_index()), false);
 			if (!word.is_param()) {

@@ -520,7 +520,9 @@ public:
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
 	void setupAsBlankSynth(ParamManager* paramManager, bool is_dx = false);
 	void setupAsDefaultSynth(ParamManager* paramManager);
-	static void writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation);
+	/// @brief Write a sound's params: its patched and unpatched values, envelopes and cables.
+	/// @param mode The sound's synth mode: only its engine's params, and the sound's own, are written.
+	static void writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation, SynthMode mode);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);

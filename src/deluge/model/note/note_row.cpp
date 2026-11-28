@@ -3681,7 +3681,9 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			closedOurTagYet = true;
 
 			writer.writeOpeningTagBeginning("soundParams");
-			Sound::writeParamsToFile(writer, &paramManager, true);
+			const SynthMode mode =
+			    drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum)->getSynthMode() : SynthMode::SUBTRACTIVE;
+			Sound::writeParamsToFile(writer, &paramManager, true, mode);
 			writer.writeClosingTag("soundParams", true);
 		}
 	}

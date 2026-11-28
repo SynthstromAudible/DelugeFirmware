@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "instruments/classic/params.h"
 #include "project/param_address.h"
 #include "synth/modulation/cable.h"
 
@@ -25,13 +26,16 @@
 
 namespace deluge::modulation {
 
-/// @brief What a knob controls: a param of its owner, by the owner's flat id (an unpatched param's id is 90 on from
-/// its runtime index, in a sound and a global effectable alike), or a sound's cable depth.
+/// @brief What a knob controls: a param of its owner, by its id, or a sound's cable depth.
 using KnobTarget = std::optional<deluge::project::ParamTarget>;
 
-/// @brief The sound param or global-effectable param whose flat id is @p flat, as a knob target.
+/// @brief The sound param or global-effectable param at the runtime's flat index @p flat, as a knob target: a
+/// patched param's runtime index, an unpatched one's 90 on from its runtime index (in a sound and a global effectable
+/// alike), named by its id (@c instruments::classic::flat_param_id).
+/// @param flat The param's flat index.
+/// @return The knob target.
 [[nodiscard]] constexpr deluge::project::ParamTarget knobParam(uint32_t flat) {
-	return deluge::project::engine_target(flat);
+	return deluge::project::engine_target(deluge::instruments::classic::flat_param_id(flat).value);
 }
 
 /// @brief @p target in the runtime's descriptor layout: a param as its flat index with no source, a cable depth as its

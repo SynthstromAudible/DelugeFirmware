@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <span>
@@ -37,7 +38,7 @@ inline constexpr ReferencePatcher::Config kVoiceConfig{
     .first_non_volume_param = regions::kLocalLinear,
     .first_hybrid_param = regions::kLocalBipolar,
     .first_exp_param = regions::kLocalExponential,
-    .end_params = params::FIRST_GLOBAL,
+    .end_params = regions::kVoiceRegionsEnd,
     .globality = kLocal,
 };
 inline constexpr ReferencePatcher::Config kSoundConfig{
@@ -82,7 +83,7 @@ inline PatchCase random_case(uint32_t seed) {
 		CableRecord r;
 		r.source = static_cast<PatchSource>(global ? below(kNumGlobalSources) : below(kNumPatchSources));
 		r.target = CableTarget::param(static_cast<uint8_t>(global ? params::FIRST_GLOBAL + below(kNumGlobalParams)
-		                                                          : below(params::FIRST_GLOBAL)));
+		                                                          : below(regions::kVoiceRegionsEnd)));
 		r.polarity = below(2) == 0 ? CablePolarity::UNIPOLAR : CablePolarity::BIPOLAR;
 		if (!has(r)) {
 			c.records.push_back(r);
@@ -142,9 +143,23 @@ inline void compile_case(const PatchCase& c, CompiledCase& out) {
 	out.block.depths = c.depths;
 }
 
-/// Each scope's final values after the initial patching and each of the case's three blocks.
+/// The per-voice params the reference walks: those the regions cover.
+inline constexpr std::size_t kReferenceVoiceParams = regions::kVoiceRegionsEnd;
+
+/// @brief The first @c kReferenceVoiceParams of a voice pass's final values: the part the reference walks.
+/// @param finals A voice pass's final values.
+/// @return Their first @c kReferenceVoiceParams.
+inline std::array<int32_t, kReferenceVoiceParams>
+reference_voice(const std::array<int32_t, params::FIRST_GLOBAL>& finals) {
+	std::array<int32_t, kReferenceVoiceParams> out{};
+	std::copy_n(finals.begin(), kReferenceVoiceParams, out.begin());
+	return out;
+}
+
+/// Each scope's final values after the initial patching and each of the case's three blocks, the voice's over the
+/// params the reference walks.
 struct ReferenceResult {
-	std::array<std::array<int32_t, params::FIRST_GLOBAL>, 4> voice{};
+	std::array<std::array<int32_t, kReferenceVoiceParams>, 4> voice{};
 	std::array<std::array<int32_t, kNumGlobalParams>, 4> sound{};
 };
 
@@ -168,14 +183,14 @@ inline ReferenceResult reference_results(const PatchCase& c, const CompiledCase&
 	sound.perform_initial_patching(compiled.block);
 	out.sound[0] = sound_finals;
 	voice.perform_initial_patching(compiled.block);
-	out.voice[0] = voice_finals;
+	out.voice[0] = reference_voice(voice_finals);
 	for (size_t b = 0; b < c.sources_changed.size(); ++b) {
 		voice_sources = c.sources[b + 1];
 		std::copy_n(c.sources[b + 1].begin(), kNumGlobalSources, sound_sources.begin());
 		sound.perform_patching(c.sources_changed[b], compiled.block);
 		out.sound[b + 1] = sound_finals;
 		voice.perform_patching(c.sources_changed[b], compiled.block);
-		out.voice[b + 1] = voice_finals;
+		out.voice[b + 1] = reference_voice(voice_finals);
 	}
 	return out;
 }

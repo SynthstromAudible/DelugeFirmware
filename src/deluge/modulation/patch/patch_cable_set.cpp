@@ -346,7 +346,7 @@ deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
 	return (c == 255) ? nullptr : docForParam(c);
 }
 
-deluge::project::DocAutoParam* PatchCableSet::findDocParamForId(int32_t paramId) {
+deluge::project::DocAutoParam* PatchCableSet::findDocParamForKey(int32_t paramId) {
 	PatchSource s;
 	deluge::synth::CableTarget desc;
 	dissectParamId(paramId, &desc, &s);
@@ -1151,7 +1151,7 @@ void PatchCableSet::forEachAppendedKey(ParamCollection& other, const ParamCollec
 void PatchCableSet::forEachLane(deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	for (int32_t c = 0; c < numPatchCables; c++) {
 		const int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
-		const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
+		const deluge::project::DocAutoParam* lane = findDocParamForKey(paramId);
 		if (lane != nullptr && !lane->nodes.empty()) {
 			visit(paramId, *lane);
 		}

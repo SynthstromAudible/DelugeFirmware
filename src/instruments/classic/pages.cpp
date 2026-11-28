@@ -16,6 +16,8 @@
  */
 
 #include "instruments/classic/pages.h"
+
+#include "instruments/classic/engine_params.h"
 #include "instruments/classic/state_access.h"
 
 #include "instruments/classic/deluge_synth.h"
@@ -82,6 +84,12 @@ KnobPairs remap_for_mode(SynthMode from, SynthMode to, KnobPairs knobs) {
 		};
 		if (const auto row = std::ranges::find_if(rows, matches); row != rows.end()) {
 			pair = {.lower = row->lower_to, .upper = row->upper_to};
+		}
+		// Into or out of DX7 mode a knob on a param with a counterpart there turns the counterpart
+		for (plugin::ParamId* knob : {&pair.lower, &pair.upper}) {
+			if (const std::optional<plugin::ParamId> playing = playing_target(to, *knob)) {
+				*knob = *playing;
+			}
 		}
 	}
 	return knobs;

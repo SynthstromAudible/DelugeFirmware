@@ -2,7 +2,7 @@
 
 // Every menu item's param, by node id over nodes::kAllRoots, as the menu's kind tables named it: recorded from the
 // tables before they named params by table and id (menu_param_ids_spec). The DX7 page's level, amp mod and transpose,
-// which those tables never had, are its oscillator A volume, pulse width and pitch, in the same numbering.
+// which those tables never had, are the DX7's own level, amplitude modulation and pitch adjust.
 
 #include <cstdint>
 
@@ -30,8 +30,8 @@ inline constexpr MenuParamCell kMenuParamIds[] = {
     {106, 653, 0, 47, true},   {121, 650, 0, 90, false},  {126, 640, 0, 48, true},   {127, 650, 0, 51, true},
     {128, 588, 0, 98, false},  {129, 592, 0, 97, false},  {132, 387, 0, 96, false},  {133, 618, 0, 95, false},
     {134, 885, 0, 6, true},    {135, 458, 0, 3, true},    {139, 379, 0, 99, false},  {146, 666, 0, 26, true},
-    {147, 545, 0, 21, true},   {148, 555, 0, 19, true},   {149, 588, 0, 9, true},    {159, 666, 0, 26, true},
-    {160, 555, 0, 19, true},   {162, 341, 0, 0, true},    {166, 666, 0, 27, true},   {167, 545, 0, 22, true},
+    {147, 545, 0, 21, true},   {148, 555, 0, 19, true},   {149, 588, 0, 9, true},    {159, 666, 0, 57, true},
+    {160, 555, 0, 56, true},   {162, 341, 0, 55, true},   {166, 666, 0, 27, true},   {167, 545, 0, 22, true},
     {168, 555, 0, 20, true},   {169, 588, 0, 10, true},   {179, 666, 0, 28, true},   {180, 588, 0, 7, true},
     {183, 666, 0, 29, true},   {184, 588, 0, 8, true},    {188, 744, 0, 0, true},    {189, 744, 0, 1, true},
     {190, 785, 0, 4, true},    {191, 785, 0, 5, true},    {194, 662, 0, 33, true},   {195, 541, 0, 37, true},

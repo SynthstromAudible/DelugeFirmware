@@ -26,7 +26,8 @@ describe param_predicates("which collection and id a param is, and what the knob
 	it("names a constant id's runtime index", _ {
 		expect(static_cast<uint32_t>(runtime_index(param::kPan))).to_equal(23U);
 		expect(static_cast<uint32_t>(runtime_index(param::kPortamento))).to_equal(11U);
-		expect(static_cast<uint32_t>(runtime_index(kFirstGlobalParam))).to_equal(45U);
+		expect(static_cast<uint32_t>(runtime_index(kFirstGlobalParam))).to_equal(48U);
+		expect(static_cast<uint32_t>(runtime_index(param::kDx7Level))).to_equal(45U);
 	});
 
 	it("finds a row by index as it does by id", _ {

@@ -9,6 +9,7 @@
 // alone, as it always did. The cabled patching is matrix_rules_spec's, against the rules model.
 
 #include "matrix_cases.h"
+#include "param_regions.h"
 #include "patch_cases.h"
 
 #include "synth/matrix/compiler.h"
@@ -42,10 +43,32 @@ describe matrix_evaluator_spec_body("the matrix evaluator", ${
 		block.preset_values = deluge::synth::test::raw_matrix::typed_words<deluge::dsp::Q<31>>(c.presets);
 		const ScopePass pass{.scope = 0, .sources = sources, .final_values = finals};
 		int32_t differing = 0;
-		for (int32_t p = 0; p < params::FIRST_GLOBAL; ++p) {
+		for (int32_t p = 0; p < regions::kVoiceRegionsEnd; ++p) {
 			Evaluator<MatrixFixed>::run_uncabled_param(pass, block, p);
 			reference.recalculate_final_value_for_param_with_no_cables(p, compiled->block);
 			differing += finals[p] != reference_finals[p] ? 1 : 0;
+		}
+		expect(differing).to_equal(0);
+	});
+
+	it("gives each of the DX7's uncabled params the value its oscillator A counterpart has from the same preset", _{
+		const PatchCase c = random_case(11);
+		std::array<int32_t, kNumPatchSources> sources = c.sources[0];
+		std::array<int32_t, params::FIRST_GLOBAL> finals{};
+		const ScopePass pass{.scope = 0, .sources = sources, .final_values = finals};
+		int32_t differing = 0;
+		for (const int32_t dx7 : {params::LOCAL_DX7_LEVEL, params::LOCAL_DX7_AMP_MOD, params::LOCAL_DX7_PITCH_ADJUST}) {
+			const int32_t osc = regions::region_param(dx7);
+			for (const int32_t preset : c.presets) {
+				std::array<int32_t, params::kNumParams> presets{};
+				presets[dx7] = preset;
+				presets[osc] = preset;
+				MatrixBlock block{};
+				block.preset_values = deluge::synth::test::raw_matrix::typed_words<deluge::dsp::Q<31>>(presets);
+				Evaluator<MatrixFixed>::run_uncabled_param(pass, block, dx7);
+				Evaluator<MatrixFixed>::run_uncabled_param(pass, block, osc);
+				differing += finals[dx7] != finals[osc] ? 1 : 0;
+			}
 		}
 		expect(differing).to_equal(0);
 	});

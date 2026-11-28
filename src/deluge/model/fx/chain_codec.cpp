@@ -19,6 +19,7 @@
 
 #include "arp/params.h"
 #include "effects/codec.h"
+#include "instruments/classic/engine_params.h"
 #include "model/fx/chain_params.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
@@ -30,6 +31,7 @@
 #include "modulation/params/arp_param_set.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 #include "util/functions.h"
@@ -141,10 +143,13 @@ void writeMidiKnobs(Serializer& writer, EffectsOwner owner, ::Song* song,
 	if (!saved) {
 		return;
 	}
-	// The file names engine and arp params only.
-	std::erase_if(*saved, [](const project::Mapping& knob) {
-		const project::ParamSpace space = std::get<project::OwnerParamTarget>(knob.target).param.space;
-		return space != project::ParamSpace::ENGINE && space != project::ParamSpace::ARP;
+	// The file names engine and arp params only; a sound's, only its playing engine's and its own
+	std::erase_if(*saved, [&owner](const project::Mapping& knob) {
+		const project::ParamTarget& param = std::get<project::OwnerParamTarget>(knob.target).param;
+		if (param.space != project::ParamSpace::ENGINE) {
+			return param.space != project::ParamSpace::ARP;
+		}
+		return owner.sound != nullptr && !instruments::classic::target_is_live(owner.sound->getSynthMode(), param.id);
 	});
 	if (saved->empty()) {
 		return;

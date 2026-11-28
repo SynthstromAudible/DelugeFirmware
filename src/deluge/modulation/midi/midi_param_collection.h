@@ -114,8 +114,8 @@ public:
 	/// @copydoc ParamCollection::docParamForId
 	/// @note The paramId is the CC number.
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
-	/// @copydoc ParamCollection::findDocParamForId
-	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
+	/// @copydoc ParamCollection::findDocParamForKey
+	deluge::project::DocAutoParam* findDocParamForKey(int32_t paramId) override;
 	/// @copydoc ParamCollection::forEachLane
 	void forEachLane(deluge::base::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) override;
 	/// @copydoc ParamCollection::forEachAppendedKey

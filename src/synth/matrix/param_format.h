@@ -82,6 +82,10 @@ struct ParamFormat<params::LOCAL_MODULATOR_1_PITCH_ADJUST> {
 	using type = dsp::Q<24>;
 };
 template <>
+struct ParamFormat<params::LOCAL_DX7_PITCH_ADJUST> {
+	using type = dsp::Q<24>;
+};
+template <>
 struct ParamFormat<params::GLOBAL_DELAY_RATE> {
 	using type = dsp::Q<24>;
 };

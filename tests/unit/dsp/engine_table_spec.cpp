@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#include "instruments/classic/words.h"
 #include "synth/engines/engine_set.h"
 #include "synth/engines/engine_table.h"
 
