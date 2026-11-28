@@ -67,8 +67,9 @@ static bool scalarOk(ParamSet* s) {
 	if (s->domStore() == nullptr) {
 		return false;
 	}
-	for (int32_t p = 0; p < s->getNumParams() && p < (int32_t)s->domStore()->params.size(); p++) {
-		if (s->domStore()->params[p].current_value != s->params[p].played()) {
+	for (int32_t p = 0; p < s->getNumParams(); p++) {
+		const deluge::project::DocAutoParam* lane = s->findDocParamForKey(p);
+		if (lane == nullptr || lane->current_value != s->params[p].played()) {
 			return false;
 		}
 	}
