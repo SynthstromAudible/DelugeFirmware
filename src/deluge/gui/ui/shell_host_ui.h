@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/shell_clock.h"
 #include "gui/ui/shell_guest_surfaces.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/scene.h"
@@ -97,57 +98,10 @@ namespace deluge::gui::ui {
 /// the guest survive a UI opening and closing over it. The guest arms unconditionally, so the one conditional clear
 /// costs it nothing; it is named because a reader counting clears would otherwise miscount.
 ///
-/// @par The unit mismatch: an absolute deadline against a duration
+/// @par The timer's conversion and floor
 ///
-/// `Shell::next_wake()` is an **absolute** millisecond deadline, recomputed at the bottom of every
-/// tick. `UITimerManager::setTimer` takes a **duration**
-/// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp`). The
-/// conversion is therefore `in = (int32_t)(deadline - now)`, in the wrap-safe difference form
-/// `Shell::compute_next_wake` and `RepaintGate` both use -- a plain `<` across the ~49.7-day `uint32_t` wrap picks the
-/// wrong one of two straddling deadlines -- and then clamped to `kMinRearmMs .. kMaxRearmMs`.
-///
-///  - **A deadline already past** (`in <= 0`) arms `kMinRearmMs`, not zero. It is not an error: the
-///    shell asks for `now_ms` routinely (a router repaint armed at a zero-millisecond deadline),
-///    and there is nothing to catch up on -- the tick that just ran was
-///    the one it was waiting for.
-///  - **Arming earlier than asked is always safe; arming later is not.** The next tick recomputes
-///    `next_wake()` from scratch, so an early wake costs one tick and corrects itself. That is why
-///    the clamp is one-sided in its consequences and why `kMaxRearmMs` may exist at all.
-///
-/// @par Why the floor is 1 ms and not 0 -- a 0 floor is a busy loop
-///
-/// `Scene::next_timer()` may legally return **0**, meaning "next tick" (`Scene::next_timer`), and
-/// `Shell::next_wake()` reports `now_ms` routinely (a router repaint, a fact raised mid-tick). A
-/// per-frame animation is not one of those: it is `Scene::frame_driven`, woken at the frame period.
-/// The shell only ticks when its host asks it to, and **this class is that host**, so the floor is here.
-///
-/// `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at exactly `AudioEngine::audioSampleTimer`
-/// (`UITimerManager::setTimerSamples` in `gui/ui_timer_manager.cpp`) and `timeNextEvent` with it. **`kMinRearmMs` (1 ms
-/// = 44 samples) is the smallest duration `setTimer`'s `ms * 44` can express that leaves `triggerTime` strictly in the
-/// future**, and that is the whole of the argument: with zero, `triggerTime` is already behind the audio sample timer
-/// by the time `UITimerManager::routine` is next called at all -- audio advances at 44.1 kHz, far faster than the main
-/// loop the routine is called from -- so `timeNextEvent` is past, the early return there (`gui/ui_timer_manager.cpp`)
-/// does not fire, and the timer's own due test in `UITimerManager::routine` is true. The whole timer sweep and the
-/// shell's whole tick would then run on **every** pass of the main loop, for as long as the guest kept re-arming at
-/// zero. With 44 samples they run at most once a millisecond.
-///
-/// @note Precisely at the instant of arming, `timeNextEvent - audioSampleTimer` is **0**, and
-///       `routine`'s guard is `>= 0`, so the early return *is* taken and the timer does not fire
-///       that instant -- it becomes due one audio sample (~22.7 us) later. A zero arm does not
-///       "defeat the early return"; the conclusion rests on the sample timer advancing between two
-///       calls of `routine`, not on the guard being wrong.
-///
-/// @warning **1 ms is not legacy's animation cadence, and a future tenant will want the difference.** Legacy's
-///          per-frame hook is `graphicsRoutine`, whose one external driver is `TimerName::GRAPHICS_ROUTINE`, re-armed
-///          at **15 ms** (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`;
-///          `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside the class hierarchy). So a
-///          scene answering 0 gets ~1000 ticks/s here where legacy's equivalent runs at ~66. 1 ms is nonetheless the
-///          right floor **for the scenes that run here**: the first is `MenuScene`, which has no zero-timer arm at all,
-///          while a floor of 15 ms would put 15 ms of latency on the repaint after *every* button press -- and legacy
-///          has none there, since `doAnyPendingUIRendering` runs from the main loop rather than from a timer
-///          (`gui/ui/ui.cpp`). The condition that ends this answer is a tenant whose `next_timer()` returns 0, i.e.
-///          `AudioClipScene`; what it needs is the third answer `Shell::next_wake()`'s warning already asks for -- a
-///          distinct "every frame" cadence -- not a different floor here.
+/// The arithmetic that turns `Shell::next_wake()` into a `UI_SPECIFIC` duration, and why its floor is 1 ms, are the
+/// shared runtime's (`ShellRuntime`, `@par The unit mismatch` and `@par Why the floor is 1 ms`).
 ///
 /// @par The LEDs: the ownership rule, in both directions
 ///
@@ -259,17 +213,11 @@ namespace deluge::gui::ui {
 ///    so `InputLowering::on_button` clears its own on the same presses.
 class ShellHostUI final : public ::UI {
 public:
-	/// @brief Build the guest over \p board and \p registry.
-	/// @param registry The application's scene table. `Shell` copies the pointers out of it into its
-	///                 own table, so a temporary is fine.
-	/// @param board    Board capability descriptor; the real Deluge unless a spec says otherwise.
-	/// @param profile  The matching board profile. The pair is a parameter rather than a constant
-	///                 for one reason: `canOpen()`'s refusal has to be drivable, and the only board
-	///                 that triggers it is one whose panel is a shape `OLED::main` cannot hold --
-	///                 the 64-row geometry every drawing spec in this stack is also checked at.
-	explicit ShellHostUI(const deluge::ui::shell::SceneRegistry& registry,
-	                     const DelugeBoard& board = deluge::ui::shell::kDelugeBoard,
-	                     const deluge::ui::shell::BoardProfile& profile = deluge::ui::shell::deluge_profile());
+	/// @brief Build the guest over @p runtime's shell.
+	/// @param runtime The shell, surfaces and clock the guest drives; the firmware's is `shellRuntime()`. A spec
+	///                builds its own, over its own board: `canOpen()`'s refusal is drivable only with a panel shape
+	///                `OLED::main` cannot hold.
+	explicit ShellHostUI(ShellRuntime& runtime);
 
 	/// @name The scene the guest opens on
 	/// @{
@@ -295,9 +243,9 @@ public:
 
 	/// @brief The shell this guest runs; the input lowering, the services and the tick are reached
 	///        through here.
-	deluge::ui::shell::Shell& shell() { return shell_; }
+	deluge::ui::shell::Shell& shell() { return runtime_.shell(); }
 	/// @brief The surfaces the shell renders through.
-	GuestSurfaceSet& surfaces() { return surfaces_; }
+	GuestSurfaceSet& surfaces() { return runtime_.surfaces(); }
 
 	/// @brief Can this guest be opened at all?
 	///
@@ -305,23 +253,9 @@ public:
 	/// `OLED::main` cannot hold, in which case `blit()` would drop every frame silently
 	/// (`GuestSurfaceSet::canReachMainPanel`). A configuration error, answered before anything is
 	/// pushed rather than discovered as a blank screen.
-	bool canOpen() const { return surfaces_.canReachMainPanel(); }
+	bool canOpen() const { return runtime_.surfaces().canReachMainPanel(); }
 
 	// ---- the legacy hooks, in `gui/ui/ui.h` order --------------------------------------------
-
-	/// @name The tick's two clamps
-	/// @{
-	/// @brief What `UITimerManager::setTimer` multiplies a millisecond duration by
-	///        (`gui/ui_timer_manager.cpp`).
-	static constexpr int32_t kTimerSamplesPerMs = SampleClockMs::kSamplesPerMs;
-	/// @brief The shortest re-arm the guest will ask for. See `@par Why the floor is 1 ms`.
-	static constexpr int32_t kMinRearmMs = 1;
-	/// @brief The longest, and it is arithmetic rather than policy: `setTimer` computes `ms * 44`
-	///        into an `int32_t`, so anything above this is signed overflow. A deadline further out
-	///        than ~13.6 hours is woken early instead, which is always safe (see `@par The unit
-	///        mismatch`).
-	static constexpr int32_t kMaxRearmMs = 2147483647 / kTimerSamplesPerMs;
-	/// @}
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
@@ -387,30 +321,9 @@ public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	UIType getUIType() override { return UIType::SHELL_HOST; }
 
-	/// @brief The shell's clock, in milliseconds, for every hook that has to stamp one, and for
-	///        host code that reads a scene's clock-driven state between ticks.
-	///
-	/// It is legacy's UI clock: `AudioEngine::audioSampleTimer` at 44 samples a millisecond, the count
-	/// `UITimerManager::setTimer` arms legacy's timers in and the guest's own wake (`UI_SPECIFIC`) with
-	/// them. On one base, a blink the shell times and one legacy times keep their phase, and both stop
-	/// when the audio stops, as legacy's do. A wall clock is forbidden inside `src/ui/shell/**` and
-	/// `src/ui/**` (`shell-no-clock`); supplying one is exactly what a host is for.
-	///
-	/// @return Milliseconds since start, wrapping every ~49.7 days, carried on across the counter's own
-	///         wrap (`SampleClockMs`). The shell's own arithmetic is unsigned differences throughout, so
-	///         the wrap costs one interval, not correctness.
-	uint32_t nowMs() const;
-
-	/// @brief The clock `main` times an encoder's acceleration on: the scheduler's seconds (`getSystemTime()`), as
-	///        `main`'s `ContinuousEncoder::calcNextKnobSpeed` and `HorizontalMenu::calcNextKnobSpeed` read them, in
-	///        milliseconds. The gold knobs here are timed by the board instead (`ContinuousEncoder::actionTurns`).
-	///        Legacy keeps the two apart, and so does the guest (`UiContext::acceleration_clock_ms`).
-	/// @return Milliseconds since the scheduler started; 0 before it has.
-	static uint32_t accelerationClockMs();
-
 private:
-	/// The milliseconds `nowMs()` counts from the audio-sample counter; a reading moves it on, hence `mutable`.
-	mutable SampleClockMs clock_;
+	/// @brief The runtime's clock (`ShellRuntime::nowMs`).
+	uint32_t nowMs() const;
 
 	/// @brief Copy the shell's grid into legacy's pad image, for the columns \p x0 to \p x1 and the
 	///        rows \p whichRows selects, and report whether the guest owns \p region.
@@ -476,28 +389,12 @@ private:
 	///        (`ShortcutPadGate::Audition`); false for every other press and every release.
 	void feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutWithoutShift);
 
-	/// @brief Re-arm `TimerName::UI_SPECIFIC` from the shell's own deadline.
-	///
-	/// Called from `timerCallback` and nowhere else, because `Shell::next_wake()` is only
-	/// authoritative immediately after a `tick()` recomputed it.
-	/// See `@par The unit mismatch` on the class for the conversion and both clamps.
-	///
-	/// A `std::nullopt` deadline means "nothing is armed; sleep until the next input" -- so nothing
-	/// is armed here either, and the timer stays inactive (`UITimerManager::routine` cleared it
-	/// before calling, `UITimerManager::routine`). **With one exception**: while the lowering
-	/// holds the SD-routine lock its deferred queue is waiting on a fact no scene can express as a
-	/// deadline, so the guest keeps polling. That is what makes the release time-driven rather than
-	/// input-driven.
+	/// @brief The runtime's re-arm for this guest (`ShellRuntime::rearm`), from `timerCallback` and nowhere else.
 	/// @param nowMs The clock the tick just ran on.
 	void rearmTimer(uint32_t nowMs);
 
-	/// @brief Ask for a tick at the earliest moment legacy can express.
-	///
-	/// The counterpart to `rearmTimer` for every path that changes the shell's state from *outside*
-	/// a tick: `Shell::next_wake()` is stale there (it is only recomputed at the bottom of `tick()`,
-	/// and `Shell::boot()`/`Shell::init()` arm no deadline at all), so there is nothing to convert
-	/// and the only correct answer is "soon". Arming earlier than necessary costs one tick; not
-	/// arming at all freezes the guest until something else happens to.
+	/// @brief The runtime's "tick soon" (`ShellRuntime::armTickSoon`), for every path that changes the shell's state
+	///        from outside a tick.
 	void armTickSoon();
 
 	/// @brief Hand the knob indicator rings back to legacy and `close()` this UI.
@@ -536,8 +433,6 @@ private:
 	bool visitWithoutEditor_ = false;
 	/// @brief `flushPendingInput`'s tick is running.
 	bool flushing_ = false;
-	/// @brief The shell's tick is running (`tickShell`, which `flushPendingInput` runs too): `uisTakenDown` must not.
-	bool ticking_ = false;
 
 	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,
 	///        and re-read the greyout when the stack changes it.
@@ -570,18 +465,8 @@ private:
 	deluge::ui::shell::SceneId initial_{};
 	/// The hook `closeGuest()` runs; see `CloseHook`.
 	static inline CloseHook closeHook_ = nullptr;
-	/// @brief The config `shell_` was built with, kept so `feedDetents` can read
-	///        `edges_per_detent` back.
-	///
-	/// `InputLowering` exposes `profile()` and `shift_is_sticky()` but not the edge ratio, and a
-	/// literal `2` here would silently go stale the day a real config is seated. Declared before `shell_` so it is
-	/// alive when the constructor hands it over.
-	///
-	/// `greys_in_send_path` is set because legacy's `prepareColour` greys every pad the guest sends.
-	deluge::ui::shell::ShellConfig config_{.greys_in_send_path = true,
-	                                       .frame_ms = deluge::ui::shell::kGraphicsRoutineMs};
-	GuestSurfaceSet surfaces_;
-	deluge::ui::shell::Shell shell_;
+	/// The shell, its surfaces and its clock: shared with every other host of scenes.
+	ShellRuntime& runtime_;
 	/// The regions the guest owned, the regions it answered for (`answeredRegions`) and the greyout
 	/// it reported when `syncPads` last ran.
 	deluge::ui::shell::PadRegions padsOwned_ = deluge::ui::shell::PadRegions::All;

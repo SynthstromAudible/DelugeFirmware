@@ -26,6 +26,7 @@
 #include "gui/context_menu/midi_learn_mode.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h" // openUI, getRootUI
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -173,10 +174,10 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///
 /// The guest is a singleton -- one object, one open site (`openMenu`) -- and this seam's sibling reaches for it
 /// the same way for the same kind of question: `menuCurrent` (`gui/ui/shell_guest_services.cpp`) reads
-/// `shellHostUI.shell().stack()` and answers the guest's `getCurrentUI() == &soundEditor`. `SceneStack::remove` is a
-/// documented no-op when no scene of that kind is on the stack -- it returns false having touched nothing and
-/// flagged nothing -- so if this is ever reached with no menu up, it does nothing rather than corrupting a stack it
-/// does not own.
+/// `deluge::gui::ui::shellRuntime().shell().stack()` and answers the guest's `getCurrentUI() == &soundEditor`.
+/// `SceneStack::remove` is a documented no-op when no scene of that kind is on the stack -- it returns false having
+/// touched nothing and flagged nothing -- so if this is ever reached with no menu up, it does nothing rather than
+/// corrupting a stack it does not own.
 ///
 /// @par Why this sits between two anonymous-namespace blocks instead of inside one
 ///
@@ -188,7 +189,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// `startStemExport`'s call to this function, in the anonymous-namespace block that follows, still resolves
 /// unqualified: this file includes its own header before either anonymous-namespace block opens.
 void closePortedMenu() {
-	(void)shellHostUI.shell().stack().remove(SceneKind::FirstApp);
+	(void)deluge::gui::ui::shellRuntime().shell().stack().remove(SceneKind::FirstApp);
 }
 
 namespace {
@@ -416,20 +417,20 @@ void pushShellHighlighting() {
 	else if (stored == MenuHighlighting::NO_INVERSION) {
 		h = deluge::ui::widgets::core::Highlighting::NoInversion;
 	}
-	shellHostUI.shell().set_highlighting(h);
+	deluge::gui::ui::shellRuntime().shell().set_highlighting(h);
 }
 
 void pushShellRoundedCorners() {
 	const bool rounded = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
 	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled = rounded;
-	shellHostUI.shell().set_rounded(rounded);
+	deluge::gui::ui::shellRuntime().shell().set_rounded(rounded);
 }
 
 void reapplyLiveSettingsAfterReset() {
 	pushShellHighlighting();
 	deluge::hid::display::Screensaver::settingsChanged();
 	// The setting alone: a latch made before the reset stays, as `Buttons`' does in main.
-	shellHostUI.shell().lowering().adopt_shift_is_sticky(
+	deluge::gui::ui::shellRuntime().shell().lowering().adopt_shift_is_sticky(
 	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky));
 	menu_scene().set_horizontal_menus(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus));
 }

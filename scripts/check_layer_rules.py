@@ -223,6 +223,8 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/deluge.cpp",
     "src/deluge/gui/ui/shell_host_ui.h",
     "src/deluge/gui/ui/shell_host_ui.cpp",
+    "src/deluge/gui/ui/shell_runtime.h",
+    "src/deluge/gui/ui/shell_runtime.cpp",
     "src/deluge/gui/ui/shell_guest_surfaces.h",
     "src/deluge/gui/ui/shell_guest_surfaces.cpp",
     "src/deluge/gui/ui/shell_guest_services.cpp",

@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 
@@ -63,30 +64,9 @@ using deluge::ui::shell::ShellConfig;
 using deluge::ui::shell::SurfaceRole;
 using deluge::ui::widgets::core::EncoderRole;
 
-ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board,
-                         const deluge::ui::shell::BoardProfile& profile)
-    : surfaces_(board, profile), shell_(surfaces_, profile, registry, Services{}, config_) {
-	surfaces_.observe(shell_.stack());
-	// `Services{}` and a `ShellConfig` whose only set fields are board facts (`greys_in_send_path`, `frame_ms`) on
-	// purpose, and both stay that way.
-	//
-	// The three real services each take this shell's own `SceneStack&`, so they cannot exist before
-	// it. They are built over `shell()` and installed through `Shell::set_services`
-	// (`ui/shell/shell.h`), which is the whole reason that setter exists -- from
-	// `wireShellGuestServices()`, called at boot and from `opened()` below. This object is a
-	// static-init global, so the constructor is not a place a real service (or a real setting) can
-	// be reached from at all.
-	//
-	// **That `ShellConfig` is otherwise a placeholder, and the two fields that are settings are seated
-	// afterwards**: `screensaver_idle_ms` through `Shell::set_screensaver_idle_ms`, pushed from
-	// `Screensaver::settingsChanged()`, and `lowering.hold_time_ms` through
-	// `InputLowering::set_hold_time_ms`, re-read on every event in `feed()`. Neither could be read
-	// here -- flash has not been read when this runs.
-	//
-	// `config_` rather than a `ShellConfig{}` temporary, so `feedDetents` can read
-	// `edges_per_detent` back out of the same object the shell was built from. `Shell` copies it, so
-	// the two are only equal by construction; `edges_per_detent` is a board fact rather than a
-	// setting, so nothing moves it and they stay equal.
+ShellHostUI::ShellHostUI(ShellRuntime& runtime) : runtime_(runtime) {
+	// Nothing of the runtime is touched here: both are static-init globals in different files, so the runtime may not
+	// be built yet. Everything the guest reads of it is read later, through `shell()` and `surfaces()`.
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -105,10 +85,10 @@ bool ShellHostUI::opened() {
 	}
 	// A pad held from an earlier visit was released to legacy once that visit closed; this visit starts with none.
 	fedPads_ = deluge::ui::widgets::core::PadMask{};
-	shell_.lowering().forget_held_pads();
+	shell().lowering().forget_held_pads();
 	// Nor any input an earlier visit was fed and closed before a tick routed: a turn just before a direct close is the
 	// UI's that was current then, never this menu's.
-	shell_.discard_pending_input();
+	shell().discard_pending_input();
 	// A visit is the editor's until its opener says otherwise (`markVisitWithoutEditor`).
 	visitWithoutEditor_ = false;
 
@@ -119,9 +99,9 @@ bool ShellHostUI::opened() {
 	// `SceneState` slot (`SceneStack`'s one-scene-per-kind rule). Legacy's equivalent is
 	// `SoundEditor::opened` calling `beginScreen()`, which
 	// begins a menu session rather than resuming one.
-	shell_.stack().reset();
+	shell().stack().reset();
 	// Legacy has owned the LEDs since the last session closed.
-	surfaces_.begin_session();
+	surfaces().begin_session();
 
 	// **Seed the sticky-shift setting from flash, every time the guest opens.**
 	//
@@ -142,11 +122,11 @@ bool ShellHostUI::opened() {
 	// (`origin/main:src/deluge/gui/menu_item/runtime_feature/shift_is_sticky.cpp`), which already had to pair with
 	// `Buttons::clearShiftSticky()` for exactly the same reason; this seed is what covers a guest
 	// opened after a setting changed while it was shut.
-	shell_.lowering().set_shift_is_sticky(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky)
-	                                      == RuntimeFeatureStateToggle::On);
+	shell().lowering().set_shift_is_sticky(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky)
+	                                       == RuntimeFeatureStateToggle::On);
 	// And the SHIFT itself: one pressed before the guest opened -- SHIFT then a shortcut pad in a clip view -- is still
 	// held, and the shell saw no press for it.
-	shell_.lowering().seed_shift(Buttons::isShiftButtonPressed(), Buttons::isShiftStuck(), nowMs());
+	shell().lowering().seed_shift(Buttons::isShiftButtonPressed(), Buttons::isShiftStuck(), nowMs());
 
 	// **No `Shell::boot()` here, and its absence is deliberate.** The panels want a repaint on the way in,
 	// and they get one without it: `SceneStack::reset` sets `changed_` unconditionally and a
@@ -156,15 +136,15 @@ bool ShellHostUI::opened() {
 	// redundant repaint request reads as a load-bearing one. `displayOrLanguageChanged` does call
 	// `boot()`, where there is no stack change to ride on.
 
-	const size_t before = shell_.stack().depth();
-	shell_.init(initial_);
+	const size_t before = shell().stack().depth();
+	shell().init(initial_);
 	// `Shell::init` is `stack_.push(initial)` with the result dropped,
 	// and `SceneStack::push` refuses an unregistered kind -- which is
 	// exactly what a caller that never called `setInitialScene` gets, since a default `SceneId` is
 	// `SceneKind::Null`. An empty guest is worse than no guest: it would swallow every pad
 	// (`UI::padAction`'s `DEALT_WITH` default) while drawing nothing. So a refused push is a
 	// refused open.
-	if (shell_.stack().depth() <= before) {
+	if (shell().stack().depth() <= before) {
 		return false;
 	}
 
@@ -189,7 +169,7 @@ bool ShellHostUI::opened() {
 	// on the stack -- so the greyout is read again now.
 	using deluge::ui::shell::PadRegions;
 	using deluge::ui::shell::regions_without;
-	padsOwned_ = surfaces_.owned_regions();
+	padsOwned_ = surfaces().owned_regions();
 	padsAnswered_ = answeredRegions();
 	padsGreyout_ = greyoutMask();
 	handBack(regions_without(PadRegions::Main, padsOwned_) | regions_without(padsAnswered_, padsOwned_));
@@ -222,7 +202,7 @@ void ShellHostUI::focusRegained() {
 	// passive layer (`SceneStack`). Handing it to `top()` would give the resume to a
 	// popup or a console line that never took input in the first place, and would skip the scene that genuinely gets
 	// input back.
-	shell_.stack().input_top().on_resume();
+	shell().stack().input_top().on_resume();
 
 	// **And re-arm, because legacy just disarmed us.** Both routes into this hook clear
 	// `TimerName::UI_SPECIFIC` on the line before they call it -- `closeUI`
@@ -244,7 +224,7 @@ void ShellHostUI::displayOrLanguageChanged() {
 	// `renderUIsForOled()` makes legacy pull `renderOLED` before that -- so exactly one frame of the
 	// old language can still go out. Chaining to the base keeps that pull, because the alternative
 	// is legacy never being told the panel is stale at all.
-	shell_.boot();
+	shell().boot();
 	// `boot()` requests repaints without arming any deadline, so
 	// `compute_next_wake` has nothing to report and the "next tick" above would be whatever tick
 	// happened to come along. On an idle guest that is never. Hence the explicit ask.
@@ -283,11 +263,11 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	// it false and frozen the clip view's playhead under an open menu.
 	// The recorder is a plain `UI` in main, whose `canSeeViewUnderneath` is false: the root's animation stops for the
 	// take.
-	if (shell_.stack().has_input_scene()
-	    && shell_.stack().input_top().kind() == deluge::ui::scenes::recorder::kRecorderSceneKind) {
+	if (shell().stack().has_input_scene()
+	    && shell().stack().input_top().kind() == deluge::ui::scenes::recorder::kRecorderSceneKind) {
 		return false;
 	}
-	return !shell_.stack().top().occludes_grid();
+	return !shell().stack().top().occludes_grid();
 }
 
 bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -321,14 +301,14 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 deluge::ui::widgets::grid::GreyoutMask ShellHostUI::greyoutMask() {
 	// The stack's own top-down walk, the guest's half of `getUIGreyoutColsAndRows`: a popup over
 	// the menu leaves the menu's greyout standing, and a keyboard over it replaces it.
-	return shell_.stack().topmost_greyout();
+	return shell().stack().topmost_greyout();
 }
 
 deluge::ui::shell::PadRegions ShellHostUI::answeredRegions() {
 	using deluge::ui::shell::PadRegions;
-	const PadRegions owned = surfaces_.owned_regions();
+	const PadRegions owned = surfaces().owned_regions();
 	if (!deluge::ui::shell::holds(owned, PadRegions::Sidebar)
-	    && shell_.stack().input_top().kind() == deluge::ui::scenes::marker::kMarkerSceneKind) {
+	    && shell().stack().input_top().kind() == deluge::ui::scenes::marker::kMarkerSceneKind) {
 		return owned | PadRegions::Sidebar;
 	}
 	return owned;
@@ -352,7 +332,7 @@ void ShellHostUI::refreshRootFacts() {
 void ShellHostUI::syncPads() {
 	using deluge::ui::shell::PadRegions;
 	using deluge::ui::shell::regions_without;
-	const PadRegions owned = surfaces_.owned_regions();
+	const PadRegions owned = surfaces().owned_regions();
 	const PadRegions answered = answeredRegions();
 	const deluge::ui::widgets::grid::GreyoutMask mask = greyoutMask();
 	const bool ownerChanged = owned != padsOwned_;
@@ -366,14 +346,14 @@ void ShellHostUI::syncPads() {
 	padsAnswered_ = answered;
 	padsGreyout_ = mask;
 	if (gained != PadRegions::None) {
-		surfaces_.take_grid();
+		surfaces().take_grid();
 	}
 	handBack(regions_without(moved, owned));
 	if (ownerChanged || greyoutChanged) {
 		// A scene that takes the main pads and greys every column is the menu's SHIFT overlay, whose greyout
 		// `renderMainShortcutsOnly` applies at once (`PadLEDs::doGreyoutInstantly()`) rather than fading it in.
 		const bool overlay = deluge::ui::shell::holds(gained, PadRegions::Main) && mask.cols == 0xFFFFFFFFu;
-		PadLEDs::reassessGreyout(overlay || shell_.stack().input_top().greyout_changes_instantly());
+		PadLEDs::reassessGreyout(overlay || shell().stack().input_top().greyout_changes_instantly());
 	}
 }
 
@@ -398,7 +378,7 @@ void ShellHostUI::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	if (!canOpen()) {
 		return;
 	}
-	const deluge::ui::shell::OledSurface* main = surfaces_.oled(SurfaceRole::Main);
+	const deluge::ui::shell::OledSurface* main = surfaces().oled(SurfaceRole::Main);
 	if (main == nullptr) {
 		return;
 	}
@@ -420,7 +400,7 @@ void ShellHostUI::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 
 bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1,
                             deluge::ui::shell::PadRegions region) {
-	const bool isOpaque = deluge::ui::shell::holds(surfaces_.owned_regions(), region);
+	const bool isOpaque = deluge::ui::shell::holds(surfaces().owned_regions(), region);
 	// The query form. `UI`'s own contract: "These *must* check whether image has been supplied - if
 	// not, just return, saying whether opaque or not" (`UI::renderMainPads`). Legacy asks it that
 	// way in two places -- `uiNeedsRendering`'s walk down the stack and `closeUI`'s "does anything
@@ -429,7 +409,7 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 		return isOpaque;
 	}
 
-	const deluge::ui::gfx::grid::PadGrid& grid = surfaces_.grid().grid();
+	const deluge::ui::gfx::grid::PadGrid& grid = surfaces().grid().grid();
 	const deluge::ui::gfx::grid::GridDimensions dims = grid.dims();
 	// **Both clamps are load-bearing, and neither is covered by `canOpen()`.**
 	// `GuestSurfaceSet::canReachMainPanel` asks about the *panel's* shape and says nothing about the
@@ -476,14 +456,14 @@ bool ShellHostUI::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 bool ShellHostUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (deluge::ui::shell::holds(surfaces_.owned_regions(), deluge::ui::shell::PadRegions::Sidebar)) {
+	if (deluge::ui::shell::holds(surfaces().owned_regions(), deluge::ui::shell::PadRegions::Sidebar)) {
 		return serveGrid(whichRows, image, kDisplayWidth, kDisplayWidth + kSideBarWidth,
 		                 deluge::ui::shell::PadRegions::Sidebar);
 	}
 	// `SampleMarkerEditor::renderSidebar` answers for the sidebar it does not draw only over the
 	// keyboard screen (`SampleMarkerEditor::renderSidebar`); the marker scene cannot read the
 	// root UI, so the guest asks on its behalf.
-	if (shell_.stack().input_top().kind() == deluge::ui::scenes::marker::kMarkerSceneKind) {
+	if (shell().stack().input_top().kind() == deluge::ui::scenes::marker::kMarkerSceneKind) {
 		return renderClipViewSidebarUnderMarker(whichRows, image, occupancyMask);
 	}
 	return false;
@@ -518,7 +498,7 @@ ActionResult ShellHostUI::timerCallback() {
 	//
 	// **After the tick**, because a request is filed by `MenuScene::after_render`, and `after_render`
 	// is what `Shell::tick` runs as its step 7 -- a poll above
-	// `shell_.tick` would read the slot before this tick's press could have filled it, and would
+	// `shell().tick` would read the slot before this tick's press could have filled it, and would
 	// therefore always deliver a tick late, against whatever state the next tick brings.
 	//
 	// **Above the close check below**, not beside `rearmTimer`, because that check `return`s. On the
@@ -584,7 +564,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// deliver this guest's `timerCallback` to that UI (`UITimerManager::routine`).
 	// Nothing left that takes input -- an empty stack, or only passive overlays (a knob popup, a console line) -- is a
 	// guest with nothing to offer: it closes, and `closeGuest` hands a showing knob popup to legacy and drops the rest.
-	if (!shell_.stack().has_input_scene()) {
+	if (!shell().stack().has_input_scene()) {
 		closeGuest();
 		return ActionResult::DEALT_WITH;
 	}
@@ -593,7 +573,7 @@ ActionResult ShellHostUI::timerCallback() {
 
 	// The drains above handed scenes their answers after `Shell::tick` computed its wake (a preview settling changes
 	// the browser's pads, and its timer asks for the repaint).
-	shell_.reconsider_wake(now);
+	shell().reconsider_wake(now);
 
 	// Unconditional here, but **not unconditional inside**: `rearmTimer` refuses when this guest is
 	// no longer the current UI, which is exactly what the drain above leaves behind when an arm ends
@@ -607,7 +587,8 @@ ActionResult ShellHostUI::timerCallback() {
 }
 
 void ShellHostUI::rearmTimer(uint32_t now) {
-	// **Only while this guest is the current UI -- which the action drain does not guarantee.**
+	// **Only while this guest is the current UI -- which the action drain does not guarantee.** The runtime's `rearm`
+	// holds the guard; this is why the guest needs it.
 	//
 	// `TimerName::UI_SPECIFIC` is not this object's timer. It is *the current UI's* timer:
 	// `UITimerManager::routine` dispatches it to `getCurrentUI()->timerCallback()`, never to
@@ -639,9 +620,9 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// `armTickSoon()` (`ShellHostUI::focusRegained`), written for exactly this shape of disarm. So the guest sleeps
 	// while it is covered and re-arms the instant it is uncovered.
 	//
-	// The guard is here rather than at the one call site because arming a timer that will be
-	// delivered elsewhere violates *this function's* contract, not its caller's -- and because the
-	// early-return branch below arms a second time for the SD poll, which a call-site guard
+	// The guard is in the re-arm rather than at the one call site because arming a timer that will be
+	// delivered elsewhere violates the re-arm's contract, not its caller's -- and because the re-arm's
+	// nothing-armed branch arms a second time for the SD poll, which a call-site guard
 	// would leave uncovered on the day someone adds a third. `armTickSoon` is mostly unguarded by
 	// design: of its fourteen call sites, ten -- the other input hooks, `opened()`,
 	// `displayOrLanguageChanged()` and `exitUI()` -- are on which the guest is current by
@@ -652,36 +633,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// precondition; see the comment there. Nor are the three note-mode forwards in
 	// `buttonAction`, `horizontalEncoderAction` and `verticalEncoderAction`, which call legacy
 	// handlers from inside this guest's hooks in the same way, and carry the same guard.
-	if (getCurrentUI() != this) {
-		return;
-	}
-
-	std::optional<uint32_t> deadline = shell_.next_wake(now);
-	if (shellSlicerBusy()) {
-		const uint32_t poll = now + kShellSlicerPollMs;
-		deadline = deadline.has_value() && static_cast<int32_t>(*deadline - poll) < 0 ? *deadline : poll;
-	}
-	if (!deadline.has_value()) {
-		// Nothing armed anywhere in the shell -- no gate deadline, no scene or service timer, no
-		// declared blink (`Shell::next_wake`). Legacy has already cleared the timer
-		// (`UITimerManager::routine`), so leaving it alone *is* "sleep until the next input",
-		// and every path that can wake the guest re-arms it (`armTickSoon`).
-		//
-		// Except one, which no scene can express as a deadline: a press held back by the SD-routine
-		// lock is waiting on a fact outside the shell entirely. Poll for it. At `kMinRearmMs` that
-		// is slower than main's own retry, which runs from `readButtonsAndPads` on every pass of
-		// the main loop (`origin/main:src/deluge/deluge.cpp`), so it is not a new cost -- and it only runs while
-		// the lock is actually held.
-		if (shell_.lowering().sd_busy()) {
-			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kMinRearmMs);
-		}
-		return;
-	}
-	// Absolute deadline minus the clock the tick ran on, in the wrap-safe difference form. A
-	// deadline at or before `now` -- which `Shell::next_wake()` reports routinely -- clamps up to
-	// `kMinRearmMs` rather than arming zero. See the class's `@par The unit mismatch` and `@par Why the floor is 1 ms`.
-	const int32_t in = static_cast<int32_t>(*deadline - now);
-	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, std::clamp(in, kMinRearmMs, kMaxRearmMs));
+	runtime_.rearm(now, this);
 }
 
 void ShellHostUI::wakeForPendingFacts() {
@@ -694,7 +646,7 @@ void ShellHostUI::wakeForPendingFacts() {
 }
 
 void ShellHostUI::armTickSoon() {
-	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kMinRearmMs);
+	ShellRuntime::armTickSoon();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -710,17 +662,7 @@ void ShellHostUI::armTickSoon() {
 // ---------------------------------------------------------------------------------------------
 
 uint32_t ShellHostUI::nowMs() const {
-	return clock_.advance(AudioEngine::audioSampleTimer);
-}
-
-uint32_t ShellHostUI::accelerationClockMs() {
-	const double seconds = getSystemTime();
-	if (!(seconds > 0.0)) {
-		// Also the NaN arm: every comparison against a NaN is false, so the negated `>` catches it.
-		// Before the scheduler starts there is no elapsed time to report and 0 is the honest answer.
-		return 0;
-	}
-	return static_cast<uint32_t>(static_cast<uint64_t>(seconds * 1000.0));
+	return runtime_.nowMs();
 }
 
 void ShellHostUI::syncHoldTime() {
@@ -745,18 +687,18 @@ void ShellHostUI::syncHoldTime() {
 	// it is where legacy's own read happens: two loads, a divide and a compare-free store, on a path
 	// that already builds an event and takes the SD lock. Encoder turns deliberately do not come
 	// through here and do not need to -- `hold_time_ms` gates the sticky-shift tap and nothing else.
-	shell_.lowering().set_hold_time_ms(
+	shell().lowering().set_hold_time_ms(
 	    static_cast<uint16_t>(static_cast<uint32_t>(FlashStorage::holdTime) * 1000u / kSampleRate));
 }
 
 void ShellHostUI::feed(const DelugeInputEvent& ev) {
 	syncHoldTime();
-	shell_.on_board_event(ev, nowMs());
+	shell().on_board_event(ev, nowMs());
 }
 
 void ShellHostUI::feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutWithoutShift) {
 	syncHoldTime();
-	shell_.on_host_pad(x, y, static_cast<uint8_t>(velocity), shortcutWithoutShift, nowMs());
+	shell().on_host_pad(x, y, static_cast<uint8_t>(velocity), shortcutWithoutShift, nowMs());
 }
 
 void ShellHostUI::feedDetents(EncoderRole role, int32_t detents, uint64_t time_us) {
@@ -768,8 +710,9 @@ void ShellHostUI::feedDetents(EncoderRole role, int32_t detents, uint64_t time_u
 		return;
 	}
 	const std::span<const deluge::ui::widgets::core::EncoderRole> byIndex =
-	    shell_.lowering().profile().encoder_by_index;
-	const int32_t per = config_.lowering.edges_per_detent > 0 ? config_.lowering.edges_per_detent : 1;
+	    shell().lowering().profile().encoder_by_index;
+	const int32_t per =
+	    runtime_.config().lowering.edges_per_detent > 0 ? runtime_.config().lowering.edges_per_detent : 1;
 	// See the `@warning` on the declaration: the clamp is in detents, before the multiply, so the
 	// product lands inside `int8_t` for any `edges_per_detent`.
 	const int32_t limit = 127 / per;
@@ -778,7 +721,7 @@ void ShellHostUI::feedDetents(EncoderRole role, int32_t detents, uint64_t time_u
 		if (byIndex[i] != role) {
 			continue;
 		}
-		shell_.on_encoder_edges(static_cast<uint8_t>(i), edges, nowMs(), time_us);
+		shell().on_encoder_edges(static_cast<uint8_t>(i), edges, nowMs(), time_us);
 		return;
 	}
 	// A profile with no encoder in that role. Dropped rather than guessed at, the same way
@@ -787,7 +730,7 @@ void ShellHostUI::feedDetents(EncoderRole role, int32_t detents, uint64_t time_u
 }
 
 bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
-	switch (shell_.stack().input_top().grid_pad_claim()) {
+	switch (shell().stack().input_top().grid_pad_claim()) {
 	case deluge::ui::shell::GridPadClaim::All:
 		return true;
 	case deluge::ui::shell::GridPadClaim::None:
@@ -836,14 +779,14 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// can end before the tick that drains it, and two presses drained by one tick each keep their own reason.
 			bool shortcutWithoutShift = false;
 			if (velocity != 0
-			    && shell_.stack().input_top().grid_pad_claim() == deluge::ui::shell::GridPadClaim::ShortcutsOnly) {
+			    && shell().stack().input_top().grid_pad_claim() == deluge::ui::shell::GridPadClaim::ShortcutsOnly) {
 				const ShortcutPadGate gate = shortcutPadGate(Buttons::isShiftButtonPressed());
 				if (gate == ShortcutPadGate::Swallow) {
-					shell_.note_activity(nowMs());
+					shell().note_activity(nowMs());
 					return ActionResult::DEALT_WITH;
 				}
 				if (takeSequenceDirectionShortcut(x, y)) {
-					shell_.note_activity(nowMs());
+					shell().note_activity(nowMs());
 					refreshRootFacts();
 					armTickSoon();
 					return ActionResult::DEALT_WITH;
@@ -867,9 +810,9 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// unaffected by the guard -- the guest is current after the menu leaves its stack -- and the
 			// arm is *required* there: the tick is what notices nothing stacked takes input and closes
 			// the guest (`timerCallback`).
-			shell_.note_activity(nowMs()); // as `dispatchInputEvent` (`deluge/deluge.cpp`) notes it: every pad is
-			                               // activity, forwarded or not
-			if (shell_.stack().input_top().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButClipAudition) {
+			shell().note_activity(nowMs()); // as `dispatchInputEvent` (`deluge/deluge.cpp`) notes it: every pad is
+			                                // activity, forwarded or not
+			if (shell().stack().input_top().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButClipAudition) {
 				forwardClipAuditionPad(x, y, velocity);
 			}
 			else {
@@ -924,7 +867,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// `TimerName::UI_SPECIFIC` is delivered to whoever is current (`UITimerManager::routine`). The
 	// arm itself is still wanted while the guest is current, for the gold-knob arm's reason above.
 	if (const std::optional<ActionResult> result = forwardNoteButton(b, on)) {
-		shell_.note_activity(nowMs()); // as in `dispatchInputEvent`
+		shell().note_activity(nowMs()); // as in `dispatchInputEvent`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
@@ -935,7 +878,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// item's own. Below the note forward,
 	// whose roots these never share; the handler may swap the root, so the same guard applies.
 	if (const std::optional<ActionResult> result = forwardAutomationButton(b, on)) {
-		shell_.note_activity(nowMs()); // as in `dispatchInputEvent`
+		shell().note_activity(nowMs()); // as in `dispatchInputEvent`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
@@ -945,7 +888,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// SAVE under the menu is the sound editor's own arm (`forwardMenuSaveButton`): Shift deletes the picker's range, a
 	// plain press opens the save-preset screen, which may leave this guest behind it.
 	if (const std::optional<ActionResult> result = forwardMenuSaveButton(b, on)) {
-		shell_.note_activity(nowMs()); // as in `dispatchInputEvent`
+		shell().note_activity(nowMs()); // as in `dispatchInputEvent`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
@@ -955,7 +898,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// KEYBOARD, SESSION and Fill under the menu are the sound editor's own arms (`forwardMenuViewButton`); KEYBOARD and
 	// SESSION change the root, and SESSION closes this guest, so the same guard applies.
 	if (const std::optional<ActionResult> result = forwardMenuViewButton(b, on)) {
-		shell_.note_activity(nowMs()); // as in `dispatchInputEvent`
+		shell().note_activity(nowMs()); // as in `dispatchInputEvent`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
@@ -964,7 +907,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 
 	// AFFECT ENTIRE under the menu: the hold on a kit row's item that uses it, else the clip's own toggle.
 	if (const std::optional<ActionResult> result = forwardMenuAffectEntire(b, on)) {
-		shell_.note_activity(nowMs()); // as in `dispatchInputEvent`
+		shell().note_activity(nowMs()); // as in `dispatchInputEvent`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
@@ -1052,8 +995,8 @@ void ShellHostUI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		return;
 	}
 	// 0 is the lower knob, 1 the upper, as `interpretEncoders` numbers them; @p offset is legacy's lowered turn.
-	(void)shell_.route_lowered_turn(whichModEncoder == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper,
-	                                static_cast<int8_t>(std::clamp<int32_t>(offset, -127, 127)), nowMs());
+	(void)shell().route_lowered_turn(whichModEncoder == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper,
+	                                 static_cast<int8_t>(std::clamp<int32_t>(offset, -127, 127)), nowMs());
 	armTickSoon();
 }
 
@@ -1068,8 +1011,8 @@ void ShellHostUI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 void ShellHostUI::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
-	surfaces_.hold_main_columns(false);
-	surfaces_.take_grid();
+	surfaces().hold_main_columns(false);
+	surfaces().take_grid();
 }
 
 void ShellHostUI::modButtonAction(uint8_t whichButton, bool on) {
@@ -1085,14 +1028,14 @@ ActionResult ShellHostUI::horizontalEncoderAction(int32_t offset) {
 	// `SoundEditor::horizontalEncoderAction`'s note arms, which come before
 	// anything else it does. The forwarded handler's own result is returned.
 	if (const std::optional<ActionResult> result = forwardNoteHorizontalEncoder(offset)) {
-		shell_.note_activity(nowMs()); // `hid/encoder_input.cpp`
+		shell().note_activity(nowMs()); // `hid/encoder_input.cpp`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
 		return *result;
 	}
 	if (const std::optional<ActionResult> result = forwardMenuHorizontal(offset, nowMs())) {
-		shell_.note_activity(nowMs());
+		shell().note_activity(nowMs());
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
@@ -1108,28 +1051,28 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset) {
 	// `SoundEditor::verticalEncoderAction`'s note arms. The same shape as
 	// `horizontalEncoderAction`'s.
 	if (const std::optional<ActionResult> result = forwardNoteVerticalEncoder(offset)) {
-		shell_.note_activity(nowMs()); // `hid/encoder_input.cpp`
+		shell().note_activity(nowMs()); // `hid/encoder_input.cpp`
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
 		return *result;
 	}
 	if (const std::optional<ActionResult> result = forwardMenuVertical(offset)) {
-		shell_.note_activity(nowMs());
+		shell().note_activity(nowMs());
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
 		return *result;
 	}
 	if (const std::optional<ActionResult> result = forwardMarkerVertical(offset)) {
-		shell_.note_activity(nowMs());
+		shell().note_activity(nowMs());
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
 		return *result;
 	}
 	if (const std::optional<ActionResult> result = forwardBrowserVertical(offset)) {
-		shell_.note_activity(nowMs());
+		shell().note_activity(nowMs());
 		if (getCurrentUI() == this) {
 			armTickSoon();
 		}
@@ -1149,7 +1092,7 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	// `selectEncoderUIModes` lists, and not in learn mode, which the menu holds itself rather than in `currentUIMode`
 	// (`MenuScene::learn_mode`). The press's gate, a different test, is the menu's (`MenuScene::set_host_mode_gates`).
 	// Only the menu is a sound editor screen; a scene it opened takes its turns as before.
-	const deluge::ui::shell::Scene& top = shell_.stack().input_top();
+	const deluge::ui::shell::Scene& top = shell().stack().input_top();
 	if (top.kind() == deluge::ui::scenes::menu::kMenuSceneKind
 	    && (!isUIModeWithinRange(selectEncoderUIModes) || menuLearnMode())) {
 		return;
@@ -1169,17 +1112,12 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 // ---------------------------------------------------------------------------------------------
 
 void ShellHostUI::tickShell(uint32_t now) {
-	shell_.set_screensaver_inhibit(hostInhibitsScreensaver());
-	shell_.set_acceleration_clock_ms(accelerationClockMs());
-	shell_.set_owns_notices(getCurrentUI() == this);
-	const bool outer = std::exchange(ticking_, true);
-	shell_.tick(now);
-	ticking_ = outer;
+	runtime_.tick(now, this);
 }
 
 void ShellHostUI::uisTakenDown() {
 	// Never from inside the guest's tick, which would have its stack reset under it.
-	if (ticking_) {
+	if (runtime_.ticking()) {
 		FREEZE_WITH_ERROR("SHT1");
 		return; // reached only on a host whose display does not freeze
 	}
@@ -1200,11 +1138,11 @@ void ShellHostUI::uisTakenDown() {
 	// The recorder's take ends with no `ClearWorking`: the legacy display, which shows notices once the guest is gone,
 	// would take the taker-down's own animation down with it. The shell's animation goes here instead.
 	endShellRecorderTakeForTeardown();
-	shell_.stack().reset();
+	shell().stack().reset();
 	// As at the close: what the exits asked of the browser host is answered now.
 	deliverShellBrowserAnswers();
-	shell_.notices().disarm_working();
-	shell_.discard_pending_input();
+	shell().notices().disarm_working();
+	shell().discard_pending_input();
 	padsOwned_ = deluge::ui::shell::PadRegions::None;
 	padsAnswered_ = deluge::ui::shell::PadRegions::None;
 	visitWithoutEditor_ = false;
@@ -1212,7 +1150,7 @@ void ShellHostUI::uisTakenDown() {
 }
 
 void ShellHostUI::flushPendingInput() {
-	if (flushing_ || !shell_.input_pending()) {
+	if (flushing_ || !shell().input_pending()) {
 		return;
 	}
 	flushing_ = true;
@@ -1303,14 +1241,14 @@ ActionResult ShellHostUI::exitUI() {
 	// once; a BACK among them may leave nothing for this exit to remove.
 	flushPendingInput();
 	// No context menu overrides `exitUI` in main: `UI::exitUI` does nothing, so a long BACK leaves the menu up.
-	if (shell_.stack().has_input_scene()
-	    && shell_.stack().input_top().kind() == deluge::ui::scenes::context_menu::kContextMenuSceneKind) {
+	if (shell().stack().has_input_scene()
+	    && shell().stack().input_top().kind() == deluge::ui::scenes::context_menu::kContextMenuSceneKind) {
 		return ActionResult::DEALT_WITH;
 	}
-	if (shell_.stack().has_input_scene()) {
-		(void)shell_.stack().remove(shell_.stack().input_top().kind());
+	if (shell().stack().has_input_scene()) {
+		(void)shell().stack().remove(shell().stack().input_top().kind());
 	}
-	if (shell_.stack().has_input_scene()) {
+	if (shell().stack().has_input_scene()) {
 		// The stack moved, so the next tick will re-render everything (`SceneStack::pop` sets
 		// `changed_`, which `Shell::tick` turns into a repaint request
 		// on every gate) -- but nothing schedules that tick. This hook is
@@ -1380,7 +1318,7 @@ void ShellHostUI::closeGuest() {
 	// display, and its popup outlives whichever UI raised it (`main`'s refused browser leaves its editor with the error
 	// up). Before the knob popup's hand-off, which takes legacy's one popup slot after it, as the later of two legacy
 	// draws.
-	if (const std::optional<deluge::ui::shell::Notices::ShownPopup> shown = shell_.notices().shown_popup(nowMs())) {
+	if (const std::optional<deluge::ui::shell::Notices::ShownPopup> shown = shell().notices().shown_popup(nowMs())) {
 		display->displayPopup(shown->text.c_str(), shown->remaining_ms.has_value() ? 3 : 0, false, 255, 1,
 		                      static_cast<PopupType>(shown->popup_type));
 		if (shown->remaining_ms.has_value()) {
@@ -1396,12 +1334,12 @@ void ShellHostUI::closeGuest() {
 	// it is still on legacy's stack for `uiNeedsRendering` to find. They are the regions `syncPads`
 	// last recorded, not the stack's: on the short-Back path the tick has already emptied it.
 	const deluge::ui::shell::PadRegions answered = padsAnswered_;
-	shell_.stack().reset();
+	shell().stack().reset();
 	// The exits just run may have asked the browser host for something (the sample browser stops its preview), and the
 	// answer it held would otherwise wait for a tick this guest no longer has.
 	deliverShellBrowserAnswers();
 	// Anything still pending after the flush was for the scenes just emptied.
-	shell_.discard_pending_input();
+	shell().discard_pending_input();
 	padsOwned_ = deluge::ui::shell::PadRegions::None;
 	padsAnswered_ = deluge::ui::shell::PadRegions::None;
 	handBack(answered);
@@ -1445,31 +1383,29 @@ deluge::ui::shell::UiEvent midi_event(deluge::ui::shell::UiEvent::Kind kind, MID
 
 bool ShellHostUI::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) {
 	using Kind = deluge::ui::shell::UiEvent::Kind;
-	return shell_.route_midi(midi_event(Kind::MidiNoteOn, cable, channelOrZone, note, velocity), nowMs())
+	return shell().route_midi(midi_event(Kind::MidiNoteOn, cable, channelOrZone, note, velocity), nowMs())
 	       || UI::noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity);
 }
 
 bool ShellHostUI::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
 	using Kind = deluge::ui::shell::UiEvent::Kind;
-	return shell_.route_midi(midi_event(Kind::MidiProgramChange, cable, channel, program, 0), nowMs())
+	return shell().route_midi(midi_event(Kind::MidiProgramChange, cable, channel, program, 0), nowMs())
 	       || UI::pcReceivedForMidiLearn(cable, channel, program);
 }
 
 bool ShellHostUI::ccReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t cc, int32_t value) {
 	using Kind = deluge::ui::shell::UiEvent::Kind;
-	return shell_.route_midi(midi_event(Kind::MidiCc, cable, channelOrZone, cc, value), nowMs())
+	return shell().route_midi(midi_event(Kind::MidiCc, cable, channelOrZone, cc, value), nowMs())
 	       || UI::ccReceivedForMidiLearn(cable, channelOrZone, cc, value);
 }
 
 bool ShellHostUI::pitchBendReceivedForMidiLearn(MIDICable& cable, int32_t channel, uint8_t data1, uint8_t data2) {
 	using Kind = deluge::ui::shell::UiEvent::Kind;
-	return shell_.route_midi(midi_event(Kind::MidiPitchBend, cable, channel, data1, data2), nowMs())
+	return shell().route_midi(midi_event(Kind::MidiPitchBend, cable, channel, data1, data2), nowMs())
 	       || UI::pitchBendReceivedForMidiLearn(cable, channel, data1, data2);
 }
 
 } // namespace deluge::gui::ui
 
-// SDRAM: the guest and its scene stack are menu-time state, never read by the audio tier or an interrupt. The scenes'
-// profile, not the shell's: it carries the l10n bridge, so a popup a scene raises by string id shows its text.
-PLACE_SDRAM_BSS deluge::gui::ui::ShellHostUI shellHostUI{
-    deluge::ui::scenes::scene_registry(), deluge::ui::shell::kDelugeBoard, deluge::ui::scenes::deluge_profile()};
+// SDRAM: the guest is menu-time state, never read by the audio tier or an interrupt. Its shell is the runtime's.
+PLACE_SDRAM_BSS deluge::gui::ui::ShellHostUI shellHostUI{deluge::gui::ui::shellRuntime()};

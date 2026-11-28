@@ -264,7 +264,8 @@ menu::MenuScene& scene() {
 struct GuestRig {
 	spec::SongFixture song = spec::make_synth_song();
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
-	deluge::gui::ui::ShellHostUI ui{reg, deluge::ui::shell::kDelugeBoard, deluge_profile()};
+	deluge::gui::ui::ShellRuntime runtime{reg, deluge::ui::shell::kDelugeBoard, deluge_profile()};
+	deluge::gui::ui::ShellHostUI ui{runtime};
 
 	GuestRig(const GuestRig&) = delete;
 	GuestRig& operator=(const GuestRig&) = delete;

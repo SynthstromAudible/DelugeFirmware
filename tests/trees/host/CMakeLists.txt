@@ -181,6 +181,7 @@ add_library(deluge_spec STATIC
   ${_src}/deluge/gui/ui/shell_guest_surfaces.cpp
   ${_tests}/unit/deluge/gui/support/fake_legacy_hid.cpp
   ${_src}/deluge/gui/ui/shell_host_ui.cpp
+  ${_src}/deluge/gui/ui/shell_runtime.cpp
   ${_tests}/unit/deluge/gui/support/fake_device_registry.cpp
   ${_tests}/unit/deluge/gui/support/fake_legacy_ui.cpp
   ${_src}/deluge/hid/button.cpp
