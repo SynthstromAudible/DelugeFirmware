@@ -41,6 +41,7 @@
 #include "support/fake_host_rig.h"
 #include "support/fake_menu_shell.h"
 #include "support/mocks/fake_surfaces.h"
+#include "support/popup_capture.h"
 #include "support/printers/learned_binding_printer.h"
 
 #include "cppspec.hpp"
@@ -193,13 +194,13 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		const MenuContext ctx = r.open_settings(nodes::defaults_settings);
 		r.fakes.host.device.refuse.insert(std::string{device_path::kPatchCablePolarity});
 		(void)deluge::base::notify::dirty().drain();
+		deluge::ui::scenes::spec::PopupCapture popups;
 		menu::bindings::write(nodes::default_patch_cable_polarity, ctx, 0);
 		// The write reached the port, which kept nothing and said so.
 		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
 		expect(menu::bindings::read(nodes::default_patch_cable_polarity, ctx)).to_equal(1);
 		expect(deluge::base::notify::dirty().drain().has(deluge::base::notify::Dirty::Oled)).to_be_false();
-		deluge::base::notify::Notice notice{};
-		expect(deluge::base::notify::notices().pop(notice)).to_be_false();
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 	});
 
 	it("says restart to apply for a USB audio enable the device takes at its next start, and only then", _ {
@@ -208,18 +209,18 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(row_of(nodes::usb_audio_settings, nodes::usb_audio_enabled, ctx)).to_equal(std::optional<int32_t>{0});
 		expect(menu::bindings::read(nodes::usb_audio_enabled, ctx)).to_equal(1);
 		// A write the device has in effect at once says nothing.
+		deluge::ui::scenes::spec::PopupCapture popups;
 		menu::bindings::write(nodes::usb_audio_enabled, ctx, 0);
-		deluge::base::notify::Notice notice{};
-		expect(deluge::base::notify::notices().pop(notice)).to_be_false();
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 		// One it takes only at its next start says so.
 		r.fakes.host.device.accept_restart.insert(std::string{device_path::kUsbAudioEnabled});
 		menu::bindings::write(nodes::usb_audio_enabled, ctx, 1);
 		expect(last_stores(r.fakes, 2))
 		    .to_equal(std::vector<std::string>{std::string{device_path::kUsbAudioEnabled} + "=0",
 		                                       std::string{device_path::kUsbAudioEnabled} + "=1"});
-		expect(deluge::base::notify::notices().pop(notice)).to_be_true();
-		expect(static_cast<int>(notice.string_id))
-			.to_equal(static_cast<int>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
+		expect(popups.seen())
+		    .to_equal(std::vector<std::string>{
+		        "popup: " + std::string(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY))});
 		expect(r.fakes.host.writes.requests.empty()).to_be_true();
 	});
 
