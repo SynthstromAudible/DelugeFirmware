@@ -582,10 +582,21 @@ void SoundEditor::enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFro
 	// end current menu item session before beginning new menu item session
 	endScreen();
 
-	navigationDepth++;
-	menuItemNavigationRecord[navigationDepth] = newItem;
+	pushNavigationRecord(navigationDepth, newItem);
 	display->setNextTransitionDirection(1);
 	beginScreen(navigatedBackwardFrom);
+}
+
+void SoundEditor::pushNavigationRecord(int32_t parentDepth, MenuItem* newItem) {
+	// Some menus can be entered from each other in a loop (e.g. the patch cable range menus), so the depth has no
+	// natural limit. When the record is full, forget the oldest level above the root so BACK still ends at the root.
+	if (parentDepth >= kNavigationRecordSize - 1) {
+		parentDepth = kNavigationRecordSize - 2;
+		memmove(&menuItemNavigationRecord[1], &menuItemNavigationRecord[2],
+		        (kNavigationRecordSize - 2) * sizeof(menuItemNavigationRecord[0]));
+	}
+	navigationDepth = parentDepth + 1;
+	menuItemNavigationRecord[navigationDepth] = newItem;
 }
 
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -838,7 +849,12 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		// the note row editor keeps the selected row auditioning while open; exitCompletely() ends that audition
 		bool onlyRowEditorAuditioning = inNoteRowEditor() && isUIModeActiveExclusively(UI_MODE_AUDITIONING);
 		if (on && (currentUIMode == UI_MODE_NONE || onlyRowEditorAuditioning)) {
-			exitCompletely();
+			// exitCompletely() may need to write settings to the card, so it can't run inside the card routine - it
+			// returns this instead. Changing the root UI regardless would tear down the UI stack under the code that's
+			// waiting for the card.
+			if (inCardRoutine || exitCompletely() == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 				changeRootUI(&arrangerView);
 			}
@@ -1606,8 +1622,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 							modulationItemFound = true;
 							item = nullptr; // don't open another shortcut on top of this
-							navigationDepth = newNavigationDepth + 1;
-							menuItemNavigationRecord[navigationDepth] = newMenuItem;
+							pushNavigationRecord(newNavigationDepth, newMenuItem);
 							if (!wentBack) {
 								display->setNextTransitionDirection(1);
 							}
@@ -1690,7 +1705,24 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			D_PRINTLN("trying the setup");
 			bool setupSuccess = setup(currentClip, item, thingIndex);
 
-			if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
+			// setup() fails before it sets currentSource, which may still point into the Sound of an earlier session
+			// (possibly deleted since), so look at the Sound this shortcut is for directly
+			Sound* shortcutSound = nullptr;
+			if (!setupSuccess && currentClip->type == ClipType::INSTRUMENT) {
+				Output* output = currentClip->output;
+				if (output->type == OutputType::SYNTH) {
+					shortcutSound = (SoundInstrument*)output;
+				}
+				else if (output->type == OutputType::KIT) {
+					Drum* selectedDrum = ((Kit*)output)->selectedDrum;
+					if (selectedDrum && selectedDrum->type == DrumType::SOUND) {
+						shortcutSound = (SoundDrum*)selectedDrum;
+					}
+				}
+			}
+
+			if (!setupSuccess && item == &modulator0Volume && shortcutSound
+			    && shortcutSound->sources[thingIndex].oscType == OscType::DX7) {
 				item = &dxParam;
 				setupSuccess = setup(currentClip, item, thingIndex);
 			}
@@ -2183,7 +2215,7 @@ doMIDIOrCV:
 			}
 		}
 	}
-	else if (clip->type == ClipType::AUDIO) {
+	else if (clip != nullptr && clip->type == ClipType::AUDIO) { // No clip for the song-level menus
 		AudioClip* audioClip = (AudioClip*)clip;
 		currentSampleControls = &audioClip->sampleControls;
 		currentPriority = &audioClip->voicePriority;
@@ -2333,10 +2365,13 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = getCurrentInstrument();
 
+	// Both are null for an audio clip, whose output isn't an Instrument
+	bool isKit = (instrument != nullptr && instrument->type == OutputType::KIT);
+
 	if (!rootUIIsClipMinderScreen()) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
-	else if (instrument->type == OutputType::KIT && clip->affectEntire) {
+	else if (isKit && clip->affectEntire) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(memory);
 
 		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
@@ -2344,7 +2379,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	else {
 		NoteRow* noteRow = nullptr;
 		int32_t noteRowIndex;
-		if (instrument->type == OutputType::KIT) {
+		if (isKit) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
 			if (selectedDrum) {
 				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);

@@ -519,7 +519,11 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 			}
 		}
 
-		prevSegment = *segments;
+		// Only the left-aligned dot handling uses this. Right-aligned, a trailing dot leaves segments one past the end
+		// of the output here.
+		if (!alignRight) {
+			prevSegment = *segments;
+		}
 
 		if (alignRight) {
 			readPos--;

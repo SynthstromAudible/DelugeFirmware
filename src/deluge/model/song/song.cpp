@@ -5754,6 +5754,13 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 		currentClip = newClip;
 	}
 
+	// A clip-launch macro bound to the old clip would otherwise keep pointing at it after it's freed below
+	for (auto& m : sessionMacros) {
+		if (m.kind == CLIP_LAUNCH && m.clip == oldClip) {
+			m.clip = newClip;
+		}
+	}
+
 	deleteClipObject(oldClip);
 }
 

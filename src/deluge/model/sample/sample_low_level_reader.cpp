@@ -300,6 +300,15 @@ bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sa
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 
+		// The loop only stops early at the final Cluster, which isn't always ahead of the start (e.g. a loop end
+		// before the start, or a loop restart past a short loop's end), so don't walk off the Sample's Clusters
+		if (clusterIndex < 0 || clusterIndex >= sample->clusters.getNumElements()) {
+			if (l == 0) {
+				return false;
+			}
+			break;
+		}
+
 		// Grab it.
 		clusters[l] = sample->clusters.getElement(clusterIndex)
 		                  ->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE, priorityRating);

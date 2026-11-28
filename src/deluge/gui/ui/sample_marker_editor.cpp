@@ -528,6 +528,13 @@ exitAfterRemovingLoopMarker:
 						}
 					}
 
+					// Only the START and END cases above set value. If no marker is at the held column any more,
+					// there's nothing to write.
+					if (markerHeld != MarkerType::START && markerHeld != MarkerType::END) {
+						currentUIMode = UI_MODE_NONE;
+						goto doRender;
+					}
+
 					currentUIMode = UI_MODE_NONE;
 					blinkPhase = 0;
 					goto doWriteValue;
@@ -802,7 +809,10 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	}
 
 	int32_t x = cols[util::to_underlying(markerType)].colOnScreen;
-	if (0 <= x && x < kDisplayWidth) {
+	// The selected marker can be off screen while the locked loop marker is visible, so every write to column x must
+	// check this.
+	bool primaryVisible = (0 <= x && x < kDisplayWidth);
+	if (primaryVisible) {
 		anyMarkerVisible = true;
 	}
 
@@ -818,57 +828,56 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	switch (blinkPhase) {
 		// Flash a full column of color for the primary selection
 	case 1:
-		for (auto& col : PadLEDs::image) {
-			col[x] = colours::black;
-		}
+		if (primaryVisible) {
+			for (auto& col : PadLEDs::image) {
+				col[x] = colours::black;
+			}
 
-		waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
-		                              &waveformBasicNavigator.renderData);
-		renderMarkerInCol(x, PadLEDs::image, markerType, 0, kDisplayHeight, false);
-		PadLEDs::sortLedsForCol(x);
+			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
+			                              &waveformBasicNavigator.renderData);
+			renderMarkerInCol(x, PadLEDs::image, markerType, 0, kDisplayHeight, false);
+			PadLEDs::sortLedsForCol(x);
+		}
 		break;
 	case 3:
 		// 3 case: supress the primary and locked markers
 		supressMask |= 1 << (util::to_underlying(markerType));
-		supressMask |= 1 << (util::to_underlying(otherMarker));
+		if (otherMarker != MarkerType::NONE) {
+			supressMask |= 1 << (util::to_underlying(otherMarker));
+		}
 		[[fallthrough]];
 	case 0:
 		// 0 or 2: render normally
 		[[fallthrough]];
-	case 2:
+	case 2: {
+		// Clear and re-render the primary column and, if it's elsewhere, the locked marker's column (only the
+		// visible ones). Each marker is rendered solid in its own column, the rest of the column flashes.
+		int32_t colsToRender[2];
+		int32_t numColsToRender = 0;
+		if (primaryVisible) {
+			colsToRender[numColsToRender++] = x;
+		}
 		if (otherMarker != MarkerType::NONE && otherMarkerX != x) {
-			// Need to clear both columns
-			for (auto& col : PadLEDs::image) {
-				col[x] = colours::black;
-				col[otherMarkerX] = colours::black;
-			}
-
-			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
-			                              &waveformBasicNavigator.renderData);
-			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, otherMarkerX, PadLEDs::image,
-			                              &waveformBasicNavigator.renderData);
-
-			renderColumn(x, PadLEDs::image, cols, supressMask);
-			renderColumn(otherMarkerX, PadLEDs::image, cols, supressMask);
-
-			PadLEDs::sortLedsForCol(x);
-			PadLEDs::sortLedsForCol(otherMarkerX);
-		}
-		else {
-			// Only 1 marker to render or both markers are on the same column, only clear and re-render once
-			for (auto& col : PadLEDs::image) {
-				col[x] = colours::black;
-			}
-
-			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
-			                              &waveformBasicNavigator.renderData);
-
-			// render the selected marker solid, and flash the rest of the column with the color for the other marker
-			renderColumn(x, PadLEDs::image, cols, supressMask);
-			PadLEDs::sortLedsForCol(x);
+			colsToRender[numColsToRender++] = otherMarkerX;
 		}
 
+		for (auto& col : PadLEDs::image) {
+			for (int32_t i = 0; i < numColsToRender; i++) {
+				col[colsToRender[i]] = colours::black;
+			}
+		}
+		for (int32_t i = 0; i < numColsToRender; i++) {
+			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, colsToRender[i], PadLEDs::image,
+			                              &waveformBasicNavigator.renderData);
+		}
+		for (int32_t i = 0; i < numColsToRender; i++) {
+			renderColumn(colsToRender[i], PadLEDs::image, cols, supressMask);
+		}
+		for (int32_t i = 0; i < numColsToRender; i++) {
+			PadLEDs::sortLedsForCol(colsToRender[i]);
+		}
 		break;
+	}
 	default:
 		__builtin_unreachable();
 	}

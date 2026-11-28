@@ -111,6 +111,9 @@ void PatchCables::drawValue() {
 
 void PatchCables::selectEncoderAction(int32_t offset) {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
+	if (set->numPatchCables == 0) {
+		return; // Nothing to select (std::clamp with hi = -1 below would give -1)
+	}
 
 	int32_t newValue = std::clamp<int32_t>(currentValue + offset, 0, set->numPatchCables - 1);
 
@@ -142,6 +145,9 @@ ActionResult PatchCables::timerCallback() {
 
 void PatchCables::blinkShortcuts() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
+	if (currentValue < 0 || currentValue >= set->numPatchCables) {
+		return; // No cable selected (e.g. there are none)
+	}
 	PatchCable* cable = &set->patchCables[currentValue];
 	ParamDescriptor desc = cable->destinationParamDescriptor;
 	int dest = desc.getJustTheParam();
@@ -184,7 +190,7 @@ MenuItem* PatchCables::selectButtonPress() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 	int val = currentValue;
 
-	if (val >= set->numPatchCables) {
+	if (val < 0 || val >= set->numPatchCables) {
 		// There were no items. If the user wants to create some, they need
 		// to select a source anyway, so take them back there.
 		return MenuItem::selectButtonPress();

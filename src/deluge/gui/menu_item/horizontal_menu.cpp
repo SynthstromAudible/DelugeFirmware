@@ -110,6 +110,10 @@ void HorizontalMenu::renderOLED() {
 	if (renderingStyle() != HORIZONTAL) {
 		return Submenu::renderOLED();
 	}
+	// When none of the items is relevant, focusChild() leaves current_item_ at the end
+	if (current_item_ == items.end()) {
+		return;
+	}
 
 	const auto& paging = preparePaging(items, *current_item_);
 
@@ -541,6 +545,10 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 /// When updating the selected horizontal menu item, you need to refresh the lit instrument LED's
 void HorizontalMenu::updateSelectedMenuItemLED(int32_t itemNumber) const {
 	const auto& page_items = paging.visiblePageItems;
+	// The page can be empty (DYNAMIC layout skips irrelevant items, and they may all be irrelevant)
+	if (itemNumber < 0 || itemNumber >= static_cast<int32_t>(page_items.size())) {
+		return;
+	}
 	const auto* selected_item = page_items[itemNumber];
 
 	int32_t start_column = 0;

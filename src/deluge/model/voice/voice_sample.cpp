@@ -1930,7 +1930,11 @@ loopBackToStartCached:
 					if (loopingType != LoopType::NONE) {
 loopBackToStartUncached:
 						unassignAllReasons(false);
-						setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating);
+						// If this fails, the play position still points into the Clusters whose reasons were just
+						// dropped, so the voice can't carry on
+						if (!setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating)) {
+							return false;
+						}
 					}
 
 					// Otherwise, stop it
@@ -1958,7 +1962,9 @@ loopBackToStartTimeStretched:
 		// Must call this before ending time stretching, cos the presence of the TimeStretcher causes the
 		// SampleLowLevelReader to ignore markers, which is how we want it (no, wait, that's wrong I think? I've undone
 		// that for now anyway)
-		setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating);
+		if (!setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating)) {
+			return false; // See loopBackToStartUncached
+		}
 	}
 
 	return true;

@@ -117,8 +117,10 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 	int32_t xStartSource = xStart;
 	int32_t xEndSource = xEnd;
 	if (reversed) {
-		xStartSource = kDisplayWidth - 1 - xEnd;
-		xEndSource = kDisplayWidth - 1 - xStart;
+		// Output column x shows source column kDisplayWidth - 1 - x, so the half-open output range [xStart, xEnd) needs
+		// source columns [kDisplayWidth - xEnd, kDisplayWidth - xStart)
+		xStartSource = kDisplayWidth - xEnd;
+		xEndSource = kDisplayWidth - xStart;
 	}
 
 	// Don't block on the card here: song row view renders many of these at once, so loading every missing Cluster
@@ -566,6 +568,10 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			                     sample->numChannels);
 			int32_t minThisCol = peak.min;
 			int32_t maxThisCol = peak.max;
+
+			// The getCluster() calls above can load from the card, which yields - and while this Sample is being
+			// recorded, the audio routine can add SampleClusters to it then, which can move the array
+			sampleCluster = sample->clusters.getElement(clusterIndexToDo);
 
 			// If we just looked at the length of one entire cluster...
 			if (investigatingAWholeCluster) {

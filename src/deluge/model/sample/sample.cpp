@@ -691,6 +691,9 @@ doLoading:
 			nextPercCacheZone->startPos = percCacheZone->startPos;
 			nextPercCacheZone->samplesAtStartWhichShouldBeReplaced = percCacheZone->samplesAtStartWhichShouldBeReplaced;
 			percCacheZones[reversed].deleteAtIndex(i);
+			// The zones after it (starting with the one we merged into) have moved down one, and the array may have
+			// been shortened, so both pointers are stale. The merged zone is now at i.
+			percCacheZone = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(i);
 		}
 
 		// Or if not...

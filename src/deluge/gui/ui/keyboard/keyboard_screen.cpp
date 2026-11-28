@@ -220,8 +220,8 @@ void KeyboardScreen::updateActiveNotes() {
 
 	// Map from the current index of a note to its index in the previous note state.
 	//
-	// -1 if the note was not present in the previous
-	std::array<size_t, kMaxNumActiveNotes> currentToLastIdx;
+	// -1 if the note was not present in the previous (so this must be signed: the "< 0" test below relies on it)
+	std::array<int32_t, kMaxNumActiveNotes> currentToLastIdx;
 	{
 		size_t currentIdx;
 		for (currentIdx = 0; currentIdx < currentNotesState.count; ++currentIdx) {

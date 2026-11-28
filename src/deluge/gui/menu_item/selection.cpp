@@ -11,12 +11,21 @@ void Selection::drawValue() {
 	}
 	if (display->have7SEG()) {
 		const auto options = this->getOptions();
-		display->setScrollingText(options[this->getValue()].data());
+		// The option list can shrink while the value stays (e.g. the oscillator type's input entries go away when the
+		// mic or line-in is unplugged), so the value isn't always a valid index
+		int32_t value = this->getValue();
+		if (value >= 0 && value < (int32_t)options.size()) {
+			display->setScrollingText(options[value].data());
+		}
+		else {
+			display->setText("", false, false);
+		}
 	}
 }
 
 void Selection::drawPixelsForOled() {
-	int32_t current = getValue();
+	// See drawValue() - keep the value inside the option list
+	int32_t current = std::clamp<int32_t>(getValue(), 0, std::max<int32_t>((int32_t)size() - 1, 0));
 	// Earliest item that might be on the screen.
 	int32_t before = std::max<int32_t>(0, current - kOLEDMenuNumOptionsVisible);
 	int32_t nBefore = current - before;

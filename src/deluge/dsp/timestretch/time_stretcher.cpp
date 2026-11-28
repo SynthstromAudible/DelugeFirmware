@@ -1235,7 +1235,8 @@ void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int32_t n
                                    int32_t numChannelsAfterCondensing, int32_t sourceAmplitudeNow,
                                    int32_t amplitudeIncrementNow, int32_t* __restrict__ bufferReadPos) {
 
-	int32_t* oscBufferEndNow = oscBufferPos + numSamples * numChannels;
+	// The output window holds numChannelsAfterCondensing values per sample (a stereo source may be condensed to mono)
+	int32_t* oscBufferEndNow = oscBufferPos + numSamples * numChannelsAfterCondensing;
 
 	do {
 		int32_t sampleRead[2];

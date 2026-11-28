@@ -1034,7 +1034,10 @@ ModelStackWithAutoParam* View::getModelStackWithParam(int32_t whichModEncoder, b
 }
 
 // used to get name of parameter assigned to mod encoder
+// parameterName must hold 30 chars. It is always written and terminated: empty if the knob has no param.
 void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName) {
+	parameterName[0] = '\0';
+	parameterName[29] = '\0'; // strncpy(..., 29) below doesn't terminate a 29-char name
 	bool noteTailsAllowedBefore;
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(whichModEncoder, noteTailsAllowedBefore);
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -2231,8 +2234,8 @@ oledDrawString:
 			}
 
 			if (clip) {
-				// "SECTION NN" is 10, "NN: " is 3 => 10 over current name is always enough.
-				DEF_STACK_STRING_BUF(info, clip->name.getLength() + 10);
+				// section + 1 can have 3 digits, so "Section NNN" is 11 and "NNN: " is 5, plus the terminator
+				DEF_STACK_STRING_BUF(info, clip->name.getLength() + 12);
 				if (clip->name.isEmpty()) {
 					info.append("Section ");
 					info.appendInt(clip->section + 1);

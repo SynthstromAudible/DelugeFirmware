@@ -17,7 +17,9 @@
 
 #include "model/consequence/consequence_param_change.h"
 #include "definitions_cxx.hpp"
+#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence.h"
+#include "model/note/note_row.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node_vector.h"
 #include "util/functions.h"
@@ -26,6 +28,8 @@
 ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData) {
 	type = Consequence::PARAM_CHANGE;
 	memcpy(modelStackMemory, modelStack, sizeof(ModelStackWithParamId));
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	paramsBelongToNoteRow = (noteRow != nullptr && modelStack->paramManager == &noteRow->paramManager);
 
 	state.value = modelStack->autoParam->currentValue;
 
@@ -46,7 +50,30 @@ Error ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSo
 	// we swap our stored state with that of the param in question - like, actually swap the pointer to the
 	// ParamNodeVector, so it's real efficient!
 
+	if (paramsBelongToNoteRow && !refreshNoteRowPointers()) {
+		return Error::NONE; // The NoteRow is gone, and these params with it
+	}
+
 	modelStack.paramCollection->remotelySwapParamState(&state, &modelStack);
 
 	return Error::NONE;
+}
+
+// NoteRows are stored by value in the Clip's NoteRowVector, which moves them when rows are added or removed, so the
+// NoteRow, ParamManager and summary pointers copied when this was recorded can be stale by now. The ParamCollection
+// itself is allocated separately and doesn't move, so find the NoteRow whose ParamManager holds it now.
+bool ConsequenceParamChange::refreshNoteRowPointers() {
+	auto* clip = static_cast<InstrumentClip*>(modelStack.getTimelineCounter());
+	for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
+		NoteRow* noteRow = clip->noteRows.getElement(i);
+		for (ParamCollectionSummary* summary = noteRow->paramManager.summaries; summary->paramCollection; summary++) {
+			if (summary->paramCollection == modelStack.paramCollection) {
+				modelStack.setNoteRow(noteRow, clip->getNoteRowId(noteRow, i));
+				modelStack.paramManager = &noteRow->paramManager;
+				modelStack.summary = summary;
+				return true;
+			}
+		}
+	}
+	return false;
 }

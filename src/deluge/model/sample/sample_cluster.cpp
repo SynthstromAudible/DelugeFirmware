@@ -152,8 +152,23 @@ justEnqueue:
 				}
 
 				// Or if it was a must-load-now...
-				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd
-				// still exist but never get enqueued for loading
+				// loadCluster() yields while it waits for the card, and `cluster` was already published, so a voice,
+				// clip or prefetch may have got this Cluster meanwhile (adding its own reason). Then it mustn't be
+				// destroyed: queue it for loading for them and just give back our reason.
+				if (cluster->numReasonsToBeLoaded > 1) {
+					{
+						CriticalSectionGuard guard;
+						audioFileManager.loadingQueue.enqueueCluster(*cluster, priorityRating, guard);
+					}
+					audioFileManager.removeReasonFromCluster(*cluster, "E462");
+					if (error != nullptr) {
+						*error = Error::UNSPECIFIED;
+					}
+					return nullptr;
+				}
+
+				// Otherwise free and remove our link to the unloaded Cluster - otherwise the next time we try to load
+				// it, it'd still exist but never get enqueued for loading
 				cluster->destroy(); // This removes the 1 reason that it'd still have
 
 				if (error != nullptr) {

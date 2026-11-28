@@ -1093,24 +1093,19 @@ modifyNote:
 			                                                     modelStack->noteRowId, &notes, false);
 		}
 
-		// Doing a wrap while reversed is unique because we have to move our note from one end of the array to the other
-		if (wrapping && reversed) {
-			int32_t probability = note->getProbability();
-			Iterance iterance = note->getIterance();
-			int32_t fill = note->getFill();
-			int32_t noteOnVelocity = note->getVelocity();
-			uint16_t lockSet = note->getLockSet();
-			AnchorMarker anchorMarker = note->anchorMarker;
+		// Doing a wrap while reversed is unique because we have to move our note from one end of the array to the
+		// other. With only one note it's at both ends already. Otherwise insert the new slot first: the insert can need
+		// memory (deleting first could even free the whole array), and if it fails nothing has changed yet.
+		if (wrapping && reversed && notes.getNumElements() > 1) {
+			int32_t newI = notes.getNumElements();
+			if (notes.insertAtIndex(newI) != Error::NONE) {
+				ignoreNoteOnsBefore_ = 0;
+				return; // Leave the note as it was
+			}
+			*notes.getElement(newI) = *notes.getElement(0); // Re-fetch both: the insert may have moved the array
 			notes.deleteAtIndex(0, 1, false);
-			i = notes.getNumElements();
-			notes.insertAtIndex(i); // Shouldn't be able to fail.
+			i = newI - 1;
 			note = notes.getElement(i);
-			note->setProbability(probability);
-			note->setVelocity(noteOnVelocity);
-			note->setIterance(iterance);
-			note->setFill(fill);
-			note->setLockSet(lockSet);
-			note->anchorMarker = anchorMarker;
 		}
 
 		note->pos = newNoteLeftPos; // This will stay the same if we're pingponging

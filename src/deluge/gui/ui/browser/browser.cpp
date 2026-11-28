@@ -468,7 +468,8 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 
 	//  Get the File Index
 	fileIndexSelected = fileItems.search(fileName);
-	if (fileIndexSelected > fileItems.getNumElements()) {
+	if (fileIndexSelected >= fileItems.getNumElements()) { // search() returns the count if it sorts after everything
+		fileIndexSelected = -1;
 		return Error::FILE_NOT_FOUND;
 	}
 
@@ -1032,6 +1033,7 @@ tryReadingItems:
 gotErrorAfterAllocating:
 				D_PRINTLN("error while reloading, emptying file items");
 				emptyFileItems();
+				fileIndexSelected = -1; // Nothing left to select - getCurrentFileItem() must return null now
 				return;
 				// TODO - need to close UI or something?
 			}
@@ -1121,7 +1123,8 @@ searchFromOneEnd:
 				newChar += 32;
 			}
 
-			if (oldChar != newChar) {
+			// Stop at the end of the strings too: if they're identical, both terminators match
+			if (oldChar != newChar || oldChar == '\0') {
 				break;
 			}
 			oldCharAddress++;

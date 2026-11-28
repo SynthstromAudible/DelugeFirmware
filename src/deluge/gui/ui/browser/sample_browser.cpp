@@ -413,6 +413,11 @@ void SampleBrowser::enterKeyPress() {
 }
 
 ActionResult SampleBrowser::backButtonAction() {
+	// Stopping the preview frees the preview sample's holder, which a preview cluster load may be using while we're in
+	// the card routine, so defer first
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
 	AudioEngine::stopAnyPreviewing();
 
 	return Browser::backButtonAction();
@@ -428,11 +433,11 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 			if (currentFileItem) {
 				if (!currentFileItem->isFolder) { // This is an additional requirement only present in this class
 
-					AudioEngine::stopAnyPreviewing();
-
-					if (inCardRoutine) {
+					if (inCardRoutine) { // Before stopping the preview - see backButtonAction()
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
+
+					AudioEngine::stopAnyPreviewing();
 
 					// Ensure sample isn't used in current song
 					String filePath;
@@ -477,11 +482,11 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		if (!on || currentUIMode != UI_MODE_NONE) {
 			return ActionResult::DEALT_WITH;
 		}
-		AudioEngine::stopAnyPreviewing();
-
-		if (inCardRoutine) {
+		if (inCardRoutine) { // Before stopping the preview - see backButtonAction()
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
+
+		AudioEngine::stopAnyPreviewing();
 
 		bool success = changeUISideways(&audioRecorder); // If this fails, we will become the current UI again
 		if (success) {
@@ -783,10 +788,10 @@ ActionResult SampleBrowser::padAction(int32_t x, int32_t y, int32_t on) {
 	else if (x == kDisplayWidth) { // !currentlyShowingSamplePreview ||
 possiblyExit:
 		if (on && !currentUIMode) {
-			AudioEngine::stopAnyPreviewing();
-			if (sdRoutineLock) {
+			if (sdRoutineLock) { // Before stopping the preview - see backButtonAction()
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
+			AudioEngine::stopAnyPreviewing();
 			exitAction();
 		}
 	}

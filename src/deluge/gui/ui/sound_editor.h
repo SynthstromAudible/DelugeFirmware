@@ -122,7 +122,10 @@ public:
 
 	uint8_t shortcutsVersion;
 
-	MenuItem* menuItemNavigationRecord[16];
+	static constexpr int32_t kNavigationRecordSize = 16;
+	MenuItem* menuItemNavigationRecord[kNavigationRecordSize];
+	// Puts newItem one level below the menu at depth `parentDepth` and makes it the current level.
+	void pushNavigationRecord(int32_t parentDepth, MenuItem* newItem);
 
 	bool shouldGoUpOneLevelOnBegin;
 	bool secondLayerShortcutsToggled;
