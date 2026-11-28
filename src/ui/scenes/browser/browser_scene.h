@@ -563,8 +563,9 @@ public:
 	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
 	int32_t favourite_row() const;
 
-	/// @brief The list rows' names, copied out of the catalogue for one pass of the list, each cut at
-	///        `kMaxEnteredChars` (far past the row's right edge).
+	/// @brief The list rows' names, copied out of the catalogue for one pass of the list: each name's bytes up to the
+	///        first that starts a glyph past the row's right edge, so the copy draws what the whole name draws. A
+	///        name whose visible bytes outgrow its slot is drawn from the catalogue instead.
 	struct BrowserText {
 		std::array<std::array<char, kMaxEnteredChars>, kMaxBrowserRows> labels{};
 	};
@@ -704,8 +705,14 @@ private:
 	/// @return The answer, or nullopt for a button those arms do not take.
 	std::optional<deluge::ui::shell::Result> sample_button(deluge::ui::shell::ButtonId button, bool on);
 	/// @brief The favourites the browser shows: its port's, unless a spec gave its own; with neither, a bank that is
-	///        never available. Const: the bank is the port's, not the scene's.
-	bind::Favourites& favourites() const;
+	///        never available.
+	bind::Favourites& favourites();
+	/// @brief `favourites()`, read-only, for the present steps.
+	const bind::Favourites& favourites() const;
+	/// @brief The port both `favourites()` answer with.
+	bind::Favourites* favourites_port() const;
+	/// @brief The favourite flash's period at @p now_ms, counted from its anchor, which must be set.
+	uint32_t favourite_flash_step_at(uint32_t now_ms) const;
 	/// @brief `Browser::isFavouritesVisible` / `isBanksVisible`: the sample browser's keyboard is up and the layout
 	///        shows them.
 	bool favourites_visible() const;

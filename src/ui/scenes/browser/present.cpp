@@ -3,6 +3,7 @@
 #include "project/device_settings.h"
 #include "ui/gfx/oled/font.h"
 #include "ui/scenes/browser/browser_scene.h"
+#include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/favourites.h"
 #include "ui/widgets/grid/keyboard.h"
 #include "ui/widgets/grid/shortcut_blink.h"
@@ -21,6 +22,31 @@ static_assert(deluge::ui::widgets::core::kDelugeStyle48.menu_rows <= static_cast
                   && deluge::ui::widgets::core::kDelugeStyle64.menu_rows <= static_cast<int32_t>(kMaxBrowserRows),
               "the list's storage holds every shipped style's rows");
 
+namespace {
+
+/// @brief How many of @p name's bytes can ink a row @p room px wide: every byte up to the first whose glyph starts a
+///        cell past the row's right edge, the pen laid out as `string_width_px` lays it (width, spacing, kerning).
+///        The cell of slack covers a kerning pull back across the edge. A byte with no glyph advances nothing in the
+///        row font, so a name of them leaves its visible tail in the count however long it is.
+size_t visible_bytes(std::string_view name, int32_t room, int32_t height) {
+	int32_t pen = 0;
+	uint8_t previous = 0;
+	for (size_t k = 0; k < name.size(); k++) {
+		const auto c = static_cast<uint8_t>(name[k]);
+		if (k > 0) {
+			pen += ui::gfx::oled::kerning_px(previous, c, height);
+		}
+		if (pen > room + widgets::core::kTextSpacingX) {
+			return k;
+		}
+		pen += ui::gfx::oled::char_width_px(c, height) + ui::gfx::oled::char_spacing_px(c, height, false);
+		previous = c;
+	}
+	return name.size();
+}
+
+} // namespace
+
 views::oled::BrowserList BrowserScene::present_list(const widgets::core::Style& style, int32_t width,
                                                     std::span<views::oled::BrowserRow> rows, BrowserText& text) const {
 	const Descriptor& d = descriptor(id_);
@@ -37,10 +63,8 @@ views::oled::BrowserList BrowserScene::present_list(const widgets::core::Style& 
 	// With the cursor at the start a name too wide for the row side-scrolls (`OLED::setupSideScroller`, which legacy
 	// arms only for a name that does not fit).
 	const int32_t text_x = views::oled::browser_text_x(style);
-	const bool scrolls =
-	    edit_.cursor == 0
-	    && ui::gfx::oled::string_width_px(entered_text(), widgets::oled::text_height_for(style.row_font))
-	           > width - text_x;
+	const int32_t height = widgets::oled::text_height_for(style.row_font);
+	const bool scrolls = edit_.cursor == 0 && ui::gfx::oled::string_width_px(entered_text(), height) > width - text_x;
 
 	const int32_t count = entry_count();
 	size_t n = 0;
@@ -55,14 +79,17 @@ views::oled::BrowserList BrowserScene::present_list(const widgets::core::Style& 
 		}
 		const bind::CatalogueEntry item = *entry_at(i);
 		const std::string_view name = row_label(item.name, item.folder);
+		// The bytes that can ink the row are copied; a name whose visible part outgrows the copy (a long run of
+		// bytes with no glyph before its tail) is drawn from the catalogue, which no render changes.
 		std::array<char, kMaxEnteredChars>& label = text.labels[n];
-		const size_t len = std::min(name.size(), label.size());
-		std::copy_n(name.begin(), len, label.begin());
+		const size_t len = visible_bytes(name, width - text_x, height);
+		std::string_view shown = name;
+		if (len <= label.size()) {
+			std::copy_n(name.begin(), len, label.begin());
+			shown = std::string_view{label.data(), len};
+		}
 		const bool selected = i == file_index_;
-		rows[n++] = {.label = std::string_view{label.data(), len},
-		             .folder = item.folder,
-		             .selected = selected,
-		             .scrolls = selected && scrolls};
+		rows[n++] = {.label = shown, .folder = item.folder, .selected = selected, .scrolls = selected && scrolls};
 	}
 	return {.title = d.title,
 	        .file_icon = d.file_icon,
@@ -99,8 +126,7 @@ std::optional<views::grid::FavouritePads> BrowserScene::present_favourites(uint3
 	if (!favourites_visible() || !favourite_flash_anchor_ms_.has_value()) {
 		return d;
 	}
-	const uint32_t step = (now_ms - *favourite_flash_anchor_ms_) / kFavouriteFlashMs;
-	if (step != favourite_flash_step_) {
+	if (favourite_flash_step_at(now_ms) != favourite_flash_step_) {
 		d.flash_favourite = bank.current_favourite();
 		if (banks_visible()) {
 			d.flash_bank = bank.current_bank();

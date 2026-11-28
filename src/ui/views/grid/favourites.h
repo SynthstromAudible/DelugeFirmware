@@ -29,8 +29,7 @@ struct FavouriteResponses {
 };
 
 /// @brief `QwertyUI::renderFavourites`, then `timerCallback`'s flash of the current favourite and bank: each row
-/// through
-///        `row`, then the flashes over them.
+///        through `row`, then the flashes over them.
 /// @param f A frame over the pads.
 /// @param d What to show.
 /// @return Each row's response.

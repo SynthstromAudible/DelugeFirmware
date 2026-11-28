@@ -694,15 +694,27 @@ public:
 
 } // namespace
 
-bind::Favourites& BrowserScene::favourites() const {
+bind::Favourites* BrowserScene::favourites_port() const {
 	if (favourites_override_ != nullptr) {
-		return *favourites_override_;
+		return favourites_override_;
 	}
 	if (ctx_.ports.favourites != nullptr) {
-		return *ctx_.ports.favourites;
+		return ctx_.ports.favourites;
 	}
 	static NoFavourites none;
-	return none;
+	return &none;
+}
+
+bind::Favourites& BrowserScene::favourites() {
+	return *favourites_port();
+}
+
+const bind::Favourites& BrowserScene::favourites() const {
+	return *favourites_port();
+}
+
+uint32_t BrowserScene::favourite_flash_step_at(uint32_t now_ms) const {
+	return (now_ms - *favourite_flash_anchor_ms_) / kFavouriteFlashMs;
 }
 
 project::FavouritesLayout BrowserScene::favourites_layout() const {
@@ -1369,7 +1381,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::Oled
 	}
 
 	// Legacy's `display->getNumBrowserAndMenuLines()`, as `Style::menu_rows`: see `present_list`.
-	visible_rows_ = f.style.menu_rows < 1 ? 1 : f.style.menu_rows;
+	visible_rows_ = std::min(f.style.menu_rows < 1 ? 1 : f.style.menu_rows, static_cast<int32_t>(kMaxBrowserRows));
 
 	std::array<deluge::ui::views::oled::BrowserRow, kMaxBrowserRows> rows{};
 	const deluge::ui::views::oled::BrowserList list = present_list(f.style, f.bounds().w, rows, list_text_);
@@ -1418,7 +1430,7 @@ void BrowserScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 				if (!favourite_flash_anchor_ms_.has_value()) {
 					favourite_flash_anchor_ms_ = now;
 				}
-				const uint32_t step = (now - *favourite_flash_anchor_ms_) / kFavouriteFlashMs;
+				const uint32_t step = favourite_flash_step_at(now);
 				favourite_flash_step_ = step;
 				f.grid_gate().request_repaint_after(*favourite_flash_anchor_ms_ + (step + 1) * kFavouriteFlashMs - now,
 				                                    now);

@@ -3880,7 +3880,7 @@ describe browser_present("scenes::browser::BrowserScene present", $ {
 		deluge::ui::scenes::bind::test::FakeCatalogue catalogue;
 		CleanBrowser clean;
 		spec::SongFixture f = spec::make_midi_song();
-		catalogue.entries = {{"A.XML", false}, {"B", true}, {"C.XML", false}};
+		catalogue.entries = {{"A.XML", false}, {"B", true}, {"KICKS.XML", false}};
 		catalogue.folder = "MIDI_DEVICES/DEFINITION";
 		MenuContext ctx = context_of(f);
 		ctx.ports.catalogue = &catalogue;
@@ -3890,8 +3890,8 @@ describe browser_present("scenes::browser::BrowserScene present", $ {
 		std::array<deluge::ui::views::oled::BrowserRow, browser::kMaxBrowserRows> first{};
 		const deluge::ui::views::oled::BrowserList one =
 		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, first, text);
-		expect(std::string{one.rows[1].label}).to_equal(std::string{"B"});
-		catalogue.entries = {{"KICK.XML", false}, {"SNARE", true}, {"TOM.XML", false}};
+		expect(std::string{one.rows[2].label}).to_equal(std::string{"KICKS"});
+		catalogue.entries = {{"KICK.XML", false}, {"SNARE", true}, {"A.XML", false}};
 		catalogue.folder = "MIDI_DEVICES/DEFINITION/B";
 		r.step();
 		std::array<deluge::ui::views::oled::BrowserRow, browser::kMaxBrowserRows> second{};
@@ -3901,56 +3901,8 @@ describe browser_present("scenes::browser::BrowserScene present", $ {
 		if (two.rows.size() == 3) {
 			expect(std::string{two.rows[0].label}).to_equal(std::string{"KICK"});
 			expect(std::string{two.rows[1].label}).to_equal(std::string{"SNARE"});
-			expect(std::string{two.rows[2].label}).to_equal(std::string{"TOM"});
+			expect(std::string{two.rows[2].label}).to_equal(std::string{"A"});
 		}
-	});
-
-	it("presents the favourites over the banks, the current favourite and bank flashing when a period turns", _ {
-		CleanBrowser clean;
-		ScratchCard card;
-		FakeFavourites fake;
-		fake.slots[2] = 4;
-		fake.current = 2;
-		fake.bank = 1;
-		UseFavourites use(fake, FavouritesDefaultLayoutFavoritesAndBanks);
-		spec::AudioSongFixture f = spec::make_audio_clip_song();
-		Rig r;
-		r.open_and_land(context_of(f), BrowserId::Sample);
-		tap(r, 9, 7);
-		r.settle();
-		const std::optional<deluge::ui::views::grid::FavouritePads> now = browser_scene().present_favourites(r.clock);
-		expect(now.has_value()).to_be_true();
-		if (now.has_value()) {
-			expect(now->row).to_equal(6);
-			expect(now->colours).to_equal(deluge::ui::widgets::grid::favourite_row_colours(fake.slots));
-			expect(now->banks).to_equal(std::optional{deluge::ui::widgets::grid::favourite_bank_colours()});
-			expect(now->flash_favourite.has_value()).to_be_false();
-		}
-		const std::optional<deluge::ui::views::grid::FavouritePads> later =
-		    browser_scene().present_favourites(r.clock + browser::kFavouriteFlashMs);
-		expect(later.has_value()).to_be_true();
-		if (later.has_value()) {
-			expect(later->flash_favourite).to_equal(std::optional<uint8_t>{2});
-			expect(later->flash_bank).to_equal(std::optional<uint8_t>{1});
-		}
-	});
-
-	it("presents the file selector's BROWSE blink, its step played on the pass that drew it", _ {
-		CleanBrowser clean;
-		ScratchCard card;
-		spec::SongFixture f = spec::make_synth_song();
-		const MenuContext ctx = sound_context(f);
-		Rig r;
-		r.open_and_land(ctx, BrowserId::Sample);
-		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Menu);
-		const deluge::ui::views::grid::BlinkPads drawn = browser_scene().present_browse_blink(r.clock);
-		expect(drawn.plan).to_equal(
-		    deluge::ui::widgets::grid::exclusive_blink(static_cast<uint8_t>(ctx.source_index), 5, 0));
-		expect(drawn.fire).to_be_false();
-		const deluge::ui::views::grid::BlinkPads next =
-		    browser_scene().present_browse_blink(r.clock + deluge::ui::widgets::grid::kBlinkCycleMs);
-		expect(next.step).to_equal(drawn.step + 2);
-		expect(next.fire).to_be_true();
 	});
 });
 

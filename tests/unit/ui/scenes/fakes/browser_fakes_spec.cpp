@@ -16,17 +16,23 @@
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
 #include "ui/widgets/core/style.h"
+#include "ui/widgets/grid/favourites.h"
 #include "ui/widgets/grid/keyboard.h"
+#include "ui/widgets/grid/shortcut_blink.h"
 
 #include "fakes.h"
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/rgb_printer.h"
 #include "unit/ui/scenes/bind/support/model_fixture.h"
 
 #include <array>
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "support/spec_main.h"
 
@@ -95,6 +101,62 @@ struct Rig {
 		    DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(x), static_cast<uint8_t>(y), velocity}, clock + 5);
 		step();
 	}
+};
+
+/// @brief The sample browser over the fixture's audio clip, its listing landed on @p entries.
+void open_sample(Rig& r, deluge::ui::scenes::bind::test::ModelFixture& f) {
+	f.host.catalogue.entries = {{"KICK.WAV", false}, {"SNARE.WAV", false}};
+	f.host.catalogue.folder = "SAMPLES";
+	MenuContext ctx{};
+	ctx.model = &f.song;
+	ctx.is_audio_clip = true;
+	ctx.addresses.clip = deluge::ui::scenes::bind::test::kAudioClip;
+	ctx.ports = f.ports();
+	browser_scene().set_dispatch(&Deferred::dispatch);
+	browser_scene().open(ctx);
+	r.shell.init(SceneId{kBrowserSceneKind, static_cast<uint16_t>(BrowserId::Sample)});
+	r.shell.tick(0);
+	Deferred::run();
+	r.step();
+	r.step();
+}
+
+/// @brief The MIDI browser over the fixture's MIDI track, its listing landed on @p entries.
+void open_midi(Rig& r, deluge::ui::scenes::bind::test::ModelFixture& f,
+               std::vector<deluge::ui::scenes::bind::test::FakeCatalogue::Entry> entries) {
+	f.host.catalogue.entries = std::move(entries);
+	f.host.catalogue.folder = "MIDI_DEVICES/DEFINITION";
+	MenuContext ctx{};
+	ctx.model = &f.song;
+	ctx.addresses.track = deluge::ui::scenes::bind::test::kMidiTrack;
+	ctx.addresses.instrument = deluge::plugin::SettingContext::Instrument::MIDI;
+	ctx.ports = f.ports();
+	browser_scene().set_dispatch(&Deferred::dispatch);
+	browser_scene().open(ctx);
+	r.shell.init(SceneId{kBrowserSceneKind, static_cast<uint16_t>(BrowserId::MidiDeviceDefinition)});
+	r.shell.tick(0);
+	Deferred::run();
+	r.step();
+	r.step();
+}
+
+/// @brief Forty-five three-byte UTF-8 characters, none of whose bytes has a glyph in the row font.
+std::string glyphless_run() {
+	std::string s;
+	for (int32_t i = 0; i < 45; i++) {
+		s += "\xE6\xBC\xA2";
+	}
+	return s;
+}
+
+/// @brief Install @p fake as the browser's favourites for an example, and put the port's back.
+struct UseFavourites {
+	explicit UseFavourites(deluge::ui::scenes::bind::test::FakeFavourites& fake) {
+		browser_scene().set_favourites(&fake);
+	}
+	~UseFavourites() { browser_scene().set_favourites(nullptr); }
+	UseFavourites(const UseFavourites&) = delete;
+	UseFavourites& operator=(const UseFavourites&) = delete;
 };
 
 /// @brief The QWERTY pad that types @p c, as the text keyboard lays it out.
@@ -199,6 +261,76 @@ describe browser_fakes("the browser, the context menu and the rename scene over 
 		expect(keys.dark).to_be_true();
 		expect(keys.home_row).to_equal(deluge::ui::widgets::grid::kTextKeyboardHomeRow);
 		expect(keys.layout).to_equal(deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty);
+	});
+
+	it("draws an unselected name's tail past a long run of bytes with no glyph", _ {
+		const std::string run = glyphless_run();
+		std::string with_tail;
+		{
+			deluge::ui::scenes::bind::test::ModelFixture f;
+			Rig r;
+			open_midi(r, f, {{"A.XML", false}, {run + "TAIL.XML", false}});
+			std::array<deluge::ui::views::oled::BrowserRow, deluge::ui::scenes::browser::kMaxBrowserRows> rows{};
+			deluge::ui::scenes::browser::BrowserScene::BrowserText text;
+			const deluge::ui::views::oled::BrowserList list =
+			    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, rows, text);
+			expect(list.rows.size()).to_equal(std::size_t{2});
+			if (list.rows.size() == 2) {
+				expect(list.rows[1].selected).to_be_false();
+				expect(std::string{list.rows[1].label}).to_equal(run + "TAIL");
+			}
+			with_tail = r.fake.pbm(0);
+		}
+		deluge::ui::scenes::bind::test::ModelFixture f;
+		Rig r;
+		open_midi(r, f, {{"A.XML", false}, {run + ".XML", false}});
+		expect(r.fake.pbm(0) == with_tail).to_equal(false);
+	});
+
+	it("presents the favourites over the banks, the current favourite and bank flashing when a period turns", _ {
+		deluge::ui::scenes::bind::test::ModelFixture f;
+		static_cast<void>(f.host.device.write(deluge::project::device_path::kFavouritesLayout,
+		                                      static_cast<int32_t>(deluge::project::FavouritesLayout::FAVOURITES_AND_BANKS)));
+		deluge::ui::scenes::bind::test::FakeFavourites fake;
+		fake.slots[2] = 4;
+		fake.current = 2;
+		fake.bank = 1;
+		UseFavourites use(fake);
+		Rig r;
+		open_sample(r, f);
+		expect(browser_scene().browser_id()).to_equal(BrowserId::Sample);
+		r.pad(9, 7, 64); // reveals the keyboard
+		r.pad(9, 7, 0);
+		r.step();
+		const std::optional<deluge::ui::views::grid::FavouritePads> now = browser_scene().present_favourites(r.clock);
+		expect(now.has_value()).to_be_true();
+		if (now.has_value()) {
+			expect(now->row).to_equal(6);
+			expect(now->colours).to_equal(deluge::ui::widgets::grid::favourite_row_colours(fake.slots));
+			expect(now->banks).to_equal(std::optional{deluge::ui::widgets::grid::favourite_bank_colours()});
+			expect(now->flash_favourite.has_value()).to_be_false();
+		}
+		const std::optional<deluge::ui::views::grid::FavouritePads> later =
+		    browser_scene().present_favourites(r.clock + deluge::ui::scenes::browser::kFavouriteFlashMs);
+		expect(later.has_value()).to_be_true();
+		if (later.has_value()) {
+			expect(later->flash_favourite).to_equal(std::optional<uint8_t>{2});
+			expect(later->flash_bank).to_equal(std::optional<uint8_t>{1});
+		}
+	});
+
+	it("presents the file selector's BROWSE blink on the audio clip's column, its step played on the pass that drew it", _ {
+		deluge::ui::scenes::bind::test::ModelFixture f;
+		Rig r;
+		open_sample(r, f);
+		expect(browser_scene().browse_blink()).to_equal(deluge::ui::scenes::browser::BrowseBlink::Menu);
+		const deluge::ui::views::grid::BlinkPads drawn = browser_scene().present_browse_blink(r.clock);
+		expect(drawn.plan).to_equal(deluge::ui::widgets::grid::exclusive_blink(0, 5, 0));
+		expect(drawn.fire).to_be_false();
+		const deluge::ui::views::grid::BlinkPads next =
+		    browser_scene().present_browse_blink(r.clock + deluge::ui::widgets::grid::kBlinkCycleMs);
+		expect(next.step).to_equal(drawn.step + 2);
+		expect(next.fire).to_be_true();
 	});
 
 	it("runs each reset on the device actions port", _ {
