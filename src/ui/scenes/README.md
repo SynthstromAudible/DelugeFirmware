@@ -64,21 +64,27 @@ scene          state, input, ports, clocks, repaint gates
   panel or from drawn pixels is `render_*`'s.
 * **Views** are `views/oled/<scene>.{h,cpp}` and `views/grid/<screen>.{h,cpp}` (the libraries' READMEs hold their
   rules). A view's struct holds values and `std::string_view`s only.
-* **Text storage:** the words a struct points to are literals, or live in a buffer the scene owns (a member or a local
-  of `render_*`) that outlives the view call. No heap.
+* **Text storage:** the words a struct points to are literals, live in a buffer the scene owns (a member or a local
+  of `render_*`) that outlives the view call, or point into a port's storage that nothing changes before the view
+  returns. No heap.
+* **A snapshot replay and a slide are views too:** pads painted back from what the scene kept
+  (`views::grid::pads`) and a zoom's slide (`views::grid::zoom_slide`) are drawn by views; taking the snapshot and
+  starting the slide (`begin_zoom`, its frame) stay in `render_*`. The audio clip's split meets both.
 
 The scenes on views: the recorder (`present_status` and `present_blink`, over `views::oled::recorder_status` and
 `views::grid::blink`), and the marker editor (`present_position`, `present_waveform`, `present_overlay` and
 `present_playhead`, over `views::oled::marker_position`, `views::grid::waveform`, `views::grid::marker_overlay` and
-`views::grid::playhead`), and the rename editor (`present_window` and `present_keys`, over
-`views::oled::rename_window` and `views::grid::keyboard`; the keyboard's repeat and the cursor's blink stay in the
-scene), and the file browser (`present_list`, `present_keys`, `present_favourites` and `present_browse_blink`, over
-`views::oled::browser_list`, `views::grid::keyboard`, `views::grid::favourites` and `views::grid::blink`, with the
-preview through `views::grid::waveform`; the list's names are copied into the scene's `BrowserText`, and the flashes'
-anchors, the visible-row count and the waveform's retry stay in the scene), and the slicer (`present_count`,
-`present_waveform`, `present_marks` and `present_playhead`, over `views::oled::slicer_count`, `views::grid::waveform`,
-`views::grid::slice_marks` and `views::grid::playhead`; the play position, the waveform's retry and its gate stay in
-the scene).
+`views::grid::playhead`, with the zoom's slide through `views::grid::zoom_slide`), and the rename editor
+(`present_window` and `present_keys`, over `views::oled::rename_window` and `views::grid::keyboard`; the keyboard's
+repeat and the cursor's blink stay in the scene), and the file browser (`present_list`, `present_keys`,
+`present_favourites` and `present_browse_blink`, over `views::oled::browser_list`, `views::grid::keyboard`,
+`views::grid::favourites` and `views::grid::blink`, with the preview through `present_waveform` and
+`views::grid::waveform`, and the last preview kept through `views::grid::pads`; the list's names point into the
+catalogue, which nothing changes between the present and the draw, and the flashes' anchors, the visible-row count and
+the waveform's retry stay in the scene), and the slicer (`present_count`, `present_waveform`, `present_marks` and
+`present_playhead`, over `views::oled::slicer_count`, `views::grid::waveform`, `views::grid::slice_marks` and
+`views::grid::playhead`; the count is formatted into the scene's `SlicerCountText`, and the play position, the
+waveform's retry and its gate stay in the scene).
 
 ## Layer rules
 
