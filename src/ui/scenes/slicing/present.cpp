@@ -27,11 +27,11 @@ constexpr int32_t kRows = deluge::ui::gfx::grid::kDelugeGrid.rows;
 /// `double` -- `+ 0.0` is what makes it so -- before truncating to `int32_t`.
 constexpr int32_t kSliceMarkColumns = 16;
 
+static_assert(kMaxManualSlices == std::tuple_size_v<decltype(views::grid::SliceMarks::cols)>);
+
 /// `Slicer::renderOLED`'s label (`origin/main:src/deluge/gui/ui/slicer.cpp`). A raw literal in legacy, with no entry in
 /// `gui/l10n/strings.h`, so it stays one here -- the same call `MarkerScene` makes for its four
 /// page titles.
-static_assert(kMaxManualSlices == std::tuple_size_v<decltype(views::grid::SliceMarks::cols)>);
-
 constexpr std::string_view kNumSlicesLabel = "Num. slices";
 
 } // namespace
