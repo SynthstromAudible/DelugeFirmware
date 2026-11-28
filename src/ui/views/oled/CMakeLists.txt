@@ -8,6 +8,7 @@ add_library(deluge_ui_views_oled STATIC
   keyboard.cpp
   recording.cpp
   editing.cpp
+  playing.cpp
 )
 target_include_directories(deluge_ui_views_oled PUBLIC ${SHARED_INCLUDE})
 # See src/ui/gfx/CMakeLists.txt for what DELUGE_COMMON_COMPILE_OPTIONS carries and why it is PRIVATE.

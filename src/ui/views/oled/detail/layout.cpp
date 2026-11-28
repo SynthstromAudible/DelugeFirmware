@@ -71,7 +71,8 @@ void name_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s) {
 
 void list_rows(widgets::oled::OledFrame& f, std::span<const widgets::oled::ListRow> rows, int16_t current) {
 	f.region(f.bounds(), false, [&](widgets::oled::OledFrame& g) {
-		widgets::core::ListState state{.cursor = current};
+		widgets::core::ListState state{.cursor = std::max<int16_t>(current, 0)};
+		state.hide_cursor = current < 0;
 		widgets::core::ScrollText scroll{};
 		widgets::oled::list(g, widgets::oled::menu_rect(g), state, rows, scroll, false);
 	});
