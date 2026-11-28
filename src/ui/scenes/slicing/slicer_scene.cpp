@@ -8,10 +8,10 @@
 #include "ui/scenes/browser/browser_kind.h"
 #include "ui/scenes/services/waveform_paint.h"
 
+#include "ui/views/grid/waveform.h"
 #include "ui/widgets/grid/columns.h"
 #include "ui/widgets/grid/waveform.h"
 #include "ui/widgets/oled/detail/int_to_string.h"
-#include "ui/widgets/oled/popup.h"
 
 #include "ui/gfx/grid/palette.h"
 
@@ -40,22 +40,6 @@ using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
 namespace {
-
-/// `renderMainPads`' MANUAL arm writes the squashed waveform into `image[yy + 4]` and the slice
-/// marks into `image[4]` (`origin/main:src/deluge/gui/ui/slicer.cpp`). Legacy spells both as the literal 4; on the
-/// shipped 8-row grid that is `kDisplayHeight / 2`, which is also the bound of the squash loop it
-/// wrote as an expression.
-constexpr int32_t kWaveformRowBase = kRows / 2;
-
-/// `int32_t x = manualSlicePoints[i].startPos / (sample->lengthInSamples + 0.0) * 16`.
-/// The 16 is legacy's own literal, not `kDisplayWidth`, and the arithmetic is deliberately in
-/// `double` -- `+ 0.0` is what makes it so -- before truncating to `int32_t`.
-constexpr int32_t kSliceMarkColumns = 16;
-
-/// `Slicer::renderOLED`'s label (`origin/main:src/deluge/gui/ui/slicer.cpp`). A raw literal in legacy, with no entry in
-/// `gui/l10n/strings.h`, so it stays one here -- the same call `MarkerScene` makes for its four
-/// page titles.
-constexpr std::string_view kNumSlicesLabel = "Num. slices";
 
 /// @brief `strcpy(buffer, prefix); intToString(value, buffer + strlen(buffer));` -- the shape both encoder popups build
 ///        their text with (`Slicer::horizontalEncoderAction` and `Slicer::buttonAction` in
@@ -673,42 +657,19 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 void SlicerScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& f) {
 	(void)role;
-	// `intToString(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, buffer)`,
-	// into legacy's own 12-byte buffer.
 	char buffer[12];
-	const int32_t value = (mode_ == Mode::Region) ? num_clips_ : num_manual_slices_;
-	const std::string_view digits = deluge::ui::widgets::oled::detail::int_to_string(value, 1, std::span<char>{buffer});
-	deluge::ui::widgets::oled::count_window(f, kNumSlicesLabel, digits);
+	deluge::ui::views::oled::slicer_count(f, present_count(std::span<char, 12>{buffer}));
 }
 
 void SlicerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	render_pads(f);
-	// `graphicsRoutine`'s playhead: the newest voice's column on rows 7 to 4, in both modes, handed to
-	// `PadLEDs::setTickSquares` whatever the flash cursor: painted with it Slow, flashed by the PIC with it Fast.
 	playing_ = false;
 	if (!file_ || ops_ == nullptr) {
 		return;
 	}
-	std::array<deluge::ui::widgets::grid::TickSquare, kRows> per_row{};
 	const std::optional<int32_t> pos = ops_->play_position();
 	playing_ = pos.has_value();
-	if (pos.has_value() && *pos >= view_.scroll()) {
-		const int64_t col = base::floor_div(*pos - view_.scroll(), view_.zoom());
-		if (col < kMainCols) {
-			for (int32_t y = kRows - 4; y < kRows; y++) {
-				per_row[y] = deluge::ui::widgets::grid::TickSquare{
-				    .col = static_cast<uint8_t>(col), .colour = deluge::ui::widgets::grid::TickColour::Normal};
-			}
-		}
-	}
-	// The device's play cursor; Slow, the row's default, with no device port.
-	const deluge::project::FlashCursor cursor = bind::read_device<deluge::project::FlashCursor>(
-	    bind::port_of(ports_, &bind::Ports::device), deluge::project::device_path::kPlayCursor);
-	if (cursor == deluge::project::FlashCursor::SLOW) {
-		deluge::ui::widgets::grid::tick_squares(f, per_row, deluge::gui::colours::black);
-	}
-	deluge::ui::widgets::grid::flash_tick_squares(f, per_row, last_ticks_,
-	                                              cursor == deluge::project::FlashCursor::FAST);
+	deluge::ui::views::grid::playhead(f, present_playhead(pos), last_ticks_);
 }
 
 void SlicerScene::render_pads(deluge::ui::widgets::grid::GridFrame& f) {
@@ -747,59 +708,9 @@ void SlicerScene::render_pads(deluge::ui::widgets::grid::GridFrame& f) {
 	}
 
 	f.region(deluge::ui::gfx::grid::Rect{0, 0, kMainCols, kRows}, [&](deluge::ui::widgets::grid::GridFrame& main) {
-		services::paint_columns(main, wf->read, wf->centre, wf->span);
-
-		if (mode_ == Mode::Region) {
-			// The full-screen waveform, and nothing else.
-			return;
-		}
-
-		// Legacy renders the waveform full height into a SEPARATE image and then
-		// averages row pairs into the top half, so every read is of the untouched full-height
-		// render. Done in place that would be wrong -- row 6 reads rows 4 and 5, which rows 0 and 1
-		// have already overwritten -- so the full-height render is snapshotted first.
-		RGB src[kRows][kMainCols]{};
-		for (int32_t y = 0; y < kRows; y++) {
-			for (int32_t x = 0; x < kMainCols; x++) {
-				src[y][x] = main.peek(x, y);
-			}
-		}
-		for (int32_t x = 0; x < kMainCols; x++) {
-			for (int32_t yy = 0; yy < kRows / 2; yy++) {
-				(void)main.pad(x, yy + kWaveformRowBase, RGB::average(src[yy * 2][x], src[yy * 2 + 1][x]));
-			}
-		}
-
-		// The slice marks. The column is `startPos / lengthInSamples * 16` in double
-		// arithmetic, so a slice at the very end of the sample lands on column 16 -- the first
-		// SIDEBAR column in legacy's image. The region clips it here; see the header for why that
-		// is the behaviour-preserving choice rather than a transcription of the write.
-		for (int32_t i = 0; i < num_manual_slices_; i++) {
-			const int32_t x = static_cast<int32_t>(points_[i].start_pos / (static_cast<double>(view_.length()) + 0.0)
-			                                       * kSliceMarkColumns);
-			// `RGB{1, (i == currentSlice) ? 200_u8 : 16_u8, 1}`. The `_u8` literal lives
-			// in `util/misc.h`, which this layer may not include (`scenes-includes-outside`), so
-			// the cast is spelled out -- the same reason `MarkerScene` inlined
-			// `divide_round_negative`.
-			(void)main.pad(x, kWaveformRowBase, RGB(1, static_cast<uint8_t>((i == current_slice_) ? 200 : 16), 1));
-		}
-
-		// The lower screen: 64 slots in four pages of 4x4, laid out left to right by
-		// page. `RGB::monochrome(3)` is legacy's initialiser and is overwritten on every path, so
-		// it has no counterpart here.
-		for (int32_t i = 0; i < kMaxManualSlices; i++) {
-			const int32_t xx = (i % 4) + (i / 16) * 4;
-			const int32_t yy = (i / 4) % 4;
-			const int32_t page = i / 16;
-
-			const auto dim_level = static_cast<uint8_t>((i < num_manual_slices_) ? 2 : 6);
-			RGB colour = (page % 2 == 0) ? deluge::gui::colours::green.dim(dim_level)
-			                             : deluge::gui::colours::darkblue.dim(dim_level);
-			if (i == current_slice_) {
-				colour = deluge::gui::colours::green.dim();
-			}
-			(void)main.pad(xx, yy, colour);
-		}
+		deluge::ui::views::grid::waveform(main, present_waveform(*wf),
+		                                  deluge::ui::widgets::grid::kWaveformBarBrightnessMono, std::nullopt);
+		deluge::ui::views::grid::slice_marks(main, present_marks());
 	});
 }
 

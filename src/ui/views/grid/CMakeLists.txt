@@ -6,6 +6,7 @@ add_library(deluge_ui_views_grid STATIC
   keyboard.cpp
   marker.cpp
   playhead.cpp
+  slicer.cpp
   waveform.cpp
 )
 target_include_directories(deluge_ui_views_grid PUBLIC ${SHARED_INCLUDE})

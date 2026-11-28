@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief A sample's full-screen waveform on the main pads: the read through the waveform's address, then the paint.
+/// @brief A sample's full-screen waveform on the main pads: the read through the waveform's address, and its columns.
 
 #include "ui/scenes/bind/ports/waveforms.h"
 #include "ui/views/waveform/peaks.h"
@@ -10,10 +10,6 @@
 #include <array>
 #include <cstdint>
 #include <optional>
-
-namespace deluge::ui::widgets::grid {
-class GridFrame;
-}
 
 namespace deluge::ui::scenes::services {
 
@@ -36,10 +32,5 @@ read_waveform(const bind::Waveforms& waveforms, const bind::WaveformAddress& add
 ///        to `kColumns`.
 [[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
 peak_cols(const views::waveform::PeakRead& read, int32_t centre, int32_t span, int32_t cols);
-
-/// @brief Paint @p read's PEAK columns as full-height monochrome bars across @p f's main columns, centred on @p centre
-///        and scaled to @p span. A column with no peak stays black.
-void paint_columns(deluge::ui::widgets::grid::GridFrame& f, const views::waveform::PeakRead& read, int32_t centre,
-                   int32_t span);
 
 } // namespace deluge::ui::scenes::services

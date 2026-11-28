@@ -1,10 +1,5 @@
 #include "ui/scenes/services/waveform_paint.h"
 
-#include "ui/widgets/grid/frame.h"
-#include "ui/widgets/grid/waveform.h"
-
-#include "ui/gfx/grid/pad_grid.h"
-
 #include <algorithm>
 #include <array>
 #include <optional>
@@ -30,16 +25,6 @@ peak_cols(const views::waveform::PeakRead& read, int32_t centre, int32_t span, i
 		}
 	}
 	return peaks;
-}
-
-void paint_columns(deluge::ui::widgets::grid::GridFrame& f, const views::waveform::PeakRead& read, int32_t centre,
-                   int32_t span) {
-	static_assert(views::waveform::kColumns == deluge::ui::gfx::grid::kDelugeGrid.main_cols);
-	const int32_t main_cols = std::min<int32_t>(f.bounds().w, views::waveform::kColumns);
-	// `renderOneCol`'s monochrome arm: `renderFullScreen` passes no colour, so the brightness is 128
-	// (`origin/main:src/deluge/gui/waveform/waveform_renderer.cpp`, `WaveformRenderer::renderOneCol`).
-	deluge::ui::widgets::grid::waveform_full(f, peak_cols(read, centre, span, main_cols),
-	                                         deluge::ui::widgets::grid::kWaveformBarBrightnessMono, std::nullopt);
 }
 
 } // namespace deluge::ui::scenes::services

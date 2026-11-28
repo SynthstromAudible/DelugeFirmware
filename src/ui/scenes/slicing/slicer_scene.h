@@ -48,14 +48,12 @@
 /// Nothing here calls an `OledFrame` or `GridFrame` primitive (`scenes-no-frame-primitives`), and nothing names
 /// `waveformRenderer` or `waveformBasicNavigator` (`scenes-no-legacy-waveform`):
 ///
-///   * `renderOLED`'s window, rule, label and centred count -> `ui::widgets::oled::count_window`.
+///   * `renderOLED`'s window, rule, label and centred count -> `views::oled::slicer_count`.
 ///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls -> the waveforms port's read at the SLICE
-///     address (`services::read_waveform`) + `services::paint_columns` (`ui::widgets::grid::waveform_full` over its
-///     columns).
-///   * the MANUAL slice grid and slice marks -> `GridFrame::pad` through the region, with the colours resolved here.
-///   * `graphicsRoutine`'s playhead -> `ui::widgets::grid::tick_squares` on rows 7 to 4 at the column
-///   `SliceOps::play_position`
-///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).
+///     address (`services::read_waveform`), its columns (`present_waveform`) drawn by `views::grid::waveform`.
+///   * the MANUAL slice grid and slice marks -> `views::grid::slice_marks`, over what `present_marks` gathers.
+///   * `graphicsRoutine`'s playhead -> `views::grid::playhead` on rows 7 to 4 at the column `SliceOps::play_position`
+///     reports (`present_playhead`), asked again every `kPlayheadMs` while something plays (`next_timer`).
 ///
 /// A frame whose read left a column pending paints no main pad and asks again (`services::PeakRetry`).
 ///
@@ -119,11 +117,16 @@
 
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/scenes/services/peak_retry.h"
+#include "ui/scenes/services/waveform_paint.h"
+#include "ui/views/grid/playhead.h"
+#include "ui/views/grid/slicer.h"
+#include "ui/views/oled/slicer_count.h"
 #include "ui/views/waveform/view.h"
 
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 
 namespace deluge::ui::scenes::slicing {
@@ -320,6 +323,21 @@ public:
 	deluge::ui::shell::SceneKind kind() const override { return kSlicerSceneKind; }
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::widgets::oled::OledFrame& frame) override;
 	void render_grid(deluge::ui::widgets::grid::GridFrame& frame) override;
+	/// @name What the surfaces show (`slicing/present.cpp`)
+	/// @{
+	/// @brief The screen: the heading and the slice count of the current mode.
+	/// @param digits Where the count is formatted; the result points into it.
+	[[nodiscard]] deluge::ui::views::oled::SlicerCount present_count(std::span<char, 12> digits) const;
+	/// @brief The waveform's columns from @p wf over the 16 main columns.
+	[[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
+	present_waveform(const services::WaveformFrame& wf) const;
+	/// @brief The placed slices' columns, with the mode.
+	[[nodiscard]] deluge::ui::views::grid::SliceMarks present_marks() const;
+	/// @brief The playhead on rows 7 to 4, as the device's flash cursor shows it.
+	/// @param pos Where the newest voice plays (`SliceOps::play_position`, read once by the frame); none when nothing
+	///            plays.
+	[[nodiscard]] deluge::ui::views::grid::Playhead present_playhead(std::optional<int32_t> pos) const;
+	/// @}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;

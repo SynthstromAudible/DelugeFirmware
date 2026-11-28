@@ -14,6 +14,7 @@ add_library(deluge_ui_views_oled STATIC
   marker.cpp
   rename.cpp
   browser.cpp
+  slicer_count.cpp
 )
 target_include_directories(deluge_ui_views_oled PUBLIC ${SHARED_INCLUDE})
 # See src/ui/gfx/CMakeLists.txt for what DELUGE_COMMON_COMPILE_OPTIONS carries and why it is PRIVATE.

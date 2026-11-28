@@ -31,6 +31,7 @@ these differences.
 | `waveform` | `waveform` (a sample's peaks as full-height bars over the main pads, monochrome or coloured) | the marker editor, the file browser |
 | `playhead` | `playhead` (`Playhead`: each row's tick square, painted, flashed, or both; the flash latch is the trailing `last`) | the marker editor |
 | `marker` | `marker_overlay` (`MarkerOverlay`: each column's markers, their colours, the blink's suppression and flood) | the marker editor |
+| `slicer` | `slice_marks` (`SliceMarks`: the manual mode's squashed waveform, each slice's mark, and the 64 slots) | the slicer |
 | `keyboard` | `keyboard` (`KeyboardPads`: the text keyboard's layout and home row, optionally painted dark; the keyboard's state is the trailing `kb`) | the rename editor, the file browser |
 | `favourites` | `favourites` (`FavouritePads`: the favourites row's colours, the bank row's beneath it or none, and the favourite and bank to flash; returns each row's `Response`) | the file browser |
 

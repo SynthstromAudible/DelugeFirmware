@@ -125,6 +125,7 @@ add_library(deluge_ui_scenes STATIC
     # the slicer -- state, render and the three encoder arms. NOT a root scene: legacy's
     # `Slicer` is a plain `UI` opened over the sample browser. See `slicing/slicer_scene.h`.
     slicing/slicer_scene.cpp
+    slicing/present.cpp
     # the audio clip view -- render and navigation. The FIRST root scene in the tree
     # (`AudioClipView` -> `ClipView` -> `ClipNavigationTimelineView` -> `TimelineView : public
     # RootUI`), and therefore the first for which `Scene::is_root()` is true. See
