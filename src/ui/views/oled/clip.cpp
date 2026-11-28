@@ -1,7 +1,6 @@
 #include "ui/views/oled/clip.h"
 
 #include "ui/views/oled/detail/layout.h"
-#include "ui/widgets/core/state.h"
 #include "ui/widgets/oled/text.h"
 #include "ui/widgets/oled/waveform.h"
 
@@ -29,12 +28,7 @@ void audio_clip_resting(widgets::oled::OledFrame& f, const AudioClipResting& d) 
 
 void kit_clip_resting(widgets::oled::OledFrame& f, const KitClipResting& d) {
 	widgets::oled::title(f, d.kit);
-	// a view draws and never reads input: the list goes in a region granted none
-	f.region(f.bounds(), false, [&](widgets::oled::OledFrame& g) {
-		widgets::core::ListState state{.cursor = d.current};
-		widgets::core::ScrollText scroll{};
-		widgets::oled::list(g, widgets::oled::menu_rect(g), state, d.rows, scroll, false);
-	});
+	detail::list_rows(f, d.rows, d.current);
 }
 
 void cv_clip_resting(widgets::oled::OledFrame& f, const CvClipResting& d) {

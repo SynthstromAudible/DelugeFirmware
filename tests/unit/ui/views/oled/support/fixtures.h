@@ -14,6 +14,7 @@
 namespace deluge::ui::views::oled::test {
 
 namespace uitest = deluge::ui::test;
+using widgets::oled::LaneNode;
 using widgets::oled::LaneSpan;
 using widgets::oled::StripNote;
 
@@ -83,6 +84,20 @@ inline std::vector<widgets::core::PeakCol> break_peaks(int32_t n, float zoom = 1
 		cols[static_cast<size_t>(x)] = {.min24 = -v, .max24 = v, .valid = true};
 	}
 	return cols;
+}
+
+/// The canvas's automation lane over 128 steps of 24 ticks: two swells, the second at half depth, a step up for the
+/// last quarter (as `timeline_strips_spec.cpp`'s golden).
+inline std::vector<LaneNode> swell_lane() {
+	std::vector<LaneNode> nodes;
+	for (int32_t i = 0; i < 16; i++) {
+		const int32_t x = i * 8;
+		const float u = static_cast<float>(x) / 128.f;
+		const float swell = (1.f + std::sin(u * 6.28f * 2.f + 0.6f)) * (x < 64 ? 1.f : 0.5f);
+		nodes.push_back(
+		    {.pos = x * 24, .value = static_cast<int32_t>(swell * 50.f) + (x >= 96 ? 25 : 0), .interpolate = x != 96});
+	}
+	return nodes;
 }
 
 } // namespace deluge::ui::views::oled::test

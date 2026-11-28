@@ -1,6 +1,7 @@
 #pragma once
 #include "ui/gfx/oled/geometry.h"
 #include "ui/widgets/oled/frame.h"
+#include "ui/widgets/oled/list.h"
 
 #include <cstdint>
 #include <span>
@@ -48,5 +49,9 @@ void big_text(widgets::oled::OledFrame& f, std::string_view s);
 
 /// @brief A name in the title face (MetricBold9), centred across the frame at @p y.
 void name_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s);
+
+/// @brief @p rows in `list` at `menu_rect(f)`, scrolled to and selecting @p current, with no motion and in a region
+///        granted no input: a view draws a list and never moves it.
+void list_rows(widgets::oled::OledFrame& f, std::span<const widgets::oled::ListRow> rows, int16_t current);
 
 } // namespace deluge::ui::views::oled::detail

@@ -1,6 +1,7 @@
 #include "ui/views/oled/detail/layout.h"
 
 #include "ui/gfx/oled/font.h"
+#include "ui/widgets/core/state.h"
 #include "ui/widgets/oled/text.h"
 
 #include <algorithm>
@@ -66,6 +67,14 @@ void big_text(widgets::oled::OledFrame& f, std::string_view s) {
 void name_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s) {
 	const int32_t w = widgets::oled::measure(s, gfx::oled::FontId::MetricBold9).w;
 	f.glyphs(s, (f.bounds().w - w) / 2, y, gfx::oled::kTextTitleSpacingX, gfx::oled::kTextTitleSizeY);
+}
+
+void list_rows(widgets::oled::OledFrame& f, std::span<const widgets::oled::ListRow> rows, int16_t current) {
+	f.region(f.bounds(), false, [&](widgets::oled::OledFrame& g) {
+		widgets::core::ListState state{.cursor = current};
+		widgets::core::ScrollText scroll{};
+		widgets::oled::list(g, widgets::oled::menu_rect(g), state, rows, scroll, false);
+	});
 }
 
 } // namespace deluge::ui::views::oled::detail

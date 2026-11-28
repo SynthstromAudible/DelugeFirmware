@@ -35,6 +35,7 @@ A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmw
 | `title_short_of` | a title stopping short of a mark the view draws on the title band's right |
 | `big_text` | a big value in MetricBold20, centred |
 | `name_centred` | a name in the title face, centred |
+| `list_rows` | rows in `list`, the current one selected, reading no input |
 
 ## The views
 
@@ -45,6 +46,7 @@ A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmw
 | `clip` | `instrument_clip_resting`, `audio_clip_resting`, `kit_clip_resting`, `cv_clip_resting` |
 | `keyboard` | `keyboard_playing`, `scale_held`, `velocity_drums` |
 | `recording` | `record_arming`, `count_in`, `overdub`, `resampling`, `stem_export` |
+| `editing` | `zoom_held`, `quantize_held`, `step_held`, `automation_moment`, `slicer`, `moving_kit_row`, `randomized_drums`, `undo` |
 
 Each view's layout follows its sketch on the OLED canvas (boards "Resting", "Moments" and "Pages").
 
