@@ -56,7 +56,9 @@ scene          state, input, ports, clocks, repaint gates
 ```
 
 * **`render_*` keeps what a pure function cannot do:** reading `f.now_ms()`, advancing a blink or anchor, arming the
-  frame's gates, and any scene state the draw changes (written before the present call or after the view call).
+  frame's gates, and any scene state the draw changes (written before the present call or after the view call). A
+  clock reached through a port (the audio sample timer) is model input and belongs in the present step; only the
+  frame's clock stays in `render_*`.
 * **Present members** are `const` members of the scene defined in `<scene>/present.cpp`. They take the `Style` and the
   surface's bounds where the picture depends on them, never a frame, and write nothing; scene state derived from the
   panel or from drawn pixels is `render_*`'s.

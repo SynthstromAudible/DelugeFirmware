@@ -132,7 +132,8 @@ target_include_directories(deluge_ui_scenes PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/../../../include
 )
 # deluge_ui_shell already brings deluge_ui_widgets_core/deluge_ui_widgets_oled/deluge_ui_widgets_grid/
-# deluge_base_notify PUBLIC (src/ui/shell/CMakeLists.txt). deluge_base: the number formatting the menu pages use.
+# deluge_base_notify PUBLIC (src/ui/shell/CMakeLists.txt). deluge_ui_views_oled and deluge_ui_views_grid are what the
+# scenes draw through. deluge_base: the number formatting the menu pages use.
 # deluge_l10n: the strings, the names and the error texts, and src/deluge as the root its headers resolve from.
 # deluge_ui_scenes_bind: what a menu node edits, bound to the model's records and the engines' descriptors.
 if(NOT TARGET deluge_ui_scenes_bind)

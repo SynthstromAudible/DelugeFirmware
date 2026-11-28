@@ -6,7 +6,7 @@
 #include <string_view>
 
 /// @file
-/// @brief The audio recorder's screen: its status word while armed, its threshold meter while waiting or recording.
+/// @brief The audio recorder's screen: the status word on a plain take, the threshold meter on a threshold take.
 
 namespace deluge::ui::views::oled {
 

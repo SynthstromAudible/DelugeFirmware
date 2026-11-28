@@ -1975,6 +1975,9 @@ describe recorder_scene_fakes("scenes/recorder RecorderScene over the ports' fak
 		expect(first.step).to_equal(0u);
 		expect(first.fire).to_be_true();
 		expect(first.plan).to_equal(deluge::ui::widgets::grid::exclusive_blink(0, recorder::kRecordShortcutY, 0));
+		deluge::ui::test::GridRig pads;
+		r.scene.render_grid(pads.frame);
+		expect(r.scene.present_blink(pads.frame.now_ms()).fire).to_be_false();
 		r.scene.on_exit();
 	});
 
