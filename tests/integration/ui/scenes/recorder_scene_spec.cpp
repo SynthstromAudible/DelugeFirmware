@@ -40,6 +40,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/fx/chain_params.h"
 #include "support/global_guest_menu.h"
+#include "support/popup_capture.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/bind/target.h"
 #include "ui/scenes/browser/browser_scene.h"
@@ -133,7 +134,6 @@ using deluge::ui::shell::ShellConfig;
 namespace rf = deluge::ui::scenes::spec::recorder_fx;
 using rf::AudioClockAt;
 using rf::Guards;
-using rf::RecorderDisplay;
 using rf::Rig;
 using rf::spec_bail;
 
@@ -168,15 +168,6 @@ const BoardProfile& profile_64() {
 	}();
 	return p;
 }
-
-/// @brief `display` is @p d for the scope, and put back after.
-struct DisplayAs {
-	deluge::hid::Display* saved = display;
-	explicit DisplayAs(deluge::hid::Display& d) { display = &d; }
-	~DisplayAs() { display = saved; }
-	DisplayAs(const DisplayAs&) = delete;
-	DisplayAs& operator=(const DisplayAs&) = delete;
-};
 
 /// @brief A finished take: the recorder's sample with a file, resident in the audio file manager at its path as the
 ///        recorder's file creation leaves it, and out of it again when the scope ends.
@@ -384,9 +375,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	// see the comment above `spec_bail`. `before_each` cannot `expect`, so a defensive reset here
 	// could only ever repair silently, which would hide a leak from the assertions that should see it.
 	before_each([] {
-		static RecorderDisplay d;
 		if (display == nullptr) {
-			display = &d;
+			display = &deluge::ui::scenes::spec::quiet_display();
 		}
 	});
 
@@ -835,8 +825,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `LoadSongUI` shows "Loading" and then takes every UI down: the take that ends with its screen showed no
 		// animation, so the one up is the load's, and it stays until the load takes it down.
 		Guards g;
-		RecorderDisplay shown;
-		DisplayAs as{shown};
+		deluge::ui::scenes::spec::PopupCapture shown;
 		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
@@ -850,7 +839,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		nullifyUIs();
 		drain_notifications();
 		expect(recorder_scene().recording()).to_be_false();
-		expect(shown.loading).to_be_true();
+		expect(shown.working()).to_be_true();
 	});
 
 	it("leaves no working animation behind when a UI teardown takes a stopping take's guest down", _ {
@@ -858,8 +847,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// load's animation alone. The next guest's popups expire on time: an animation still armed would hold them
 		// up (`Notices::next_timer`).
 		Guards g;
-		RecorderDisplay shown;
-		DisplayAs as{shown};
+		deluge::ui::scenes::spec::PopupCapture shown;
 		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		deluge::ui::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
@@ -879,7 +867,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		display->displayLoadingAnimationText("Loading");
 		nullifyUIs();
 		drain_notifications();
-		expect(shown.loading).to_be_true();
+		expect(shown.working()).to_be_true();
 
 		deluge::ui::scenes::spec::settle_torn_down_take();
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
@@ -1076,8 +1064,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// The take ended with no "Working" of its own, so an animation up is another's: the song load that took the
 		// screen down shows one, and takes it down itself.
 		Guards g;
-		RecorderDisplay shown;
-		DisplayAs as{shown};
+		deluge::ui::scenes::spec::PopupCapture shown;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -1089,7 +1076,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		rec->status = RecorderStatus::COMPLETE;
 		deluge::recording::slowRoutine();
 		expect(AudioEngine::foregroundRecorder()).to_be_null();
-		expect(shown.loading).to_be_true();
+		expect(shown.working()).to_be_true();
 	});
 
 	it("attaches a kit row's take to its row", _ {

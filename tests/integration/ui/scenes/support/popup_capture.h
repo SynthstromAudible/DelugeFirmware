@@ -174,6 +174,16 @@ public:
 		return {};
 	}
 
+	/// @return Whether the working animation is up: the latest `WORKING` came after the latest `CLEAR_WORKING`.
+	[[nodiscard]] bool working() const {
+		for (auto e = events_.rbegin(); e != events_.rend(); ++e) {
+			if (e->kind == PopupEvent::Kind::WORKING || e->kind == PopupEvent::Kind::CLEAR_WORKING) {
+				return e->kind == PopupEvent::Kind::WORKING;
+			}
+		}
+		return false;
+	}
+
 	/// @brief Forget every event so far.
 	void clear() { events_.clear(); }
 
