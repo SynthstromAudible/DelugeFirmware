@@ -148,7 +148,7 @@
 /// `initiateXScroll`/`initiateXZoom`, and the shell has no transition surface at all. So those gates are constant-false
 /// here, and `needsRenderingDependingOnSubMode`, whose entire body is "ask for a redraw unless a horizontal scroll or
 /// zoom transition is running", reduces to "ask for a redraw" -- which in an immediate-mode shell is what
-/// `next_timer()` already grants every tick the playhead is live.
+/// `frame_driven()` already grants every frame the playhead is live.
 ///
 /// @par Where `TimelineState::stop_following()` is called, and where it must be called
 ///
@@ -412,28 +412,20 @@ public:
 	///        and all three encoder hooks.
 	bool input_transparent() const override { return false; }
 
-	/// @brief When the grid next needs repainting.
+	/// @brief When the marker blink next changes phase.
 	///
-	/// Two independent deadlines, and the nearer wins:
-	///
-	///   * **the playhead.** `AudioClipView::graphicsRoutine` is a per-frame redraw rather than a
-	///     deadline (`UI::graphicsRoutine`, `gui/ui/ui.cpp`). It is **not** called from the
-	///     main loop on every iteration: its one external driver is
-	///     `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm, re-armed at 15 ms
-	///     (`gui/ui_timer_manager.cpp`); `ShellHostUI` is the host that has to decide
-	///     what a zero costs. Its port is therefore
-	///     `0`, "repaint on the next tick" -- the case `Scene::next_timer`'s own contract
-	///     spells out -- for as long as the cursor
-	///     is live; the shell's own
-	///     router arms repaints with exactly `request_repaint_after(0, now_ms)`
-	///     (`Shell::tick`) and the grid flush diffs against `last_sent`, so a tick on
-	///     which the column did not move costs a repaint and no blit.
-	///   * **the marker blink.** `timerCallback` re-arms `TimerName::UI_SPECIFIC` at
-	///     `kSampleMarkerBlinkTime` (`AudioClipView::timerCallback`), and only the two marker columns
-	///     change with it -- so it is armed only while a marker is visible.
+	/// `timerCallback` re-arms `TimerName::UI_SPECIFIC` at `kSampleMarkerBlinkTime` (`AudioClipView::timerCallback`),
+	/// and only the two marker columns change with it, so it is armed only while a marker is visible. The playhead is
+	/// `frame_driven()`, not a deadline.
 	///
 	/// @return Milliseconds from now, or `std::nullopt`.
 	std::optional<uint32_t> next_timer() const override;
+	/// @brief True while the playhead is live: the flash cursor is not OFF and the clip is playing.
+	///
+	/// `AudioClipView::graphicsRoutine` redraws the cursor every frame of the 15 ms graphics routine
+	/// (`UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm) rather than at a deadline, so the scene is woken
+	/// every frame while the column can move.
+	bool frame_driven() const override;
 	/// @brief `{.oled = false, .grid = true}`: neither the playhead nor the marker blink touches
 	///        the OLED page, which draws the output's name and nothing time-dependent.
 	///

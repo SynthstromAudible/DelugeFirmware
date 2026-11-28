@@ -67,8 +67,8 @@ ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board
                          const deluge::ui::shell::BoardProfile& profile)
     : surfaces_(board, profile), shell_(surfaces_, profile, registry, Services{}, config_) {
 	surfaces_.observe(shell_.stack());
-	// `Services{}` and a `ShellConfig` whose only set field is `greys_in_send_path` on purpose, and
-	// both stay that way.
+	// `Services{}` and a `ShellConfig` whose only set fields are board facts (`greys_in_send_path`, `frame_ms`) on
+	// purpose, and both stay that way.
 	//
 	// The three real services each take this shell's own `SceneStack&`, so they cannot exist before
 	// it. They are built over `shell()` and installed through `Shell::set_services`
@@ -678,9 +678,8 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 		return;
 	}
 	// Absolute deadline minus the clock the tick ran on, in the wrap-safe difference form. A
-	// deadline at or before `now` -- which `Shell::next_wake()` reports routinely, and reports on
-	// every tick while a zero-`next_timer()` scene is stacked -- clamps up to `kMinRearmMs` rather
-	// than arming zero. See the class's `@par The unit mismatch` and `@par Why the floor is 1 ms`.
+	// deadline at or before `now` -- which `Shell::next_wake()` reports routinely -- clamps up to
+	// `kMinRearmMs` rather than arming zero. See the class's `@par The unit mismatch` and `@par Why the floor is 1 ms`.
 	const int32_t in = static_cast<int32_t>(*deadline - now);
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, std::clamp(in, kMinRearmMs, kMaxRearmMs));
 }

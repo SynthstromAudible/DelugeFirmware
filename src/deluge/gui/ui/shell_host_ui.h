@@ -116,11 +116,10 @@ namespace deluge::gui::ui {
 ///
 /// @par Why the floor is 1 ms and not 0 -- a 0 floor is a busy loop
 ///
-/// `Scene::next_timer()` may legally return **0**, meaning "next tick"
-/// (`Scene::next_timer`), and `AudioClipScene::next_timer()` returns it for the whole of
-/// playback. `Shell::next_wake()`'s own
-/// `@warning` records that a host cannot tell that apart from "wake once, immediately", and that the
-/// shell "only ticks when its host asks it to" -- **this class is that host**, so the answer is here.
+/// `Scene::next_timer()` may legally return **0**, meaning "next tick" (`Scene::next_timer`), and
+/// `Shell::next_wake()` reports `now_ms` routinely (a router repaint, a fact raised mid-tick). A
+/// per-frame animation is not one of those: it is `Scene::frame_driven`, woken at the frame period.
+/// The shell only ticks when its host asks it to, and **this class is that host**, so the floor is here.
 ///
 /// `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at exactly `AudioEngine::audioSampleTimer`
 /// (`UITimerManager::setTimerSamples` in `gui/ui_timer_manager.cpp`) and `timeNextEvent` with it. **`kMinRearmMs` (1 ms
@@ -579,7 +578,8 @@ private:
 	/// alive when the constructor hands it over.
 	///
 	/// `greys_in_send_path` is set because legacy's `prepareColour` greys every pad the guest sends.
-	deluge::ui::shell::ShellConfig config_{.greys_in_send_path = true};
+	deluge::ui::shell::ShellConfig config_{.greys_in_send_path = true,
+	                                       .frame_ms = deluge::ui::shell::kGraphicsRoutineMs};
 	GuestSurfaceSet surfaces_;
 	deluge::ui::shell::Shell shell_;
 	/// The regions the guest owned, the regions it answered for (`answeredRegions`) and the greyout

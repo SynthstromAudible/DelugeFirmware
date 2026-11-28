@@ -343,7 +343,9 @@ describe audio_clip_scene_spec_body(
 		        // `pads/playCursor` row.
 		        PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		        PadLEDs::clearTickSquares(/*shouldSend=*/false);
-		        r.tick(1);
+		        // The next frame, as legacy's next graphics routine: the scene is no longer frame-driven, and still
+		        // draws the frame that takes the cursor away.
+		        r.tick(deluge::ui::shell::kGraphicsRoutineMs);
 		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
 		        playbackHandler.playbackState = 0;
 	        });
@@ -374,17 +376,19 @@ describe audio_clip_scene_spec_body(
 	    // --- timers ---------------------------------------------------------------------------------
 
 	    it(
-	        "asks for a repaint every tick while the cursor is live, and for nothing when it is not", _ {
+	        "is frame-driven while the cursor is live, and asks for nothing when it is not", _ {
 		        Rig r;
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
 		        // Stopped: no playhead, no marker, no timer at all.
+		        expect(r.scene().frame_driven()).to_equal(false);
 		        expect(r.scene().next_timer().has_value()).to_be_false();
 
+		        // Playing: woken every frame, with no deadline of its own.
 		        playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
-		        expect(r.scene().next_timer().has_value()).to_be_true();
-		        expect(r.scene().next_timer().value()).to_equal(0u);
+		        expect(r.scene().frame_driven()).to_equal(true);
+		        expect(r.scene().next_timer().has_value()).to_be_false();
 		        playbackHandler.playbackState = 0;
 
 		        // A visible marker arms the blink instead, at the phase's own interval.
@@ -393,13 +397,10 @@ describe audio_clip_scene_spec_body(
 	        });
 
 	    it(
-	        "keeps the cursor tracking across twelve quiet ticks, with no input at all", _ {
-		        // `next_timer() == 0` is the first zero any scene
-		        // returns, so the thing worth driving is not the value but what a long run of ticks
-		        // does with it: twelve consecutive ticks, no board event of any kind, the model's
-		        // play position advanced between them the way the audio engine would advance it.
-		        // Each tick must re-render (the arm is `request_repaint_after(0, now_ms)`, whose
-		        // deadline is due on the very next tick) and must land on legacy's own image.
+	        "keeps the cursor tracking across twelve quiet frames, with no input at all", _ {
+		        // What a long run of frames does with a frame-driven scene: twelve frames, one graphics routine period
+		        // apart, no board event of any kind, the model's play position advanced between them the way the audio
+		        // engine would advance it. Each frame must re-render and land on legacy's own image.
 		        Rig r;
 		        playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 		        r.seed(Sentinel{});
@@ -408,12 +409,13 @@ describe audio_clip_scene_spec_body(
 			        // 48 ticks is exactly one column at this zoom, so the expected column is the
 			        // step number -- derived from the sentinel, not from either side.
 			        r.f.clip->lastProcessedPos = step * 48;
-			        r.tick(static_cast<uint32_t>(step));
+			        r.tick(static_cast<uint32_t>(step) * deluge::ui::shell::kGraphicsRoutineMs);
 			        expect(r.scene().last_tick_square()).to_equal(step);
 			        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_with_cursor(16 + 8));
-			        // And the timer stays armed for the next one, rather than being a one-shot.
-			        expect(r.scene().next_timer().has_value()).to_be_true();
-			        expect(r.scene().next_timer().value()).to_equal(0u);
+			        // And the next frame stays due, rather than this being a one-shot.
+			        expect(r.shell.next_wake())
+			            .to_equal(std::optional<uint32_t>{(static_cast<uint32_t>(step) + 1)
+			                                              * deluge::ui::shell::kGraphicsRoutineMs});
 		        }
 		        playbackHandler.playbackState = 0;
 	        });

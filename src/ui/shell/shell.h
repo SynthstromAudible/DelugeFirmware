@@ -53,6 +53,11 @@ struct ShellConfig {
 	/// proportion and fade. A shell that drives the pads itself leaves it false and greys in
 	/// `render_grid`, statically and through the `GreyOut` tween.
 	bool greys_in_send_path = false;
+	/// @brief The period, in milliseconds, at which a frame-driven scene is woken (`Scene::frame_driven`).
+	///
+	/// The board's frame rate for animations that redraw every frame rather than at a deadline. The Deluge's is its
+	/// graphics routine's period, `kGraphicsRoutineMs` (`profiles/deluge.h`).
+	uint32_t frame_ms = 15;
 };
 
 /// @brief What the shell calls to find the application's root scene for a song, on the two paths
@@ -384,44 +389,10 @@ public:
 	///         opt-out, a scene covered on every surface it claims, and an OLED-only claim on a
 	///         profile with no OLED surfaces.
 	///
-	/// @warning **A returned `now_ms` does not distinguish "wake once, immediately" from "keep
-	///          ticking as fast as you can", and a host cannot currently tell them apart.** Zero is
-	///          a legal `Scene::next_timer()` answer meaning "next tick" (its own doc has the
-	///          account), and `ui::scenes::audio_clip::AudioClipScene::next_timer()` returns it for the
-	///          whole of playback (`AudioClipScene::next_timer`) -- faithfully, because legacy drives
-	///          that play cursor from `graphicsRoutine`, which is a per-frame redraw rather than a
-	///          deadline. (It is **not** driven from the main loop: `TimerName::GRAPHICS_ROUTINE`
-	///          re-arms it at 15 ms, `UITimerManager::routine` (`gui/ui_timer_manager.cpp`), and
-	///          `Scene::next_timer`'s own doc has the measurement.) So while an audio clip is
-	///          playing this hook reports `now_ms` on
-	///          every tick, for ever, which is indistinguishable from the busy loop the screensaver
-	///          service would run without its refusal latch (see `Screensaver`'s note below).
-	///
-	///          `0u` is still the right answer for a scene: zero means "next tick", and the *rate* is
-	///          the host's decision rather than the scene's. `AudioClipScene` claims
-	///          `{.oled = false, .grid = true}`, so there is no per-tick OLED blit, and the grid's
-	///          flush diffs against `last_sent`, so a tick on which the column did not move sends
-	///          nothing.
-	///
-	///          **It is not free.** The shell only ticks when its host asks it to, and the host is
-	///          `ShellHostUI` (`gui/ui/shell_host_ui.h`), which
-	///          converts this hook's answer into a `TimerName::UI_SPECIFIC` duration with a floor
-	///          of 1 ms, because zero would leave `triggerTime` at the current audio sample and fire
-	///          the timer on every pass of the main loop. So while a zero-`next_timer()` scene is
-	///          stacked under that host the cost is paid twice: the scene's grid gate is re-armed at
-	///          `now` on every tick, which is a full grid *render* at up to 1 kHz, and the guest
-	///          re-arms `UI_SPECIFIC` at 1 ms, which runs legacy's whole 29-timer sweep at up to
-	///          1 kHz where `graphicsRoutine` -- the thing this is faithful to -- runs at ~66 Hz
-	///          (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`). Latent rather than live: the guest's only
-	///          tenant today is `MenuScene`, whose `next_timer()` answers `std::nullopt` for most of
-	///          the tree. It stops being latent the moment `AudioClipScene` becomes a guest tenant.
-	///
-	///          It is **owed** as an expressiveness gap, and it is
-	///          recorded here rather than at `next_timer()` because the host author scheduling on
-	///          this value is the one who needs it. Whoever closes it wants a third answer -- a
-	///          per-frame cadence, or a distinct "every tick" sentinel -- not a change to what zero
-	///          means, since zero's current meaning is what makes overriding `next_timer()`
-	///          sufficient for an animation at all.
+	///         A frame-driven scene (`Scene::frame_driven`) is woken at the next frame boundary,
+	///         `ShellConfig::frame_ms` after the last, or at its own `next_timer()` when that is sooner. So a scene
+	///         that animates every frame (the audio clip's play cursor) costs one wake per frame, not one per tick,
+	///         and a host that schedules on this value runs at the frame rate.
 	std::optional<uint32_t> next_wake() const { return next_wake_; }
 	/// @brief The router, for a spec that asks what it dropped.
 	/// @return The router.
@@ -600,6 +571,15 @@ private:
 	/// @brief The earliest deadline any gate, scene or service is waiting on.
 	/// @param now_ms The tick's wall clock, which the scenes' relative timers are measured from.
 	std::optional<uint32_t> compute_next_wake(uint32_t now_ms);
+	/// @brief Move the frame clock past @p now_ms when a frame-driven scene is stacked: one frame on when the
+	///        boundary has passed, or a fresh start a frame from now when the tick came more than a frame late.
+	/// @param now_ms The clock now.
+	void advance_frame_clock(uint32_t now_ms);
+	/// @brief How long @p scene asks to wait: its `next_timer()`, or the time to the next frame boundary when it is
+	///        frame-driven and that is sooner.
+	/// @param scene A stacked scene. @param now_ms The clock now.
+	/// @return Milliseconds from now, or `std::nullopt` when the scene asks for no wake.
+	std::optional<uint32_t> scene_wait(const Scene& scene, uint32_t now_ms) const;
 	/// @brief Rebuild `service_list_` from `services_` plus the shell's own `notices_` and
 	///        `screensaver_`, each listed once.
 	///
@@ -687,6 +667,8 @@ private:
 	bool deciders_differ_ = false;
 	std::optional<uint32_t> next_wake_;
 	uint32_t last_ms_ = 0;
+	/// @brief The next frame boundary for frame-driven scenes, on the shell's clock.
+	uint32_t next_frame_ms_ = 0;
 	/// Whether the lowering accepted anything this tick -- `RepaintGate::needs_frame`'s
 	/// `had_input`, and the port of legacy's `anything` flag in `readButtonsAndPads` (`src/deluge/deluge.cpp`).
 	bool had_input_ = false;

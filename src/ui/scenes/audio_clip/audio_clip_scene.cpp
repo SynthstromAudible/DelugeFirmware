@@ -1092,25 +1092,17 @@ void AudioClipScene::tick(uint32_t dt_ms) {
 }
 
 std::optional<uint32_t> AudioClipScene::next_timer() const {
-	// The playhead first: `graphicsRoutine` runs every 15 ms (`UITimerManager::routine`'s `GRAPHICS_ROUTINE` arm in
-	// `gui/ui_timer_manager.cpp`, through `UI::graphicsRoutine`), so its port is "repaint next tick" whenever the
-	// cursor could move. The condition is `graphicsRoutine`'s own first gate, read positively (`audio_clip_view.cpp`):
-	// with no playback, no active clip, or a count-in running, the column is a constant 255 and nothing animates.
-	const deluge::ui::scenes::bind::ClipFacts* c = clips();
-	const bool cursor_live =
-	    flash_cursor() != project::FlashCursor::OFF && clip_ && c != nullptr && c->clip_playing(*clip_);
-	if (cursor_live) {
-		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**:
-		// while this returns zero the shell's next wake is `now_ms` on every
-		// tick, and nothing in the shell's vocabulary distinguishes that from a spin. Faithful and
-		// free here -- the host chooses the tick rate and the grid's flush diffs -- but the shell
-		// owes a way to say "every frame" that is not the same answer as "as soon as possible".
-		return 0u;
-	}
 	if (end_marker_visible_ || start_marker_visible_) {
 		return kMarkerBlinkMs - std::min(blink_accum_ms_, kMarkerBlinkMs);
 	}
 	return std::nullopt;
+}
+
+bool AudioClipScene::frame_driven() const {
+	// `graphicsRoutine`'s own first gate, read positively (`audio_clip_view.cpp`): with no playback, no active clip, or
+	// a count-in running, the column is a constant 255 and nothing animates.
+	const deluge::ui::scenes::bind::ClipFacts* c = clips();
+	return flash_cursor() != project::FlashCursor::OFF && clip_ && c != nullptr && c->clip_playing(*clip_);
 }
 
 // ---------------------------------------------------------------------------------------------

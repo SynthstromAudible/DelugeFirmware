@@ -32,6 +32,10 @@ extern const std::span<const SurfaceRole> kDelugeOledRoles;
 /// Deluge OLED styles: display index → Style* (one 48-row style).
 extern const std::span<const widgets::core::Style* const> kDelugeOledStyles;
 
+/// The Deluge's frame period for frame-driven scenes (`ShellConfig::frame_ms`), in milliseconds: its graphics
+/// routine's re-arm (`UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm), about 66 Hz.
+inline constexpr uint32_t kGraphicsRoutineMs = 15;
+
 /// The board profile for the Deluge: button matrix, LED map, encoders, styles, and shortcuts.
 /// @return The profile, viewing static storage.
 const BoardProfile& deluge_profile();

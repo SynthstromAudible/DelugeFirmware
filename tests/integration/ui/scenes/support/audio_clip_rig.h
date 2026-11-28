@@ -292,7 +292,8 @@ struct Rig {
 	Rig& operator=(const Rig&) = delete;
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
-	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
+	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{},
+	                                        ShellConfig{.frame_ms = deluge::ui::shell::kGraphicsRoutineMs}) {
 		ensure_display();
 		currentUIMode = UI_MODE_NONE;
 		deluge::ui::scenes::spec::make_current(

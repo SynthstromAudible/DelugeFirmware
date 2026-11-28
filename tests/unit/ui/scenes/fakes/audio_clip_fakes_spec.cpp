@@ -357,7 +357,7 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		scene.set_ports(nullptr);
 		scene.open(clip(), &h.model);
 		(void)scene.on_enter(SceneId{deluge::ui::scenes::audio_clip::kAudioClipSceneKind, 0});
-		expect(scene.next_timer().has_value()).to_be_false();
+		expect(scene.frame_driven()).to_equal(false);
 		Context tempo;
 		tempo.held.set(ButtonId::TempoEnc, true);
 		(void)tap(scene, 4, 2, tempo);
@@ -380,7 +380,7 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(h.host.writes.requests.empty()).to_be_true();
 		// And with them installed the same clip plays live, and the same turn writes the track's mode.
 		scene.set_ports(&h.ports);
-		expect(scene.next_timer()).to_equal(std::optional<uint32_t>{0});
+		expect(scene.frame_driven()).to_equal(true);
 		(void)turn_select(scene, 1);
 		expect(h.host.writes.requests.size()).to_equal(size_t{1});
 	});

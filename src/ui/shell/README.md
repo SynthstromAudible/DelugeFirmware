@@ -323,7 +323,3 @@ snapshot. At firmware level,
 
 - **Hardware grid scroll.** `SurfaceSet` has no sink for a board's column-shift opcodes, so
   `ScrollH`/`ScrollV` tweens redraw every pair every step.
-- **A per-frame wake.** A scene returning `0u` from `next_timer()` (`AudioClipScene` while playing)
-  makes `next_wake()` report now every tick; under the guest's 1 ms floor that is a grid render and
-  legacy's timer sweep at up to 1 kHz, where legacy's `graphicsRoutine` runs at about 66 Hz. The fix
-  is a distinct per-frame cadence for the host, not a new meaning for zero.
