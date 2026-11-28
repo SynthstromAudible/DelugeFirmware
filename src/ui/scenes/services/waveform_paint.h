@@ -32,7 +32,8 @@ struct WaveformFrame {
 read_waveform(const bind::Waveforms& waveforms, const bind::WaveformAddress& address, views::waveform::Window at);
 
 /// @brief @p read's PEAK columns as the pad widget's columns, centred on @p centre and scaled to @p span: column
-///        `x < cols` from `read.bar(x, centre, span)`, every other column invalid (nothing drawn).
+///        `x < cols` from `read.bar(x, centre, span)`, every other column invalid (nothing drawn). @p cols is clamped
+///        to `kColumns`.
 [[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
 peak_cols(const views::waveform::PeakRead& read, int32_t centre, int32_t span, int32_t cols);
 

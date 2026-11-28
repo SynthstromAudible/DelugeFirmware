@@ -64,7 +64,7 @@ struct SourceBlink {
 /// @brief Everything that blinks while one node is focused.
 struct BlinkPlan {
 	ParamBlink param{};
-	/// `sources[sx][y]` is pad `(14 + sx, y)`, the patching-source columns.
+	/// `sources[sx][y]` is pad `(kBlinkSourceCol + sx, y)`, the patching-source columns.
 	std::array<std::array<SourceBlink, kBlinkSourceRows>, 2> sources{};
 
 	/// @return True when any source pad blinks.

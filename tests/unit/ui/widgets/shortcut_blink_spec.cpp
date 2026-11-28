@@ -24,7 +24,44 @@ describe shortcut_blink("ui::widgets::grid shortcut blink", $ {
 		fire_blink_step(r.frame, exclusive_blink(3, 4, 0), 0);
 		expect(r.flashes.flashes().size()).to_equal(size_t(0));
 		fire_blink_step(r.frame, exclusive_blink(3, 4, 0), 1);
-		expect(r.flashes.flashes().size()).to_equal(size_t(1)); // at (3, 4)
+		expect(r.flashes.flashes().size()).to_equal(size_t(1));
+		expect(r.flashes.flashes()[0]).to_equal(PadFlash{.x = 3, .y = 4, .colour = FlashColour::Default});
+	});
+	it("flashes a source pad on the source step", _ {
+		uitest::GridRig r;
+		BlinkPlan plan;
+		plan.sources[1][2] = SourceBlink{.freq_mask = 0, .colour = FlashColour::Yellow, .alternates = false};
+		fire_blink_step(r.frame, plan, 0);
+		expect(r.flashes.flashes().size()).to_equal(size_t(1));
+		expect(r.flashes.flashes()[0]).to_equal(
+		    PadFlash{.x = kBlinkSourceCol + 1, .y = 2, .colour = FlashColour::Yellow});
+		r.flashes.clear();
+		fire_blink_step(r.frame, plan, 1);
+		expect(r.flashes.flashes().size()).to_equal(size_t(0));
+	});
+	it("skips a source pad on a cycle its mask excludes", _ {
+		uitest::GridRig r;
+		BlinkPlan plan;
+		plan.sources[0][0] = SourceBlink{.freq_mask = 3, .colour = FlashColour::Default, .alternates = false};
+		fire_blink_step(r.frame, plan, 2); // cycle 1
+		expect(r.flashes.flashes().size()).to_equal(size_t(0));
+		fire_blink_step(r.frame, plan, 8); // cycle 4
+		expect(r.flashes.flashes().size()).to_equal(size_t(1));
+	});
+	it("alternates a shared source pad to yellow", _ {
+		uitest::GridRig r;
+		BlinkPlan plan;
+		plan.sources[0][5] = SourceBlink{.freq_mask = 0, .colour = FlashColour::Default, .alternates = true};
+		fire_blink_step(r.frame, plan, 0); // cycle 0
+		fire_blink_step(r.frame, plan, 2); // cycle 1
+		expect(r.flashes.flashes().size()).to_equal(size_t(2));
+		expect(r.flashes.flashes()[0].colour == FlashColour::Default).to_equal(true);
+		expect(r.flashes.flashes()[1].colour == FlashColour::Yellow).to_equal(true);
+	});
+	it("flashes no param pad when none is valid", _ {
+		uitest::GridRig r;
+		fire_blink_step(r.frame, BlinkPlan{}, 1);
+		expect(r.flashes.flashes().size()).to_equal(size_t(0));
 	});
 });
 // clang-format on
