@@ -52,6 +52,12 @@ void text_rows(widgets::oled::OledFrame& f, std::span<const RowText> rows, int32
 	}
 }
 
+void title_short_of(widgets::oled::OledFrame& f, std::string_view s, int32_t right_x) {
+	f.region({0, 0, std::max(0, right_x - 4), f.style.title_height}, false,
+	         [&](widgets::oled::OledFrame& band) { widgets::oled::title(band, s, false); });
+	f.hline(f.style.title_height, 0, f.bounds().w - 1);
+}
+
 void big_text(widgets::oled::OledFrame& f, std::string_view s) {
 	widgets::oled::text(f, {0, row_y(f, 0) - 1, f.bounds().w, 20}, s,
 	                    {.font = gfx::oled::FontId::MetricBold20, .align = widgets::oled::Align::Centre});

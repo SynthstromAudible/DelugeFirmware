@@ -32,6 +32,7 @@ A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmw
 | `body_rect` | the full-width rect from a text row to the frame's bottom |
 | `text_pair` / `text_rows` | a label left and a value right in Apple7, the label clipped 4 px short of the value |
 | `text_centred` | one Apple7 row, centred |
+| `title_short_of` | a title stopping short of a mark the view draws on the title band's right |
 | `big_text` | a big value in MetricBold20, centred |
 | `name_centred` | a name in the title face, centred |
 
@@ -43,6 +44,7 @@ A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmw
 | `arranger` | `arranger_resting`, `arranger_clip_held` |
 | `clip` | `instrument_clip_resting`, `audio_clip_resting`, `kit_clip_resting`, `cv_clip_resting` |
 | `keyboard` | `keyboard_playing`, `scale_held`, `velocity_drums` |
+| `recording` | `record_arming`, `count_in`, `overdub`, `resampling`, `stem_export` |
 
 Each view's layout follows its sketch on the OLED canvas (boards "Resting", "Moments" and "Pages").
 

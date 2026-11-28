@@ -39,6 +39,10 @@ void text_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s);
 /// @brief `text_pair` for each of @p rows on text rows `first_row`, `first_row + 1`, ...
 void text_rows(widgets::oled::OledFrame& f, std::span<const RowText> rows, int32_t first_row = 0);
 
+/// @brief A screen title clipped to stop 4 px before column @p right_x, with the separator rule still across the
+///        frame: room on the title band's right for a mark the view draws itself.
+void title_short_of(widgets::oled::OledFrame& f, std::string_view s, int32_t right_x);
+
 /// @brief A big value in MetricBold20, centred across the frame at `row_y(f, 0) - 1`.
 void big_text(widgets::oled::OledFrame& f, std::string_view s);
 
