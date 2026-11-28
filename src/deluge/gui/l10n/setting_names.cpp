@@ -1064,7 +1064,7 @@ struct ParamName {
 };
 
 /// The Deluge instrument's own params, sorted by id: the shared ones aside.
-constexpr std::array<ParamName, 56> kInstrumentParamNames{{
+constexpr std::array<ParamName, 59> kInstrumentParamNames{{
     ParamName{ParamId{0}, STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME},              // oscAVolume
     ParamName{ParamId{1}, STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME},              // oscBVolume
     ParamName{ParamId{2}, STRING_FOR_PARAM_LOCAL_VOLUME},                    // volume
@@ -1120,6 +1120,9 @@ constexpr std::array<ParamName, 56> kInstrumentParamNames{{
     ParamName{ParamId{52}, STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1},              // lfo1Rate
     ParamName{ParamId{53}, STRING_FOR_PARAM_GLOBAL_LFO_FREQ_2},              // lfo3Rate
     ParamName{ParamId{54}, STRING_FOR_PARAM_GLOBAL_ARP_RATE},                // arpRate
+    ParamName{ParamId{55}, STRING_FOR_PARAM_LOCAL_DX7_LEVEL},                // dx7Level
+    ParamName{ParamId{56}, STRING_FOR_PARAM_LOCAL_DX7_AMP_MOD},              // dx7AmpMod
+    ParamName{ParamId{57}, STRING_FOR_PARAM_LOCAL_DX7_PITCH_ADJUST},         // dx7PitchAdjust
     ParamName{ParamId{101}, STRING_FOR_PORTAMENTO},                          // portamento
 }};
 

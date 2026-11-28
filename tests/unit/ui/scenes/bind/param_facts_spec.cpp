@@ -77,9 +77,10 @@ describe param_facts("a param's facts by plugin and id", ${
 		expect(bind::info_of(p)).to_be_null();
 		expect(classic::is_bipolar_at(ParamKind::PATCH_CABLE, classic::cable_word_of(depth))).to_be_true();
 	});
-	it("names a cable onto a patched param by the param's own index", _ {
+	it("names a cable onto a patched param by the param's runtime index", _ {
 		for (uint32_t i = 0; i < classic::kParamBlocks[0].count; i++) {
-			expect(classic::cable_target_of(ParamId{i}).word).to_equal(synth::CableTarget::param(static_cast<uint8_t>(i)).word);
+			const uint8_t index = classic::runtime_slot(ParamId{i})->index;
+			expect(classic::cable_target_of(ParamId{i}).word).to_equal(synth::CableTarget::param(index).word);
 		}
 	});
 	it("holds the expression axes and a CC to the kind-keyed answers", _ {

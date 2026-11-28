@@ -2,6 +2,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
+#include "instruments/classic/engine_params.h"
 #include "io/midi/midi_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -34,6 +35,8 @@ class HostControlFacts final : public deluge::ui::controls::Facts {
 public:
 	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot,
 	                                     std::optional<deluge::project::ClipAddress> clip) const override;
+	[[nodiscard]] std::optional<deluge::project::ParamAddress>
+	playing_address(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] bool param_automated(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> clip_param_value(const deluge::project::ParamAddress& address,
@@ -103,6 +106,31 @@ bool HostControlFacts::allows_note_tails(deluge::project::SlotAddress slot,
 	    .owner = deluge::ui::scenes::bind::SoundFocus{.slot = slot, .clip = clip}};
 	ModelStackWithThreeMainThings* owner = deluge::bridge::knobOwnerStackAt(*currentSong, focus, memory);
 	return owner == nullptr || sound->allowNoteTails(owner->addSoundFlags());
+}
+
+std::optional<deluge::project::ParamAddress>
+HostControlFacts::playing_address(const deluge::project::ParamAddress& address) const {
+	using deluge::project::OwnerId;
+	using deluge::project::SlotAddress;
+	if (currentSong == nullptr || address.space != deluge::project::ParamSpace::ENGINE
+	    || (address.owner.kind != OwnerId::Kind::INSTRUMENT && address.owner.kind != OwnerId::Kind::DRUM)) {
+		return address;
+	}
+	const SlotAddress slot{address.owner.kind == OwnerId::Kind::DRUM ? SlotAddress::Kind::DRUM
+	                                                                 : SlotAddress::Kind::OUTPUT,
+	                       address.owner.id};
+	const ::Sound* sound = deluge::bridge::soundAt(*currentSong, slot);
+	if (sound == nullptr) {
+		return address; // a kit's or an audio track's own effects: no engine
+	}
+	const std::optional<plugin::ParamId> playing =
+	    deluge::instruments::classic::playing_target(sound->getSynthMode(), address.id);
+	if (!playing) {
+		return std::nullopt;
+	}
+	deluge::project::ParamAddress out = address;
+	out.id = *playing;
+	return out;
 }
 
 std::optional<int32_t> HostControlFacts::param_value(const deluge::project::ParamAddress& address) const {

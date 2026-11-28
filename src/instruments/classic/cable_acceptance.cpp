@@ -18,6 +18,7 @@
 #include "instruments/classic/cable_acceptance.h"
 
 #include "effects/words.h"
+#include "instruments/classic/engine_params.h"
 #include "instruments/classic/params.h"
 #include "instruments/classic/state_access.h"
 
@@ -30,9 +31,10 @@ constexpr bool is_local(PatchSource source) {
 	return source >= PatchSource::ENVELOPE_0 && source != PatchSource::NONE;
 }
 
-/// Whether @p id is a param of the whole sound, not of each voice: the post-FX volume and every param after it.
-constexpr bool is_sound_wide(plugin::ParamId id) {
-	return id.value >= param::kVolumePostFX.value;
+/// Whether @p id is a param of each voice (its row's scope): the only params a voice's own source reaches.
+constexpr bool is_per_voice(plugin::ParamId id) {
+	const plugin::ParamInfo* row = plugin::find_param(kParams, id);
+	return row != nullptr && row->scope == plugin::ParamScope::PER_VOICE;
 }
 
 /// Whether @p source is one of the four envelopes.
@@ -56,12 +58,18 @@ bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFact
 	if (destination == kAnyDestination) {
 		return true;
 	}
-	if (is_local(source) && is_sound_wide(destination)) {
+	if (is_local(source) && !is_per_voice(destination)) {
+		return false;
+	}
+	// Only the playing engine's params, and the sound's own, take a cable
+	if (!param_is_live(state.mode, destination)) {
 		return false;
 	}
 	const bool fm = state.mode == SynthMode::FM;
-	// The DX7 reads osc A's params; it plays no second oscillator and no noise
-	const bool dx7 = state.mode == SynthMode::DX7;
+	// The DX7's own params take the sources their oscillator A counterparts take in DX7 mode
+	if (const std::optional<plugin::ParamId> osc_a = osc_a_counterpart(destination)) {
+		destination = *osc_a;
+	}
 	const auto is = [&](plugin::ParamId id) { return destination == id; };
 	if (is(param::kVolume)) {
 		return !is_envelope(source) && source != PatchSource::SIDECHAIN;
@@ -70,16 +78,13 @@ bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFact
 		return !fm;
 	}
 	if (is(param::kOscBPhaseWidth) || is(param::kNoiseVolume)) {
-		return !fm && !dx7;
+		return !fm;
 	}
 	if (is(param::kOscAVolume)) {
 		return state.mode != SynthMode::RINGMOD;
 	}
 	if (is(param::kOscBVolume)) {
-		return state.mode != SynthMode::RINGMOD && !dx7;
-	}
-	if (is(param::kOscBPitch)) {
-		return !dx7;
+		return state.mode != SynthMode::RINGMOD;
 	}
 	if (is(param::kCarrier1Feedback) || is(param::kCarrier2Feedback) || is(param::kModulator1Volume)
 	    || is(param::kModulator2Volume) || is(param::kModulator1Pitch) || is(param::kModulator2Pitch)

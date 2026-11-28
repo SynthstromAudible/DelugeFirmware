@@ -122,7 +122,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 	}
 
 	if (synthMode == SynthMode::DX7) {
-		// The DX7 reads osc A's level (its own params come with the param-address work): source 0's rule
+		// The DX7 is source 0 in DX7 mode, active by its own level
 		const deluge::synth::Dx7Config& dx7 = sound.config().dx7;
 		setup.dx7 = {.patch = nullptr,
 		             .transpose = dx7.transpose,

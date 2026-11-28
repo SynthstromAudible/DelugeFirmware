@@ -86,10 +86,34 @@ describe cables("the Deluge instrument's patch-cable words and depth ids", ${
 		    .to_equal(0x4001'4119u);
 	});
 
+	it("keeps the unknown destination at 89, an id no param has", _ {
+		expect(kUnknownDestination.value).to_equal(89u);
+		expect(runtime_slot(kUnknownDestination)).not_().to_have_value();
+	});
+
+	it("names a sound-wide param in a cable word by its runtime index and in a depth id by its id, both ways", _ {
+		using deluge::synth::CableTarget;
+		// the post-FX volume (id 45) is the runtime's 48; LFO1 (0) onto its depth's sidechain-sourced range
+		const CableTarget post_fx = cable_target_of(param::kVolumePostFX);
+		expect(static_cast<uint32_t>(post_fx.param_index())).to_equal(48u);
+		const ParamId depth = cable_depth_of(PatchSource::LFO_GLOBAL_1, post_fx);
+		expect(depth.value).to_equal(cable_depth_id(PatchSource::LFO_GLOBAL_1, param::kVolumePostFX)->value);
+		expect(cable_word_of(depth)).to_equal(post_fx.add_source(PatchSource::LFO_GLOBAL_1).word);
+		const uint32_t nested = CableTarget::depth_of_depth(48, PatchSource::SIDECHAIN, PatchSource::ENVELOPE_1).word;
+		expect(cable_depth_of_word(nested).value)
+		    .to_equal(cable_depth_id(PatchSource::ENVELOPE_1, *cable_depth_id(PatchSource::SIDECHAIN, param::kVolumePostFX))
+		                  ->value);
+		expect(cable_word_of(cable_depth_of_word(nested))).to_equal(nested);
+		// a DX7 param is the runtime's 45 to 47
+		expect(static_cast<uint32_t>(cable_target_of(param::kDx7Pitch).param_index())).to_equal(47u);
+		expect(knob_param_of(CableTarget::param(48)).value).to_equal(param::kVolumePostFX.value);
+		expect(cable_root(depth).value).to_equal(param::kVolumePostFX.value);
+	});
+
 	it("names the param a mod knob's descriptor word points at, by the instrument's id", _ {
 		using deluge::synth::CableTarget;
-		// a patched param is its own index, an unpatched one kUnpatchedFirstId (90) on from its runtime index: the id is
-		// the index
+		// a per-voice param is its own index, an unpatched one kUnpatchedFirstId (90) on from its runtime index: the id
+		// is the index
 		expect(knob_param_of(CableTarget::param(25)).value).to_equal(25u);
 		expect(knob_param_of(CableTarget::param(91)).value).to_equal(91u);
 		// a cable is its depth id

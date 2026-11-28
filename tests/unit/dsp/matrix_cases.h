@@ -47,14 +47,14 @@ inline ReferenceResult evaluator_results(const PatchCase& c, const CompiledCase&
 	Evaluator<MatrixFixed>::run_initial(sound, block);
 	out.sound[0] = sound_finals;
 	Evaluator<MatrixFixed>::run_initial(voice, block);
-	out.voice[0] = voice_finals;
+	out.voice[0] = reference_voice(voice_finals);
 	for (size_t b = 0; b < c.sources_changed.size(); ++b) {
 		voice_sources = c.sources[b + 1];
 		std::copy_n(c.sources[b + 1].begin(), kNumGlobalSources, sound_sources.begin());
 		Evaluator<MatrixFixed>::run(sound, block, c.sources_changed[b]);
 		out.sound[b + 1] = sound_finals;
 		Evaluator<MatrixFixed>::run(voice, block, c.sources_changed[b]);
-		out.voice[b + 1] = voice_finals;
+		out.voice[b + 1] = reference_voice(voice_finals);
 	}
 	return out;
 }

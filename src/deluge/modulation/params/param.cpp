@@ -134,9 +134,11 @@ constexpr char const* tableName(std::span<const plugin::ParamInfo> table, ParamT
 
 constexpr char const* paramNameForFileConst(Kind const kind, ParamType const param, bool forMidiFollowFile = false) {
 	using enum Kind;
-	// Patched params have one name whichever collection asks
+	// Patched params have one name whichever collection asks, the runtime index's param's
 	if (param < UNPATCHED_START) {
-		return tableName(instruments::classic::kParams, param);
+		return param < kNumParams ? tableName(instruments::classic::kParams,
+		                                      static_cast<ParamType>(instruments::classic::flat_param_id(param).value))
+		                          : "none";
 	}
 	if (kind == UNPATCHED_GLOBAL) {
 		const auto unpatched = static_cast<UnpatchedGlobal>(param - UNPATCHED_START);

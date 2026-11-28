@@ -166,10 +166,12 @@ constexpr bool is_patched(ParamRef p) {
 	       && deluge::instruments::classic::is_patched(*p.id);
 }
 
-/// @brief The byte a cable's word names patched param @p p by (`synth::CableTarget`): a patched param's id.
+/// @brief The byte a cable's word names patched param @p p by (`synth::CableTarget`): its runtime index
+///        (`instruments::classic::flat_index`).
 /// @param p A patched param (`is_patched`).
+/// @return The byte.
 constexpr uint8_t patched_byte(ParamRef p) {
-	return static_cast<uint8_t>(p.id->value);
+	return static_cast<uint8_t>(deluge::instruments::classic::flat_index(*p.id));
 }
 
 /// @brief Forward declared only -- see the file-level note. Defined in `context.h` (a later task).
@@ -546,7 +548,8 @@ struct Binding {
 
 	/// @brief The patched param a cable from a source pad reaches while this node is focused, which `with_patch_chain`
 	///        sets: the node's own patched param, or the matrix destination whose base the node's param is (a sound's
-	///        arp rate, kept in its arp's set). Empty on every other node.
+	///        arp rate, kept in its arp's set), as the byte a cable's word names it by (`patched_byte`). Empty on every
+	///        other node.
 	std::optional<uint8_t> patch_destination{};
 };
 

@@ -83,6 +83,17 @@ targetOf(OwnerPlugin owner, deluge::modulation::params::Kind kind, int32_t index
 /// @return The first param's id.
 [[nodiscard]] deluge::plugin::ParamId firstParamId(deluge::modulation::params::Kind kind);
 
+/// @brief Where @p store keeps the lane of the param at runtime index @p index of a @p kind collection. A store holds
+/// its lanes in id order (DocParamSet), which the runtime's order need not be, so the index goes through the param's
+/// id.
+///
+/// @param store The collection's store.
+/// @param kind  The runtime collection kind.
+/// @param index The param's runtime index within the collection.
+/// @return The lane's position in the store, or nullopt when the store does not hold the param.
+[[nodiscard]] std::optional<size_t> laneIndexOf(const deluge::project::DocParamSet& store,
+                                                deluge::modulation::params::Kind kind, int32_t index);
+
 /// @brief The depth id of the runtime's packed cable word @p word: a cable's destination descriptor with its source
 /// added (the param in bits 0-7, the sources from the param outward in bits 8-15, 16-23 and 24-31, 0xFF when absent).
 ///

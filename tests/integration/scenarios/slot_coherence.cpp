@@ -24,16 +24,21 @@
 #include "effects/plugin.h"
 #include "instruments/classic/codec.h"
 #include "instruments/classic/deluge_synth.h"
+#include "instruments/classic/engine_params.h"
 #include "instruments/classic/state_access.h"
+#include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
+#include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -249,6 +254,106 @@ std::string chainIncoherence(::Song& song) {
 	return {};
 }
 
+namespace {
+
+/// The first param of an engine @p mode does not play that @p manager holds: a value other than its default,
+/// automation, or a cable rooted at it.
+std::string parkedIn(ParamManager& manager, deluge::instruments::classic::SynthMode mode) {
+	namespace classic = deluge::instruments::classic;
+	// A sound's manager holds its patched set at summaries[1] and its cables at summaries[2]
+	if (!manager.containsAnyMainParamCollections()) {
+		return {};
+	}
+	if (auto* patched = static_cast<PatchedParamSet*>(manager.summaries[1].paramCollection)) {
+		for (const deluge::plugin::ParamInfo& row : classic::kParams) {
+			const std::optional<classic::RuntimeSlot> slot = classic::runtime_slot(row.id);
+			if (!slot || slot->set != classic::RuntimeSet::PATCHED || classic::param_is_live(mode, row.id)) {
+				continue;
+			}
+			const deluge::project::DocAutoParam* lane = patched->findDocParamForKey(slot->index);
+			if (lane != nullptr && (lane->current_value != row.default_value || !lane->nodes.empty())) {
+				return std::string{"parked value "} + std::string{row.file_name};
+			}
+		}
+	}
+	if (PatchCableSet* cables = manager.getPatchCableSetAllowJibberish()) {
+		for (int32_t c = 0; c < cables->numPatchCables; c++) {
+			const deluge::plugin::ParamId root =
+			    classic::flat_param_id(cables->patchCables[c].destination.param_index());
+			if (!classic::param_is_live(mode, root)) {
+				return "parked cable to " + std::to_string(root.value);
+			}
+		}
+	}
+	return {};
+}
+
+/// The first parked param @p sound's knobs name: a mod knob's target or a learned MIDI knob's.
+std::string parkedKnob(::Sound& sound, ::Song& song) {
+	namespace classic = deluge::instruments::classic;
+	const classic::SynthMode mode = sound.getSynthMode();
+	for (const auto& button : sound.modKnobs) {
+		for (const ModKnob& knob : button) {
+			if (knob.target && knob.target->space == deluge::project::ParamSpace::ENGINE
+			    && !classic::target_is_live(mode, knob.target->id)) {
+				return "parked mod knob on " + std::to_string(knob.target->id.value);
+			}
+		}
+	}
+	if (const auto saved =
+	        deluge::bridge::savedKnobsOf(song, *sound.effectsOwner(), deluge::bridge::controlsAddressOf(sound))) {
+		for (const deluge::project::Mapping& knob : *saved) {
+			const deluge::project::ParamTarget& param = std::get<deluge::project::OwnerParamTarget>(knob.target).param;
+			if (param.space == deluge::project::ParamSpace::ENGINE && !classic::target_is_live(mode, param.id)) {
+				return "parked MIDI knob on " + std::to_string(param.id.value);
+			}
+		}
+	}
+	return {};
+}
+
+} // namespace
+
+std::string parkedIncoherence(::Song& song) {
+	for (const ClipArray* clips : {&song.live.clips.session_clips, &song.live.clips.arrangement_only_clips}) {
+		for (int32_t c = 0; c < std::ssize(*clips); c++) {
+			Clip* clip = (*clips)[c];
+			if (clip->type != ClipType::INSTRUMENT) {
+				continue;
+			}
+			auto* instrumentClip = static_cast<InstrumentClip*>(clip);
+			if (clip->output->type == OutputType::SYNTH) {
+				auto* sound = static_cast<SoundInstrument*>(clip->output);
+				if (std::string what = parkedIn(clip->paramManager, sound->getSynthMode()); !what.empty()) {
+					return "synth clip: " + what;
+				}
+			}
+			for (NoteRow& row : instrumentClip->noteRows) {
+				if (row.drum != nullptr && row.drum->type == DrumType::SOUND) {
+					auto* drum = static_cast<SoundDrum*>(row.drum);
+					if (std::string what = parkedIn(row.paramManager, drum->getSynthMode()); !what.empty()) {
+						return "kit row: " + what;
+					}
+				}
+			}
+		}
+	}
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		std::string what;
+		forEachSound(*output, [&](Sound& sound, const std::string& owner) {
+			if (what.empty()) {
+				if (std::string knob = parkedKnob(sound, song); !knob.empty()) {
+					what = owner + ": " + knob;
+				}
+			}
+		});
+		if (!what.empty()) {
+			return what;
+		}
+	}
+	return {};
+}
+
 int32_t expectSongCoherent(::Song& song, const char* leg, CoherenceChecks checks) {
 	const char* label = checks.expect_incoherent ? "EXPECTED-INCOHERENT" : "FAIL";
 	int32_t failures = 0;
@@ -270,6 +375,12 @@ int32_t expectSongCoherent(::Song& song, const char* leg, CoherenceChecks checks
 	}
 	if (checks.chains) {
 		if (const std::string what = chainIncoherence(song); !what.empty()) {
+			std::printf("SLOT-COHERENT %s leg=%s %s\n", label, leg, what.c_str());
+			failures++;
+		}
+	}
+	if (checks.parked) {
+		if (const std::string what = parkedIncoherence(song); !what.empty()) {
 			std::printf("SLOT-COHERENT %s leg=%s %s\n", label, leg, what.c_str());
 			failures++;
 		}

@@ -24,5 +24,25 @@ inline constexpr int32_t kLocalExponential = params::LOCAL_LPF_FREQ;
 inline constexpr int32_t kGlobalLinear = params::GLOBAL_DELAY_FEEDBACK;
 inline constexpr int32_t kGlobalBipolar = params::GLOBAL_DELAY_RATE; ///< the sound scope has no bipolar params
 inline constexpr int32_t kGlobalExponential = params::GLOBAL_DELAY_RATE;
+/// The end of the per-voice params the regions cover, which the frozen Patcher walks: the DX7's come after them.
+inline constexpr int32_t kVoiceRegionsEnd = params::LOCAL_DX7_LEVEL;
+
+/// @brief The param whose region and rules @p p is characterised by: the DX7's params, which the regions predate,
+/// patch as their oscillator A counterparts (its level as the volume, its amp mod as the pulse width, its pitch adjust
+/// as the pitch); every other param as itself.
+/// @param p A patched param's runtime index.
+/// @return The param to characterise @p p by.
+constexpr int32_t region_param(int32_t p) {
+	switch (p) {
+	case params::LOCAL_DX7_LEVEL:
+		return params::LOCAL_OSC_A_VOLUME;
+	case params::LOCAL_DX7_AMP_MOD:
+		return params::LOCAL_OSC_A_PHASE_WIDTH;
+	case params::LOCAL_DX7_PITCH_ADJUST:
+		return params::LOCAL_OSC_A_PITCH_ADJUST;
+	default:
+		return p;
+	}
+}
 
 } // namespace deluge::synth::test::regions

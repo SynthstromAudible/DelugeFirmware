@@ -135,11 +135,11 @@ describe param_names_cases("param display names", ${
 		expect(text(l10n::patched_param_short_name(instruments::classic::param::kModulator2Pitch))).to_equal("Mod1 pitch");
 		expect(text(l10n::patched_param_short_name(instruments::classic::param::kLpfMorph, effects::FilterMode::TRANSISTOR_12DB,
 		                                           effects::FilterMode::OFF))).to_equal("LPF Drive");
-		expect(text(l10n::patched_param_short_name_at(54))).to_equal("Arp. rate");
+		expect(text(l10n::patched_param_short_name_at(57))).to_equal("Arp. rate");
 	});
 	it("gives no short name to an id that is not a patched param", _ {
 		expect(l10n::patched_param_short_name(instruments::classic::param::kStutterRate).empty()).to_be_true();
-		expect(l10n::patched_param_short_name_at(55).empty()).to_be_true();
+		expect(l10n::patched_param_short_name_at(58).empty()).to_equal(true);
 	});
 });
 // clang-format on

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "synth/modulation/cable.h"
+#include "synth/types/synth_mode.h"
 
 #include <span>
 
@@ -176,10 +177,12 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 /// @param writeAutomation  Whether to write the automation nodes.
 /// @param arp              The sound's arp params, which the arp/probability/spread attrs and arpeggiatorRate come
 ///                         from; null for none, which saves the arp's starting values.
+/// @param mode             The sound's synth mode: only the playing engine's params (and the sound's own), and the
+///                         cables rooted at them, are written.
 void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
                           std::span<const deluge::synth::CableRecord> cables,
                           const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation,
-                          const DocParamSet* arp = nullptr);
+                          const DocParamSet* arp, deluge::synth::SynthMode mode);
 
 /// @brief Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).

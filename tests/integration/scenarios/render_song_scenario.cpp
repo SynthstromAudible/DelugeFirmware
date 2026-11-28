@@ -132,6 +132,7 @@
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/model_stack.h"
 #include "model/output.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "model/voice/voice_sample.h"
@@ -855,6 +856,15 @@ void forEachCollection(Clip& clip, Visit visit) {
 int32_t g_playedChecked = 0;
 int32_t g_playedMismatched = 0;
 
+/// @brief How RS-TAKE lines number lane @p index of a collection of @p kind: a patched lane by its param id, which
+/// the order of the runtime's patched set does not move; any other lane by its index.
+int32_t laneNumber(deluge::modulation::params::Kind kind, int32_t index) {
+	if (kind != deluge::modulation::params::Kind::PATCHED) {
+		return index;
+	}
+	return static_cast<int32_t>(deluge::bridge::paramIdOf(kind, index).value);
+}
+
 /// What the render plays of lane @p paramId of @p collection: its working copy while it has one, else the lane's
 /// published snapshot; none before the collection's first publish.
 std::optional<deluge::project::LaneView> playedLane(ParamCollection& collection, int32_t paramId) {
@@ -918,7 +928,8 @@ void checkRepeatPlayed(ParamManager& mine, ParamManager& theirs, int32_t oldLeng
 			g_playedChecked += checked;
 			g_playedMismatched += mismatched;
 			printf("RS-TAKE-PLAYED clip=%d repeat=%d row=%d kind=%d lane=%d checked=%d mismatched=%d\n", clip, repeat,
-			       row, static_cast<int>(collection->getParamKind()), paramId, checked, mismatched);
+			       row, static_cast<int>(collection->getParamKind()), laneNumber(collection->getParamKind(), paramId),
+			       checked, mismatched);
 		});
 	}
 }
@@ -966,7 +977,8 @@ void dumpTakes() {
 		std::vector<Line> lines;
 		forEachCollection(*clip, [&](ParamCollection& collection, int32_t row) {
 			const int32_t kind = static_cast<int32_t>(collection.getParamKind());
-			collection.forEachLane([&](int32_t paramId, const deluge::project::DocAutoParam& lane) {
+			collection.forEachLane([&](int32_t index, const deluge::project::DocAutoParam& lane) {
+				const int32_t paramId = laneNumber(collection.getParamKind(), index);
 				std::string text = "base=" + std::to_string(lane.current_value) + " nodes=";
 				for (const deluge::project::ParamNode& node : lane.nodes) {
 					text += std::to_string(node.pos) + "," + std::to_string(node.value)

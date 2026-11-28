@@ -115,9 +115,7 @@ uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node
 		return item.custom->source_blink(ctx, state, source, colour);
 	}
 	if (item.bind.patch_destination.has_value()) {
-		return patching::source_is_patched(
-		           ctx, source,
-		           deluge::instruments::classic::cable_target_of(deluge::plugin::ParamId{*item.bind.patch_destination}))
+		return patching::source_is_patched(ctx, source, deluge::synth::CableTarget::param(*item.bind.patch_destination))
 		           ? 3
 		           : kNoBlink;
 	}

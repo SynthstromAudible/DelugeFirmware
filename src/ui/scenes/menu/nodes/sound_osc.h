@@ -427,7 +427,7 @@ inline constexpr Node modulator1_volume = with_value_text(
     modulator1_volume_text);
 inline constexpr Node noise = with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_NOISE_LEVEL),
                                                      sound_param(deluge::instruments::classic::param::kNoiseVolume),
-                                                     Hint::Bar, param_shows::kOffFm));
+                                                     Hint::Bar, param_shows::kWithNoise));
 inline constexpr Node osc_sync = with_affect_entire(
     with_column_name(setting_item(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_SYNC), Kind::Toggle,
                                   {.kind = deluge::ui::scenes::bind::Target::Kind::SOUND,

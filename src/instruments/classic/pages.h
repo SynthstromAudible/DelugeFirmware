@@ -199,8 +199,9 @@ inline constexpr std::array kOutOfFm{
               .upper_to = param::kLpfFrequency},
 };
 
-/// @brief @p knobs after a change from @p from to @p to: kIntoFm going into FM, kOutOfFm leaving it, nothing between
-///        the other modes. Each pair takes the first row that matches it.
+/// @brief @p knobs after a change from @p from to @p to: kIntoFm going into FM, kOutOfFm leaving it, and into or out of
+///        DX7 mode a knob on oscillator A's volume, pulse width or pitch (or a cable's depth onto it) moves to the
+///        DX7's own and back (kDx7Counterparts). Each pair takes the first row that matches it.
 /// @param from  The synth mode before the change.
 /// @param to    The synth mode after it.
 /// @param knobs The sound's knobs, one pair per mod button.

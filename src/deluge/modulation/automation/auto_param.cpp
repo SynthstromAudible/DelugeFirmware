@@ -132,7 +132,7 @@ namespace {
 deluge::project::DocAutoParam* sameAsRender([[maybe_unused]] ParamCollection& collection,
                                             [[maybe_unused]] int32_t paramId, deluge::project::DocAutoParam* lane) {
 #if ALPHA_OR_BETA_VERSION
-	if (lane != nullptr && collection.findDocParamForId(paramId) != lane) {
+	if (lane != nullptr && collection.findDocParamForKey(paramId) != lane) {
 		deluge::modulation::laneSplits++;
 	}
 #endif
@@ -145,7 +145,7 @@ deluge::project::DocAutoParam* sameAsRender([[maybe_unused]] ParamCollection& co
 // resolves via a stable `ParamAddress` in the project tree (`Song::resolveParam`); `deluge::edits::addressFor` builds
 // that address from this ModelStack (the owner classification is shared with the Edit substrate). The engine fallback
 // below serves only an unaddressable owner, whose nodes live in the engine collection's own store; it returns the same
-// store the address would. The render resolves through the collection alone (`findDocParamForId()`), which is the same
+// store the address would. The render resolves through the collection alone (`findDocParamForKey()`), which is the same
 // storage an address resolves to.
 deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	// The render reads a lane where its collection keeps it: the tree's block once the owner is relocated, the
@@ -155,7 +155,7 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	// on the interaction tier reads lanes the same way: it holds the render off, and must not relocate or allocate.
 	if (deluge::memory::onRenderTier() || deluge::playback::MoveEffects::collecting()) {
 		deluge::modulation::noteRenderModelRead();
-		if (deluge::project::DocAutoParam* own = paramCollection->findDocParamForId(paramId)) {
+		if (deluge::project::DocAutoParam* own = paramCollection->findDocParamForKey(paramId)) {
 			return own;
 		}
 #if ALPHA_OR_BETA_VERSION

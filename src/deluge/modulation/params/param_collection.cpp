@@ -67,7 +67,7 @@ deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {
 		return (lane != nullptr) ? lane->view() : deluge::project::LaneView{};
 	}
 	deluge::modulation::noteRenderModelRead(); // in record mode, or a collection not yet published
-	const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
+	const deluge::project::DocAutoParam* lane = findDocParamForKey(paramId);
 	return (lane != nullptr) ? deluge::project::LaneView::of(*lane) : deluge::project::LaneView{};
 }
 
@@ -78,12 +78,12 @@ void ParamCollection::forEachLaneAppended(
 	// The keys the repeat changes: those the other collection has nodes to repeat in
 	std::vector<int32_t> appended;
 	forEachAppendedKey(other, otherSummary, [&](int32_t key) {
-		const deluge::project::DocAutoParam* src = other.findDocParamForId(key);
+		const deluge::project::DocAutoParam* src = other.findDocParamForKey(key);
 		if (src == nullptr || src->nodes.empty()) {
 			return;
 		}
 		appended.push_back(key);
-		const deluge::project::DocAutoParam* lane = findDocParamForId(key);
+		const deluge::project::DocAutoParam* lane = findDocParamForKey(key);
 		deluge::project::DocAutoParam copy = lane != nullptr ? *lane : deluge::project::DocAutoParam{};
 		deluge::project::appendParam(copy, *src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 		if (!copy.nodes.empty()) {

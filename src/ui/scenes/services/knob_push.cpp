@@ -17,6 +17,7 @@
 #include "host/chains/pages.h"
 #include "host/chains/params.h"
 #include "instruments/classic/cables.h"
+#include "instruments/classic/engine_params.h"
 #include "instruments/classic/pages.h"
 #include "instruments/classic/params.h"
 #include "instruments/classic/state_access.h"
@@ -49,6 +50,7 @@ struct Reads {
 	/// the sound's envelopes' modes; all ADSR for no sound
 	l10n::EnvelopeModes envelopes{};
 	ui::controls::PageSources pages; ///< the publishers and the device facts (the alternative delay knobs)
+	const bind::SoundFacts* sound{}; ///< the sounds' states, which say which engine's params the knobs reach
 	bool button_held{false};         ///< the mode's mod button is held
 	bool clip_context{false};        ///< the knobs are on a clip, not the song
 };
@@ -56,12 +58,13 @@ struct Reads {
 /// What a push on @p focus reads, in @p gesture's context.
 Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
 	const ui::controls::Facts* const facts = bind::port_of(gesture.ports, &bind::Ports::controls);
+	const bind::SoundFacts* const sound = bind::port_of(gesture.ports, &bind::Ports::sound);
 	Reads out{.pages = facts != nullptr ? bind::app_page_sources(*facts, gesture.board)
 	                                    : bind::app_turn_sources(gesture.board),
+	          .sound = sound,
 	          .button_held = gesture.button_held,
 	          .clip_context = gesture.clip_context};
 	const bind::TrackFacts* const tracks = bind::port_of(gesture.ports, &bind::Ports::tracks);
-	const bind::SoundFacts* const sound = bind::port_of(gesture.ports, &bind::Ports::sound);
 	if (tracks != nullptr && sound != nullptr) {
 		if (const effects::EffectStates* fx = owner_effects(focus, *tracks, *sound)) {
 			out.effects = *fx;
@@ -438,7 +441,7 @@ std::string cc_name(const project::DocOutput& output, const project::ModKnobCc& 
 std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, const Reads& inputs) {
 	const effects::EffectStates& fx = inputs.effects;
 	const ui::controls::Board& board = inputs.pages.board;
-	const bind::KnobAssignment assignment = bind::knob_assignment(song, focus, knob, board);
+	const bind::KnobAssignment assignment = playing_assignment(song, focus, knob, board, inputs.sound);
 	const auto* address = std::get_if<project::ParamAddress>(&assignment.target);
 	if (address == nullptr) {
 		return {};
@@ -453,8 +456,8 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		const auto second =
 		    level > 1 ? static_cast<PatchSource>(instruments::classic::detail::source_field(id.value, level - 1) - 1)
 		              : PatchSource::NONE;
-		const std::optional<instruments::classic::RuntimeSlot> destination =
-		    instruments::classic::runtime_slot(plugin::ParamId{id.value & 0xFFu});
+		const plugin::ParamId root = instruments::classic::cable_root(id);
+		const plugin::ParamId destination = instruments::classic::runtime_slot(root) ? root : plugin::ParamId{0};
 		std::string out = second == PatchSource::NONE ? std::string{text(source_display_string(first))}
 		                                              : std::string{source_short_name(first)};
 		out += " -> ";
@@ -462,10 +465,8 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 			out += source_short_name(second);
 			out += " -> ";
 		}
-		const uint32_t index = destination ? destination->index : 0;
-		out += l10n::envelope_param_name(plugin::ParamId{index}, inputs.envelopes, /*brief=*/true)
-		           .value_or(
-		               l10n::patched_param_short_name(plugin::ParamId{index}, fx.filter.lpf_mode, fx.filter.hpf_mode));
+		out += l10n::envelope_param_name(destination, inputs.envelopes, /*brief=*/true)
+		           .value_or(l10n::patched_param_short_name(destination, fx.filter.lpf_mode, fx.filter.hpf_mode));
 		return out;
 	}
 	if (assignment.plugin == project::OwnerPlugin::GLOBAL_EFFECTABLE) {
@@ -516,6 +517,22 @@ const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const b
 		return state != nullptr ? &instruments::classic::sound_effects(*state) : nullptr;
 	}
 	return tracks.chain_effects(std::get<project::ChainAddress>(*owner));
+}
+
+bind::KnobAssignment playing_assignment(const project::Song& song, const bind::KnobFocus& focus, int32_t knob,
+                                        const ui::controls::Board& board, const bind::SoundFacts* sound) {
+	bind::KnobAssignment assignment = bind::knob_assignment(song, focus, knob, board);
+	const auto* focused = std::get_if<bind::SoundFocus>(&focus.owner);
+	const auto* address = std::get_if<project::ParamAddress>(&assignment.target);
+	if (focused == nullptr || address == nullptr || sound == nullptr || address->space != project::ParamSpace::ENGINE) {
+		return assignment;
+	}
+	const instruments::classic::SoundState* state = sound->sound_state(focused->slot);
+	if (state != nullptr
+	    && !instruments::classic::target_is_live(instruments::classic::synth_mode(*state), address->id)) {
+		return {};
+	}
+	return assignment;
 }
 
 std::optional<l10n::EnvelopeModes> owner_envelope_modes(const bind::KnobFocus& focus, const bind::SoundFacts& sound) {

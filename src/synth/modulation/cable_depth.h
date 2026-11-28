@@ -64,6 +64,7 @@ namespace deluge::synth {
 	case params::LOCAL_PITCH_ADJUST:
 	case params::LOCAL_OSC_A_PITCH_ADJUST:
 	case params::LOCAL_OSC_B_PITCH_ADJUST:
+	case params::LOCAL_DX7_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
 	case params::GLOBAL_DELAY_RATE: {

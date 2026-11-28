@@ -152,6 +152,8 @@ inline constexpr ParamShows kHasLpf{.when = kLpfOn};
 inline constexpr ParamShows kHasHpf{.when = kHpfOn};
 inline constexpr ParamShows kOnFm{.when = kIsFm};
 inline constexpr ParamShows kOffFm{.when = kNotFm};
+/// The noise, which only the oscillator slots' engines play (neither FM nor the DX7).
+inline constexpr ParamShows kWithNoise{.when = kNotFmNorDx7};
 inline constexpr ParamShows kOffRingMod{.when = kNotRingMod};
 inline constexpr std::array<ParamShows, 2> kOscWaveIndex{
     {{.when = kNotFmNorDx7, .any = kWaveIndexAny[0]}, {.when = kNotFmNorDx7, .any = kWaveIndexAny[1]}}};

@@ -83,8 +83,9 @@ void move_knob(const LearnedHit& hit, const Owner& owner, Playing* playing, cons
 	}
 	const std::optional<StepRegion> region =
 	    playing != nullptr ? playing->region_then_take(facts, sink) : facts.step_region(std::nullopt);
-	const std::optional<ParamAddress> address = resolve_learned(
+	const std::optional<ParamAddress> learned = resolve_learned(
 	    hit.target, owner.param_owner, playing != nullptr ? std::optional{playing->clip_id} : std::nullopt);
+	const std::optional<ParamAddress> address = learned ? facts.playing_address(*learned) : std::nullopt;
 	if (!address) {
 		return;
 	}
@@ -116,7 +117,8 @@ bool move_bend(const LearnedHit& hit, const Owner& owner, Playing& playing, cons
 		return false;
 	}
 	const std::optional<StepRegion> region = playing.region_then_take(facts, sink);
-	const std::optional<ParamAddress> address = resolve_learned(hit.target, owner.param_owner, playing.clip_id);
+	const std::optional<ParamAddress> learned = resolve_learned(hit.target, owner.param_owner, playing.clip_id);
+	const std::optional<ParamAddress> address = learned ? facts.playing_address(*learned) : std::nullopt;
 	if (!address) {
 		return false;
 	}

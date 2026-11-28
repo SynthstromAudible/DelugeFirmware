@@ -1177,7 +1177,7 @@ int engine_settings_run(int argc, char** argv, Io driverIo) {
 		// Straight from the load, before any Edit: what settling the load did (a delay type its file left unsaid) left
 		// each sound's runtime, record, knobs and chains agreeing. The song settings are not held here: a loaded song's
 		// reverb room size and its engine copy differ by a rounding step, a separate finding.
-		if (deluge::harness::expectSongCoherent(*song, "loaded", {.song_settings = false}) != 0) {
+		if (deluge::harness::expectSongCoherent(*song, "loaded", {.song_settings = false, .parked = true}) != 0) {
 			std::fprintf(io.err, "FAIL loaded song incoherent\n");
 			return 3;
 		}

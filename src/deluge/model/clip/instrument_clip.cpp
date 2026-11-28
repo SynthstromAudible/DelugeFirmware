@@ -2657,7 +2657,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	}
 	else if (output->type == OutputType::SYNTH) {
 		writer.writeOpeningTagBeginning("soundParams");
-		Sound::writeParamsToFile(writer, &paramManager, true);
+		Sound::writeParamsToFile(writer, &paramManager, true, static_cast<SoundInstrument*>(output)->getSynthMode());
 		writer.writeClosingTag("soundParams", true);
 	}
 

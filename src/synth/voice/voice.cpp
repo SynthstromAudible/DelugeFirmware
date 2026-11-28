@@ -875,14 +875,13 @@ DualSourceControls Voice::dual_source_controls(const matrix::MatrixBlock& contro
 	return controls;
 }
 
-// The DX7's params are osc A's until it has its own
+// The DX7's level, pitch adjust and amplitude modulation are its own params
 Dx7Controls Voice::dx7_controls(const VoiceBlock& block, Q<28> filter_gain, Q<24> overall_pitch_adjust,
                                 bool first_render, bool stereo_unison) const {
 	return {
-	    .volume = matrix::param_value_at<params::LOCAL_OSC_A_VOLUME, kNumSources>(params_.param_final_values, 0),
-	    .pitch_adjust =
-	        matrix::param_value_at<params::LOCAL_OSC_A_PITCH_ADJUST, kNumSources>(params_.param_final_values, 0),
-	    .amp_mod = params_.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH],
+	    .volume = matrix::param_value<params::LOCAL_DX7_LEVEL>(params_.param_final_values),
+	    .pitch_adjust = matrix::param_value<params::LOCAL_DX7_PITCH_ADJUST>(params_.param_final_values),
+	    .amp_mod = params_.param_final_values[params::LOCAL_DX7_AMP_MOD],
 	    .env0_attack = matrix::param_value<params::LOCAL_ENV_0_ATTACK>(params_.param_final_values),
 	    .filter_gain = filter_gain,
 	    .overall_pitch_adjust = overall_pitch_adjust,
