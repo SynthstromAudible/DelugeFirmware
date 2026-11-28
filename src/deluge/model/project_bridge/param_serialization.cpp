@@ -19,6 +19,7 @@
 
 #include "arp/params.h"
 #include "instruments/classic/cable_codec.h"
+#include "instruments/classic/engine_params.h"
 
 #include "host/chains/params.h"
 #include "instruments/classic/params.h"
@@ -293,56 +294,63 @@ constexpr DocParamAttr kEnvelope4[] = {
 void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
                           std::span<const deluge::synth::CableRecord> cables,
                           const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation,
-                          const DocParamSet* arp, bool dx7Mode) {
+                          const DocParamSet* arp, deluge::synth::SynthMode mode) {
 	// Byte-for-byte reproduction of Sound::writeParamsToFile. Two unpatched flat attrs lead, then the
 	// patched flat attrs; the pitchAdjust family is onlyIfContainsSomething; the shared effects
 	// attrs sit before the community attrs (lpfMorph/hpfMorph/waveFold).
+	// Only the playing engine's params, and the sound's own, are saved
+	const auto live = [mode](ParamId id) { return deluge::instruments::classic::param_is_live(mode, id); };
+	const auto patchedAttr = [&](char const* name, ParamId id, bool onlyIfContainsSomething = false) {
+		if (live(id)) {
+			writeDocParamAsAttribute(patched, name, id, out, writeAutomation, onlyIfContainsSomething);
+		}
+	};
 	writeDocParamAsAttribute(unpatched, "portamento", ip::kPortamento, out, writeAutomation);
 	writeDocParamAsAttribute(unpatched, "compressorShape", ip::kCompressorShape, out, writeAutomation);
 
-	writeDocParamAsAttribute(patched, "oscAVolume", ip::kOscAVolume, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscAPulseWidth", ip::kOscAPhaseWidth, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscAWavetablePosition", ip::kOscAWavetablePosition, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscBVolume", ip::kOscBVolume, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscBPulseWidth", ip::kOscBPhaseWidth, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "oscBWavetablePosition", ip::kOscBWavetablePosition, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "noiseVolume", ip::kNoiseVolume, out, writeAutomation);
+	patchedAttr("oscAVolume", ip::kOscAVolume);
+	patchedAttr("oscAPulseWidth", ip::kOscAPhaseWidth);
+	patchedAttr("oscAWavetablePosition", ip::kOscAWavetablePosition);
+	patchedAttr("oscBVolume", ip::kOscBVolume);
+	patchedAttr("oscBPulseWidth", ip::kOscBPhaseWidth);
+	patchedAttr("oscBWavetablePosition", ip::kOscBWavetablePosition);
+	patchedAttr("noiseVolume", ip::kNoiseVolume);
 
-	writeDocParamAsAttribute(patched, "volume", ip::kVolumePostFX, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "pan", ip::kPan, out, writeAutomation);
+	patchedAttr("volume", ip::kVolumePostFX);
+	patchedAttr("pan", ip::kPan);
 
-	writeDocParamAsAttribute(patched, "lpfFrequency", ip::kLpfFrequency, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "lpfResonance", ip::kLpfResonance, out, writeAutomation);
+	patchedAttr("lpfFrequency", ip::kLpfFrequency);
+	patchedAttr("lpfResonance", ip::kLpfResonance);
 
-	writeDocParamAsAttribute(patched, "hpfFrequency", ip::kHpfFrequency, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "hpfResonance", ip::kHpfResonance, out, writeAutomation);
+	patchedAttr("hpfFrequency", ip::kHpfFrequency);
+	patchedAttr("hpfResonance", ip::kHpfResonance);
 
-	writeDocParamAsAttribute(patched, "lfo1Rate", ip::kLfo1Rate, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "lfo2Rate", ip::kLfo2Rate, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "lfo3Rate", ip::kLfo3Rate, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "lfo4Rate", ip::kLfo4Rate, out, writeAutomation);
+	patchedAttr("lfo1Rate", ip::kLfo1Rate);
+	patchedAttr("lfo2Rate", ip::kLfo2Rate);
+	patchedAttr("lfo3Rate", ip::kLfo3Rate);
+	patchedAttr("lfo4Rate", ip::kLfo4Rate);
 
-	writeDocParamAsAttribute(patched, "modulator1Amount", ip::kModulator1Volume, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "modulator1Feedback", ip::kModulator1Feedback, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "modulator2Amount", ip::kModulator2Volume, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "modulator2Feedback", ip::kModulator2Feedback, out, writeAutomation);
+	patchedAttr("modulator1Amount", ip::kModulator1Volume);
+	patchedAttr("modulator1Feedback", ip::kModulator1Feedback);
+	patchedAttr("modulator2Amount", ip::kModulator2Volume);
+	patchedAttr("modulator2Feedback", ip::kModulator2Feedback);
 
-	writeDocParamAsAttribute(patched, "carrier1Feedback", ip::kCarrier1Feedback, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "carrier2Feedback", ip::kCarrier2Feedback, out, writeAutomation);
+	patchedAttr("carrier1Feedback", ip::kCarrier1Feedback);
+	patchedAttr("carrier2Feedback", ip::kCarrier2Feedback);
 
-	writeDocParamAsAttribute(patched, "pitchAdjust", ip::kPitch, out, writeAutomation, true);
-	writeDocParamAsAttribute(patched, "oscAPitchAdjust", ip::kOscAPitch, out, writeAutomation, true);
-	writeDocParamAsAttribute(patched, "oscBPitchAdjust", ip::kOscBPitch, out, writeAutomation, true);
-	writeDocParamAsAttribute(patched, "mod1PitchAdjust", ip::kModulator1Pitch, out, writeAutomation, true);
-	writeDocParamAsAttribute(patched, "mod2PitchAdjust", ip::kModulator2Pitch, out, writeAutomation, true);
+	patchedAttr("pitchAdjust", ip::kPitch, true);
+	patchedAttr("oscAPitchAdjust", ip::kOscAPitch, true);
+	patchedAttr("oscBPitchAdjust", ip::kOscBPitch, true);
+	patchedAttr("mod1PitchAdjust", ip::kModulator1Pitch, true);
+	patchedAttr("mod2PitchAdjust", ip::kModulator2Pitch, true);
 
-	writeDocParamAsAttribute(patched, "modFXRate", ip::kModFXRate, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "modFXDepth", ip::kModFXDepth, out, writeAutomation);
+	patchedAttr("modFXRate", ip::kModFXRate);
+	patchedAttr("modFXDepth", ip::kModFXDepth);
 
-	writeDocParamAsAttribute(patched, "delayRate", ip::kDelayRate, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "delayFeedback", ip::kDelayFeedback, out, writeAutomation);
+	patchedAttr("delayRate", ip::kDelayRate);
+	patchedAttr("delayFeedback", ip::kDelayFeedback);
 
-	writeDocParamAsAttribute(patched, "reverbAmount", ip::kReverbAmount, out, writeAutomation);
+	patchedAttr("reverbAmount", ip::kReverbAmount);
 
 	writeDocParamAsAttribute(arp != nullptr ? *arp : arpDefaultsForSave(), "arpeggiatorRate", arp::param::kRate, out,
 	                         writeAutomation && arp != nullptr);
@@ -350,16 +358,13 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 	serializeModControllableParamAttributes(unpatched, out, writeAutomation, nullptr, arp);
 
 	// Community Firmware parameters (always written after the official ones, just before the parent closes).
-	writeDocParamAsAttribute(patched, "lpfMorph", ip::kLpfMorph, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "hpfMorph", ip::kHpfMorph, out, writeAutomation);
-	writeDocParamAsAttribute(patched, "waveFold", ip::kWaveFold, out, writeAutomation);
+	patchedAttr("lpfMorph", ip::kLpfMorph);
+	patchedAttr("hpfMorph", ip::kHpfMorph);
+	patchedAttr("waveFold", ip::kWaveFold);
 
-	// The DX7's own params, which only a DX7-mode sound plays
-	if (dx7Mode) {
-		writeDocParamAsAttribute(patched, "dx7Level", ip::kDx7Level, out, writeAutomation);
-		writeDocParamAsAttribute(patched, "dx7AmpMod", ip::kDx7AmpMod, out, writeAutomation);
-		writeDocParamAsAttribute(patched, "dx7PitchAdjust", ip::kDx7Pitch, out, writeAutomation);
-	}
+	patchedAttr("dx7Level", ip::kDx7Level);
+	patchedAttr("dx7AmpMod", ip::kDx7AmpMod);
+	patchedAttr("dx7PitchAdjust", ip::kDx7Pitch);
 
 	out.writeOpeningTagEnd();
 
@@ -368,7 +373,15 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 	writeDocParamGroup(out, "envelope3", kEnvelope3, patched, writeAutomation);
 	writeDocParamGroup(out, "envelope4", kEnvelope4, patched, writeAutomation);
 
-	serializePatchCables(cables, cableDepths, out, writeAutomation);
+	// A cable is saved while the param its chain roots at is
+	std::vector<deluge::synth::CableRecord> liveCables;
+	liveCables.reserve(cables.size());
+	for (const deluge::synth::CableRecord& cable : cables) {
+		if (live(deluge::instruments::classic::flat_param_id(cable.target.param_index()))) {
+			liveCables.push_back(cable);
+		}
+	}
+	serializePatchCables(liveCables, cableDepths, out, writeAutomation);
 
 	serializeModControllableParamTags(unpatched, out, writeAutomation);
 }

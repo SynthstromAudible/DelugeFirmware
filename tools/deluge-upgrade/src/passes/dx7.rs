@@ -3,52 +3,102 @@
 //!
 //! The DX7 engine has a level, an amplitude modulation and a pitch adjust of its own, which a DX7 on an oscillator took
 //! from that oscillator's volume, pulse width and pitch adjust: those move onto the DX7's params (`dx7Level`,
-//! `dx7AmpMod`, `dx7PitchAdjust`), with their cables, knobs and clips' automation, and the oscillator's are written at
-//! the firmware's defaults. The other oscillator is dropped; one that could sound is noted. Ring modulation and FM never
-//! played a DX7: what their load made of one is written instead.
+//! `dx7AmpMod`, `dx7PitchAdjust`), with their cables, knobs and clips' automation. A DX7-mode sound has no oscillator
+//! engine params, so the rest of them go, with their cables, knobs and automation: each cable, knob and automated
+//! value dropped is noted, as is the other oscillator where it could sound. Ring modulation and FM never played a DX7:
+//! what their load made of one is written instead.
 
 use super::params::{clip_ref, clip_sound_is, for_each_clip, kit_drums_are};
 use super::sound::for_each_sound;
 use crate::tree::Node;
 use crate::upgrade::Context;
 
-/// A param a DX7 on an oscillator took from that oscillator: osc A's name, osc B's, the DX7's own, and the text the
-/// firmware writes for the oscillator param at its default (none: it writes nothing there).
+/// A param a DX7 on an oscillator took from that oscillator: its value's name on osc A and osc B (a param set's
+/// attribute), its name on each as a cable's destination or a knob's param, and the DX7's own (one name for both).
 struct OscParam {
-    osc_a: &'static str,
-    osc_b: &'static str,
+    value_a: &'static str,
+    value_b: &'static str,
+    param_a: &'static str,
+    param_b: &'static str,
     dx7: &'static str,
-    default: Option<&'static str>,
 }
 
 const OSC_PARAMS: [OscParam; 3] = [
     OscParam {
-        osc_a: "oscAVolume",
-        osc_b: "oscBVolume",
+        value_a: "oscAVolume",
+        value_b: "oscBVolume",
+        param_a: "oscAVolume",
+        param_b: "oscBVolume",
         dx7: "dx7Level",
-        default: Some("0x7FFFFFFF"),
     },
     OscParam {
-        osc_a: "oscAPulseWidth",
-        osc_b: "oscBPulseWidth",
+        value_a: "oscAPulseWidth",
+        value_b: "oscBPulseWidth",
+        param_a: "oscAPhaseWidth",
+        param_b: "oscBPhaseWidth",
         dx7: "dx7AmpMod",
-        default: Some("0x00000000"),
     },
-    // The firmware writes a pitch adjust only when it holds something
     OscParam {
-        osc_a: "oscAPitchAdjust",
-        osc_b: "oscBPitchAdjust",
+        value_a: "oscAPitchAdjust",
+        value_b: "oscBPitchAdjust",
+        param_a: "oscAPitch",
+        param_b: "oscBPitch",
         dx7: "dx7PitchAdjust",
-        default: None,
     },
 ];
 
 impl OscParam {
-    /// The param's name on oscillator `osc`.
-    fn on(&self, osc: &str) -> &'static str {
-        if osc == "osc1" { self.osc_a } else { self.osc_b }
+    /// The param's value name on oscillator `osc`.
+    fn value_on(&self, osc: &str) -> &'static str {
+        if osc == "osc1" { self.value_a } else { self.value_b }
+    }
+    /// The param's name on oscillator `osc` as a cable's destination or a knob's param.
+    fn param_on(&self, osc: &str) -> &'static str {
+        if osc == "osc1" { self.param_a } else { self.param_b }
     }
 }
+
+/// The oscillator engines' params as a param set names their values: a DX7-mode sound saves none of them.
+const OSC_ENGINE_VALUES: [&str; 17] = [
+    "oscAVolume",
+    "oscBVolume",
+    "noiseVolume",
+    "modulator1Amount",
+    "modulator2Amount",
+    "modulator1Feedback",
+    "modulator2Feedback",
+    "carrier1Feedback",
+    "carrier2Feedback",
+    "oscAPulseWidth",
+    "oscBPulseWidth",
+    "oscAWavetablePosition",
+    "oscBWavetablePosition",
+    "oscAPitchAdjust",
+    "oscBPitchAdjust",
+    "mod1PitchAdjust",
+    "mod2PitchAdjust",
+];
+
+/// The same params as a cable's destination or a knob's param names them.
+const OSC_ENGINE_PARAMS: [&str; 17] = [
+    "oscAVolume",
+    "oscBVolume",
+    "noiseVolume",
+    "modulator1Volume",
+    "modulator2Volume",
+    "modulator1Feedback",
+    "modulator2Feedback",
+    "carrier1Feedback",
+    "carrier2Feedback",
+    "oscAPhaseWidth",
+    "oscBPhaseWidth",
+    "oscAWavetablePosition",
+    "oscBWavetablePosition",
+    "oscAPitch",
+    "oscBPitch",
+    "modulator1Pitch",
+    "modulator2Pitch",
+];
 
 /// Each oscillator setting the DX7 keeps, and its name in the `dx7` entry.
 const DX7_KEYS: [(&str, &str); 6] = [
@@ -125,35 +175,64 @@ fn audible(sound: &Node, osc: &str) -> bool {
     }
 }
 
+/// Whether a param's text holds automation: nodes after its value's 8 hex digits.
+fn automated(value: &Node) -> bool {
+    value
+        .text()
+        .is_some_and(|text| text.trim().len() > "0x".len() + 8)
+}
+
 /// The DX7's params, in a param set of a sound whose DX7 was on `osc`, take that oscillator's values and cables; the
-/// oscillator's params are written at the firmware's defaults.
-fn move_onto_dx7(params: &mut Node, osc: &str) {
+/// oscillator engines' other params go, with their cables. What was lost (a cable, an automated value) is returned.
+fn move_onto_dx7(params: &mut Node, osc: &str, whose: &str) -> Vec<String> {
+    let mut dropped = Vec::new();
     if let Some(cables) = params.get_mut("patchCables").and_then(Node::entries_mut) {
         for (_, cable) in cables.iter_mut() {
             if let Some(param) = OSC_PARAMS
                 .iter()
-                .find(|param| destination(cable) == Some(param.on(osc)))
+                .find(|param| destination(cable) == Some(param.param_on(osc)))
             {
                 cable.set("destination", Node::Text(param.dx7.to_string()));
             }
         }
+        cables.retain(|(_, cable)| {
+            let to = destination(cable).unwrap_or("");
+            if OSC_ENGINE_PARAMS.contains(&to) {
+                let from = cable.get("source").and_then(Node::text).unwrap_or("?");
+                dropped.push(format!("{whose}cable from {from} to {to} dropped"));
+                return false;
+            }
+            true
+        });
+    }
+    // The firmware writes no cables block for none
+    if params
+        .get("patchCables")
+        .is_some_and(|cables| matches!(cables, Node::Map(_)) && cables.entries().is_empty())
+    {
+        params.remove("patchCables");
     }
     let Some(entries) = params.entries_mut() else {
-        return;
+        return dropped;
     };
     let mut moved = Vec::new();
     for param in &OSC_PARAMS {
-        let Some(at) = entries.iter().position(|(key, _)| key == param.on(osc)) else {
-            continue;
-        };
-        moved.push((param.dx7.to_string(), entries[at].1.clone()));
-        match param.default {
-            Some(default) => entries[at].1 = Node::Text(default.to_string()),
-            None => {
-                entries.remove(at);
-            }
+        if let Some(at) = entries
+            .iter()
+            .position(|(key, _)| key == param.value_on(osc))
+        {
+            moved.push((param.dx7.to_string(), entries.remove(at).1));
         }
     }
+    entries.retain(|(key, value)| {
+        if !OSC_ENGINE_VALUES.contains(&key.as_str()) {
+            return true;
+        }
+        if automated(value) {
+            dropped.push(format!("{whose}automation of {key} dropped"));
+        }
+        false
+    });
     // Where the firmware writes them: after the wave fold, among the values before the param groups
     let at = entries
         .iter()
@@ -163,23 +242,45 @@ fn move_onto_dx7(params: &mut Node, osc: &str) {
     for (offset, entry) in moved.into_iter().enumerate() {
         entries.insert(at + offset, entry);
     }
+    dropped
 }
 
-/// A knob of a sound whose DX7 was on `osc` that turned one of that oscillator's moved params turns the DX7's.
-fn retarget_knobs(sound: &mut Node, osc: &str) {
+/// A knob of a sound whose DX7 was on `osc` that turned one of that oscillator's moved params turns the DX7's; one that
+/// turned another oscillator engine param turns nothing (a mod knob keeps its place) or goes (a MIDI knob). Each
+/// dropped is returned.
+fn retarget_knobs(sound: &mut Node, osc: &str) -> Vec<String> {
+    let mut dropped = Vec::new();
     for container in ["modKnobs", "midiKnobs"] {
-        for (_, knob) in sound
-            .get_mut(container)
-            .and_then(Node::entries_mut)
-            .into_iter()
-            .flatten()
-        {
+        let Some(knobs) = sound.get_mut(container).and_then(Node::entries_mut) else {
+            continue;
+        };
+        for (_, knob) in knobs.iter_mut() {
             let controls = knob.get("controlsParam").and_then(Node::text);
-            if let Some(param) = OSC_PARAMS.iter().find(|param| controls == Some(param.on(osc))) {
+            if let Some(param) = OSC_PARAMS
+                .iter()
+                .find(|param| controls == Some(param.param_on(osc)))
+            {
                 knob.set("controlsParam", Node::Text(param.dx7.to_string()));
             }
         }
+        knobs.retain_mut(|(_, knob)| {
+            let Some(controls) = knob.get("controlsParam").and_then(Node::text) else {
+                return true;
+            };
+            if !OSC_ENGINE_PARAMS.contains(&controls) {
+                return true;
+            }
+            dropped.push(format!("{container} knob on {controls} dropped"));
+            if container == "modKnobs" {
+                knob.set("controlsParam", Node::Text("none".to_string()));
+                knob.remove("patchAmountFromSource");
+                knob.remove("patchAmountFromSecondSource");
+                return true;
+            }
+            false
+        });
     }
+    dropped
 }
 
 /// A subtractive sound's DX7 on `osc` becomes its DX7 engine; what was lost is returned for the report.
@@ -209,9 +310,9 @@ fn to_engine(sound: &mut Node, osc: &'static str) -> Vec<String> {
     }
     sound.set("mode", Node::Text("dx7".to_string()));
     if let Some(params) = sound.get_mut("defaultParams") {
-        move_onto_dx7(params, osc);
+        notes.extend(move_onto_dx7(params, osc, ""));
     }
-    retarget_knobs(sound, osc);
+    notes.extend(retarget_knobs(sound, osc));
     notes
 }
 
@@ -253,7 +354,7 @@ pub fn dx7_engine(doc: &mut Node, ctx: &mut Context) {
                 if clip_sound_is(&song, clip_ref(clip), on_osc)
                     && let Some(params) = clip.get_mut("soundParams")
                 {
-                    move_onto_dx7(params, osc);
+                    notes.extend(move_onto_dx7(params, osc, "a clip's "));
                 }
                 let drums = kit_drums_are(&song, clip, on_osc);
                 for (_, row) in clip
@@ -268,7 +369,7 @@ pub fn dx7_engine(doc: &mut Node, ctx: &mut Context) {
                         .and_then(|i| drums.get(usize::try_from(i).ok()?))
                         .is_some_and(|moved| *moved);
                     if moved && let Some(params) = row.get_mut("soundParams") {
-                        move_onto_dx7(params, osc);
+                        notes.extend(move_onto_dx7(params, osc, "a kit row's "));
                     }
                 }
             }

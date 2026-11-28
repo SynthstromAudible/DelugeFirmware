@@ -1,4 +1,5 @@
 #include "instruments/classic/cable_acceptance.h"
+#include "instruments/classic/engine_params.h"
 #include "instruments/classic/params.h"
 #include "instruments/classic/state_access.h"
 
@@ -86,6 +87,15 @@ describe cable_acceptance("which sources a Deluge sound lets patch to which para
 		expect(allowed(PatchSource::Y, param::kPitch)).to_be_true();
 	});
 
+	it("lets no cable reach a param of an engine that is not playing", _ {
+		const SoundState dx7 = deluge::test::with(subtractive(), "mode", to_string(SynthMode::DX7));
+		for (const ParamId id : kOscillatorEngineParams) {
+			expect(allowed(PatchSource::LFO_GLOBAL_1, id, dx7)).to_equal(false);
+		}
+		expect(allowed(PatchSource::LFO_GLOBAL_1, param::kPitch, dx7)).to_equal(true);
+		expect(allowed(PatchSource::LFO_GLOBAL_1, param::kLpfFrequency, dx7)).to_equal(true);
+	});
+
 	it("lets a cable reach the DX7's params only in DX7 mode", _ {
 		const SoundState dx7 = deluge::test::with(subtractive(), "mode", to_string(SynthMode::DX7));
 		for (const ParamId id : {param::kDx7Level, param::kDx7AmpMod, param::kDx7Pitch}) {
@@ -101,7 +111,7 @@ describe cable_acceptance("which sources a Deluge sound lets patch to which para
 		}
 	});
 
-	it("gives each DX7 param, in DX7 mode, exactly the sources its oscillator A counterpart takes there", _ {
+	it("gives each DX7 param, in DX7 mode, exactly the sources its oscillator A counterpart takes in subtractive", _ {
 		const std::pair<ParamId, ParamId> kCounterparts[] = {{param::kDx7Level, param::kOscAVolume},
 		                                                     {param::kDx7AmpMod, param::kOscAPhaseWidth},
 		                                                     {param::kDx7Pitch, param::kOscAPitch}};
@@ -110,7 +120,7 @@ describe cable_acceptance("which sources a Deluge sound lets patch to which para
 			for (const bool drum : {false, true}) {
 				for (uint8_t s = 0; s < static_cast<uint8_t>(PatchSource::NONE); ++s) {
 					const auto source = static_cast<PatchSource>(s);
-					expect(allowed(source, id, dx7, drum)).to_equal(allowed(source, osc, dx7, drum));
+					expect(allowed(source, id, dx7, drum)).to_equal(allowed(source, osc, subtractive(), drum));
 				}
 			}
 		}

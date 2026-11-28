@@ -18,6 +18,7 @@
 #include "instruments/classic/cable_acceptance.h"
 
 #include "effects/words.h"
+#include "instruments/classic/engine_params.h"
 #include "instruments/classic/params.h"
 #include "instruments/classic/state_access.h"
 
@@ -69,14 +70,13 @@ bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFact
 	if (is_local(source) && !is_per_voice(destination)) {
 		return false;
 	}
+	// Only the playing engine's params, and the sound's own, take a cable
+	if (!param_is_live(state.mode, destination)) {
+		return false;
+	}
 	const bool fm = state.mode == SynthMode::FM;
-	// The DX7 plays no second oscillator and no noise
-	const bool dx7 = state.mode == SynthMode::DX7;
-	// The DX7's own params are reached only in DX7 mode, by the sources their oscillator A counterparts take there
+	// The DX7's own params take the sources their oscillator A counterparts take in DX7 mode
 	if (destination == param::kDx7Level || destination == param::kDx7AmpMod || destination == param::kDx7Pitch) {
-		if (!dx7) {
-			return false;
-		}
 		destination = dx7_counterpart(destination);
 	}
 	const auto is = [&](plugin::ParamId id) { return destination == id; };
@@ -87,16 +87,13 @@ bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFact
 		return !fm;
 	}
 	if (is(param::kOscBPhaseWidth) || is(param::kNoiseVolume)) {
-		return !fm && !dx7;
+		return !fm;
 	}
 	if (is(param::kOscAVolume)) {
 		return state.mode != SynthMode::RINGMOD;
 	}
 	if (is(param::kOscBVolume)) {
-		return state.mode != SynthMode::RINGMOD && !dx7;
-	}
-	if (is(param::kOscBPitch)) {
-		return !dx7;
+		return state.mode != SynthMode::RINGMOD;
 	}
 	if (is(param::kCarrier1Feedback) || is(param::kCarrier2Feedback) || is(param::kModulator1Volume)
 	    || is(param::kModulator2Volume) || is(param::kModulator1Pitch) || is(param::kModulator2Pitch)

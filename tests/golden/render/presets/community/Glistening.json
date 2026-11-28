@@ -36,13 +36,6 @@
 			"arpeggiatorGate": "0x00000000",
 			"portamento": "0xE147AE03",
 			"compressorShape": "0xDC28F5B2",
-			"oscAVolume": "0x7FFFFFFF",
-			"oscAPulseWidth": "0x00000000",
-			"oscAWavetablePosition": "0x00000000",
-			"oscBVolume": "0x0A3D708B",
-			"oscBPulseWidth": "0x00000000",
-			"oscBWavetablePosition": "0x00000000",
-			"noiseVolume": "0x80000000",
 			"volume": "0xE6666654",
 			"pan": "0x00000000",
 			"lpfFrequency": "0xFFFFFFE9",
@@ -51,12 +44,6 @@
 			"hpfResonance": "0x80000000",
 			"lfo1Rate": "0x1999997E",
 			"lfo2Rate": "0x00000000",
-			"modulator1Amount": "0x80000000",
-			"modulator1Feedback": "0x80000000",
-			"modulator2Amount": "0x80000000",
-			"modulator2Feedback": "0x80000000",
-			"carrier1Feedback": "0x80000000",
-			"carrier2Feedback": "0x80000000",
 			"modFXRate": "0xE6666654",
 			"modFXDepth": "0xFFFFFFE9",
 			"delayRate": "0x00000000",
@@ -123,13 +110,6 @@
 					"patchCable": {
 						"source": "envelope2",
 						"destination": "dx7Level",
-						"amount": "0x26666666"
-					}
-				},
-				{
-					"patchCable": {
-						"source": "envelope2",
-						"destination": "oscBVolume",
 						"amount": "0x26666666"
 					}
 				}

@@ -14,6 +14,8 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "project/instrument_slot.h"
@@ -140,6 +142,18 @@ int32_t disagreements_everywhere(Sound& sound, Song& song, ParamManager& manager
 	return found;
 }
 
+/// Whether @p manager's cables hold the one from @p source to the patched param at runtime index @p p.
+bool holds_cable(ParamManager& manager, PatchSource source, uint8_t p) {
+	PatchCableSet* cables = manager.getPatchCableSet();
+	for (int32_t c = 0; c < cables->numPatchCables; ++c) {
+		if (cables->patchCables[c].from == source
+		    && cables->patchCables[c].destination.word == deluge::synth::CableTarget::param(p).word) {
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace
 
 // clang-format off
@@ -155,6 +169,52 @@ describe cable_acceptance_coherence("a sound's cable acceptance, against the run
 		    first);
 		expect(first).to_equal(std::string{});
 		expect(found).to_equal(0);
+	});
+
+	it("keeps a parked engine's params and cables across a mode switch, reachable again on the way back", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		f.song->setCurrentClip(f.clip);
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
+		ParamManager& manager = f.clip->paramManager;
+		PatchedParamSet* patched = manager.getPatchedParamSet();
+		const auto mode = [&](SynthMode m) {
+			return set_setting(sound, *f.song, slot, "mode", deluge::instruments::classic::to_string(m));
+		};
+		const auto set_value = [&](int32_t p, int32_t value) {
+			patched->params[p].setBase(*patched->docForParam(p), value);
+		};
+		expect(mode(SynthMode::SUBTRACTIVE)).to_equal(true);
+		set_value(params::LOCAL_OSC_A_VOLUME, 0x12345678);
+		manager.getPatchCableSet()->appendCable({PatchSource::LFO_GLOBAL_1,
+		                                         deluge::synth::CableTarget::param(params::LOCAL_OSC_A_VOLUME),
+		                                         deluge::synth::CablePolarity::BIPOLAR});
+		expect(mode(SynthMode::DX7)).to_equal(true);
+		set_value(params::LOCAL_DX7_LEVEL, 0x23456789);
+		manager.getPatchCableSet()->appendCable({PatchSource::LFO_GLOBAL_2,
+		                                         deluge::synth::CableTarget::param(params::LOCAL_DX7_LEVEL),
+		                                         deluge::synth::CablePolarity::BIPOLAR});
+		// Parked: kept, but no cable reaches it
+		expect(patched->params[params::LOCAL_OSC_A_VOLUME].played()).to_equal(0x12345678);
+		expect(holds_cable(manager, PatchSource::LFO_GLOBAL_1, params::LOCAL_OSC_A_VOLUME)).to_equal(true);
+		expect(sound.maySourcePatchToParam(PatchSource::LFO_GLOBAL_1, params::LOCAL_OSC_A_VOLUME, &manager)
+		       == PatchCableAcceptance::DISALLOWED)
+		    .to_equal(true);
+		expect(mode(SynthMode::SUBTRACTIVE)).to_equal(true);
+		expect(patched->params[params::LOCAL_DX7_LEVEL].played()).to_equal(0x23456789);
+		expect(holds_cable(manager, PatchSource::LFO_GLOBAL_2, params::LOCAL_DX7_LEVEL)).to_equal(true);
+		expect(sound.maySourcePatchToParam(PatchSource::LFO_GLOBAL_2, params::LOCAL_DX7_LEVEL, &manager)
+		       == PatchCableAcceptance::DISALLOWED)
+		    .to_equal(true);
+		expect(sound.maySourcePatchToParam(PatchSource::LFO_GLOBAL_1, params::LOCAL_OSC_A_VOLUME, &manager)
+		       == PatchCableAcceptance::DISALLOWED)
+		    .to_equal(false);
+		expect(mode(SynthMode::DX7)).to_equal(true);
+		expect(patched->params[params::LOCAL_OSC_A_VOLUME].played()).to_equal(0x12345678);
+		expect(patched->params[params::LOCAL_DX7_LEVEL].played()).to_equal(0x23456789);
+		expect(sound.maySourcePatchToParam(PatchSource::LFO_GLOBAL_2, params::LOCAL_DX7_LEVEL, &manager)
+		       == PatchCableAcceptance::DISALLOWED)
+		    .to_equal(false);
 	});
 
 	it("agrees on a kit's drum in every state acceptance reads", _ {

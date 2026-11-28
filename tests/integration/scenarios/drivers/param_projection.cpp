@@ -1418,13 +1418,13 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		drum.writeParamsToFile(smSerializer, &pm, true, /*dx7Mode=*/false);
+		drum.writeParamsToFile(smSerializer, &pm, true, SynthMode::SUBTRACTIVE);
 		int32_t engLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), pcs->records().records(),
 		                                     doc.cable_depths, smSerializer, true, doc.arp ? &*doc.arp : nullptr,
-		                                     /*dx7Mode=*/false);
+		                                     SynthMode::SUBTRACTIVE);
 		int32_t domLen = smSerializer.bytesWritten();
 		check(engLen == domLen && std::memcmp(engBuf, domBuf, engLen) == 0, "Sound params byte-identical");
 	}
@@ -1452,8 +1452,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("soundParams");
 		deluge::bridge::serializeSoundParams(*patchedStore(doc), *unpatchedStore(doc), {}, {}, smSerializer, true,
-		                                     nullptr,
-		                                     /*dx7Mode=*/false);
+		                                     nullptr, SynthMode::SUBTRACTIVE);
 		smSerializer.writeClosingTag("soundParams", true);
 		int32_t rtLen = smSerializer.bytesWritten();
 		rtBuf[rtLen] = '\0';
@@ -1488,7 +1487,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	// The DX7's own params are read from a sound's params by name, by the live reader and the store reader alike; the
-	// writer writes them only when asked to, for a DX7-mode sound.
+	// writer writes each engine's params only for a sound playing that engine.
 	{
 		namespace ip = deluge::instruments::classic::param;
 		static char dx7Buf[256];
@@ -1537,21 +1536,28 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(store.find(ip::kDx7Pitch)->current_value == 0x10000000, "dx7PitchAdjust read into the store");
 
 		static char outBuf[16384];
-		const auto written = [&](bool dx7Mode) {
+		const auto written = [&](SynthMode mode) {
 			smSerializer.setMemoryBuffer(outBuf, sizeof(outBuf));
 			smSerializer.reset();
 			smSerializer.writeOpeningTagBeginning("soundParams");
-			deluge::bridge::serializeSoundParams(store, unpatched, {}, {}, smSerializer, false, nullptr, dx7Mode);
+			deluge::bridge::serializeSoundParams(store, unpatched, {}, {}, smSerializer, false, nullptr, mode);
 			smSerializer.writeClosingTag("soundParams", true);
 			outBuf[smSerializer.bytesWritten()] = '\0';
 			return std::string(outBuf);
 		};
-		check(written(false).find("dx7") == std::string::npos, "dx7 params not written outside DX7 mode");
-		const std::string dx7Written = written(true);
+		check(written(SynthMode::SUBTRACTIVE).find("dx7") == std::string::npos,
+		      "dx7 params not written outside DX7 mode");
+		const std::string dx7Written = written(SynthMode::DX7);
 		check(dx7Written.find("dx7Level=\"0x40000000\"") != std::string::npos
 		          && dx7Written.find("dx7AmpMod=\"0x20000000\"") != std::string::npos
 		          && dx7Written.find("dx7PitchAdjust=\"0x10000000\"") != std::string::npos,
 		      "dx7 params written in DX7 mode");
+		// A DX7-mode sound saves none of the oscillator engines' params, and a subtractive one none of the DX7's
+		check(dx7Written.find("oscAVolume") == std::string::npos && dx7Written.find("noiseVolume") == std::string::npos
+		          && dx7Written.find("modulator1Amount") == std::string::npos,
+		      "oscillator params not written in DX7 mode");
+		check(written(SynthMode::SUBTRACTIVE).find("oscAVolume") != std::string::npos,
+		      "oscillator params written outside DX7 mode");
 	}
 
 	// The Song value-override path. Song serializes its global-effectable block with a
