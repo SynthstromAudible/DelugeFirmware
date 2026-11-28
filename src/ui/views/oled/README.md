@@ -24,6 +24,7 @@ not called yet. The pad pictures are the grid views' (`src/ui/views/grid/README.
   library (`scripts/layers.toml`, rule `ui-views-oled-includes-outside`).
 - No animation of the view's own: a moving mark (a playhead, a fill) is a field of the struct. A widget given the
   frame may animate (next rule).
+- **Leaf rules, for both view libraries:** no heap, no templates, and no `/` or `%` by a runtime value in drawing code.
 - **The frame's clock and gates are frame input.** A view may call a widget that reads `f.now_ms()`, arms `f.gate()`
   or formats its own quantity (`scroll_text`, `zoom_transition`, `sample_position`); the view itself reads no clock
   and formats no word, it only passes the frame on. Retained widget state (`TextEditState`, `ScrollText`) is a
