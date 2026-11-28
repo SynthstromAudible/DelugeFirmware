@@ -1319,6 +1319,7 @@ describe rename_goldens("scenes::rename::RenameScene pixels", $ {
 		}
 	});
 });
+
 describe rename_present("scenes::rename::RenameScene present", $ {
 	it("presents the target's title and the name typed so far as the window", _ {
 		select_language();

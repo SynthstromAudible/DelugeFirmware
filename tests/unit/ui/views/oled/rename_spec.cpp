@@ -16,12 +16,19 @@ constexpr RenameWindow kEmpty{.title = "RENAME", .text = ""};
 constexpr RenameWindow kTyped{.title = "RENAME", .text = "KICK 2"};
 
 /// The window with the cursor lit at the end of its text.
-template <class Rig>
-void draw(Rig& r, const RenameWindow& d) {
+void lit(widgets::oled::OledFrame& f, const RenameWindow& d) {
 	widgets::oled::TextEditState edit{};
 	edit.cursor = static_cast<int16_t>(d.text.size());
 	edit.cursor_lit = true;
-	rename_window(r.frame, d, edit);
+	rename_window(f, d, edit);
+}
+
+void draw(uitest::Rig48& r, const RenameWindow& d) {
+	lit(r.frame, d);
+}
+
+void draw(uitest::Rig64& r, const RenameWindow& d) {
+	lit(r.frame, d);
 }
 
 } // namespace
