@@ -583,9 +583,8 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 				// clock (`shell-no-clock`) and takes the shell's `now_ms`, exactly as
 				// `services::GlobalControls`' SAVE/LOAD arms do.
 				song_button_pressed_ms_ = ctx.now_ms;
-				// The `indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true)` here is
-				// `LedFrame`'s and this scene declares no LEDs -- the same stance
-				// `focus_regained` takes for `IndicatorLED::BACK`.
+				// The `indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true)` here is `leds()`', which lights
+				// SESSION while the mode holds it.
 				// The `uiNeedsRendering(this, 0, 0xFFFFFFFF)` after it is the SIDEBAR only; `RepaintAll`
 				// is the only `Action` that reaches the grid at all (`ui/shell/scene.h`'s table).
 				(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
@@ -679,10 +678,8 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		// path: legacy's arm ends in the closing DEALT_WITH.
 		r.handled = true;
 		if (on && no_ui_mode_active()) {
-			if (deluge::ui::scenes::bind::RootViews* v = root_views(); v != nullptr && v->open_clip_menu()) {
-				if (deactivate_marker_if_necessary()) {
-					(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
-				}
+			if (deluge::ui::scenes::bind::RootViews* v = root_views(); v != nullptr) {
+				v->open_clip_menu();
 			}
 		}
 		return r;
@@ -711,7 +708,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 	// `TimelineView::buttonAction`, whose only remaining arm is TRIPLETS.
 	if (b == ButtonId::Triplets && on) {
 		// The `TRIPLETS` arm of the `TimelineView::buttonAction` above (`timeline_view.cpp`).
-		// `TimelineView::setTripletsLEDState` is `LedFrame`'s and this scene declares no LEDs.
+		// `TimelineView::setTripletsLEDState` leaves TRIPLETS off for an audio clip, which the root view's focus does.
 		timeline_.toggle_triplets();
 		r.handled = true;
 	}
@@ -1100,6 +1097,12 @@ void AudioClipScene::after_loop_length_change(int32_t old_length, int32_t new_le
 	show_bars_and_beats(static_cast<uint32_t>(new_length), /*count_from_one=*/false);
 }
 
+void AudioClipScene::clip_menu_opened() {
+	if (deactivate_marker_if_necessary()) {
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+	}
+}
+
 void AudioClipScene::set_clip_length_equal_to_sample_length() {
 	// The menu's action, from outside `handle`: the edit, then what `handle` does after every input.
 	const int32_t before_scroll = timeline_.x_scroll;
@@ -1282,8 +1285,8 @@ int32_t AudioClipScene::compute_tick_square() {
 		// Tempoless or arranger recording.
 		square = kMainCols - 1;
 		// While recording, the `needsRenderingDependingOnSubMode()` call there is a redraw request, which the shell
-		// already grants every tick while the cursor is live (`next_timer`); the waveforms port reads the take's new
-		// columns on every read.
+		// already grants every frame while the cursor is live (`frame_driven()`); the waveforms port reads the take's
+		// new columns on every read.
 	}
 	else {
 		// `getTickSquare()` is `ClipView::getTickSquare`,

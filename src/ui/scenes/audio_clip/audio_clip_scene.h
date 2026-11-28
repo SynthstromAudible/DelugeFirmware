@@ -136,6 +136,10 @@ public:
 	///        the X and Y chord, and the menu's action of the same name.
 	void set_clip_length_equal_to_sample_length();
 
+	/// @brief The clip's menu SELECT asked for has opened: the marker, if one is up, goes down
+	///        (`AudioClipView::buttonAction`'s SELECT arm, after `openMenu` succeeds).
+	void clip_menu_opened();
+
 	/// @brief Take the song's clip scroll and zoom again after something else changed them (an undo), sliding to them
 	///        as `initiateXScroll` and `initiateXZoom` do.
 	void navigation_restored();

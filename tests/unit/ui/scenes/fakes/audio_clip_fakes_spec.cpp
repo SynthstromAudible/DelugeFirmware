@@ -701,15 +701,13 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 			(void)tap(scene, 15, 2);
 			expect(scene.end_marker_visible()).to_be_true();
 			h.host.root_views.calls.clear(); // the tap's shortcut offers
-			h.host.root_views.menu_opens = false;
 			expect(button(scene, ButtonId::SelectEnc, true).handled).to_be_true();
-			// A menu that does not open leaves the marker up.
+			// The host opens the menu after the tick; until it says the menu opened, the marker stays up.
 			expect(scene.end_marker_visible()).to_be_true();
-			h.host.root_views.menu_opens = true;
-			(void)button(scene, ButtonId::SelectEnc, true);
+			scene.clip_menu_opened();
 			expect(scene.end_marker_visible()).to_be_false();
 			expect(button(scene, ButtonId::SelectEnc, false).handled).to_be_true();
-			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"clip menu", "clip menu"});
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"clip menu"});
 		});
 	});
 });

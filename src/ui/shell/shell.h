@@ -675,6 +675,8 @@ private:
 	uint32_t last_ms_ = 0;
 	/// @brief The next frame boundary for frame-driven scenes, on the shell's clock.
 	uint32_t next_frame_ms_ = 0;
+	/// Whether the last tick stacked a frame-driven scene: the next frame is due a frame after a run starts.
+	bool frame_driven_last_tick_ = false;
 	/// Whether the lowering accepted anything this tick -- `RepaintGate::needs_frame`'s
 	/// `had_input`, and the port of legacy's `anything` flag in `readButtonsAndPads` (`src/deluge/deluge.cpp`).
 	bool had_input_ = false;

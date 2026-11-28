@@ -126,17 +126,19 @@ describe shell_root_view_spec_body("gui::ui::ShellRootView over the shared shell
 		expect(shellRuntime().surfaces().owned_regions() == root_only).to_equal(true);
 	});
 
-	it("hands a pad the menu leaves to the root scene alone", _ {
+	it("hands input the menu passes down to the root scene alone, and stays under the menu", _ {
 		Guard guard;
 		Rig r;
 		expect(open_root(r)).to_be_true();
 		expect(open_menu_over(r)).to_be_true();
-		expect(audio_clip_scene().end_marker_visible()).to_equal(false);
-		// The guest forwards a pad its scenes do not claim to the root view, which is not the current UI.
-		(void)testAudioClipRoot.padAction(15, 4, 64);
-		(void)testAudioClipRoot.padAction(15, 4, 0);
-		expect(audio_clip_scene().end_marker_visible()).to_equal(true);
+		// A button the guest hands on to the root view (`rootViewButtonAction`), which is not the current UI: X held
+		// reaches the scene, whose mode word shows it, and the menu stays on top.
+		(void)testAudioClipRoot.buttonAction(deluge::hid::button::X_ENC, true);
+		expect(audio_clip_scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeHoldingHorizontalEncoder);
 		expect(stack().top().kind()).to_equal(menu::kMenuSceneKind);
+		expect(getCurrentUI() == &shellHostUI).to_equal(true);
+		(void)testAudioClipRoot.buttonAction(deluge::hid::button::X_ENC, false);
+		expect(audio_clip_scene().ui_mode()).to_equal(deluge::ui::scenes::audio_clip::kUiModeNone);
 	});
 
 	it("answers the legacy view's own traits: a clip screen with the clip's knobs, no triplets, no timeline view", _ {

@@ -647,7 +647,6 @@ struct RecordingRootViews final : RootViews {
 	std::vector<std::string> calls; ///< every request, in order: "session", "automation", "shortcut x y on|off",
 	                                ///< "output +n", "clip menu", "song saver", "song loader" and "clear song"
 	bool takes_shortcuts = false;   ///< what `menu_shortcut_pad` answers
-	bool menu_opens = true;         ///< what `open_clip_menu` answers
 	void to_session_or_arranger() override { calls.emplace_back("session"); }
 	void to_automation() override { calls.emplace_back("automation"); }
 	[[nodiscard]] bool menu_shortcut_pad(uint8_t x, uint8_t y, bool on) override {
@@ -655,10 +654,7 @@ struct RecordingRootViews final : RootViews {
 		return takes_shortcuts;
 	}
 	void next_audio_output(int8_t direction) override { calls.push_back(std::format("output {:+}", direction)); }
-	[[nodiscard]] bool open_clip_menu() override {
-		calls.emplace_back("clip menu");
-		return menu_opens;
-	}
+	void open_clip_menu() override { calls.emplace_back("clip menu"); }
 	void open_song_saver() override { calls.emplace_back("song saver"); }
 	void open_song_loader() override { calls.emplace_back("song loader"); }
 	void open_clear_song() override { calls.emplace_back("clear song"); }

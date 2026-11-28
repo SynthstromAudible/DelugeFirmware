@@ -1268,8 +1268,15 @@ void Shell::advance_frame_clock(uint32_t now_ms) {
 	for (const Scene* scene : stack_.scenes()) {
 		any = any || scene->frame_driven();
 	}
+	const bool started = any && !frame_driven_last_tick_;
+	frame_driven_last_tick_ = any;
 	if (!any) {
 		return;
+	}
+	// A run starts from the clock the last one left, which may be any age: past half the wrap the difference below
+	// reads it as ahead of now and would wait for it, so it is due now instead.
+	if (started && static_cast<int32_t>(now_ms - next_frame_ms_) < 0) {
+		next_frame_ms_ = now_ms;
 	}
 	// Difference form, as every deadline here: the clock wraps.
 	const auto late = static_cast<int32_t>(now_ms - next_frame_ms_);

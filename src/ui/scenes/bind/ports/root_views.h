@@ -28,7 +28,8 @@ inline constexpr size_t kOverviewRows = 8;
 using OverviewPads = std::array<std::array<OverviewPad, kOverviewColumns>, kOverviewRows>;
 
 /// @brief What a root scene asks of the other root views; the host performs each as the legacy view does. Each acts
-///        on the current clip, which is the clip the root scene shows.
+///        on the current clip, which is the clip the root scene shows. A request that changes the root view or opens a
+///        UI is performed after the shell's tick.
 class RootViews {
 public:
 	virtual ~RootViews() = default;
@@ -46,9 +47,9 @@ public:
 	/// @brief Move the current clip to the next or previous audio output (`navigateThroughAudioOutputsForAudioClip`).
 	/// @param direction The select encoder's signed detents.
 	virtual void next_audio_output(int8_t direction) = 0;
-	/// @brief Open the current clip's own menu (SELECT without shift), as `openMenu`'s site 5 does.
-	/// @return True when the menu opened.
-	[[nodiscard]] virtual bool open_clip_menu() = 0;
+	/// @brief Open the current clip's own menu (SELECT without shift), as `openMenu`'s site 5 does; the host tells the
+	///        scene when it has opened, which drops the scene's marker.
+	virtual void open_clip_menu() = 0;
 	/// @brief The SHIFT shortcut overview over the current clip (`renderClipShortcutsOverview`): each main pad the
 	///        colour of the menu shortcut it opens here, black where it opens nothing.
 	/// @param pads Filled, every pad.

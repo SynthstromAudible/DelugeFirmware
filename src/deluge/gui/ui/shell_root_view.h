@@ -58,7 +58,8 @@ struct RootViewTraits {
 ///
 /// The scene is the root of the shared shell (`ShellRuntime`): a menu the guest opens over this view goes on top of
 /// it, and closes back to it. While this view is the current UI it feeds the shell like the guest does; while a menu
-/// is open over it, the input the menu leaves (a pad outside its regions) reaches the root scene directly. The gold
+/// is open over it, the input the guest passes down to the root view (the menu's vertical turns, a button it hands on)
+/// reaches the root scene alone; a pad the menu leaves closes the menu, as `main`'s does. The gold
 /// knobs and the mod buttons are `root_knobs`' (the `UI` defaults), as under every legacy root view.
 /// It is not a `TimelineView`: `toTimelineView()` answers null, so legacy's timeline arms (undo's scroll animation,
 /// the triplets LED) are told apart and answered by the scene instead.
@@ -192,17 +193,24 @@ public:
 	}
 
 	/// @brief Nothing: the scene draws on the shell's frames (`Scene::frame_driven`). `UI::graphicsRoutine` would
-	/// forward
-	///        to the root view, which is this one.
+	///        forward to the root view, which is this one.
 	void graphicsRoutine() override {}
 
 	ActionResult timerCallback() override {
+		// Legacy's pad animation from this view runs on the pads alone (`AudioClipView::graphicsRoutine` stood down):
+		// the shell neither draws nor re-arms until it ends.
+		if (legacyAnimating()) {
+			return ActionResult::DEALT_WITH;
+		}
 		ShellRuntime& rt = runtime_();
 		const uint32_t now = rt.nowMs();
 		// No owner: the notices are legacy's display's, as under every legacy root view (`notify_drain`).
 		rt.tick(now, nullptr);
-		// After the tick, which drew and sent the scene's frame, so a browser a press opened draws over it.
+		// After the tick, which drew and sent the scene's frame: the view or UI a press asked for opens over it.
 		deluge::gui::shell_host::dispatchRootViewOpens();
+		if (legacyAnimating()) {
+			return ActionResult::DEALT_WITH; // SESSION's transition has begun
+		}
 		rt.rearm(now, this);
 		reassessGreyout();
 		return ActionResult::DEALT_WITH;
@@ -246,9 +254,8 @@ public:
 	[[nodiscard]] bool supportsTriplets() const override { return traits_.triplets; }
 	UIModControllableContext getUIModControllableContext() override { return traits_.knobs; }
 
-	/// @brief Redraw requests: the scene takes the model's changes itself (`Shell::apply_dirty`), so each only wakes
-	/// the
-	///        shell.
+	/// @brief Redraw requests: the scene takes the model's changes itself (`Shell::apply_dirty`), so each only
+	///        wakes the shell.
 	/// @{
 	void playbackEnded() override { ShellRuntime::armTickSoon(); }
 	void clipNeedsReRendering(Clip* clip) override {
@@ -273,6 +280,14 @@ private:
 		const auto i = static_cast<size_t>(y) * p.button_cols + static_cast<size_t>(x);
 		return x >= 0 && y >= 0 && i < p.button_by_matrix.size() ? p.button_by_matrix[i]
 		                                                         : deluge::ui::shell::ButtonId::None;
+	}
+
+	/// @return Whether legacy's pads are animating away from or into a view (a clip collapsing into the song, an
+	///         explode or implode).
+	[[nodiscard]] static bool legacyAnimating() {
+		return isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_AUDIO_CLIP_EXPANDING)
+		       || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_EXPLODE_ANIMATION)
+		       || isUIModeActive(UI_MODE_IMPLODE_ANIMATION);
 	}
 
 	/// @return Whether this view is the current UI (nothing open over it).

@@ -1364,6 +1364,21 @@ describe shell_tick("shell::Shell::tick", $ {
 			expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{5u});
 		});
 
+		it("starts its frames a frame after a run starts, however long ago the last one ended", _ {
+			deluge::base::notify::dirty().drain();
+			Rig r{ShellConfig{.frame_ms = 15}};
+			r.base.frame = true;
+			r.shell.init({kBase, 0});
+			r.shell.tick(0);
+			r.base.frame = false;
+			r.shell.tick(16);
+			// More than half the clock's wrap later, where the old frame reads as ahead of now.
+			constexpr uint32_t kLater = 0x8000'1000u;
+			r.base.frame = true;
+			r.shell.tick(kLater);
+			expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{kLater + 15u});
+		});
+
 		it("starts its frames again from a tick that comes more than a frame late", _ {
 			deluge::base::notify::dirty().drain();
 			Rig r{ShellConfig{.frame_ms = 15}};
