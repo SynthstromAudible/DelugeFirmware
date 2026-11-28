@@ -99,8 +99,8 @@ against drift, not a proof.
 | `MacroKind`, `MacroCell`, `macro_colour`, `macro_wants_arm_flash`, `macros`; `NoteSquare`, `VelocityData`, `velocity_colour`, `velocity_column`; `AutomationData`, `automation_colour`, `automation_column`; `vu_max_row`, `vu_row_colour`, `vu_meter`; `TickColour`, `TickSquare`, `tick_colour`, `tick_squares` | `grid/columns.h` |
 | `PeakCol` (core's, by its grid name), `waveform_col_colour`, `waveform_row`, `waveform_full` | `grid/waveform.h` |
 | `kMaxMarkers`, `MarkerStack`, `marker_tint`, `marker_column` | `markers.h` |
-| `KeyboardLayoutKind`, `TextKeyboardState`, `text_keyboard_char_at`, `text_keyboard_key_colour`, `text_keyboard_is_shift_pad`, `text_keyboard` | `keyboard.h` |
-| legacy bridges: `LegacyImage`, `copy_legacy_image`, `copy_legacy_column`, `keyboard<Layout>`, `control_column<Column>` | `keyboard.h` |
+| `KeyboardLayoutKind`, `TextKeyboardState`, `text_keyboard_char_at`, `text_keyboard_key_colour`, `text_keyboard_is_shift_pad`, `text_keyboard` | `grid/keyboard.h` |
+| legacy bridges: `LegacyImage`, `copy_legacy_image`, `copy_legacy_column`, `keyboard<Layout>`, `control_column<Column>` | `grid/keyboard.h` |
 | `GreyoutMask`, `greyout`, `GestureEvent`, `HoldPolicy`, `gesture` | `effects.h` |
 
 `row`, `clip_row`, `status_pad`, `audition_pad` and `text_keyboard` return a `Response`. The

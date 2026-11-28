@@ -39,6 +39,13 @@ void text_pair(widgets::oled::OledFrame& f, int32_t y, RowText row) {
 	}
 }
 
+void text_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s) {
+	if (!s.empty()) {
+		const auto w = static_cast<int32_t>(s.size()) * kTextSpacingX;
+		f.glyphs(s, (f.bounds().w - w) / 2, y, kTextSpacingX, kTextSpacingY);
+	}
+}
+
 void text_rows(widgets::oled::OledFrame& f, std::span<const RowText> rows, int32_t first_row) {
 	for (size_t i = 0; i < rows.size(); i++) {
 		text_pair(f, row_y(f, first_row + static_cast<int32_t>(i)), rows[i]);

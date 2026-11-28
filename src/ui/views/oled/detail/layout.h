@@ -33,6 +33,9 @@ gfx::oled::Rect body_rect(const widgets::oled::OledFrame& f, int32_t from_row);
 ///        An empty string draws nothing.
 void text_pair(widgets::oled::OledFrame& f, int32_t y, RowText row);
 
+/// @brief One row of Apple7 text at @p y, centred across the frame.
+void text_centred(widgets::oled::OledFrame& f, int32_t y, std::string_view s);
+
 /// @brief `text_pair` for each of @p rows on text rows `first_row`, `first_row + 1`, ...
 void text_rows(widgets::oled::OledFrame& f, std::span<const RowText> rows, int32_t first_row = 0);
 

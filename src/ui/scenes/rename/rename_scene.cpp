@@ -223,7 +223,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	kb_ = deluge::ui::widgets::grid::TextKeyboardState{};
 	resp_ = {};
 	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI::padAction`): the text keyboard's
-	// DEVICE row, whose choices are `KeyboardLayoutKind`'s values (`keyboard.h`).
+	// DEVICE row, whose choices are `KeyboardLayoutKind`'s values (`grid/keyboard.h`).
 	layout_ = bind::read_device<deluge::ui::widgets::grid::KeyboardLayoutKind>(
 	    ctx_.ports.device, project::device_path::kTextKeyboardLayout);
 	// Unarm the blink: the first render arms it against that tick's clock, so the cursor is lit on

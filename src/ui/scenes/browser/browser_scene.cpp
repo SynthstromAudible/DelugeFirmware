@@ -484,7 +484,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	first_preview_ = true;
 	spare_blink_from_preview_ = false;
 	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI`'s `keyboardChars`): the text
-	// keyboard's DEVICE row, whose choices are `KeyboardLayoutKind`'s values (`keyboard.h`).
+	// keyboard's DEVICE row, whose choices are `KeyboardLayoutKind`'s values (`grid/keyboard.h`).
 	layout_ = bind::read_device<deluge::ui::widgets::grid::KeyboardLayoutKind>(
 	    ctx_.ports.device, project::device_path::kTextKeyboardLayout);
 	cursor_blink_ = deluge::ui::widgets::core::Blink{};
