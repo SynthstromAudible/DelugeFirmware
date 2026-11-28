@@ -33,6 +33,7 @@
 #include "project/iterance.h"
 
 #include "support/fake_note_bridge.h"
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include "gui/l10n/l10n.h"
@@ -49,6 +50,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
@@ -71,15 +73,6 @@ namespace {
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-}
-
-std::string drain_last_notice() {
-	deluge::base::notify::Notice n;
-	std::string text;
-	while (deluge::base::notify::notices().pop(n)) {
-		text = n.text;
-	}
-	return text;
 }
 
 std::string value_text_string(const menu::ValueTextFn fn, const menu::MenuContext& ctx, int32_t value,
@@ -172,30 +165,32 @@ describe note_nodes_guards("scenes::menu note editor/note-row editor: the two gu
 		select_language();
 		FakeNoteBridgeGuard guard;
 		menu::MenuContext ctx{};
-		(void)drain_last_notice();
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		guard.fake.note_selected_value = false;
 		expect(nodes::note_velocity.bind.permitted(ctx)).to_be_false();
-		expect(drain_last_notice()).to_equal(std::string{"Select Note"});
+		expect(popups.seen()).to_equal(std::vector<std::string>{"popup: Select Note"});
+		popups.clear();
 
 		guard.fake.note_selected_value = true;
 		expect(nodes::note_velocity.bind.permitted(ctx)).to_be_true();
-		expect(drain_last_notice()).to_equal(std::string{}); // no notice on success
+		expect(popups.seen()).to_equal(std::vector<std::string>{}); // no popup on success
 	});
 
 	it("permitted_row refuses and raises \"Select Row\" while not auditioning", _ {
 		select_language();
 		FakeNoteBridgeGuard guard;
 		menu::MenuContext ctx{};
-		(void)drain_last_notice();
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		guard.fake.row_auditioning_value = false;
 		expect(nodes::note_row_probability.bind.permitted(ctx)).to_be_false();
-		expect(drain_last_notice()).to_equal(std::string{"Select Row"});
+		expect(popups.seen()).to_equal(std::vector<std::string>{"popup: Select Row"});
+		popups.clear();
 
 		guard.fake.row_auditioning_value = true;
 		expect(nodes::note_row_probability.bind.permitted(ctx)).to_be_true();
-		expect(drain_last_notice()).to_equal(std::string{});
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 	});
 
 	it("carries exactly the right guard on every note-editor and note-row-editor leaf, and none on "
@@ -427,7 +422,7 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		select_language();
 		const deluge::ui::scenes::spec::NoNoteBridge no_bridge;
 		menu::MenuContext ctx{};
-		(void)drain_last_notice();
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		expect(nodes::get_note_velocity(ctx)).to_equal(int32_t(0));
 		expect(nodes::get_note_probability(ctx)).to_equal(int32_t(0));
@@ -438,9 +433,10 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		expect(nodes::get_note_row_fill(ctx)).to_equal(int32_t(0));
 
 		expect(nodes::note_velocity.bind.permitted(ctx)).to_be_false();
-		expect(drain_last_notice()).to_equal(std::string{"Select Note"});
+		expect(popups.seen()).to_equal(std::vector<std::string>{"popup: Select Note"});
+		popups.clear();
 		expect(nodes::note_row_probability.bind.permitted(ctx)).to_be_false();
-		expect(drain_last_notice()).to_equal(std::string{"Select Row"});
+		expect(popups.seen()).to_equal(std::vector<std::string>{"popup: Select Row"});
 		expect(value_text_string(nodes::note_iterance.bind.value_text, ctx, 5, ValueTextUse::Column))
 		    .to_equal(std::string{});
 	});

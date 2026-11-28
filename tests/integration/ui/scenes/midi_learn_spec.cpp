@@ -114,6 +114,7 @@
 
 #include "fakes.h"
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
+#include "support/popup_capture.h"
 #include "support/printers/learn_input_printer.h"
 #include "support/printers/mapping_printer.h"
 #include "support/song_fixture.h"
@@ -264,27 +265,6 @@ protected:
 	void writeReferenceAttributesToFile(Serializer&) override {}
 };
 
-/// @brief The minimum `Display` legacy needs: `display` is null in a spec process
-///        (`hid/display/display.cpp`) and `Buttons::buttonAction` dereferences it on every RECORD
-///        release (`hid/buttons.cpp`).
-struct StubDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-	void displayNotification(std::string_view, std::optional<std::string_view>) override {}
-};
-
 /// @brief A real `RootUI` that claims nothing of its own and forwards to `View::buttonAction`.
 ///
 /// See the file docstring: it must be a `RootUI` and not merely a `UI`, because `getRootUI()`
@@ -299,11 +279,6 @@ public:
 
 StubRootUI& stub_root_ui() {
 	static StubRootUI instance;
-	return instance;
-}
-
-StubDisplay& stub_display() {
-	static StubDisplay instance;
 	return instance;
 }
 
@@ -569,7 +544,7 @@ struct CableDefaults {
 describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	before_each([] {
 		setRootUILowLevel(&stub_root_ui());
-		display = &stub_display();
+		display = &deluge::ui::scenes::spec::quiet_display();
 		(void)quiet_audio();
 		(void)cables();
 	});
@@ -1505,7 +1480,7 @@ describe midi_learn_reference("bridge::command_of: the device a learned command 
 describe midi_learn_table("a pad's learn is the song's mapping table's, on both sides", $ {
 	before_each([] {
 		setRootUILowLevel(&stub_root_ui());
-		display = &stub_display();
+		display = &deluge::ui::scenes::spec::quiet_display();
 		(void)quiet_audio();
 		(void)cables();
 	});

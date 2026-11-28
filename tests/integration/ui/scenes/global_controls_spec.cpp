@@ -93,6 +93,7 @@
 
 #include "fakes.h"
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
+#include "support/popup_capture.h"
 #include "support/printers/transport_action_printer.h"
 #include "support/song_fixture.h"
 
@@ -146,31 +147,6 @@ int32_t& pending_global_midi_clusters() {
 	return ::pendingGlobalMIDICommandNumClustersWritten;
 }
 
-/// @brief The minimum `Display` legacy needs here: `display` is null in a spec process
-///        (`hid/display/display.cpp`) and `Buttons::buttonAction` dereferences it on every
-///        RECORD release (`hid/buttons.cpp`).
-///
-/// `hasPopupOfType` answers false, which is the "no threshold-recording popup is up" case -- the
-/// only one the port can reproduce, since that popup is raised straight to the legacy display by
-/// `Song::changeThresholdRecordingMode` and never through `notify::`.
-struct StubDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-	void displayNotification(std::string_view, std::optional<std::string_view>) override {}
-};
-
 /// @brief `spec::QuietAudio`, held for the whole process.
 ///
 /// It keeps the audio routine still while the transport runs (`support/card_access.h`): no render
@@ -182,11 +158,6 @@ struct StubDisplay final : deluge::hid::Display {
 /// the legacy side is driven outside any rig.
 spec::QuietAudio& quiet_audio() {
 	static spec::QuietAudio instance;
-	return instance;
-}
-
-StubDisplay& stub_display() {
-	static StubDisplay instance;
 	return instance;
 }
 
@@ -435,10 +406,11 @@ bool led_is(const deluge::ui::widgets::core::LedFrame& f, ButtonId b, deluge::ui
 // clang-format off
 describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	before_each([] {
-		// `Buttons::buttonAction` dereferences `getCurrentUI()` and `display`; see the file
-		// docstring and `StubDisplay`.
+		// `Buttons::buttonAction` dereferences `getCurrentUI()` and `display` (see the file docstring). The quiet
+		// display answers that no popup is up, which is the "no threshold-recording popup" case: the only one the port
+		// can reproduce, since `Song::changeThresholdRecordingMode` raises that popup straight to legacy's display.
 		setRootUILowLevel(&stub_ui());
-		display = &stub_display();
+		display = &deluge::ui::scenes::spec::quiet_display();
 		(void)quiet_audio();
 	});
 

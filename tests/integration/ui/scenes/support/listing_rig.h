@@ -1,7 +1,8 @@
 #pragma once
 
 /// @file
-/// @brief What the listing seam's specs share: a deferring dispatcher, the notice tally, the clean-catalogue guard
+/// @brief What the listing seam's specs share: a deferring dispatcher, the clean-catalogue guard (with the popups it
+///        sees)
 ///        and the small readers the examples assert through. `listing_spec.cpp` and `listing_nested_spec.cpp` run on
 ///        different cards, so they are two files and this is their common part.
 ///
@@ -18,8 +19,10 @@
 #include "util/name_compare.h"
 
 #include "support/card_access.h"
+#include "support/popup_capture.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -87,34 +90,11 @@ struct Deferred {
 	}
 };
 
-/// @brief How many notices of each kind are sitting in the global queue; drains it.
-struct NoticeTally {
-	int working = 0;
-	int clear_working = 0;
-	int error = 0;
-	int16_t last_error_code = 0;
-};
+using PopupKind = deluge::ui::scenes::spec::PopupEvent::Kind;
 
-inline NoticeTally drain_notices() {
-	NoticeTally tally;
-	deluge::base::notify::Notice n;
-	while (deluge::base::notify::notices().pop(n)) {
-		switch (n.kind) {
-		case deluge::base::notify::Notice::Kind::Working:
-			tally.working++;
-			break;
-		case deluge::base::notify::Notice::Kind::ClearWorking:
-			tally.clear_working++;
-			break;
-		case deluge::base::notify::Notice::Kind::Error:
-			tally.error++;
-			tally.last_error_code = n.error_code;
-			break;
-		default:
-			break;
-		}
-	}
-	return tally;
+/// @return Error code @p code as `PopupCapture::last` gives an error popup's text.
+inline std::optional<std::string> error_text(int code) {
+	return std::to_string(code);
 }
 
 /// @brief Per-example reset of everything process-global this spec touches.
@@ -124,9 +104,10 @@ inline NoticeTally drain_notices() {
 /// that left entries (or a stale `currentDir`, or a stale comparator flag) behind would decide the
 /// next one's result by link order. `QuietAudio` is declared first so the latch is held before this
 /// guard's own body erases anything -- see `support/card_access.h` for why erasing without it
-/// segfaults.
+/// segfaults. `popups` records every popup the example raises.
 struct CleanListing {
 	QuietAudio quiet;
+	deluge::ui::scenes::spec::PopupCapture popups;
 
 	CleanListing() { reset(); }
 	~CleanListing() { reset(); }
@@ -141,7 +122,8 @@ struct CleanListing {
 		shouldInterpretNoteNames = false;
 		octaveStartsFromA = false;
 		Deferred::reset();
-		(void)drain_notices();
+		deluge::base::notify::Notice n;
+		while (deluge::base::notify::notices().pop(n)) {}
 	}
 	CleanListing(const CleanListing&) = delete;
 	CleanListing& operator=(const CleanListing&) = delete;

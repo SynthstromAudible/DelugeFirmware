@@ -29,6 +29,7 @@
 
 #include "fakes.h"
 #include "support/menu_rig.h"
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -137,15 +138,6 @@ Result midi(UiEvent::Kind kind, bool shift = false) {
 
 Result gold(deluge::ui::widgets::core::EncoderRole knob) {
 	return send(UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = knob, .delta = 1});
-}
-
-/// @brief The last notice's string id, draining the queue; 0 for none.
-uint16_t last_notice_string() {
-	uint16_t last = 0;
-	for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
-		last = n.string_id;
-	}
-	return last;
 }
 
 /// @brief The param mod knob @p knob moves in knob mode @p mode on @p owner, from the song's model; none if none.
@@ -369,12 +361,13 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		}
 		const uint8_t mode = r.song.clip->output->modKnobMode;
 		expect(knob_param(target->owner, mode, 1)).not_().to_equal(std::optional{target->param});
-		(void)last_notice_string();
+		deluge::ui::scenes::spec::PopupCapture popups;
 		(void)button(ButtonId::Learn, true);
 		expect(gold(deluge::ui::widgets::core::EncoderRole::GoldUpper).handled).to_be_true();
 		(void)button(ButtonId::Learn, false);
 		expect(knob_param(target->owner, mode, 1)).to_equal(std::optional{target->param});
-		expect(last_notice_string()).to_equal(uint16_t(deluge::l10n::String::STRING_FOR_LEARNED));
+		expect(popups.seen())
+		    .to_equal(std::vector<std::string>{"popup: " + std::string(deluge::l10n::get(deluge::l10n::String::STRING_FOR_LEARNED))});
 	});
 
 	it("a CC and a pitch bend while learning learn a MIDI knob onto the param", _ {
@@ -577,13 +570,13 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		}
 		const uint8_t mode = kit.clip->output->modKnobMode;
 		const std::optional<deluge::project::ParamTarget> before = knob_param(target->owner, mode, 1);
-		(void)last_notice_string();
+		deluge::ui::scenes::spec::PopupCapture popups;
 		(void)button(ButtonId::Learn, true);
 		expect(menu_scene().select_release_blocked()).to_be_true(); // learn mode
 		expect(gold(deluge::ui::widgets::core::EncoderRole::GoldUpper).handled).to_be_true();
 		(void)button(ButtonId::Learn, false);
 		expect(knob_param(target->owner, mode, 1)).to_equal(before);
-		expect(last_notice_string()).to_equal(uint16_t(0));
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 	});
 });
 // clang-format on

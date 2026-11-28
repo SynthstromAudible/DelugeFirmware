@@ -22,6 +22,7 @@
 #include "storage/storage_manager.h"
 
 #include "integration/scenarios/drivers/tree_load.h"
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -46,25 +47,6 @@ constexpr std::string_view kAudioTrackNoClips = R"(<?xml version="1.0" encoding=
 	</sessionClips>
 </song>
 )";
-
-/// @brief The minimum `Display` the drum creator's menu and browser opening reach.
-struct StubDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-	void displayNotification(std::string_view, std::optional<std::string_view>) override {}
-};
 
 } // namespace
 
@@ -100,8 +82,7 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 	});
 
 	it("a drum made in the clip view finds its backed-up params under its own id", _ {
-		static StubDisplay stub;
-		display = &stub;
+		display = &deluge::ui::scenes::spec::quiet_display();
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_kit_song();
 		Song* const saved = currentSong;
 		deluge::ui::scenes::spec::make_current(f.song);

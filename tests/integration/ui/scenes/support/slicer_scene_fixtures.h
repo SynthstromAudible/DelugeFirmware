@@ -25,6 +25,7 @@
 #include "model/sample/sample.h"
 #include "storage/cluster/cluster.h"
 
+#include "support/popup_capture.h"
 #include "support/slicer_host_open.h"
 #include "support/song_fixture.h"
 
@@ -81,24 +82,6 @@ inline Sample* make_sample() {
 	});
 	return s;
 }
-
-/// @brief The minimum `Display` a slicer run needs: `display` is null in a spec process, and the encoder arms pop up.
-struct SlicerDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
 
 // --- the port's rig ---------------------------------------------------------------------------
 

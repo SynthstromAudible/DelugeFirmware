@@ -52,6 +52,7 @@
 #include "fakes.h"
 #include "support/menu_engine.h"
 #include "support/no_notification_sink.h"
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -418,51 +419,35 @@ int depth_of() {
 	return menu_scene().state().depth;
 }
 
-std::string last_notice() {
-	deluge::base::notify::Notice n;
-	std::string text;
-	while (deluge::base::notify::notices().pop(n)) {
-		text = n.text;
-	}
-	return text;
-}
+using deluge::ui::scenes::spec::PopupCapture;
+using PopupKind = deluge::ui::scenes::spec::PopupEvent::Kind;
 
-/// @brief Pop every queued notice, in raise order -- for the examples that pin the *kind* a raise
-///        used, not only that something was raised.
-std::vector<deluge::base::notify::Notice> raised_notices() {
-	std::vector<deluge::base::notify::Notice> out;
-	deluge::base::notify::Notice n;
-	while (deluge::base::notify::notices().pop(n)) {
-		out.push_back(n);
-	}
-	return out;
-}
-
-/// @return How many of @p raised are of kind @p kind.
-size_t count_kind(const std::vector<deluge::base::notify::Notice>& raised, deluge::base::notify::Notice::Kind kind) {
-	size_t n = 0;
-	for (const deluge::base::notify::Notice& notice : raised) {
-		n += notice.kind == kind ? 1 : 0;
-	}
-	return n;
-}
+/// @brief A banner as the user sees it.
+struct Banner {
+	std::string title;
+	std::string value;
+};
 
 /// @brief The column notification legacy's `HorizontalMenu::displayNotification` makes is one
 ///        `display->displayNotification(title, value)` call
-///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -- so the port raises exactly one `Notification`
-///        and no `Console` line. Returns that notice.
+///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -- so the port shows exactly one banner and no
+///        console line.
+/// @return That banner.
 template <typename Self>
-deluge::base::notify::Notice expect_one_notification(Self& self,
-                                                     const std::vector<deluge::base::notify::Notice>& raised) {
-	using Kind = deluge::base::notify::Notice::Kind;
-	expect(count_kind(raised, Kind::Notification)).to_equal(size_t{1});
-	expect(count_kind(raised, Kind::Console)).to_equal(size_t{0});
-	for (const deluge::base::notify::Notice& notice : raised) {
-		if (notice.kind == Kind::Notification) {
-			return notice;
-		}
+Banner expect_one_notification(Self& self, const PopupCapture& popups) {
+	expect(popups.count(PopupKind::NOTIFICATION)).to_equal(size_t{1});
+	expect(popups.count(PopupKind::CONSOLE)).to_equal(size_t{0});
+	const std::string text = popups.last(PopupKind::NOTIFICATION).value_or("");
+	const size_t newline = text.find('\n');
+	if (newline == std::string::npos) {
+		return {.title = text};
 	}
-	return deluge::base::notify::Notice{};
+	return {.title = text.substr(0, newline), .value = text.substr(newline + 1)};
+}
+
+/// @return Whether @p e is a popup, gone by itself or staying, reading l10n string @p id.
+bool is_popup_of(const deluge::ui::scenes::spec::PopupEvent& e, String id) {
+	return (e.kind == PopupKind::POPUP || e.kind == PopupKind::PERSISTENT) && e.text == deluge::l10n::get(id);
 }
 
 /// @brief Whether \p f declared \p b's LED `On` this frame -- `LedFrame` has no query accessor of
@@ -490,7 +475,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(0);
 		g_enum_col = 0;
 
-		(void)raised_notices(); // drain
+		PopupCapture popups;
 		r.turn(1, 10);
 		r.shell.tick(20);
 
@@ -498,11 +483,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0); // still ENUM_COL
 
 		// ...and notifies (main's `HorizontalMenu::selectEncoderAction` -> `HorizontalMenu::displayNotification`,
-		// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). Read before any further tick: the next tick's
-		// notice drain (`Shell::tick`) would take it.
-		const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
-		expect(std::string(n.notification_title())).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MODE)));
-		expect(std::string(n.notification_value()).empty()).to_be_false();
+		// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
+		const Banner n = expect_one_notification(self, popups);
+		expect(n.title).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MODE)));
+		expect(n.value.empty()).to_be_false();
 	});
 
 	it("a fast select turn accelerates the focused column's edit, as HorizontalMenu::calcNextKnobSpeed does", _ {
@@ -591,11 +575,11 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
 		g_enum_col = 0;
-		(void)raised_notices();
+		PopupCapture popups;
 		r.turn(1, 10);
 		r.shell.tick(20);
-		const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
-		expect(std::string(n.notification_value())).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_ENABLED)));
+		const Banner n = expect_one_notification(self, popups);
+		expect(n.value).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_ENABLED)));
 	});
 
 	it("a column whose legacy item shortens draws main's short label and short option", _ {
@@ -1958,7 +1942,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
-		(void)last_notice(); // drain
+		PopupCapture popups;
 		r.press(kMidiX, kMidiY, 200); // focus SUBMENU_COL (column 2); `press()`'s own internal
 		                              // tick (`at_ms + 5`) is where a notice would be raised
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(2);
@@ -1966,14 +1950,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `displayNotification` returns early for it (`HorizontalMenu::displayNotification` in
 		// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -- a button focus onto a submenu column raises no
 		// banner, unlike every value column's own new-focus notification (see the KIT/toggle test below).
-		//
-		// **Must be read right here, before any further tick.** `Shell::tick` drains
-		// `notify::notices()` at the *start* of the next tick, so an extra
-		// `r.shell.tick(220)` here would silently eat any
-		// notice raised at `press()`'s own internal tick before `last_notice()` ever read it --
-		// making this assertion pass whether or not a banner was actually raised. Verified by
-		// mutation: temporarily deleting `notify_column`'s `Kind::Submenu` guard makes this fail.
-		expect(last_notice().empty()).to_be_true();
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 		r.shell.tick(220);
 
 		r.turn(1, 400);
@@ -1993,10 +1970,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(0);
 		g_toggle_col = false;
 
-		// `press()` already settles with its own internal tick; reading the notice after a
-		// SECOND tick would drain it first (`Shell::tick` drains `notify::notices()` at the start
-		// of the next tick), so it must be read right after `press()` returns.
-		(void)last_notice(); // drain
+		PopupCapture popups;
 		r.press(kKitX, kKitY, 200); // new focus: notifies, does not flip
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 		expect(g_toggle_col).to_be_false();
@@ -2005,17 +1979,17 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`); a `Toggle` spells no value
 		// (`MenuItem::getNotificationValue` in `origin/main:src/deluge/gui/menu_item/menu_item.h`).
 		{ // new-focus notification
-			const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
-			expect(std::string(n.notification_title())).to_equal(monophonic);
-			expect(std::string(n.notification_value()).empty()).to_be_true();
+			const Banner n = expect_one_notification(self, popups);
+			expect(n.title).to_equal(monophonic);
+			expect(n.value.empty()).to_be_true();
 		}
 
-		(void)last_notice(); // drain
+		popups.clear();
 		r.press(kKitX, kKitY, 500); // already focused: the column's own press
 		expect(g_toggle_col).to_be_true();
 		{
-			const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
-			expect(std::string(n.notification_title())).to_equal(monophonic);
+			const Banner n = expect_one_notification(self, popups);
+			expect(n.title).to_equal(monophonic);
 		}
 	});
 
@@ -2104,23 +2078,23 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kKitX, kKitY, 200); // move focus off column 0 first (spread_gate, column 1)
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 
-		(void)last_notice(); // drain
+		PopupCapture popups;
 		r.press(kSynthX, kSynthY, 500); // new focus onto randomizer_lock: notifies, does not flip
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
 		expect(spec::menu_engine(ctx, *r.song.song).arp->randomizerLock).to_be_false();
 		std::string title;
 		{
-			const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
-			title = n.notification_title();
+			const Banner n = expect_one_notification(self, popups);
+			title = n.title;
 			expect(title.empty()).to_be_false();
 		}
 
-		(void)last_notice(); // drain
+		popups.clear();
 		r.press(kSynthX, kSynthY, 800); // already focused: flips and notifies
 		expect(spec::menu_engine(ctx, *r.song.song).arp->randomizerLock).to_be_true();
 		{
-			const deluge::base::notify::Notice n = expect_one_notification(self, raised_notices());
-			expect(std::string(n.notification_title())).to_equal(title); // the same column, notified again
+			const Banner n = expect_one_notification(self, popups);
+			expect(n.title).to_equal(title); // the same column, notified again
 		}
 	});
 
@@ -2296,12 +2270,14 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kCvX, kCvY, 200); // focus CHAIN_COL (column 3), which has a select_chain
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(3);
 
-		(void)last_notice();
+		PopupCapture popups;
 		r.enter(500);
 		r.shell.tick(510);
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused()).to_equal(&chain_target);
-		expect(last_notice().empty()).to_be_true();
+		// The descent takes the page's banner down; it raises none.
+		expect(popups.count(PopupKind::NOTIFICATION)).to_equal(size_t{0});
+		expect(popups.last_popup().empty()).to_be_true();
 
 		// Back to the page. Column focus at depth 0 is untouched by the descent -- `ascend()`
 		// restores the level's own cursor, and nothing wrote `columns[0]` while depth 1 was on
@@ -2316,13 +2292,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kSynthX, kSynthY, 800); // ENUM_COL, no select_chain
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
 
-		(void)last_notice();
+		popups.clear();
 		r.enter(1000);
 		r.shell.tick(1010);
 		// ENUM_COL has no chain: `Selection::selectButtonPress` from the page stays (`stays_on_page`); the claim here
 		// is only that nothing entered and nothing notified.
 		expect(depth_of()).to_equal(0);
-		expect(last_notice().empty()).to_be_true();
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 	});
 
 	it("a select press on a plain choice column stays on the page, as Selection::selectButtonPress from the page does",
@@ -2341,13 +2317,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(0);
 
 		g_enum_col = 1;
-		(void)last_notice();
+		PopupCapture popups;
 		r.enter(300);
 		r.shell.tick(310);
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused()).to_equal(&stay_page);
 		expect(g_enum_col).to_equal(1);
-		expect(last_notice().empty()).to_be_true();
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 	});
 
 	it("a select press on an Int column with no chain goes up, as MenuItem::selectButtonPress's null does", _ {
@@ -2481,13 +2457,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(0);
 		r.turn(1, 100); // onto the range-specific item's row
 		r.shell.tick(110);
-		(void)raised_notices(); // drain
+		PopupCapture popups;
 		r.enter(200);
 		r.shell.tick(205); // the press is handled at the tick
-		const auto raised = raised_notices();
 		r.shell.tick(215);
-		expect(std::ranges::any_of(raised, [](const deluge::base::notify::Notice& n) {
-			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
+		expect(std::ranges::any_of(popups.events(), [](const deluge::ui::scenes::spec::PopupEvent& e) {
+			return is_popup_of(e, String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(0);
 		for (const SourceResources& source : sound->sourceResources) {
@@ -2511,14 +2486,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.button(kKitX, kKitY, false, 310);
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 		expect(depth_of()).to_equal(0);
-		(void)raised_notices(); // drain
+		PopupCapture popups;
 		r.button(kKitX, kKitY, true, 700); // its button again, past the buttons' debounce, on the focused column
 		r.shell.tick(705);
-		const auto raised = raised_notices();
 		r.button(kKitX, kKitY, false, 710);
 		r.shell.tick(720);
-		expect(std::ranges::any_of(raised, [](const deluge::base::notify::Notice& n) {
-			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
+		expect(std::ranges::any_of(popups.events(), [](const deluge::ui::scenes::spec::PopupEvent& e) {
+			return is_popup_of(e, String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(1);
 		for (const SourceResources& source : sound->sourceResources) {
@@ -2537,19 +2511,19 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)r.without_ranges();
 		r.open_refusing_ranges(other_source_page);
 		r.shell.tick(0);
-		(void)raised_notices(); // drain
+		PopupCapture popups;
 		r.button(kKitX, kKitY, true, 300); // onto the file browser
 		r.shell.tick(305);
-		const auto raised = raised_notices();
+		const std::vector<deluge::ui::scenes::spec::PopupEvent> raised = popups.events();
 		r.button(kKitX, kKitY, false, 310);
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 		expect(depth_of()).to_equal(0);
-		const auto error = std::ranges::find_if(raised, [](const deluge::base::notify::Notice& n) {
-			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
+		const auto error = std::ranges::find_if(raised, [](const deluge::ui::scenes::spec::PopupEvent& e) {
+			return is_popup_of(e, String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		});
 		expect(std::ranges::distance(raised.begin(), error)).to_be_less_than(std::ranges::ssize(raised));
-		expect(std::any_of(error, raised.end(), [](const deluge::base::notify::Notice& n) {
-			return n.kind == deluge::base::notify::Notice::Kind::Notification;
+		expect(std::any_of(error, raised.end(), [](const deluge::ui::scenes::spec::PopupEvent& e) {
+			return e.kind == PopupKind::NOTIFICATION;
 		})).to_be_true();
 	});
 

@@ -60,6 +60,7 @@
 
 #include "support/feature_setting.h"
 #include "support/global_guest_menu.h"
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -288,16 +289,6 @@ void set_row_direction(LegacyViewGuard& legacy, int32_t y, SequenceDirection dir
 	(void)getCurrentInstrumentClip()->getNoteRowOnScreen(y, currentSong, &row_index);
 	row->setSequenceDirectionMode(stack->addNoteRow(getCurrentInstrumentClip()->getNoteRowId(row, row_index), row),
 	                              direction);
-}
-
-/// @brief The last notice queued since the previous drain, or empty.
-std::string drain_last_notice() {
-	deluge::base::notify::Notice n;
-	std::string text;
-	while (deluge::base::notify::notices().pop(n)) {
-		text = n.text;
-	}
-	return text;
 }
 
 /// @brief Is the menu on the global guest's stack at all?
@@ -598,10 +589,10 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
 
 		exitUIMode(UI_MODE_AUDITIONING);
-		(void)drain_last_notice();
+		deluge::ui::scenes::spec::PopupCapture popups;
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 0)).to_be_true();
 		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
-		expect(drain_last_notice()).to_equal(std::string{"Select Row"});
+		expect(popups.last_popup()).to_equal(std::string{"Select Row"});
 	});
 
 	it("with no note selected, a press on the row's probability item stays put, raises \"Select Note\" and leaves "
@@ -614,7 +605,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		menu_scene().enter_submenu(nodes::note_row_probability);
 		expect(std::ranges::none_of(instrumentClipView.get_note_edit_targets(), &EditPadPress::isActive)).to_be_true();
-		(void)drain_last_notice();
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		// The port directly, not through the pad handler: every real press that holds a note also selects it
 		// (`InstrumentClipView::editPadAction`), so no press reaches the toggle in
@@ -624,7 +615,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 		expect(menu_scene().state().depth).to_equal(uint8_t{1});
 		expect(menu_scene().focused()).to_equal(&nodes::note_row_probability);
-		expect(drain_last_notice()).to_equal(std::string{"Select Note"});
+		expect(popups.seen()).to_equal(std::vector<std::string>{"popup: Select Note"});
 		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteRowEditor);
 	});
 

@@ -52,6 +52,7 @@
 
 #include "support/oracle_table.h"
 #include "support/output_items_fixtures.h"
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project
@@ -485,9 +486,8 @@ describe output_items_milestone("scenes::menu the tree has no placeholders left"
 describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 
 	before_each([] {
-		static QuietDisplay d;
 		if (display == nullptr) {
-			display = &d;
+			display = &deluge::ui::scenes::spec::quiet_display();
 		}
 	});
 
@@ -725,9 +725,8 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 describe specific_output_item("scenes::menu specific_output_selector", $ {
 
 	before_each([] {
-		static QuietDisplay d;
 		if (display == nullptr) {
-			display = &d;
+			display = &deluge::ui::scenes::spec::quiet_display();
 		}
 	});
 

@@ -23,6 +23,7 @@
 #include "modulation/patch/patch_cable.h"
 
 #include "support/menu_rig.h"
+#include "support/popup_capture.h"
 #include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
@@ -34,6 +35,7 @@
 #include "support/spec_main.h"
 #include <algorithm>
 #include <string>
+#include <vector>
 
 using namespace deluge::ui::scenes;
 using deluge::ui::scenes::menu::MenuContext;
@@ -229,9 +231,9 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		const spec::ShortcutLayout v1{deluge::project::ShortcutsVersion::V1}; // (15, 7) names no source
 		Rig r;
 		r.open(nodes::master_volume);
+		deluge::ui::scenes::spec::PopupCapture popups;
 		r.shift_press(15, 7);
-		deluge::base::notify::Notice notice;
-		expect(deluge::base::notify::notices().pop(notice)).to_be_false(); // no PARAMETER NOT APPLICABLE for a non-source
+		expect(popups.seen()).to_equal(std::vector<std::string>{}); // no PARAMETER NOT APPLICABLE for a non-source
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(menu_scene().focused()).to_equal(&nodes::master_volume);
 	});

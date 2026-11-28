@@ -60,6 +60,7 @@
 
 // `card_access.h` before CppSpec, for the reason its own `@warning` gives.
 #include "support/card_access.h"
+#include "support/popup_capture.h"
 
 #include "gui/context_menu/configure_song_macros.h"
 #include "gui/context_menu/midi_learn_mode.h"
@@ -612,44 +613,6 @@ const std::array<Pairing, 4> kVerbs{{
 }};
 
 // --- the three one-line verbs --------------------------------------------------------
-
-/// @brief The `Display` the `SetClipLengthToSampleLength` group needs, recording what it was asked
-///        to show.
-///
-/// `display` is null in a spec process (`hid/display/display.cpp`), and the automation view's length edit
-/// dereferences it -- so an example that drives that callee with no `Display` installed segfaults rather than
-/// failing. `audio_clip_scene_spec.cpp`'s `QuietDisplay` is the same object with the popups thrown away; this one
-/// keeps them, because the popup is one of the two effects this group asserts.
-struct RecordingDisplay final : deluge::hid::Display {
-	std::vector<std::string> popups;
-
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override {
-		popups.emplace_back(text != nullptr ? text : "");
-	}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return !popups.empty(); }
-	bool hasPopupOfType(PopupType) override { return !popups.empty(); }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
-/// @brief Install a `RecordingDisplay` for the scope and put `display` back to what it was.
-struct DisplayGuard {
-	deluge::hid::Display* saved = display;
-	RecordingDisplay recorder;
-	DisplayGuard(const DisplayGuard&) = delete;
-	DisplayGuard& operator=(const DisplayGuard&) = delete;
-	DisplayGuard() { display = &recorder; }
-	~DisplayGuard() { display = saved; }
-};
 
 /// @brief One `MISC` action in an otherwise empty undo log, and an empty one again afterwards.
 ///
@@ -1974,7 +1937,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 
 		{
 			// The control. One call different.
-			DisplayGuard control_display;
+			deluge::ui::scenes::spec::PopupCapture control_popups;
 			ActionLogGuard control_log;
 			Rig control;
 			const spec::AudioSongFixture f = seat_audio_clip_with_sample();
@@ -1985,11 +1948,11 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 			    .to_be_true();
 
 			expect(f.clip->loopLength()).to_equal(seeded);
-			expect(static_cast<int>(control_display.recorder.popups.size())).to_equal(0);
+			expect(control_popups.seen()).to_equal(std::vector<std::string>{});
 			expect(scene().take_action().action).to_equal(MenuAction::SetClipLengthToSampleLength);
 		}
 
-		DisplayGuard display_guard;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		ActionLogGuard log_guard;
 		Rig r;
 		const spec::AudioSongFixture f = seat_audio_clip_with_sample();
@@ -1999,6 +1962,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		                                                        &f.song->project);
 		deluge::base::notify::Notice discard;
 		while (deluge::base::notify::notices().pop(discard)) {}
+		popups.clear();
 
 		const int32_t seeded = f.clip->loopLength();
 		// What `AudioClipView::setClipLengthEqualToSampleLength` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`)
@@ -2014,22 +1978,10 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		// `SetClipLengthEqualToSampleLength::selectButtonPress`
 		// (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`) ->
 		// `AudioClipView::setClipLengthEqualToSampleLength`: the length, `adjustLoopLength`'s bars-and-beats readout
-		// and the popup, which the scene raises as notices.
+		// and the popup.
 		expect(f.clip->loopLength()).to_equal(from_sample);
-		int32_t adjusted = 0;
-		std::vector<std::string> texts;
-		deluge::base::notify::Notice n;
-		while (deluge::base::notify::notices().pop(n)) {
-			if (n.string_id == static_cast<uint16_t>(String::STRING_FOR_CLIP_LENGTH_ADJUSTED)) {
-				adjusted++;
-			}
-			else {
-				texts.emplace_back(n.text);
-			}
-		}
-		expect(adjusted).to_equal(1);
 		// Two bars at 120 BPM: `displayNumberOfBarsAndBeats`' "bars : beats : sub-beats", zero-based.
-		expect(texts).to_equal(std::vector<std::string>{"2 : 0 : 0"});
+		expect(popups.seen()).to_equal(std::vector<std::string>{"popup: 2 : 0 : 0", "popup: " + std::string(deluge::l10n::get(String::STRING_FOR_CLIP_LENGTH_ADJUSTED))});
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
@@ -2037,7 +1989,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		select_language();
 		UiStackGuard ui_guard;
 		spec::QuietAudio quiet;
-		DisplayGuard display_guard;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		ActionLogGuard log_guard;
 		Rig r;
 		const spec::AudioSongFixture f = seat_audio_clip_with_sample();
@@ -2050,9 +2002,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		deluge::gui::ui::dispatchShellActions();
 
 		expect(f.clip->loopLength()).to_equal(from_sample);
-		expect(static_cast<int>(display_guard.recorder.popups.size())).to_equal(1);
-		expect(display_guard.recorder.popups.empty() ? std::string{} : display_guard.recorder.popups[0])
-		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_CLIP_LENGTH_ADJUSTED)));
+		expect(popups.seen()).to_equal(std::vector<std::string>{"popup: 2 : 0 : 0", "popup: " + std::string(deluge::l10n::get(String::STRING_FOR_CLIP_LENGTH_ADJUSTED))});
 	});
 
 	it("OpenSongMidiLearn: arms MIDI learn and opens the context menu, which is both statements", _ {

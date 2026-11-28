@@ -21,7 +21,6 @@
 
 #include "base/notify/notice_queue.h"
 #include "gui/l10n/l10n.h"
-#include "hid/display/display.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
 
@@ -29,6 +28,7 @@
 #include "support/menu_engine.h"
 #include "support/mocks/fake_surfaces.h"
 #include "support/oracle_table.h"
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include <cstdint>
@@ -36,7 +36,6 @@
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace deluge::ui::scenes::spec::dx_rig {
 
@@ -109,40 +108,10 @@ constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
 constexpr uint8_t kShiftX = 8, kShiftY = 0;
 
-/// @brief A `Display` that keeps the popups legacy shows: `display` is null in a spec process.
-struct PopupDisplay final : deluge::hid::Display {
-	std::vector<std::string> popups;
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override {
-		popups.emplace_back(text);
-	}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
-/// @brief The popups shown while it lives, in English.
-struct Popups {
-	PopupDisplay mine;
-	deluge::hid::Display* saved = display;
-	Popups() {
-		display = &mine;
-		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	}
-	~Popups() { display = saved; }
-	Popups(const Popups&) = delete;
-	Popups& operator=(const Popups&) = delete;
-	static std::string read_error() { return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR); }
-};
+/// @return Main's read-error popup, in English.
+inline std::string read_error() {
+	return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR);
+}
 
 /// @brief The DX7 synth with the menu over it, on a `Shell` over the fake surfaces. Node ids come from every
 ///        root, as the app numbers them.

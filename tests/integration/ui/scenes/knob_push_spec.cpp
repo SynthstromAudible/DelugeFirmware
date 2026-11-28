@@ -33,6 +33,7 @@
 #include "util/functions.h"
 
 #include "support/main_numbering.h"
+#include "support/popup_capture.h"
 #include "support/recorded_knob_pushes.h"
 #include "support/song_fixture.h"
 
@@ -60,26 +61,6 @@ namespace {
 namespace bind = deluge::ui::scenes::bind;
 namespace services = deluge::ui::scenes::services;
 using deluge::edits::KnobModeOwner;
-
-/// @brief The display legacy's push and mod button draw on: what it last popped up, kept.
-struct StubDisplay final : deluge::hid::Display {
-	std::string popup;
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const* text, PopupType) override { popup = text; }
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-	void displayNotification(std::string_view, std::optional<std::string_view>) override {}
-};
 
 /// @brief One owner under test: a song, the owner its knobs point at as a focus, and whose mod-knob mode it holds.
 struct Side {
@@ -284,8 +265,7 @@ std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, std::str
 /// @param extra    Run once per alt setting after the pushes; returns where it disagrees, or empty.
 std::vector<std::string> push_everything(Side& side, const std::string& label, std::span<const uint16_t> recorded,
                                          const std::function<std::string()>& extra = {}) {
-	StubDisplay stub;
-	display = &stub;
+	deluge::ui::scenes::spec::PopupCapture popups{deluge::ui::scenes::spec::PopupCapture::Mode::QUIET};
 	size_t next = 0;
 	std::vector<std::string> found;
 	for (const bool alt : {false, true}) {
@@ -316,7 +296,6 @@ std::vector<std::string> push_everything(Side& side, const std::string& label, s
 		}
 	}
 	runtimeFeatureSettings.set(RuntimeFeatureSettingType::AltGoldenKnobDelayParams, RuntimeFeatureStateToggle::Off);
-	display = nullptr;
 	return found;
 }
 
@@ -324,8 +303,7 @@ std::vector<std::string> push_everything(Side& side, const std::string& label, s
 ///        empty.
 std::vector<std::string> press_buttons(Side& side, const std::string& label,
                                        const std::array<std::string_view, 8>& recorded) {
-	StubDisplay stub;
-	display = &stub;
+	deluge::ui::scenes::spec::PopupCapture popups{deluge::ui::scenes::spec::PopupCapture::Mode::QUIET};
 	std::vector<std::string> found;
 	for (uint8_t button = 0; button < kNumModButtons; button++) {
 		currentSong = side.song;
@@ -337,7 +315,6 @@ std::vector<std::string> press_buttons(Side& side, const std::string& label,
 			                + "' vs '" + shown + "'");
 		}
 	}
-	display = nullptr;
 	return found;
 }
 
@@ -374,8 +351,7 @@ std::vector<std::string> push_from_missing_view(Side& side, const std::string& l
 	constexpr uint8_t kModFxButton = 5;
 	constexpr std::array<std::pair<std::string_view, std::string_view>, 2> kStates{
 	    {{"flanger", "depth"}, {"chorus", "feedback"}}};
-	StubDisplay stub;
-	display = &stub;
+	deluge::ui::scenes::spec::PopupCapture popups{deluge::ui::scenes::spec::PopupCapture::Mode::QUIET};
 	size_t next = 0;
 	std::vector<std::string> found;
 	for (const auto& [type, view] : kStates) {
@@ -395,7 +371,6 @@ std::vector<std::string> push_from_missing_view(Side& side, const std::string& l
 			}
 		}
 	}
-	display = nullptr;
 	return found;
 }
 
@@ -587,11 +562,9 @@ describe knob_push("what a gold knob's push and a mod button do, from the record
 					                       .id = m.control.knob == 1 ? deluge::arp::param::kGate : deluge::arp::param::kRate};
 				}
 			}
-			StubDisplay stub;
-			display = &stub;
+			deluge::ui::scenes::spec::PopupCapture popups{deluge::ui::scenes::spec::PopupCapture::Mode::QUIET};
 			(void)deluge::edits::modKnobModeFor(side.mode_owner, 0);
 			const std::string shown = services::mod_button_popup(side.song->project, side.focus, 0, inputs_of(side, true));
-			display = nullptr;
 			expect(shown).to_equal(std::string{deluge::l10n::arp_param_name(deluge::arp::param::kGate)} + "\n"
 			                       + std::string{deluge::l10n::arp_param_name(deluge::arp::param::kRate)});
 		}

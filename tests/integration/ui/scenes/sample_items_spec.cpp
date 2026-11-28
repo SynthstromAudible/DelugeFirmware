@@ -59,6 +59,7 @@
 #include "fakes.h"
 #include "support/menu_engine.h"
 #include "support/oracle_table.h"
+#include "support/popup_capture.h"
 #include "support/sample_items_fixtures.h"
 #include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
@@ -117,25 +118,6 @@ int64_t zoom_max(int32_t num_clusters) {
 	const uint64_t length = static_cast<uint64_t>(kClusterSize) * num_clusters / kBytesPerFrame;
 	return static_cast<int64_t>(((length - 1) >> 4) + 1);
 }
-
-/// @brief The minimum `Display` the legacy items and the marker scene need. `display` is null in a
-///        spec process (`hid/display/display.cpp`).
-struct QuietDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -503,9 +485,8 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 describe sample_items_opening("scenes::menu the sample items: what each one opens", $ {
 
 	before_each([] {
-		static QuietDisplay d;
 		if (display == nullptr) {
-			display = &d;
+			display = &deluge::ui::scenes::spec::quiet_display();
 		}
 	});
 

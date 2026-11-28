@@ -47,6 +47,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/sound/source_resources.h"
 
+#include "support/popup_capture.h"
 #include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
@@ -1492,14 +1493,11 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(0);
 		deluge::base::notify::Notice discard;
 		while (deluge::base::notify::notices().pop(discard)) {}
+		deluge::ui::scenes::spec::PopupCapture popups;
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
-		r.shell.tick(30); // handles the pad; the notice it raises is read before the next tick drains it
-		bool cancelled = false;
-		for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
-			cancelled = cancelled || n.kind == deluge::base::notify::Notice::Kind::CancelNotification;
-		}
-		expect(cancelled).to_be_true();
+		r.shell.tick(30); // handles the pad
+		expect(popups.count(deluge::ui::scenes::spec::PopupEvent::Kind::CANCEL_NOTIFICATION)).to_be_greater_than(size_t{0});
 		r.button(kShiftX, kShiftY, false, 40);
 	});
 
@@ -3230,25 +3228,6 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 		r.shell.tick(base_ms + 260);
 	};
 
-	/// @brief The last notice raised, whole -- the Decimal example reads a `Notification`'s value half.
-	static const auto last_raised_notice = []() -> deluge::base::notify::Notice {
-		deluge::base::notify::Notice n;
-		deluge::base::notify::Notice last{};
-		while (deluge::base::notify::notices().pop(n)) {
-			last = n;
-		}
-		return last;
-	};
-	/// @brief The text of the notice the last tick raised, or "" if none.
-	static const auto last_notice = []() -> std::string {
-		deluge::base::notify::Notice n;
-		std::string text;
-		while (deluge::base::notify::notices().pop(n)) {
-			text = n.text;
-		}
-		return text;
-	};
-
 	it("focuses the first column of the first page", _ {
 		select_language();
 		deluge::base::notify::dirty().drain();
@@ -3292,9 +3271,10 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 		};
 		constexpr Case kCases[] = {{5, "0.05"}, {0, "0.00"}, {-5, "-0.05"}, {1234, "12.34"}};
 		uint32_t at = 600;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		for (const Case& c : kCases) {
 			g_morph = c.value;
-			(void)last_notice(); // drain
+			popups.clear();
 			// A select press on a value column raises no notification -- it follows the
 			// column's `select_chain`, or ascends, and stays silent either way (a select press never raises
 			// it). The already-focused CV press does instead:
@@ -3304,13 +3284,12 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			r.button(kCvX, kCvY, true, at);
 			r.shell.tick(at + 10);
 			expect(depth_of()).to_equal(1);
-			// Read the notice off the same tick that raised it: `Shell::tick` drains
-			// `notify::notices()` into its own `NoticesController` at the *start* of the next tick
-			// so a second tick here (the button's release) would consume it
-			// before this can.
-			const deluge::base::notify::Notice notice = last_raised_notice();
-			expect(notice.kind).to_equal(deluge::base::notify::Notice::Kind::Notification);
-			expect(std::string(notice.notification_value())).to_equal(std::string(c.text));
+			// The banner is the last thing shown: its value half is the formatted number.
+			expect(popups.events().empty()).to_be_false();
+			const deluge::ui::scenes::spec::PopupEvent banner =
+			    popups.events().empty() ? deluge::ui::scenes::spec::PopupEvent{} : popups.events().back();
+			expect(banner.kind).to_equal(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION);
+			expect(banner.text.substr(banner.text.find('\n') + 1)).to_equal(std::string(c.text));
 			r.button(kCvX, kCvY, false, at + 20);
 			r.shell.tick(at + 30);
 			at += 200; // past the six buttons' shared 140 ms debounce

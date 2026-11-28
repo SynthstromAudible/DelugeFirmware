@@ -85,6 +85,7 @@
 #include "support/menu_engine.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
+#include "support/popup_capture.h"
 #include "support/reset_witness.h"
 #include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
@@ -280,13 +281,9 @@ void shift_learn() {
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
 }
 
-/// @brief The last popup notice's string id, draining the queue; 0 for none.
-uint16_t last_popup_string() {
-	uint16_t last = 0;
-	for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
-		last = n.string_id;
-	}
-	return last;
+/// @return The popup l10n string @p id shows, as `PopupCapture::seen` spells it.
+std::string popup_of(String id) {
+	return "popup: " + std::string{deluge::l10n::get(id)};
 }
 
 /// @brief Descend `Rig` @p r from the MIDI-commands submenu onto its @p row'th child.
@@ -1792,6 +1789,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   CommandSlots::clear_all();
 			   Rig pc_rig;
 			   focus_command_row(pc_rig, settings.ctx, i);
+			   deluge::ui::scenes::spec::PopupCapture pc_popups;
 			   const std::string want = table().value("learn_own/" + std::to_string(i) + "/pgm", "slot");
 			   const bool is_fill = want == "refused";
 			   const deluge::ui::scenes::menu::CustomItem* item = focused_item();
@@ -1801,13 +1799,11 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 				       .to_equal(!is_fill); // FILL refuses
 			   }
 			   const std::string pc_got = CommandSlots::capture().describe();
-			   // The port's own half of the refusal: the same `CANT_LEARN_PC` string main pops, and only on FILL.
-			   size_t refusals = 0;
-			   for (deluge::base::notify::Notice n; deluge::base::notify::notices().pop(n);) {
-				   refusals += (n.string_id == uint16_t(String::STRING_FOR_CANT_LEARN_PC)) ? 1 : 0;
-			   }
 			   expect(is_fill ? std::string{"(all clear)"} : want).to_equal(pc_got);
-			   expect(refusals).to_equal(size_t(is_fill ? 1 : 0));
+			   // The port's own half of the refusal: the same `CANT_LEARN_PC` string main pops, and only on FILL.
+			   expect(pc_popups.seen())
+			       .to_equal(is_fill ? std::vector<std::string>{popup_of(String::STRING_FOR_CANT_LEARN_PC)}
+			                         : std::vector<std::string>{});
 		   }
 		   saved.restore();
 	   });
@@ -2008,13 +2004,17 @@ describe tables_3_midi_follow_learn("scenes::menu settings and other roots table
 		install(settings.ctx, settings.song);
 		const FollowSaved saved;
 		midiEngine.midiFollowChannelType[0].clear();
-		(void)last_popup_string();
+		{
+			deluge::base::notify::Notice stray;
+			while (deluge::base::notify::notices().pop(stray)) {}
+		}
 		Rig r;
 		r.open(nodes::midi_follow_channel, settings.ctx);
 		r.shell.tick(0);
+		deluge::ui::scenes::spec::PopupCapture popups;
 		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 4, 60, 100)).to_be_true();
 		expect(follow_state(0)).to_equal(std::string{fake_cable().getDisplayName()} + "/4");
-		expect(last_popup_string()).to_equal(uint16_t(String::STRING_FOR_LEARNED));
+		expect(popups.seen()).to_equal(std::vector<std::string>{popup_of(String::STRING_FOR_LEARNED)});
 	});
 
 	it("a MIDI command learned from the list pops LEARNED, and one learned on its own screen does not", _ {
@@ -2024,14 +2024,16 @@ describe tables_3_midi_follow_learn("scenes::menu settings and other roots table
 		CommandSlots::clear_all();
 		Rig list;
 		cursor_on_command_row(list, settings.ctx, 0);
-		(void)last_popup_string();
-		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 5, 61, 100)).to_be_true();
-		expect(last_popup_string()).to_equal(uint16_t(String::STRING_FOR_LEARNED));
+		{
+			deluge::ui::scenes::spec::PopupCapture popups;
+			expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 5, 61, 100)).to_be_true();
+			expect(popups.seen()).to_equal(std::vector<std::string>{popup_of(String::STRING_FOR_LEARNED)});
+		}
 		Rig leaf;
 		focus_command_row(leaf, settings.ctx, 0);
-		(void)last_popup_string();
+		deluge::ui::scenes::spec::PopupCapture popups;
 		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 5, 62, 100)).to_be_true();
-		expect(last_popup_string()).to_equal(uint16_t(0));
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 		saved.restore();
 	});
 
