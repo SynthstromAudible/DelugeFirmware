@@ -23,11 +23,11 @@
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/bind/target.h"
 #include "ui/scenes/profile.h"
+#include "ui/views/grid/keyboard.h"
+#include "ui/views/oled/rename.h"
 
 #include "ui/widgets/core/blink.h"
 #include "ui/widgets/core/metrics.h"
-#include "ui/widgets/oled/popup.h"
-#include "ui/widgets/oled/text.h"
 
 #include "gui/l10n/strings.h"
 
@@ -50,9 +50,6 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 using deluge::ui::widgets::core::kFlashTime;
-using deluge::ui::widgets::core::kTextSpacingX;
-using deluge::ui::widgets::core::kTextSpacingY;
-using ui::gfx::oled::Rect;
 
 namespace {
 
@@ -159,34 +156,6 @@ bool is_ascii_letter(char c) {
 	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
 
-/// @brief The whole canvas in @p f's local coordinates.
-///
-/// Every coordinate `RenameUI::renderOLED` computes is against `OLED_MAIN_WIDTH_PIXELS` /
-/// `OLED_MAIN_HEIGHT_PIXELS` -- the *panel*, the rows the faceplate hides included -- so the
-/// arithmetic below is done in this rectangle and lands in frame coordinates for free. Same
-/// conversion `popup.cpp`'s own `panel_of` makes, for the same reason; it is file-static there.
-Rect panel_of(const deluge::ui::widgets::oled::OledFrame& f) {
-	const ui::gfx::oled::Geometry g = f.canvas.geometry();
-	return Rect{-f.origin.x, -f.origin.y, g.width, g.height};
-}
-
-// `RenameUI::renderOLED` (`rename_ui.cpp`), as named constants.
-constexpr int32_t kWindowW = 120;
-constexpr int32_t kWindowH = 40;
-/// `maxNumChars`, legacy's own literal: "'RENAME INSTRUMENT' should be the longest title string".
-constexpr int32_t kMaxNumChars = 17;
-/// Legacy's title row, `windowMinY + 6`.
-constexpr int32_t kTitleDy = 6;
-/// Legacy's name box, canvas rows 24..38 with `windowMinY == 4` on the shipped 48-row panel --
-/// i.e. `windowMinY + 20` and `windowMinY + 34`. Expressed relative to the window rather than
-/// canvas-absolute, because the two spellings agree exactly on the shipped geometry and only the
-/// relative one survives a taller panel: at 64 rows `windowMinY` is 12 and legacy's absolute 24
-/// would put the box *through* its own title.
-constexpr int32_t kBoxDy = 20;
-constexpr int32_t kBoxH = 14;
-/// Legacy's `yPixel`, canvas row 27 -- three rows into the box, on either geometry.
-constexpr int32_t kTextDy = kBoxDy + 3;
-
 } // namespace
 
 const Target& target(TargetId id) {
@@ -223,7 +192,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	kb_ = deluge::ui::widgets::grid::TextKeyboardState{};
 	resp_ = {};
 	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI::padAction`): the text keyboard's
-	// DEVICE row, whose choices are `KeyboardLayoutKind`'s values (`grid/keyboard.h`).
+	// DEVICE row, whose choices are `KeyboardLayoutKind`'s values (`widgets/grid/keyboard.h`).
 	layout_ = bind::read_device<deluge::ui::widgets::grid::KeyboardLayoutKind>(
 	    ctx_.ports.device, project::device_path::kTextKeyboardLayout);
 	// Unarm the blink: the first render arms it against that tick's clock, so the cursor is lit on
@@ -284,47 +253,15 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledF
 		f.gate().request_repaint_after(deluge::ui::widgets::core::blink_next_flip_in(cursor_blink_, now), now);
 	}
 
-	// Drawn on the whole panel: legacy's window starts at row 4 of the 48-row panel, above the root frame's
-	// `visible_top`.
-	deluge::ui::widgets::oled::OledFrame pf = deluge::ui::widgets::oled::panel_frame(f);
-	const Rect panel = panel_of(pf);
-
-	// The window: 120x40, centred on the panel. `popup_frame` is `clearAreaExact` + `drawRectangle`
-	// in one call, and `PopupStyle::Permanent` is its square-cornered arm -- legacy draws a square
-	// rectangle here, not a rounded one (`popup.h`).
-	const int32_t win_x = panel.x + ((panel.w - kWindowW) >> 1);
-	const int32_t win_y = panel.y + ((panel.h - kWindowH) >> 1);
-	deluge::ui::widgets::oled::popup_frame(pf, Rect{win_x, win_y, kWindowW, kWindowH},
-	                                       deluge::ui::widgets::oled::PopupStyle::Permanent);
-
-	// `drawStringCentred(title, windowMinY + 6, kTextSpacingX, kTextSpacingY)` -- centred on the
-	// *panel*, in the ordinary row font, NOT `drawScreenTitle`: there is no title rule here and the
-	// text sits inside the box rather than across the top of the screen.
 	deluge::ui::shell::TextScratch scratch;
-	deluge::ui::widgets::oled::text(pf, Rect{panel.x, win_y + kTitleDy, panel.w, kTextSpacingY},
-	                                deluge_profile().text_or_digits(target(target_).title, scratch),
-	                                {.font = pf.style.row_font, .align = deluge::ui::widgets::oled::Align::Centre});
-
-	// The name box and the text inside it. `charsStartPixel = (width - 17 * kTextSpacingX) >> 1`,
-	// `boxStartPixel = charsStartPixel - 3`, and the box's right edge mirrors its left.
-	const int32_t chars_off = (panel.w - kMaxNumChars * kTextSpacingX) >> 1;
-	const int32_t chars_x = panel.x + chars_off;
-	const int32_t box_off = chars_off - 3;
-	deluge::ui::widgets::oled::popup_frame(pf, Rect{panel.x + box_off, win_y + kBoxDy, panel.w - 2 * box_off, kBoxH},
-	                                       deluge::ui::widgets::oled::PopupStyle::Permanent);
-
-	// `drawTextForOLEDEditing(charsStartPixel, WIDTH - charsStartPixel + 1, 27, 17, canvas)`: the
-	// rect's right edge is legacy's `xPixelMax`, and its width in whole characters is legacy's
-	// `maxNumChars`.
-	const int32_t chars_w = panel.w - 2 * chars_off + 1;
-	deluge::ui::widgets::oled::text_edit(pf, Rect{chars_x, win_y + kTextDy, chars_w, kTextSpacingY}, entered_text(),
-	                                     edit_);
+	const deluge::ui::views::oled::RenameWindow window = present_window(scratch);
+	deluge::ui::views::oled::rename_window(f, window, edit_);
 }
 
 void RenameScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	// `QwertyUI::drawKeys` (`qwerty_ui.cpp`), already ported. The sidebar is deliberately
 	// untouched -- legacy clears the *main* pads only.
-	resp_ = deluge::ui::widgets::grid::text_keyboard(f, kb_, layout_, deluge::ui::widgets::grid::kTextKeyboardHomeRow);
+	resp_ = deluge::ui::views::grid::keyboard(f, present_keys(), kb_);
 	grid_pass_ = true;
 	// Stamped here as well as in `render_oled`, and for a different reason: the backspace repeat
 	// runs off the grid pass, which is the pass that reports the hold. A tick that repainted only

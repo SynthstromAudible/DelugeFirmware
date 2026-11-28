@@ -31,5 +31,6 @@ these differences.
 | `waveform` | `waveform` (a sample's peaks as full-height bars over the main pads, monochrome or coloured) | the marker editor |
 | `playhead` | `playhead` (`Playhead`: each row's tick square, painted, flashed, or both; the flash latch is the trailing `last`) | the marker editor |
 | `marker` | `marker_overlay` (`MarkerOverlay`: each column's markers, their colours, the blink's suppression and flood) | the marker editor |
+| `keyboard` | `keyboard` (`KeyboardPads`: the text keyboard's layout and home row, optionally painted dark; the keyboard's state is the trailing `kb`) | the rename editor |
 
 Specs: `tests/unit/ui/views/grid/`.

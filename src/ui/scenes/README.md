@@ -70,7 +70,9 @@ scene          state, input, ports, clocks, repaint gates
 The scenes on views: the recorder (`present_status` and `present_blink`, over `views::oled::recorder_status` and
 `views::grid::blink`), and the marker editor (`present_position`, `present_waveform`, `present_overlay` and
 `present_playhead`, over `views::oled::marker_position`, `views::grid::waveform`, `views::grid::marker_overlay` and
-`views::grid::playhead`).
+`views::grid::playhead`), and the rename editor (`present_window` and `present_keys`, over
+`views::oled::rename_window` and `views::grid::keyboard`; the keyboard's repeat and the cursor's blink stay in the
+scene).
 
 ## Layer rules
 

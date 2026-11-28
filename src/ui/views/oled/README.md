@@ -58,6 +58,7 @@ not called yet. The pad pictures are the grid views' (`src/ui/views/grid/README.
 | `master` | `master_scope`, `master_scope_xy` |  |
 | `recorder` | `recorder_status` | the audio recorder |
 | `marker` | `marker_position` | the marker editor |
+| `rename` | `rename_window` (`RenameWindow`: the title and the name, with the text editor's state as the trailing `edit`) | the rename editor |
 
 Each view's layout follows its sketch on the OLED canvas (boards "Resting", "Moments" and "Pages").
 

@@ -69,6 +69,7 @@ add_library(deluge_ui_scenes STATIC
     menu/nodes/sound_unison.cpp
     menu/nodes/sound_voice.cpp
     # the one scene that replaces legacy's five-class `gui/ui/rename/` directory.
+    rename/present.cpp
     rename/rename_scene.cpp
     # the one scene that replaces legacy's `gui::ContextMenu` hierarchy.
     context_menu/context_menu_scene.cpp

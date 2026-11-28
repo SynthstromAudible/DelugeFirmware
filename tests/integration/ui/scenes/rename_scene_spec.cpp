@@ -770,6 +770,30 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
 	});
 
+	it("leaves the text and the repeat alone on a tick that repaints only the OLED while a key pad is held", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"ABCDE"});
+		r.press(deluge::ui::widgets::grid::kTextKeyboardBackspace, 1000);
+		r.tick(1000);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcd"});
+
+		// The cursor blink's own flips fall between the press and the repeat's deadline: each repaints the OLED, and the
+		// pads are not read.
+		const uint32_t flip = 110;
+		for (uint32_t at = 1100; at < 1000 + deluge::ui::widgets::grid::kBackspaceRepeatDelayMs; at += flip) {
+			r.tick(at);
+			expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcd"});
+		}
+		// The repeat still runs on its own schedule, from the press.
+		r.tick(1000 + deluge::ui::widgets::grid::kBackspaceRepeatDelayMs);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
+	});
+
 	it("ignores a key, Enter, BACK, SELECT and the sidebar while backspace is held, and keeps repeating", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
@@ -1295,7 +1319,33 @@ describe rename_goldens("scenes::rename::RenameScene pixels", $ {
 		}
 	});
 });
+describe rename_present("scenes::rename::RenameScene present", $ {
+	it("presents the target's title and the name typed so far as the window", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"KICK"});
+		deluge::ui::shell::TextScratch scratch;
+		const deluge::ui::views::oled::RenameWindow w = rename_scene().present_window(scratch);
+		expect(std::string{w.title}).to_equal(std::string{"Drum Name"});
+		expect(std::string{w.text}).to_equal(std::string{"Kick"});
+	});
+
+	it("presents the QWERTY keyboard on its home row, drawn", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		const deluge::ui::views::grid::KeyboardPads k = rename_scene().present_keys();
+		expect(static_cast<int>(k.layout)).to_equal(static_cast<int>(deluge::ui::widgets::grid::KeyboardLayoutKind::Qwerty));
+		expect(k.home_row).to_equal(kHomeRow);
+		expect(k.dark).to_be_false();
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(rename_scene_spec, rename_targets, rename_composition, rename_open, rename_typing, rename_rejection,
-            rename_exits, rename_from_menu, rename_goldens)
+            rename_exits, rename_from_menu, rename_goldens, rename_present)
