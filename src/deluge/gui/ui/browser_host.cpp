@@ -28,9 +28,9 @@
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/load/instrument_load.h"
-#include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_root.h"
 #include "hid/led/pad_leds.h"
 #include "io/file.hpp"
 #include "model/clip/audio_clip.h"
@@ -380,7 +380,7 @@ void tickPreview() {
 ///        image store (or nothing, for the scroll out), and the guest's main columns left to the animation until
 ///        `ShellHostUI::scrollFinished`.
 void startBrowserScroll(const deluge::ui::scenes::browser::ScrollRequest& scroll) {
-	GuestSurfaceSet& surfaces = shellHostUI.surfaces();
+	GuestSurfaceSet& surfaces = deluge::gui::ui::shellRuntime().surfaces();
 	if (scroll.to_root) {
 		getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 	}
@@ -402,7 +402,7 @@ void startBrowserScroll(const deluge::ui::scenes::browser::ScrollRequest& scroll
 /// @brief Run the browser's scroll, or keep the main columns for one it has asked for and not yet drawn; hand them
 ///        back if nothing scrolls or will (the browser left before its scroll began).
 void dispatchScroll() {
-	GuestSurfaceSet& surfaces = shellHostUI.surfaces();
+	GuestSurfaceSet& surfaces = deluge::gui::ui::shellRuntime().surfaces();
 	if (const std::optional<deluge::ui::scenes::browser::ScrollRequest> scroll = browser_scene().take_scroll()) {
 		startBrowserScroll(*scroll);
 		return;

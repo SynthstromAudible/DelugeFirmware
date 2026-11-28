@@ -6,6 +6,7 @@
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/nodes/settings.h"
 #include "ui/scenes/services/waveform_paint.h"
+#include "ui/views/grid/waveform.h"
 
 #include "ui/views/waveform/view.h"
 
@@ -217,6 +218,8 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.take_actions).not_().to_be_null();
 		expect(p.indicators).not_().to_be_null();
 		expect(p.view_actions).not_().to_be_null();
+		expect(p.root_views).not_().to_be_null();
+		expect(p.macros).not_().to_be_null();
 		expect(p.catalogue).not_().to_be_null();
 		expect(p.card_actions).not_().to_be_null();
 		expect(p.favourites).not_().to_be_null();
@@ -1228,7 +1231,9 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		const std::optional<services::WaveformFrame> wf = services::read_waveform(waveforms, preview, view.window());
 		expect(wf.has_value()).to_be_true();
 		if (wf) {
-			services::paint_columns(rig.frame, wf->read, wf->centre, wf->span);
+			deluge::ui::views::grid::waveform(
+			    rig.frame, services::peak_cols(wf->read, wf->centre, wf->span, kDisplayWidth),
+			    deluge::ui::widgets::grid::kWaveformBarBrightnessMono, std::nullopt);
 		}
 
 		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};

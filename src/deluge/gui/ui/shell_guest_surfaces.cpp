@@ -189,9 +189,13 @@ PadRegions GuestSurfaceSet::owned_regions() const {
 	if (stack_ == nullptr) {
 		return PadRegions::All;
 	}
+	// A root scene at the bottom is its own host's while anything above it takes input (a menu open over the root
+	// view): the regions the menu leaves are the root view's to draw and to be pressed.
+	const std::span<deluge::ui::shell::Scene* const> scenes = stack_->scenes();
+	const bool skip_root = !scenes.empty() && scenes.front()->is_root() && stack_->has_input_scene_above_root();
 	PadRegions owned = PadRegions::None;
-	for (const deluge::ui::shell::Scene* scene : stack_->scenes()) {
-		owned |= scene->pad_regions();
+	for (size_t i = skip_root ? 1 : 0; i < scenes.size(); i++) {
+		owned |= scenes[i]->pad_regions();
 	}
 	return owned;
 }

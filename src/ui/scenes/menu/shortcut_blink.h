@@ -10,7 +10,7 @@
 
 #include "ui/scenes/menu/context.h"
 #include "ui/scenes/menu/shortcuts.h"
-#include "ui/widgets/grid/frame.h"
+#include "ui/widgets/grid/shortcut_blink.h"
 
 #include <array>
 #include <cstdint>
@@ -20,57 +20,20 @@ namespace deluge::ui::scenes::menu {
 struct MenuState;
 struct Node;
 
-/// @brief The two steps of legacy's blink counter, in milliseconds.
-///
-/// `blinkShortcut` alternates on one counter: an even step flashes the patching-source pads and
-/// re-arms the timer at **20 ms**, an odd step flashes the focused param's pad and re-arms at
-/// **180 ms**. So one cycle is two steps and 200 ms, and the two kinds of pad never flash at the
-/// same instant (legacy: "blinking two pads on the same row at same time doesn't work").
-/// @{
-inline constexpr uint16_t kShortcutBlinkMs = 180;
-inline constexpr uint16_t kSourceBlinkMs = 20;
-inline constexpr uint32_t kBlinkCycleMs = uint32_t{kSourceBlinkMs} + kShortcutBlinkMs;
-/// @}
+using widgets::grid::blink_step;
+using widgets::grid::BlinkPlan;
+using widgets::grid::exclusive_blink;
+using widgets::grid::fire_blink_step;
+using widgets::grid::kBlinkCycleMs;
+using widgets::grid::kNoBlink;
+using widgets::grid::kShortcutBlinkMs;
+using widgets::grid::kSourceBlinkMs;
+using widgets::grid::ms_to_next_step;
+using widgets::grid::ParamBlink;
+using widgets::grid::SourceBlink;
 
-/// @brief A source pad's frequency mask that means "does not blink": legacy's 255 in
-///        `sourceShortcutBlinkFrequencies`.
-inline constexpr uint8_t kNoBlink = 255;
-
-/// @brief The focused param's pad and how it blinks: legacy's `currentParamShortcutX`/`Y`,
-///        `paramShortcutBlinkFrequency` and `currentParamColour`.
-struct ParamBlink {
-	uint8_t x = 0;
-	uint8_t y = 0;
-	/// False when no param pad blinks.
-	bool valid = false;
-	/// The pad flashes on a cycle `c` where `(c & freq_mask) == 0`: 0 is every cycle, 3 every fourth.
-	uint8_t freq_mask = 0;
-	deluge::ui::widgets::grid::FlashColour colour = deluge::ui::widgets::grid::FlashColour::Default;
-	bool operator==(const ParamBlink&) const = default;
-};
-
-/// @brief One patching-source pad's blink: legacy's `sourceShortcutBlinkFrequencies`,
-///        `sourceShortcutBlinkColours` and `source_shortcut_blink_alternates` at one cell.
-struct SourceBlink {
-	/// As `ParamBlink::freq_mask`; `kNoBlink` for a pad that does not blink.
-	uint8_t freq_mask = kNoBlink;
-	deluge::ui::widgets::grid::FlashColour colour = deluge::ui::widgets::grid::FlashColour::Default;
-	/// Flash yellow instead on a cycle where `(c & (freq_mask + 1)) != 0`: both layers' sources
-	/// share the pad.
-	bool alternates = false;
-	bool operator==(const SourceBlink&) const = default;
-};
-
-/// @brief Everything that blinks while one node is focused.
-struct BlinkPlan {
-	ParamBlink param{};
-	/// `sources[sx][y]` is pad `(14 + sx, y)`, the patching-source columns.
-	std::array<std::array<SourceBlink, kShortcutRows>, 2> sources{};
-
-	/// @return True when any source pad blinks.
-	bool any_source() const;
-	bool operator==(const BlinkPlan&) const = default;
-};
+static_assert(kShortcutRows == widgets::grid::kBlinkSourceRows);
+static_assert(kShortcutCols - 2 == widgets::grid::kBlinkSourceCol);
 
 /// @brief What blinks while @p focused is focused.
 ///
@@ -89,36 +52,5 @@ struct BlinkPlan {
 /// @return The plan; an empty one when nothing blinks.
 BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node& focused,
                       bool kit_global_latched = false);
-
-/// @brief A blink of one pad and nothing else, every other cycle by default --
-/// `SoundEditor::setupExclusiveShortcutBlink` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`),
-///        which a scene plays for a pad of its own (the sample browser's slot pads).
-/// @param x         The pad's column.
-/// @param y         The pad's row.
-/// @param freq_mask `setupShortcutBlink`'s frequency: 1 every other cycle, 2 two cycles in four.
-/// @return The plan.
-BlinkPlan exclusive_blink(uint8_t x, uint8_t y, uint8_t freq_mask = 1);
-
-/// @brief Legacy's `shortcutBlinkCounter` at @p now_ms for a cycle started at @p anchor_ms.
-///
-/// Legacy zeroes the counter when it sets a blink up and steps it at once, so step 0 begins at
-/// the anchor; odd steps begin `kSourceBlinkMs` into each cycle. Written as a difference so it
-/// survives the `uint32_t` clock's wrap.
-/// @param anchor_ms When the cycle started.
-/// @param now_ms The tick's clock.
-/// @return The counter's value.
-uint32_t blink_step(uint32_t anchor_ms, uint32_t now_ms);
-
-/// @brief Milliseconds from @p now_ms to the start of the counter's next step.
-/// @param anchor_ms When the cycle started.
-/// @param now_ms The tick's clock.
-/// @return The remainder of legacy's 20 ms or 180 ms arm.
-uint32_t ms_to_next_step(uint32_t anchor_ms, uint32_t now_ms);
-
-/// @brief Flash what @p plan asks for at counter value @p step, as `blinkShortcut` does.
-/// @param f The frame to flash through.
-/// @param plan What blinks.
-/// @param step The counter's value.
-void fire_blink_step(deluge::ui::widgets::grid::GridFrame& f, const BlinkPlan& plan, uint32_t step);
 
 } // namespace deluge::ui::scenes::menu

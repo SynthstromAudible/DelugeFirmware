@@ -6,11 +6,17 @@
 #include "ui/scenes/slicing/slicer_scene.h"
 
 #include "project/device_settings.h"
+#include "ui/gfx/grid/palette.h"
 #include "ui/scenes/browser/browser_kind.h"
 #include "ui/scenes/services/peak_retry.h"
+#include "ui/scenes/services/waveform_paint.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/scene.h"
+#include "ui/views/grid/playhead.h"
+#include "ui/views/grid/slicer.h"
+#include "ui/views/oled/slicer_count.h"
 #include "ui/views/waveform/view.h"
+#include "ui/widgets/grid/columns.h"
 
 #include "fake_slice_ops.h"
 #include "fakes.h"
@@ -19,8 +25,10 @@
 #include "cppspec.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -220,6 +228,100 @@ describe slicer_fakes("slicing::SlicerScene over the ports' fakes", ${
 		GridRig waiting;
 		render(waiting, scene, deluge::ui::scenes::services::kPeakRetryGiveUpMs + deluge::ui::scenes::services::kPeakRetryPollMs);
 		expect(waiting.gate.next_deadline().has_value()).to_be_false();
+	});
+
+	it("presents the count of the mode it is in: the regions' in REGION, the placed slices' in MANUAL", _ {
+		SlicerHost h;
+		SlicerScene scene;
+		scene.set_ports(&h.ports);
+		scene.open(a_wav());
+		SlicerScene::SlicerCountText text{};
+		const deluge::ui::views::oled::SlicerCount region = scene.present_count(text);
+		expect(std::string{region.label}).to_equal(std::string{"Num. slices"});
+		expect(std::string{region.digits}).to_equal(std::string{"16"});
+		scene.set_mode(deluge::ui::scenes::slicing::Mode::Manual);
+		expect(scene.add_slice_at(4000)).to_be_true();
+		const deluge::ui::views::oled::SlicerCount manual = scene.present_count(text);
+		expect(std::string{manual.digits}).to_equal(std::string{"2"});
+	});
+
+	it("presents the waveform's 16 main columns from the frame's read", _ {
+		SlicerHost h;
+		SlicerScene scene;
+		scene.set_ports(&h.ports);
+		scene.open(a_wav());
+		const std::optional<deluge::ui::scenes::services::WaveformFrame> wf =
+		    deluge::ui::scenes::services::read_waveform(h.host.waveforms,
+		                                                WaveformAddress{.kind = WaveformAddress::Kind::SLICE},
+		                                                deluge::ui::views::waveform::Window{.scroll = 0, .zoom = 1000});
+		expect(wf.has_value()).to_be_true();
+		if (wf) {
+			const auto cols = scene.present_waveform(*wf);
+			expect(cols.size()).to_equal(std::size_t{16});
+			expect(std::ranges::all_of(cols, [](const auto& c) { return c.valid; })).to_be_true();
+		}
+	});
+
+	it("presents the slice marks: the mode, the count, the current slice and each slice's column", _ {
+		SlicerHost h;
+		SlicerScene scene;
+		scene.set_ports(&h.ports);
+		scene.open(a_wav());
+		const deluge::ui::views::grid::SliceMarks region = scene.present_marks();
+		expect(region.manual).to_be_false();
+		scene.set_mode(deluge::ui::scenes::slicing::Mode::Manual);
+		expect(scene.add_slice_at(4000)).to_be_true();
+		expect(scene.add_slice_at(15999)).to_be_true();
+		const deluge::ui::views::grid::SliceMarks manual = scene.present_marks();
+		expect(manual.manual).to_be_true();
+		expect(manual.count).to_equal(3);
+		expect(manual.current).to_equal(scene.current_slice());
+		expect(manual.cols[1]).to_equal(4);
+		expect(manual.cols[2]).to_equal(15);
+	});
+
+	it("presents all 64 slices, the most the scene places, each with its column", _ {
+		SlicerHost h;
+		SlicerScene scene;
+		scene.set_ports(&h.ports);
+		scene.open(a_wav());
+		scene.set_mode(deluge::ui::scenes::slicing::Mode::Manual);
+		for (int32_t i = 1; i < deluge::ui::scenes::slicing::kMaxManualSlices; i++) {
+			expect(scene.add_slice_at(i * 200)).to_be_true();
+		}
+		expect(scene.add_slice_at(15999)).to_be_false();
+		const deluge::ui::views::grid::SliceMarks full = scene.present_marks();
+		expect(full.count).to_equal(64);
+		expect(full.cols[63]).to_equal(12);
+	});
+
+	it("presents the playhead on rows 7 to 4 at the playing column, painted SLOW and flashed FAST", _ {
+		SlicerHost h;
+		SlicerScene scene;
+		scene.set_ports(&h.ports);
+		scene.open(a_wav());
+		h.set_cursor(FlashCursor::SLOW);
+		const deluge::ui::views::grid::Playhead idle = scene.present_playhead(std::nullopt);
+		expect(idle.paint).to_be_true();
+		expect(idle.fast).to_be_false();
+		expect(idle.flash).to_be_true();
+		expect(idle.muted).to_equal(deluge::gui::colours::black);
+		expect(idle.per_row[7].col).to_equal(deluge::ui::widgets::grid::kNoTickSquare);
+		const deluge::ui::views::grid::Playhead slow = scene.present_playhead(5500);
+		expect(int32_t{slow.per_row[7].col}).to_equal(5);
+		expect(int32_t{slow.per_row[4].col}).to_equal(5);
+		expect(slow.per_row[3].col).to_equal(deluge::ui::widgets::grid::kNoTickSquare);
+		h.set_cursor(FlashCursor::FAST);
+		const deluge::ui::views::grid::Playhead fast = scene.present_playhead(5500);
+		expect(fast.paint).to_be_false();
+		expect(fast.fast).to_be_true();
+		expect(fast.flash).to_be_true();
+		expect(slow.flash).to_be_true();
+		h.set_cursor(FlashCursor::OFF);
+		const deluge::ui::views::grid::Playhead off = scene.present_playhead(5500);
+		expect(off.paint).to_be_false();
+		expect(off.fast).to_be_false();
+		expect(off.flash).to_be_true();
 	});
 
 	it("keeps its view when reopened on the same identity and path, and opens afresh on another path", _ {

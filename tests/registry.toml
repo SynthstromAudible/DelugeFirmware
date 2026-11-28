@@ -1557,6 +1557,7 @@ baseline = [
   "tests/golden/instrument",
   "tests/golden/shell",
   "tests/golden/ui/widgets",
+  "tests/golden/ui/views",
   "tests/golden/ui/shell",
   "tests/unit/dsp/hop_scheduler_records.h",
   "tests/unit/dsp/pitch_shift_component_records.h",
@@ -1854,6 +1855,37 @@ tier = "nightly"
 job = "tooling"
 runtime_s = 2
 
+
+[[harness]]
+name = "clean-roundtrip-corpus"
+path = "."
+level = "unit"
+runner = "script"
+kind = "property"
+status = "gate"
+gates = "every corpus song, and each of its outputs as a preset, survives the clean format but for the fields its clean load clamps"
+run = ["tests/unit/project/clean/run_corpus.sh"]
+requires = ["song-corpus"]
+tier = "nightly"
+job = "tooling"
+runtime_s = 5
+areas = ["model", "synth", "effects", "corpus-driver", "test-support"]
+
+[[harness]]
+name = "schema-lock"
+path = "."
+level = "unit"
+runner = "script"
+kind = "regression"
+status = "gate"
+gates = "the clean format's schema changes only with a schema revision bump and a re-recorded lock"
+run = ["python3", "tests/unit/project/clean/check_schema_lock.py"]
+requires = ["cmake", "clang"]
+baseline = ["tests/golden/schema/schema.lock.json"]
+tier = "pr"
+job = "tooling"
+runtime_s = 2
+areas = ["model", "test-support"]
 [[harness]]
 name = "preset-roundtrip"
 template = "corpus"

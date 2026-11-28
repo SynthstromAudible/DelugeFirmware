@@ -2,19 +2,17 @@
 /// @brief `MarkerScene`. See `marker_scene.h`.
 
 #include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/marker/pins.h"
 
 #include "instruments/classic/words.h"
 #include "project/sample_marker.h"
 #include "ui/widgets/core/metrics.h"
 #include "ui/widgets/grid/columns.h"
 #include "ui/widgets/grid/frame.h"
-#include "ui/widgets/oled/sample_position.h"
-#include "ui/widgets/oled/text.h"
 
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/gfx/grid/palette.h"
 #include "ui/gfx/grid/tween.h"
-#include "ui/gfx/oled/icons.h"
 
 #include "ui/scenes/bind/device_reader.h"
 #include "ui/scenes/bind/ports/sound_writes.h"
@@ -23,6 +21,8 @@
 #include "ui/scenes/registry.h"
 #include "ui/scenes/services/view_state.h"
 #include "ui/scenes/services/waveform_paint.h"
+#include "ui/views/grid/waveform.h"
+#include "ui/views/grid/zoom_slide.h"
 
 #include "base/divide.h"
 #include "ui/views/waveform/view.h"
@@ -65,12 +65,6 @@ constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// @brief A pin's column for the comparisons that place and refuse markers: an unset marker compares as left of every
-///        column, so every `column <= x` test refuses on it and every `column >= x` test passes it by.
-[[nodiscard]] constexpr int64_t column_or_far_left(const views::waveform::MarkerPin& p) {
-	return p.column.value_or(std::numeric_limits<int64_t>::min());
-}
-
 /// @brief The last frame a range's loop point can name: its record (`synth::SourceRange`'s zone) and the preset and
 /// song
 ///        files store loop points as 32-bit unsigned.
@@ -82,10 +76,6 @@ constexpr int64_t kLastAudioClipMarker = std::numeric_limits<int32_t>::max();
 
 using deluge::project::kSampleMarkerCount;
 using deluge::project::SampleMarker;
-
-int32_t idx(SampleMarker t) {
-	return std::to_underlying(t);
-}
 
 /// @brief The marker at position @p m along the sample, 0 to 3.
 SampleMarker marker_at(int32_t m) {
@@ -100,14 +90,6 @@ const std::array<RGB, kSampleMarkerCount> kMarkerColours{
     deluge::gui::colours::magenta,
     deluge::gui::colours::red,
 };
-
-/// The body's first line: legacy's `OLED_MAIN_TOPMOST_PIXEL + 17`. The frame's origin
-/// already accounts for the bezel, so this is `title_height + 5` -- and reading it off the style
-/// rather than hard-coding 17 is what keeps the two lines under the separator on a panel whose
-/// title face is taller.
-int32_t body_y(const deluge::ui::widgets::oled::OledFrame& f) {
-	return f.style.title_height + 5;
-}
 
 } // namespace
 
@@ -1021,47 +1003,7 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledF
 	if (!info) {
 		return;
 	}
-
-	const std::array<views::waveform::MarkerPin, kSampleMarkerCount> cols = pins();
-	const auto pos = static_cast<uint64_t>(cols[idx(marker_type_)].position);
-
-	// `renderOLED`'s title switch, through `reverseRemap` -- so a reversed sample's
-	// START marker is labelled "End point".
-	std::string_view label;
-	switch (reverse_remap(marker_type_)) {
-	case SampleMarker::START:
-		label = "Start point";
-		break;
-	case SampleMarker::END:
-		label = "End point";
-		break;
-	case SampleMarker::LOOP_START:
-		label = "Loop start";
-		break;
-	case SampleMarker::LOOP_END:
-		label = "Loop end";
-		break;
-	default:
-		// Legacy's `default: __builtin_unreachable()`, made survivable: `markerType` is only ever
-		// one of the four, but an unreachable here would be a crash rather than a blank title if it
-		// ever were not.
-		label = "";
-		break;
-	}
-
-	// Literals, not l10n ids, because none of the four is in `gui/l10n/strings.h` -- exactly
-	// `BrowserScene::Descriptor::title`'s situation and answer.
-	deluge::ui::widgets::oled::title(f, label);
-
-	if (loop_locked()) {
-		deluge::ui::widgets::oled::title_badge(f, deluge::ui::gfx::oled::icons::markerLock);
-	}
-
-	deluge::ui::widgets::oled::sample_position(
-	    f,
-	    deluge::ui::gfx::oled::Rect{1, body_y(f), f.bounds().w - 1,
-	                                2 * deluge::ui::widgets::oled::kSamplePositionLineGap},
-	    pos, info->sample_rate);
+	deluge::ui::views::oled::marker_position(f, present_position(*info));
 }
 
 void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
@@ -1091,7 +1033,8 @@ void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 			    to, f.ctx, deluge::ui::widgets::core::InputMask::none(), nullptr, nullptr, true);
 			if (const std::optional<services::WaveformFrame> wf =
 			        services::read_waveform(*waveforms(), where_, view_.window())) {
-				services::paint_columns(bare, wf->read, wf->centre, wf->span);
+				deluge::ui::views::grid::waveform(bare, present_waveform(*wf, main_cols),
+				                                  deluge::ui::widgets::grid::kWaveformBarBrightnessMono, std::nullopt);
 			}
 		}
 	}
@@ -1099,7 +1042,7 @@ void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 		bool slid = false;
 		f.region(deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h},
 		         [&](deluge::ui::widgets::grid::GridFrame& main) {
-			         slid = deluge::ui::widgets::grid::zoom_transition(main, zoom_);
+			         slid = deluge::ui::views::grid::zoom_slide(main, zoom_);
 		         });
 		if (slid) {
 			playing_ = false;
@@ -1107,81 +1050,36 @@ void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 		}
 	}
 
-	// `renderMainPads`' `waveformRenderer.renderFullScreen`, scaled by the range after the read. A column the card
-	// could not give paints black this frame, and the frame asks again for it.
+	// The waveform, then the markers over it. A column the card could not give paints black this frame, and the frame
+	// asks again for it.
+	const std::array<views::waveform::MarkerPin, kSampleMarkerCount> cols = pins();
 	f.region(
 	    deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::widgets::grid::GridFrame& main) {
 		    if (const std::optional<services::WaveformFrame> wf =
 		            services::read_waveform(*waveforms(), where_, view_.window())) {
-			    services::paint_columns(main, wf->read, wf->centre, wf->span);
+			    deluge::ui::views::grid::waveform(main, present_waveform(*wf, main_cols),
+			                                      deluge::ui::widgets::grid::kWaveformBarBrightnessMono, std::nullopt);
 			    if (retry_.after(wf->read, view_.window(), f.now_ms()) == services::PeakRetry::Next::ASK_AGAIN) {
 				    f.grid_gate().request_repaint_after(services::kPeakRetryPollMs, f.now_ms());
 			    }
 		    }
-
-		    const std::array<views::waveform::MarkerPin, kSampleMarkerCount> cols = pins();
-
-		    // The blink, as `timerCallback` draws it rather than as `renderMainPads`
-		    // does -- see the class docstring for why the two disagree.
-		    uint32_t suppress = 0;
-		    if (blink_phase_ == 3) {
-			    suppress |= 1u << idx(marker_type_);
-			    if (loop_locked()) {
-				    if (marker_type_ == SampleMarker::LOOP_START) {
-					    suppress |= 1u << idx(SampleMarker::LOOP_END);
-				    }
-				    if (marker_type_ == SampleMarker::LOOP_END) {
-					    suppress |= 1u << idx(SampleMarker::LOOP_START);
-				    }
-			    }
-		    }
-
-		    const int64_t selected_col = column_or_far_left(cols[idx(marker_type_)]);
-
-		    // Colours are resolved here rather than in the widget: `reverseRemap` reads
-		    // `SampleControls`, which `src/ui` may not include.
-		    std::array<RGB, kSampleMarkerCount> colours{};
-		    for (int32_t m = 0; m < static_cast<int32_t>(kSampleMarkerCount); m++) {
-			    colours[static_cast<size_t>(m)] = kMarkerColours[static_cast<size_t>(idx(reverse_remap(marker_at(m))))];
-		    }
-
-		    for (int32_t col = 0; col < main_cols; col++) {
-			    if (col == selected_col && blink_phase_ == 1) {
-				    // Phase 1: the whole column flashes the selected marker's colour.
-				    deluge::ui::widgets::grid::marker_tint(main, col, 0, main.bounds().h,
-				                                           colours[static_cast<size_t>(idx(marker_type_))], false);
-				    continue;
-			    }
-			    uint32_t active = 0;
-			    for (int32_t m = 0; m < static_cast<int32_t>(kSampleMarkerCount); m++) {
-				    if (column_or_far_left(cols[m]) == col) {
-					    active |= 1u << m;
-				    }
-			    }
-			    if (active == 0) {
-				    continue;
-			    }
-			    deluge::ui::widgets::grid::marker_column(
-			        main, col,
-			        deluge::ui::widgets::grid::MarkerStack{
-			            .active = active, .suppress = suppress, .selected = idx(marker_type_)},
-			        colours);
-		    }
-
-		    // `renderMainPads`' timer re-arm: the blink only runs while the selected
-		    // marker is actually inside the display.
-		    marker_on_screen_ = selected_col >= 0 && selected_col < main_cols;
-		    if (marker_on_screen_) {
-			    // `tick()` advancing `blink_phase_` changes nothing anyone can see unless the surface
-			    // is asked for another frame, and `next_timer()` alone only wakes the shell without
-			    // marking the pads dirty (`RepaintGate::needs_frame`). `Shell::tick`'s step 8b arms
-			    // this same gate from `next_timer()` itself, so the blink does not depend on this line
-			    // -- it is kept as the tighter statement (armed from the frame being drawn, and only
-			    // while the marker is on screen). Legacy has no equivalent either way, because
-			    // its `timerCallback` paints straight into `PadLEDs::image` itself.
-			    f.gate().request_repaint_after(kBlinkPhaseMs, f.now_ms());
-		    }
+		    deluge::ui::views::grid::marker_overlay(main, present_overlay(cols, main_cols));
 	    });
+
+	// `renderMainPads`' timer re-arm: the blink only runs while the selected
+	// marker is actually inside the display.
+	const int64_t selected_col = column_or_far_left(cols[idx(marker_type_)]);
+	marker_on_screen_ = selected_col >= 0 && selected_col < main_cols;
+	if (marker_on_screen_) {
+		// `tick()` advancing `blink_phase_` changes nothing anyone can see unless the surface
+		// is asked for another frame, and `next_timer()` alone only wakes the shell without
+		// marking the pads dirty (`RepaintGate::needs_frame`). `Shell::tick`'s step 8b arms
+		// this same gate from `next_timer()` itself, so the blink does not depend on this line
+		// -- it is kept as the tighter statement (armed from the frame being drawn, and only
+		// while the marker is on screen). Legacy has no equivalent either way, because
+		// its `timerCallback` paints straight into `PadLEDs::image` itself.
+		f.gate().request_repaint_after(kBlinkPhaseMs, f.now_ms());
+	}
 
 	if (!shown_.has_value() || shown_->dims() != main_dims) {
 		shown_.emplace(main_dims);
@@ -1192,28 +1090,11 @@ void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 		}
 	}
 
-	// `graphicsRoutine`'s playhead: nothing with the flash cursor Off; else the column the newest voice
-	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
-	const deluge::project::FlashCursor cursor = play_cursor();
-	playing_ = false;
-	if (cursor == deluge::project::FlashCursor::OFF) {
-		return;
-	}
-	std::array<deluge::ui::widgets::grid::TickSquare, kRows> per_row{};
-	const std::optional<int64_t> pos = play_position();
-	playing_ = pos.has_value();
-	if (pos.has_value() && *pos >= view_.scroll()) {
-		const int64_t col = base::floor_div(*pos - view_.scroll(), view_.zoom());
-		if (col < main_cols) {
-			per_row.fill(deluge::ui::widgets::grid::TickSquare{
-			    .col = static_cast<uint8_t>(col), .colour = deluge::ui::widgets::grid::TickColour::Normal});
-		}
-	}
-	if (cursor == deluge::project::FlashCursor::SLOW) {
-		deluge::ui::widgets::grid::tick_squares(f, per_row, deluge::gui::colours::black);
-	}
-	deluge::ui::widgets::grid::flash_tick_squares(f, per_row, last_ticks_,
-	                                              cursor == deluge::project::FlashCursor::FAST);
+	// The playhead over the settled frame, kept out of `shown_`. A voice playing asks for the playhead again.
+	const std::optional<int64_t> play = play_position();
+	const deluge::ui::views::grid::Playhead head = present_playhead(main_cols, play);
+	playing_ = head.flash && play.has_value();
+	deluge::ui::views::grid::playhead(f, head, std::span<uint8_t>{last_ticks_});
 }
 
 std::optional<bind::WaveformInfo> MarkerScene::waveform_info() const {

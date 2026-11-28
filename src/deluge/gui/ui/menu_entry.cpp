@@ -69,7 +69,7 @@
 /// | 2 | `gui/views/session_view.cpp` `SessionView::buttonAction` | `soundEditor.setup()` with no shift from the session view -> `soundEditorRootMenuSongView` (`SoundEditor::setup`) | `Root::Song`; `sessionViewRoot` true, which is the *only* thing two items in that root read (`MenuContext::is_session_view`) |
 /// | 3 | `gui/views/arranger_view.cpp` `ArrangerView::buttonAction` | the same call from the arranger -> the same `soundEditorRootMenuSongView` | `Root::Song`, `sessionViewRoot` **false** |
 /// | 4 | `gui/views/performance_view.cpp` `PerformanceView::buttonAction` | `soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)` -- an explicitly named root | `Root::Performance`, which `context_for` picks from `performance_view`. Named by fact rather than by pointer, and they agree because this arm is `SELECT_ENC && !shift` inside `PerformanceView` |
-/// | 5 | `gui/views/audio_clip_view.cpp` `AudioClipView::buttonAction` | `soundEditor.setup(getCurrentClip())` on an `AudioClip` -> `soundEditorRootMenuAudioClip` (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) | `Root::AudioClip` (`context_for`) |
+/// | 5 | `origin/main:src/deluge/gui/views/audio_clip_view.cpp` `AudioClipView::buttonAction` | `soundEditor.setup(getCurrentClip())` on an `AudioClip` -> `soundEditorRootMenuAudioClip` (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) | `Root::AudioClip` (`context_for`) |
 /// | 6 | `model/clip/instrument_clip_minder.cpp` `InstrumentClipMinder::buttonAction` | `setupKitGlobalFXMenu` from `KIT && affectEntire`, then `soundEditor.setup(getCurrentClip())` -- the root is then one of six, chosen by output type, affect-entire and the selected drum's type (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) | whichever of `MidiOrCv` / `KitGlobalFx` / `MidiDrum` / `GateDrum` / `Drum` / `Sound` `context_for` picks -- the same six tests in the same order |
 /// | 7 | `gui/views/automation_view.cpp` `AutomationView::handleSelectEncoderButtonAction` | `setup(clip)` as site 6, except the clip is `nullptr` on the arranger (so: the song root), and the arm also runs under `UI_MODE_NOTES_PRESSED` with pad selection on, where `setup()` infers `noteEditorRootMenu` for an instrument clip | the same six, `Root::Song` when `onArrangerView`, and `Root::NoteEditor` through `NoteMode::NoteEditorFromUiMode` under `UI_MODE_NOTES_PRESSED` on an instrument clip |
 /// | 8 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::buttonAction` | `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` -- a named *leaf*, not a root | `Root::Sound` plus `SceneId::arg = node_id(nodes::file0_selector)`, the ported `file0SelectorMenu`. The one site that exercises a non-zero `arg` |
@@ -374,11 +374,7 @@ bool editKitAffectEntire() {
 	return getCurrentOutputType() == OutputType::KIT && clip != nullptr && clip->affectEntire;
 }
 
-void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
-                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	// Grey-out before the overlay, cancelling any fade in either direction.
-	PadLEDs::doGreyoutInstantly();
-	PadLEDs::sendOutSidebarColoursSoon();
+void clipShortcutsOverviewColours(RGB colours[kDisplayHeight][kDisplayWidth]) {
 	const menu::MenuContext ctx =
 	    resolveContext(getCurrentClip(), 0, /*performanceView=*/false,
 	                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false, editKitAffectEntire());
@@ -392,9 +388,23 @@ void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
 	const deluge::project::ShortcutsVersion version = menu::shortcuts_version(asked);
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			image[y][x] = editingNothing ? deluge::gui::colours::black
-			                             : menu::shortcut_colour(asked, version, static_cast<uint8_t>(x),
-			                                                     static_cast<uint8_t>(y), askRelevance);
+			colours[y][x] = editingNothing ? deluge::gui::colours::black
+			                               : menu::shortcut_colour(asked, version, static_cast<uint8_t>(x),
+			                                                       static_cast<uint8_t>(y), askRelevance);
+		}
+	}
+}
+
+void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
+                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	// Grey-out before the overlay, cancelling any fade in either direction.
+	PadLEDs::doGreyoutInstantly();
+	PadLEDs::sendOutSidebarColoursSoon();
+	RGB colours[kDisplayHeight][kDisplayWidth]{};
+	clipShortcutsOverviewColours(colours);
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			image[y][x] = colours[y][x];
 			occupancyMask[y][x] = 64;
 		}
 	}

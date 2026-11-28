@@ -75,6 +75,7 @@
 
 #include "support/global_guest_menu.h"
 #include "support/menu_over_root.h"
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include "support/printers/rgb_printer.h"
@@ -350,21 +351,18 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		open_menu_node(*fx.song, fx.clip, nodes::firmware_version);
 		setRootUILowLevel(&sessionView);
 		currentUIMode = UI_MODE_NONE;
-		const auto popped = [](int32_t x) {
+		deluge::ui::scenes::spec::PopupCapture popups;
+		const auto popped = [&popups](int32_t x) {
 			deluge::base::notify::Notice n;
 			while (deluge::base::notify::notices().pop(n)) {} // what was queued before
+			popups.clear();
 			(void)deluge::gui::ui::forwardGridPad(x, 7, 64);
-			std::string text;
-			while (deluge::base::notify::notices().pop(n)) {
-				if (n.kind == deluge::base::notify::Notice::Kind::Text) {
-					text = n.text;
-				}
-			}
-			return text;
+			return popups.seen();
 		};
-		expect(popped(15)).to_equal(std::to_string(deluge::memory::sram_size()));
-		expect(popped(14)).to_equal(std::to_string(AudioEngine::getNumVoices() + AudioEngine::getNumAudio()));
-		expect(popped(13)).to_equal(std::to_string(picFirmwareVersion));
+		const auto popup = [](int64_t number) { return std::vector<std::string>{"popup: " + std::to_string(number)}; };
+		expect(popped(15)).to_equal(popup(deluge::memory::sram_size()));
+		expect(popped(14)).to_equal(popup(AudioEngine::getNumVoices() + AudioEngine::getNumAudio()));
+		expect(popped(13)).to_equal(popup(picFirmwareVersion));
 		expect(deluge::ui::scenes::menu_scene().focused()).to_equal(&nodes::firmware_version);
 	});
 

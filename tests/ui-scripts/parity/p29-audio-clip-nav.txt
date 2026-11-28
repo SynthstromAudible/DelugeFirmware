@@ -1,0 +1,28 @@
+# Navigation from the audio clip view: a shortcut pad with SHIFT opens the menu at its page (BACK closes it),
+# SHIFT and the select encoder move the clip to the next audio output, and Y held with a horizontal turn shifts the
+# clip's contents.
+# card: tests/fixtures/card-audio-clips.card
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load audioclips
+14000 snapshot song
+14200 pad 0 7 down
+14320 pad 0 7 up
+16000 snapshot clip
+16200 button Shift down
+16450 pad 0 1 down
+16570 pad 0 1 up
+16800 button Shift up
+18000 snapshot shortcut
+18200 button Back down
+18320 button Back up
+20000 snapshot shortcut_closed
+20200 button Shift down
+20450 encoder Select +1
+20700 button Shift up
+22000 snapshot next_output
+22200 button YEnc down
+22450 encoder Horizontal +2
+22700 button YEnc up
+24000 snapshot shifted

@@ -168,7 +168,9 @@ public:
 	///
 	/// A region none draws is the UI underneath's: `send_columns` writes none of its columns to
 	/// `PadLEDs::image`.
-	/// @return The union of the stacked scenes' regions, or `All` when no stack is watched.
+	/// A root scene at the bottom counts only while nothing above it takes input: with a menu open over the root
+	/// view, the regions the menu leaves are the root view's own (`ShellRootView`), drawn and pressed through it.
+	/// @return The union of the counted scenes' regions, or `All` when no stack is watched.
 	deluge::ui::shell::PadRegions owned_regions() const;
 
 	/// @brief Write the owned columns of the shell grid into `PadLEDs::image` and send their column

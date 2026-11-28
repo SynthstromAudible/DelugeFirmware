@@ -23,7 +23,8 @@
 
 #include "gui/ui/shell_action_dispatch.h" // closePortedMenu()
 #include "gui/ui/shell_host_ui.h"         // shellHostUI
-#include "gui/ui/ui.h"                    // uiNeedsRendering
+#include "gui/ui/shell_runtime.h"
+#include "gui/ui/ui.h" // uiNeedsRendering
 #include "gui/views/instrument_clip_view.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/note_editor_open.h"
@@ -127,7 +128,7 @@ NoteModeKind activeNoteMode() {
 	// Identity against `menu_scene()`, for `menuCurrent`'s own reason: the registry maps several
 	// application kinds, and only one object is the menu.
 	const deluge::ui::shell::Scene* const menu = &deluge::ui::scenes::menu_scene();
-	for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
+	for (const deluge::ui::shell::Scene* scene : deluge::gui::ui::shellRuntime().shell().stack().scenes()) {
 		if (scene == menu) {
 			// `MenuScene::menu_context()` is replaced only by `MenuScene::open`
 			// and by a song swap (`MenuScene::on_model_changed`, which resets the
@@ -324,7 +325,8 @@ bool portedMenuOnAuditionedRowDirection() {
 	// `getCurrentUI() == &soundEditor`: the guest current, with the menu taking its input.
 	deluge::ui::scenes::menu::MenuScene& menu = deluge::ui::scenes::menu_scene();
 	if (getCurrentUI() != &shellHostUI
-	    || &shellHostUI.shell().stack().input_top() != static_cast<deluge::ui::shell::Scene*>(&menu)) {
+	    || &deluge::gui::ui::shellRuntime().shell().stack().input_top()
+	           != static_cast<deluge::ui::shell::Scene*>(&menu)) {
 		return false;
 	}
 	return menu.menu_context().selected_note_row && menu.focused() == &nodes::sequence_direction;

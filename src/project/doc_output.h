@@ -21,6 +21,7 @@
 #include "project/controller_mapping.h"
 #include "project/cv_mode.h"
 #include "project/instrument_slot.h"
+#include "serialization/schema/extras.h"
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -42,6 +43,8 @@ struct ModKnobCc {
 
 	Kind kind{Kind::NONE};
 	uint8_t number{0}; ///< the CC, for NUMBER
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const ModKnobCc&) const = default;
 };
 
@@ -84,6 +87,8 @@ struct DocOutput {
 	std::optional<FxChain> effects;
 	/// A synth track's own arp, which a new clip on it starts from; absent unless its element held one.
 	std::optional<ArpRecord> arp;
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 
 	/// Equal when the identity fields, the instrument, the controls, the effects and the arp are.
 	bool operator==(const DocOutput& other) const {
@@ -99,7 +104,7 @@ struct DocOutput {
 		       && mod_knob_ccs == other.mod_knob_ccs && input_channel == other.input_channel
 		       && audio_mode == other.audio_mode && recording_from_output_id == other.recording_from_output_id
 		       && output_mpe_y == other.output_mpe_y && cv2_source == other.cv2_source && instrument == other.instrument
-		       && controls == other.controls && effects == other.effects && arp == other.arp;
+		       && controls == other.controls && effects == other.effects && arp == other.arp && extras == other.extras;
 	}
 };
 

@@ -307,7 +307,7 @@ describe shell_host_ui_pad_input("gui::ui::ShellHostUI: pad input and the grid-p
 
 		(void)r.guest.padAction(3, 4, 64);
 
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 	});
 
 	it("does NOT arm the tick after a forward that left some other UI current", _ {

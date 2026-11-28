@@ -223,6 +223,22 @@ may_include = [
 ]
 
 [[library]]
+name = "ui-views-grid"
+root = "src/ui/views/grid"
+prefix = "ui/views/grid/"
+may_include = ["ui/widgets/grid/", "ui/widgets/core/", "ui/gfx/grid/"]
+
+[[library]]
+name = "ui-views-oled"
+root = "src/ui/views/oled"
+prefix = "ui/views/oled/"
+may_include = [
+    "ui/widgets/oled/",
+    "ui/widgets/core/",
+    "ui/gfx/oled/",
+]
+
+[[library]]
 name = "project"
 root = "src/project"
 prefix = "project/"
@@ -302,6 +318,9 @@ exclude = [
     "src/deluge/deluge.cpp",
     "src/deluge/gui/ui/shell_host_ui.h",
     "src/deluge/gui/ui/shell_host_ui.cpp",
+    "src/deluge/gui/ui/shell_runtime.h",
+    "src/deluge/gui/ui/shell_runtime.cpp",
+    "src/deluge/gui/ui/shell_root_view.h",
     "src/deluge/gui/ui/shell_guest_surfaces.h",
     "src/deluge/gui/ui/shell_guest_surfaces.cpp",
     "src/deluge/gui/ui/shell_guest_services.cpp",
@@ -319,6 +338,7 @@ exclude = [
     "src/deluge/gui/ui/root_knobs.cpp",
     "src/deluge/gui/ui/shell_guest_knobs.h",
     "src/deluge/gui/ui/shell_host/*",
+    "src/deluge/gui/views/audio_clip_root.cpp",
 ]
 pattern = '^(ui/scenes/|ui/shell/)'
 reason = "the legacy tree reaches the scenes and the shell only through the host files that wire them"
@@ -340,6 +360,18 @@ name = "ui-includes-outside"
 files = ["src/ui/widgets/**"]
 pattern = '^(?!ui/widgets/|ui/gfx/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
 reason = "the widget toolkit includes only itself, gfx and the standard library"
+
+[[rule]]
+name = "ui-views-oled-includes-outside"
+files = ["src/ui/views/oled/**"]
+pattern = '^(?!ui/views/oled/|ui/widgets/oled/|ui/widgets/core/|ui/gfx/oled/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+reason = "the OLED views include only themselves, the OLED widgets, the core toolkit, OLED gfx and the standard library"
+
+[[rule]]
+name = "ui-views-grid-includes-outside"
+files = ["src/ui/views/grid/**"]
+pattern = '^(?!ui/views/grid/|ui/widgets/grid/|ui/widgets/core/|ui/gfx/grid/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)'
+reason = "the grid views include only themselves, the pad widgets, the core toolkit, grid gfx and the standard library"
 
 [[rule]]
 name = "ui-oled-no-grid"

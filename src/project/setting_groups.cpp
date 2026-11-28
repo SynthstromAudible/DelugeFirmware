@@ -10,6 +10,9 @@
 #include "plugin/types/voice_priority.h"
 #include "project/fraction.h"
 #include "project/midi_command.h"
+#include "project/schema/arp_schema.h"
+#include "project/schema/clip_schema.h"
+#include "project/schema/values_schema.h"
 #include "project/sequence_direction.h"
 #include "project/song.h"
 #include "serialization/tree.h"
@@ -18,6 +21,7 @@
 #include <array>
 #include <climits>
 #include <iterator>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -533,11 +537,9 @@ void write_routing(SoundRouting& routing, std::string_view path, int32_t v) {
 // ---------------------------------------------------------------------------------------------
 // NOTE_ROW (on DocNoteRow)
 
-constexpr std::string_view kDirectionChoices[] = {"forward", "reverse", "pingpong", "obeyParent"};
+constexpr std::span<const std::string_view> kDirectionChoices{schema::kSequenceDirectionWords};
 /// A clip has no parent direction to obey: its menu lists the first three.
-constexpr std::string_view kClipDirectionChoices[] = {"forward", "reverse", "pingpong"};
-/// A bend range's semitones, as its menu offers them.
-constexpr int32_t kMaxBendRange = 96;
+constexpr std::span<const std::string_view> kClipDirectionChoices = kDirectionChoices.first(3);
 /// The factory bend ranges: a whole clip's, and a finger's (MPE).
 constexpr int32_t kDefaultBendRange = 2;
 constexpr int32_t kDefaultBendRangeMpe = 48;
@@ -627,9 +629,6 @@ constexpr SettingInfo kClipTable[] = {
 };
 static_assert(plugin::conditions_are_valid(kClipTable));
 static_assert(plugin::mappings_are_valid(kClipTable));
-
-/// MIDI program numbers 0..127; 128 is none (no message sent).
-constexpr int32_t kNoMidiProgram = 128;
 
 constexpr SettingInfo kClipValuesTable[] = {
     integer("midiBank", 0, kNoMidiProgram, kNoMidiProgram, {}, SettingUnits::NONE, &kOnMidiExtras),
@@ -768,6 +767,12 @@ Value word(std::span<const std::string_view> words, size_t index) {
 	return Value::makeScalar(std::string{index < words.size() ? words[index] : words.front()});
 }
 
+/// The arp record's key for the setting at @p path: the path's last part, for an arp path; empty for any other.
+std::string_view arp_key(std::string_view path) {
+	constexpr std::string_view kPrefix = "arpeggiator/";
+	return path.starts_with(kPrefix) ? path.substr(kPrefix.size()) : std::string_view{};
+}
+
 std::optional<Value> read_arp(const ArpRecord& record, std::string_view path) {
 	if (path == "arpeggiator/preset") {
 		return word(plugin::kArpPresetWords, preset_of(record));
@@ -775,10 +780,11 @@ std::optional<Value> read_arp(const ArpRecord& record, std::string_view path) {
 	if (const plugin::SettingInfo* host = plugin::find_setting(plugin::kArpHostRows, path)) {
 		return number(host_value(record, path).value_or(host->default_value));
 	}
-	if (const bool* flag = arp_flag_at(record, path)) {
+	const std::string_view key = arp_key(path);
+	if (const bool* flag = serialization::schema::member_at<bool>(schema::kArpSchema, record, key)) {
 		return number(*flag ? 1 : 0);
 	}
-	const uint8_t* field = arp_field_at(record, path);
+	const uint8_t* field = serialization::schema::member_at<uint8_t>(schema::kArpSchema, record, key);
 	if (field == nullptr) {
 		return std::nullopt;
 	}
@@ -805,10 +811,10 @@ void write_arp(ArpRecord& record, std::string_view path, const Value& value) {
 	if (host_index(path)) {
 		set_host_value(record, path, v);
 	}
-	else if (bool* flag = arp_flag_at(record, path)) {
+	else if (bool* flag = serialization::schema::member_at<bool>(schema::kArpSchema, record, arp_key(path))) {
 		*flag = v != 0;
 	}
-	else if (uint8_t* field = arp_field_at(record, path)) {
+	else if (uint8_t* field = serialization::schema::member_at<uint8_t>(schema::kArpSchema, record, arp_key(path))) {
 		*field = row->kind == SettingKind::CHOICE && path != "arpeggiator/syncType" ? index() : static_cast<uint8_t>(v);
 	}
 }

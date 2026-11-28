@@ -21,9 +21,9 @@ in `website/src/data/generated/menu-tree.json`.
 | `l10n_bridge.{h,cpp}`, `ui/scenes/profile.{h,cpp}` | the l10n lookups the shell's profile leaves null, and `scenes::deluge_profile()` that fills them in |
 | `menu/` | the `Node` data model (`node.h`), `MenuContext` (`context.h`), `bindings`, the ten root tables (`menu/nodes/`), the shortcut tables, the validator, the node-id registry, and `MenuScene` with its units |
 | `bind/` | `deluge_ui_scenes_bind`, its own library: what a node edits (`bind::Target`), read from the model's records and the engines' descriptors; the ports (`bind/ports/`, collected in `bind::Ports`) a scene reads and writes the host through; writes leave as requests |
-| `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens |
+| `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens; each of these scenes but the context menu holds its const present members in `rename/present.cpp`, `browser/present.cpp`, `marker/present.cpp` and `recorder/present.cpp` |
 | `overlay/` | the param popup, the count-in digit and the screensaver drawing |
-| `slicing/`, `audio_clip/`, `timeline/` | the slicer, the audio clip view (the first root scene), and the scroll/zoom state clip views share |
+| `slicing/`, `audio_clip/`, `timeline/` | the slicer (its present members in `slicing/present.cpp`), the audio clip view (the first root scene; its present members in `audio_clip/present.cpp`), and the scroll/zoom state clip views share |
 | `services/` | `ModKnobs`, `GlobalControls`, `MidiLearn` and what they share (knob pushes, source names, view state, the waveform read and paint, the peak retry, favourites) |
 
 | `SceneKind` | scene |
@@ -43,6 +43,49 @@ in `website/src/data/generated/menu-tree.json`.
 `registry.h`'s file comment is the authority for the numbering. Every scene is a function-local
 static and the stack stores `SceneId` values, so popping a scene runs `on_exit` and destroys
 nothing.
+
+## Surfaces
+
+A scene draws each surface it claims in three steps, so the pixels are a pure function of a struct:
+
+```
+scene          state, input, ports, clocks, repaint gates
+  render_<surface>(frame)   clock and gate work, then
+    present_<screen>(...)   const, model-aware, takes no frame: the scene's state -> a plain struct
+    views::{oled,grid}::<screen>(frame, struct)   pure: struct (and frame input) -> pixels
+```
+
+* **`render_*` keeps what a pure function cannot do:** reading `f.now_ms()`, advancing a blink or anchor, arming the
+  frame's gates, and any scene state the draw changes (written before the present call or after the view call). A
+  clock reached through a port (the audio sample timer) is model input and belongs in the present step; only the
+  frame's clock stays in `render_*`.
+* **Present members** are `const` members of the scene defined in `<scene>/present.cpp`. They take the `Style` and the
+  surface's bounds where the picture depends on them, never a frame, and write nothing; scene state derived from the
+  panel or from drawn pixels is `render_*`'s.
+* **Views** are `views/oled/<scene>.{h,cpp}` and `views/grid/<screen>.{h,cpp}` (the libraries' READMEs hold their
+  rules). A view's struct holds values and `std::string_view`s only.
+* **Text storage:** the words a struct points to are literals, live in a buffer the scene owns (a member or a local
+  of `render_*`) that outlives the view call, or point into a port's storage that nothing changes before the view
+  returns. No heap.
+* **A snapshot replay and a slide are views too:** pads painted back from what the scene kept
+  (`views::grid::pads`) and a zoom's slide (`views::grid::zoom_slide`) are drawn by views; taking the snapshot and
+  starting the slide (`begin_zoom`, its frame) stay in `render_*`. The audio clip view has both: its SHIFT overview
+  through `views::grid::pads`, its slides through `views::grid::scroll_slide` and `zoom_slide`.
+
+The scenes on views: the recorder (`present_status` and `present_blink`, over `views::oled::recorder_status` and
+`views::grid::blink`), and the marker editor (`present_position`, `present_waveform`, `present_overlay` and
+`present_playhead`, over `views::oled::marker_position`, `views::grid::waveform`, `views::grid::marker_overlay` and
+`views::grid::playhead`, with the zoom's slide through `views::grid::zoom_slide`), and the rename editor
+(`present_window` and `present_keys`, over `views::oled::rename_window` and `views::grid::keyboard`; the keyboard's
+repeat and the cursor's blink stay in the scene), and the file browser (`present_list`, `present_keys`,
+`present_favourites` and `present_browse_blink`, over `views::oled::browser_list`, `views::grid::keyboard`,
+`views::grid::favourites` and `views::grid::blink`, with the preview through `present_waveform` and
+`views::grid::waveform`, and the last preview kept through `views::grid::pads`; the list's names point into the
+catalogue, which nothing changes between the present and the draw, and the flashes' anchors, the visible-row count and
+the waveform's retry stay in the scene), and the slicer (`present_count`, `present_waveform`, `present_marks` and
+`present_playhead`, over `views::oled::slicer_count`, `views::grid::waveform`, `views::grid::slice_marks` and
+`views::grid::playhead`; the count is formatted into the scene's `SlicerCountText`, and the play position, the
+waveform's retry and its gate stay in the scene).
 
 ## Layer rules
 
@@ -133,7 +176,7 @@ rest to units it owns by value. A unit is given the context and state per call (
 | unit | file | what it does |
 |---|---|---|
 | `MenuState`, `MenuTick`, `MenuWalkState` | `menu_state.h` | the path, the widgets' state, the tick's observations and the walk's choices, each reset by value |
-| presentation | `present.{h,cpp}` | node text, horizontal columns, notifications, row icons |
+| presentation | `menu/present.{h,cpp}` | node text, horizontal columns, notifications, row icons |
 | chains | `chains.{h,cpp}` | the horizontal-menu chains and where a named node lands |
 | `MenuWalk` | `walk.{h,cpp}` | re-rooting, descending, ascending, the range picker, the remembered rows, saved state |
 | `MenuView` | `menu/view.{h,cpp}` | the OLED render, and `owned_input`, the claims it makes |
@@ -142,7 +185,7 @@ rest to units it owns by value. A unit is given the context and state per call (
 | `VoiceUsageClock` | `voice_usage.{h,cpp}` | the voice usage page's counters and sampling |
 | page buttons | `page_buttons.{h,cpp}` | SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page |
 | `MenuPads` | `pads.{h,cpp}` | the shortcut blinks, the SHIFT + pad jump, SHIFT + a patching-source pad, the greyout |
-| shortcut blinks | `shortcut_blink.{h,cpp}` | `SoundEditor::updatePadLightsFor`'s plan (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the param pad, the patched-param fallback, the sources |
+| shortcut blinks | `menu/shortcut_blink.{h,cpp}` | `SoundEditor::updatePadLightsFor`'s plan (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the param pad, the patched-param fallback, the sources |
 | SHIFT overlay | `shortcut_overlay.{h,cpp}` | the shortcut colour map and the patching-source column while SHIFT is held |
 
 The per-visit facts — learn mode, the value session, the pending blink restart, the shift level the
@@ -291,7 +334,7 @@ opened the scene, and `MenuScene::reroot_to_scene_opener_page()` lands the user 
 
 `pending_scene` works because every scene a menu opens lives in `src/ui/scenes`. Five items run a legacy root UI's
 behaviour instead: entering the performance view (`openUI(&performanceView)`), the stem export,
-`audioClipView.setClipLengthEqualToSampleLength()`, and the song MIDI-learn and macros context menus. Those name the
+the audio clip view's clip length to the sample's, and the song MIDI-learn and macros context menus. Those name the
 action for the host, as `MenuAction::OpenPerformanceView`, `StartStemExport`, `SetClipLengthToSampleLength`,
 `OpenSongMidiLearn` and `OpenSongMacros`:
 
@@ -392,7 +435,7 @@ lists the browse row,
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike; oscillator 1's type pad lands on the DX7's page, on the mode (`nodes::dx_shortcut_fallback`).
-  The DX7's differences from `main` are DIFFERENCES D193–D197.
+  The DX7's differences from `main` are DIFFERENCES D201–D205.
 * **The parameter page has its own pads** (`main` gave them only while its DX7 engine feature was on; the DX7 is
   built in here): `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut
   (`CustomItem::shortcut_pad`, asked first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of
@@ -563,7 +606,9 @@ ended (`bind::ViewActions`).
 The scene is a grid overlay that draws no pad region: the view beneath keeps its pads, greyed by the recorder's
 all-columns mask, and the scene adds only `opened()`'s shortcut blink on its source's (x, 4) pad.
 
-A threshold take (the song's threshold mode on) draws `main`'s level-meter screen through `ui::widgets::oled::threshold_meter`,
+The recorder's screen is `present_status` over `views::oled::recorder_status`, and its blink `present_blink` over
+`views::grid::blink` (see "Surfaces"). A threshold take (the song's threshold mode on) draws `main`'s level-meter
+screen through `ui::widgets::oled::threshold_meter`,
 blinking on the audio clock as legacy does, and the take counts as started once it has captured more than its
 pre-roll margin.
 
@@ -627,8 +672,9 @@ because `scenes-no-root-ui` forbids the whole word `slicer`.
 
 ### The audio clip view (`audio_clip/`)
 
-`AudioClipScene` ports `AudioClipView`, a `RootUI`, so `is_root()` is true and `GlobalControls`'
-root-gated arms (SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach it.
+`AudioClipScene` is the audio clip view: `audioClipView` is a `gui::ui::ShellRootView` over it
+(`gui/views/audio_clip_root.h`). It is a root scene, so `is_root()` is true and `GlobalControls`' root-gated arms
+(SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach it.
 
 * **The play cursor is painted in `render_grid`.** Legacy hands a column to
   `PadLEDs::setTickSquares` and the driver substitutes the colour per pad; the shell has one
@@ -643,9 +689,20 @@ root-gated arms (SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach 
 * **It reads and acts through the ports the host installs** (`set_ports`) and the song's record `open` names: the clip
   and its play state on `ClipFacts`, the clocks and the arrangement's mode on `Transport`, the tempo grab on
   `TransportActions`, its clip edits on `ClipWrites` and the edit sink, and its waveform at the
-  clip's AUDIO_CLIP address ("The waveform views" below). Its timeline starts from `ClipFacts::clip_navigation`.
+  clip's AUDIO_CLIP address ("The waveform views" below). Its timeline starts from `ClipFacts::clip_navigation`, and
+  its scroll and zoom go back there (`ClipWrites::set_clip_navigation`). The arms that leave the clip or open a menu
+  go to `RootViews`: SESSION's short press, CLIP, SELECT, shift and a select turn, and every main pad, offered first
+  to the menu's shortcuts, which the host decides as `menuShortcutPadAction` does.
+* **The play cursor is frame-driven** (`Scene::frame_driven`): woken every 15 ms frame while it is live, as legacy's
+  graphics routine redraws it, not on every tick.
+* **A scroll or a zoom slides** (the shared `ui::widgets::grid::scroll_transition` and `zoom_transition`), holding
+  the scroll or zoom mode until its last step, so input waits as legacy's does.
+* **SHIFT shows the shortcut overview** over the main pads while the overlay setting is "menu and clip", greying every
+  column at once; the colours are the host's (`RootViews::clip_shortcut_overview`).
 
-**A spec that compares a rendered grid against legacy must make the comparison non-vacuous.** With no
+**Legacy's side is frozen** (`tests/golden/ui/audio_clip_oracle/`, `support/audio_clip_answers.h`): the specs compare the
+scene with `AudioClipView`'s answers and frames as they were before the view was deleted. **A spec that compares a
+rendered grid against them must make the comparison non-vacuous.** With no
 card mounted the waveform scan fails on most arms and both sides draw black, so a pad-for-pad match
 proves nothing. `expect_pads_match` takes a `PadExpectation` with no default (`waveform(n)`,
 `waveform_with_cursor(n)`, `waveform_without_cursor(n)`, `.and_column(x, colour)`) and asserts its
@@ -659,7 +716,8 @@ pads. They share one read and one paint, and none of them holds the sample.
 
 * **The scenes keep no peak cache.** A frame reads its waveform's 16 columns through the waveforms port
   (`services::read_waveform`: `peaks` at the view's window, then `info`, whose range scales the bars) and paints the
-  PEAK columns (`services::paint_columns`, or the audio clip view's coloured bars).
+  PEAK columns (`services::peak_cols` and `views::grid::waveform` in the marker editor, the slicer and the sample
+  browser, or the audio clip view's coloured bars).
 * **`src/ui/views/waveform/` holds the arithmetic** (`deluge_ui_views_waveform`, header-only, standard library only): the window
   (`Window`), the view's navigation (`WaveformView`: open, scroll, zoom and the marker pins), the column answers
   (`ColumnState`, `ColumnRead`, `PeakRead`) and the paint arithmetic (`Bar`, `bar_of`, `single_row_brightness`, in

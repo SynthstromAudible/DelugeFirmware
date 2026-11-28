@@ -149,12 +149,6 @@ void plan_sources(const MenuContext& ctx, const MenuState& state, const Node& it
 
 } // namespace
 
-bool BlinkPlan::any_source() const {
-	return std::ranges::any_of(sources, [](const auto& column) {
-		return std::ranges::any_of(column, [](const SourceBlink& s) { return s.freq_mask != kNoBlink; });
-	});
-}
-
 BlinkPlan plan_blinks(const MenuContext& menu_ctx, const MenuState& state, const Node& focused,
                       bool kit_global_latched) {
 	// `updatePadLightsFor`'s table: `KIT && affectEntire && setupKitGlobalFXMenu` takes the kit's own, ahead of the
@@ -210,48 +204,6 @@ BlinkPlan plan_blinks(const MenuContext& menu_ctx, const MenuState& state, const
 		plan_sources(ctx, state, *item, plan);
 	}
 	return plan;
-}
-
-BlinkPlan exclusive_blink(uint8_t x, uint8_t y, uint8_t freq_mask) {
-	BlinkPlan plan;
-	plan.param = ParamBlink{.x = x, .y = y, .valid = true, .freq_mask = freq_mask, .colour = FlashColour::Default};
-	return plan;
-}
-
-uint32_t blink_step(uint32_t anchor_ms, uint32_t now_ms) {
-	const uint32_t d = now_ms - anchor_ms;
-	return 2 * (d / kBlinkCycleMs) + ((d % kBlinkCycleMs) >= kSourceBlinkMs ? 1 : 0);
-}
-
-uint32_t ms_to_next_step(uint32_t anchor_ms, uint32_t now_ms) {
-	const uint32_t phase = (now_ms - anchor_ms) % kBlinkCycleMs;
-	return phase < kSourceBlinkMs ? (kSourceBlinkMs - phase) : (kBlinkCycleMs - phase);
-}
-
-void fire_blink_step(deluge::ui::widgets::grid::GridFrame& f, const BlinkPlan& plan, uint32_t step) {
-	const uint32_t cycle = step >> 1;
-	if ((step & 1) != 0) {
-		// The param step, 180 ms long.
-		if (plan.param.valid && (cycle & plan.param.freq_mask) == 0) {
-			f.flash(plan.param.x, plan.param.y, plan.param.colour);
-		}
-		return;
-	}
-	// The source step, 20 ms long.
-	for (int32_t sx = 0; sx < 2; sx++) {
-		for (int32_t y = 0; y < kShortcutRows; y++) {
-			const SourceBlink& s = plan.sources[sx][y];
-			if (s.freq_mask == kNoBlink || (cycle & s.freq_mask) != 0) {
-				continue;
-			}
-			FlashColour colour = s.colour;
-			// The next counter bit above the mask alternates the flash to the second layer's yellow.
-			if (s.alternates && (cycle & (uint32_t{s.freq_mask} + 1)) != 0) {
-				colour = FlashColour::Yellow;
-			}
-			f.flash(kShortcutCols - 2 + sx, y, colour);
-		}
-	}
 }
 
 } // namespace deluge::ui::scenes::menu

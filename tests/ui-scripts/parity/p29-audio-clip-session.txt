@@ -1,0 +1,18 @@
+# SESSION held in the audio clip view: the sidebar shows the song's macros while it is held, a sidebar pad pressed
+# under it, and the view after release.
+# card: tests/fixtures/card-audio-clips.card
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load audioclips
+14000 snapshot song
+14200 pad 0 7 down
+14320 pad 0 7 up
+16000 snapshot clip
+16200 button Session down
+17500 snapshot session_held
+17700 pad 16 7 down
+17820 pad 16 7 up
+19000 snapshot macro_pressed
+19200 button Session up
+21000 snapshot released

@@ -140,6 +140,15 @@ void RecordingClipWrites::set_undo_scroll_after(project::ClipAddress clip, int32
 	calls.push_back({.kind = Call::Kind::UNDO_SCROLL, .clip = clip, .value = x_scroll});
 }
 
+void RecordingClipWrites::set_clip_navigation(int32_t x_scroll, uint32_t x_zoom) {
+	calls.push_back({.kind = Call::Kind::NAVIGATION, .value = x_scroll, .x_zoom = x_zoom});
+}
+
+bool RecordingClipWrites::shift_clip_horizontally(project::ClipAddress clip, int32_t amount) {
+	calls.push_back({.kind = Call::Kind::SHIFT, .clip = clip, .value = amount});
+	return accept;
+}
+
 bool RecordingSoundWrites::write_ranges(project::SlotAddress slot, uint8_t source,
                                         std::span<const synth::SourceRange> ranges, RangesCause cause) {
 	calls.push_back({.kind = Call::Kind::RANGES,

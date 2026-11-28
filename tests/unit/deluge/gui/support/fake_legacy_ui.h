@@ -34,7 +34,7 @@ class UI;
 /// and that table odr-uses every scene -- the whole `deluge_ui_scenes` closure this suite does
 /// not build. The fake returns an empty registry, so the global exists and is inert; every example
 /// builds its own `ShellHostUI` over its own table.
-/// @brief Legacy's audio-sample counter, which `ShellHostUI::nowMs()` reads at 44 samples a millisecond. Defined
+/// @brief Legacy's audio-sample counter, which `ShellRuntime::nowMs()` reads at 44 samples a millisecond. Defined
 ///        here, as the engine that counts it is not built: a spec sets it, and `reset()` puts it back to 0.
 namespace AudioEngine {
 extern uint32_t audioSampleTimer;

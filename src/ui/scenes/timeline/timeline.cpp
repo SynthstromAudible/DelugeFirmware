@@ -22,7 +22,7 @@
 ///   * `displayNumberOfBarsAndBeats` (`timeline_view.cpp`) declares `quantization` and `tooLongText` and
 ///     **reads neither** -- the body uses `Song::getBarLength()` for the quantum and never mentions
 ///     the "too long" text. Every one of its five call sites passes both
-///     (in `timeline_view.cpp`, `clip_view.cpp`, `audio_clip_view.cpp` (two)
+///     (in `timeline_view.cpp`, `clip_view.cpp`, `origin/main:src/deluge/gui/views/audio_clip_view.cpp` (two)
 ///     and `arranger_view.cpp`). `bars_and_beats` takes
 ///     neither; the caller keeps `Song::getBarLength()`, which is the one input that mattered.
 ///

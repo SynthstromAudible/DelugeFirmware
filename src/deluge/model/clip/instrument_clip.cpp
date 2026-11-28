@@ -64,6 +64,7 @@
 #include "project/edit_guard.h"
 #include "project/iterance.h"
 #include "project/note_probability.h"
+#include "project/schema/values_schema.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"

@@ -21,6 +21,7 @@
 #include "project/doc_note_row.h"
 #include "project/launch_style.h"
 #include "project/sequence_direction.h"
+#include "serialization/schema/extras.h"
 #include <cstdint>
 #include <list>
 #include <string>
@@ -48,6 +49,8 @@ struct DocClip {
 	/// a function of `y`, reproduced at save from the engine's y-ordered noteRows.
 	std::list<DocNoteRow> note_rows;
 
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const DocClip&) const = default;
 };
 

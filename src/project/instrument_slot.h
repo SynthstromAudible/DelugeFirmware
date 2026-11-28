@@ -18,6 +18,7 @@
 #pragma once
 
 #include "plugin/state_handle.h"
+#include "serialization/schema/extras.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -39,6 +40,8 @@ struct SoundRouting {
 	/// The note a kit row's notes go out as, each moved from it as far as it is from the row's own; none sends each
 	/// note as it plays.
 	std::optional<uint8_t> midi_note;
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const SoundRouting&) const = default;
 };
 
@@ -51,6 +54,8 @@ struct InstrumentSlot {
 	/// The song's input tick magnitude when the slot was filled: the context an edit reads and writes its sync levels
 	/// in.
 	int32_t tick_magnitude{1};
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const InstrumentSlot&) const = default;
 };
 

@@ -235,4 +235,50 @@ describe text_widgets("ui::widgets::oled text & title", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 	});
 });
-DELUGE_SPEC(text_spec, text_widgets)
+describe title_note_w("ui::widgets::oled::title_note", $ {
+	it("draws exactly title() for an empty note", _ {
+		uitest::Rig48 r;
+		uitest::Rig48 plain;
+		title_note(r.frame, "QUANTIZE", "");
+		title(plain.frame, "QUANTIZE");
+		expect(r.pbm()).to_equal(plain.pbm());
+	});
+
+	it("right-aligns the note on the title band, in the rows' face", _ {
+		uitest::Rig48 r;
+		uitest::Rig48 note_only;
+		title_note(r.frame, "Q", "60%");
+		note_only.frame.glyphs("60%", 128 - 3 * deluge::ui::widgets::core::kTextSpacingX, 1, deluge::ui::widgets::core::kTextSpacingX, deluge::ui::widgets::core::kTextSpacingY);
+		int32_t lit = 0;
+		for (int32_t y = 0; y < r.style.title_height; y++) {
+			for (int32_t x = 128 - 18; x < 128; x++) {
+				expect(r.lit(x, y + 5)).to_equal(note_only.lit(x, y + 5));
+				lit += r.lit(x, y + 5) ? 1 : 0;
+			}
+		}
+		expect(lit).to_be_greater_than(0);
+	});
+
+	it("clips a long title short of the note", _ {
+		uitest::Rig48 r;
+		title_note(r.frame, "A VERY LONG TITLE INDEED", "3/8");
+		const int32_t note_x = 128 - 3 * deluge::ui::widgets::core::kTextSpacingX;
+		for (int32_t y = 0; y < r.style.title_height; y++) {
+			for (int32_t x = note_x - 4; x < note_x; x++) {
+				expect(r.lit(x, y + 5)).to_be_false();
+			}
+		}
+		expect(r.lit(0, r.style.title_height + 5)).to_be_true(); // the rule still runs the full width
+		expect(r.lit(127, r.style.title_height + 5)).to_be_true();
+	});
+
+	it("matches its goldens", _ {
+		uitest::Rig48 r48;
+		title_note(r48.frame, "QUANTIZE", "60%");
+		expect_golden(self, "ui/widgets/title_note_48.pbm", r48.pbm());
+		uitest::Rig64 r64;
+		title_note(r64.frame, "QUANTIZE", "60%");
+		expect_golden(self, "ui/widgets/title_note_64.pbm", r64.pbm());
+	});
+});
+DELUGE_SPEC(text_spec, text_widgets, title_note_w)

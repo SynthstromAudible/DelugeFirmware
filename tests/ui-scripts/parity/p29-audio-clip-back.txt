@@ -1,0 +1,26 @@
+# BACK in the audio clip view: with X held it clears the clip; alone it undoes; with SESSION held as well it does not
+# clear (the X latch's exact mode test).
+# card: tests/fixtures/card-audio-clips.card
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load audioclips
+14000 snapshot song
+14200 pad 0 7 down
+14320 pad 0 7 up
+16000 snapshot clip
+16200 button XEnc down
+16450 button Back down
+16570 button Back up
+16800 button XEnc up
+18000 snapshot cleared
+18200 button Back down
+18320 button Back up
+20000 snapshot undone
+20200 button Session down
+20450 button XEnc down
+20700 button Back down
+20820 button Back up
+21050 button XEnc up
+21300 button Session up
+23000 snapshot song_held

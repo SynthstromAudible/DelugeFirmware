@@ -332,6 +332,17 @@ bool Shell::route_lowered_turn(widgets::core::EncoderRole role, int8_t offset, u
 	return router_.route(e, make_context(now_ms));
 }
 
+bool Shell::route_to_root(const UiEvent& event, uint32_t now_ms) {
+	Scene* const root = stack_.root();
+	if (root == nullptr || !root->is_root()) {
+		return false;
+	}
+	screensaver_.note_activity(now_ms);
+	const Result r = root->handle(event, make_context(now_ms));
+	router_.apply(r);
+	return r.handled;
+}
+
 void Shell::set_sd_busy(bool busy) {
 	// Releasing the lock replays the whole deferred queue through the ordinary lowering path
 	// (`InputLowering::set_sd_busy`), which writes the tick-scoped state -- the detent sums, the pad
@@ -521,6 +532,10 @@ void Shell::tick(uint32_t now_ms) {
 	//
 	// `Shell::timer_arms_a_gate` is the same question asked as one bool, and `compute_next_wake`
 	// asks it -- a scene that armed nothing here has no gate deadline standing in for its timer.
+	//
+	// A frame-driven scene's wait is the time to the next frame boundary when that is sooner than its
+	// own timer (`scene_wait`), so the frame clock moves first.
+	advance_frame_clock(now_ms);
 	const std::span<Scene* const> timer_scenes = stack_.scenes();
 	for (size_t k = 0; k < timer_scenes.size(); k++) {
 		Scene* const scene = timer_scenes[k];
@@ -528,7 +543,7 @@ void Shell::tick(uint32_t now_ms) {
 		if (!surfaces.any()) {
 			continue;
 		}
-		const std::optional<uint32_t> in = scene->next_timer();
+		const std::optional<uint32_t> in = scene_wait(*scene, now_ms);
 		if (!in.has_value()) {
 			continue;
 		}
@@ -1237,7 +1252,7 @@ void Shell::flush(uint32_t now_ms) {
 
 void Shell::reconsider_wake(uint32_t now_ms) {
 	for (Scene* scene : stack_.scenes()) {
-		const std::optional<uint32_t> in = scene->next_timer();
+		const std::optional<uint32_t> in = scene_wait(*scene, now_ms);
 		if (!in.has_value()) {
 			continue;
 		}
@@ -1246,6 +1261,44 @@ void Shell::reconsider_wake(uint32_t now_ms) {
 			next_wake_ = at;
 		}
 	}
+}
+
+void Shell::advance_frame_clock(uint32_t now_ms) {
+	bool any = false;
+	for (const Scene* scene : stack_.scenes()) {
+		any = any || scene->frame_driven();
+	}
+	const bool started = any && !frame_driven_last_tick_;
+	frame_driven_last_tick_ = any;
+	if (!any) {
+		return;
+	}
+	// A run starts from the clock the last one left, which may be any age: past half the wrap the difference below
+	// reads it as ahead of now and would wait for it, so it is due now instead.
+	if (started && static_cast<int32_t>(now_ms - next_frame_ms_) < 0) {
+		next_frame_ms_ = now_ms;
+	}
+	// Difference form, as every deadline here: the clock wraps.
+	const auto late = static_cast<int32_t>(now_ms - next_frame_ms_);
+	if (late < 0) {
+		return;
+	}
+	// On time, the frames keep their phase; more than a frame late (the first frame-driven tick, or a host that
+	// slept), they start again a frame from now, as legacy's graphics routine re-arms from when it ran.
+	next_frame_ms_ =
+	    late < static_cast<int32_t>(config_.frame_ms) ? next_frame_ms_ + config_.frame_ms : now_ms + config_.frame_ms;
+}
+
+std::optional<uint32_t> Shell::scene_wait(const Scene& scene, uint32_t now_ms) const {
+	std::optional<uint32_t> in = scene.next_timer();
+	if (scene.frame_driven()) {
+		const auto to_frame = static_cast<int32_t>(next_frame_ms_ - now_ms);
+		const uint32_t frame_in = to_frame > 0 ? static_cast<uint32_t>(to_frame) : 0u;
+		if (!in.has_value() || frame_in < *in) {
+			in = frame_in;
+		}
+	}
+	return in;
 }
 
 std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
@@ -1287,7 +1340,7 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 		if (timer_arms_a_gate(k, scenes[k]->timer_repaints())) {
 			continue;
 		}
-		if (const std::optional<uint32_t> in = scenes[k]->next_timer(); in.has_value()) {
+		if (const std::optional<uint32_t> in = scene_wait(*scenes[k], now_ms); in.has_value()) {
 			consider(now_ms + *in);
 		}
 	}

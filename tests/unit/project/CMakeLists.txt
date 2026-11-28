@@ -4,6 +4,7 @@
 deluge_specs_driver(project_specs TREES host arm
   SOURCES ${DELUGE_REPO_ROOT}/tests/support/mocks/model_hooks_for_tests.cpp
           ${CMAKE_CURRENT_LIST_DIR}/equality/equality.cpp
+          ${CMAKE_CURRENT_LIST_DIR}/clean/clean_check.cpp
   LIBRARIES deluge_project deluge_instruments_classic deluge_host_chains deluge_effects
   INCLUDES ${DELUGE_REPO_ROOT}/tests/support/mocks)
 # A tree that builds none of these specs defines no project_specs.

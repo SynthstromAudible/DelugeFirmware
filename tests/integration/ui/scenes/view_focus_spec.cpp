@@ -53,6 +53,7 @@
 #include "ui/controls/knob_focus.h"
 #include "ui/scenes/bind/knob_assignment.h"
 
+#include "support/popup_capture.h"
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/param_id_printer.h"
 #include "support/song_fixture.h"
@@ -133,27 +134,6 @@ bool volumeAutomated(const spec::SongFixture& f) {
 	                                  .clip_id = f.clip->id()});
 	return param != nullptr && !param->nodes.empty();
 }
-
-/// @brief The display View's popups draw on: what it last popped up, kept.
-struct StubDisplay final : deluge::hid::Display {
-	std::string popup;
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const* text, PopupType) override { popup = text; }
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-	void displayNotification(std::string_view, std::optional<std::string_view>) override { notifications++; }
-	int32_t notifications = 0;
-};
 
 /// @brief Knob @p knob's indicator column as the host's LEDs show it, four segment brightnesses.
 std::array<uint8_t, 4> ring(uint8_t knob) {
@@ -441,8 +421,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 	});
 
 	it("clones once when View turns a knob while the arrangement records, and leaves the session clip", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(f.song);
 		(void)deluge::edits::modKnobModeFor(project::TrackAddress{*f.instrument->id()}, 0);
@@ -472,8 +451,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 	});
 
 	it("makes no take for a mod-button press while the arrangement records", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(f.song);
 		(void)deluge::edits::modKnobModeFor(project::TrackAddress{*f.instrument->id()}, 0);
@@ -492,8 +470,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 	});
 
 	it("writes an arranger row's backed-up params when View turns a knob on a row with no clip", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(f.song);
 		ParamManagerForTimeline params;
@@ -514,8 +491,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 	});
 
 	it("stays on the session clip after the arrangement stops recording", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(f.song);
 		(void)deluge::edits::modKnobModeFor(project::TrackAddress{*f.instrument->id()}, 0);
@@ -607,8 +583,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 	});
 
 	it("keeps the compressor view in the focus: pushed into, cycled, kept across a re-point, fresh for a new song", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(f.song);
 		f.song->persistentView.affectEntire = true;
@@ -640,8 +615,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 	});
 
 	it("copies a knob's automation and pastes it into another clip's knob by address, as one undo step", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture a = spec::make_synth_song();
 		spec::SongFixture b = add_synth_clip(a);
 		deluge::ui::scenes::spec::make_current(a.song);
@@ -692,8 +666,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 	it("names no address for a MIDI CC lane not made yet, where an engine param always has one", _ {
 		// The root views' copy and paste of a knob's automation reads `root_knobs::knob_address`: no address is a paste
 		// the view refuses with CANT_PASTE. A param an owner holds is always addressed; a MIDI lane only once made.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture synth = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(synth.song);
 		(void)deluge::edits::modKnobModeFor(project::TrackAddress{*synth.instrument->id()}, 0);
@@ -729,13 +702,11 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 			expect(made->id.value).to_equal(74u);
 		}
 		view.releaseActiveModControllable();
-		display = nullptr;
 		deluge::ui::scenes::spec::make_current(nullptr);
 	});
 
 	it("shows knobs of a song that is not the current one as pointing at nothing: indicators clear, a turn writes nothing", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		spec::SongFixture elsewhere = spec::make_synth_song();
 		for (const spec::SongFixture* side : {&f, &elsewhere}) {
@@ -767,7 +738,6 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		deluge::ui::scenes::spec::make_current(f.song);
 		expect(panOn(f, f.clip->id())).to_equal(pan_before);
 		view.releaseActiveModControllable();
-		display = nullptr;
 		deluge::ui::scenes::spec::make_current(nullptr);
 	});
 
@@ -931,30 +901,27 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		deluge::ui::scenes::spec::make_current(nullptr);
 	});
 	it("shows no value popup for a root turn while a song loads, and still writes the turn", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(f.song);
 		(void)deluge::edits::modKnobModeFor(project::TrackAddress{*f.instrument->id()}, 0);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		setRootUILowLevel(&sessionView);
 		deluge::gui::ui::root_knobs::turn(0, 5);
-		expect(stub.notifications).to_equal(1);
+		expect(popups.count(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION)).to_equal(size_t{1});
 
 		setRootUILowLevel(&loadSongUI); // the load UI is current: `isLoadingSong`
 		const std::optional<int32_t> before = panOn(f, f.clip->id());
 		deluge::gui::ui::root_knobs::turn(0, 5);
-		expect(stub.notifications).to_equal(1);
+		expect(popups.count(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION)).to_equal(size_t{1});
 		expect(panOn(f, f.clip->id())).not_().to_equal(before);
 		nullifyUIs();
 		view.releaseActiveModControllable();
-		display = nullptr;
 		deluge::ui::scenes::spec::make_current(nullptr);
 	});
 
 	it("shows the song compressor knob at the top of its travel as 128 on a root turn", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(f.song);
 		f.song->persistentView.affectEntire = true;
@@ -975,13 +942,11 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		expect(below).not_().to_equal(top);
 		view.knobFocus().comp = {};
 		view.releaseActiveModControllable();
-		display = nullptr;
 		deluge::ui::scenes::spec::make_current(nullptr);
 	});
 
 	it("redraws the root's sidebar on a mod button only while the VU meter is drawn there", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(f.song);
 		f.song->persistentView.affectEntire = true;
@@ -1009,13 +974,11 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		view.knobFocus().vu_meter = false;
 		nullifyUIs();
 		view.releaseActiveModControllable();
-		display = nullptr;
 		deluge::ui::scenes::spec::make_current(nullptr);
 	});
 
 	it("repaints a timeline root's pads when a root turn changes a synth's note tails, and no other root's", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::ui::scenes::spec::make_current(f.song);
 		// The third mod button's lower knob is envelope 1's release; with no sustain, tails hold only while the decay
@@ -1056,7 +1019,6 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		clearPendingUIRendering();
 		nullifyUIs();
 		view.releaseActiveModControllable();
-		display = nullptr;
 		deluge::ui::scenes::spec::make_current(nullptr);
 	});
 });

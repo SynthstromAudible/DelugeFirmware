@@ -175,6 +175,7 @@ public:
 	void on_model_changed(const deluge::base::notify::DirtySet&) override { model_changed++; }
 	std::optional<uint32_t> next_timer() const override { return timer; }
 	Scene::RepaintSurfaces timer_repaints() const override { return timer_repaints_; }
+	bool frame_driven() const override { return frame; }
 
 	/// The local row `render_oled` draws its Main rule on.
 	static constexpr int32_t kMainLineY = 10;
@@ -209,6 +210,8 @@ public:
 	bool emit_repaint_from_handle = false;
 	UiEvent::Kind last_event_kind = UiEvent::Kind::AllReleased;
 	std::optional<uint32_t> timer;
+	/// What `frame_driven()` answers.
+	bool frame = false;
 	/// What `timer_repaints()` answers. Spelled out rather than left default-constructed: a
 	/// default-constructed `RepaintSurfaces` is `{false, false}` (so that a designated initializer
 	/// cannot arm an unnamed surface), while the value this double must
@@ -1326,6 +1329,94 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.tick(20);
 		expect(deluge::base::notify::notices().size()).to_equal(size_t{0});
 		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Popup);
+	});
+
+	context("a frame-driven scene", _ {
+		it("is woken once per frame, not every tick", _ {
+			deluge::base::notify::dirty().drain();
+			Rig r{ShellConfig{.frame_ms = 15}};
+			r.base.frame = true;
+			r.shell.init({kBase, 0});
+			const int before = r.base.grid_renders;
+			for (uint32_t t = 0; t <= 150; ++t) {
+				r.shell.tick(t);
+			}
+			// t = 0, 15, ..., 150.
+			expect(r.base.grid_renders - before).to_equal(11);
+		});
+
+		it("asks for a wake at the next frame boundary", _ {
+			deluge::base::notify::dirty().drain();
+			Rig r{ShellConfig{.frame_ms = 15}};
+			r.base.frame = true;
+			r.shell.init({kBase, 0});
+			r.shell.tick(3);
+			expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{15u});
+		});
+
+		it("keeps its own timer when that is sooner than the next frame", _ {
+			deluge::base::notify::dirty().drain();
+			Rig r{ShellConfig{.frame_ms = 15}};
+			r.base.frame = true;
+			r.base.timer = 5;
+			r.shell.init({kBase, 0});
+			r.shell.tick(0);
+			expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{5u});
+		});
+
+		it("starts its frames a frame after a run starts, however long ago the last one ended", _ {
+			deluge::base::notify::dirty().drain();
+			Rig r{ShellConfig{.frame_ms = 15}};
+			r.base.frame = true;
+			r.shell.init({kBase, 0});
+			r.shell.tick(0);
+			r.base.frame = false;
+			r.shell.tick(16);
+			// More than half the clock's wrap later, where the old frame reads as ahead of now.
+			constexpr uint32_t kLater = 0x8000'1000u;
+			r.base.frame = true;
+			r.shell.tick(kLater);
+			expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{kLater + 15u});
+		});
+
+		it("starts its frames again from a tick that comes more than a frame late", _ {
+			deluge::base::notify::dirty().drain();
+			Rig r{ShellConfig{.frame_ms = 15}};
+			r.base.frame = true;
+			r.shell.init({kBase, 0});
+			r.shell.tick(0);
+			r.shell.tick(100);
+			expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{115u});
+		});
+
+		it("draws one more frame after it stops being frame-driven, and then none", _ {
+			deluge::base::notify::dirty().drain();
+			Rig r{ShellConfig{.frame_ms = 15}};
+			r.base.frame = true;
+			r.shell.init({kBase, 0});
+			r.shell.tick(0);
+			r.shell.tick(15);
+			r.base.frame = false;
+			r.shell.tick(16);
+			const int stopped = r.base.grid_renders;
+			r.shell.tick(30);
+			// The frame the last frame-driven tick armed, which shows the animation stopped.
+			expect(r.base.grid_renders - stopped).to_equal(1);
+			for (uint32_t t = 31; t <= 90; ++t) {
+				r.shell.tick(t);
+			}
+			expect(r.base.grid_renders - stopped).to_equal(1);
+			expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{});
+		});
+
+		it("leaves a scene that is not frame-driven on its own timer", _ {
+			deluge::base::notify::dirty().drain();
+			Rig r{ShellConfig{.frame_ms = 15}};
+			r.base.timer = 100;
+			r.shell.init({kBase, 0});
+			r.shell.tick(3);
+			expect(r.shell.next_wake()).to_equal(std::optional<uint32_t>{103u});
+		});
 	});
 });
 // clang-format on

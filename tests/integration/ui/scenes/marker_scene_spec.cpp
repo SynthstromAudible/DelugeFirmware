@@ -88,6 +88,7 @@
 #include "support/menu_over_root.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
+#include "support/popup_capture.h"
 #include "support/slot_record.h"
 #include "support/song_fixture.h"
 
@@ -143,7 +144,6 @@ using mf::kBytesPerFrame;
 using mf::kSampleLength;
 using mf::kZoomMax;
 using mf::make_sample;
-using mf::MarkerDisplay;
 using mf::Rig;
 
 namespace {
@@ -428,9 +428,8 @@ struct FakeMarkerRig {
 describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	before_each([] {
-		static MarkerDisplay d;
 		if (display == nullptr) {
-			display = &d;
+			display = &deluge::ui::scenes::spec::quiet_display();
 		}
 	});
 
@@ -2359,6 +2358,121 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.reopen(SampleMarker::START, 0);
 		r.tick(300);
 		expect(main_pads_differ(last, r.fake.grid().grid())).to_equal(0);
+	});
+
+	// --- what the surfaces show ----------------------------------------------------------------
+
+	it("presents the selected marker's name, the loop lock, its position and the sample's rate", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 10 * kZoomMax;
+		r.range->sampleHolder.endPos = 14 * kZoomMax;
+		r.open(SampleMarker::LOOP_START);
+		r.tick(0);
+		const bind::WaveformInfo info = *deluge::gui::shell_host::host_ports().waveforms->info(r.address());
+		const deluge::ui::views::oled::MarkerPosition d = marker_scene().present_position(info);
+		expect(d.label).to_equal(std::string_view{"Loop start"});
+		expect(d.loop_locked).to_be_false();
+		expect(d.position).to_equal(static_cast<uint64_t>(6 * kZoomMax));
+		expect(d.sample_rate).to_equal(44100u);
+	});
+
+	it("presents a locked loop's lock, and a reversed sample's START under its mirror's name", _ {
+		Rig r;
+		r.range->sampleHolder.loopStartPos = 5 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
+		r.range->sampleHolder.loopLocked = true;
+		r.open(SampleMarker::LOOP_END);
+		r.tick(0);
+		const bind::WaveformInfo info = *deluge::gui::shell_host::host_ports().waveforms->info(r.address());
+		const deluge::ui::views::oled::MarkerPosition locked = marker_scene().present_position(info);
+		expect(locked.label).to_equal(std::string_view{"Loop end"});
+		expect(locked.loop_locked).to_be_true();
+		expect(locked.position).to_equal(static_cast<uint64_t>(9 * kZoomMax));
+
+		deluge::test::set(*r.sound->state_, "osc1/reversed", "1");
+		r.open(SampleMarker::START);
+		r.tick(10);
+		expect(marker_scene().present_position(info).label).to_equal(std::string_view{"End point"});
+	});
+
+	it("presents the waveform's peaks in the main columns only", _ {
+		Rig r;
+		r.open(SampleMarker::START);
+		r.tick(0);
+		deluge::ui::scenes::services::WaveformFrame wf{.read = deluge::ui::views::waveform::PeakRead::all_past_end(),
+		                                               .centre = 0,
+		                                               .span = 1 << 24};
+		for (int32_t c = 0; c < deluge::ui::views::waveform::kColumns; c++) {
+			wf.read.set(c, deluge::ui::views::waveform::ColumnRead::of({.min = -(1 << 22), .max = 1 << 22}));
+		}
+		const auto cols = marker_scene().present_waveform(wf, 4);
+		expect(cols[3].valid).to_be_true();
+		expect(cols[3].max24).to_be_greater_than(0);
+		expect(cols[3].min24).to_be_less_than(0);
+		expect(cols[4].valid).to_be_false();
+	});
+
+	it("presents each column's markers, their colours and the blink's phase", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 10 * kZoomMax;
+		r.range->sampleHolder.endPos = 14 * kZoomMax;
+		r.open(SampleMarker::LOOP_START);
+		r.tick(0);
+		const deluge::ui::views::grid::MarkerOverlay d = marker_scene().present_overlay(marker_scene().pins(), 16);
+		std::array<uint32_t, 16> active{};
+		active[2] = 0b0001;
+		active[6] = 0b0010;
+		active[9] = 0b0100;
+		active[13] = 0b1000;
+		expect(d.active).to_equal(active);
+		expect(d.selected).to_equal(1);
+		expect(d.suppress).to_equal(0u);
+		expect(d.flood).to_equal(-1);
+		expect(d.colours[0]).to_equal(deluge::gui::colours::green);
+		expect(d.colours[3]).to_equal(deluge::gui::colours::red);
+		r.tick(marker::kBlinkPhaseMs);
+		expect(marker_scene().present_overlay(marker_scene().pins(), 16).flood).to_equal(6);
+		r.tick(3 * marker::kBlinkPhaseMs);
+		expect(marker_scene().present_overlay(marker_scene().pins(), 16).suppress).to_equal(0b0010u);
+	});
+
+	it("presents a reversed sample's markers in their mirrors' colours", _ {
+		Rig r;
+		deluge::test::set(*r.sound->state_, "osc1/reversed", "1");
+		r.open(SampleMarker::START);
+		r.tick(0);
+		const deluge::ui::views::grid::MarkerOverlay d = marker_scene().present_overlay(marker_scene().pins(), 16);
+		// `reverseRemap`: START draws as END, LOOP_START as LOOP_END, and the other way round.
+		expect(d.colours[0]).to_equal(deluge::gui::colours::red);
+		expect(d.colours[1]).to_equal(deluge::gui::colours::magenta);
+		expect(d.colours[2]).to_equal(deluge::gui::colours::cyan);
+		expect(d.colours[3]).to_equal(deluge::gui::colours::green);
+		expect(d.selected).to_equal(0);
+	});
+
+	it("presents the playhead's column on every row, painted with the flash cursor Slow", _ {
+		const uint8_t saved = PadLEDs::flashCursor;
+		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+		Rig r;
+		r.open(SampleMarker::END);
+		r.tick(0);
+		const deluge::ui::views::grid::Playhead d = marker_scene().present_playhead(16, 7 * kZoomMax);
+		expect(d.paint).to_be_true();
+		expect(d.flash).to_be_true();
+		expect(d.fast).to_be_false();
+		expect(d.muted).to_equal(deluge::gui::colours::black);
+		for (const deluge::ui::widgets::grid::TickSquare& t : d.per_row) {
+			expect(static_cast<int32_t>(t.col)).to_equal(7);
+		}
+		PadLEDs::flashCursor = FLASH_CURSOR_OFF;
+		const deluge::ui::views::grid::Playhead off = marker_scene().present_playhead(16, 7 * kZoomMax);
+		expect(off.paint).to_be_false();
+		expect(off.flash).to_be_false();
+		PadLEDs::flashCursor = saved;
 	});
 
 	// --- goldens ------------------------------------------------------------------------------

@@ -91,6 +91,14 @@ private:
 /// @return The global NoticeQueue.
 NoticeQueue& notices();
 
+/// @brief Which end of the queue a notice an observer is shown has just passed.
+enum class NoticeTurn : uint8_t { Pushed, Popped };
+/// @brief A function shown every notice as it is pushed, before any consumer takes it, and again as it is popped.
+using NoticeObserver = void (*)(const Notice&, NoticeTurn);
+/// @brief Show every notice pushed and popped to @p observer as well (a spec's popup capture); null shows none, the
+///        firmware's state. The observer runs on the pushing or popping thread and must neither push nor pop.
+void set_notice_observer(NoticeObserver observer);
+
 // The raise-side helpers. They cannot propagate a full queue -- their callers are model code deep
 // in the audio/playback paths with no way to handle it and nowhere to put it -- so instead of
 // discarding the fact, each one counts the drop. `dropped_notices()` is the shell's diagnostic:

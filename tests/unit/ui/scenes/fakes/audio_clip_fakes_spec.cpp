@@ -11,12 +11,14 @@
 #include "project/features.h"
 #include "project/song.h"
 #include "ui/scenes/services/peak_retry.h"
+#include "ui/scenes/services/waveform_paint.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/scene.h"
 #include "ui/views/waveform/peaks.h"
 #include "ui/widgets/grid/waveform.h"
 
 #include "fakes.h"
+#include "support/printers/rgb_printer.h"
 #include "support/printers/transport_action_printer.h"
 #include "unit/ui/widgets/support/frames.h"
 
@@ -121,13 +123,15 @@ AudioClipScene& opened(AudioClipScene& scene, AudioClipHost& h) {
 	return scene;
 }
 
-/// @brief The context an event runs in: the buttons in @p held down, no shift.
+/// @brief The context an event runs in: the buttons in @p held down, shift as @p shift says, at @p now_ms.
 struct Context {
 	ButtonSet held{};
 	deluge::ui::widgets::core::PadMask pads{};
+	bool shift = false;
+	uint32_t now_ms = 0;
 	/// @return The context.
 	[[nodiscard]] UiContext get() const {
-		return UiContext{held, pads, false, false, 0, deluge::ui::shell::deluge_profile()};
+		return UiContext{held, pads, shift, false, now_ms, deluge::ui::shell::deluge_profile()};
 	}
 };
 
@@ -152,11 +156,11 @@ Result turn_horizontal(AudioClipScene& scene, int32_t delta) {
 	                    Context{}.get());
 }
 
-/// @brief Turn the select encoder by @p delta detents, shift up.
-Result turn_select(AudioClipScene& scene, int32_t delta) {
+/// @brief Turn the select encoder by @p delta detents, in @p ctx (shift up by default).
+Result turn_select(AudioClipScene& scene, int32_t delta, const Context& ctx = {}) {
 	return scene.handle(
 	    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = EncoderRole::Select, .delta = static_cast<int8_t>(delta)},
-	    Context{}.get());
+	    ctx.get());
 }
 
 /// @brief The popup string @p r raises, or 0.
@@ -313,6 +317,25 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(text_notices()).to_equal(std::vector<std::string>{"1 : 1 : 1", "3 : 1 : 1"});
 	});
 
+	it("keeps its scroll and zoom as the song's clip navigation, writing only what moved", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		h.model.clip_structure.getOrCreate(kClipId).loop_length = 4 * kLoopLength; // room to scroll a page right
+		// A page left of the start moves nothing, so nothing is written.
+		(void)turn_horizontal(scene, -1);
+		expect(h.host.clip_writes.calls.size()).to_equal(size_t{0});
+		// A page right moves the view 384 ticks, at the zoom it opened on.
+		(void)turn_horizontal(scene, 1);
+		expect(h.host.clip_writes.calls.size()).to_equal(size_t{1});
+		if (!h.host.clip_writes.calls.empty()) {
+			const RecordingClipWrites::Call& call = h.host.clip_writes.calls.front();
+			expect(static_cast<int>(call.kind)).to_equal(static_cast<int>(RecordingClipWrites::Call::Kind::NAVIGATION));
+			expect(call.value).to_equal(int64_t{384});
+			expect(call.x_zoom).to_equal(uint32_t{24});
+		}
+	});
+
 	it("opens on the host's clip navigation, and keeps its view where the host gives none", _ {
 		AudioClipHost h;
 		h.host.clips.navigation = ClipNavigation{.x_scroll = 96, .x_zoom = 6, .triplets_on = true, .triplets_level = 8};
@@ -338,7 +361,7 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		scene.set_ports(nullptr);
 		scene.open(clip(), &h.model);
 		(void)scene.on_enter(SceneId{deluge::ui::scenes::audio_clip::kAudioClipSceneKind, 0});
-		expect(scene.next_timer().has_value()).to_be_false();
+		expect(scene.frame_driven()).to_equal(false);
 		Context tempo;
 		tempo.held.set(ButtonId::TempoEnc, true);
 		(void)tap(scene, 4, 2, tempo);
@@ -361,7 +384,7 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(h.host.writes.requests.empty()).to_be_true();
 		// And with them installed the same clip plays live, and the same turn writes the track's mode.
 		scene.set_ports(&h.ports);
-		expect(scene.next_timer()).to_equal(std::optional<uint32_t>{0});
+		expect(scene.frame_driven()).to_equal(true);
 		(void)turn_select(scene, 1);
 		expect(h.host.writes.requests.size()).to_equal(size_t{1});
 	});
@@ -462,7 +485,336 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(lit_main_pads(scrolled)).to_equal(0);
 		expect(scrolled.gate.next_deadline()).to_equal(std::optional<uint32_t>{moved + kPeakRetryPollMs});
 	});
+
+	it("shifts the clip's contents by whole squares on a turn with Y_ENC held, and repaints only when they moved", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		Context y;
+		y.held.set(ButtonId::YEnc, true);
+		const auto turn = [&scene](int32_t delta, const Context& ctx) {
+			return scene.handle(UiEvent{.kind = UiEvent::Kind::Encoder,
+			                            .encoder = EncoderRole::Horizontal,
+			                            .delta = static_cast<int8_t>(delta)},
+			                    ctx.get());
+		};
+		const Result moved = turn(-2, y);
+		using Call = RecordingClipWrites::Call;
+		// The rig's zoom is 24 ticks a square.
+		expect(h.host.clip_writes.calls.size()).to_equal(size_t{1});
+		if (!h.host.clip_writes.calls.empty()) {
+			const Call& c = h.host.clip_writes.calls.front();
+			expect(c == Call{.kind = Call::Kind::SHIFT, .clip = clip(), .value = -48}).to_equal(true);
+		}
+		expect(std::ranges::any_of(moved.actions, [](const Action& a) { return a.kind == Action::Kind::RepaintAll; }))
+		    .to_equal(true);
+		h.host.clip_writes.accept = false;
+		const Result still = turn(1, y);
+		expect(still.handled).to_be_true();
+		expect(std::ranges::any_of(still.actions, [](const Action& a) { return a.kind == Action::Kind::RepaintAll; }))
+		    .to_equal(false);
+		expect(scene.timeline().x_scroll).to_equal(0);
+	});
+
+	it("shows the zoom as a note length per column on an X press and on each zoom, until X goes up", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		(void)text_notices();
+		const auto persistent_texts = [] {
+			std::vector<std::string> out;
+			deluge::base::notify::Notice n;
+			while (deluge::base::notify::notices().pop(n)) {
+				if (n.kind == deluge::base::notify::Notice::Kind::Text
+				    && n.severity == deluge::base::notify::Notice::Severity::Warn) {
+					out.emplace_back(n.text);
+				}
+			}
+			return out;
+		};
+		(void)button(scene, ButtonId::XEnc, true);
+		// One bar is 192 ticks here, and a square 24: an eighth.
+		expect(persistent_texts()).to_equal(std::vector<std::string>{"8th-notes"});
+		Context x;
+		x.held.set(ButtonId::XEnc, true);
+		(void)scene.handle(UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = EncoderRole::Horizontal, .delta = -1},
+		                   x.get());
+		// A turn of -1 zooms out (legacy's magnitude is the turn's negation): a quarter.
+		expect(persistent_texts()).to_equal(std::vector<std::string>{"4th-notes"});
+		(void)button(scene, ButtonId::XEnc, false);
+		expect(persistent_texts().empty()).to_be_true();
+	});
+
+	it("declares BACK off, and SESSION lit only while it is held", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		using deluge::ui::widgets::core::LedFrame;
+		using deluge::ui::widgets::core::LedState;
+		const auto kind_of = [&scene](ButtonId b) {
+			LedFrame f;
+			f.begin(0);
+			scene.leds(f);
+			for (const auto& [id, state] : f.entries()) {
+				if (id == static_cast<deluge::ui::widgets::core::LedId>(b)) {
+					return static_cast<int>(state.kind);
+				}
+			}
+			return -1;
+		};
+		expect(kind_of(ButtonId::Back)).to_equal(static_cast<int>(LedState::Kind::Off));
+		expect(kind_of(ButtonId::Session)).to_equal(static_cast<int>(LedState::Kind::Off));
+		(void)button(scene, ButtonId::Session, true);
+		expect(kind_of(ButtonId::Session)).to_equal(static_cast<int>(LedState::Kind::On));
+		(void)button(scene, ButtonId::Session, false, Context{.now_ms = 2000});
+		expect(kind_of(ButtonId::Session)).to_equal(static_cast<int>(LedState::Kind::Off));
+	});
+
+	context("the session macros, while SESSION is held", _ {
+		it("draws the song's macros in the first sidebar column, dimmed at rest, and nothing once SESSION goes up", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			using deluge::ui::scenes::bind::MacroFact;
+			using deluge::ui::scenes::bind::MacroKind;
+			h.host.macros.slots[0] = MacroFact{.kind = MacroKind::CLIP_LAUNCH, .has_clip = true, .clip_active = true};
+			h.host.macros.slots[1] = MacroFact{.kind = MacroKind::CLIP_LAUNCH, .has_clip = true};
+			h.host.macros.slots[2] = MacroFact{.kind = MacroKind::OUTPUT_CYCLE};
+			h.host.macros.slots[3] = MacroFact{.kind = MacroKind::SECTION};
+			h.host.macros.slots[4] = MacroFact{.kind = MacroKind::CLIP_LAUNCH, .has_clip = false, .clip_active = true};
+			GridRig rig;
+			render(rig, scene, 0);
+			for (uint8_t y = 0; y < 8; y++) {
+				expect(rig.grid.at(16, y)).to_equal(RGB{});
+			}
+			(void)button(scene, ButtonId::Session, true);
+			render(rig, scene, 10);
+			// `View::renderMacros`' colours, each divided by 8 at rest (`adjust(255, 8)`).
+			expect(rig.grid.at(16, 0)).to_equal(RGB{0, 31, 0});   // a playing clip: green
+			expect(rig.grid.at(16, 1)).to_equal(RGB{31, 0, 0});   // a stopped clip: red
+			expect(rig.grid.at(16, 2)).to_equal(RGB{0, 8, 31});   // an output cycle
+			expect(rig.grid.at(16, 3)).to_equal(RGB{31, 0, 16});  // a section
+			expect(rig.grid.at(16, 4)).to_equal(RGB{0, 0, 0});    // a clip the song does not hold: unassigned
+			expect(rig.grid.at(17, 0)).to_equal(RGB{});           // the second column stays black
+			(void)button(scene, ButtonId::Session, false, Context{.now_ms = 2000});
+			render(rig, scene, 2000);
+			expect(rig.grid.at(16, 0)).to_equal(RGB{});
+		});
+
+		it("brightens a held macro pad, and runs its macro on the release with AFFECT_ENTIRE and SHIFT as held", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			using deluge::ui::scenes::bind::MacroFact;
+			using deluge::ui::scenes::bind::MacroKind;
+			using deluge::ui::scenes::bind::MacroPress;
+			h.host.macros.slots[2] = MacroFact{.kind = MacroKind::OUTPUT_CYCLE};
+			Context song;
+			song.held.set(ButtonId::Session, true);
+			(void)button(scene, ButtonId::Session, true);
+			const Result down = scene.handle(
+			    UiEvent{.kind = UiEvent::Kind::Pad, .x = 16, .y = 2, .velocity = 64, .on = true}, song.get());
+			expect(down.handled).to_be_true();
+			GridRig rig;
+			rig.input.held_pads.set(16, 2, true);
+			render(rig, scene, 10);
+			expect(rig.grid.at(16, 2)).to_equal(RGB{0, 64, 255});
+			expect(h.host.macros.activations.empty()).to_be_true();
+			Context release = song;
+			release.held.set(ButtonId::AffectEntire, true);
+			release.shift = true;
+			(void)scene.handle(UiEvent{.kind = UiEvent::Kind::Pad, .x = 16, .y = 2, .velocity = 0, .on = false},
+			                   release.get());
+			expect(h.host.macros.activations.size()).to_equal(size_t{1});
+			if (!h.host.macros.activations.empty()) {
+				expect(h.host.macros.activations.front().first).to_equal(uint8_t{2});
+				expect(h.host.macros.activations.front().second == MacroPress{.affect_entire = true, .shift = true})
+				    .to_equal(true);
+			}
+		});
+
+		it("runs no macro from a sidebar pad with SESSION up", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			(void)tap(scene, 16, 2);
+			expect(h.host.macros.activations.empty()).to_be_true();
+		});
+	});
+
+	context("the arms that leave the view or open a menu", _ {
+		it("leaves the clip for the song on a short SESSION press, and not on a long one", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			(void)button(scene, ButtonId::Session, true, Context{.now_ms = 0});
+			(void)button(scene, ButtonId::Session, false, Context{.now_ms = 100});
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"session"});
+			(void)button(scene, ButtonId::Session, true, Context{.now_ms = 1000});
+			(void)button(scene, ButtonId::Session, false,
+			             Context{.now_ms = 1000 + deluge::ui::scenes::timeline::kShortPressMs + 1});
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"session"});
+		});
+
+		it("opens the automation view on CLIP with no UI mode, and not while SESSION is held", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			expect(button(scene, ButtonId::Clip, true).handled).to_be_true();
+			(void)button(scene, ButtonId::Clip, false);
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"automation"});
+			(void)button(scene, ButtonId::Session, true);
+			(void)button(scene, ButtonId::Clip, true);
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"automation"});
+		});
+
+		it("offers every main pad to the menu's shortcuts first, and runs no marker gesture on one the menu takes", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			h.host.root_views.takes_shortcuts = true;
+			(void)tap(scene, 15, 2); // the end column
+			expect(h.host.root_views.calls)
+			    .to_equal(std::vector<std::string>{"shortcut 15 2 on", "shortcut 15 2 off"});
+			expect(scene.end_marker_visible()).to_be_false();
+			// One the menu leaves runs the marker gesture, and one it takes then puts the marker down.
+			h.host.root_views.takes_shortcuts = false;
+			(void)tap(scene, 15, 2);
+			expect(scene.end_marker_visible()).to_be_true();
+			h.host.root_views.takes_shortcuts = true;
+			(void)tap(scene, 5, 2);
+			expect(scene.end_marker_visible()).to_be_false();
+			expect(h.host.clip_writes.calls.empty()).to_be_true();
+		});
+
+		it("moves the clip to the next audio output on shift and a select turn, writing no mode", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			(void)turn_select(scene, 1, Context{.shift = true});
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"output +1"});
+			expect(h.host.writes.requests.empty()).to_be_true();
+		});
+
+		it("opens the clip's menu on SELECT, putting the end marker down, and claims the release too", _ {
+			AudioClipHost h;
+			AudioClipScene scene;
+			opened(scene, h);
+			(void)tap(scene, 15, 2);
+			expect(scene.end_marker_visible()).to_be_true();
+			h.host.root_views.calls.clear(); // the tap's shortcut offers
+			expect(button(scene, ButtonId::SelectEnc, true).handled).to_be_true();
+			// The host opens the menu after the tick; until it says the menu opened, the marker stays up.
+			expect(scene.end_marker_visible()).to_be_true();
+			scene.clip_menu_opened();
+			expect(scene.end_marker_visible()).to_be_false();
+			expect(button(scene, ButtonId::SelectEnc, false).handled).to_be_true();
+			expect(h.host.root_views.calls).to_equal(std::vector<std::string>{"clip menu"});
+		});
+	});
+});
+
+describe audio_clip_present("audio_clip::AudioClipScene's present members over the ports' fakes", ${
+	it("presents the output's type, an unnamed output's empty name, and the clip's section line", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		AudioClipScene::NameText text;
+		const std::optional<deluge::ui::views::oled::AudioClipName> d = scene.present_name(text);
+		expect(d.has_value()).to_be_true();
+		expect(d->type_text.empty()).to_be_false();
+		expect(std::string{d->name}).to_equal(std::string{});
+		expect(std::string{d->info}).to_equal(std::string{"Section 1"});
+		h.model.clip_structure.getOrCreate(kClipId).name = "VERSE";
+		h.model.clip_structure.getOrCreate(kClipId).section = 2;
+		expect(std::string{scene.present_name(text)->info}).to_equal(std::string{"3: VERSE"});
+	});
+
+	it("presents nothing with no clip open", _ {
+		AudioClipScene scene;
+		AudioClipScene::NameText text;
+		expect(scene.present_name(text).has_value()).to_be_false();
+	});
+
+	it("presents the start on column 0 and the end on column 15 for the whole loop at zoom 24, unlit", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		const deluge::ui::views::grid::ClipMarkers m = scene.present_markers();
+		expect(m.start_square).to_equal(0);
+		expect(m.end_square).to_equal(15);
+		expect(m.start_visible).to_be_false();
+		expect(m.end_visible).to_be_false();
+	});
+
+	it("presents the waveform's columns, mirrored when reversed, and none under a lit end marker", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		const std::optional<deluge::ui::scenes::services::WaveformFrame> wf = deluge::ui::scenes::services::read_waveform(
+		    h.host.waveforms, at_clip(), deluge::ui::views::waveform::Window{.scroll = 0, .zoom = 1000});
+		expect(wf.has_value()).to_be_true();
+		const deluge::ui::views::grid::ClipMarkers unlit{
+		    .start_square = 0, .end_square = 15, .start_visible = false, .end_visible = false, .blink_on = false};
+		const auto forward = scene.present_waveform(*wf, unlit, false);
+		const auto reversed = scene.present_waveform(*wf, unlit, true);
+		expect(forward[15].valid).to_be_true();
+		expect(reversed[0].max24).to_equal(forward[15].max24);
+		expect(reversed[0].min24).to_equal(forward[15].min24);
+		deluge::ui::views::grid::ClipMarkers lit = unlit;
+		lit.end_visible = true;
+		lit.blink_on = true;
+		expect(scene.present_waveform(*wf, lit, false)[15].valid).to_be_false();
+		expect(scene.present_waveform(*wf, lit, false)[14].valid).to_be_true();
+	});
+
+	it("presents the clip's colour from its colour offset", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		h.model.clip_structure.getOrCreate(kClipId).colour_offset = 3;
+		expect(scene.present_colour()).to_equal(RGB::fromHuePastel(3 * -8 / 3));
+	});
+
+	it("presents the root views' overview pad for pad", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		const deluge::ui::views::grid::PadImage image = scene.present_overview();
+		expect(image.pads[3][5]).to_equal(RGB{.r = 80, .g = 96, .b = 7});
+		expect(image.pads[7][15]).to_equal(RGB{.r = 240, .g = 224, .b = 7});
+	});
+
+	it("presents the macros only while SESSION is held, each held pad marked", _ {
+		AudioClipHost h;
+		h.host.macros.slots[2] = deluge::ui::scenes::bind::MacroFact{.kind = deluge::ui::scenes::bind::MacroKind::SECTION};
+		AudioClipScene scene;
+		opened(scene, h);
+		std::array<bool, 8> held{};
+		held[2] = true;
+		expect(scene.present_sidebar(false, held).macros).to_be_false();
+		const deluge::ui::views::grid::ClipSidebar d = scene.present_sidebar(true, held);
+		expect(d.macros).to_be_true();
+		expect(static_cast<int>(d.cells[2].kind)).to_equal(static_cast<int>(deluge::ui::widgets::grid::MacroKind::Section));
+		expect(d.cells[2].held).to_be_true();
+		expect(static_cast<int>(d.cells[0].kind)).to_equal(static_cast<int>(deluge::ui::widgets::grid::MacroKind::None));
+		expect(d.cells[0].held).to_be_false();
+	});
+
+	it("presents the playhead's column on every row, black for the unreachable muted colour, flashing as asked", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		const deluge::ui::views::grid::Playhead d = scene.present_playhead(4, true);
+		for (const auto& sq : d.per_row) {
+			expect(static_cast<int32_t>(sq.col)).to_equal(4);
+		}
+		expect(d.flash).to_be_true();
+		expect(d.muted).to_equal(RGB{});
+		expect(scene.present_playhead(4, false).flash).to_be_false();
+		expect(scene.present_playhead(deluge::ui::widgets::grid::kNoTickSquare, true).paint).to_be_false();
+	});
 });
 // clang-format on
 
-DELUGE_SPEC(audio_clip_fakes_spec, audio_clip_fakes)
+DELUGE_SPEC(audio_clip_fakes_spec, audio_clip_fakes, audio_clip_present)

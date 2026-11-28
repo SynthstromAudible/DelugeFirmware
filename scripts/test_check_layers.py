@@ -772,6 +772,26 @@ class RealTable(unittest.TestCase):
             self.library_found("ui-gfx-grid", '#include "ui/gfx/contract.h"\n'), []
         )
 
+    def test_a_grid_view_includes_only_the_grid_toolkit(self):
+        rel = "src/ui/views/grid/planted.cpp"
+        self.assertEqual(
+            self.counts(rel, '#include "ui/scenes/browser/browser_scene.h"\n').get(
+                "ui-views-grid-includes-outside"
+            ),
+            1,
+        )
+        for accepted in (
+            '#include "ui/widgets/grid/frame.h"\n',
+            '#include "ui/views/grid/waveform.h"\n',
+            '#include "ui/widgets/core/response.h"\n',
+            '#include "ui/gfx/grid/rgb.h"\n',
+            "#include <cstdint>\n",
+        ):
+            with self.subTest(accepted=accepted):
+                self.assertNotIn(
+                    "ui-views-grid-includes-outside", self.counts(rel, accepted)
+                )
+
     def test_a_scene_including_an_edit_is_counted(self):
         for rel in (
             "src/ui/scenes/menu/nodes/planted.cpp",

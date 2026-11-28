@@ -22,6 +22,8 @@
 
 #include "ui/scenes/menu/context.h"
 #include "ui/shell/scene.h"
+#include "ui/views/grid/keyboard.h"
+#include "ui/views/oled/rename.h"
 #include "ui/widgets/core/response.h"
 #include "ui/widgets/core/state.h"
 #include "ui/widgets/grid/effects.h"
@@ -131,6 +133,14 @@ public:
 	TargetId target_id() const { return target_; }
 	/// @brief The insertion point (`QwertyUI::enteredTextEditPos`).
 	int32_t cursor() const { return edit_.cursor; }
+
+	/// @name What the surfaces show (`rename/present.cpp`)
+	/// @{
+	/// @brief What the window shows: the target's title, set in @p title, and the name typed so far.
+	[[nodiscard]] deluge::ui::views::oled::RenameWindow present_window(deluge::ui::shell::TextScratch& title) const;
+	/// @brief What the pads show: the keyboard in this scene's layout, drawn.
+	[[nodiscard]] deluge::ui::views::grid::KeyboardPads present_keys() const;
+	/// @}
 
 private:
 	/// @brief `QwertyUI::padAction`'s "normal keys" arm (`qwerty_ui.cpp`), minus the

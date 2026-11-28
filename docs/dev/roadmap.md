@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-27 (params C5b done: the model names params by target, the automation selection a plugin param; C5a done: the UI names params by plugin id; R2 done: every scene on the UI's ports, and the scenes' link to the app cut; Track A step 3, the Deluge synth's state, done: plans A to E merged into `next`; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-21). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-28 (the root-view program's first root scene: the audio clip view is `AudioClipScene`, `AudioClipView` deleted; params C5b done: the model names params by target, the automation selection a plugin param; C5a done: the UI names params by plugin id; R2 done: every scene on the UI's ports, and the scenes' link to the app cut; Track A step 3, the Deluge synth's state, done: plans A to E merged into `next`; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-21). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -185,12 +185,31 @@ opens over a legacy root view, and the host hands that view whatever no scene cl
 root views become scenes one at a time, and once none is left the shell is the root and `ShellHostUI` is deleted.
 
 **Exists.** The menu, the sample, MIDI-definition and `.syx` browsers, the recorder, the marker editor, the slicer,
-the rename screen and the context menu the menu opens, all hosted by `ShellHostUI`; `AudioClipScene`, a root scene
-with its spec that the firmware does not push yet; `GlobalControls`' root-view arms and its `UnportedOpen` counters.
+the rename screen and the context menu the menu opens, all hosted by `ShellHostUI`; the first root scene,
+`AudioClipScene`, which is the audio clip view (`AudioClipView` is deleted): `gui::ui::ShellRootView` roots it on the
+one shell `gui::ui::ShellRuntime` owns, under any menu the guest opens over it, woken every frame while its play cursor
+moves (`Scene::frame_driven`); `GlobalControls`' root-view arms, whose song browsers the host opens through
+`RootViews`. A root view's spec compares it with the legacy view's answers and frames, frozen before the view went
+(`tests/golden/ui/audio_clip_oracle/`), through the differential driver (`tests/integration/ui/scenes/support/differential/`).
+
+The small-UIs stage runs as five sub-projects (decided 2026-11-27):
+
+| # | Sub-project | Status |
+| --- | --- | --- |
+| 1 | The differential driver, the root-scene host, the audio clip view as a root scene | Done |
+| 2 | The performance view (the 2026-10-13 `PerformanceScene` design is an input; takes the view's 45 `no-param-kind-outside-runtime` entries) | Needs 1 |
+| 3 | The keyboard view | Needs 1; may share a merge and an emulator sweep with 2 |
+| 4 | The load and save browsers (song, preset, pattern, kit row), a guest | Can run now; the root scenes' SAVE and LOAD open the legacy browsers until then |
+| 5 | The qwerty and rename screens and the song context menus, a guest | Can run now; the root scenes' clear-song menu is the legacy one until then |
+
+Every port follows four rules: a completeness ledger of the view's arms, each closed by a differential case or a D-row
+Kate rules on; widgets another scene also draws are shared in `src/ui/widgets/`; a scene's header states its own
+behaviour and rationale, with legacy's proofs in the ledger; per task only the emulator scripts that reach the view,
+and the full sweep against `main` once per sub-project.
 
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
-| Small UIs | 3 | Scenes for the audio clip view (`AudioClipScene` shipped, its not-yet-ported arms closed), the keyboard view, the performance view, the song, preset, pattern and kit-row load and save browsers, the qwerty and rename screens, the song context menus and the clip view's MIDI-definition browser | R2 |
+| Small UIs | 3 | Scenes for the audio clip view (done), the keyboard view, the performance view, the song, preset, pattern and kit-row load and save browsers, the qwerty and rename screens, the song context menus and the clip view's MIDI-definition browser | R2 |
 | Big views | 3 | Scenes for the instrument clip view, the session view, the arranger and the automation view, built on P5's topology (track = chain, kit = a `Kit` of `KitRow`s) beside R3's re-keyed readers | Small UIs; P5 topology |
 | Shell as root | 3 | The shell boots into the root scenes; `ShellHostUI` and the glue that forwards input to legacy root views are deleted | Big views |
 
@@ -216,7 +235,7 @@ budget.
 | 1b-ii | The ModelStack owner slot is typed; `ModControllable` and its `effectsOwner()` bridge are deleted: **done** | 1b-i; ModelStack stage 1 |
 | 2 | Params C2 (UI param reads by address, on the R1 inventory and ratchet: spec, conversion) and C5 (`Kind` and the enums stop being identity outside the runtime and the bridge): C5a is done (the UI names every param by its plugin and target, `project::PluginParam`; the `no-param-kind-outside-runtime` count in `scripts/check_layer_rules.py` holds the rest and may only fall), C5b is done (the model's API, the edits and the model's runtime reads name params by target, and a clip's and the song's automation selection is a `PluginParam`; the legacy views cross to it at their edges), C5d is done (the synth's words `SynthMode`, `OscType`, `LFOType`, `PolyphonyMode`, `SampleRepeatMode` and `kSourceCount` are the synth's, in `src/synth/types/`; the instrument re-exports them and keeps their file names, and the `synth-boundary` rule forbids `instruments/`), C5c (the legacy views) remains. C3 (one store per instance; `ParamBackup` retires) moves to P5, where the param value layers design puts the one param state per instance | 1 |
 | 3 | The Deluge synth's state (`instruments::classic::SoundState`, named `DelugeSynth::State` at the split; the state L3 serializes): one state composed of its components' states, one derived render config in place of `SoundSnapshot` and `VoiceConfig`'s settings, a per-block pack, the loaded resources, and one apply path. Five plans, merged: A (query surface), B (config and apply), C (per-block pack), D (resources), E (the composed state, its recorded answers, the routing on the host, the names) | 1b-i |
-| 4 | Part 1, voice ownership (done): the Deluge synth owns its voices. `instruments::classic::VoicePool` (`src/instruments/classic/voice_pool.h`) is the only code that edits a sound's voice list: note on and off with their steals and fall-backs, the render loop, and the culls the host's budget asks for; `DelugeSynth::Instance` holds a sound's derived config and its pool, and `DelugeSynth::begin_block` makes each block's values from `synth::HostBlock` and `instruments::classic::SoundBlockFacts`. The app keeps the cull policy (the voice budget) and implements the pool's host (`SoundVoiceHost`). Part 2 (done): an engine registry in place of the note-on `OscType` dispatch, and the DX7 a sound-level engine only, the synth mode DX7, always on (no community feature); a DX7 on one oscillator slot mixed with another oscillator is dropped, a known breaking change the upgrader converts (D4), and the DX7's UI is the mode's (DIFFERENCES D193–D197). Engine stacking (several engine instances per sound, as layers) is the open idea after it | 3 |
+| 4 | Part 1, voice ownership (done): the Deluge synth owns its voices. `instruments::classic::VoicePool` (`src/instruments/classic/voice_pool.h`) is the only code that edits a sound's voice list: note on and off with their steals and fall-backs, the render loop, and the culls the host's budget asks for; `DelugeSynth::Instance` holds a sound's derived config and its pool, and `DelugeSynth::begin_block` makes each block's values from `synth::HostBlock` and `instruments::classic::SoundBlockFacts`. The app keeps the cull policy (the voice budget) and implements the pool's host (`SoundVoiceHost`). Part 2 (done): an engine registry in place of the note-on `OscType` dispatch, and the DX7 a sound-level engine only, the synth mode DX7, always on (no community feature); a DX7 on one oscillator slot mixed with another oscillator is dropped, a known breaking change the upgrader converts (D4), and the DX7's UI is the mode's (DIFFERENCES D201–D205). Engine stacking (several engine instances per sound, as layers) is the open idea after it | 3 |
 | 5 | Layout arc 2 (every library directly under `src/`), then the CLAP alignment arc (vendor the headers, `plugin` on CLAP's types; TODO.md) | can run beside 2 to 4 |
 | 6 | Params D (PARAM_MOD, display names, CLAP's double values) and the L3 adapter: a C-ABI `process()`, the reverb send as a second output, the instrument exporting a `clap_plugin`; stutter decided (the synth carries it, or the host stutters after the compressor) | 1 to 5 |
 

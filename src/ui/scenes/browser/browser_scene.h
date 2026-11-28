@@ -89,11 +89,19 @@
 #include "ui/gfx/grid/pad_grid.h"
 #include "ui/gfx/oled/icon.h"
 #include "ui/scenes/services/peak_retry.h"
+#include "ui/scenes/services/waveform_paint.h"
+#include "ui/views/grid/blink.h"
+#include "ui/views/grid/favourites.h"
+#include "ui/views/grid/keyboard.h"
+#include "ui/views/grid/pad_image.h"
+#include "ui/views/oled/browser.h"
 #include "ui/views/waveform/view.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -168,13 +176,13 @@ struct Descriptor {
 	/// @brief `Browser::fileIconPt2`, or null. Only the MIDI plug has one (its ninth column).
 	const ui::gfx::oled::Icon* file_icon_pt2;
 
-	/// @brief `Browser::shouldInterpretNoteNamesForThisBrowser` (`browser.h`), threaded through
+	/// @brief `Browser::shouldInterpretNoteNamesForThisBrowser` (`gui/ui/browser/browser.h`), threaded through
 	///        the listing rather than read off a browser -- see `FileCatalogue`'s own note.
 	bool interpret_note_names;
 
 	/// @brief `Browser::allowFoldersSharingNameWithFile`. `SampleBrowser::opened` sets it true
 	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`); the base leaves it false (`Browser::opened`
-	///        in `browser.cpp`).
+	///        in `gui/ui/browser/browser.cpp`).
 	bool allow_folders_sharing_name_with_file;
 
 	/// @brief May the browser open on this context at all?
@@ -367,18 +375,19 @@ BrowserHost& null_browser_host();
 ///       `char const*`. What the fixed buffer does buy is that the *render* path allocates nothing.
 inline constexpr size_t kMaxEnteredChars = 128;
 
-/// @brief `Browser::renderOLED`'s two x origins, on the shipped `PartialInversion` profile.
+/// @brief What `Browser::renderOLED` draws of a row's name.
 ///
-/// Legacy: `textStartX = 14`, `iconStartX = 1`, each stepped by one `kTextSpacingX` when
-/// `FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION`
-/// (`Browser::renderOLED` in `browser.cpp`). That setting is what this toolkit spells as `Style::highlighting ==
-/// Highlighting::NoInversion` -- the same mapping `list`, `columns`, `popup` and `text_edit`
-/// already make -- so the scene reads the profile rather than the flash byte, and both shipped
-/// profiles ship `PartialInversion`, so this stays on the `!= NoInversion` arm.
-/// @{
-inline constexpr int32_t kRowTextX = 14;
-inline constexpr int32_t kRowIconX = 1;
-/// @}
+/// Legacy takes `strrchr(displayName, finalChar)` with `finalChar = isFolder ? 0 : '.'`, and falls
+/// back to `finalChar = 0` when there is no dot at all (`Browser::renderOLED` in `gui/ui/browser/browser.cpp`) -- so a
+/// folder shows its whole name, a file shows everything before its **last** dot, and an extensionless file shows its
+/// whole name too.
+/// @param name     The entry's name, with its extension.
+/// @param is_folder Whether the entry is a directory.
+/// @return The part of @p name legacy inks.
+std::string_view row_label(std::string_view name, bool is_folder);
+
+/// @brief The most rows the list draws: the tallest shipped style's `menu_rows` (`kDelugeStyle64`).
+inline constexpr size_t kMaxBrowserRows = 5;
 
 /// @brief How often the scene asks to be woken while a listing is outstanding.
 ///
@@ -555,6 +564,32 @@ public:
 	}
 	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
 	int32_t favourite_row() const;
+
+	/// @name What the surfaces show (`browser/present.cpp`)
+	/// @{
+	/// @brief What the list shows: the descriptor's title and icons, the edited name, and the rows from the top of the
+	///        list, as many as @p style's `menu_rows` (at least one) and @p rows have room for -- or, with no
+	///        selection, the one row of the name being typed.
+	/// @param style The panel's style.
+	/// @param width The panel's width, the right edge a selected name side-scrolls past.
+	/// @param rows  Where the rows are written; the list's `rows` is its front. Their names point into the catalogue,
+	///              alive until it next changes.
+	[[nodiscard]] deluge::ui::views::oled::BrowserList
+	present_list(const deluge::ui::widgets::core::Style& style, int32_t width,
+	             std::span<deluge::ui::views::oled::BrowserRow> rows) const;
+	/// @brief What the pads show while the keyboard is up: the keyboard in this scene's layout, dark for DX7 banks.
+	[[nodiscard]] deluge::ui::views::grid::KeyboardPads present_keys() const;
+	/// @brief What the favourites rows show over the keyboard, with the current favourite and bank flashed when a
+	///        `kFavouriteFlashMs` period has turned since the last flash; none when this browser draws no favourites.
+	/// @param now_ms The frame's time.
+	[[nodiscard]] std::optional<deluge::ui::views::grid::FavouritePads> present_favourites(uint32_t now_ms) const;
+	/// @brief The BROWSE pad's blink at @p now_ms: the plan `browse_blink_` names, and whether its step plays.
+	/// @param now_ms The frame's time.
+	[[nodiscard]] deluge::ui::views::grid::BlinkPads present_browse_blink(uint32_t now_ms) const;
+	/// @brief The preview's columns from @p wf, the first @p main_cols of them.
+	[[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
+	present_waveform(const services::WaveformFrame& wf, int32_t main_cols) const;
+	/// @}
 	/// @brief Use @p favourites in place of the host's, or null to put the host's back. For specs.
 	void set_favourites(bind::Favourites* favourites) { favourites_override_ = favourites; }
 	/// @brief Hand every request to @p host, or to `null_browser_host()` for null. The application installs its own
@@ -625,7 +660,7 @@ private:
 		/// It named an entry, which is now selected.
 		Found,
 		/// Nothing in the folder starts with the typed text (legacy's `notFound`, `Browser::continuePrediction` in
-		/// `browser.cpp`).
+		/// `gui/ui/browser/browser.cpp`).
 		NotFound,
 		/// The cached window cannot answer -- the folder has to be read again around the search
 		/// string. Legacy loops synchronously (`doNewRead` in `Browser::continuePrediction`); this scene dispatches.
@@ -670,6 +705,12 @@ private:
 	/// @brief The favourites the browser shows: its port's, unless a spec gave its own; with neither, a bank that is
 	///        never available.
 	bind::Favourites& favourites();
+	/// @brief `favourites()`, read-only, for the present steps.
+	const bind::Favourites& favourites() const;
+	/// @brief The port both `favourites()` answer with.
+	bind::Favourites* favourites_port() const;
+	/// @brief The favourite flash's period at @p now_ms, counted from its anchor, which must be set.
+	uint32_t favourite_flash_step_at(uint32_t now_ms) const;
 	/// @brief `Browser::isFavouritesVisible` / `isBanksVisible`: the sample browser's keyboard is up and the layout
 	///        shows them.
 	bool favourites_visible() const;
@@ -682,10 +723,6 @@ private:
 	deluge::ui::shell::Result favourite_press(uint8_t position);
 	/// @brief `Browser::favouritesChanged`: redraw the row, and restart its flash.
 	void favourites_changed();
-	/// @brief The favourites and bank rows, and the current ones' flash, over the keyboard.
-	void render_favourites(deluge::ui::widgets::grid::GridFrame& f);
-	/// @brief The BROWSE pad's flash, over whatever the main pads show, while `browse_blink_` runs.
-	void render_browse_blink(deluge::ui::widgets::grid::GridFrame& f);
 	/// @brief The previewed sample's waveform across the main pads.
 	void render_waveform(deluge::ui::widgets::grid::GridFrame& f);
 	/// @brief File the preview for the selected entry, as `SampleBrowser::previewIfPossible`
@@ -809,7 +846,7 @@ private:
 	char entered_[kMaxEnteredChars] = {};
 	uint16_t entered_len_ = 0;
 
-	/// `Browser::fileIndexSelected` (`browser.h`) / `scrollPosVertical`.
+	/// `Browser::fileIndexSelected` (`gui/ui/browser/browser.h`) / `scrollPosVertical`.
 	/// @{
 	int32_t file_index_ = -1;
 	int32_t scroll_ = 0;
@@ -863,7 +900,7 @@ private:
 	/// `waveformBasicNavigator.opened()` does.
 	views::waveform::WaveformView view_{};
 	/// The waveform last painted, kept on the pads once the preview gives its sample up.
-	RGB waveform_shown_[deluge::ui::gfx::grid::kDelugeGrid.rows][deluge::ui::gfx::grid::kDelugeGrid.main_cols]{};
+	deluge::ui::views::grid::PadImage waveform_shown_{};
 	uint64_t nav_identity_ = 0;
 	/// The redraws of a render whose read left columns pending.
 	services::PeakRetry retry_{};

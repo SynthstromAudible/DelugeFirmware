@@ -90,6 +90,17 @@ void text(OledFrame& f, gfx::oled::Rect rect, std::string_view s, TextStyle ts);
 /// @param underline draw the separator rule under the title
 void title(OledFrame& f, std::string_view s, bool underline = true);
 
+/// @brief `title` with a short note right-aligned on the title band ("QUANTIZE ... 60%"): what a moment adds to its
+///        screen's name.
+///
+/// The note is drawn in the rows' face (`glyphs` at `kTextSpacingX` by `kTextSpacingY`) on row 1, ending at the
+/// frame's right edge; the title is clipped to stop 4 px left of the note, and the separator rule still runs the
+/// full width. An empty @p note draws exactly `title(f, s)`.
+/// @param f    the frame to draw into
+/// @param s    the title text
+/// @param note the note: a few characters, such as a value, a count or a position
+void title_note(OledFrame& f, std::string_view s, std::string_view note);
+
 /// @brief Draw a small icon in the title band's right-hand end, with the ninth row legacy's icons
 ///        cannot hold filled in for it.
 ///

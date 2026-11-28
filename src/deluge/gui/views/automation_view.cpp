@@ -29,7 +29,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_root.h"
 #include "gui/views/automation/editor_layout/mod_controllable.h"
 #include "gui/views/automation/editor_layout/note.h"
 #include "gui/views/instrument_clip_view.h"
@@ -346,12 +346,12 @@ void AutomationView::initializeView() {
 	setAutomationParamType();
 
 	if (!onArrangerView) {
+		// only applies to instrument clips (an audio clip has no instrument clip, so nothing here applies to it)
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		Output* output = clip->output;
-		OutputType outputType = output->type;
-
-		// only applies to instrument clips (not audio)
 		if (clip) {
+			Output* output = clip->output;
+			OutputType outputType = output->type;
+
 			// check if we for some reason, left the automation view, then switched clip types, then came back in
 			// if you did that...reset the parameter selection and save the current parameter type selection
 			// so we can check this again next time it happens
@@ -376,12 +376,10 @@ void AutomationView::initializeView() {
 			if (clip->wrapEditing) {
 				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
 			}
-		}
 
-		// if we're in the note editor and we're in a kit,
-		// check that the lastAuditionedYDisplay is in sync with the selected drum
-		if (inNoteEditor()) {
-			if (outputType == OutputType::KIT) {
+			// if we're in the note editor and we're in a kit,
+			// check that the lastAuditionedYDisplay is in sync with the selected drum
+			if (inNoteEditor() && outputType == OutputType::KIT) {
 				potentiallyVerticalScrollToSelectedDrum(clip, output);
 			}
 		}
@@ -498,7 +496,7 @@ void AutomationView::graphicsRoutine() {
 	}
 	else {
 		if (getCurrentClip()->type == ClipType::AUDIO) {
-			audioClipView.graphicsRoutine();
+			audioClipGraphicsRoutine();
 		}
 		else {
 			instrumentClipView.graphicsRoutine();
@@ -1387,7 +1385,7 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 	else if (isAudioClip) {
 		// removing time stretching by re-calculating clip length based on length of audio sample
 		if (on && Buttons::isButtonPressed(deluge::hid::button::Y_ENC) && currentUIMode == UI_MODE_NONE) {
-			audioClipView.setClipLengthEqualToSampleLength();
+			setAudioClipLengthToSampleLength(*static_cast<AudioClip*>(getCurrentClip()));
 			return false;
 		}
 		// if shift is pressed then we're resizing the clip without time stretching
@@ -2190,8 +2188,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	// Shift and x pressed - edit length of audio clip without timestretching
 	else if (getCurrentClip()->type == ClipType::AUDIO && isNoUIModeActive()
 	         && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
-		ActionResult result = audioClipView.editClipLengthWithoutTimestretching(offset);
-		return result;
+		return editAudioClipLengthWithoutTimestretching(*static_cast<AudioClip*>(getCurrentClip()), offset);
 	}
 
 	// Or, let parent deal with it
@@ -3216,8 +3213,10 @@ bool AutomationView::getAffectEntire() {
 			return false;
 		}
 	}
-	// otherwise if you're not in the kit sound menu, use the clip affect entire state
-	return getCurrentInstrumentClip()->affectEntire;
+	// otherwise if you're not in the kit sound menu, use the clip affect entire state; an audio clip always affects
+	// its entire clip
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	return clip == nullptr || clip->affectEntire;
 }
 
 void AutomationView::blinkShortcuts() {

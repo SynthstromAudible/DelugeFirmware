@@ -667,23 +667,24 @@ public:
 	/// scene that returns zero should claim `{.oled = false}` in `timer_repaints()` unless its OLED
 	/// content really does change every tick.
 	///
-	/// The case it exists for is `AudioClipView::graphicsRoutine`'s play cursor, ported by
-	/// `ui::scenes::audio_clip::AudioClipScene` -- a *frame* animation rather than a
-	/// scheduled event, which is what "every tick" spells.
-	///
-	/// @warning **Legacy's `graphicsRoutine` is NOT driven from the main loop, and it is not
-	///          per-iteration.** `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside
-	///          the `UI` hierarchy: `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm,
-	///          which calls `getCurrentUI()->graphicsRoutine()` and then re-arms itself at **15 ms**
-	///          (`gui/ui_timer_manager.cpp`), behind a pad-output-space gate. So legacy's
-	///          per-frame cadence is ~66 Hz on `uiTimerManager`, not the main loop's rate. Zero here
-	///          still means "next tick" -- what it costs is a question for the *host*, which decides
-	///          the tick rate, and `ShellHostUI` (`gui/ui/shell_host_ui.h`, `@par Why the floor is
-	///          1 ms`) is the first one that has had to answer it.
+	/// A *frame* animation, one that redraws every frame rather than at a deadline, is not this
+	/// hook's: it is `frame_driven()`, woken at the board's frame period.
 	///
 	/// @return Milliseconds from now, or `std::nullopt` for "no timer".
 	/// @see timer_repaints, for which surfaces (if any) that deadline arms.
 	virtual std::optional<uint32_t> next_timer() const { return std::nullopt; }
+
+	/// @brief Does this scene animate every frame, as legacy's `graphicsRoutine` does?
+	///
+	/// A frame-driven scene is woken, and its `timer_repaints()` surfaces repainted, once every
+	/// `ShellConfig::frame_ms`, the board's frame period (the Deluge's is its 15 ms graphics routine,
+	/// `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm), or at its own `next_timer()`
+	/// when that is sooner. Ticks between frames do not repaint it. A scene that stops being
+	/// frame-driven still gets the frame its last frame-driven tick armed, which draws it stopped. The
+	/// audio clip's play cursor is the case: a column that may move on any frame, which no deadline
+	/// can name.
+	/// @return True while the scene animates every frame; false (the default) otherwise.
+	virtual bool frame_driven() const { return false; }
 
 	/// @brief Which of this scene's own surfaces `next_timer()`'s deadline should repaint.
 	///

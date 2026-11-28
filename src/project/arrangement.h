@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "serialization/schema/extras.h"
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -31,6 +32,8 @@ inline constexpr int32_t kMaxNumSections = 24;
 struct Section {
 	int16_t num_repetitions{0};
 
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const Section&) const = default;
 };
 
@@ -51,6 +54,8 @@ struct SessionMacro {
 	std::optional<uint32_t> output_id;
 	uint8_t section{0};
 
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const SessionMacro&) const = default;
 };
 
@@ -61,6 +66,8 @@ struct Arrangement {
 	std::array<Section, kMaxNumSections> sections{};
 	std::array<SessionMacro, 8> session_macros{};
 
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 	bool operator==(const Arrangement&) const = default;
 };
 

@@ -30,6 +30,11 @@ add_library(deluge_ui_widgets_oled STATIC
   oled/threshold_meter.cpp
   oled/column_drawings.cpp
   oled/page_drawing.cpp
+  oled/fx_graphs.cpp
+  oled/timeline_strips.cpp
+  oled/keys.cpp
+  oled/counters.cpp
+  oled/scope.cpp
   oled/waveform.cpp
   oled/columns.cpp
   oled/popup.cpp
@@ -54,6 +59,8 @@ add_library(deluge_ui_widgets_grid STATIC
   grid/keyboard.cpp
   grid/markers.cpp
   grid/rows.cpp
+  grid/shortcut_blink.cpp
+  grid/scroll_transition.cpp
   grid/sidebar.cpp
   grid/waveform.cpp
   grid/zoom_transition.cpp

@@ -315,6 +315,11 @@ UI* getCurrentUI() {
 	return fakelegacyui::current_ui;
 }
 
+// No root view in this suite: the guest keeps no root scene across its sessions (`ShellHostUI::clearToRoot`).
+RootUI* getRootUI() {
+	return nullptr;
+}
+
 // `isUIOpen` walks the same hierarchy; the UI the rig declared current is the one open.
 bool isUIOpen(UI* ui) {
 	return ui == fakelegacyui::current_ui;

@@ -18,6 +18,7 @@
 #include <array>
 #include <bitset>
 #include <cstdint>
+#include <format>
 #include <map>
 #include <optional>
 #include <set>
@@ -180,10 +181,12 @@ struct RecordingClipWrites final : ClipWrites {
 	/// @brief One recorded request: its kind and its arguments.
 	struct Call {
 		/// @brief Which request it was.
-		enum class Kind : uint8_t { RECOLOUR, CLEAR, MARKER, RESIZE, UNDO_SCROLL };
+		enum class Kind : uint8_t { RECOLOUR, CLEAR, MARKER, RESIZE, UNDO_SCROLL, NAVIGATION, SHIFT };
 		Kind kind{Kind::RECOLOUR};   ///< which request it was
 		project::ClipAddress clip{}; ///< the clip it named
-		int64_t value{0};            ///< RECOLOUR's offset, MARKER's value, RESIZE's new length, UNDO_SCROLL's scroll
+		int64_t value{0};            ///< RECOLOUR's offset, MARKER's value, RESIZE's new length, UNDO_SCROLL's and
+		                             ///< NAVIGATION's scroll, SHIFT's amount
+		uint32_t x_zoom{0};          ///< NAVIGATION's zoom
 		int32_t old_length{0};       ///< RESIZE's length the gesture started from
 		ResizeKind resize{ResizeKind::END}; ///< RESIZE's kind
 		std::string path;                   ///< MARKER's row
@@ -198,6 +201,8 @@ struct RecordingClipWrites final : ClipWrites {
 	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;
 	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
 	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
+	void set_clip_navigation(int32_t x_scroll, uint32_t x_zoom) override;
+	bool shift_clip_horizontally(project::ClipAddress clip, int32_t amount) override;
 };
 
 /// @brief SoundWrites that records every request, in order, and answers each with @ref accept.
@@ -637,6 +642,40 @@ struct RecordingViewActions final : ViewActions {
 	}
 };
 
+/// @brief RootViews that records every request, and answers the two that answer as a spec sets them.
+struct RecordingRootViews final : RootViews {
+	std::vector<std::string> calls; ///< every request, in order: "session", "automation", "shortcut x y on|off",
+	                                ///< "output +n", "clip menu", "song saver", "song loader" and "clear song"
+	bool takes_shortcuts = false;   ///< what `menu_shortcut_pad` answers
+	void to_session_or_arranger() override { calls.emplace_back("session"); }
+	void to_automation() override { calls.emplace_back("automation"); }
+	[[nodiscard]] bool menu_shortcut_pad(uint8_t x, uint8_t y, bool on) override {
+		calls.push_back(std::format("shortcut {} {} {}", x, y, on ? "on" : "off"));
+		return takes_shortcuts;
+	}
+	void next_audio_output(int8_t direction) override { calls.push_back(std::format("output {:+}", direction)); }
+	void open_clip_menu() override { calls.emplace_back("clip menu"); }
+	void open_song_saver() override { calls.emplace_back("song saver"); }
+	void open_song_loader() override { calls.emplace_back("song loader"); }
+	void open_clear_song() override { calls.emplace_back("clear song"); }
+	/// @brief What `clip_shortcut_overview` answers: pad (x, y) is (x * 16, y * 32, 7), so every pad differs.
+	void clip_shortcut_overview(deluge::ui::scenes::bind::OverviewPads& pads) override {
+		for (size_t y = 0; y < pads.size(); ++y) {
+			for (size_t x = 0; x < pads[y].size(); ++x) {
+				pads[y][x] = {.r = static_cast<uint8_t>(x * 16), .g = static_cast<uint8_t>(y * 32), .b = 7};
+			}
+		}
+	}
+};
+
+/// @brief SessionMacros over eight facts a spec sets, recording every activation.
+struct FakeSessionMacros final : SessionMacros {
+	std::array<MacroFact, kSlots> slots{};                   ///< what each slot shows
+	std::vector<std::pair<uint8_t, MacroPress>> activations; ///< every activation, in order
+	[[nodiscard]] MacroFact macro(uint8_t y) const override { return y < kSlots ? slots[y] : MacroFact{}; }
+	void activate(uint8_t y, MacroPress press) override { activations.emplace_back(y, press); }
+};
+
 /// @brief CardActions that records every release asked of it, and refuses the paths a spec lists as in use.
 struct RecordingCardActions final : CardActions {
 	std::vector<std::string> released;         ///< every path asked, in order
@@ -761,6 +800,8 @@ struct FakeHost {
 	RecordingTakeActions take_actions;           ///< the take actions' recorder
 	RecordingIndicators indicators;              ///< the indicators' recorder
 	RecordingViewActions view_actions;           ///< the view actions' recorder
+	RecordingRootViews root_views;               ///< the root views' recorder
+	FakeSessionMacros macros;                    ///< the session macros' fake
 	FakeCatalogue catalogue;                     ///< the card catalogue's fake
 	RecordingCardActions card_actions;           ///< the card actions' recorder
 	FakeFavourites favourites;                   ///< the favourites bank's fake
@@ -800,6 +841,8 @@ struct FakeHost {
 		        .take_actions = &take_actions,
 		        .indicators = &indicators,
 		        .view_actions = &view_actions,
+		        .root_views = &root_views,
+		        .macros = &macros,
 		        .catalogue = &catalogue,
 		        .card_actions = &card_actions,
 		        .favourites = &favourites};

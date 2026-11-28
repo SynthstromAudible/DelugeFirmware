@@ -24,6 +24,7 @@
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_mode.h"
 #include "gui/ui/shell_pad_forward.h" // menuShowsAutomationViewParam
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h" // getRootUI, rootUIIsClipMinderScreen, swapOutRootUILowLevel, uiNeedsRendering, currentUIMode
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -69,7 +70,7 @@ std::optional<AutomationParam> paramOf(const Node* node) {
 
 /// Whether the menu is what takes the guest's input (not a scene it opened over itself).
 bool menuTakesInput() {
-	return &shellHostUI.shell().stack().input_top() == &deluge::ui::scenes::menu_scene();
+	return &deluge::gui::ui::shellRuntime().shell().stack().input_top() == &deluge::ui::scenes::menu_scene();
 }
 
 /// Whether `Automation::buttonAction` acts at all: over a clip minder, or the arranger. @p clipMinder is set to which.
@@ -370,7 +371,7 @@ std::optional<ActionResult> forwardMenuVertical(int32_t offset) {
 
 bool browserTakesRecord() {
 	const deluge::ui::scenes::browser::BrowserScene& browser = deluge::ui::scenes::browser::browser_scene();
-	return &shellHostUI.shell().stack().input_top() == &browser
+	return &deluge::gui::ui::shellRuntime().shell().stack().input_top() == &browser
 	       && browser.browser_id() == deluge::ui::scenes::browser::BrowserId::Sample
 	       && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE && getCurrentClip() != nullptr
 	       && getCurrentClip()->type != ClipType::AUDIO;
@@ -378,12 +379,13 @@ bool browserTakesRecord() {
 
 bool recorderTakesRecord(bool on) {
 	const deluge::ui::scenes::recorder::RecorderScene& recorder = deluge::ui::scenes::recorder::recorder_scene();
-	return on && &shellHostUI.shell().stack().input_top() == &recorder && recorder.recording();
+	return on && &deluge::gui::ui::shellRuntime().shell().stack().input_top() == &recorder && recorder.recording();
 }
 
 bool recorderPassesFillRelease(deluge::hid::Button b, bool on) {
 	return !on && b == deluge::hid::button::SYNC_SCALING && currentSong != nullptr && currentSong->isFillModeActive()
-	       && &shellHostUI.shell().stack().input_top() == &deluge::ui::scenes::recorder::recorder_scene();
+	       && &deluge::gui::ui::shellRuntime().shell().stack().input_top()
+	              == &deluge::ui::scenes::recorder::recorder_scene();
 }
 
 ActionResult rootViewButtonAction(deluge::hid::Button b, bool on) {
@@ -392,7 +394,7 @@ ActionResult rootViewButtonAction(deluge::hid::Button b, bool on) {
 
 std::optional<ActionResult> forwardBrowserVertical(int32_t offset) {
 	const deluge::ui::scenes::browser::BrowserScene& browser = deluge::ui::scenes::browser::browser_scene();
-	if (&shellHostUI.shell().stack().input_top() != &browser
+	if (&deluge::gui::ui::shellRuntime().shell().stack().input_top() != &browser
 	    || browser.browser_id() != deluge::ui::scenes::browser::BrowserId::Sample || Buttons::isShiftButtonPressed()
 	    || getRootUI() != &instrumentClipView) {
 		return std::nullopt;
@@ -404,7 +406,7 @@ std::optional<ActionResult> forwardBrowserVertical(int32_t offset) {
 }
 
 std::optional<ActionResult> forwardMarkerVertical(int32_t offset) {
-	if (&shellHostUI.shell().stack().input_top() != &deluge::ui::scenes::marker::marker_scene()) {
+	if (&deluge::gui::ui::shellRuntime().shell().stack().input_top() != &deluge::ui::scenes::marker::marker_scene()) {
 		return std::nullopt;
 	}
 	const Clip* clip = getCurrentClip();

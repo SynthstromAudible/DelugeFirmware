@@ -96,6 +96,7 @@
 #include "support/fake_host_rig.h"
 #include "support/global_guest_menu.h"
 #include "support/mocks/fake_surfaces.h"
+#include "support/popup_capture.h"
 #include "support/printers/fx_chain_printer.h"
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/param_id_printer.h"
@@ -147,39 +148,6 @@ namespace {
 /// `model/model_stack.h`; the shell's is a different type with the same name (every other spec in
 /// this directory makes the same alias for the same reason).
 using ShellAction = deluge::ui::shell::Action;
-
-/// @brief The minimum `Display` legacy's popup needs; `display` is null in a spec process
-///        (`hid/display/display.cpp`) and `View::displayModEncoderValuePopup` dereferences it.
-///
-/// The popup's *pixels* are `param_popup_spec.cpp`'s subject, driven against the real
-/// `OLED::displayNotification`; what this records is the one thing that spec cannot reach, the
-/// parameter *name* legacy chose for a MIDI clip -- see the `PopupContext` example below.
-struct StubDisplay final : deluge::hid::Display {
-	std::string last_popup; ///< the text of the latest popupText
-	int notifications = 0;
-	std::string last_title;
-	bool showing = false;
-
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const* text, PopupType) override { last_popup = text; }
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return showing; }
-	bool hasPopupOfType(PopupType type) override { return showing && type == PopupType::NOTIFICATION; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-	void displayNotification(std::string_view title, std::optional<std::string_view>) override {
-		last_title = title;
-		showing = true;
-		notifications++;
-	}
-};
 
 /// @brief A second (or third) default synth clip in @p song -- `make_synth_song`'s own recipe (`song_fixture.h`,
 ///        the card-less default synth of `Song::ensureAtLeastOneSessionClip` in `song/song.cpp`), applied again.
@@ -730,8 +698,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("writes the model exactly as the recorded View::modEncoderAction turn does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		AudioEngine::audioSampleTimer = 0;
 
 		spec::SongFixture f = spec::make_synth_song();
@@ -764,8 +731,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("turns a knob on a sound's arp param in its arp's set", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		AudioEngine::audioSampleTimer = 0;
 
 		spec::SongFixture f = spec::make_synth_song();
@@ -804,8 +770,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("blinks one indicator at a time: centring the other knob re-levels the first, as the recorded view does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		AudioEngine::audioSampleTimer = 0;
 
 		spec::SongFixture f = spec::make_synth_song();
@@ -849,8 +814,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("writes a kit row's knob as the recorded View::modEncoderAction turn does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		AudioEngine::audioSampleTimer = 0;
 		spec::SongFixture f = spec::make_kit_song();
 		currentSong = f.song;
@@ -875,13 +839,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			// Recorded from `View::modEncoderAction` on a kit row, the same turn.
 			expect(sole_change(before, after)).to_equal("11=167772160");
 		}
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("keeps a kit chain's stutter through its reverb button, and ends it on another, as main's kit chain does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_kit_song();
 		currentSong = f.song;
 		f.clip->affectEntire = true;
@@ -901,13 +863,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_false();
 		rig.knobs.mod_button_action(3, false);
 		currentUIMode = UI_MODE_NONE;
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("writes an audio track's knob as the recorded View::modEncoderAction turn does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		AudioEngine::audioSampleTimer = 0;
 		spec::AudioSongFixture song = spec::make_audio_clip_song();
 		seed_params(song.clip->paramManager, 0);
@@ -924,13 +884,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const std::vector<int32_t> after = param_snapshot(song.clip->paramManager);
 		// Recorded from `View::modEncoderAction` on an audio clip, the same turn: main's pan at index 31, here 15.
 		expect(sole_change(before, after)).to_equal("15=167772160");
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("turns the song's compressor as the recorded View turn does, its view pushed in and cycled", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture song = spec::make_synth_song();
 		const auto push = [](ButtonId knob) {
 			UiEvent e{};
@@ -967,13 +925,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		if (recorded != nullptr) {
 			expect(recorded->compressor.release).to_equal(167772160);
 		}
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("does nothing on a CV track, whose knobs have no modes, as the recorded view does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_cv_song();
 		currentSong = f.song;
 		KnobRig rig;
@@ -985,13 +941,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const Result r = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
 		expect(r.handled).to_be_true();
 		expect(r.actions.size()).to_equal(size_t(0));
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("turns an arranger row with no clip from its backed-up value, as the recorded view does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		AudioEngine::audioSampleTimer = 0;
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
@@ -1020,13 +974,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const std::vector<int32_t> port_after = param_snapshot(*port_params);
 		// Recorded from `View::modEncoderAction` on an arranger row with no clip: the turn from its backed-up value.
 		expect(sole_change(port_before, port_after)).to_equal("11=436207616");
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("marks the instrument edited where the recorded view's turn and push do, and only there", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		AudioEngine::audioSampleTimer = 0;
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
@@ -1060,13 +1012,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		synth->editedByUser = false;
 		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 3), c.ctx);
 		expect(synth->editedByUser).to_be_true();
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("leaves a MIDI knob's CC choice unentered outside a clip minder, so the next mod button is taken", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_midi_song();
 		currentSong = f.song;
 		KnobRig rig;
@@ -1081,13 +1031,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.mod_button_action(3, true);
 		rig.knobs.mod_button_action(3, false);
 		expect(rig.knobs.mode()).to_equal(3);
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("repaints every pad when a synth's note tails change with a turn", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
@@ -1154,7 +1102,6 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(tails()).to_be_false();
 		expect(deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy).has(deluge::base::notify::Dirty::GridMain))
 		    .to_be_false();
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
@@ -1201,8 +1148,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("leaves a MIDI CC select running when a mod button is pressed, and ends it on the release", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView); // the select starts only from a clip minder
 		spec::SongFixture f = spec::make_midi_song();
@@ -1218,26 +1164,22 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		(void)rig.knobs.handle(push, c.ctx);
 		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
 		drain_notices();
+		popups.clear();
 
 		rig.knobs.mod_button_action(3, true);
 		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
-		expect(deluge::base::notify::notices().size()).to_equal(size_t{0});
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 		expect(rig.knobs.mode()).to_equal(0);
 
 		rig.knobs.mod_button_action(3, false);
 		expect(currentUIMode).to_equal(UI_MODE_NONE);
-		expect(deluge::base::notify::notices().size()).to_equal(size_t{1});
-		deluge::base::notify::Notice raised;
-		expect(deluge::base::notify::notices().pop(raised)).to_be_true();
-		expect(raised.kind).to_equal(deluge::base::notify::Notice::Kind::CancelPopup);
+		expect(popups.seen()).to_equal(std::vector<std::string>{"cancel: "});
 		currentUIMode = UI_MODE_NONE;
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("selects the CC its track's record names for the knob and mode, and ends on a release", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		spec::SongFixture f = spec::make_midi_song();
@@ -1269,13 +1211,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(sink.midi_cc_select(focus, 1, false)).to_be_false();
 		expect(currentUIMode).to_equal(UI_MODE_HORIZONTAL_SCROLL);
 		currentUIMode = UI_MODE_NONE;
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("draws the CC a knob sends and whether its lane is automated, for a CC, bend, aftertouch and the Y axis", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		using Cc = deluge::project::ModKnobCc;
@@ -1322,20 +1262,18 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 				if (pressed == automated) {
 					expected += "\n(automated)";
 				}
-				stub.last_popup.clear();
+				popups.clear();
 				expect(sink.midi_cc_select(focus, lane.knob, true)).to_be_true();
-				expect(stub.last_popup).to_equal(expected);
+				expect(popups.last_popup()).to_equal(expected);
 				expect(sink.midi_cc_select(focus, lane.knob, false)).to_be_false();
 			}
 		}
 		currentUIMode = UI_MODE_NONE;
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("draws a CC whose lane is not made, and a knob that sends nothing, unautomated, and makes no lane", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		using Cc = deluge::project::ModKnobCc;
@@ -1357,9 +1295,9 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		for (const auto& [knob, cc] : {std::pair{0, Cc{.kind = Cc::Kind::NUMBER, .number = 75}}, std::pair{1, Cc{}}}) {
 			etl::string<30> name;
 			instrument->appendCCName(name, MIDIInstrument::engineCcOf(cc));
-			stub.last_popup.clear();
+			popups.clear();
 			expect(sink.midi_cc_select(focus, knob, true)).to_be_true();
-			expect(stub.last_popup).to_equal(std::string{name.c_str()});
+			expect(popups.last_popup()).to_equal(std::string{name.c_str()});
 			expect(sink.midi_cc_select(focus, knob, false)).to_be_false();
 		}
 		if (ccs != nullptr) {
@@ -1372,14 +1310,12 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(sink.midi_cc_select(elsewhere, 0, true)).to_be_false();
 		expect(currentUIMode).to_equal(UI_MODE_NONE);
 		currentUIMode = UI_MODE_NONE;
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("ends a MIDI CC choice on its knob's release with LEARN held, or with another mode held over it", _ {
 		// `View::modEncoderButtonAction` refuses a LEARN-held press only (#5290): a release ends what its press began
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		spec::SongFixture f = spec::make_midi_song();
@@ -1403,13 +1339,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(sink.midi_cc_select(focus, 1, false)).to_be_false();
 		expect(currentUIMode).to_equal(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
 		currentUIMode = UI_MODE_NONE;
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("records a stutter-rate turn while recording, as it does any param's", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		AudioEngine::audioSampleTimer = 0;
 		spec::SongFixture f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
@@ -1447,8 +1381,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("writes a region turn as a region in the record", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		(void)deluge::edits::modKnobModeFor(deluge::project::TrackAddress{*f.instrument->id()}, 1); // the filter mode: upper knob is LPF frequency
 		const deluge::project::ParamAddress lpf{
@@ -1471,12 +1404,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			return node.pos == 24;
 		});
 		expect(at_region).to_be_true();
-		display = nullptr;
 	});
 
 	it("writes a knob on a cable and on a MIDI clip's CC", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture synth = spec::make_synth_song();
 		(void)deluge::edits::modKnobModeFor(deluge::project::TrackAddress{*synth.instrument->id()}, 5); // lower knob: LFO1 -> pitch
 		deluge::synth::CableTarget pitch = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_PITCH_ADJUST);
@@ -1524,12 +1455,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const std::optional<int32_t> cc_after = value_at(*midi.song, cc74);
 		expect(cc_after.has_value()).to_be_true();
 		expect(cc_after).not_().to_equal(cc_before);
-		display = nullptr;
 	});
 
 	it("deletes the knob's automation on a shift+push, as one undo step", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
 		(void)deluge::edits::modKnobModeFor(deluge::project::TrackAddress{*f.instrument->id()}, 0); // lower knob: pan
@@ -1569,13 +1498,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(f.song->project.resolveParam(pan)->nodes.empty()).to_be_false();
 		actionLogger.deleteAllLogs();
 		nullifyUIs();
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("shows neither a turn nor a delete the app refuses as done", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		(void)deluge::edits::modKnobModeFor(deluge::project::TrackAddress{*f.instrument->id()}, 1); // upper knob: LPF frequency
 		KnobRig rig;
@@ -1602,12 +1529,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(turned.actions.size()).to_equal(size_t(0)); // no popup, no repaint
 		expect(deleted.actions.size()).to_equal(size_t(0)); // no "automation deleted"
 		expect(differences(before, param_snapshot(f.clip->paramManager))).to_equal(int32_t(0));
-		display = nullptr;
 	});
 
 	it("writes a turn while recording the arrangement to the clip being recorded from the knob's", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
 		currentSong = f.song;
@@ -1663,12 +1588,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(value_at(lpf_on(*recording))).not_().to_equal(recording_before);
 		expect(value_at(lpf_on(*f.clip))).to_equal(session_before);
 		currentSong = saved;
-		display = nullptr;
 	});
 
 	it("takes the non-existent-param arm without writing anything, as the recorded view does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		InstrumentClip* clip = f.clip;
@@ -1689,8 +1612,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("points at what View::setActiveModControllableTimelineCounter points at", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		InstrumentClip* clip = f.clip;
@@ -1719,8 +1641,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("points at what View::setActiveModControllableWithoutTimelineCounter points at", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		// A bare owner with no timeline: the clip's own `SoundInstrument` (its `Sound`) plus the clip's param
@@ -1744,8 +1665,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("records the mod region legacy records", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		view.setActiveModControllableTimelineCounter(f.clip, false);
@@ -1769,8 +1689,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("applies a lowered turn as it is, however fast the turns come", _ {
 		// A host's lowered turn (`Shell::route_lowered_turn`) is accelerated already: a fast run of them moves the
 		// model exactly as a slow run of plain turns at the multiplier's 1.0 floor does.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		InstrumentClip* slow_clip = f.clip;
@@ -1801,14 +1720,12 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		}
 		expect(differences(param_snapshot(slow_clip->paramManager), param_snapshot(lowered_clip->paramManager)))
 		    .to_equal(0);
-		display = nullptr;
 	});
 
 	it("times the acceleration on its own clock, not the tick's", _ {
 		// Four turns 10 ms apart on the tick's clock but a second apart on the acceleration clock: no ramp, so the
 		// knob moves as far as four slow turns do.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		InstrumentClip* split_clip = f.clip;
 		InstrumentClip* slow_clip = add_synth_clip(f.song, "1");
@@ -1838,8 +1755,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// `tests/unit/ui/shell/input_lowering_spec.cpp` against the legacy arithmetic; what is checked
 		// here is that `ModKnobs` is the consumer legacy's `interpretEncoders` (`hid/encoder_input.cpp`) is -- i.e.
 		// that a fast repeat moves the model further than a slow one does.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		InstrumentClip* slow_clip = f.clip;
@@ -1891,8 +1807,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("shows the value popup and pushes it exactly once, however many turns arrive", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		KnobRig rig;
@@ -1911,8 +1826,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("takes the notification slot when its popup shows, as legacy's knob popup replaces a notification", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		KnobRig rig;
 		rig.set_song(f.song);
@@ -1920,13 +1834,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.set_mod_region();
 		deluge::base::notify::Notice n;
 		while (deluge::base::notify::notices().pop(n)) {}
+		popups.clear();
 		DirectCtx c{60'000};
 		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
-		bool cancelled = false;
-		while (deluge::base::notify::notices().pop(n)) {
-			cancelled = cancelled || n.kind == deluge::base::notify::Notice::Kind::CancelNotification;
-		}
-		expect(cancelled).to_be_true();
+		expect(popups.count(deluge::ui::scenes::spec::PopupEvent::Kind::CANCEL_NOTIFICATION)).to_be_greater_than(size_t{0});
 	});
 
 	it("suppresses the popup when the menu is focused on a horizontal page's same-param column",
@@ -1940,8 +1851,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// edits `LOCAL_LPF_RESONANCE` on this fixture (see
 		// `mod_knobs_spec_nodes`'s own note), which `res_page`'s one column is bound to, so this is
 		// `LOCAL_LPF_RESONANCE` on both sides of the comparison.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 
 		spec::SongFixture f = spec::make_synth_song();
@@ -1977,8 +1887,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// for two seconds; the *fast* path did not, because the throttled arm arms
 		// `pending_flush_remaining_ms_` and `timer_repaints()` names `{.oled = true}`. So only the
 		// immediate-commit arm lacked it.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		KnobRig rig;
@@ -2038,8 +1947,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// class that HAS that context, so it passes it. This drives the path with the context and the
 		// one without and compares BOTH against the real
 		// `View::displayModEncoderValuePopup`.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
@@ -2051,10 +1959,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		// Legacy, with the context it reads off `View`'s knobs.
 		AudioEngine::audioSampleTimer = 0;
-		stub.showing = false;
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.displayModEncoderValuePopup(Kind::PATCHED, kMorph, 0);
-		const std::string legacy_named = stub.last_title;
+		const std::string banner = popups.last(deluge::ui::scenes::spec::PopupEvent::Kind::NOTIFICATION).value_or("");
+		const std::string legacy_named = banner.substr(0, banner.find('\n'));
 
 		// The port, with the same context, from its own (drained) state.
 		overlay::param_popup_scene().tick(0); // the tick after a show takes nothing off its lifetime
@@ -2108,8 +2016,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// Legacy's clip context needs a resolved mod controllable as well as a clip counter: a target
 		// with a clip counter and none is not a clip context, or `target_changed` would send a MIDI CC
 		// legacy never sends. Shape 4 is the one that fails without that guard.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
@@ -2187,8 +2094,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		it("sends no MIDI-follow CC for a CV clip, where a synth's focus sends", _ {
 			// `View::sendMidiFollowFeedback` reaches the send for a CV clip (`isClipContext`), and
 			// `MidiFollow::getModelStackWithParamForClip` returns no param for `OutputType::CV`: nothing is sent.
-			StubDisplay stub;
-			display = &stub;
+			deluge::ui::scenes::spec::PopupCapture popups;
 			const auto saved_type = midiEngine.midiFollowFeedbackChannelType;
 			const LearnedMIDI saved_a = midiEngine.midiFollowChannelType[0];
 			const uint32_t saved_timer = AudioEngine::audioSampleTimer;
@@ -2359,8 +2265,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	// --- The buttons, the mode, the LEDs and the indicators -------------------------
 
 	it("a mod button changes the knob owner's mode in its record: a track's and the song's", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
 		KnobRig rig;
@@ -2378,12 +2283,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.mod_button_action(3, true);
 		rig.knobs.mod_button_action(3, false);
 		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{3});
-		display = nullptr;
 	});
 
 	it("a push cycles the filter knob and the record's view and controls follow", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
 		KnobRig rig;
@@ -2421,7 +2324,6 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		(void)rig.knobs.handle(push, plain.ctx);
 		expect(before).to_equal(uint8_t{0});                                  // low-pass
 		expect(f.song->project.master_effects.filter_type).to_equal(uint8_t{1}); // high-pass
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
@@ -2431,8 +2333,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// `LedFrame` it declared into, against the table `View::setModLedStates` was recorded writing (`kRecordedModLeds`).
 		// Nothing here counts lit LEDs; a table with the right number of entries and the wrong ones set fails on the
 		// first mode.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
@@ -2470,7 +2371,6 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 				}
 			}
 		}
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
@@ -2481,8 +2381,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// (`View::modButtonAction`, `origin/main:src/deluge/gui/views/view.cpp`) -- so this drives the toggle as well
 		// as the LED it feeds. The recorded values are `View::modButtonAction`'s and `View::setModLedStates`'s on the
 		// same presses.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		// `itsTheSong` requires the knobs to point at a *song*, and a song's mod-knob mode lives in its record
 		// (`project.mod_knob_mode`).
@@ -2550,7 +2449,6 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			expect(port.lit).to_be_true();
 			expect(port.blinking).to_be_false(); // `itsTheSong` is false, so the blink arm cannot fire
 		}
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
@@ -2561,8 +2459,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// -- there is no root UI here at all -- so this arm is driven through the injected `ViewState` the port carries
 		// in its place, and it is the ONE row of the table whose legacy side is asserted from the source rather than
 		// from a live comparison. Named here rather than left implicit.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
@@ -2605,7 +2502,6 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.set_view_state(state);
 		rig.knobs.mod_button_action(0, true);
 		expect(rig.knobs.mode()).to_equal(0);
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
@@ -2618,8 +2514,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// Driven across all eight mod-knob modes because the mode is what decides WHICH param each
 		// gold knob addresses, and across a turn on each knob so the levels are not all the fixture
 		// default.
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
@@ -2632,13 +2527,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const auto found = indicator_disagreements(rig, f.song, "synth", knob_recorded::kSynth);
 		report_indicators(found);
 		expect(found.empty()).to_be_true();
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("levels a kit row's, a kit's chain's and an audio track's indicators as the recorded view does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		std::vector<std::string> found;
 		{
 			spec::SongFixture kit = spec::make_kit_song();
@@ -2676,13 +2569,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		}
 		report_indicators(found);
 		expect(found.empty()).to_be_true();
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("levels the song's indicators as the recorded view does, its compressor view pushed in", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture song = spec::make_synth_song();
 		song.song->persistentView.affectEntire = true;
 		currentSong = song.song;
@@ -2704,13 +2595,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		}, knob_recorded::kSongCompressor);
 		report_indicators(found);
 		expect(found.empty()).to_be_true();
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("levels a MIDI track's indicators as the recorded view does, its CCs unassigned and assigned", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		std::vector<std::string> found;
 		for (const bool assigned : {false, true}) {
 			spec::SongFixture midi = spec::make_midi_song();
@@ -2736,7 +2625,6 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		}
 		report_indicators(found);
 		expect(found.empty()).to_be_true();
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
@@ -2789,8 +2677,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// arrives as an `EncoderButton` event, which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
 		// (`InputLowering::on_button`) -- and which the router routes here, after the scene
 		// (`tests/unit/ui/shell/router_spec.cpp`).
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 		spec::SongFixture f = spec::make_synth_song();
 		InstrumentClip* port_clip = add_synth_clip(f.song, "MODPUSH");
 		currentSong = f.song;
@@ -2842,13 +2729,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const Result learn = rig.knobs.handle(push, learning.ctx);
 		expect(learn.handled).to_be_true();
 		expect(learn.actions.size()).to_equal(size_t(0)); // no popup: the shift arm never ran
-		display = nullptr;
 		currentSong = nullptr;
 	});
 
 	it("arms notifyParamAutomationOccurred's two timers exactly when legacy does", _ {
-		StubDisplay stub;
-		display = &stub;
+		deluge::ui::scenes::spec::PopupCapture popups;
 
 		spec::SongFixture f = spec::make_synth_song();
 		KnobRig rig;

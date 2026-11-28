@@ -51,7 +51,7 @@ namespace deluge::storage {
 /// listing.
 ///
 /// `Browser`'s own members are now references and one-line forwards onto this class
-/// (`browser.cpp`), so no `gui/` call site changed: `Browser::fileItems` and
+/// (`gui/ui/browser/browser.cpp`), so no `gui/` call site changed: `Browser::fileItems` and
 /// `FileCatalogue::fileItems` name the same object, not two that agree.
 ///
 /// **Lifetime.** Static, process-wide, exactly as `Browser`'s statics were: one listing at a time,
@@ -61,7 +61,7 @@ namespace deluge::storage {
 ///
 /// **Note names.** `sortFileItems`, `cullSomeFileItems`, `getNewFileItem` and
 /// `readFileItemsForFolder` take `interpretNoteNames` explicitly. In `Browser` this came from the
-/// per-browser `shouldInterpretNoteNamesForThisBrowser` flag (`browser.h`), which is the only
+/// per-browser `shouldInterpretNoteNamesForThisBrowser` flag (`gui/ui/browser/browser.h`), which is the only
 /// instance state the listing ever read -- and the only reason these were instance members at all.
 /// Passing it makes them static, and makes the dependency visible at the call.
 class FileCatalogue {

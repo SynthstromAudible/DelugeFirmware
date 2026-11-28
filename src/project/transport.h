@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "serialization/schema/extras.h"
 #include <cstdint>
 #include <optional>
 
@@ -36,6 +37,8 @@ struct Transport {
 	int32_t inside_world_tick_magnitude_offset_from_bpm{0};
 	/// The clip whose length scales the input clock (its durable id), or none. The tick magnitude above follows it.
 	std::optional<uint32_t> sync_scaling_clip_id;
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 
 	/// @brief The song's input tick magnitude: the inside-world magnitude with its sync-scaling offset, as
 	///        `Song::getInputTickMagnitude` gives it and the song file's `inputTickMagnitude` stores it.
@@ -48,7 +51,7 @@ struct Transport {
 		return samples_per_timer_tick_big == other.samples_per_timer_tick_big
 		       && inside_world_tick_magnitude == other.inside_world_tick_magnitude
 		       && inside_world_tick_magnitude_offset_from_bpm == other.inside_world_tick_magnitude_offset_from_bpm
-		       && sync_scaling_clip_id == other.sync_scaling_clip_id;
+		       && sync_scaling_clip_id == other.sync_scaling_clip_id && extras == other.extras;
 	}
 };
 

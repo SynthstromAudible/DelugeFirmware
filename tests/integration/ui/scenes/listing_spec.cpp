@@ -144,7 +144,7 @@ describe listing("the async listing seam", $ {
 		expect(outcome_of(browser_seam.request(open_request()))).to_equal(kAccepted);
 
 		// A freshly constructed second seam is `Idle` by its own reckoning and is refused anyway:
-		// the guard is on the resource (legacy's *static* `listingInProgress_`, `browser.h`),
+		// the guard is on the resource (legacy's *static* `listingInProgress_`, `gui/ui/browser/browser.h`),
 		// not on the object.
 		expect(state_of(marker_seam)).to_equal(kIdle);
 		expect(outcome_of(marker_seam.request(open_request("SETTINGS")))).to_equal(kBusy);
@@ -200,9 +200,9 @@ describe listing("the async listing seam", $ {
 		expect(listing.has_result()).to_be_false();
 
 		// And the busy indicator it raised on the way in is taken back down again.
-		NoticeTally tally = drain_notices();
-		expect(tally.working).to_equal(1);
-		expect(tally.clear_working).to_equal(1);
+		expect(clean.popups.count(PopupKind::WORKING)).to_equal(size_t{1});
+		expect(clean.popups.count(PopupKind::CLEAR_WORKING)).to_equal(size_t{1});
+		expect(clean.popups.working()).to_be_false();
 
 		Deferred::accept = true;
 		expect(outcome_of(listing.request(open_request()))).to_equal(kAccepted);
@@ -219,16 +219,13 @@ describe listing("the async listing seam", $ {
 
 		expect(outcome_of(listing.request(open_request()))).to_equal(kAccepted);
 		// Legacy shows its loading animation here (`Browser::beginListing`'s
-		// `displayLoadingAnimationText("Working")` in `browser.cpp`); the port raises the notice `Notices::drain`
+		// `displayLoadingAnimationText("Working")` in `gui/ui/browser/browser.cpp`); the port raises the notice `Notices::drain`
 		// turns into a pushed `SceneKind::Working` (`Notices::drain`).
-		NoticeTally after_request = drain_notices();
-		expect(after_request.working).to_equal(1);
-		expect(after_request.clear_working).to_equal(0);
+		expect(clean.popups.seen()).to_equal(std::vector<std::string>{"working: Working"});
+		clean.popups.clear();
 
 		Deferred::run();
-		NoticeTally after_run = drain_notices();
-		expect(after_run.clear_working).to_equal(1);
-		expect(after_run.error).to_equal(0);
+		expect(clean.popups.seen()).to_equal(std::vector<std::string>{"cleared: "});
 	});
 
 	it("surfaces a failed listing as an error result and an error notice, not a hang", _ {
@@ -248,12 +245,11 @@ describe listing("the async listing seam", $ {
 		// it, and its popup says "Folder not found".
 		expect(error_of(*result)).to_equal(static_cast<int>(Error::FOLDER_DOESNT_EXIST));
 		// The seam did not hang: it is idle, the animation is down, and the failure was announced
-		// the way `Browser::onListingFailed` announces it (`browser.cpp`, displayError).
+		// the way `Browser::onListingFailed` announces it (`gui/ui/browser/browser.cpp`, displayError).
 		expect(state_of(listing)).to_equal(kIdle);
-		NoticeTally tally = drain_notices();
-		expect(tally.clear_working).to_equal(1);
-		expect(tally.error).to_equal(1);
-		expect(static_cast<int>(tally.last_error_code)).to_equal(error_of(*result));
+		expect(clean.popups.count(PopupKind::CLEAR_WORKING)).to_equal(size_t{1});
+		expect(clean.popups.count(PopupKind::ERROR_CODE)).to_equal(size_t{1});
+		expect(clean.popups.last(PopupKind::ERROR_CODE)).to_equal(error_text(error_of(*result)));
 	});
 
 	it("keeps a failed reload silent, exactly as main's Browser::selectEncoderAction does", _ {
@@ -273,9 +269,8 @@ describe listing("the async listing seam", $ {
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
 		expect(error_of(*result)).not_().to_equal(static_cast<int>(Error::NONE));
-		NoticeTally tally = drain_notices();
-		expect(tally.error).to_equal(0);
-		expect(tally.clear_working).to_equal(1);
+		expect(clean.popups.count(PopupKind::ERROR_CODE)).to_equal(size_t{0});
+		expect(clean.popups.count(PopupKind::CLEAR_WORKING)).to_equal(size_t{1});
 	});
 
 	// ---- the five actions, over a real card ---------------------------------------------------
@@ -304,7 +299,7 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		// `goUpOneDirectoryLevelImpl` tests for a `/` in `currentDir`, not for emptiness
-		// (`browser.cpp`), so "SETTINGS" is already the top as far as it is concerned.
+		// (`gui/ui/browser/browser.cpp`), so "SETTINGS" is already the top as far as it is concerned.
 		FileCatalogue::currentDir = "SETTINGS";
 		ListingRequest req;
 		req.step = ListingAction::UP_LEVEL;
@@ -420,7 +415,7 @@ describe listing("the async listing seam", $ {
 		expect(fake.listed.size()).to_equal(std::size_t{1});
 		expect(fake.listed[0].path).to_equal(std::string("SAMPLES"));
 		expect(fake.holder).to_equal(static_cast<const void*>(nullptr));
-		expect(drain_notices().error).to_equal(1);
+		expect(clean.popups.count(PopupKind::ERROR_CODE)).to_equal(size_t{1});
 	});
 
 	it("drops a request when it has no catalogue, and announces nothing", _ {
@@ -428,8 +423,7 @@ describe listing("the async listing seam", $ {
 		deluge::ui::scenes::browser::Listing seam(&Deferred::dispatch);
 		expect(outcome_of(seam.request(open_request()))).to_equal(kDropped);
 		expect(Deferred::pending()).to_be_false();
-		const NoticeTally tally = drain_notices();
-		expect(tally.working).to_equal(0);
+		expect(clean.popups.seen()).to_equal(std::vector<std::string>{});
 	});
 
 	// ---- the harness's own limit, pinned rather than described --------------------------------

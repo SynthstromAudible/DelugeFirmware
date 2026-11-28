@@ -61,6 +61,7 @@
 #include "ui/scenes/menu/nodes/fan_out_rules.h"
 #include "util/functions.h"
 
+#include "support/popup_capture.h"
 #include "support/printers/controller_mapping_printer.h"
 #include "support/printers/knob_pair_printer.h"
 #include "support/song_fixture.h"
@@ -347,26 +348,6 @@ std::array<uint8_t, 4> ring(uint8_t knob) {
 	return {shadow[0], shadow[1], shadow[2], shadow[3]};
 }
 
-/// @brief The display View's popups draw on, counting what it is asked to show.
-struct StubDisplay final : deluge::hid::Display {
-	int32_t popups = 0;
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override { popups++; }
-	void popupText(char const*, PopupType) override { popups++; }
-	void popupTextTemporary(char const*, PopupType) override { popups++; }
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-	void displayNotification(std::string_view, std::optional<std::string_view>) override { popups++; }
-};
-
 /// @brief The knob mode @p output's record holds.
 int32_t record_mode(Song& song, Output& output) {
 	return song.project.output_structure.find(*output.id())->mod_knob_mode;
@@ -377,8 +358,7 @@ int32_t record_mode(Song& song, Output& output) {
 ///        param of the clip, the song or @p row_params, change no mode (the record's nor the engine's), show no popup,
 ///        and leave the indicators at zero.
 void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params) {
-	StubDisplay stub;
-	display = &stub;
+	deluge::ui::scenes::spec::PopupCapture popups;
 	deluge::ui::scenes::spec::make_current(f.song);
 	setRootUILowLevel(&instrumentClipView);
 	// Lit first, so zero is what the knobs' owner leaves them at.
@@ -406,13 +386,16 @@ void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params)
 	expect(param_snapshot(row_params)).to_equal(row_before, "the row's params");
 	expect(record_mode(*f.song, *f.instrument)).to_equal(mode);
 	expect(static_cast<int32_t>(f.instrument->modKnobMode)).to_equal(mode); // the engine's copy too
-	expect(stub.popups).to_equal(0);
+	{
+		using Kind = deluge::ui::scenes::spec::PopupEvent::Kind;
+		expect(popups.count(Kind::POPUP) + popups.count(Kind::PERSISTENT) + popups.count(Kind::NOTIFICATION))
+		    .to_equal(size_t{0}, "the popups shown");
+	}
 	expect(ring(0)).to_equal(std::array<uint8_t, 4>{}, "the lower knob's ring");
 	expect(ring(1)).to_equal(std::array<uint8_t, 4>{}, "the upper knob's ring");
 
 	nullifyUIs();
 	view.releaseActiveModControllable();
-	display = nullptr;
 	deluge::ui::scenes::spec::make_current(nullptr);
 }
 
@@ -608,8 +591,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 
 	context("a kit row made from a sample (Sound::setupAsSample)", _ {
 		it("gives a new row from the clip view the pitch adjust on mod button 6, which keeps it from being zeroed", _ {
-			StubDisplay stub;
-			display = &stub;
+			deluge::ui::scenes::spec::PopupCapture popups;
 			spec::SongFixture f = spec::make_kit_song();
 			deluge::ui::scenes::spec::make_current(f.song);
 			auto* kit = static_cast<Kit*>(f.instrument);
@@ -651,7 +633,6 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			seed();
 			drum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&row->paramManager, f.song);
 			expect(patched->getValue(params::LOCAL_PITCH_ADJUST)).to_equal(0);
-			display = nullptr;
 			deluge::ui::scenes::spec::make_current(nullptr);
 		});
 	});
@@ -669,8 +650,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			NoteRow* row = f.clip->getNoteRowForDrum(drum);
 			expect_no_knobs(self, f, row != nullptr ? &row->paramManager : nullptr);
 
-			StubDisplay stub;
-			display = &stub;
+			deluge::ui::scenes::spec::PopupCapture popups;
 			deluge::ui::scenes::spec::make_current(f.song);
 			setRootUILowLevel(&instrumentClipView);
 			view.setActiveModControllableTimelineCounter(f.clip, false);
@@ -686,7 +666,6 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			expect(param_snapshot(&f.clip->paramManager)).to_equal(clip_before, "the clip's params");
 			nullifyUIs();
 			view.releaseActiveModControllable();
-			display = nullptr;
 			deluge::ui::scenes::spec::make_current(nullptr);
 		});
 
@@ -696,8 +675,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			NoteRow* row = f.clip->getNoteRowForDrum(drum);
 			expect_no_knobs(self, f, row != nullptr ? &row->paramManager : nullptr);
 
-			StubDisplay stub;
-			display = &stub;
+			deluge::ui::scenes::spec::PopupCapture popups;
 			deluge::ui::scenes::spec::make_current(f.song);
 			setRootUILowLevel(&instrumentClipView);
 			view.setActiveModControllableTimelineCounter(f.clip, false);
@@ -711,7 +689,6 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			expect(param_snapshot(&f.clip->paramManager)).to_equal(clip_before, "the clip's params");
 			nullifyUIs();
 			view.releaseActiveModControllable();
-			display = nullptr;
 			deluge::ui::scenes::spec::make_current(nullptr);
 		});
 	});

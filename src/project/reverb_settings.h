@@ -18,6 +18,7 @@
 #pragma once
 
 #include "plugin/types/sync.h"
+#include "serialization/schema/extras.h"
 #include <cstdint>
 
 namespace deluge::project {
@@ -41,6 +42,8 @@ struct ReverbSettings {
 	int32_t sidechain_release{0};
 	plugin::SyncLevel sidechain_sync{};
 	ReverbModel model{ReverbModel::FREEVERB};
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 
 	bool operator==(const ReverbSettings&) const = default;
 };

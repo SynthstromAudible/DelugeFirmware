@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_sidebar.h"
 #include "model/clip/clip.h"
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
@@ -216,7 +216,7 @@ public:
 
 	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
-		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
+		return renderAudioClipSidebar(whichRows, image, occupancyMask);
 	};
 
 	ParamManagerForTimeline* getCurrentParamManager() override;

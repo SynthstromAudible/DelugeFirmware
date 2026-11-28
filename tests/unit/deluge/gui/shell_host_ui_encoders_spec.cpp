@@ -190,13 +190,13 @@ describe shell_host_ui_encoders("gui::ui::ShellHostUI: encoders, and the input h
 		expect(r.open()).to_be_true();
 		AudioEngine::audioSampleTimer = 4400;
 		fakelegacyui::system_time_s = 7.0; // the scheduler's clock, which nowMs() does not read
-		expect(r.guest.nowMs()).to_equal(uint32_t(100));
+		expect(r.runtime.nowMs()).to_equal(uint32_t(100));
 		fakelegacyui::system_time_s = 9.0;
-		expect(r.guest.nowMs()).to_equal(uint32_t(100));
+		expect(r.runtime.nowMs()).to_equal(uint32_t(100));
 		AudioEngine::audioSampleTimer = 4400 + 43;
-		expect(r.guest.nowMs()).to_equal(uint32_t(100));
+		expect(r.runtime.nowMs()).to_equal(uint32_t(100));
 		AudioEngine::audioSampleTimer = 4400 + 44;
-		expect(r.guest.nowMs()).to_equal(uint32_t(101));
+		expect(r.runtime.nowMs()).to_equal(uint32_t(101));
 	});
 
 	// ---- input: the hooks deliberately NOT wired ------------------------------------------------

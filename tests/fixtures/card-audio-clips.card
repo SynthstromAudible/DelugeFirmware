@@ -1,0 +1,32 @@
+# The fixture card with a song of three audio clips whose samples exist: each a 4 s sum of two close sines, so the
+# beat makes the waveform's peaks rise and fall across the pads (the first clip's beat spans its whole sample, so no two
+# screens of it look alike). The audio clip view's parity scripts load it.
+base tests/fixtures/card
+dir SAMPLES/CLIPS
+partials SAMPLES/CLIPS/BEAT1.WAV frames=176400 100:0.5,100.25:0.5
+partials SAMPLES/CLIPS/BEAT2.WAV frames=176400 200:0.45,202:0.45
+partials SAMPLES/CLIPS/BEAT3.WAV frames=176400 300:0.6,300.5:0.3
+text SONGS/AUDIOCLIPS.XML <<EOF_SONG
+<?xml version="1.0" encoding="UTF-8"?>
+<song firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" timePerTimerTick="229" timerTickFraction="-1342177280" inputTickMagnitude="2">
+	<instruments>
+		<audioTrack id="1" name="AUDA">
+		</audioTrack>
+		<audioTrack id="2" name="AUDB">
+		</audioTrack>
+		<audioTrack id="3" name="AUDC">
+		</audioTrack>
+	</instruments>
+	<sessionClips>
+		<audioClip trackName="AUDA" filePath="SAMPLES/CLIPS/BEAT1.WAV" startSamplePos="0" endSamplePos="176400" isPlaying="1" length="1536" colourOffset="0" section="0" selected="1">
+			<params />
+		</audioClip>
+		<audioClip trackName="AUDB" filePath="SAMPLES/CLIPS/BEAT2.WAV" startSamplePos="0" endSamplePos="176400" isPlaying="1" length="1536" colourOffset="40" section="0">
+			<params />
+		</audioClip>
+		<audioClip trackName="AUDC" filePath="SAMPLES/CLIPS/BEAT3.WAV" startSamplePos="0" endSamplePos="176400" isPlaying="1" length="1536" colourOffset="80" section="1">
+			<params />
+		</audioClip>
+	</sessionClips>
+</song>
+EOF_SONG

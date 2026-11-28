@@ -21,6 +21,7 @@
 #include "project/controller_mapping.h"
 #include "project/drum_type.h"
 #include "project/instrument_slot.h"
+#include "serialization/schema/extras.h"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -45,11 +46,14 @@ struct DocDrum {
 	std::vector<ControllerMapping> controls;
 	/// The row's arp, its lane's note device; absent until the row has one recorded.
 	std::optional<ArpRecord> arp;
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 
 	/// Equal when the identity fields, the instrument, the controls and the arp are.
 	bool operator==(const DocDrum& other) const {
 		return drum_type == other.drum_type && channel == other.channel && note == other.note && name == other.name
-		       && instrument == other.instrument && controls == other.controls && arp == other.arp;
+		       && instrument == other.instrument && controls == other.controls && arp == other.arp
+		       && extras == other.extras;
 	}
 };
 

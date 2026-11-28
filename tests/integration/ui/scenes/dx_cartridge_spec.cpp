@@ -344,22 +344,21 @@ describe dx_cartridge("the DX7 cartridge", ${
 	it("ends Failed with the read-error popup when the channel could not read the file", _ {
 		DxCartridgeRead read{FakeChannel::channel(), &FakeChannel::clock};
 		FakeChannel::script({DELUGE_CHANNEL_FAILED});
-		Popups p;
+		spec::PopupCapture p;
 		(void)read.start("DX7/BANK.SYX");
 		expect(read.poll()).to_equal(DxCartridgeRead::Status::Failed);
 		expect(read.busy()).to_be_false();
-		expect(p.mine.popups).to_equal(std::vector<std::string>{Popups::read_error()});
+		expect(p.seen()).to_equal(std::vector<std::string>{"popup: " + read_error()});
 	});
 
 	it("refuses a bank whose sysex ID is not Yamaha's, with main's unknown-ID popup", _ {
 		DX7Cartridge* const saved = bank();
 		bank() = nullptr;
-		Popups p;
+		spec::PopupCapture p;
 		std::array<std::byte, kSysexSize> bytes = spec::make_bank();
 		bytes[1] = std::byte{0x44}; // the manufacturer byte: Yamaha's is 0x43
 		expect(deluge::gui::loadDxCartridgeBytes(bytes)).to_be_false();
-		expect(p.mine.popups)
-		    .to_equal(std::vector<std::string>{deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_SYSEX_ID)});
+		expect(p.seen()).to_equal(std::vector<std::string>{std::string{"popup: "} + deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_SYSEX_ID)});
 		delete bank();
 		bank() = saved;
 	});
@@ -367,17 +366,17 @@ describe dx_cartridge("the DX7 cartridge", ${
 	it("gives up with the read-error popup once the channel has left the read unanswered for the bound", _ {
 		DxCartridgeRead read{FakeChannel::channel(), &FakeChannel::clock};
 		FakeChannel::script({DELUGE_CHANNEL_PENDING});
-		Popups p;
+		spec::PopupCapture p;
 		(void)read.start("DX7/BANK.SYX");
 		expect(read.poll()).to_equal(DxCartridgeRead::Status::Pending);
 		FakeChannel::now_us = DxCartridgeRead::kStallUs - 1;
 		expect(read.poll()).to_equal(DxCartridgeRead::Status::Pending);
-		expect(p.mine.popups.empty()).to_be_true();
+		expect(p.seen().empty()).to_be_true();
 		FakeChannel::now_us = DxCartridgeRead::kStallUs;
 		expect(read.poll()).to_equal(DxCartridgeRead::Status::Failed);
 		expect(read.give_ups()).to_equal(1);
 		expect(read.busy()).to_be_false();
-		expect(p.mine.popups).to_equal(std::vector<std::string>{Popups::read_error()});
+		expect(p.seen()).to_equal(std::vector<std::string>{"popup: " + read_error()});
 	});
 
 	it("starts nothing while a read is in flight or for an empty path, and forgets a cancelled read", _ {
@@ -396,7 +395,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		                      .booted = &FakeChannel::not_booted},
 		                     &FakeChannel::clock};
 		FakeChannel::script({DELUGE_CHANNEL_READY});
-		Popups p;
+		spec::PopupCapture p;
 		expect(read.start("DX7/NO_SUCH_BANK.SYX")).to_equal(DxCartridgeRead::Status::Failed);
 		expect(read.busy()).to_be_false();
 		expect(FakeChannel::requests).to_equal(0);
@@ -515,7 +514,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 	it("leaves the browser up with the read error when the file is no bank", _ {
 		DxCard card;
 		select_language();
-		Popups p;
+		spec::PopupCapture p;
 		MenuRig r;
 		r.open(nodes::dx_menu);
 		r.select();
@@ -525,7 +524,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		read_bank(r);
 		expect(browser_up(r)).to_be_true();
 		expect(browser_scene().awaiting_deferred_load()).to_be_false();
-		expect(p.mine.popups.empty()).to_be_false();
+		expect(p.seen().empty()).to_be_false();
 		r.back();
 		settle(r);
 		expect(r.focused()).to_equal(&nodes::dx_menu);

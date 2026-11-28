@@ -26,10 +26,12 @@
 #include "gui/context_menu/midi_learn_mode.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h" // openUI, getRootUI
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_root.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
@@ -39,11 +41,13 @@
 #include "hid/display/screensaver.h" // Screensaver::settingsChanged, for reapplyLiveSettingsAfterReset
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // getCurrentOutputType
 #include "processing/stem_export/stem_export.h"
 #include "storage/flash_storage.h"
+#include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/menu/action.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/registry.h"
@@ -173,10 +177,10 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///
 /// The guest is a singleton -- one object, one open site (`openMenu`) -- and this seam's sibling reaches for it
 /// the same way for the same kind of question: `menuCurrent` (`gui/ui/shell_guest_services.cpp`) reads
-/// `shellHostUI.shell().stack()` and answers the guest's `getCurrentUI() == &soundEditor`. `SceneStack::remove` is a
-/// documented no-op when no scene of that kind is on the stack -- it returns false having touched nothing and
-/// flagged nothing -- so if this is ever reached with no menu up, it does nothing rather than corrupting a stack it
-/// does not own.
+/// `deluge::gui::ui::shellRuntime().shell().stack()` and answers the guest's `getCurrentUI() == &soundEditor`.
+/// `SceneStack::remove` is a documented no-op when no scene of that kind is on the stack -- it returns false having
+/// touched nothing and flagged nothing -- so if this is ever reached with no menu up, it does nothing rather than
+/// corrupting a stack it does not own.
 ///
 /// @par Why this sits between two anonymous-namespace blocks instead of inside one
 ///
@@ -188,7 +192,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// `startStemExport`'s call to this function, in the anonymous-namespace block that follows, still resolves
 /// unqualified: this file includes its own header before either anonymous-namespace block opens.
 void closePortedMenu() {
-	(void)shellHostUI.shell().stack().remove(SceneKind::FirstApp);
+	(void)deluge::gui::ui::shellRuntime().shell().stack().remove(SceneKind::FirstApp);
 }
 
 namespace {
@@ -334,33 +338,18 @@ void performMenuAction(const MenuActionRequest& req) {
 	case MenuAction::SetClipLengthToSampleLength:
 		// `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress`'s one statement
 		// (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`, the call to
-		// `audioClipView.setClipLengthEqualToSampleLength()`), on the real view. No helper: there is no argument to
-		// choose and no branch to transcribe.
-		//
-		// **What the callee assumes, and why no null test is added here.**
-		// `AudioClipView::setClipLengthEqualToSampleLength` (`gui/views/audio_clip_view.h`, defined
-		// `gui/views/audio_clip_view.cpp`) opens with `AudioClip& audioClip = *getCurrentAudioClip();` (its first
-		// statement), and `getCurrentAudioClip()` answers `nullptr` whenever `currentSong->getCurrentClip()` is not an
-		// `AudioClip` (`getCurrentAudioClip` in `model/song/song.cpp`); the next line reads `audioClip.guide` through
-		// it. Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s X_ENC + Y_ENC chord
-		// (`audio_clip_view.cpp`, the call under its `Y_ENC` held test) relies on `audioClipView` being the open view;
-		// `SetClipLengthEqualToSampleLength::selectButtonPress` relies on the item being reachable only under the
-		// audio-clip root, which `SoundEditor::setup` picks from its `clip` argument's type
-		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`'s `if`, the `else` that assigns
-		// `soundEditorRootMenuAudioClip`).
-		//
-		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off
-		// `audio_clip_actions`, which hangs off `root_audio_clip` (`root_audio_clip` in
-		// `ui/scenes/menu/nodes/roots.h`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
-		// (`ui/scenes/menu/context.cpp`, reached because `ClipType` has
-		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp`); and `openMenu` is the
-		// one opener (`openMenu`). The gap both
-		// sides share is that the argument and `currentSong->getCurrentClip()` are two different
-		// reads: legacy resolves the root from the `clip` it was handed and the callee resolves the
-		// clip from the song. Closing that here -- with a null test, or by reading the argument --
-		// would be behaviour legacy does not have, which the no-new-UI/UX rule forbids. It is
-		// reported instead.
-		audioClipView.setClipLengthEqualToSampleLength();
+		// `audioClipView.setClipLengthEqualToSampleLength()`). The item that files it hangs off the audio-clip root,
+		// which `menu::context_for` picks only for an audio clip, so the current clip is one. The automation view over
+		// an audio clip makes the edit with its own scroll, zoom and popups; the audio clip scene, its.
+		if (getRootUI() == &automationView) {
+			if (::Clip* clip = getCurrentClip(); clip != nullptr && clip->type == ClipType::AUDIO) {
+				automationView.setAudioClipLengthToSampleLength(*static_cast<AudioClip*>(clip));
+			}
+		}
+		else {
+			deluge::ui::scenes::audio_clip::audio_clip_scene().set_clip_length_equal_to_sample_length();
+			ShellRuntime::armTickSoon();
+		}
 		break;
 
 	case MenuAction::OpenSongMidiLearn:
@@ -416,20 +405,20 @@ void pushShellHighlighting() {
 	else if (stored == MenuHighlighting::NO_INVERSION) {
 		h = deluge::ui::widgets::core::Highlighting::NoInversion;
 	}
-	shellHostUI.shell().set_highlighting(h);
+	deluge::gui::ui::shellRuntime().shell().set_highlighting(h);
 }
 
 void pushShellRoundedCorners() {
 	const bool rounded = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
 	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled = rounded;
-	shellHostUI.shell().set_rounded(rounded);
+	deluge::gui::ui::shellRuntime().shell().set_rounded(rounded);
 }
 
 void reapplyLiveSettingsAfterReset() {
 	pushShellHighlighting();
 	deluge::hid::display::Screensaver::settingsChanged();
 	// The setting alone: a latch made before the reset stays, as `Buttons`' does in main.
-	shellHostUI.shell().lowering().adopt_shift_is_sticky(
+	deluge::gui::ui::shellRuntime().shell().lowering().adopt_shift_is_sticky(
 	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky));
 	menu_scene().set_horizontal_menus(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus));
 }

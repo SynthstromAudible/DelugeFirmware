@@ -56,28 +56,6 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
 
-/// @brief The minimum `Display` the model reaches for. `display` is null in a spec process
-///        (`hid/display/display.cpp`'s definition), and `AudioEngine::getNewRecorder`'s failure paths and
-///        `Kit::makeDrumNameUnique` both go through it.
-struct RecorderDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override { loading = false; } // one animation on the OLED (`oled.h`)
-	void displayLoadingAnimationText(char const*, bool, bool) override { loading = true; }
-	void removeLoadingAnimation() override { loading = false; }
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-
-	bool loading = false; ///< a loading animation is up
-};
-
 /// @brief A synth song whose source 0 has one multisample range for the recording to land in.
 struct Rig {
 	spec::SongFixture song = spec::make_synth_song();

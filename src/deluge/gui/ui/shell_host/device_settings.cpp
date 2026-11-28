@@ -3,7 +3,7 @@
 #include "gui/colour/pad_colour.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
-#include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h"
 #include "hid/buttons.h"
 #include "hid/display/screensaver.h"
@@ -277,7 +277,7 @@ void store_feature(const FeatureInfo& info, int32_t stored) {
 		if (value != 0) {
 			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, RuntimeFeatureStateToggle::On);
 		}
-		shellHostUI.shell().lowering().set_shift_is_sticky(value != 0);
+		deluge::gui::ui::shellRuntime().shell().lowering().set_shift_is_sticky(value != 0);
 		if (value == 0) {
 			Buttons::clearShiftSticky();
 		}

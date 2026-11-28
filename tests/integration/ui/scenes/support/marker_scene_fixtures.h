@@ -35,6 +35,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include "support/menu_context.h"
@@ -99,25 +100,6 @@ inline Sample* make_sample() {
 	});
 	return s;
 }
-
-/// @brief The minimum `Display` an editor run needs: `display` is null in a spec process (`hid/display/display.cpp`'s
-///        definition), and a loop unlock pops up.
-struct MarkerDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
 
 /// @brief A synth song whose source 0 is a sample source with one multisample range.
 struct Rig {

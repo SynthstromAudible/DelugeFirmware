@@ -2481,7 +2481,6 @@ _ZN13AudioClipView10getMaxZoomEv
 _ZN13AudioClipViewD0Ev
 _ZN8ClipViewC2Ev
 _ZN26ClipNavigationTimelineViewC2Ev
-_GLOBAL__sub_I_audio_clip_view.cpp
 _ZN14AutomationViewC1Ev
 _ZN14AutomationViewC2Ev
 _ZN14AutomationView32initMIDICCShortcutsForAutomationEv

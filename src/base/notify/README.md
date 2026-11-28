@@ -75,9 +75,8 @@ pass. Besides draining `DirtySet` and `NoticeQueue`, every pass it also:
   state beyond a redraw and a bare `Dirty::PlaybackState` can't reproduce that;
 - calls `ArrangerView::refresh_held_row_mod_target()` when `Dirty::OutputChanged` is set and
   `ArrangerView` is the root UI;
-- for `Dirty::ClipContent`, calls `audioClipView.clipNeedsReRendering(clip)` on the current clip
-  when `AudioClipView` is the root UI (its override has a scroll-position side effect a bare
-  redraw would lose), and folds the fact into both main and sidebar rows otherwise.
+- for `Dirty::ClipContent`, folds the fact into both main and sidebar rows (the audio clip view's scene takes the fact
+  itself through the shell's own consumer, scroll-back included).
 
 A `Notice` with `Severity::Warn` becomes a persistent popup (`numFlashes 0`, i.e. it stays until
 something removes it) instead of the default 3-flash popup. No raiser sets `Severity::Warn`

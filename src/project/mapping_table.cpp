@@ -55,6 +55,10 @@ bool is_param_of(const MappingTarget& target, ControlsAddress owner) {
 
 } // namespace
 
+void MappingTable::restore(Mapping mapping) {
+	entries_.push_back(std::move(mapping));
+}
+
 Mapping& MappingTable::learn(Mapping mapping) {
 	const bool is_param = std::holds_alternative<OwnerParamTarget>(mapping.target);
 	if (is_param) {

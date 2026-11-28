@@ -25,6 +25,7 @@
 #include "storage/file_item.h"
 #include "util/name_compare.h"
 
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project headers this
@@ -89,29 +90,6 @@ struct Deferred {
 	}
 };
 
-/// @brief The minimum `Display` a browser run needs.
-///
-/// `display` is null in a spec process, and main's `Browser::renderOLED` and
-/// `clampFileSelectionAndScroll` both read `display->getNumBrowserAndMenuLines()`. 3 is
-/// `OLED::getNumBrowserAndMenuLines`'s own literal -- note that main hard-codes it on **every** panel
-/// height, which is where the port deliberately diverges (see the row-count note in `render_oled`).
-struct BrowserDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
 /// @brief Per-example reset of everything process-global this spec touches.
 ///
 /// The scene is a singleton and its `Listing` is a member of it, so an example that left a listing
@@ -127,10 +105,9 @@ struct CleanBrowser {
 	deluge::hid::Display* saved_display;
 	/// The host installed before the example, which `reset` replaces with the recording one.
 	deluge::ui::scenes::browser::BrowserHost* saved_host;
-	BrowserDisplay display_impl;
 
 	CleanBrowser() : saved_display(display), saved_host(browser_scene().installed_host()) {
-		display = &display_impl;
+		display = &deluge::ui::scenes::spec::quiet_display();
 		reset();
 	}
 	~CleanBrowser() {

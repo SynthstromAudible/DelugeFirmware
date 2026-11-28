@@ -25,6 +25,7 @@
 #include "storage/flash_storage.h"
 
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 
 namespace deluge::hid::display {
 
@@ -216,10 +217,10 @@ void Screensaver::settingsChanged() {
 	// **The menu's two items.** They write the `ui/screensaver/mode` and `ui/screensaver/timeout` DEVICE rows, whose
 	// store in the device port (`gui/ui/shell_host/device_settings.cpp`) sets the same two `FlashStorage` globals and
 	// calls this function, as main's two settings items call it.
-	shellHostUI.shell().set_screensaver_idle_ms(FlashStorage::screensaverMode == ScreensaverMode::OFF
-	                                                ? 0u
-	                                                : static_cast<uint32_t>(FlashStorage::screensaverTimeoutMinutes)
-	                                                      * kMillisecondsPerMinute);
+	deluge::gui::ui::shellRuntime().shell().set_screensaver_idle_ms(
+	    FlashStorage::screensaverMode == ScreensaverMode::OFF
+	        ? 0u
+	        : static_cast<uint32_t>(FlashStorage::screensaverTimeoutMinutes) * kMillisecondsPerMinute);
 
 	if (active_) {
 		active_ = false;

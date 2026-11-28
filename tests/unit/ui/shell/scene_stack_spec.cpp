@@ -54,6 +54,7 @@ public:
 		}
 	}
 	void on_resume() override { resumes++; }
+	bool is_root() const override { return root; }
 	deluge::ui::widgets::grid::GreyoutMask greyout_mask() const override { return greyout; }
 	void save_state(SceneState& s) const override {
 		std::memcpy(s.bytes, &arg, sizeof(arg));
@@ -66,6 +67,7 @@ public:
 
 	int* seq = nullptr; ///< Shared exit-order clock, or null to not record order.
 	int exit_at = -1;   ///< When this scene last exited, from `seq`.
+	bool root = false;  ///< What `is_root()` answers.
 	uint16_t arg = 0;
 	uint16_t restored = 0;
 	deluge::ui::widgets::grid::GreyoutMask greyout{}; ///< What `greyout_mask()` answers.
@@ -187,6 +189,42 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.b.exits).to_equal(1);
 		expect(r.a.resumes).to_equal(1);
 		expect(r.st.top().kind()).to_equal(kA);
+	});
+
+	it("pop_to_root keeps a root scene at the bottom, exits the rest top first, and resumes the root", _ {
+		Rig r;
+		int seq = 0;
+		r.a.root = true;
+		r.b.seq = &seq;
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kB})).to_be_true();
+		expect(r.st.push({kT})).to_be_true();
+		expect(r.st.has_input_scene_above_root()).to_be_true();
+		const int resumes = r.a.resumes;
+		r.st.pop_to_root();
+		expect(r.st.depth()).to_equal(size_t(1));
+		expect(r.st.top().kind()).to_equal(kA);
+		expect(r.b.exits).to_equal(1);
+		expect(r.t.exits).to_equal(1);
+		expect(r.a.exits).to_equal(0);
+		expect(r.a.resumes).to_equal(resumes + 1);
+		expect(r.st.has_input_scene_above_root()).to_be_false();
+		// Already at the root: nothing exits and nothing resumes.
+		r.st.pop_to_root();
+		expect(r.a.resumes).to_equal(resumes + 1);
+		expect(r.a.exits).to_equal(0);
+		r.st.reset();
+	});
+
+	it("pop_to_root with no root scene at the bottom empties the stack, as reset does", _ {
+		Rig r;
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kB})).to_be_true();
+		expect(r.st.has_input_scene_above_root()).to_be_true();
+		r.st.pop_to_root();
+		expect(r.st.depth()).to_equal(size_t(0));
+		expect(r.a.exits).to_equal(1);
+		expect(r.b.exits).to_equal(1);
 	});
 
 	it("topmost_greyout answers the topmost non-empty mask and skips empty ones", _ {

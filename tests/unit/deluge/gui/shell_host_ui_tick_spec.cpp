@@ -17,7 +17,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		expect(r.open()).to_be_true();
 		// Nothing above `opened()` armed a deadline, so the ask is the floor rather than a
 		// conversion (`ShellHostUI::armTickSoon`).
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 
 		// The same guest shape, varying only the one thing the refusal is about: no initial scene,
 		// so `Shell::init`'s push is refused and `opened()` returns false. `openUI` then rolls the
@@ -61,7 +61,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		deluge::base::notify::raise(deluge::base::notify::Dirty::Oled);
 		(void)deluge::base::notify::dirty().drain(deluge::base::notify::DirtyConsumer::Legacy);
 		r.guest.wakeForPendingFacts();
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 
 		const int changed = r.base.model_changed;
 		set_clock_ms(501);
@@ -132,7 +132,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		// The deadline really is `now`, so the clamp is what is being tested and not an accident of
 		// the deadline being one millisecond away.
 		expect(r.guest.shell().next_wake().value_or(0)).to_equal(uint32_t(500));
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 
 		// `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at exactly the audio sample timer, which
 		// the audio engine leaves behind before `UITimerManager::routine` is next called at all -- so
@@ -165,8 +165,8 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		set_clock_ms(500);
 		(void)far.guest.timerCallback();
 		expect(far.guest.shell().next_wake().value_or(0)).to_equal(uint32_t(100'000'500));
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMaxRearmMs));
-		to_be_at_most(expect(int64_t(ShellHostUI::kMaxRearmMs) * ShellHostUI::kTimerSamplesPerMs), int64_t(2147483647));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMaxRearmMs));
+		to_be_at_most(expect(int64_t(deluge::gui::ui::ShellRuntime::kMaxRearmMs) * deluge::gui::ui::ShellRuntime::kTimerSamplesPerMs), int64_t(2147483647));
 	});
 
 	it("arms nothing when the shell wants nothing, and input arms it again", _ {
@@ -184,7 +184,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		// And the guest is not wedged: a press re-arms it, which is the only reason a press ever
         // reaches a scene -- routing happens in `Shell::pump_input`, which only `tick()` calls.
 		expect(r.guest.padAction(3, 4, 200)).to_equal(ActionResult::DEALT_WITH);
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 		expect(r.base.seen.empty()).to_be_true(); // nothing routed yet: the tick has not run
 		const std::vector<uint32_t> after = run_quiet(r.guest, now, 2);
 		expect(after.empty()).to_be_false();
@@ -205,7 +205,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		r.guest.focusRegained();
 
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 	});
 
 	it("asks for a tick on displayOrLanguageChanged, which boot() alone cannot", _ {
@@ -218,7 +218,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		// `Shell::boot()` calls `request_repaint()`, which fires a gate but arms no deadline, so `compute_next_wake` has nothing to report and the repaint
         // would wait for an unrelated wake that never comes.
 		r.guest.displayOrLanguageChanged();
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 
 		// And that tick really does repaint: legacy's buffer, blanked first, comes back non-blank.
 		OLED::main.clear();
@@ -238,7 +238,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		// Reached from `TimerName::BACK_MENU_EXIT` (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`), not from
 		// `UI_SPECIFIC`, so nothing has re-armed the tick and the stack has just changed.
 		expect(survive.guest.exitUI()).to_equal(ActionResult::DEALT_WITH);
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 
 		// The close path, varying only the stack depth. `close()` is `closeUI(this)`, which unsets
 		// the timer itself (`gui/ui/ui.cpp`) -- so arming here would be undone one line later,

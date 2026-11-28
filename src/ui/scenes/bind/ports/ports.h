@@ -19,6 +19,8 @@
 #include "ui/scenes/bind/ports/learn_sink.h"
 #include "ui/scenes/bind/ports/midi_devices.h"
 #include "ui/scenes/bind/ports/midi_feedback.h"
+#include "ui/scenes/bind/ports/root_views.h"
+#include "ui/scenes/bind/ports/session_macros.h"
 #include "ui/scenes/bind/ports/sound_facts.h"
 #include "ui/scenes/bind/ports/sound_writes.h"
 #include "ui/scenes/bind/ports/take_actions.h"
@@ -58,6 +60,8 @@ struct Ports {
 	TakeActions* take_actions{nullptr};           ///< an input take's lifecycle
 	Indicators* indicators{nullptr};              ///< the indicators a scene changes outside its frames
 	ViewActions* view_actions{nullptr};           ///< the root view's actions
+	RootViews* root_views{nullptr};               ///< what a root scene asks of the other root views and the menu
+	SessionMacros* macros{nullptr};               ///< the song's session macros
 	Catalogue* catalogue{nullptr};                ///< the card's file listing the browsers show
 	CardActions* card_actions{nullptr};           ///< what a scene asks of the card's files
 	Favourites* favourites{nullptr};              ///< the browsers' favourites bank

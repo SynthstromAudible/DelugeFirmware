@@ -18,6 +18,7 @@
 #pragma once
 
 #include "plugin/types/sync.h"
+#include "serialization/schema/extras.h"
 
 #include <cstdint>
 
@@ -29,6 +30,8 @@ struct Groove {
 	/// The sync level the swing is applied at (set from defaults by the controller). Between parsing and the end of a
 	/// song load it holds the file value, which the song converts once the tick magnitude is known.
 	plugin::SyncLevel swing_interval{plugin::SyncLevel::NONE};
+	/// Keys a document held here that this firmware does not know, written back unchanged.
+	serialization::schema::Extras extras;
 
 	/// Whether any swing is applied.
 	[[nodiscard]] bool hasSwing() const { return swing_amount != 0; }

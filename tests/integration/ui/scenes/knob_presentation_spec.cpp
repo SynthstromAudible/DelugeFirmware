@@ -37,6 +37,7 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "support/popup_capture.h"
 #include "support/printers/param_address_printer.h"
 #include "support/song_fixture.h"
 
@@ -62,25 +63,6 @@ using deluge::ui::shell::SceneRegistry;
 using deluge::ui::shell::SceneStack;
 
 namespace {
-
-/// @brief The minimum `Display` the app's popups need; `display` is null in a spec process.
-struct StubDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-	void displayNotification(std::string_view, std::optional<std::string_view>) override {}
-};
 
 /// @brief A presentation that records each call as one tagged entry and draws nothing.
 struct Recording final : KnobPresentation {
@@ -133,7 +115,6 @@ bind::KnobFocus focus_of(Song& song, InstrumentClip* clip) {
 
 /// @brief A synth song with the knobs on its clip, a recording presentation and a cleared notice queue.
 struct Rig {
-	StubDisplay stub;
 	spec::SongFixture f = spec::make_synth_song();
 	SceneRegistry reg = scene_registry();
 	SceneStack stack{reg};
@@ -142,7 +123,7 @@ struct Rig {
 	Recording out;
 
 	Rig() {
-		display = &stub;
+		display = &deluge::ui::scenes::spec::quiet_display();
 		currentSong = f.song;
 		knobs.set_ports(&deluge::gui::shell_host::host_ports());
 		knobs.set_model(&f.song->project);
