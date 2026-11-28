@@ -21,9 +21,9 @@ in `website/src/data/generated/menu-tree.json`.
 | `l10n_bridge.{h,cpp}`, `ui/scenes/profile.{h,cpp}` | the l10n lookups the shell's profile leaves null, and `scenes::deluge_profile()` that fills them in |
 | `menu/` | the `Node` data model (`node.h`), `MenuContext` (`context.h`), `bindings`, the ten root tables (`menu/nodes/`), the shortcut tables, the validator, the node-id registry, and `MenuScene` with its units |
 | `bind/` | `deluge_ui_scenes_bind`, its own library: what a node edits (`bind::Target`), read from the model's records and the engines' descriptors; the ports (`bind/ports/`, collected in `bind::Ports`) a scene reads and writes the host through; writes leave as requests |
-| `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens |
+| `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens; each of these scenes but the context menu holds its const present members in `rename/present.cpp`, `browser/present.cpp`, `marker/present.cpp` and `recorder/present.cpp` |
 | `overlay/` | the param popup, the count-in digit and the screensaver drawing |
-| `slicing/`, `audio_clip/`, `timeline/` | the slicer, the audio clip view (the first root scene), and the scroll/zoom state clip views share |
+| `slicing/`, `audio_clip/`, `timeline/` | the slicer (its present members in `slicing/present.cpp`), the audio clip view (the first root scene), and the scroll/zoom state clip views share |
 | `services/` | `ModKnobs`, `GlobalControls`, `MidiLearn` and what they share (knob pushes, source names, view state, the waveform read and paint, the peak retry, favourites) |
 
 | `SceneKind` | scene |
