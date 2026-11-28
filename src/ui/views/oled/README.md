@@ -48,6 +48,7 @@ A `STATIC` library built as C++26. Nothing calls it yet: no scene, port or firmw
 | `recording` | `record_arming`, `count_in`, `overdub`, `resampling`, `stem_export` |
 | `editing` | `zoom_held`, `quantize_held`, `step_held`, `automation_moment`, `slicer`, `moving_kit_row`, `randomized_drums`, `undo` |
 | `playing` | `auditioning_row`, `stutter_held`, `tap_tempo`, `midi_learn`, `mod_source_held`, `loading_song` |
+| `master` | `master_scope`, `master_scope_xy` |
 
 Each view's layout follows its sketch on the OLED canvas (boards "Resting", "Moments" and "Pages").
 
