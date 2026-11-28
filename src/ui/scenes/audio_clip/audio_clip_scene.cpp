@@ -112,6 +112,7 @@ void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, cons
 		// adopt, so `in_triplets_view()` answers what `AudioClipView` answers.
 		timeline_.supports_triplets = false;
 	}
+	published_ = {.x_scroll = timeline_.x_scroll, .x_zoom = timeline_.x_zoom};
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -212,6 +213,10 @@ bool AudioClipScene::on_enter(const SceneId& id) {
 	// left is the tick-square latch and `focusRegained`, in legacy's own order.
 	must_redraw_tick_squares_ = true;
 	flashed_ticks_ = filled_no_tick(); // the PIC's latch, as `clearTickSquares` leaves it between views
+	// An entry starts with no button latch: every way into the view leaves legacy's mode word clear, and the scene is
+	// one object for every entry, so a latch left by the last visit (X held as the view was left) must not survive it.
+	// A resume keeps it: a menu opened and closed over the view leaves a held X held.
+	ui_mode_ = kUiModeNone;
 	focus_regained();
 	return true;
 }
@@ -302,6 +307,24 @@ bool AudioClipScene::scrollable_and_zoomable() const {
 // Input
 
 Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
+	Result r = dispatch(event, ctx);
+	publish_navigation();
+	return r;
+}
+
+void AudioClipScene::publish_navigation() {
+	// The view is the song's clip navigation, as legacy's timeline views keep theirs in the song's persistent view: the
+	// next visit opens on it and the song file saves it. Only a move is written.
+	if (timeline_.x_scroll == published_.x_scroll && timeline_.x_zoom == published_.x_zoom) {
+		return;
+	}
+	published_ = {.x_scroll = timeline_.x_scroll, .x_zoom = timeline_.x_zoom};
+	if (deluge::ui::scenes::bind::ClipWrites* w = clip_writes(); w != nullptr && model_ != nullptr) {
+		w->set_clip_navigation(timeline_.x_scroll, timeline_.x_zoom);
+	}
+}
+
+Result AudioClipScene::dispatch(const UiEvent& event, const UiContext& ctx) {
 	switch (event.kind) {
 	case UiEvent::Kind::Button:
 	case UiEvent::Kind::EncoderButton:

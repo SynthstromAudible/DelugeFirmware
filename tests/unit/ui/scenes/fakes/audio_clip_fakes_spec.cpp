@@ -313,6 +313,25 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(text_notices()).to_equal(std::vector<std::string>{"1 : 1 : 1", "3 : 1 : 1"});
 	});
 
+	it("keeps its scroll and zoom as the song's clip navigation, writing only what moved", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		h.model.clip_structure.getOrCreate(kClipId).loop_length = 4 * kLoopLength; // room to scroll a page right
+		// A page left of the start moves nothing, so nothing is written.
+		(void)turn_horizontal(scene, -1);
+		expect(h.host.clip_writes.calls.size()).to_equal(size_t{0});
+		// A page right moves the view 384 ticks, at the zoom it opened on.
+		(void)turn_horizontal(scene, 1);
+		expect(h.host.clip_writes.calls.size()).to_equal(size_t{1});
+		if (!h.host.clip_writes.calls.empty()) {
+			const RecordingClipWrites::Call& call = h.host.clip_writes.calls.front();
+			expect(static_cast<int>(call.kind)).to_equal(static_cast<int>(RecordingClipWrites::Call::Kind::NAVIGATION));
+			expect(call.value).to_equal(int64_t{384});
+			expect(call.x_zoom).to_equal(uint32_t{24});
+		}
+	});
+
 	it("opens on the host's clip navigation, and keeps its view where the host gives none", _ {
 		AudioClipHost h;
 		h.host.clips.navigation = ClipNavigation{.x_scroll = 96, .x_zoom = 6, .triplets_on = true, .triplets_level = 8};

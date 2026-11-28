@@ -106,6 +106,13 @@ public:
 			}
 		}
 	}
+	void set_clip_navigation(int32_t x_scroll, uint32_t x_zoom) override {
+		if (currentSong == nullptr) {
+			return;
+		}
+		currentSong->persistentView.xScroll[NAVIGATION_CLIP] = x_scroll;
+		currentSong->persistentView.xZoom[NAVIGATION_CLIP] = x_zoom;
+	}
 
 private:
 	/// The undo step the last length change opened, and its clip: what a redo of it scrolls the view back to.

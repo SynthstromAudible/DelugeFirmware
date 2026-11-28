@@ -180,10 +180,12 @@ struct RecordingClipWrites final : ClipWrites {
 	/// @brief One recorded request: its kind and its arguments.
 	struct Call {
 		/// @brief Which request it was.
-		enum class Kind : uint8_t { RECOLOUR, CLEAR, MARKER, RESIZE, UNDO_SCROLL };
+		enum class Kind : uint8_t { RECOLOUR, CLEAR, MARKER, RESIZE, UNDO_SCROLL, NAVIGATION };
 		Kind kind{Kind::RECOLOUR};   ///< which request it was
 		project::ClipAddress clip{}; ///< the clip it named
-		int64_t value{0};            ///< RECOLOUR's offset, MARKER's value, RESIZE's new length, UNDO_SCROLL's scroll
+		int64_t value{0};            ///< RECOLOUR's offset, MARKER's value, RESIZE's new length, UNDO_SCROLL's and
+		                             ///< NAVIGATION's scroll
+		uint32_t x_zoom{0};          ///< NAVIGATION's zoom
 		int32_t old_length{0};       ///< RESIZE's length the gesture started from
 		ResizeKind resize{ResizeKind::END}; ///< RESIZE's kind
 		std::string path;                   ///< MARKER's row
@@ -198,6 +200,7 @@ struct RecordingClipWrites final : ClipWrites {
 	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;
 	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
 	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
+	void set_clip_navigation(int32_t x_scroll, uint32_t x_zoom) override;
 };
 
 /// @brief SoundWrites that records every request, in order, and answers each with @ref accept.

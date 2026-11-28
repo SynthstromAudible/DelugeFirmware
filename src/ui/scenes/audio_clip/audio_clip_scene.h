@@ -537,6 +537,13 @@ private:
 	/// @param offset Signed detents.
 	/// @param ctx    The world around the turn.
 	/// @return What the shell should do.
+	/// @brief Route @p event to the arm that takes it; `handle` is this, then `publish_navigation`.
+	/// @param event The event. @param ctx Its context.
+	/// @return What the arm returned.
+	deluge::ui::shell::Result dispatch(const deluge::ui::shell::UiEvent& event,
+	                                   const deluge::ui::shell::UiContext& ctx);
+	/// @brief Write the view's scroll and zoom as the song's clip navigation when either moved since the last write.
+	void publish_navigation();
 	deluge::ui::shell::Result horizontal_encoder_action(int32_t offset, const deluge::ui::shell::UiContext& ctx);
 	/// @brief `ClipView::horizontalEncoderAction` (`gui/views/clip_view.cpp`), the three arms
 	///        `AudioClipView`'s `else` delegates to.
@@ -618,6 +625,11 @@ private:
 	/// The scroll and zoom, with `AudioClipView::supportsTriplets() == false`
 	/// (`audio_clip_view.h`) baked into the state at construction.
 	timeline::TimelineState timeline_{.supports_triplets = false};
+	/// The scroll and zoom last written as the song's clip navigation, or adopted from it.
+	struct Published {
+		int32_t x_scroll = 0;
+		uint32_t x_zoom = 0;
+	} published_;
 
 	/// `AudioClipView::endMarkerVisible` / `startMarkerVisible` (`audio_clip_view.h`).
 	/// @{
