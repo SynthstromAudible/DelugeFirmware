@@ -21,7 +21,9 @@
 /// @brief A legacy root view whose body is a scene: the scene sits at the bottom of the shared shell's stack, and the
 ///        view feeds it, ticks the shell and serves what the shell drew to legacy's renderers.
 
+#include "base/notify/dirty_set.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
@@ -56,7 +58,8 @@ struct RootViewTraits {
 ///
 /// The scene is the root of the shared shell (`ShellRuntime`): a menu the guest opens over this view goes on top of
 /// it, and closes back to it. While this view is the current UI it feeds the shell like the guest does; while a menu
-/// is open over it, the input the menu leaves (a pad outside its regions) reaches the root scene directly.
+/// is open over it, the input the menu leaves (a pad outside its regions) reaches the root scene directly. The gold
+/// knobs and the mod buttons are `root_knobs`' (the `UI` defaults), as under every legacy root view.
 /// It is not a `TimelineView`: `toTimelineView()` answers null, so legacy's timeline arms (undo's scroll animation,
 /// the triplets LED) are told apart and answered by the scene instead.
 /// @tparam SceneT A root scene (`is_root()`) with `open(std::optional<project::ClipAddress>, const project::Song*)`
@@ -112,6 +115,11 @@ public:
 		if (rt.shell().stack().depth() > 0) {
 			rt.shell().stack().input_top().on_resume();
 		}
+		// Legacy has drawn the pads and LEDs since the scene last sent them (the view before, a UI over this one), so
+		// the next frame sends them all again.
+		rt.surfaces().begin_session();
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridMain);
+		deluge::base::notify::raise(deluge::base::notify::Dirty::GridSidebar);
 		ShellRuntime::armTickSoon();
 	}
 
@@ -133,6 +141,16 @@ public:
 			        .kind = deluge::ui::shell::UiEvent::Kind::Button, .on = on, .button = buttonAt(xy.x, xy.y)},
 			    runtime_().nowMs());
 			return ActionResult::DEALT_WITH;
+		}
+		if (b == deluge::hid::button::MOD_ENCODER_0 || b == deluge::hid::button::MOD_ENCODER_1) {
+			// The gold knobs are `root_knobs`', as under every legacy root view: `Buttons::buttonAction`'s tail hands
+			// the push to `modEncoderButtonAction`. The scene sees it as the press it is.
+			(void)runtime_().shell().route_to_root(
+			    deluge::ui::shell::UiEvent{
+			        .kind = deluge::ui::shell::UiEvent::Kind::EncoderButton, .on = on, .button = buttonAt(xy.x, xy.y)},
+			    runtime_().nowMs());
+			ShellRuntime::armTickSoon();
+			return ActionResult::NOT_DEALT_WITH;
 		}
 		runtime_().feed(ev);
 		ShellRuntime::armTickSoon();
@@ -173,36 +191,18 @@ public:
 		ShellRuntime::armTickSoon();
 	}
 
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override {
-		// The gold knobs are the shell's `ModKnobs`, as under the guest.
-		(void)runtime_().shell().route_lowered_turn(
-		    whichModEncoder == 0 ? deluge::ui::widgets::core::EncoderRole::GoldLower
-		                         : deluge::ui::widgets::core::EncoderRole::GoldUpper,
-		    static_cast<int8_t>(std::clamp<int32_t>(offset, -127, 127)), runtime_().nowMs());
-		ShellRuntime::armTickSoon();
-	}
-
-	/// @brief Nothing: the press already reached the shell through `buttonAction`, which `Buttons::buttonAction` calls
-	///        first; its knobs take it there, where `root_knobs` would take it a second time.
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override {
-		(void)whichModEncoder;
-		(void)on;
-	}
-
-	void modButtonAction(uint8_t whichButton, bool on) override {
-		if (whichButton >= std::size(deluge::hid::button::ZmodButtonX)) {
-			return;
-		}
-		runtime_().feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, deluge::hid::button::ZmodButtonX[whichButton],
-		                                 deluge::hid::button::ZmodButtonY[whichButton],
-		                                 static_cast<int16_t>(on ? 255 : 0)});
-		ShellRuntime::armTickSoon();
-	}
+	/// @brief Nothing: the scene draws on the shell's frames (`Scene::frame_driven`). `UI::graphicsRoutine` would
+	/// forward
+	///        to the root view, which is this one.
+	void graphicsRoutine() override {}
 
 	ActionResult timerCallback() override {
 		ShellRuntime& rt = runtime_();
 		const uint32_t now = rt.nowMs();
-		rt.tick(now, this);
+		// No owner: the notices are legacy's display's, as under every legacy root view (`notify_drain`).
+		rt.tick(now, nullptr);
+		// After the tick, which drew and sent the scene's frame, so a browser a press opened draws over it.
+		deluge::gui::shell_host::dispatchRootViewOpens();
 		rt.rearm(now, this);
 		reassessGreyout();
 		return ActionResult::DEALT_WITH;

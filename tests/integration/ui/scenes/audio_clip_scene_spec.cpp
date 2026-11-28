@@ -163,7 +163,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.open();
 		expect(r.scene().timeline().x_scroll).to_equal(96);
 		expect(static_cast<int32_t>(r.scene().timeline().x_zoom)).to_equal(24);
-		// `AudioClipView::supportsTriplets()` returns false (`audio_clip_view.h`), and `adopt`
+		// `AudioClipView::supportsTriplets()` returns false (`origin/main:src/deluge/gui/views/audio_clip_view.h`), and `adopt`
 		// must not overwrite it with the song's `tripletsOn`.
 		r.f.song->persistentView.tripletsOn = true;
 		r.open();
@@ -212,7 +212,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 	it("draws the same waveform and grey region as legacy when the clip is scrolled", _ {
 		// Four columns' worth of scroll. The clip's end lands at column 11 (`(768 - 192 - 1) /
 		// 48`), so columns 12..15 are the grey "past the end" region -- the `drawUndefinedArea` arm of
-		// `AudioClipView::renderMainPads` (`audio_clip_view.cpp`) -- and columns 0..11 are the scrolled
+		// `AudioClipView::renderMainPads` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) -- and columns 0..11 are the scrolled
 		// waveform.
 		Rig r;
 		r.seed(Sentinel{.x_scroll = 192});
@@ -257,7 +257,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		expect(r.scene().blink_on()).to_be_true();
 		r.tick(0);
 		// The end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15, and on
-		// the bright phase it is `colours::red` (`AudioClipView::renderMainPads` in `audio_clip_view.cpp`).
+		// the bright phase it is `colours::red` (`AudioClipView::renderMainPads` in `origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
 		expect_pads_match(self, r, pads_answer("end_marker/bright"),
 		                  PadExpectation::waveform(16).and_column(15, deluge::gui::colours::red));
 
@@ -266,7 +266,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.tick(deluge::ui::scenes::audio_clip::kMarkerBlinkMs);
 		expect(r.scene().blink_on()).to_be_false();
 		// The subject of this half: on the dim phase the end column is `colours::red_dull`
-		// (`AudioClipView::renderMainPads` in `audio_clip_view.cpp`), where the bright phase drew
+		// (`AudioClipView::renderMainPads` in `origin/main:src/deluge/gui/views/audio_clip_view.cpp`), where the bright phase drew
 		// `colours::red`. The end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15.
 		expect_pads_match(self, r, pads_answer("end_marker/dim"),
 		                  PadExpectation::waveform(16).and_column(15, deluge::gui::colours::red_dull));
@@ -279,7 +279,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		r.seed(Sentinel{});
 		r.open();
 		r.tick(0);
-		// `graphicsRoutine`'s first arm (`audio_clip_view.cpp`) -> 255.
+		// `graphicsRoutine`'s first arm (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) -> 255.
 		expect(r.scene().last_tick_square()).to_equal(255);
 		expect_pads_match(self, r, pads_answer("cursor/stopped"), PadExpectation::waveform_without_cursor(16));
 	});
@@ -743,7 +743,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 	it("does NOT enter that mode when shift is held, which is what frees the length-edit chord", _ {
 		spec_fixture::QuietAudio quiet;
-		// `AudioClipView::buttonAction` (`audio_clip_view.cpp`): with shift down and Y_ENC up, the X_ENC arm
+		// `AudioClipView::buttonAction` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`): with shift down and Y_ENC up, the X_ENC arm
 		// matches neither branch, does nothing, and -- the part that matters -- never delegates to `ClipView`,
 		// so the mode is never entered. That is exactly what leaves `AudioClipView::horizontalEncoderAction`'s
 		// `isNoUIModeActive()` first arm reachable.
@@ -1207,7 +1207,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 		expect_edit_matches(self, legacy, port, seeded);
 		// `oldEndTick - newStartTicks` = `768 - 192` (`AudioClipView::changeUnderlyingSampleStart` in
-		// `audio_clip_view.cpp`).
+		// `origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
 		expect(port.loop_length).to_equal(576);
 
 
@@ -1216,7 +1216,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 	it("writes the same length and end marker as legacy for a REVERSED sample", _ {
 		spec_fixture::QuietAudio quiet;
-		// The other arm of `changeUnderlyingSampleLength` (`audio_clip_view.cpp`),
+		// The other arm of `changeUnderlyingSampleLength` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`),
 		// which moves `startPos` rather than `endPos` and can clamp it at zero.
 		Rig r;
 		Input in;
@@ -1283,8 +1283,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 		spec_fixture::QuietAudio quiet;
 		// `MenuAction::SetClipLengthToSampleLength`'s callee (`ui/scenes/menu/action.h`'s table).
 		// **Driven directly**, because building half a dispatcher here would be a second seam
-		// nobody owns. This example is what says the callee is real; that the dispatcher's arm
-		// reaches the LEGACY method of the same name is pinned in
+		// nobody owns. That the dispatcher's arm reaches it is pinned in
 		// `tests/integration/ui/scenes/menu_actions_spec.cpp`'s `menu_action_three_verbs`.
 		Rig r;
 		const Sentinel s{};
@@ -1304,7 +1303,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 	it("reaches setClipLengthEqualToSampleLength from the X_ENC + Y_ENC chord, as legacy does", _ {
 		spec_fixture::QuietAudio quiet;
-		// The other caller (`AudioClipView::buttonAction` in `audio_clip_view.cpp`), and the one this library
+		// The other caller (`AudioClipView::buttonAction` in `origin/main:src/deluge/gui/views/audio_clip_view.cpp`), and the one this library
 		// can actually reach today. Same model comparison, driven through the buttons.
 		Rig r;
 		Input in;
@@ -1329,7 +1328,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 
 	it("scrolls the audio output's mode on a select turn, exactly as legacy does", _ {
 		spec_fixture::QuietAudio quiet;
-		// `AudioClipView::selectEncoderAction`'s non-shift arm (`audio_clip_view.cpp`).
+		// `AudioClipView::selectEncoderAction`'s non-shift arm (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
 		Rig r;
 		Input in;
 		r.reseed(Sentinel{});
@@ -1422,7 +1421,7 @@ describe audio_clip_scene_spec_body("scenes/audio_clip AudioClipScene", $ {
 	it("leaves the scroll alone when the view is still inside the clip", _ {
 		spec_fixture::QuietAudio quiet;
 		// The `else` of the same test (`AudioClipView::clipNeedsReRendering` in
-		// `gui/views/audio_clip_view.cpp`), so the example above is a branch and not a function that always
+		// `origin/main:src/deluge/gui/views/audio_clip_view.cpp`), so the example above is a branch and not a function that always
 		// scrolls to zero.
 		Rig r;
 		r.reseed(Sentinel{.x_scroll = 384, .loop_length = 4096});

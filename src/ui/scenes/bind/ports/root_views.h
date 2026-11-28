@@ -53,6 +53,12 @@ public:
 	///        colour of the menu shortcut it opens here, black where it opens nothing.
 	/// @param pads Filled, every pad.
 	virtual void clip_shortcut_overview(OverviewPads& pads) = 0;
+	/// @brief Open the song saver (`View::buttonAction`'s SAVE arm).
+	virtual void open_song_saver() = 0;
+	/// @brief Open the song loader (`View::buttonAction`'s LOAD arm).
+	virtual void open_song_loader() = 0;
+	/// @brief Open the clear-song menu, when it is available here (SHIFT with LOAD).
+	virtual void open_clear_song() = 0;
 };
 
 } // namespace deluge::ui::scenes::bind

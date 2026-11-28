@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/root_ui.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"

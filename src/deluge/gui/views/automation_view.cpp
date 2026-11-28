@@ -29,7 +29,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_root.h"
 #include "gui/views/automation/editor_layout/mod_controllable.h"
 #include "gui/views/automation/editor_layout/note.h"
 #include "gui/views/instrument_clip_view.h"
@@ -469,7 +469,7 @@ void AutomationView::graphicsRoutine() {
 	}
 	else {
 		if (getCurrentClip()->type == ClipType::AUDIO) {
-			audioClipView.graphicsRoutine();
+			audioClipGraphicsRoutine();
 		}
 		else {
 			instrumentClipView.graphicsRoutine();

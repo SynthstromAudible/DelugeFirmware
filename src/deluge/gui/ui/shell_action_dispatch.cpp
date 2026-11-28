@@ -30,7 +30,7 @@
 #include "gui/ui/ui.h" // openUI, getRootUI
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_root.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
@@ -47,6 +47,7 @@
 #include "model/song/song.h" // getCurrentOutputType
 #include "processing/stem_export/stem_export.h"
 #include "storage/flash_storage.h"
+#include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/menu/action.h"
 #include "ui/scenes/menu/menu_scene.h"
 #include "ui/scenes/registry.h"
@@ -337,40 +338,17 @@ void performMenuAction(const MenuActionRequest& req) {
 	case MenuAction::SetClipLengthToSampleLength:
 		// `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress`'s one statement
 		// (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`, the call to
-		// `audioClipView.setClipLengthEqualToSampleLength()`), on the real view. No helper: there is no argument to
-		// choose and no branch to transcribe.
-		//
-		// **What the callee assumes, and why no null test is added here.**
-		// `AudioClipView::setClipLengthEqualToSampleLength` (`gui/views/audio_clip_view.h`, defined
-		// `gui/views/audio_clip_view.cpp`) opens with `AudioClip& audioClip = *getCurrentAudioClip();` (its first
-		// statement), and `getCurrentAudioClip()` answers `nullptr` whenever `currentSong->getCurrentClip()` is not an
-		// `AudioClip` (`getCurrentAudioClip` in `model/song/song.cpp`); the next line reads `audioClip.guide` through
-		// it. Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s X_ENC + Y_ENC chord
-		// (`audio_clip_view.cpp`, the call under its `Y_ENC` held test) relies on `audioClipView` being the open view;
-		// `SetClipLengthEqualToSampleLength::selectButtonPress` relies on the item being reachable only under the
-		// audio-clip root, which `SoundEditor::setup` picks from its `clip` argument's type
-		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`'s `if`, the `else` that assigns
-		// `soundEditorRootMenuAudioClip`).
-		//
-		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off
-		// `audio_clip_actions`, which hangs off `root_audio_clip` (`root_audio_clip` in
-		// `ui/scenes/menu/nodes/roots.h`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
-		// (`ui/scenes/menu/context.cpp`, reached because `ClipType` has
-		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp`); and `openMenu` is the
-		// one opener (`openMenu`). The gap both
-		// sides share is that the argument and `currentSong->getCurrentClip()` are two different
-		// reads: legacy resolves the root from the `clip` it was handed and the callee resolves the
-		// clip from the song. Closing that here -- with a null test, or by reading the argument --
-		// would be behaviour legacy does not have, which the no-new-UI/UX rule forbids. It is
-		// reported instead.
-		// The automation view over an audio clip makes the edit with its own scroll and zoom; the audio clip view, its.
+		// `audioClipView.setClipLengthEqualToSampleLength()`). The item that files it hangs off the audio-clip root,
+		// which `menu::context_for` picks only for an audio clip, so the current clip is one. The automation view over
+		// an audio clip makes the edit with its own scroll, zoom and popups; the audio clip scene, its.
 		if (getRootUI() == &automationView) {
 			if (::Clip* clip = getCurrentClip(); clip != nullptr && clip->type == ClipType::AUDIO) {
 				automationView.setAudioClipLengthToSampleLength(*static_cast<AudioClip*>(clip));
 			}
 		}
 		else {
-			audioClipView.setClipLengthEqualToSampleLength();
+			deluge::ui::scenes::audio_clip::audio_clip_scene().set_clip_length_equal_to_sample_length();
+			ShellRuntime::armTickSoon();
 		}
 		break;
 

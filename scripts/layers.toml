@@ -320,6 +320,7 @@ exclude = [
     "src/deluge/gui/ui/root_knobs.cpp",
     "src/deluge/gui/ui/shell_guest_knobs.h",
     "src/deluge/gui/ui/shell_host/*",
+    "src/deluge/gui/views/audio_clip_root.cpp",
 ]
 pattern = '^(ui/scenes/|ui/shell/)'
 reason = "the legacy tree reaches the scenes and the shell only through the host files that wire them"

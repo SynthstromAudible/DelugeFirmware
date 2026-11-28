@@ -115,7 +115,7 @@
 ///     `->addParamCollection(...)` and calls `ExpressionParamSet::clearValues(modelStack)`. No scene includes
 ///     `model/model_stack.h` (`scenes-model-stack`), so no scene can build this stack. Counted by
 ///     `unported_calls(UnportedCall::ClearMonoExpression)` rather than silently dropped, following
-///     `GlobalControls::unported_opens`'s precedent: the counter exists so a spec can prove the arm reached the point
+///     `GlobalControls::song_opens`' counters: the counter exists so a spec can prove the arm reached the point
 ///     legacy makes the call at, which is the only part of it this layer can assert.
 ///   * **`iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_MIDI_LEARN)`**
 ///     (`View::endMidiLearnPressSession`'s tail). Counted the same way
@@ -233,7 +233,7 @@ class MidiLearn final : public deluge::ui::shell::Service, public LearnMode {
 public:
 	/// @brief A legacy call this port makes the decision for but cannot spell.
 	///
-	/// A per-site tally, exactly as `GlobalControls::UnportedOpen` is, and for the same reason: it
+	/// A per-site tally, exactly as `GlobalControls::SongOpen` is, and for the same reason: it
 	/// is a **counter, not a mailbox**. Nothing consumes it and nothing may; it exists so a spec
 	/// can assert that an arm reached the point legacy makes the call at, which is the only part
 	/// of these two calls this layer can assert. See the class-doc's "not ported" list.

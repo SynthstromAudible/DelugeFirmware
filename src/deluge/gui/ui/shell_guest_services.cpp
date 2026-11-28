@@ -474,6 +474,8 @@ void wireShellGuestServices() {
 	services.learn.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	services.controls.set_ports(&deluge::gui::shell_host::host_ports());
 	services.controls.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
+	// `Buttons::buttonAction` runs its tail after the guest and the root views decline a button.
+	services.controls.set_host_runs_tail(true);
 	services.knobs.set_ports(&deluge::gui::shell_host::host_ports());
 	services.knobs.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	// The clip the views have open, which the global buttons and MIDI learn ask about.

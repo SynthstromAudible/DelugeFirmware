@@ -20,7 +20,6 @@
 #include "board_layout.hpp"
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
-#include "gui/views/audio_clip_view.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
 #include "model/sample/sample_controls.h"

@@ -140,7 +140,9 @@ public:
 
 	/// @brief Run one shell tick for @p owner: the screensaver's legacy-side inhibitors, the acceleration clock, the
 	///        notice queue while @p owner is the current UI, then `Shell::tick`.
-	/// @param now_ms The clock now. @param owner The `UI` whose timer is running the tick.
+	/// @param now_ms The clock now.
+	/// @param owner The `UI` whose notices the shell shows while it is the current UI (the guest), or null when the
+	///              legacy display shows them (a root view's tick, as under every legacy root view).
 	void tick(uint32_t now_ms, const ::UI* owner);
 	/// @brief Whether a tick is running now; a stack reset from inside one would pull the stack from under it.
 	[[nodiscard]] bool ticking() const { return ticking_; }

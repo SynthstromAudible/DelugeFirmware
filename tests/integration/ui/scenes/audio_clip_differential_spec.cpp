@@ -1,33 +1,24 @@
 /// @file
-/// @brief `AudioClipScene` against legacy's `AudioClipView` on the same input: the differential driver's cases for the
-///        audio clip view, and the driver's own examples.
+/// @brief `AudioClipScene` against legacy `AudioClipView`'s frames on the same input: the differential driver's cases
+///        for the audio clip view, and the driver's own examples.
 ///
-/// Legacy's side of every case is also frozen under `tests/golden/ui/audio_clip_oracle/`, one file per case
-/// (`support/differential/frozen.h`): the frozen comparison replays it, so the cases keep their reference once the
-/// legacy view is gone. The freezer example writes the files only when `AUDIO_CLIP_ORACLE_OUT` names a directory.
-///
-/// Each case plays its steps into legacy, puts the song back, plays them into the scene, and compares the OLED, the
-/// pads and the clip's model after every step (`support/differential/differential.h`). The input alphabet holds the
-/// arms the scene has ported; an arm joins it when its port lands, so a case that differs is a bug in the scene or a
-/// quirk the scene fixes on purpose, masked with its D-row.
+/// Legacy's side of every case is its frames, frozen under `tests/golden/ui/audio_clip_oracle/` from the live view
+/// before it was deleted, one file per case (`support/differential/frozen.h`), and replayed by `FrozenSide`. Each case
+/// plays its steps into the scene and compares the OLED, the pads and the clip's model after every step with legacy's
+/// (`support/differential/differential.h`). The input alphabet holds the arms the scene has ported, so a case that
+/// differs is a bug in the scene or a quirk the scene fixes on purpose, masked with its D-row.
 
 #include "support/audio_clip_rig.h"
 #include "support/differential/differential.h"
 #include "support/differential/frozen.h"
 
 #include "base/notify/notice_queue.h"
-#include "gui/views/audio_clip_view.h"
-#include "hid/button.h"
-#include "hid/buttons.h"
-#include "hid/display/oled.h"
 #include "hid/matrix/matrix_driver.h"
 #include "processing/engines/audio_engine.h"
 
 #include <algorithm>
 #include <array>
-#include <cstdlib>
 #include <filesystem>
-#include <fstream>
 #include <memory>
 #include <utility>
 
@@ -110,214 +101,6 @@ void restore_sample(Rig& r) {
 std::string l10n_text(uint16_t id) {
 	return deluge::l10n::get(static_cast<deluge::l10n::String>(id));
 }
-
-/// @brief Legacy's display, keeping the text of every popup raised and noting every cancel, so a frame can show
-///        what legacy put over its OLED.
-struct RecordingDisplay final : deluge::hid::Display {
-	std::string popups;
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override { note(text); }
-	void popupText(char const* text, PopupType) override { note(text); }
-	void popupTextTemporary(char const* text, PopupType) override { note(text); }
-	void cancelPopup() override { popups += "cancel\n"; }
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-
-private:
-	void note(char const* text) {
-		popups += "popup ";
-		popups += text != nullptr ? text : "";
-		popups += '\n';
-	}
-};
-
-// --- the live legacy view, which LegacySide drives ------------------------------------------
-
-/// @brief The legacy global (`AudioClipView audioClipView`, `gui/views/audio_clip_view.cpp`),
-///        aliased so every oracle call below says out loud which side it is driving.
-AudioClipView& legacy_view = ::audioClipView;
-
-/// @brief Drive legacy's own four functions and compose nothing. See the file docstring.
-LegacyPads legacy_pads() {
-	std::memset(PadLEDs::image, 0, sizeof(PadLEDs::image));
-	legacy_view.graphicsRoutine();
-	(void)legacy_view.renderMainPads(0xFFFFFFFFu, PadLEDs::image, nullptr, true);
-	(void)legacy_view.renderSidebar(0xFFFFFFFFu, PadLEDs::image, nullptr);
-
-	LegacyPads out;
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-			out.image[y][x] = PadLEDs::prepareColour(x, y, PadLEDs::image[y][x]);
-		}
-	}
-	return out;
-}
-
-/// @brief The 128x48 canvas `AudioClipView::renderOLED` would have
-///        shown, as a PBM.
-///
-/// `renderOLED`'s one call, `view.displayOutputName`, ignores the canvas it is handed and writes
-/// into `hid::display::OLED::main` (`gui/views/view.cpp`), so that is what is read back.
-std::string legacy_oled() {
-	deluge::hid::display::OLED::clearMainImage();
-	legacy_view.renderOLED(deluge::hid::display::OLED::main);
-	return page_major_to_pbm(deluge::hid::display::OLED::main.bytes().data(), 128, 48);
-}
-
-/// @brief The legacy `deluge::hid::Button` for @p b, through the same matrix cell.
-///
-/// **This is what keeps the two sides driven from one sentinel on the input side too**: an example
-/// names a `ButtonId`, and both the port's `UiEvent` and legacy's `buttonAction` argument are
-/// derived from it -- neither from the other. `deluge::hid::button::fromXY` (`hid/button.h`) is
-/// legacy's own constructor, so this is a mapping and not a second table.
-/// @param b The port's button id.
-/// @return Legacy's.
-deluge::hid::Button legacy_button(ButtonId b) {
-	const auto [x, y] = matrix_xy(b);
-	return deluge::hid::button::fromXY(x, y);
-}
-
-/// @brief Hold or release @p b on LEGACY's side, without going through `Buttons::buttonAction`.
-///
-/// See the `extern` block at the top of this file for why that function cannot be called here. This writes only what
-/// `isButtonPressed`/`isShiftButtonPressed` read (`hid/buttons.cpp`), which is all the arms under test consult -- it
-/// deliberately does NOT run `buttonAction`'s pre-section (the code ahead of its `getCurrentUI()->buttonAction` call),
-/// because none of that (the mod-button fan-out, the BACK long-press timer, the sticky-shift bookkeeping) is what these
-/// examples are about, and every bit of it reaches a null `getCurrentUI()` or a `uiTimerManager` this port has no
-/// counterpart for.
-/// @param b  The button.
-/// @param on True to hold.
-void legacy_hold(ButtonId b, bool on) {
-	const auto xy = deluge::hid::button::toXY(legacy_button(b));
-	::Buttons::buttonStates[xy.x][xy.y] = on;
-	if (b == ButtonId::Shift) {
-		::Buttons::shiftCurrentlyPressed = on;
-		::Buttons::shiftCurrentlyStuck = false;
-	}
-}
-
-/// @brief Put legacy's two private marker latches down from ANY state, through legacy's own
-///        gestures, and confirm it from legacy's own accessor.
-///
-/// `AudioClipView` is a process singleton, `endMarkerVisible`/`startMarkerVisible` are private and
-/// the class is `final`, and **`focusRegained()` -- legacy's own reset (`audio_clip_view.cpp`)
-/// -- cannot be called here**: it goes on to `view.focusRegained()`, which segfaults in a spec
-/// process (`View::focusRegained`).
-///
-/// So the reset is legacy's own `padAction`: one tap on the end column lowers whichever marker was up (its end-marker
-/// and start-marker toggle-off arms both name that column) or raises the end marker if neither was, and
-/// `getMaxLength()` then says which of those happened.
-/// @param r The rig.
-/// @return True once both latches are down, as far as `getMaxLength()` can see.
-bool reset_legacy_markers(Rig& r) {
-	const int32_t end = end_square_of(r);
-	(void)legacy_view.padAction(end, 0, 1);
-	if (legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength()) + 1) {
-		(void)legacy_view.padAction(end, 0, 1);
-	}
-	return legacy_view.getMaxLength() == static_cast<uint32_t>(r.f.clip->loopLength());
-}
-
-/// @brief Legacy's `AudioClipView`, driven through its own hooks with legacy's held-button state set first.
-class LegacySide final : public diff::Side {
-public:
-	/// @param r The rig. @param start The clip's numbers and the play position every case starts from.
-	explicit LegacySide(Rig& r, Sentinel start = {}) : r_(r), start_(start), saved_display_(display) {
-		display = &recorder_;
-	}
-	~LegacySide() override { display = saved_display_; }
-	LegacySide(const LegacySide&) = delete;
-	LegacySide& operator=(const LegacySide&) = delete;
-
-	void enter() override {
-		release_all();
-		restore_sample(r_);
-		r_.reseed(start_);
-		(void)reset_legacy_markers(r_);
-		r_.reseed(start_);
-		currentUIMode = UI_MODE_NONE;
-		recorder_.popups.clear();
-		for (auto& column : matrixDriver.padStates) {
-			std::ranges::fill(column, false);
-		}
-		// Seconds pass between visits on the device, so a zoom pause armed in an earlier case
-		// (`delayHorizontalZoomUntil`, on the one legacy view) has expired.
-		base_samples_ = AudioEngine::audioSampleTimer + kGapBetweenCasesMs * kSamplesPerMs;
-		AudioEngine::audioSampleTimer = base_samples_;
-	}
-
-	void feed(const Step& s, uint32_t at_ms) override {
-		AudioEngine::audioSampleTimer = base_samples_ + at_ms * kSamplesPerMs;
-		switch (s.kind) {
-		case Step::Kind::Button: {
-			legacy_hold(s.button, s.down);
-			(void)legacy_view.buttonAction(legacy_button(s.button), s.down);
-			break;
-		}
-		case Step::Kind::Pad:
-			// What `isPadPressed` reads, which the macros column brightens a held pad from.
-			matrixDriver.padStates[s.x][s.y] = s.down;
-			(void)legacy_view.padAction(s.x, s.y, s.down ? 64 : 0);
-			break;
-		case Step::Kind::Encoder:
-			if (s.encoder == EncoderRole::Horizontal) {
-				(void)legacy_view.horizontalEncoderAction(s.detents);
-			}
-			else if (s.encoder == EncoderRole::Vertical) {
-				(void)legacy_view.verticalEncoderAction(s.detents);
-			}
-			else if (s.encoder == EncoderRole::Select) {
-				legacy_view.selectEncoderAction(s.detents);
-			}
-			break;
-		}
-		// A scroll or zoom legacy animates ends a few frames later on the device, before the next deliberate input;
-		// nothing runs those frames here, so the animation's end runs now. The scene shows both at once.
-		if (isUIModeActive(UI_MODE_HORIZONTAL_SCROLL)) {
-			legacy_view.scrollFinished();
-		}
-		if (isUIModeActive(UI_MODE_HORIZONTAL_ZOOM)) {
-			exitUIMode(UI_MODE_HORIZONTAL_ZOOM);
-		}
-	}
-
-	[[nodiscard]] diff::Frame frame(uint32_t /*at_ms*/) override {
-		diff::Frame f;
-		f.oled = legacy_oled();
-		const LegacyPads pads = legacy_pads();
-		for (size_t y = 0; y < diff::Mask::kRows; ++y) {
-			for (size_t x = 0; x < diff::Mask::kColumns; ++x) {
-				const RGB& c = pads.image[y][x];
-				f.pads[y][x] = {c.r, c.g, c.b};
-			}
-		}
-		f.model = model_digest(r_);
-		f.popups = std::exchange(recorder_.popups, {});
-		return f;
-	}
-
-	/// @brief Let every button go, so no hold leaks into the next case.
-	static void release_all() {
-		for (uint8_t b = 1; b < static_cast<uint8_t>(ButtonId::Count); ++b) {
-			legacy_hold(static_cast<ButtonId>(b), false);
-		}
-	}
-
-private:
-	static constexpr uint32_t kSamplesPerMs = 44;
-	Rig& r_;
-	Sentinel start_;
-	RecordingDisplay recorder_;
-	uint32_t base_samples_ = 0;
-	deluge::hid::Display* saved_display_;
-};
 
 /// @brief `AudioClipScene`, fed through a real input lowering and rendered by the rig's shell, with its popups taken
 ///        as text before the shell would draw them.
@@ -591,7 +374,7 @@ std::vector<CaseRun> audio_clip_cases() {
 
 // clang-format off
 // NOLINTBEGIN(readability-function-cognitive-complexity)
-describe audio_clip_differential_spec_body("scenes/audio_clip AudioClipScene against AudioClipView", $ {
+describe audio_clip_differential_spec_body("scenes/audio_clip AudioClipScene against AudioClipView's frames", $ {
 	context("the differential driver", _ {
 		it("reports nothing when every frame agrees", _ {
 			ScriptedSide a{{frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed), frame_with_pad(0, 0, kRed)}};
@@ -627,38 +410,6 @@ describe audio_clip_differential_spec_body("scenes/audio_clip AudioClipScene aga
 	});
 
 	context("the audio clip view", _ {
-		it("records legacy's frames for every case, when AUDIO_CLIP_ORACLE_OUT names a directory", _ {
-			// The freezer: run only by hand, before the legacy view is deleted (`tests/golden/README.md`).
-			const char* out_dir = std::getenv("AUDIO_CLIP_ORACLE_OUT");
-			if (out_dir == nullptr) {
-				return;
-			}
-			for (const CaseRun& run : audio_clip_cases()) {
-				Rig r;
-				run.setup(r);
-				LegacySide legacy{r, run.start};
-				const std::vector<diff::Frame> frames = diff::record(run.c, legacy);
-				run.teardown(r);
-				std::ofstream file{std::filesystem::path{out_dir} / diff::frozen_file_name(run.c.name),
-				                   std::ios::binary};
-				const std::string text = diff::frozen_encode(frames);
-				file << text;
-				expect(static_cast<bool>(file)).to_equal(true);
-				// The file gives back exactly what was recorded.
-				const std::optional<std::vector<diff::Frame>> back = diff::frozen_decode(text);
-				expect(back.has_value()).to_equal(true);
-				if (back) {
-					expect(back->size()).to_equal(frames.size());
-					bool same = back->size() == frames.size();
-					for (size_t i = 0; same && i < frames.size(); ++i) {
-						same = (*back)[i].oled == frames[i].oled && (*back)[i].pads == frames[i].pads
-						       && (*back)[i].model == frames[i].model && (*back)[i].popups == frames[i].popups;
-					}
-					expect(same).to_equal(true);
-				}
-			}
-		});
-
 		it("agrees with legacy's frozen frames on every case: the scripted gestures, the walks and the macros", _ {
 			for (const CaseRun& run : audio_clip_cases()) {
 				const std::optional<std::string> text = diff::read_file(deluge::ui::scenes::spec::audio_clip_oracle_dir() / diff::frozen_file_name(run.c.name));
@@ -673,17 +424,6 @@ describe audio_clip_differential_spec_body("scenes/audio_clip AudioClipScene aga
 				Rig r;
 				run.setup(r);
 				diff::FrozenSide legacy{*frames};
-				SceneSide scene{r, run.start};
-				expect(diff::report(run.c, diff::run(run.c, legacy, scene))).to_equal(std::string{});
-				run.teardown(r);
-			}
-		});
-
-		it("still agrees with the live legacy view on every case, while it exists", _ {
-			for (const CaseRun& run : audio_clip_cases()) {
-				Rig r;
-				run.setup(r);
-				LegacySide legacy{r, run.start};
 				SceneSide scene{r, run.start};
 				expect(diff::report(run.c, diff::run(run.c, legacy, scene))).to_equal(std::string{});
 				run.teardown(r);

@@ -115,6 +115,11 @@ public:
 	/// @param clip The current clip. @param offset Signed detents.
 	/// @return DEALT_WITH.
 	ActionResult editAudioClipLengthWithoutTimestretching(AudioClip& clip, int32_t offset);
+	/// @brief The play cursor over an audio clip: its column, or none while stopped, counting in or the clip is not
+	///        playing, sent to the pad driver when it moves.
+	void audioClipGraphicsRoutine();
+	/// @brief `audioClipGraphicsRoutine`'s redraw while a take records linearly.
+	void audioClipNeedsRendering();
 	uint32_t getMaxLength() override;
 	uint32_t getMaxZoom() override;
 	[[nodiscard]] int32_t getNavSysId() const override;
@@ -287,6 +292,9 @@ private:
 
 	bool probabilityChanged;
 	uint32_t timeSelectKnobLastReleased;
+	/// The audio clip cursor's column as last sent, and whether the next frame sends it whatever it is.
+	int32_t audioClipLastTickSquare{};
+	bool audioClipMustRedrawTickSquares{};
 };
 
 extern AutomationView automationView;

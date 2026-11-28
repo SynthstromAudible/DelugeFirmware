@@ -39,8 +39,8 @@
 /// | `ClipNavigationTimelineView::horizontalEncoderAction`'s first statement (`clip_navigation_timeline_view.cpp`) | here (`stop_following`, called by both gestures) | it clears that same field on every horizontal turn, so a manual scroll or zoom during an auto-extending linear recording forgets the restore point. See the ordering note on `stop_following` |
 /// | `ClipNavigationTimelineView::horizontalScrollForLinearRecording` | **splits** | the length guard and the scroll write are here; the animate-or-not choice, `uiNeedsRendering` and the popup are the scene's |
 /// | `ClipView::getTickSquare` (`clip_view.cpp`) | **splits** | the square and the follow arithmetic are here; `getCurrentlyRecordingLinearly()`, `currentUIMode`, `getCurrentUI() == this` and `armState` are the scene's, and arrive as `TickSquareGates` |
-/// | `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch (`AudioClipView::graphicsRoutine`) | the scene | not part of the shared tick-square arithmetic: the two fields are `AudioClipView`-**private** (`audio_clip_view.h`), have no counterpart anywhere in the timeline chain, and have exactly one consumer. `ClipView::getTickSquare` below is the genuinely shared half |
-/// | `TimelineView::getMaxZoom` / `getMaxLength` (pure virtual, `timeline_view.h`) | the scene | model questions whose answer differs per view (`ClipView`'s two in `clip_view.cpp`, `AudioClipView`'s in `audio_clip_view.cpp`); they arrive here as arguments |
+/// | `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch (`AudioClipView::graphicsRoutine`) | the scene | not part of the shared tick-square arithmetic: the two fields are `AudioClipView`-**private** (`origin/main:src/deluge/gui/views/audio_clip_view.h`), have no counterpart anywhere in the timeline chain, and have exactly one consumer. `ClipView::getTickSquare` below is the genuinely shared half |
+/// | `TimelineView::getMaxZoom` / `getMaxLength` (pure virtual, `timeline_view.h`) | the scene | model questions whose answer differs per view (`ClipView`'s two in `clip_view.cpp`, `AudioClipView`'s in `origin/main:src/deluge/gui/views/audio_clip_view.cpp`); they arrive here as arguments |
 /// | `TimelineView::setupScroll`, `calculateZoomPinSquares`, `tellMatrixDriverWhichRowsContainSomethingZoomable`, `scrollFinished` | **dropped** | they are the `PadLEDs` zoom/scroll transition, which the port does not carry (see below) |
 /// | `TimelineView::displayZoomLevel`, `displayScrollPos`, `setTripletsLEDState`, `midiLearnFlash` | the scene | they draw, blink an LED, or ask for a redraw |
 /// | `TimelineView::buttonAction`, `ClipView::buttonAction` (`clip_view.cpp`) | the scene / `GlobalControls` | button routing; the tail is `view.buttonAction`, which is `services/global_controls.h` |
@@ -144,7 +144,8 @@ struct TimelineState {
 	/// @brief `RootUI::supportsTriplets()` (`gui/ui/root_ui.h`), as a field.
 	///
 	/// A scene fact, not model state: `AudioClipView` overrides it to false (`AudioClipView::supportsTriplets` in
-	/// `audio_clip_view.h`), `ArrangerView` too (`arranger_view.h`), everything else takes the base's true.
+	/// `origin/main:src/deluge/gui/views/audio_clip_view.h`), `ArrangerView` too (`arranger_view.h`), everything else
+	/// takes the base's true.
 	bool supports_triplets = true;
 	/// @brief Legacy's `Song::tripletsOn`.
 	bool triplets_on = false;
@@ -356,7 +357,8 @@ struct TimelineState {
 	/// @brief What one `getTickSquare` produced.
 	struct TickSquare {
 		/// The column the play position is in. May be negative or >= `kDisplayWidth`; legacy's
-		/// callers are the ones that turn that into 255 (`AudioClipView::graphicsRoutine` in `audio_clip_view.cpp`).
+		/// callers are the ones that turn that into 255 (`AudioClipView::graphicsRoutine` in
+		/// `origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
 		int32_t square = 0;
 		/// True if the auto-extending-linear-recording follow moved `x_scroll`, so the caller can redraw and show the
 		/// scroll position (`ClipNavigationTimelineView::horizontalScrollForLinearRecording` in
@@ -384,8 +386,9 @@ struct TimelineState {
 	TickSquare tick_square(int32_t live_pos, const TickSquareGates& gates);
 
 	/// @note `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch (`AudioClipView::graphicsRoutine` in
-	///       `audio_clip_view.cpp`) is **not** here. It is private to that one view, has no counterpart in the timeline
-	///       chain, and has one consumer; it belongs to `AudioClipScene`. See the table at the top of this file.
+	///       `origin/main:src/deluge/gui/views/audio_clip_view.cpp`) is **not** here. It is private to that one view,
+	///       has no counterpart in the timeline chain, and has one consumer; it belongs to `AudioClipScene`. See the
+	///       table at the top of this file.
 	/// @}
 };
 

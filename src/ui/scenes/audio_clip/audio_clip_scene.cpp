@@ -79,13 +79,14 @@ constexpr uint16_t sid(deluge::l10n::String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// @brief `renderMainPads`' fixed 16 main columns (`audio_clip_view.cpp` writes
+/// @brief `renderMainPads`' fixed 16 main columns (`origin/main:src/deluge/gui/views/audio_clip_view.cpp` writes
 ///        `image[y][0 .. kDisplayWidth)` throughout).
 constexpr int32_t kMainCols = deluge::ui::gfx::grid::kDelugeGrid.main_cols;
 constexpr int32_t kRows = deluge::ui::gfx::grid::kDelugeGrid.rows;
 
 /// @brief The colour `PadLEDs::prepareColour` substitutes for a `coloursArray` entry of 2, which is
-///        the only non-zero value `graphicsRoutine` ever fills (`audio_clip_view.cpp`).
+///        the only non-zero value `graphicsRoutine` ever fills
+///        (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
 ///
 /// `TickColour::Muted` is unreachable from this scene for the same reason, so the `muted_colour`
 /// argument `ui::widgets::grid::tick_squares` takes -- legacy's `mutedColourMenu.getRGB()`, a `gui/`
@@ -199,7 +200,8 @@ deluge::ui::scenes::bind::WaveformAddress AudioClipScene::waveform() const {
 }
 
 bool AudioClipScene::has_sample() const {
-	// `getSample()` (`audio_clip_view.cpp`): the take while recording linearly, else the file.
+	// `getSample()` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`): the take while recording linearly, else
+	// the file.
 	const deluge::ui::scenes::bind::Waveforms* w = waveforms();
 	return clip_ && w != nullptr && w->info(waveform()).has_value();
 }
@@ -231,7 +233,7 @@ int32_t AudioClipScene::audio_mode() const {
 
 bool AudioClipScene::on_enter(const SceneId& id) {
 	(void)id;
-	// `AudioClipView::opened` (`audio_clip_view.cpp`). `uiNeedsRendering(this)` is the
+	// `AudioClipView::opened` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`). `uiNeedsRendering(this)` is the
 	// shell's business in immediate mode, and `getCurrentClip()->onAutomationClipView = false`
 	// is a flag `AutomationView` reads -- not ported, because `automationView` is on
 	// `scenes-no-root-ui`'s forbidden list and nothing in this layer reads the flag either. What is
@@ -254,8 +256,8 @@ void AudioClipScene::on_resume() {
 }
 
 void AudioClipScene::focus_regained() {
-	// `AudioClipView::focusRegained` (`audio_clip_view.cpp`); see the private declaration for
-	// the four statements that have no counterpart in this layer.
+	// `AudioClipView::focusRegained` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`); see the private
+	// declaration for the four statements that have no counterpart in this layer.
 	//
 	// `ClipView::focusRegained` calls
 	// `ClipNavigationTimelineView::focusRegained` (`clip_navigation_timeline_view.cpp`),
@@ -283,9 +285,9 @@ void AudioClipScene::set_end_marker_visible(bool on) {
 		return;
 	}
 	end_marker_visible_ = on;
-	// `padAction` restarts the blink whenever it raises a marker (`audio_clip_view.cpp`,
-	// `blinkOn = true;` then `setTimer(UI_SPECIFIC, kSampleMarkerBlinkTime)`), so the
-	// bright half is always the one the user sees first.
+	// `padAction` restarts the blink whenever it raises a marker
+	// (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`, `blinkOn = true;` then `setTimer(UI_SPECIFIC,
+	// kSampleMarkerBlinkTime)`), so the bright half is always the one the user sees first.
 	blink_on_ = on;
 	blink_accum_ms_ = 0;
 }
@@ -325,8 +327,8 @@ uint32_t AudioClipScene::max_zoom() const {
 }
 
 bool AudioClipScene::scrollable_and_zoomable() const {
-	// `AudioClipView::setupScroll`'s guard (`audio_clip_view.cpp`): `currentlyScrollableAndZoomable`, a take
-	// recorded without the clock (or in the arranger) locks the view.
+	// `AudioClipView::setupScroll`'s guard (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`):
+	// `currentlyScrollableAndZoomable`, a take recorded without the clock (or in the arranger) locks the view.
 	const deluge::ui::scenes::bind::Transport* t = transport();
 	const bool clocks = t != nullptr && t->clocks_active();
 	const bool arrangement = t != nullptr && t->arrangement_mode();
@@ -531,7 +533,7 @@ bool AudioClipScene::ui_mode_active(uint32_t mode) const {
 // -- Buttons ------------------------------------------------------------------------------------
 
 bool AudioClipScene::deactivate_marker_if_necessary() {
-	// `buttonAction`'s `deactivateMarkerIfNecessary` tail (`audio_clip_view.cpp`). The
+	// `buttonAction`'s `deactivateMarkerIfNecessary` tail (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`). The
 	// `getCurrentUI() == this` guard on the timer unset has no counterpart -- a `Scene`
 	// cannot ask whether it is the stack's input top, the same gap `compute_tick_square`'s
 	// `ui_idle` records -- and it guards only *which* of the two timer owners cancels the blink,
@@ -544,7 +546,7 @@ bool AudioClipScene::deactivate_marker_if_necessary() {
 }
 
 uint16_t AudioClipScene::clear_clip() {
-	// `buttonAction`'s `BACK` arm's body (`audio_clip_view.cpp`), minus `main`'s
+	// `buttonAction`'s `BACK` arm's body (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`), minus `main`'s
 	// card-routine defer, which the shell answers with `InputLowering::set_sd_busy` rather than
 	// by asking the scene (`ui/shell/scene.h`'s `Action` warning).
 	deluge::ui::scenes::bind::ClipWrites* edits = clip_writes();
@@ -565,8 +567,8 @@ uint16_t AudioClipScene::clear_clip() {
 }
 
 Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx) {
-	// `AudioClipView::buttonAction` (`audio_clip_view.cpp`), arm for arm and in legacy's
-	// own order, because the order is what decides which arm claims a button.
+	// `AudioClipView::buttonAction` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`), arm for arm and in
+	// legacy's own order, because the order is what decides which arm claims a button.
 	Result r;
 	const ButtonId b = event.button;
 	const bool on = event.on;
@@ -634,7 +636,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		r.handled = true;
 		if (ctx.held.has(ButtonId::YEnc)) {
 			if (on && ui_mode_ == kUiModeNone) {
-				set_clip_length_equal_to_sample_length();
+				clip_length_to_sample_length();
 				(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 			}
 			return r;
@@ -647,7 +649,8 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 			// See the class docstring.
 			return r;
 		}
-		// The `X_ENC` arm's `goto dontDeactivateMarker` (`audio_clip_view.cpp`) leads to `ClipView::buttonAction`
+		// The `X_ENC` arm's `goto dontDeactivateMarker` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) leads
+		// to `ClipView::buttonAction`
 		// (`clip_view.cpp`).
 		if (on && !scrollable_and_zoomable()) {
 			// Its first arm is an empty block, then DEALT_WITH -- so a clip that cannot be
@@ -668,7 +671,8 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		return r;
 	}
 
-	// ---- SELECT_ENC without shift (`AudioClipView::buttonAction` in `audio_clip_view.cpp`) ----
+	// ---- SELECT_ENC without shift (`AudioClipView::buttonAction` in
+	// `origin/main:src/deluge/gui/views/audio_clip_view.cpp`) ----
 	if (b == ButtonId::SelectEnc && !ctx.shift) {
 		// `openMenu(getCurrentClip(), ...)`, site 5 of `gui/ui/menu_entry.cpp`'s table, the host's; a menu that opens
 		// takes the end marker down (`goto deactivateMarkerIfNecessary`), one that refuses leaves it. Claimed on every
@@ -711,8 +715,9 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		timeline_.toggle_triplets();
 		r.handled = true;
 	}
-	// The tail of `AudioClipView::buttonAction` (`audio_clip_view.cpp`) sits after the `if (result == NOT_DEALT_WITH)`
-	// call to `ClipView::buttonAction`, so it runs whether or not the arm above claimed the button.
+	// The tail of `AudioClipView::buttonAction` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) sits after the
+	// `if (result == NOT_DEALT_WITH)` call to `ClipView::buttonAction`, so it runs whether or not the arm above claimed
+	// the button.
 	if (deactivate_marker_if_necessary()) {
 		(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 	}
@@ -852,8 +857,8 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 		}
 		return false;
 	}
-	// `AudioClipView::selectEncoderAction`'s `else` branch (`audio_clip_view.cpp`): the track's mode, scrolled as
-	// `AudioOutput::scrolledMode` scrolls it, written to the track's record.
+	// `AudioClipView::selectEncoderAction`'s `else` branch (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`):
+	// the track's mode, scrolled as `AudioOutput::scrolledMode` scrolls it, written to the track's record.
 	const std::optional<deluge::project::TrackAddress> at = track();
 	deluge::ui::scenes::bind::WriteSink* sink = writes();
 	if (!at || sink == nullptr) {
@@ -889,7 +894,7 @@ Result AudioClipScene::vertical_encoder_action(int32_t offset, const UiContext& 
 }
 
 Result AudioClipScene::horizontal_encoder_action(int32_t offset, const UiContext& ctx) {
-	// `AudioClipView::horizontalEncoderAction` (`audio_clip_view.cpp`).
+	// `AudioClipView::horizontalEncoderAction` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
 	if (no_ui_mode_active() && ctx.held.has(ButtonId::XEnc) && ctx.shift) {
 		return edit_clip_length_without_timestretching(offset);
 	}
@@ -1086,8 +1091,9 @@ void AudioClipScene::note_undo_scroll() {
 }
 
 void AudioClipScene::after_loop_length_change(int32_t old_length, int32_t new_length) {
-	// `AudioClipView::adjustLoopLength`'s view half (`audio_clip_view.cpp`): after a shorten, scroll left if
-	// the view is now past the end, failing that zoom in to the clip's new max; then the new length.
+	// `AudioClipView::adjustLoopLength`'s view half (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`): after a
+	// shorten, scroll left if the view is now past the end, failing that zoom in to the clip's new max; then the new
+	// length.
 	if (new_length < old_length && new_length > 0 && !timeline_.scroll_left_if_too_far_right(new_length)) {
 		(void)timeline_.zoom_to_max(max_zoom(), /*in_only=*/true);
 	}
@@ -1095,15 +1101,16 @@ void AudioClipScene::after_loop_length_change(int32_t old_length, int32_t new_le
 }
 
 void AudioClipScene::set_clip_length_equal_to_sample_length() {
+	// The menu's action, from outside `handle`: the edit, then what `handle` does after every input.
+	const int32_t before_scroll = timeline_.x_scroll;
+	const uint32_t before_zoom = timeline_.x_zoom;
+	clip_length_to_sample_length();
+	note_slide(before_scroll, before_zoom);
+	publish_navigation();
+}
+
+void AudioClipScene::clip_length_to_sample_length() {
 	// `AudioClipView::setClipLengthEqualToSampleLength`.
-	//
-	// `MenuAction::SetClipLengthToSampleLength`'s callee -- in the sense that the enumerator names
-	// the same legacy statement, NOT that the dispatcher calls this. It calls
-	// `audioClipView.setClipLengthEqualToSampleLength()` on the real legacy view
-	// (`gui/ui/shell_action_dispatch.cpp`'s arm), because that is the object the running
-	// firmware's clip belongs to. So this method's only caller in this library is still
-	// `button_action`'s X_ENC+Y_ENC chord, and it is the port's own copy of the verb rather than
-	// the one a menu item reaches.
 	deluge::ui::scenes::bind::ClipWrites* edits = clip_writes();
 	if (!clip_ || edits == nullptr) {
 		return;
@@ -1239,8 +1246,8 @@ std::optional<uint32_t> AudioClipScene::next_timer() const {
 }
 
 bool AudioClipScene::frame_driven() const {
-	// `graphicsRoutine`'s own first gate, read positively (`audio_clip_view.cpp`): with no playback, no active clip, or
-	// a count-in running, the column is a constant 255 and nothing animates.
+	// `graphicsRoutine`'s own first gate, read positively (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`):
+	// with no playback, no active clip, or a count-in running, the column is a constant 255 and nothing animates.
 	const deluge::ui::scenes::bind::ClipFacts* c = clips();
 	return flash_cursor() != project::FlashCursor::OFF && clip_ && c != nullptr && c->clip_playing(*clip_);
 }
@@ -1249,7 +1256,7 @@ bool AudioClipScene::frame_driven() const {
 // The playhead
 
 int32_t AudioClipScene::compute_tick_square() {
-	// `AudioClipView::graphicsRoutine` (`audio_clip_view.cpp`), minus the paint.
+	// `AudioClipView::graphicsRoutine` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`), minus the paint.
 	//
 	// The `UI_MODE_AUDIO_CLIP_COLLAPSING` early return, and the two animation
 	// modes, are `PadLEDs` transitions the port does not carry at all -- see the class docstring.
@@ -1386,8 +1393,8 @@ void AudioClipScene::paint_main(GridFrame& main, GridFrame& retry_frame) {
 
 				// The "grey regions + flashing columns" loop of `AudioClipView::renderMainPads`. `drawUndefinedArea` is
 				// the caller's fourth argument and defaults to true (`AudioClipView::renderMainPads` in
-				// `audio_clip_view.h`); `doAnyPendingGridRendering` calls the three-argument form (`gui/ui/ui.cpp`), so
-				// on the device it is always true.
+				// `origin/main:src/deluge/gui/views/audio_clip_view.h`); `doAnyPendingGridRendering` calls the
+				// three-argument form (`gui/ui/ui.cpp`), so on the device it is always true.
 				for (int32_t y = 0; y < main.bounds().h; y++) {
 					// -------- END marker --------
 					if (end_square < kMainCols) {

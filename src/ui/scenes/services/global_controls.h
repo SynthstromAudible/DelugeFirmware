@@ -112,21 +112,10 @@
 /// second outbox beside `menu/action.h`'s `MenuAction` mailbox would leave two seams for
 /// `gui::ui::dispatchShellActions` to drain; the mailbox has seven arms and that one consumer.
 /// What survives it is the half that was never about timing: `take_action()` is a **one-slot**
-/// mailbox with a silent overwrite (`menu/menu_scene.h`), a second outbox would need its own
-/// polling contract and its own dispatcher arm, and nothing in this service's SAVE/LOAD arms is
-/// waiting on one -- the load/save browser family has no port at all,
-/// so there would be nothing for a request to ask for. Whoever ports that family decides this
-/// again, on those terms rather than on the mailbox's.
+/// mailbox with a silent overwrite (`menu/menu_scene.h`), and a second outbox would need its own
+/// polling contract and its own dispatcher arm. The SAVE and LOAD arms' three opens are the host's, through
+/// `bind::RootViews` (`song_opens()`).
 ///
-///   * **`openUI(&saveSongUI)`** (`View::buttonAction`'s SAVE arm) and **`openUI(&loadSongUI)`** (its LOAD arm). The
-///     load/save browser family is not ported, and
-///     `saveSongUI`/`loadSongUI` are both on `scenes-no-root-ui`'s forbidden list. The *decision*
-///     -- the four-button guard, the hold, the short-press test, the overdub refusal -- is ported
-///     in full and specced; only the open is missing. See `handle_save`/`handle_load`.
-///   * **`context_menu::clearSong`** (`View::buttonAction`'s LOAD arm), shift+LOAD. `ContextMenuScene` exists
-///     (`ui/scenes/context_menu/`), but the *clear-song* menu is not among the context menu
-///     scenes, and its `setupAndCheckAvailability()` is a `gui/` call. Decision ported, open
-///     missing.
 ///   * **`display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)`** and the `cancelPopup()`
 ///     it guards (`Buttons::buttonAction` in `hid/buttons.cpp`). `scenes-no-display` forbids `display->`, and the
 ///     seam that would replace it does not reach: that popup is raised by *model* code straight to
@@ -324,6 +313,12 @@ public:
 	/// @return What was last passed to `set_view_state`.
 	const ViewState& view_state() const { return view_; }
 
+	/// @brief Leave `Buttons::buttonAction`'s tail (PLAY, RECORD, the tempo encoder) to the host, which runs it after
+	///        every current UI that declines a button, as the firmware's legacy dispatch does for its guest and its
+	///        root views alike. With both running it, each press would act twice: PLAY would start and stop at once.
+	/// @param host True when the host runs the tail.
+	void set_host_runs_tail(bool host) { host_runs_tail_ = host; }
+
 	/// @brief The single `currentUIMode` value, assembled from its three owners.
 	///
 	/// `MidiLearn` outranks everything (it is the mode legacy's own arms test first, in
@@ -393,8 +388,7 @@ public:
 	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in
 	///        `gui/views/view.cpp`, which also clears it).
 	bool holding_load() const { return holding_load_; }
-	/// @brief The three call sites this port reaches but cannot make -- see the class doc's
-	///        "deliberately NOT ported".
+	/// @brief The three legacy UIs these arms open, which the host opens through `bind::RootViews`.
 	///
 	/// One enumerator per *site*, not one per kind of thing: the LOAD arm reaches two different opens
 	/// under two different conditions, and a single total could not tell them apart -- a spec
@@ -406,7 +400,7 @@ public:
 	///       `///<` shares a line with code, and `scripts/check_layer_rules.py`'s `is_comment_line`
 	///       skips only a line that is *nothing but* comment -- so the forbidden global names these
 	///       docs necessarily quote would have counted as `scenes-no-root-ui` violations.
-	enum class UnportedOpen : uint8_t {
+	enum class SongOpen : uint8_t {
 		/// The song saver's open (`View::buttonAction`'s SAVE arm).
 		SaveSong,
 		/// The song loader's open (`View::buttonAction`'s LOAD arm).
@@ -416,19 +410,18 @@ public:
 		Count,
 	};
 
-	/// @brief How many times @p which was reached.
+	/// @brief How many times @p which's open was reached, whether or not a host was there to perform it.
 	///
 	/// Not a mailbox and not an outbox: nothing consumes these and nothing may. They are counters,
-	/// so a spec can prove an arm's *decision* reached the point legacy opens a UI at, which is the
-	/// only part of those arms this port can assert.
+	/// so a spec can prove an arm's *decision* reached the point legacy opens a UI at.
 	/// @param which The site.
-	uint32_t unported_opens(UnportedOpen which) const {
+	uint32_t song_opens(SongOpen which) const {
 		const size_t i = static_cast<size_t>(which);
-		return i < static_cast<size_t>(UnportedOpen::Count) ? unported_opens_[i] : 0;
+		return i < static_cast<size_t>(SongOpen::Count) ? song_opens_[i] : 0;
 	}
 	/// @brief Every site's count added up -- for a "nothing ran away" assertion, never for
 	///        identifying which arm fired.
-	uint32_t unported_opens_total() const;
+	uint32_t song_opens_total() const;
 	/// @}
 
 	/// @brief `kShortPressTime` (`definitions_cxx.hpp`, `kSampleRate / 2`) in milliseconds.
@@ -505,9 +498,10 @@ private:
 	/// @param result Where the refusal popup or the push is appended.
 	void handle_settings_menu(const deluge::ui::shell::UiContext& ctx, deluge::ui::shell::Result& result);
 
-	/// @brief Bump @p which's counter -- see `unported_opens()`.
+	/// @brief Bump @p which's counter -- see `song_opens()` -- and open it through `bind::RootViews`, when the host
+	///        gives one.
 	/// @param which The site that was reached.
-	void count_unported(UnportedOpen which);
+	void open_song_ui(SongOpen which);
 
 	/// @brief Is the SYNC_SCALING LED in `View::setTimeBaseScaleLedState`'s blink arm
 	///        (`gui/views/view.cpp`) right now?
@@ -533,6 +527,8 @@ private:
 	const deluge::ui::scenes::bind::Ports* ports_ = nullptr; ///< the installed ports, or null for none
 	const deluge::project::Song* model_ = nullptr;           ///< the song's record, or null for none
 	ViewState view_{};
+	/// The host runs `Buttons::buttonAction`'s tail (`set_host_runs_tail`).
+	bool host_runs_tail_ = false;
 
 	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `gui/views/view.cpp`).
 	bool holding_save_ = false;
@@ -557,8 +553,8 @@ private:
 	/// The last clock `tick()` saw, for `leds()` and `next_timer()`, neither of which is given one.
 	uint32_t now_ms_ = 0;
 
-	/// See `unported_opens()`.
-	uint32_t unported_opens_[static_cast<size_t>(UnportedOpen::Count)]{};
+	/// See `song_opens()`.
+	uint32_t song_opens_[static_cast<size_t>(SongOpen::Count)]{};
 };
 
 // (No singleton accessor, deliberately -- the same reason `ModKnobs` has none: this service

@@ -4,7 +4,6 @@
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -66,18 +65,6 @@ void drain_notifications() {
 			arrangerView.refresh_held_row_mod_target();
 		}
 
-		// AudioClipView::clipNeedsReRendering() is not a pure redraw request: when the clip's length
-		// just shrank under the scroll position (an aborted or finished linear recording) it scrolls
-		// back left instead of rendering. Route clip-content facts through it so that survives.
-		// Testing the flag alone is enough: drain() derives it from the clip words it took, so the
-		// flag is always a superset of the clip bits (dirty_set.h). The generic request below still
-		// runs -- doAnyPendingGridRendering() sits out UI_MODE_HORIZONTAL_SCROLL, so a main-row bit
-		// set during the scroll animation simply waits for it to finish.
-		if (d.has(Dirty::ClipContent) && root == &audioClipView && currentSong) {
-			if (AudioClip* c = getCurrentAudioClip()) {
-				audioClipView.clipNeedsReRendering(c);
-			}
-		}
 		if (root && (r.main_rows || r.sidebar_rows)) {
 			uiNeedsRendering(root, r.main_rows ? 0xFFFFFFFF : 0, r.sidebar_rows ? 0xFFFFFFFF : 0);
 		}

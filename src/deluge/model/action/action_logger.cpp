@@ -20,7 +20,7 @@
 #include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_root.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
@@ -581,7 +581,7 @@ otherOption:
 		}
 
 		if (whichAnimation == Animation::SCROLL && getCurrentUI() != &arrangerView) {
-			((TimelineView*)getCurrentUI())->initiateXScroll(action->xScrollClip[time]);
+			undoClipScroll(action->xScrollClip[time]);
 		}
 		else if (getCurrentUI() == &arrangerView || whichAnimation != Animation::ZOOM) {
 			currentSong->persistentView.xScroll[NAVIGATION_CLIP] =
@@ -596,9 +596,8 @@ otherOption:
 				    action->xScrollArranger[time], arrangerZoomBeforeTransition);
 			}
 			else {
-				((TimelineView*)getCurrentUI())
-				    ->initiateXZoom(howMuchMoreMagnitude(action->xZoomClip[time], songZoomBeforeTransition),
-				                    action->xScrollClip[time], songZoomBeforeTransition);
+				undoClipZoom(howMuchMoreMagnitude(action->xZoomClip[time], songZoomBeforeTransition),
+				             action->xScrollClip[time], songZoomBeforeTransition);
 			}
 		}
 

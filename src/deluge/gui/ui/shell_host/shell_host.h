@@ -99,6 +99,10 @@ namespace deluge::gui::shell_host {
 /// @brief The host's RootViews: each the call the audio clip view's own arm makes to leave the clip or open a menu.
 [[nodiscard]] deluge::ui::scenes::bind::RootViews& root_views();
 
+/// @brief Open the song browser or menu a root scene's SAVE or LOAD asked for during the shell's tick, now that the
+///        tick has drawn and sent its frame: opened inside it, the browser's first frame would be drawn over.
+void dispatchRootViewOpens();
+
 /// @brief The host's SessionMacros: the current song's eight macros, run as `View::activateMacro` runs them.
 [[nodiscard]] deluge::ui::scenes::bind::SessionMacros& session_macros();
 

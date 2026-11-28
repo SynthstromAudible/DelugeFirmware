@@ -6,7 +6,7 @@
 ///        its own clip view.
 
 #include "gui/ui/ui.h"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_root.h"
 #include "gui/views/clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
@@ -101,7 +101,7 @@ struct RootGuard {
 /// `Unlatched` cases are the same clip with it clear, as a menu close leaves it. `KitSoundDrumLatched` is a sound
 /// row with affect-entire off under a latch a press set while it was on, which nothing has cleared since.
 /// @return The clip view the overview is drawn under.
-inline ClipView& set_up(Case c) {
+inline RootUI& set_up(Case c) {
 	deluge::gui::ui::setMenuKitGlobalFx(c == Case::KitAffectEntire || c == Case::KitAffectEntireGateDrum
 	                                    || c == Case::KitAffectEntireMidiDrum || c == Case::KitSoundDrumLatched);
 	switch (c) {

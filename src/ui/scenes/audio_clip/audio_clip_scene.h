@@ -239,6 +239,9 @@ private:
 	/// @brief `renderClipShortcutsOverview`'s pads: each main pad the colour of the menu shortcut it opens.
 	void paint_overview(deluge::ui::widgets::grid::GridFrame& main);
 
+	/// @brief `set_clip_length_equal_to_sample_length`'s edit and popup alone, for an input `handle` follows up.
+	void clip_length_to_sample_length();
+
 	/// @brief The play cursor's column for this frame, latched when it moves.
 	/// @return The column for every row, or `ui::widgets::grid::kNoTickSquare`.
 	int32_t compute_tick_square();

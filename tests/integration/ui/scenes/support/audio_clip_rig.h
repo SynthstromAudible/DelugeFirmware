@@ -542,8 +542,9 @@ public:
 	/// @brief Also require that column @p x is @p colour on every row.
 	///
 	/// What the two halves of the blink example are actually about: the end column is `colours::red` on the bright
-	/// phase and `colours::red_dull` on the dim one (`AudioClipView::renderMainPads` in `audio_clip_view.cpp`). Without
-	/// it either half would pass on any pair of agreeing images.
+	/// phase and `colours::red_dull` on the dim one (`AudioClipView::renderMainPads` in
+	/// `origin/main:src/deluge/gui/views/audio_clip_view.cpp`). Without it either half would pass on any pair of
+	/// agreeing images.
 	/// @param x      The column.
 	/// @param colour The colour every row of it must be.
 	/// @return This expectation, for chaining onto a factory.
@@ -827,7 +828,7 @@ struct Input {
 };
 
 /// @brief The display column the clip's end falls in, computed from the SENTINEL's own scroll,
-///        zoom and length -- `padAction`'s `endSquareDisplay` (`audio_clip_view.cpp`).
+///        zoom and length -- `padAction`'s `endSquareDisplay` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
 ///
 /// Neither side's answer: it is the number both sides are expected to agree on, so an example that
 /// taps this column is tapping the same place on both.

@@ -219,7 +219,7 @@ struct MenuWalkState {
 	///
 	/// `pending_scene` works because everything it can name is inside `src/ui/scenes`. The five items
 	/// in `nodes/actions.h` run legacy root-UI behaviour instead -- `openUI(&performanceView)`,
-	/// `audioClipView.setClipLengthEqualToSampleLength()`, `stemExport.startStemExportProcess(...)`
+	/// the clip length to the sample's, `stemExport.startStemExportProcess(...)`
 	/// -- every one of which names a symbol this layer may not include. So the item names an
 	/// *intent* and the application-side wiring performs it.
 	///

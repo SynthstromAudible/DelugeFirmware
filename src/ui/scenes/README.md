@@ -291,7 +291,7 @@ opened the scene, and `MenuScene::reroot_to_scene_opener_page()` lands the user 
 
 `pending_scene` works because every scene a menu opens lives in `src/ui/scenes`. Five items run a legacy root UI's
 behaviour instead: entering the performance view (`openUI(&performanceView)`), the stem export,
-`audioClipView.setClipLengthEqualToSampleLength()`, and the song MIDI-learn and macros context menus. Those name the
+the audio clip view's clip length to the sample's, and the song MIDI-learn and macros context menus. Those name the
 action for the host, as `MenuAction::OpenPerformanceView`, `StartStemExport`, `SetClipLengthToSampleLength`,
 `OpenSongMidiLearn` and `OpenSongMacros`:
 

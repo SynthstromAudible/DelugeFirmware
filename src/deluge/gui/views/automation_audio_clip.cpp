@@ -16,19 +16,28 @@
  */
 
 /// @file
-/// @brief The automation view's two length edits on an audio clip, the same edits the audio clip view makes, with the
-///        automation view's own scroll, zoom and popups.
+/// @brief The automation view over an audio clip: the clip's two length edits, with the automation view's own scroll,
+///        zoom and popups, and its play cursor and sidebar.
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/led/pad_leds.h"
 #include "model/action/action.h"
 #include "model/clip/audio_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/resize_audio_clip.h"
 #include "model/song/song.h"
+#include "playback/mode/arrangement.h"
+#include "playback/playback_handler.h"
+
+#include <algorithm>
+#include <array>
+#include <cstring>
 
 namespace {
 
@@ -120,4 +129,62 @@ ActionResult AutomationView::editAudioClipLengthWithoutTimestretching(AudioClip&
 		(*action)->xScrollClip[AFTER] = currentSong->persistentView.xScroll[NAVIGATION_CLIP];
 	}
 	return ActionResult::DEALT_WITH;
+}
+
+void AutomationView::audioClipGraphicsRoutine() {
+	if (isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING)) {
+		return;
+	}
+
+	int32_t newTickSquare;
+
+	if (!playbackHandler.playbackState || !currentSong->isClipActive(getCurrentClip())
+	    || currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION
+	    || playbackHandler.ticksLeftInCountIn) {
+		newTickSquare = 255;
+	}
+	// Tempoless or arranger recording
+	else if (!playbackHandler.isEitherClockActive()
+	         || (currentPlaybackMode == &arrangement && getCurrentClip()->getCurrentlyRecordingLinearly())) {
+		newTickSquare = kDisplayWidth - 1;
+		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
+			audioClipNeedsRendering();
+		}
+	}
+	else {
+		newTickSquare = getTickSquare();
+		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
+			audioClipNeedsRendering();
+		}
+		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
+			newTickSquare = 255;
+		}
+	}
+
+	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF
+	    && (newTickSquare != audioClipLastTickSquare || audioClipMustRedrawTickSquares)) {
+		uint8_t tickSquares[kDisplayHeight];
+		memset(tickSquares, newTickSquare, kDisplayHeight);
+
+		std::array<uint8_t, 8> coloursArray = {0};
+		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
+			coloursArray.fill(2);
+		}
+
+		PadLEDs::setTickSquares(tickSquares, coloursArray.data());
+
+		audioClipLastTickSquare = newTickSquare;
+		audioClipMustRedrawTickSquares = false;
+	}
+}
+
+void AutomationView::audioClipNeedsRendering() {
+	// A take recording linearly grows under the cursor; the pads redraw unless a scroll or zoom animation has them.
+	switch (currentUIMode) {
+	case UI_MODE_HORIZONTAL_SCROLL:
+	case UI_MODE_HORIZONTAL_ZOOM:
+		break;
+	default:
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
 }

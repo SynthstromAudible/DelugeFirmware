@@ -1,4 +1,7 @@
+#include "gui/context_menu/clear_song.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -9,6 +12,8 @@
 #include "model/clip/clip_minder.h"
 #include "util/menu_entry.h"
 #include "util/sound_menu_open.h"
+
+#include <utility>
 
 namespace deluge::gui::shell_host {
 namespace {
@@ -49,6 +54,14 @@ public:
 		                                 /*kitGlobalFx=*/false);
 	}
 
+	void open_song_saver() override { pending = Open::SAVER; }
+	void open_song_loader() override { pending = Open::LOADER; }
+	void open_clear_song() override { pending = Open::CLEAR_SONG; }
+
+	/// The open a press asked for, which `dispatchRootViewOpens` performs after the tick.
+	enum class Open : uint8_t { NONE, SAVER, LOADER, CLEAR_SONG };
+	Open pending = Open::NONE;
+
 	void clip_shortcut_overview(deluge::ui::scenes::bind::OverviewPads& pads) override {
 		RGB colours[kDisplayHeight][kDisplayWidth]{};
 		deluge::gui::ui::clipShortcutsOverviewColours(colours);
@@ -61,12 +74,36 @@ public:
 	}
 };
 
-} // namespace
-
-deluge::ui::scenes::bind::RootViews& root_views() {
+HostRootViews& host_root_views() {
 	// Constant-initialised, so it links as `.data` into SDRAM with the host's other port objects (`sdram_sections.x`).
 	static constinit HostRootViews host;
 	return host;
+}
+
+} // namespace
+
+deluge::ui::scenes::bind::RootViews& root_views() {
+	return host_root_views();
+}
+
+void dispatchRootViewOpens() {
+	HostRootViews& host = host_root_views();
+	const HostRootViews::Open open = std::exchange(host.pending, HostRootViews::Open::NONE);
+	switch (open) {
+	case HostRootViews::Open::SAVER:
+		(void)openUI(&saveSongUI);
+		break;
+	case HostRootViews::Open::LOADER:
+		(void)openUI(&loadSongUI);
+		break;
+	case HostRootViews::Open::CLEAR_SONG:
+		if (deluge::gui::context_menu::clearSong.setupAndCheckAvailability()) {
+			(void)openUI(&deluge::gui::context_menu::clearSong);
+		}
+		break;
+	case HostRootViews::Open::NONE:
+		break;
+	}
 }
 
 } // namespace deluge::gui::shell_host

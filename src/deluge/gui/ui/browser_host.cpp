@@ -30,7 +30,7 @@
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_root.h"
 #include "hid/led/pad_leds.h"
 #include "io/file.hpp"
 #include "model/clip/audio_clip.h"

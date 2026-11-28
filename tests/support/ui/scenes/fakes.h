@@ -645,7 +645,7 @@ struct RecordingViewActions final : ViewActions {
 /// @brief RootViews that records every request, and answers the two that answer as a spec sets them.
 struct RecordingRootViews final : RootViews {
 	std::vector<std::string> calls; ///< every request, in order: "session", "automation", "shortcut x y on|off",
-	                                ///< "output +n" and "clip menu"
+	                                ///< "output +n", "clip menu", "song saver", "song loader" and "clear song"
 	bool takes_shortcuts = false;   ///< what `menu_shortcut_pad` answers
 	bool menu_opens = true;         ///< what `open_clip_menu` answers
 	void to_session_or_arranger() override { calls.emplace_back("session"); }
@@ -659,6 +659,9 @@ struct RecordingRootViews final : RootViews {
 		calls.emplace_back("clip menu");
 		return menu_opens;
 	}
+	void open_song_saver() override { calls.emplace_back("song saver"); }
+	void open_song_loader() override { calls.emplace_back("song loader"); }
+	void open_clear_song() override { calls.emplace_back("clear song"); }
 	/// @brief What `clip_shortcut_overview` answers: pad (x, y) is (x * 16, y * 32, 7), so every pad differs.
 	void clip_shortcut_overview(deluge::ui::scenes::bind::OverviewPads& pads) override {
 		for (size_t y = 0; y < pads.size(); ++y) {

@@ -20,8 +20,10 @@
 ///        MIDI-learn boundary and the full list of what is deliberately not ported.
 
 #include "ui/scenes/services/global_controls.h"
+
 #include "ui/scenes/bind/device_reader.h"
 #include "ui/scenes/bind/ports/ports.h"
+#include "ui/scenes/bind/ports/root_views.h"
 #include "ui/scenes/bind/ports/write_sink.h"
 #include "ui/scenes/services/view_state.h"
 
@@ -101,16 +103,33 @@ void popup(Result& r, String s) {
 
 // -- The single UI mode -------------------------------------------------------------------------
 
-void GlobalControls::count_unported(UnportedOpen which) {
+void GlobalControls::open_song_ui(SongOpen which) {
 	const size_t i = static_cast<size_t>(which);
-	if (i < static_cast<size_t>(UnportedOpen::Count)) {
-		unported_opens_[i]++;
+	if (i < static_cast<size_t>(SongOpen::Count)) {
+		song_opens_[i]++;
+	}
+	bind::RootViews* const views = bind::port_of(ports_, &bind::Ports::root_views);
+	if (views == nullptr) {
+		return;
+	}
+	switch (which) {
+	case SongOpen::SaveSong:
+		views->open_song_saver();
+		break;
+	case SongOpen::LoadSong:
+		views->open_song_loader();
+		break;
+	case SongOpen::ClearSong:
+		views->open_clear_song();
+		break;
+	case SongOpen::Count:
+		break;
 	}
 }
 
-uint32_t GlobalControls::unported_opens_total() const {
+uint32_t GlobalControls::song_opens_total() const {
 	uint32_t total = 0;
-	for (const uint32_t n : unported_opens_) {
+	for (const uint32_t n : song_opens_) {
 		total += n;
 	}
 	return total;
@@ -179,15 +198,8 @@ void GlobalControls::handle_save(bool on, const UiContext& ctx, Result& result) 
 		popup(result, String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING);
 		return;
 	}
-	// `openUI(&saveSongUI)`.
-	//
-	// @warning **Not ported.** The load/save browser family is not ported and
-	//          `saveSongUI` is on `scenes-no-root-ui`'s forbidden list. Everything above this line
-	//          -- the four-button guard, the mode test, the shift test, the hold clock, the
-	//          overdub refusal -- is the arm's decision and it is ported and specced; this is the
-	//          one statement that is missing. Counted rather than mailed: see `unported_opens()`
-	//          and the class doc on why a second outbox is not the answer.
-	count_unported(UnportedOpen::SaveSong);
+	// `openUI(&saveSongUI)`: the legacy browser, which the host opens.
+	open_song_ui(SongOpen::SaveSong);
 }
 
 void GlobalControls::handle_load(bool on, const UiContext& ctx) {
@@ -200,13 +212,9 @@ void GlobalControls::handle_load(bool on, const UiContext& ctx) {
 			return;
 		}
 		if (ctx.shift) {
-			// `context_menu::clearSong.setupAndCheckAvailability()` then
-			// `openUI(&context_menu::clearSong)`.
-			//
-			// @warning **Not ported.** `ContextMenuScene` exists, but the clear-song menu is not
-			//          among the context menu scenes and its availability check is a
-			//          `gui/` call. Decision ported (shift+LOAD from a clean mode), open missing.
-			count_unported(UnportedOpen::ClearSong);
+			// `context_menu::clearSong.setupAndCheckAvailability()` then `openUI(&context_menu::clearSong)`: the legacy
+			// menu, which the host checks and opens.
+			open_song_ui(SongOpen::ClearSong);
 			return;
 		}
 		holding_load_ = true;          // `currentUIMode = UI_MODE_HOLDING_LOAD_BUTTON`
@@ -226,12 +234,9 @@ void GlobalControls::handle_load(bool on, const UiContext& ctx) {
 	if (static_cast<uint32_t>(ctx.now_ms - save_pressed_ms_) >= kShortPressMs) {
 		return; // LED off
 	}
-	// `openUI(&loadSongUI)`.
-	//
-	// @warning **Not ported**, for the same reason as `openUI(&saveSongUI)` above. Legacy's
-	//          `if (!success)` tail after the open is an empty block with two commented-out lines,
-	//          so there is nothing behind the open to port either.
-	count_unported(UnportedOpen::LoadSong);
+	// `openUI(&loadSongUI)`: the legacy browser, which the host opens. Legacy's `if (!success)` tail after the open is
+	// an empty block with two commented-out lines.
+	open_song_ui(SongOpen::LoadSong);
 }
 
 void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& result) {
@@ -607,6 +612,9 @@ Result GlobalControls::handle(const UiEvent& event, const UiContext& ctx) {
 		return Result::unhandled();
 	case ViewArm::NotAnArm:
 		break;
+	}
+	if (host_runs_tail_) {
+		return Result::unhandled();
 	}
 	return tail_button_action(event.button, event.on, ctx);
 }
