@@ -13,6 +13,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <tuple>
 
 namespace deluge::ui::scenes::slicing {
 
@@ -29,6 +30,8 @@ constexpr int32_t kSliceMarkColumns = 16;
 /// `Slicer::renderOLED`'s label (`origin/main:src/deluge/gui/ui/slicer.cpp`). A raw literal in legacy, with no entry in
 /// `gui/l10n/strings.h`, so it stays one here -- the same call `MarkerScene` makes for its four
 /// page titles.
+static_assert(kMaxManualSlices == std::tuple_size_v<decltype(views::grid::SliceMarks::cols)>);
+
 constexpr std::string_view kNumSlicesLabel = "Num. slices";
 
 } // namespace

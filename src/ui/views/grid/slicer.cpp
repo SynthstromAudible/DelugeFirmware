@@ -14,8 +14,6 @@ constexpr int32_t kMainCols = gfx::grid::kDelugeGrid.main_cols;
 constexpr int32_t kRows = gfx::grid::kDelugeGrid.rows;
 /// The squashed waveform and the marks start on the lower half's first row.
 constexpr int32_t kWaveformRowBase = kRows / 2;
-/// The slots: 64 in four pages of 4x4.
-constexpr int32_t kSlots = 64;
 
 } // namespace
 
@@ -45,8 +43,8 @@ void slice_marks(widgets::grid::GridFrame& main, const SliceMarks& d) {
 		               RGB(1, static_cast<uint8_t>((i == d.current) ? 200 : 16), 1));
 	}
 
-	// The lower screen: the slots in four pages of 4x4, left to right by page.
-	for (int32_t i = 0; i < kSlots; i++) {
+	// The lower screen: the slots (one per column entry, 64) in four pages of 4x4, left to right by page.
+	for (int32_t i = 0; i < static_cast<int32_t>(d.cols.size()); i++) {
 		const int32_t xx = (i % 4) + (i / 16) * 4;
 		const int32_t yy = (i / 4) % 4;
 		const int32_t page = i / 16;

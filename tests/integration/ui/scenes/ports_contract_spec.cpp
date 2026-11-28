@@ -1229,8 +1229,9 @@ describe waveforms_host("the app's waveforms port, by address", ${
 		const std::optional<services::WaveformFrame> wf = services::read_waveform(waveforms, preview, view.window());
 		expect(wf.has_value()).to_be_true();
 		if (wf) {
-			deluge::ui::views::grid::waveform(rig.frame, services::peak_cols(wf->read, wf->centre, wf->span, kDisplayWidth),
-			                                  deluge::ui::widgets::grid::kWaveformBarBrightnessMono, std::nullopt);
+			deluge::ui::views::grid::waveform(
+			    rig.frame, services::peak_cols(wf->read, wf->centre, wf->span, kDisplayWidth),
+			    deluge::ui::widgets::grid::kWaveformBarBrightnessMono, std::nullopt);
 		}
 
 		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
