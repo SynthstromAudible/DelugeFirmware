@@ -29,6 +29,7 @@
 #include "processing/sound/sound_drum.h"
 #include "project/device_settings.h"
 #include "support/peak_seed.h"
+#include "support/popup_capture.h"
 #include "support/sound_fixtures.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/marker/marker_scene.h"
@@ -231,38 +232,6 @@ struct RootUIGuard {
 	}
 	RootUIGuard(const RootUIGuard&) = delete;
 	RootUIGuard& operator=(const RootUIGuard&) = delete;
-};
-
-/// @brief A legacy display that records the last popup and error: what the entry said when it refused.
-struct PopupSpy final : deluge::hid::Display {
-	std::string last_popup;
-	std::optional<Error> last_error;
-	int32_t cancels = 0;
-
-	using deluge::hid::Display::displayPopup;
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override { last_popup = text; }
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override { cancels++; }
-	void freezeWithError(char const*) override {}
-	void displayError(Error error) override { last_error = error; }
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
-/// @brief Point legacy's `display` at @p shown for the scope.
-struct DisplayGuard {
-	deluge::hid::Display* saved = display;
-	explicit DisplayGuard(deluge::hid::Display& shown) { display = &shown; }
-	~DisplayGuard() { display = saved; }
-	DisplayGuard(const DisplayGuard&) = delete;
-	DisplayGuard& operator=(const DisplayGuard&) = delete;
 };
 
 /// @brief `l10n::get` as a `std::string`, for `to_equal`.
@@ -560,8 +529,7 @@ describe menu_entry_node_arg("openMenu can name a node, not only a root", $ {
 		(void)quiet_audio();
 		RootUIGuard root_guard;
 		deluge::ui::scenes::spec::UiModeGuard mode;
-		PopupSpy spy;
-		DisplayGuard shown{spy};
+		deluge::ui::scenes::spec::PopupCapture popups;
 		for (const bool take : {true, false}) {
 			deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_kit_song();
 			setRootUILowLevel(&instrumentClipView);
@@ -572,11 +540,12 @@ describe menu_entry_node_arg("openMenu can name a node, not only a root", $ {
 			}
 			const menu::Node* const neither[] = {&nodes::root_song};
 			(void)menu::assign_node_ids(neither);
-			spy.last_error.reset();
+			popups.clear();
 			instrumentClipView.enterDrumCreator(row.stack, take);
 			(void)menu::assign_node_ids(nodes::kAllRoots);
 			expect(isUIOpen(&shellHostUI)).to_be_false();
-			expect(spy.last_error).to_equal(Error::UNSPECIFIED);
+			expect(popups.last(deluge::ui::scenes::spec::PopupEvent::Kind::ERROR_CODE))
+			    .to_equal(std::optional<std::string>{std::to_string(static_cast<int32_t>(Error::UNSPECIFIED))});
 			nullifyUIs();
 		}
 	});
@@ -702,8 +671,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 
 	it("a node that does not apply opens nothing and says PARAMETER NOT APPLICABLE, as setup() does", _ {
 		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
-		PopupSpy spy;
-		DisplayGuard shown{spy};
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		// The first even-column pad whose node does not apply to this synth.
 		const menu::MenuContext ctx =
@@ -724,7 +692,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 
 		expect(entry::openMenuAtShortcut(f.clip, px, py, false, false, false, false)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		expect(popups.last_popup()).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 	});
 
 	it("does not wipe the undo log", _ {
@@ -1845,8 +1813,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		RootUIGuard root_guard;
 		deluge::ui::scenes::spec::UiModeGuard mode;
-		PopupSpy spy;
-		DisplayGuard shown{spy};
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		Sound* sound = deluge::model::effects_owner_of(deluge::model::owner_of(*f.instrument))->sound;
 		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::DX7);
@@ -1857,7 +1824,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 			expect(entry::menuShortcutPadAction(5, 0, true)).to_equal(ActionResult::DEALT_WITH);
 		}
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		expect(popups.last_popup()).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		deluge::test::setSynthMode(*sound, deluge::instruments::classic::SynthMode::SUBTRACTIVE);
 		nullifyUIs();
 	});
@@ -1865,8 +1832,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 	it("says Feature not (yet?) implemented for a coming-soon cell and opens nothing", _ {
 		RootUIGuard root_guard;
 		deluge::ui::scenes::spec::UiModeGuard mode;
-		PopupSpy spy;
-		DisplayGuard shown{spy};
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		(void)f;
 		setRootUILowLevel(&instrumentClipView);
@@ -1875,14 +1841,13 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 			expect(entry::menuShortcutPadAction(4, 2, true)).to_equal(ActionResult::DEALT_WITH);
 		}
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+		expect(popups.last_popup()).to_equal(text(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 	});
 
 	it("says nothing at all on a kit with neither affect-entire nor a selected row, even on a coming-soon cell", _ {
 		RootUIGuard root_guard;
 		deluge::ui::scenes::spec::UiModeGuard mode;
-		PopupSpy spy;
-		DisplayGuard shown{spy};
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::SongFixture kit = deluge::ui::scenes::spec::make_kit_song();
 		(void)kit;
 		setRootUILowLevel(&instrumentClipView);
@@ -1891,7 +1856,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 			expect(entry::menuShortcutPadAction(4, 2, true)).to_equal(ActionResult::DEALT_WITH);
 		}
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(spy.last_popup).to_equal(std::string{});
+		expect(popups.last_popup()).to_equal(std::string{});
 	});
 
 	it("reads the song view's table from the performance view and edits the song, as legacy's call does", _ {
@@ -1932,8 +1897,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::ui::scenes::spec::UiModeGuard mode;
-		PopupSpy spy;
-		DisplayGuard shown{spy};
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		HeldAudition audition{2};
@@ -1953,8 +1917,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::ui::scenes::spec::UiModeGuard mode;
-		PopupSpy spy;
-		DisplayGuard shown{spy};
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		HeldAudition audition{2};
@@ -1984,8 +1947,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::ui::scenes::spec::UiModeGuard mode;
-		PopupSpy spy;
-		DisplayGuard shown{spy};
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		HeldAudition audition{2};
@@ -1999,12 +1961,12 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		}
 		expect(deluge::ui::scenes::menu_scene().focused_value()).to_equal(&nodes::note_row_probability);
 
-		const int32_t cancels = spy.cancels;
+		const size_t cancels = popups.count(deluge::ui::scenes::spec::PopupEvent::Kind::CANCEL);
 		expect(entry::openShellNoteRowEditor(f.clip, true)).to_be_true();
 		for (int32_t i = 0; i < 3; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(spy.cancels).to_be_greater_than(cancels);
+		expect(popups.count(deluge::ui::scenes::spec::PopupEvent::Kind::CANCEL)).to_be_greater_than(cancels);
 		expect(deluge::ui::scenes::menu_scene().focused_value()).to_equal(&nodes::sequence_direction);
 		expect(deluge::ui::scenes::menu_scene().focused()).not_().to_equal(&nodes::sequence_direction);
 		closeGuest();
@@ -2033,8 +1995,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::ui::scenes::spec::UiModeGuard mode;
-		PopupSpy spy;
-		DisplayGuard shown{spy};
+		deluge::ui::scenes::spec::PopupCapture popups;
 		deluge::ui::scenes::spec::SongFixture f = deluge::ui::scenes::spec::make_synth_song();
 		setRootUILowLevel(&automationView);
 		expect(entry::openMenu(f.clip, 0, false, false, false, false)).to_be_true();

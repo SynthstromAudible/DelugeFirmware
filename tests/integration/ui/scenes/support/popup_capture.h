@@ -153,6 +153,28 @@ public:
 		return static_cast<size_t>(std::ranges::count(events_, kind, &PopupEvent::kind));
 	}
 
+	/// @return The text of the latest event of @p kind, or nothing if there is none.
+	[[nodiscard]] std::optional<std::string> last(PopupEvent::Kind kind) const {
+		for (auto e = events_.rbegin(); e != events_.rend(); ++e) {
+			if (e->kind == kind) {
+				return e->text;
+			}
+		}
+		return std::nullopt;
+	}
+
+	/// @return The text of the latest popup of any length (`POPUP`, `PERSISTENT`, `TEMPORARY`), or empty if there is
+	///        none.
+	[[nodiscard]] std::string last_popup() const {
+		for (auto e = events_.rbegin(); e != events_.rend(); ++e) {
+			if (e->kind == PopupEvent::Kind::POPUP || e->kind == PopupEvent::Kind::PERSISTENT
+			    || e->kind == PopupEvent::Kind::TEMPORARY) {
+				return e->text;
+			}
+		}
+		return {};
+	}
+
 	/// @brief Forget every event so far.
 	void clear() { events_.clear(); }
 
