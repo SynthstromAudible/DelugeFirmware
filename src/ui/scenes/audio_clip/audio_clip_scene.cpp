@@ -23,12 +23,15 @@
 #include "ui/scenes/services/global_controls.h"
 
 #include "base/notify/notice_queue.h"
+#include "music/note_length.h"
 #include "project/timeline_limits.h"
 #include "ui/gfx/grid/palette.h"
+#include "ui/widgets/core/led_frame.h"
 #include "ui/widgets/grid/columns.h"
 #include "ui/widgets/grid/sidebar.h"
 #include "ui/widgets/grid/waveform.h"
 #include "ui/widgets/oled/misc.h"
+#include "ui/widgets/oled/scroll_text.h"
 #include "ui/widgets/oled/text.h"
 
 #include "ui/scenes/bind/ports/waveforms.h"
@@ -542,11 +545,9 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		}
 		// `TimelineView::buttonAction`'s X_ENC arm (`gui/views/timeline_view.cpp`).
 		if (on) {
-			// The `displayZoomLevel()` there is **not ported**: its text comes from
-			// `Song::getNoteLengthName` (`model/song/song.h`), whose only overload writes into
-			// an `etl::istring&`, and `etl/` is outside this layer's include list
-			// (`scenes-includes-outside`). It is `TimelineView`'s function, shared by every timeline
-			// view, so the widget it wants belongs with whoever ports the next one.
+			if (no_ui_mode_active()) {
+				show_zoom_level();
+			}
 			enter_ui_mode(kUiModeHoldingHorizontalEncoder);
 		}
 		else if (ui_mode_active(kUiModeHoldingHorizontalEncoder)) {
@@ -816,18 +817,15 @@ Result AudioClipScene::clip_horizontal_encoder_action(int32_t offset, const UiCo
 	// in `clip_view.cpp`) ----
 	if ((no_ui_mode_active() && ctx.held.has(ButtonId::YEnc))
 	    || (ui_mode_ == kUiModeHoldingHorizontalEncoder && ctx.held.has(ButtonId::Clip))) {
-		// **Not ported.** `Clip::shiftHorizontally` is model, but two of the three
-		// arguments legacy passes are decided by `getCurrentUI() == &automationView`
-		// (`clip_view.cpp`) -- a `scenes-no-root-ui` read this layer may not make and, with
-		// no `AutomationScene`, a question with no answer. Its undo consequence also
-		// `alloc_sdram`s a `ConsequenceClipHorizontalShift`, and library code
-		// allocates nothing. The gesture is still **claimed**, because legacy claims it
-		// (the arm's closing `return`): letting it fall through would hand a Y_ENC turn to `GlobalControls`, which
-		// legacy never does.
-		//
-		// **It is therefore a silent no-op for a real gesture** -- on the device this shifts the
-		// clip's contents -- and it must NOT stay in that state once an `AutomationScene` exists: that scene
-		// answers the `getCurrentUI() == &automationView` question, and this arm then has no excuse left.
+		// The clip's contents by whole squares at the current zoom, through the clip port, which applies legacy's
+		// `ShiftClip` with its undo step. Claimed either way: legacy's arm returns, so a Y_ENC turn never reaches
+		// `GlobalControls`.
+		const int32_t square = timeline_.pos_from_square(1) - timeline_.pos_from_square(0);
+		if (deluge::ui::scenes::bind::ClipWrites* edits = clip_writes(); clip_ && edits != nullptr) {
+			if (edits->shift_clip_horizontally(*clip_, offset * square)) {
+				(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
+			}
+		}
 		return r;
 	}
 
@@ -870,8 +868,7 @@ Result AudioClipScene::nav_horizontal_encoder_action(int32_t offset, const UiCon
 			// max-zoom delay, the zoom limits and the scroll realignment included.
 			const timeline::ZoomOutcome outcome = timeline_.zoom(offset, max_zoom(), ctx.now_ms);
 			if (outcome == timeline::ZoomOutcome::Zoomed) {
-				// The `displayZoomLevel()` that follows is not ported; see `button_action`'s X_ENC arm for
-				// the reason. The repaint is.
+				show_zoom_level();
 				(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 			}
 		}
@@ -1009,6 +1006,23 @@ void AudioClipScene::set_clip_length_equal_to_sample_length() {
 	after_loop_length_change(old_length, loop_length());
 	note_undo_scroll();
 	deluge::base::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_CLIP_LENGTH_ADJUSTED));
+}
+
+void AudioClipScene::show_zoom_level() const {
+	// The zoom as a note length per column ("16th-notes", "1 bar (per column)"), shown until X goes up: a warning
+	// severity is the persistent text popup, and the X release cancels it.
+	if (model_ == nullptr) {
+		return;
+	}
+	const deluge::music::NoteLengthName name = deluge::music::note_length_name(
+	    deluge::music::note_magnitude(timeline_.x_zoom, model_->transport.input_tick_magnitude()), "-notes", true);
+	deluge::base::notify::Notice n{.kind = deluge::base::notify::Notice::Kind::Text,
+	                               .severity = deluge::base::notify::Notice::Severity::Warn};
+	const std::string_view text = name.view();
+	const size_t len = std::min(text.size(), sizeof(n.text) - 1);
+	std::copy_n(text.data(), len, n.text);
+	n.text[len] = 0;
+	(void)deluge::base::notify::notices().push(n);
 }
 
 void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
@@ -1330,6 +1344,16 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	}
 }
 
+void AudioClipScene::leds(deluge::ui::widgets::core::LedFrame& frame) {
+	using deluge::ui::widgets::core::LedState;
+	constexpr LedState kOff{LedState::Kind::Off, 0, 0};
+	constexpr LedState kOn{LedState::Kind::On, 0, 0};
+	// LED ids are button ids, by the board profile's contract.
+	(void)frame.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Back), kOff);
+	(void)frame.set(static_cast<deluge::ui::widgets::core::LedId>(ButtonId::Session),
+	                ui_mode_active(kUiModeHoldingSongButton) ? kOn : kOff);
+}
+
 void AudioClipScene::render_macros(GridFrame& f) {
 	// `view.renderMacros(kDisplayWidth, y, -1, ...)` per row, then `view.flashPlayEnable()` if any reported armed.
 	namespace grid = deluge::ui::widgets::grid;
@@ -1415,10 +1439,6 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	// `View::drawOutputNameFromDetails`'s clip second line. It is drawn only inside the `!isNameEmpty` arm and
 	// only when a `clip` was passed -- `AudioClipView` passes one. `ui::widgets::oled::output_name`'s header
 	// says this line is the scene's, "being model data this struct does not carry".
-	//
-	// The side-scroller legacy also arms for it is not ported, for the reason
-	// `ui/widgets/oled/misc.h` gives for the name's own scroller: it is `ui::widgets::oled::scroll_text`'s job and
-	// needs state the widget does not own.
 	if (name_is_empty) {
 		return;
 	}
@@ -1430,10 +1450,19 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	const int32_t name_y =
 	    f.bounds().y + (tall ? deluge::ui::widgets::core::kOutputNameY64 : deluge::ui::widgets::core::kOutputNameY48);
 
+	// A name too wide for the panel scrolls, as legacy's side-scroller 0 does; one that fits stays as the widget
+	// centred it.
+	const int32_t name_h = deluge::ui::widgets::oled::text_height_for(f.style.title_font);
+	if (deluge::ui::gfx::oled::string_width_px(name, name_h) > f.bounds().w) {
+		(void)deluge::ui::widgets::oled::scroll_text(
+		    f, deluge::ui::gfx::oled::Rect{f.bounds().x, name_y, f.bounds().w, name_h}, name, f.style.title_font,
+		    name_scroll_);
+	}
+
 	// "Section N" when the clip has no name, "N: name" when it has one, with the
 	// section counted from one. Formatted by hand -- `deluge::string::fromInt` lives in `util/`,
 	// which this layer may not include, and there is no allocation in library code.
-	std::array<char, 32> buffer{};
+	std::array<char, 64> buffer{};
 	size_t len = 0;
 	const auto append = [&](std::string_view s) {
 		for (const char c : s) {
@@ -1465,9 +1494,15 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 		append(record->name);
 	}
 
+	// Centred when it fits; side-scroller 1 when it does not.
 	const int32_t row_h = deluge::ui::widgets::oled::text_height_for(f.style.row_font);
-	deluge::ui::widgets::oled::text(f, deluge::ui::gfx::oled::Rect{f.bounds().x, name_y + 14, f.bounds().w, row_h},
-	                                std::string_view{buffer.data(), len},
+	const std::string_view info{buffer.data(), len};
+	const deluge::ui::gfx::oled::Rect info_rect{f.bounds().x, name_y + 14, f.bounds().w, row_h};
+	if (deluge::ui::gfx::oled::string_width_px(info, row_h) > info_rect.w) {
+		(void)deluge::ui::widgets::oled::scroll_text(f, info_rect, info, f.style.row_font, info_scroll_);
+		return;
+	}
+	deluge::ui::widgets::oled::text(f, info_rect, info,
 	                                deluge::ui::widgets::oled::TextStyle{
 	                                    .font = f.style.row_font, .align = deluge::ui::widgets::oled::Align::Centre});
 }

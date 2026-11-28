@@ -139,8 +139,6 @@ public:
 
 	void enter() override {
 		release_all();
-		x_held_ = false;
-		shift_held_ = false;
 		restore_sample(r_);
 		r_.reseed(start_);
 		(void)reset_legacy_markers(r_);
@@ -161,17 +159,7 @@ public:
 		switch (s.kind) {
 		case Step::Kind::Button: {
 			legacy_hold(s.button, s.down);
-			const size_t before = recorder_.popups.size();
 			(void)legacy_view.buttonAction(legacy_button(s.button), s.down);
-			if (s.button == ButtonId::XEnc) {
-				x_held_ = s.down;
-				if (s.down) {
-					drop_zoom_level(before);
-				}
-			}
-			else if (s.button == ButtonId::Shift) {
-				shift_held_ = s.down;
-			}
 			break;
 		}
 		case Step::Kind::Pad:
@@ -181,11 +169,7 @@ public:
 			break;
 		case Step::Kind::Encoder:
 			if (s.encoder == EncoderRole::Horizontal) {
-				const size_t before = recorder_.popups.size();
 				(void)legacy_view.horizontalEncoderAction(s.detents);
-				if (x_held_ && !shift_held_) {
-					drop_zoom_level(before);
-				}
 			}
 			else if (s.encoder == EncoderRole::Vertical) {
 				(void)legacy_view.verticalEncoderAction(s.detents);
@@ -228,18 +212,11 @@ public:
 	}
 
 private:
-	/// @brief Completeness-ledger row "X_ENC displayZoomLevel": the scene has not ported the zoom level an X press or a
-	///        zoom shows, so legacy's popup for it is left out until the port lands.
-	/// @param before The popup log's length before the step.
-	void drop_zoom_level(size_t before) { recorder_.popups.resize(before); }
-
 	static constexpr uint32_t kSamplesPerMs = 44;
 	Rig& r_;
 	Sentinel start_;
 	RecordingDisplay recorder_;
 	uint32_t base_samples_ = 0;
-	bool x_held_ = false;
-	bool shift_held_ = false;
 	deluge::hid::Display* saved_display_;
 };
 

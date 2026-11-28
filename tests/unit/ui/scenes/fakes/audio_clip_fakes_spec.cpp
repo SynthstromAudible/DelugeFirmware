@@ -484,6 +484,90 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		expect(scrolled.gate.next_deadline()).to_equal(std::optional<uint32_t>{moved + kPeakRetryPollMs});
 	});
 
+	it("shifts the clip's contents by whole squares on a turn with Y_ENC held, and repaints only when they moved", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		Context y;
+		y.held.set(ButtonId::YEnc, true);
+		const auto turn = [&scene](int32_t delta, const Context& ctx) {
+			return scene.handle(UiEvent{.kind = UiEvent::Kind::Encoder,
+			                            .encoder = EncoderRole::Horizontal,
+			                            .delta = static_cast<int8_t>(delta)},
+			                    ctx.get());
+		};
+		const Result moved = turn(-2, y);
+		using Call = RecordingClipWrites::Call;
+		// The rig's zoom is 24 ticks a square.
+		expect(h.host.clip_writes.calls.size()).to_equal(size_t{1});
+		if (!h.host.clip_writes.calls.empty()) {
+			const Call& c = h.host.clip_writes.calls.front();
+			expect(c == Call{.kind = Call::Kind::SHIFT, .clip = clip(), .value = -48}).to_equal(true);
+		}
+		expect(std::ranges::any_of(moved.actions, [](const Action& a) { return a.kind == Action::Kind::RepaintAll; }))
+		    .to_equal(true);
+		h.host.clip_writes.accept = false;
+		const Result still = turn(1, y);
+		expect(still.handled).to_be_true();
+		expect(std::ranges::any_of(still.actions, [](const Action& a) { return a.kind == Action::Kind::RepaintAll; }))
+		    .to_equal(false);
+		expect(scene.timeline().x_scroll).to_equal(0);
+	});
+
+	it("shows the zoom as a note length per column on an X press and on each zoom, until X goes up", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		(void)text_notices();
+		const auto persistent_texts = [] {
+			std::vector<std::string> out;
+			deluge::base::notify::Notice n;
+			while (deluge::base::notify::notices().pop(n)) {
+				if (n.kind == deluge::base::notify::Notice::Kind::Text
+				    && n.severity == deluge::base::notify::Notice::Severity::Warn) {
+					out.emplace_back(n.text);
+				}
+			}
+			return out;
+		};
+		(void)button(scene, ButtonId::XEnc, true);
+		// One bar is 192 ticks here, and a square 24: an eighth.
+		expect(persistent_texts()).to_equal(std::vector<std::string>{"8th-notes"});
+		Context x;
+		x.held.set(ButtonId::XEnc, true);
+		(void)scene.handle(UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = EncoderRole::Horizontal, .delta = -1},
+		                   x.get());
+		// A turn of -1 zooms out (legacy's magnitude is the turn's negation): a quarter.
+		expect(persistent_texts()).to_equal(std::vector<std::string>{"4th-notes"});
+		(void)button(scene, ButtonId::XEnc, false);
+		expect(persistent_texts().empty()).to_be_true();
+	});
+
+	it("declares BACK off, and SESSION lit only while it is held", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		using deluge::ui::widgets::core::LedFrame;
+		using deluge::ui::widgets::core::LedState;
+		const auto kind_of = [&scene](ButtonId b) {
+			LedFrame f;
+			f.begin(0);
+			scene.leds(f);
+			for (const auto& [id, state] : f.entries()) {
+				if (id == static_cast<deluge::ui::widgets::core::LedId>(b)) {
+					return static_cast<int>(state.kind);
+				}
+			}
+			return -1;
+		};
+		expect(kind_of(ButtonId::Back)).to_equal(static_cast<int>(LedState::Kind::Off));
+		expect(kind_of(ButtonId::Session)).to_equal(static_cast<int>(LedState::Kind::Off));
+		(void)button(scene, ButtonId::Session, true);
+		expect(kind_of(ButtonId::Session)).to_equal(static_cast<int>(LedState::Kind::On));
+		(void)button(scene, ButtonId::Session, false, Context{.now_ms = 2000});
+		expect(kind_of(ButtonId::Session)).to_equal(static_cast<int>(LedState::Kind::Off));
+	});
+
 	context("the session macros, while SESSION is held", _ {
 		it("draws the song's macros in the first sidebar column, dimmed at rest, and nothing once SESSION goes up", _ {
 			AudioClipHost h;

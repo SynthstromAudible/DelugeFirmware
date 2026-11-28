@@ -9,10 +9,13 @@
 #include "model/edits/resize_audio_clip.h"
 #include "model/edits/set_clip_colour.h"
 #include "model/edits/set_setting.h"
+#include "model/edits/shift_clip.h"
+#include "model/model_stack.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/song/song.h"
 #include "project/setting_group.h"
 #include "serialization/value.h"
+#include "storage/flash_storage.h"
 
 #include <string>
 
@@ -112,6 +115,25 @@ public:
 		}
 		currentSong->persistentView.xScroll[NAVIGATION_CLIP] = x_scroll;
 		currentSong->persistentView.xZoom[NAVIGATION_CLIP] = x_zoom;
+	}
+
+	bool shift_clip_horizontally(project::ClipAddress clip, int32_t amount) override {
+		if (currentSong == nullptr) {
+			return false;
+		}
+		::Clip* found = currentSong->clipForId(clip.clip_id);
+		if (found == nullptr) {
+			return false;
+		}
+		// `ClipView::horizontalEncoderAction`'s shift arm, from a clip view that is not the automation view: the
+		// sequence and MPE always move, and the automation unless the device keeps that to the automation view.
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* model_stack = currentSong->setupModelStackWithCurrentClip(memory);
+		edits::ShiftClip edit{clip, amount, /*shiftAutomation=*/!FlashStorage::automationShift,
+		                      /*shiftSequenceAndMPE=*/true, model_stack};
+		edits::Context ctx{*currentSong, currentSong->project};
+		(void)edits::apply(ctx, edit);
+		return edit.shifted();
 	}
 
 private:

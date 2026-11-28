@@ -485,6 +485,35 @@ describe audio_clip_scene_spec_body(
 	        });
 
 	    it(
+	        "starts a name and a clip line too wide for the panel where legacy does, then scrolls them", _ {
+		        Rig r;
+		        name_track(r, "A TRACK NAME FAR TOO WIDE");
+		        name_clip(r, "AND A CLIP NAME FAR TOO WIDE TO FIT");
+		        r.f.clip->setSection(0);
+		        r.seed(Sentinel{});
+		        r.open();
+		        r.tick(0);
+		        const std::string first = r.oled();
+		        // The type and the name, rows 0 to 31, as legacy draws them: the name left-aligned where it scrolls
+		        // from. The clip line differs on purpose (Q2): legacy shows it centred and overflowing both edges until
+		        // its scroller's first step, then jumps to the left edge; the port starts it at the left edge.
+		        const auto top_rows = [](const std::string& pbm) {
+			        size_t at = 0;
+			        for (int line = 0; line < 2 + 32 && at != std::string::npos; ++line) {
+				        at = pbm.find('\n', at + 1);
+			        }
+			        return pbm.substr(0, at);
+		        };
+		        expect(top_rows(first)).to_equal(top_rows(legacy_oled()));
+		        // Legacy's side-scrollers pause 400 ms, then step a pixel each 15 ms; nothing in this process runs
+		        // legacy's OLED timer, so the scrolled frames are the scene's alone.
+		        r.tick(400 + 15 * 4);
+		        expect(r.oled()).not_().to_equal(first);
+		        name_clip(r, "");
+		        name_track(r, "TAPE");
+	        });
+
+	    it(
 	        "draws the same OLED page as legacy for an unnamed output", _ {
 		        Rig r;
 		        name_track(r, "");
