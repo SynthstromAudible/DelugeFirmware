@@ -184,15 +184,20 @@ public:
 	/// @name What the surfaces show (`marker/present.cpp`)
 	/// @{
 	/// @brief The screen: the selected marker's name through `reverseRemap`, the loop lock, its position and the
-	///        sample's rate.
-	[[nodiscard]] deluge::ui::views::oled::MarkerPosition present_position() const;
+	///        sample's rate from @p info.
+	[[nodiscard]] deluge::ui::views::oled::MarkerPosition present_position(const bind::WaveformInfo& info) const;
 	/// @brief The waveform's columns from @p wf, the first @p main_cols of them.
 	[[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
 	present_waveform(const services::WaveformFrame& wf, int32_t main_cols) const;
-	/// @brief The markers over the first @p main_cols columns, with the blink's phase applied.
-	[[nodiscard]] deluge::ui::views::grid::MarkerOverlay present_overlay(int32_t main_cols) const;
+	/// @brief The markers at @p cols (`pins()`, read once by the frame) over the first @p main_cols columns, with the
+	///        blink's phase applied.
+	[[nodiscard]] deluge::ui::views::grid::MarkerOverlay
+	present_overlay(const std::array<views::waveform::MarkerPin, project::kSampleMarkerCount>& cols,
+	                int32_t main_cols) const;
 	/// @brief The playhead in the first @p main_cols columns, as the device's flash cursor shows it.
-	[[nodiscard]] deluge::ui::views::grid::Playhead present_playhead(int32_t main_cols) const;
+	/// @param pos Where the newest voice plays (`play_position()`, read once by the frame); none when nothing plays.
+	[[nodiscard]] deluge::ui::views::grid::Playhead present_playhead(int32_t main_cols,
+	                                                                 std::optional<int64_t> pos) const;
 	/// @}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;

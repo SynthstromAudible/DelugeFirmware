@@ -5,15 +5,14 @@
 #include "project/sample_marker.h"
 #include "ui/gfx/grid/palette.h"
 #include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/marker/pins.h"
 #include "ui/scenes/services/waveform_paint.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <limits>
 #include <optional>
 #include <string_view>
-#include <utility>
 
 namespace deluge::ui::scenes::marker {
 
@@ -24,19 +23,9 @@ using deluge::project::SampleMarker;
 
 static_assert(kSampleMarkerCount == deluge::ui::widgets::grid::kMaxMarkers);
 
-int32_t idx(SampleMarker t) {
-	return std::to_underlying(t);
-}
-
-/// @brief A pin's column, an unset marker's left of every column.
-[[nodiscard]] constexpr int64_t column_or_far_left(const views::waveform::MarkerPin& p) {
-	return p.column.value_or(std::numeric_limits<int64_t>::min());
-}
-
 } // namespace
 
-views::oled::MarkerPosition MarkerScene::present_position() const {
-	const std::optional<bind::WaveformInfo> info = waveform_info();
+views::oled::MarkerPosition MarkerScene::present_position(const bind::WaveformInfo& info) const {
 	const std::array<views::waveform::MarkerPin, kSampleMarkerCount> cols = pins();
 
 	// `renderOLED`'s title switch, through `reverseRemap` -- so a reversed sample's
@@ -68,7 +57,7 @@ views::oled::MarkerPosition MarkerScene::present_position() const {
 	return {.label = label,
 	        .loop_locked = loop_locked(),
 	        .position = static_cast<uint64_t>(cols[idx(marker_type_)].position),
-	        .sample_rate = info.has_value() ? info->sample_rate : 0};
+	        .sample_rate = info.sample_rate};
 }
 
 std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
@@ -78,8 +67,9 @@ MarkerScene::present_waveform(const services::WaveformFrame& wf, int32_t main_co
 	return services::peak_cols(wf.read, wf.centre, wf.span, main_cols);
 }
 
-views::grid::MarkerOverlay MarkerScene::present_overlay(int32_t main_cols) const {
-	const std::array<views::waveform::MarkerPin, kSampleMarkerCount> cols = pins();
+views::grid::MarkerOverlay
+MarkerScene::present_overlay(const std::array<views::waveform::MarkerPin, kSampleMarkerCount>& cols,
+                             int32_t main_cols) const {
 
 	// The blink, as `timerCallback` draws it rather than as `renderMainPads`
 	// does -- see the class docstring for why the two disagree.
@@ -122,7 +112,7 @@ views::grid::MarkerOverlay MarkerScene::present_overlay(int32_t main_cols) const
 	return d;
 }
 
-views::grid::Playhead MarkerScene::present_playhead(int32_t main_cols) const {
+views::grid::Playhead MarkerScene::present_playhead(int32_t main_cols, std::optional<int64_t> pos) const {
 	// `graphicsRoutine`'s playhead: nothing with the flash cursor Off; else the column the newest voice
 	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
 	const deluge::project::FlashCursor cursor = play_cursor();
@@ -134,7 +124,6 @@ views::grid::Playhead MarkerScene::present_playhead(int32_t main_cols) const {
 	if (!d.flash) {
 		return d;
 	}
-	const std::optional<int64_t> pos = play_position();
 	if (pos.has_value() && *pos >= view_.scroll()) {
 		const int64_t col = base::floor_div(*pos - view_.scroll(), view_.zoom());
 		if (col < main_cols) {

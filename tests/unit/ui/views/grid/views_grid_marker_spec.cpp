@@ -60,6 +60,10 @@ describe marker_overlay_v("ui::views::grid::marker_overlay", $ {
 	});
 
 	it("suppresses the markers its mask names", _ {
+		uitest::GridRig bare;
+		bare.frame.region(kMain, [&](GridFrame& main) {
+			waveform(main, break_peaks(16), kWaveformBarBrightnessMono, std::nullopt);
+		});
 		uitest::GridRig shown;
 		draw(shown, start_selected(-1));
 		MarkerOverlay hidden = start_selected(-1);
@@ -68,6 +72,10 @@ describe marker_overlay_v("ui::views::grid::marker_overlay", $ {
 		draw(r, hidden);
 		expect(r.state() == shown.state()).to_equal(false);
 		expect(r.grid.at(13, 0)).to_equal(shown.grid.at(13, 0));
+		// START, the one marker on column 2, is gone: the column is the waveform's alone.
+		for (uint8_t y = 0; y < 8; y++) {
+			expect(r.grid.at(2, y)).to_equal(bare.grid.at(2, y));
+		}
 	});
 
 	it("floods the selected marker's column on phase 1, and matches its golden", _ {

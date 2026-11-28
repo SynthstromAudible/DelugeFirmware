@@ -2,6 +2,7 @@
 /// @brief `MarkerScene`. See `marker_scene.h`.
 
 #include "ui/scenes/marker/marker_scene.h"
+#include "ui/scenes/marker/pins.h"
 
 #include "instruments/classic/words.h"
 #include "project/sample_marker.h"
@@ -63,12 +64,6 @@ constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// @brief A pin's column for the comparisons that place and refuse markers: an unset marker compares as left of every
-///        column, so every `column <= x` test refuses on it and every `column >= x` test passes it by.
-[[nodiscard]] constexpr int64_t column_or_far_left(const views::waveform::MarkerPin& p) {
-	return p.column.value_or(std::numeric_limits<int64_t>::min());
-}
-
 /// @brief The last frame a range's loop point can name: its record (`synth::SourceRange`'s zone) and the preset and
 /// song
 ///        files store loop points as 32-bit unsigned.
@@ -80,10 +75,6 @@ constexpr int64_t kLastAudioClipMarker = std::numeric_limits<int32_t>::max();
 
 using deluge::project::kSampleMarkerCount;
 using deluge::project::SampleMarker;
-
-int32_t idx(SampleMarker t) {
-	return std::to_underlying(t);
-}
 
 /// @brief The marker at position @p m along the sample, 0 to 3.
 SampleMarker marker_at(int32_t m) {
@@ -1007,10 +998,11 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 
 void MarkerScene::render_oled(SurfaceRole role, deluge::ui::widgets::oled::OledFrame& f) {
 	(void)role;
-	if (!waveform_info().has_value()) {
+	const std::optional<bind::WaveformInfo> info = waveform_info();
+	if (!info) {
 		return;
 	}
-	deluge::ui::views::oled::marker_position(f, present_position());
+	deluge::ui::views::oled::marker_position(f, present_position(*info));
 }
 
 void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
@@ -1059,6 +1051,7 @@ void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 
 	// The waveform, then the markers over it. A column the card could not give paints black this frame, and the frame
 	// asks again for it.
+	const std::array<views::waveform::MarkerPin, kSampleMarkerCount> cols = pins();
 	f.region(
 	    deluge::ui::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::widgets::grid::GridFrame& main) {
 		    if (const std::optional<services::WaveformFrame> wf =
@@ -1069,13 +1062,13 @@ void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 				    f.grid_gate().request_repaint_after(services::kPeakRetryPollMs, f.now_ms());
 			    }
 		    }
-		    deluge::ui::views::grid::marker_overlay(main, present_overlay(main_cols));
+		    deluge::ui::views::grid::marker_overlay(main, present_overlay(cols, main_cols));
 	    });
 
 	// `renderMainPads`' timer re-arm: the blink only runs while the selected
 	// marker is actually inside the display.
-	const std::optional<int64_t> selected_col = pins()[idx(marker_type_)].column;
-	marker_on_screen_ = selected_col.has_value() && *selected_col >= 0 && *selected_col < main_cols;
+	const int64_t selected_col = column_or_far_left(cols[idx(marker_type_)]);
+	marker_on_screen_ = selected_col >= 0 && selected_col < main_cols;
 	if (marker_on_screen_) {
 		// `tick()` advancing `blink_phase_` changes nothing anyone can see unless the surface
 		// is asked for another frame, and `next_timer()` alone only wakes the shell without
@@ -1097,8 +1090,9 @@ void MarkerScene::render_grid(deluge::ui::widgets::grid::GridFrame& f) {
 	}
 
 	// The playhead over the settled frame, kept out of `shown_`. A voice playing asks for the playhead again.
-	const deluge::ui::views::grid::Playhead head = present_playhead(main_cols);
-	playing_ = head.flash && play_position().has_value();
+	const std::optional<int64_t> play = play_position();
+	const deluge::ui::views::grid::Playhead head = present_playhead(main_cols, play);
+	playing_ = head.flash && play.has_value();
 	deluge::ui::views::grid::playhead(f, head, std::span<uint8_t>{last_ticks_});
 }
 
