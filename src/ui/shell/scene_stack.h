@@ -137,6 +137,11 @@ public:
 	///
 	/// No state is saved. `top()` becomes the `NullScene`.
 	void reset();
+	/// @brief Exit every scene above a root scene (`Scene::is_root`) at the bottom, top first, and resume the root
+	///        when it becomes the input top again; with no root scene at the bottom, `reset()`.
+	///
+	/// What a host whose overlays close back to a root view does: the root view outlives the menus over it.
+	void pop_to_root();
 	/// @}
 
 	/// @name Inspection
@@ -157,6 +162,10 @@ public:
 	/// @brief Is some stacked scene not `Scene::input_transparent()` -- one that takes input?
 	/// @return False for an empty stack, or one holding only passive overlays.
 	bool has_input_scene() const;
+	/// @brief Is some scene above the bottom root scene one that takes input? With no root scene at the bottom, the
+	///        same as `has_input_scene()`.
+	/// @return False when only the root, or the root and passive overlays, are stacked.
+	bool has_input_scene_above_root() const;
 	/// @brief The bottom scene.
 	/// @return The root scene, or null when the stack is empty.
 	Scene* root();

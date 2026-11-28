@@ -208,6 +208,36 @@ void SceneStack::reset() {
 	}
 }
 
+void SceneStack::pop_to_root() {
+	if (n_ == 0 || !stack_[0]->is_root()) {
+		reset();
+		return;
+	}
+	if (n_ == 1) {
+		return;
+	}
+	changed_ = true;
+	Scene* const before = &input_top();
+	while (n_ > 1) {
+		n_--;
+		Scene* scene = stack_[n_];
+		stack_[n_] = nullptr;
+		ids_[n_] = SceneId{};
+		scene->on_exit();
+	}
+	resume_new_input_top(before);
+}
+
+bool SceneStack::has_input_scene_above_root() const {
+	const size_t floor = (n_ > 0 && stack_[0]->is_root()) ? 1 : 0;
+	for (size_t i = n_; i-- > floor;) {
+		if (!stack_[i]->input_transparent()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 Scene& SceneStack::top() {
 	return n_ > 0 ? *stack_[n_ - 1] : null_;
 }
