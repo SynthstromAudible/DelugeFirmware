@@ -48,7 +48,7 @@ namespace deluge::ui::test::differential {
 	using Kind = deluge::ui::scenes::spec::PopupEvent::Kind;
 	std::string out;
 	for (const deluge::ui::scenes::spec::PopupEvent& e : events) {
-		if (e.kind == Kind::POPUP || e.kind == Kind::PERSISTENT || e.kind == Kind::TEMPORARY) {
+		if (e.kind == Kind::POPUP || e.kind == Kind::PERSISTENT) {
 			out += "popup " + e.text + '\n';
 		}
 		else if (e.kind == Kind::CANCEL) {

@@ -388,8 +388,7 @@ void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params)
 	expect(static_cast<int32_t>(f.instrument->modKnobMode)).to_equal(mode); // the engine's copy too
 	{
 		using Kind = deluge::ui::scenes::spec::PopupEvent::Kind;
-		expect(popups.count(Kind::POPUP) + popups.count(Kind::PERSISTENT) + popups.count(Kind::TEMPORARY)
-		       + popups.count(Kind::NOTIFICATION))
+		expect(popups.count(Kind::POPUP) + popups.count(Kind::PERSISTENT) + popups.count(Kind::NOTIFICATION))
 		    .to_equal(size_t{0}, "the popups shown");
 	}
 	expect(ring(0)).to_equal(std::array<uint8_t, 4>{}, "the lower knob's ring");

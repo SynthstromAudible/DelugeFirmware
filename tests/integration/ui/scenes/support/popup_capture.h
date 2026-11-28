@@ -34,10 +34,10 @@ namespace deluge::ui::scenes::spec {
 struct PopupEvent {
 	/// What the user sees happen.
 	enum class Kind : uint8_t {
-		POPUP,               ///< A popup that goes by itself (`displayPopup`, a notice's `Text`).
+		POPUP,               ///< A popup that goes by itself (`displayPopup`, `popupTextTemporary`, a notice's `Text`:
+		                     ///< one call on the OLED, `OLED::popupText` not persistent).
 		PERSISTENT,          ///< A popup that stays until something removes it (`popupText`, `displayPopup` with no
 		                     ///< flashes, a `Warn` notice).
-		TEMPORARY,           ///< `popupTextTemporary`.
 		NOTIFICATION,        ///< The one-line banner: its title, a newline, its value.
 		ERROR_CODE,          ///< An error's popup, by its code.
 		CANCEL,              ///< A popup taken down.
@@ -56,9 +56,9 @@ struct PopupEvent {
 
 	/// @return The event as the user sees it, its route left out: `"<kind>: <text>"`.
 	[[nodiscard]] std::string seen() const {
-		static constexpr std::array<const char*, 11> kNames{"popup",   "persistent", "temporary",     "notification",
-		                                                    "error",   "cancel",     "cancel banner", "working",
-		                                                    "cleared", "console",    "freeze"};
+		static constexpr std::array<const char*, 10> kNames{"popup",   "persistent",    "notification", "error",
+		                                                    "cancel",  "cancel banner", "working",      "cleared",
+		                                                    "console", "freeze"};
 		return std::string{kNames.at(static_cast<uint8_t>(kind))} + ": " + text;
 	}
 };
@@ -163,12 +163,11 @@ public:
 		return std::nullopt;
 	}
 
-	/// @return The text of the latest popup of any length (`POPUP`, `PERSISTENT`, `TEMPORARY`), or empty if there is
+	/// @return The text of the latest popup, gone by itself or staying (`POPUP`, `PERSISTENT`), or empty if there is
 	///        none.
 	[[nodiscard]] std::string last_popup() const {
 		for (auto e = events_.rbegin(); e != events_.rend(); ++e) {
-			if (e->kind == PopupEvent::Kind::POPUP || e->kind == PopupEvent::Kind::PERSISTENT
-			    || e->kind == PopupEvent::Kind::TEMPORARY) {
+			if (e->kind == PopupEvent::Kind::POPUP || e->kind == PopupEvent::Kind::PERSISTENT) {
 				return e->text;
 			}
 		}
@@ -192,7 +191,7 @@ private:
 		}
 		void popupText(char const* text, PopupType type) override { show(PopupEvent::Kind::PERSISTENT, text, type); }
 		void popupTextTemporary(char const* text, PopupType type) override {
-			show(PopupEvent::Kind::TEMPORARY, text, type);
+			show(PopupEvent::Kind::POPUP, text, type);
 		}
 		void cancelPopup() override {
 			shown_.reset();
