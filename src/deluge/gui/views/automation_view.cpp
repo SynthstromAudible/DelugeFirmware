@@ -43,6 +43,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "instruments/classic/engine_params.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -154,6 +155,21 @@ ModelStackWithAutoParam* songLane(ModelStackWithThreeMainThings* stack) {
 /// Portamento, which a kit row's automation leaves out.
 constexpr ParamTarget kPortamento =
     deluge::project::engine_target(deluge::instruments::classic::param::kPortamento.value);
+
+/// The sound whose params @p clip's automation names: its synth, or its kit's selected sound drum; null for none.
+::Sound* soundOf(Clip* clip) {
+	if (clip->output->type == OutputType::SYNTH) {
+		return static_cast<SoundInstrument*>(clip->output);
+	}
+	Drum* drum = clip->output->type == OutputType::KIT ? static_cast<Kit*>(clip->output)->selectedDrum : nullptr;
+	return drum != nullptr && drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
+}
+
+/// Whether @p sound's automation offers @p target: none of the params of an engine it is not playing.
+bool offered(const ::Sound* sound, const ParamTarget& target) {
+	return sound == nullptr || target.space != deluge::project::ParamSpace::ENGINE
+	       || deluge::instruments::classic::target_is_live(sound->getSynthMode(), target.id);
+}
 
 /// The runtime param a sound's target names.
 RuntimeParam soundParam(ParamTarget target) {
@@ -672,8 +688,8 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 			if (!onArrangerView && (outputType == OutputType::SYNTH || singleSoundDrum)) {
 				if (const std::optional<ParamTarget>& cell = params::kSoundParamShortcuts[xDisplay][yDisplay]) {
-					// don't make portamento available for automation in kit rows
-					if ((outputType == OutputType::KIT) && (*cell == kPortamento)) {
+					// don't make portamento available for automation in kit rows, nor a parked engine's params
+					if (((outputType == OutputType::KIT) && (*cell == kPortamento)) || !offered(soundOf(clip), *cell)) {
 						pixel = colours::black; // erase pad
 						continue;
 					}
@@ -1778,8 +1794,8 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	            && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))
 	    && params::kSoundParamShortcuts[xDisplay][yDisplay]) {
 		const ParamTarget cell = *params::kSoundParamShortcuts[xDisplay][yDisplay];
-		// don't allow automation of portamento in kit's
-		if ((outputType == OutputType::KIT) && (cell == kPortamento)) {
+		// don't allow automation of portamento in kit's, nor of a parked engine's params
+		if (((outputType == OutputType::KIT) && (cell == kPortamento)) || !offered(soundOf(clip), cell)) {
 			return; // no parameter selected, don't re-render grid;
 		}
 
@@ -2640,19 +2656,24 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 	if (!foundPatchCable) {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 		                                             kNumNonGlobalParamsForAutomation);
-		{
-			auto [kind, id] = soundParam(params::kSoundParamsForAutomation[idx]);
-			if ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
-			    && (id == params::UNPATCHED_PORTAMENTO)) {
-				if (offset < 0) {
-					offset -= 1;
-				}
-				else if (offset > 0) {
-					offset += 1;
-				}
-				idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
-				                                        kNumNonGlobalParamsForAutomation);
+		// A kit row's portamento, and a parked engine's params, are stepped over
+		const ::Sound* sound = soundOf(clip);
+		const auto skipped = [&](int32_t at) {
+			const ParamTarget target = params::kSoundParamsForAutomation[at];
+			auto [kind, id] = soundParam(target);
+			return ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
+			        && (id == params::UNPATCHED_PORTAMENTO))
+			       || !offered(sound, target);
+		};
+		for (int32_t tries = 0; skipped(idx) && tries < kNumNonGlobalParamsForAutomation; tries++) {
+			if (offset < 0) {
+				offset -= 1;
 			}
+			else if (offset > 0) {
+				offset += 1;
+			}
+			idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+			                                        kNumNonGlobalParamsForAutomation);
 		}
 
 		// did we reach beginning or end of list?
@@ -2722,6 +2743,12 @@ bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex,
                                              bool& foundCurrentPatchCable) {
 	PatchCable* cable = &set->patchCables[patchCableIndex];
+	// A cable onto a parked engine's param is not offered
+	if (!offered(soundOf(clip),
+	             deluge::project::engine_target(
+	                 deluge::instruments::classic::flat_param_id(cable->destination.param_index()).value))) {
+		return false;
+	}
 	deluge::synth::CableTarget desc = cable->destination;
 	// need to add patch cable source to the descriptor so that we can get the paramId from it
 	desc = desc.add_source(cable->from);

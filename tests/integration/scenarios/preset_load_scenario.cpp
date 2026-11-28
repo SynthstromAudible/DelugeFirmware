@@ -1122,7 +1122,7 @@ void checkMidiDefinition() {
 
 void checkLeg() {
 	// What loading made of each sound is what its record and slot say.
-	g_report.count(deluge::harness::expectSongCoherent(*currentSong, "preset"));
+	g_report.count(deluge::harness::expectSongCoherent(*currentSong, "preset", {.parked = true}));
 	if (g_leg == Leg::MidiDef) {
 		// Nothing of the preset kind is read: a definition carries no samples.
 		checkMidiDefinition();

@@ -266,7 +266,8 @@ void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentat
 void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
 	const ui::controls::Facts* const facts = port_of(ports_, &Ports::controls);
 	ui::controls::Sink* const sink = port_of(ports_, &Ports::controls_sink);
-	const bind::KnobAssignment assignment = bind::knob_assignment(*model_, *focus_, which_encoder, board_);
+	const bind::KnobAssignment assignment =
+	    playing_assignment(*model_, *focus_, which_encoder, board_, port_of(ports_, &Ports::sound));
 
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		// The song's compressor knobs edit settings, not params (`modEncoderActionForNonExistentParam`).
@@ -512,7 +513,8 @@ std::optional<ParamAddress> ModKnobs::knob_address(int32_t which_encoder) const 
 	if (model_ == nullptr || std::holds_alternative<std::monostate>(focus_->owner)) {
 		return std::nullopt;
 	}
-	const bind::KnobAssignment assignment = bind::knob_assignment(*model_, *focus_, which_encoder, board_);
+	const bind::KnobAssignment assignment =
+	    playing_assignment(*model_, *focus_, which_encoder, board_, port_of(ports_, &Ports::sound));
 	if (const auto* address = std::get_if<ParamAddress>(&assignment.target)) {
 		return *address;
 	}
@@ -616,7 +618,8 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	}
 	const ui::controls::Facts* const facts = port_of(ports_, &Ports::controls);
 	const bind::TrackFacts* const tracks = port_of(ports_, &Ports::tracks);
-	const bind::KnobAssignment assignment = bind::knob_assignment(*model_, *focus_, which_encoder, board_);
+	const bind::KnobAssignment assignment =
+	    playing_assignment(*model_, *focus_, which_encoder, board_, port_of(ports_, &Ports::sound));
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		const effects::EffectStates* fx =
 		    tracks != nullptr ? tracks->chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG})

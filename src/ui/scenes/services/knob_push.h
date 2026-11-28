@@ -73,6 +73,18 @@ struct KnobPush {
 [[nodiscard]] const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::TrackFacts& tracks,
                                                          const bind::SoundFacts& sound);
 
+/// @brief Gold knob @p knob's assignment (`bind::knob_assignment`), none where it names a param of an engine the
+///        focused sound is not playing.
+/// @param song  The song.
+/// @param focus What the knobs turn.
+/// @param knob  The knob's slot.
+/// @param board The board the knobs are on.
+/// @param sound The sounds' states; null for none, which leaves every assignment as it is.
+/// @return The assignment.
+[[nodiscard]] bind::KnobAssignment playing_assignment(const project::Song& song, const bind::KnobFocus& focus,
+                                                      int32_t knob, const ui::controls::Board& board,
+                                                      const bind::SoundFacts* sound);
+
 /// @brief The modes of the sound's envelopes the knobs turn, which name some of their params.
 /// @param focus What the knobs turn.
 /// @param sound The sounds' states.
