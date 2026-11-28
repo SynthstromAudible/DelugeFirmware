@@ -1164,18 +1164,16 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		(void)rig.knobs.handle(push, c.ctx);
 		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
 		drain_notices();
+		popups.clear();
 
 		rig.knobs.mod_button_action(3, true);
 		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
-		expect(deluge::base::notify::notices().size()).to_equal(size_t{0});
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 		expect(rig.knobs.mode()).to_equal(0);
 
 		rig.knobs.mod_button_action(3, false);
 		expect(currentUIMode).to_equal(UI_MODE_NONE);
-		expect(deluge::base::notify::notices().size()).to_equal(size_t{1});
-		deluge::base::notify::Notice raised;
-		expect(deluge::base::notify::notices().pop(raised)).to_be_true();
-		expect(raised.kind).to_equal(deluge::base::notify::Notice::Kind::CancelPopup);
+		expect(popups.seen()).to_equal(std::vector<std::string>{"cancel: "});
 		currentUIMode = UI_MODE_NONE;
 		currentSong = nullptr;
 	});
@@ -1836,13 +1834,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.set_mod_region();
 		deluge::base::notify::Notice n;
 		while (deluge::base::notify::notices().pop(n)) {}
+		popups.clear();
 		DirectCtx c{60'000};
 		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
-		bool cancelled = false;
-		while (deluge::base::notify::notices().pop(n)) {
-			cancelled = cancelled || n.kind == deluge::base::notify::Notice::Kind::CancelNotification;
-		}
-		expect(cancelled).to_be_true();
+		expect(popups.count(deluge::ui::scenes::spec::PopupEvent::Kind::CANCEL_NOTIFICATION)).to_be_greater_than(size_t{0});
 	});
 
 	it("suppresses the popup when the menu is focused on a horizontal page's same-param column",
