@@ -35,6 +35,7 @@
 #include "gui/l10n/strings.h"
 #include "model/song/song.h"
 
+#include "support/popup_capture.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -47,6 +48,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "support/menu_context.h"
 #include "support/spec_main.h"
@@ -209,26 +211,6 @@ struct Rig {
 	void turn(int32_t detents, uint32_t at_ms) { edges(kSelectEncoder, static_cast<int16_t>(detents * 2), at_ms); }
 };
 
-std::string last_notice() {
-	deluge::base::notify::Notice n;
-	std::string text;
-	while (deluge::base::notify::notices().pop(n)) {
-		text = n.text;
-	}
-	return text;
-}
-
-/// @brief Pop every queued notice and return the last one, whole -- for the examples that read a
-///        `Notice::Kind::Notification`'s (title, value) pair rather than a single text.
-deluge::base::notify::Notice last_raised_notice() {
-	deluge::base::notify::Notice n;
-	deluge::base::notify::Notice last{};
-	while (deluge::base::notify::notices().pop(n)) {
-		last = n;
-	}
-	return last;
-}
-
 } // namespace
 
 // clang-format off
@@ -362,16 +344,11 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		g_permit_get_value = 5;
 		g_permit_set_calls = 0;
 
-		(void)last_notice(); // drain
+		deluge::ui::scenes::spec::PopupCapture popups;
 		r.turn(2, 10);
 		r.shell.tick(20);
 
-		// Read right here, before any further tick: `Shell::tick` drains `notify::notices()` at
-		// the *start* of the next tick (`Shell::tick`), so a second tick before this read would
-		// silently eat any notice raised at the tick above, whether or not one actually was --
-		// making the assertion pass either way. `menu_horizontal_controls_spec.cpp`'s "a select
-		// turn on a focused submenu column does nothing" example names the same trap.
-		expect(last_notice().empty()).to_be_true();
+		expect(popups.seen()).to_equal(std::vector<std::string>{});
 
 		expect(g_permit_get_value).to_equal(5);
 		expect(g_permit_set_calls).to_equal(0);
@@ -403,19 +380,16 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		r.shell.tick(0);
 		g_text_get_value = 35;
 
-		(void)last_notice(); // drain
+		deluge::ui::scenes::spec::PopupCapture popups;
 		r.turn(1, 10);
 		r.shell.tick(20);
 
 		// Legacy's `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
-		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): the pair, as one `Notification`.
-		const deluge::base::notify::Notice notice = last_raised_notice();
+		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): the pair, as one banner.
 		deluge::ui::shell::TextScratch name_scratch;
 		const std::string expected_name(
 		    deluge::ui::scenes::deluge_profile().text_or_digits(sid(String::STRING_FOR_FILL), name_scratch));
-		expect(notice.kind).to_equal(deluge::base::notify::Notice::Kind::Notification);
-		expect(std::string(notice.notification_title())).to_equal(expected_name);
-		expect(std::string(notice.notification_value())).to_equal(std::string("35% ltch"));
+		expect(popups.seen()).to_equal(std::vector<std::string>{"notification: " + expected_name + "\n35% ltch"});
 	});
 
 	it("value_text's Column strikethrough reaches the rendered column", _ {
