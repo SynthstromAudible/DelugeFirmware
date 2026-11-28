@@ -181,6 +181,10 @@ void RuntimeFeatureSettings::init() {
 	                  STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, "enableGridViewLoopPads",
 	                  RuntimeFeatureStateToggle::Off);
 
+	// EnableLoopSong
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableLoopSong], STRING_FOR_COMMUNITY_FEATURE_LOOP_SONG,
+	                  "enableLoopSong", RuntimeFeatureStateToggle::Off);
+
 	// AlternativeTapTempoBehaviour
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AlternativeTapTempoBehaviour],
 	                  STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR, "alternativeTapTempoBehaviour",

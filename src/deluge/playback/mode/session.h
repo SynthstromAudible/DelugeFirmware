@@ -113,6 +113,8 @@ private:
 	void armClipsWithNothingToSyncTo(uint8_t section, Clip* clip);
 	void scheduleFillClip(Clip* clip);
 	void scheduleFillClips(uint8_t section);
+	bool loopSongWrapArmed = false;
+	bool loopSongSelfWrapArmed = false;
 };
 
 extern Session session;

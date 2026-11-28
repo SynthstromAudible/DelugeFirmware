@@ -65,6 +65,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DisplayChordKeyboard,
 	AlternativePlaybackStartBehaviour,
 	EnableGridViewLoopPads,
+	EnableLoopSong,
 	AlternativeTapTempoBehaviour,
 	HorizontalMenus,
 	TrimFromStartOfAudioClip,

@@ -32,9 +32,11 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
+#include "playback/section_sequence.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
@@ -57,6 +59,12 @@ enum class LaunchStatus {
 	LAUNCH_USING_QUANTIZATION,
 	LAUNCH_ALONG_WITH_EXISTING_LAUNCHING,
 };
+
+static bool loopSongPlaybackAllowed() {
+	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLoopSong) && currentSong->loopSong
+	       && playbackHandler.recording == RecordingMode::OFF && !audioRecorder.isCurrentlyResampling()
+	       && !stemExport.processStarted && !playbackHandler.stopOutputRecordingAtLoopEnd;
+}
 
 using namespace deluge::gui::colours;
 const Colour defaultClipSectionColours[] = {RGB::fromHue(102), // bright light blue
@@ -150,6 +158,8 @@ void Session::armAllClipsToStop(int32_t afterNumRepeats) {
 }
 
 void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
+	loopSongWrapArmed = false;
+	loopSongSelfWrapArmed = false;
 	if (numRepetitions <= -1) {
 		numRepetitions = currentSong->sections[oldSection].num_repetitions;
 	}
@@ -173,23 +183,40 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	}
 	// grid mode - just go to the next section, no need to worry about what order they're in
 	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		if (oldSection < kMaxNumSections) {
-			int32_t newSection = SECTION_OUT_OF_RANGE;
+		bool loopSong = loopSongPlaybackAllowed();
+		bool sectionPopulated[kMaxNumSections] = {};
+		int32_t newSection = SECTION_OUT_OF_RANGE;
+		if (loopSong) {
+			for (int32_t clipIndex = 0; clipIndex < currentSong->sessionClips.getNumElements(); ++clipIndex) {
+				Clip* clip = currentSong->sessionClips.getClipAtIndex(clipIndex);
+				if (clip->section < kMaxNumSections && clip->launchStyle != LaunchStyle::FILL) {
+					sectionPopulated[clip->section] = true;
+				}
+			}
+			newSection = nextSectionInSequence(oldSection, kMaxNumSections, true, [&](int32_t section) {
+				return currentSong->sections[section].num_repetitions != LAUNCH_EXCLUSIVE && sectionPopulated[section];
+			});
+		}
+		else if (oldSection < kMaxNumSections) {
 			for (int32_t c = oldSection + 1; c <= kMaxNumSections; ++c) {
 				if (currentSong->sections[c].num_repetitions != LAUNCH_EXCLUSIVE) {
 					newSection = c;
 					break;
 				}
 			}
-			if (newSection != SECTION_OUT_OF_RANGE) {
-				userWantsToArmClipsToStartOrSolo(newSection, nullptr, true, false, false, numRepetitions, false);
-				lastSectionArmed = newSection;
-			}
+		}
+		if (newSection >= 0) {
+			userWantsToArmClipsToStartOrSolo(newSection, nullptr, true, false, false, numRepetitions, false);
+			loopSongWrapArmed = loopSong && newSection <= oldSection;
+			loopSongSelfWrapArmed = loopSong && newSection == oldSection;
+			lastSectionArmed = newSection;
 			return;
 		}
 	}
 
 	// If we're here, that was the last section
+	loopSongWrapArmed = false;
+	loopSongSelfWrapArmed = false;
 	armAllClipsToStop(numRepetitions);
 	lastSectionArmed = SECTION_OUT_OF_RANGE;
 }
@@ -281,6 +308,11 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
  *
  */
 void Session::doLaunch(bool isFillLaunch) {
+	bool loopSongSelfWrap = !isFillLaunch && loopSongSelfWrapArmed;
+	if (!isFillLaunch) {
+		loopSongSelfWrapArmed = false;
+		loopSongWrapArmed = false;
+	}
 
 	if (!isFillLaunch) {
 		// For a normal launch, all armed clips either stop or start, and nothing is armed afterwards.
@@ -371,6 +403,10 @@ void Session::doLaunch(bool isFillLaunch) {
 				}
 			}
 		}
+		if (loopSongSelfWrap && clip->section == lastSectionArmed && clip->launchStyle != LaunchStyle::FILL
+		    && currentSong->isClipActive(clip)) {
+			anyClipsStillActiveAfter = true;
+		}
 	}
 
 	// Normally it's enough that we set alreadyGotItsNewClip and isGettingSoloingClip on just the Outputs who have a
@@ -401,6 +437,22 @@ void Session::doLaunch(bool isFillLaunch) {
 
 			if (isFillLaunch && clip->launchStyle != LaunchStyle::FILL) {
 				/* For a fill launch, ignore all other clips */
+				continue;
+			}
+
+			if (loopSongSelfWrap && clip->section == lastSectionArmed && clip->launchStyle != LaunchStyle::FILL) {
+				clip->armState = ArmState::OFF;
+				if (clip->type != ClipType::AUDIO) {
+					((InstrumentClip*)clip)->stopAllNotesPlaying(modelStackWithTimelineCounter);
+				}
+				clip->setPos(modelStackWithTimelineCounter, 0, false);
+				if (clip->type != ClipType::AUDIO) {
+					clip->resumePlayback(modelStackWithTimelineCounter);
+				}
+				if (clip->launchStyle == LaunchStyle::ONCE) {
+					clip->armState = ArmState::ON_NORMAL;
+					distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
+				}
 				continue;
 			}
 
@@ -760,6 +812,8 @@ void Session::justAbortedSomeLinearRecording() {
 void Session::scheduleLaunchTiming(int64_t atTickCount, int32_t numRepeatsUntil,
                                    int32_t armedLaunchLengthForOneRepeat) {
 	if (atTickCount > launchEventAtSwungTickCount) {
+		loopSongWrapArmed = false;
+		loopSongSelfWrapArmed = false;
 		playbackHandler.stopOutputRecordingAtLoopEnd = false;
 		switchToArrangementAtLaunchEvent = false;
 		launchEventAtSwungTickCount = atTickCount;
@@ -798,10 +852,12 @@ void Session::scheduleFillEvent(Clip* clip, int64_t atTickCount) {
 
 void Session::cancelAllLaunchScheduling() {
 	launchEventAtSwungTickCount = 0;
+	loopSongWrapArmed = false;
+	loopSongSelfWrapArmed = false;
 }
 
 void Session::launchSchedulingMightNeedCancelling() {
-	if (!preLoadedSong && !areAnyClipsArmed()) {
+	if (!preLoadedSong && !areAnyClipsArmed() && !loopSongSelfWrapArmed) {
 		cancelAllLaunchScheduling();
 		if (display->haveOLED()) {
 			RootUI* rootUI = getRootUI();
@@ -1417,6 +1473,8 @@ void Session::armClipsWithNothingToSyncTo(uint8_t section, Clip* clip) {
 void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool stopAllOtherClips, bool forceLateStart,
                                                bool allowLateStart, int32_t newNumRepeatsTilLaunch,
                                                bool allowSubdividedQuantization, ArmState armState) {
+	loopSongWrapArmed = false;
+	loopSongSelfWrapArmed = false;
 
 	// Find longest starting Clip length, and what Clip we're waiting on
 	uint32_t longestStartingClipLength;
@@ -2000,6 +2058,8 @@ void Session::scheduleFillClips(uint8_t section) {
 }
 
 void Session::cancelAllArming() {
+	loopSongWrapArmed = false;
+	loopSongSelfWrapArmed = false;
 	for (int32_t l = 0; l < currentSong->sessionClips.getNumElements(); l++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(l);
 		clip->cancelAnyArming();
@@ -2360,6 +2420,15 @@ traverseClips:
 
 		// If no more repeats remain, do the actual launch event now!
 		if (numRepeatsTilLaunch <= 0) {
+			bool loopSongSelfWrap = loopSongSelfWrapArmed && loopSongPlaybackAllowed();
+			if (loopSongWrapArmed && !loopSongPlaybackAllowed()) {
+				lastSectionArmed = SECTION_OUT_OF_RANGE;
+				for (int32_t clipIndex = 0; clipIndex < currentSong->sessionClips.getNumElements(); ++clipIndex) {
+					Clip* clip = currentSong->sessionClips.getClipAtIndex(clipIndex);
+					clip->armState = currentSong->isClipActive(clip) ? ArmState::ON_NORMAL : ArmState::OFF;
+				}
+				loopSongSelfWrap = false;
+			}
 
 			if (playbackHandler.stopOutputRecordingAtLoopEnd && audioRecorder.isCurrentlyResampling()) {
 				audioRecorder.endRecordingSoon();
@@ -2397,6 +2466,7 @@ traverseClips:
 				// other Clips!
 
 				cancelAllLaunchScheduling();
+				loopSongSelfWrapArmed = loopSongSelfWrap;
 				doLaunch(false);
 				armingChanged();
 

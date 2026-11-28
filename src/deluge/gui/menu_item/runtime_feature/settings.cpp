@@ -68,6 +68,7 @@ SettingToggle menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLau
 SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyboard);
 SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour);
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
+SettingToggle menuEnableLoopSong(RuntimeFeatureSettingType::EnableLoopSong);
 SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour);
 OledOnlySettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
@@ -95,6 +96,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDisplayChordLayout,
     &menuAlternativePlaybackStartBehaviour,
     &menuEnableGridViewLoopPads,
+    &menuEnableLoopSong,
     &menuAlternativeTapTempoBehaviour,
     &menuHorizontalMenus,
     &menuRoundedCorners,
