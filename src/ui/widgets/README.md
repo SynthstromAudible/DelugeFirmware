@@ -98,6 +98,7 @@ against drift, not a proof.
 | `LaunchStyle`, `StatusColours`, `StatusPad`, `AuditionPad`, `status_colour`, `status_pad`, `audition_colour`, `audition_pad`, `sidebar_columns` | `sidebar.h` |
 | `MacroKind`, `MacroCell`, `macro_colour`, `macro_wants_arm_flash`, `macros`; `NoteSquare`, `VelocityData`, `velocity_colour`, `velocity_column`; `AutomationData`, `automation_colour`, `automation_column`; `vu_max_row`, `vu_row_colour`, `vu_meter`; `TickColour`, `TickSquare`, `tick_colour`, `tick_squares` | `grid/columns.h` |
 | `PeakCol` (core's, by its grid name), `waveform_col_colour`, `waveform_row`, `waveform_full` | `grid/waveform.h` |
+| `BlinkPlan`, `ParamBlink`, `SourceBlink`, `exclusive_blink`, `blink_step`, `ms_to_next_step`, `fire_blink_step`, the blink constants | `grid/shortcut_blink.h` |
 | `kMaxMarkers`, `MarkerStack`, `marker_tint`, `marker_column` | `markers.h` |
 | `KeyboardLayoutKind`, `TextKeyboardState`, `text_keyboard_char_at`, `text_keyboard_key_colour`, `text_keyboard_is_shift_pad`, `text_keyboard` | `grid/keyboard.h` |
 | legacy bridges: `LegacyImage`, `copy_legacy_image`, `copy_legacy_column`, `keyboard<Layout>`, `control_column<Column>` | `grid/keyboard.h` |

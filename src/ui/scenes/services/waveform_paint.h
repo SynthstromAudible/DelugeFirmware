@@ -5,7 +5,9 @@
 
 #include "ui/scenes/bind/ports/waveforms.h"
 #include "ui/views/waveform/peaks.h"
+#include "ui/widgets/grid/waveform.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 
@@ -28,6 +30,11 @@ struct WaveformFrame {
 /// @return The frame; none where nothing is loaded at @p address.
 [[nodiscard]] std::optional<WaveformFrame>
 read_waveform(const bind::Waveforms& waveforms, const bind::WaveformAddress& address, views::waveform::Window at);
+
+/// @brief @p read's PEAK columns as the pad widget's columns, centred on @p centre and scaled to @p span: column
+///        `x < cols` from `read.bar(x, centre, span)`, every other column invalid (nothing drawn).
+[[nodiscard]] std::array<deluge::ui::widgets::grid::PeakCol, views::waveform::kColumns>
+peak_cols(const views::waveform::PeakRead& read, int32_t centre, int32_t span, int32_t cols);
 
 /// @brief Paint @p read's PEAK columns as full-height monochrome bars across @p f's main columns, centred on @p centre
 ///        and scaled to @p span. A column with no peak stays black.

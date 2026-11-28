@@ -142,7 +142,7 @@ rest to units it owns by value. A unit is given the context and state per call (
 | `VoiceUsageClock` | `voice_usage.{h,cpp}` | the voice usage page's counters and sampling |
 | page buttons | `page_buttons.{h,cpp}` | SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page |
 | `MenuPads` | `pads.{h,cpp}` | the shortcut blinks, the SHIFT + pad jump, SHIFT + a patching-source pad, the greyout |
-| shortcut blinks | `shortcut_blink.{h,cpp}` | `SoundEditor::updatePadLightsFor`'s plan (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the param pad, the patched-param fallback, the sources |
+| shortcut blinks | `menu/shortcut_blink.{h,cpp}` | `SoundEditor::updatePadLightsFor`'s plan (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the param pad, the patched-param fallback, the sources |
 | SHIFT overlay | `shortcut_overlay.{h,cpp}` | the shortcut colour map and the patching-source column while SHIFT is held |
 
 The per-visit facts — learn mode, the value session, the pending blink restart, the shift level the

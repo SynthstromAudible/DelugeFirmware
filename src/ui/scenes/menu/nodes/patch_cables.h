@@ -54,9 +54,9 @@
 /// Legacy's `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
 /// (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`) and the three `shouldBlinkPatchingSourceShortcut`
 /// overrides drive grid-pad blinking from `uiTimerManager` and `soundEditor.setupShortcutBlink`. The port has no
-/// per-item timer: `MenuScene::render_grid` owns the one blink cycle (`shortcut_blink.h`'s `kShortcutBlinkMs`), and
-/// each item here answers into it through `CustomItem::patched_param_to_blink`, `source_blink` and `blink_delay_ms`
-/// (read by `shortcut_blink.cpp` and `pads.cpp`).
+/// per-item timer: `MenuScene::render_grid` owns the one blink cycle (`menu/shortcut_blink.h`'s `kShortcutBlinkMs`),
+/// and each item here answers into it through `CustomItem::patched_param_to_blink`, `source_blink` and `blink_delay_ms`
+/// (read by `menu/shortcut_blink.cpp` and `pads.cpp`).
 ///
 /// ## What is ported
 ///

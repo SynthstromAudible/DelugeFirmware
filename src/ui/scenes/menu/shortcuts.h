@@ -1,7 +1,7 @@
 #pragma once
 
 /// @brief The grid shortcut lookup: which `Node` the pad at (x, y) opens, and where a `Node`'s own
-///        shortcut pad sits so `plan_blinks` (`shortcut_blink.h`) can blink it.
+///        shortcut pad sits so `plan_blinks` (`menu/shortcut_blink.h`) can blink it.
 ///
 /// The seven legacy tables -- `paramShortcutsForSounds`, `…SecondLayer`, `…ForAudioClips`,
 /// `…ForSongView`, `…ForKitGlobalFX` (`origin/main:src/deluge/gui/ui/menus.cpp`), `midiOrCVParamShortcuts` and
@@ -159,7 +159,7 @@ ShortcutPos shortcut_pos(MenuContext::Root root, project::ShortcutsVersion versi
 ///       layer differs from V3 in both pairs. The two that genuinely move are `paramShortcutsForSounds[0][6]` /
 ///       `[1][6]`, interpolation in V3 and the sample end point in V1. `modSourceShortcuts`
 ///       (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is not in this layer at all -- it is the patching source
-///       column, which is not table data here (`shortcut_blink.h`).
+///       column, which is not table data here (`menu/shortcut_blink.h`).
 /// @param ctx The menu's context, whose device port holds the row.
 /// @return The row's layout; `V3`, the row's default, where the context binds no device port.
 [[nodiscard]] project::ShortcutsVersion shortcuts_version(const MenuContext& ctx);
