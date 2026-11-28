@@ -192,6 +192,21 @@ moves (`Scene::frame_driven`); `GlobalControls`' root-view arms, whose song brow
 `RootViews`. A root view's spec compares it with the legacy view's answers and frames, frozen before the view went
 (`tests/golden/ui/audio_clip_oracle/`), through the differential driver (`tests/integration/ui/scenes/support/differential/`).
 
+The small-UIs stage runs as five sub-projects (decided 2026-11-27):
+
+| # | Sub-project | Status |
+| --- | --- | --- |
+| 1 | The differential driver, the root-scene host, the audio clip view as a root scene | Done |
+| 2 | The performance view (the 2026-10-13 `PerformanceScene` design is an input; takes the view's 45 `no-param-kind-outside-runtime` entries) | Needs 1 |
+| 3 | The keyboard view | Needs 1; may share a merge and an emulator sweep with 2 |
+| 4 | The load and save browsers (song, preset, pattern, kit row), a guest | Can run now; the root scenes' SAVE and LOAD open the legacy browsers until then |
+| 5 | The qwerty and rename screens and the song context menus, a guest | Can run now; the root scenes' clear-song menu is the legacy one until then |
+
+Every port follows four rules: a completeness ledger of the view's arms, each closed by a differential case or a D-row
+Kate rules on; widgets another scene also draws are shared in `src/ui/widgets/`; a scene's header states its own
+behaviour and rationale, with legacy's proofs in the ledger; per task only the emulator scripts that reach the view,
+and the full sweep against `main` once per sub-project.
+
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
 | Small UIs | 3 | Scenes for the audio clip view (done), the keyboard view, the performance view, the song, preset, pattern and kit-row load and save browsers, the qwerty and rename screens, the song context menus and the clip view's MIDI-definition browser | R2 |

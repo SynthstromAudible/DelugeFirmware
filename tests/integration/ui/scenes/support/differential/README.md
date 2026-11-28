@@ -62,6 +62,18 @@ A walk that agrees may be agreeing about nothing. When a view's cases first go g
 one arm the cases cover, for example an off-by-one column, and confirm the run goes red at the step that reaches it.
 Then restore the scene.
 
+## Freezing legacy before the view goes
+
+The legacy view is deleted when its scene becomes the root, so its side is frozen first. `frozen.h` writes one file
+per case (`frozen_encode`: every field of the first frame, then each later frame's changed fields; the OLED as hex
+rows) and `FrozenSide` replays it. The view's spec carries the freezer as an example that writes the files only when
+`AUDIO_CLIP_ORACLE_OUT` (or the view's own variable) names a directory, and checks each file decodes back to exactly
+what it recorded; the comparison against the frozen files then runs beside the live one until the flip removes the
+live side. Answers a spec compares outside the driver (a number, a pad image, an OLED page) are frozen the same way
+into a table and pages (`support/audio_clip_answers.h`): the legacy half of each example records its answers once,
+and the committed spec reads only the frozen rows, checking at its end that it asked every row and read every page.
+Before committing the files, change one frozen value and confirm the spec goes red.
+
 ## Running
 
 ```sh
