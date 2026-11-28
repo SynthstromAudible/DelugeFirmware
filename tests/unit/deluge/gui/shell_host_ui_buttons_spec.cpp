@@ -87,7 +87,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		expect(fakelegacyui::last_note_button).to_equal(fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, true});
 		expect(r.base.seen.size()).to_equal(size_t(1));
 		expect(result).to_equal(ActionResult::NOT_DEALT_WITH);
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 	});
 
 	it("returns the note mode's own answer for a button and feeds nothing", _ {
@@ -105,7 +105,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		    .to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		r.guest.shell().tick(1);
 		expect(r.base.seen.empty()).to_be_true();
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 
 		expect(fakelegacyui::note_button_forwards).to_equal(2);
 		expect(fakelegacyui::last_note_button).to_equal(fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, false});
@@ -233,7 +233,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		expect(fakelegacyui::timer_arms.size()).to_equal(size_t(2));
 		(void)r.guest.verticalEncoderAction(1);
 		expect(fakelegacyui::timer_arms.size()).to_equal(size_t(3));
-		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(deluge::gui::ui::ShellRuntime::kMinRearmMs));
 	});
 
 	// ---- input: a busy card ----------------------------------------------------------------------

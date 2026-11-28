@@ -1203,17 +1203,18 @@ void audioClipMarkerTarget(Song* song) {
 	std::fprintf(io.out, "# target audio-clip-marker-drag\n");
 	song->setCurrentClip(clip); // ConsequenceClipLength::revert resolves the clip via getCurrentClip()
 
-	// getSample() (`audio_clip_view.cpp`) casts sampleHolder.audioFile to Sample*; it's null here for the
-	// reason explained above, so the real UI's lengthInSamples clamp is simply skipped (nothing to clamp against).
+	// getSample() (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) casts sampleHolder.audioFile to Sample*;
+	// it's null here for the reason explained above, so the real UI's lengthInSamples clamp is simply skipped (nothing
+	// to clamp against).
 	auto* sample = static_cast<Sample*>(clip->sampleHolder.audioFile);
 	int32_t oldLength = clip->loopLength();
 	// Always lengthen (like clipLengthTarget's before*2): Clip::lengthChanged (`model/clip/clip.cpp`) -- called from
 	// Song::setClipLength only on a DEcrease -- can trim automation into its OWN Consequence on this same Action, which
 	// addConsequence prepends ahead of ours (`action.cpp`: newest consequence becomes firstConsequence). That would
 	// make the `firstConsequence->type == CLIP_LENGTH` check in `AudioClipView::changeUnderlyingSampleLength`
-	// (`audio_clip_view.cpp`; mirrored below) fail to find our Consequence on any clip carrying automation -- a real
-	// gap in the current call site, but shrinking isn't needed to exercise the marker-backpatch mechanics this target
-	// guards, so avoid tripping over it here.
+	// (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`; mirrored below) fail to find our Consequence on any clip
+	// carrying automation -- a real gap in the current call site, but shrinking isn't needed to exercise the
+	// marker-backpatch mechanics this target guards, so avoid tripping over it here.
 	int32_t newLength = oldLength * 2;
 
 	uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
@@ -1233,8 +1234,8 @@ void audioClipMarkerTarget(Song* song) {
 	ActionType actionType =
 	    (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
 
-	// `AudioClipView::changeUnderlyingSampleLength` (`audio_clip_view.cpp`) -- the marker is mutated BEFORE apply();
-	// setClipLength()'s resample math reads the already-dragged value back out.
+	// `AudioClipView::changeUnderlyingSampleLength` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) -- the
+	// marker is mutated BEFORE apply(); setClipLength()'s resample math reads the already-dragged value back out.
 	*valueToChange = (uint64_t)newEndPosSamples;
 
 	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
@@ -1246,8 +1247,8 @@ void audioClipMarkerTarget(Song* song) {
 	check(clip->loopLength() == newLength, "marker-drag: length set");
 	check(clip->sampleHolder.endPos == (uint64_t)newEndPosSamples, "marker-drag: endPos set to dragged value");
 
-	// `AudioClipView::changeUnderlyingSampleLength` (`audio_clip_view.cpp`) -- back-patch the Consequence apply() just
-	// recorded with the raw marker pointer
+	// `AudioClipView::changeUnderlyingSampleLength` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) --
+	// back-patch the Consequence apply() just recorded with the raw marker pointer
 	// + its pre-drag value, so ActionLogger::revert also restores the marker (SetClipLength's own Consequence only
 	// knows about loopLength, not the raw sampleHolder field the UI mutated directly).
 	check(action->firstConsequence != nullptr && action->firstConsequence->type == Consequence::CLIP_LENGTH,

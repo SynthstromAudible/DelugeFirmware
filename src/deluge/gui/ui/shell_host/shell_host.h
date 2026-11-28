@@ -96,6 +96,17 @@ namespace deluge::gui::shell_host {
 /// @brief The host's ViewActions: each the call the legacy opener it names makes on the root view.
 [[nodiscard]] deluge::ui::scenes::bind::ViewActions& view_actions();
 
+/// @brief The host's RootViews: each the call the audio clip view's own arm makes to leave the clip or open a menu.
+[[nodiscard]] deluge::ui::scenes::bind::RootViews& root_views();
+
+/// @brief Open the view or UI a root scene's press asked for during the shell's tick (SESSION, CLIP, SELECT, SAVE,
+///        LOAD), now that the tick has drawn and sent its frame: opened inside it, the new root or UI would be drawn
+///        over, and a menu opening would empty the input the tick is still reading.
+void dispatchRootViewOpens();
+
+/// @brief The host's SessionMacros: the current song's eight macros, run as `View::activateMacro` runs them.
+[[nodiscard]] deluge::ui::scenes::bind::SessionMacros& session_macros();
+
 /// @brief Give the overlays, the slicer and the audio clip scene the app's ports they read. Idempotent; the boot and
 ///        every guest open call it.
 void install_scene_ports();

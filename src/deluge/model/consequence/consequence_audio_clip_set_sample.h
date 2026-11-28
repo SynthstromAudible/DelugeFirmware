@@ -31,5 +31,7 @@ public:
 
 	AudioClip* clip;
 	std::string filePathToRevertTo{};
+	/// The clip's name to swap back in: a clear empties it with the file path, and an undo restores both.
+	std::string nameToRevertTo{};
 	uint64_t endPosToRevertTo;
 };

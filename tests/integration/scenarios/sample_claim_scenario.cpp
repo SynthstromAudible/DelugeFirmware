@@ -41,7 +41,7 @@
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/slice_core.h"
 #include "gui/ui/ui.h"
-#include "gui/views/audio_clip_view.h"
+#include "gui/views/audio_clip_root.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/randomize_drums.h"
 #include "gui/views/session_view.h"

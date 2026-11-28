@@ -29,6 +29,7 @@
 
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/views/view.h"
 
 #include "gui/ui_timer_manager.h"
@@ -241,6 +242,14 @@ describe boot_services("the three services, installed into the guest's own Shell
 		const deluge::ui::shell::Service* knobs = slots.mod_knobs;
 		deluge::gui::ui::wireShellGuestServices();
 		expect(shellHostUI.shell().services().mod_knobs).to_equal(knobs);
+	});
+
+	it("installs them on the one runtime shell, which the guest drives and every other host shares", _ {
+		deluge::gui::ui::wireShellGuestServices();
+		deluge::ui::shell::Shell& runtime_shell = deluge::gui::ui::shellRuntime().shell();
+		expect(&shellHostUI.shell()).to_equal(&runtime_shell);
+		expect(&shellHostUI.surfaces()).to_equal(&deluge::gui::ui::shellRuntime().surfaces());
+		expect(runtime_shell.services().mod_knobs).not_().to_equal(&deluge::ui::shell::null_service());
 	});
 
 	it("none of the three asks to be woken at rest, so the guest's 1 ms floor stays latent", _ {

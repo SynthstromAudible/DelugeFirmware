@@ -218,6 +218,8 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.take_actions).not_().to_be_null();
 		expect(p.indicators).not_().to_be_null();
 		expect(p.view_actions).not_().to_be_null();
+		expect(p.root_views).not_().to_be_null();
+		expect(p.macros).not_().to_be_null();
 		expect(p.catalogue).not_().to_be_null();
 		expect(p.card_actions).not_().to_be_null();
 		expect(p.favourites).not_().to_be_null();

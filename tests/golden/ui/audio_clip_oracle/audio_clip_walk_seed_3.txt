@@ -1,0 +1,498 @@
+frames 230
+@ 0
+oled 1597
+P1hex 128 48
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+0000000222f1c700f20222fbc0000000
+00000005228888808a05228220000000
+00000008a28888808a08948220000000
+00000008a2888880f20888f3c0000000
+0000000fa2888880820f888280000000
+00000008a28888808208888240000000
+000000089cf1c70083e888fa20000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000e0c67c30f030000000000
+00000000000e0c67e31f8f0000000000
+00000000001f0c667339cf0000000000
+00000000001b0c663330c30000000000
+00000000003b8c663330c30000000000
+00000000003f8c663330c30000000000
+00000000003f8c667339c30000000000
+000000000071cfe7e31f830000000000
+000000000060c7c7c30f030000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000039f39f38e44010000000000
+00000000045044411144030000000000
+00000000041040411164010000000000
+00000000039e40411154010000000000
+0000000000504041114c010000000000
+00000000045044411144010000000000
+00000000039f38438e44038000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+00000000000000000000000000000000
+
+pads 1008
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 0e0101 2f0404 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 020000 160202 3d0606 750b0b bf1313 ff1a1a ff1a1a ff1a1a 000000 000000
+000000 000000 000000 060000 200303 4c0707 8a0e0e da1616 ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a 000000 000000
+5e0909 a11010 f71919 ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a 000000 000000
+550808 960f0f e91717 ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a 000000 000000
+000000 000000 000000 040000 1b0202 450707 800d0d cd1414 ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a ff1a1a 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 010000 120101 360505 6b0a0a b31212 ff1a1a ff1a1a ff1a1a 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 0b0101 290404 000000 000000
+
+model 64
+loop_length 768 start 0 end 524288 x_scroll 0 x_zoom 48 colour 0
+popups 0
+
+@ 3
+pads 1008
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000
+000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000 000000
+
+model 66
+loop_length 816 start 0 end 524288 x_scroll 768 x_zoom 48 colour 0
+popups 16
+popup 2 : 0 : 2
+
+@ 12
+model 67
+loop_length 1392 start 0 end 524288 x_scroll 768 x_zoom 48 colour 0
+@ 14
+model 65
+loop_length 1392 start 0 end 524288 x_scroll 0 x_zoom 48 colour 0
+popups 16
+popup 1 : 1 : 1
+
+@ 17
+model 67
+loop_length 1392 start 0 end 524288 x_scroll 768 x_zoom 48 colour 0
+@ 20
+popups 16
+popup 8th-notes
+
+@ 21
+model 67
+loop_length 1392 start 0 end 524288 x_scroll 768 x_zoom 24 colour 0
+popups 17
+popup 16th-notes
+
+@ 22
+popups 7
+cancel
+
+@ 23
+model 67
+loop_length 1152 start 0 end 433894 x_scroll 768 x_zoom 24 colour 0
+@ 26
+model 67
+loop_length 1152 start 0 end 433894 x_scroll 768 x_zoom 24 colour 2
+@ 28
+popups 17
+popup 16th-notes
+
+@ 29
+model 67
+loop_length 1152 start 0 end 433894 x_scroll 768 x_zoom 12 colour 2
+popups 17
+popup 32nd-notes
+
+@ 30
+popups 7
+cancel
+
+@ 31
+model 66
+loop_length 780 start 0 end 293782 x_scroll 768 x_zoom 12 colour 2
+@ 33
+popups 17
+popup 32nd-notes
+
+@ 34
+model 66
+loop_length 780 start 0 end 293782 x_scroll 768 x_zoom 24 colour 2
+popups 17
+popup 16th-notes
+
+@ 35
+popups 7
+cancel
+
+@ 36
+model 66
+loop_length 936 start 0 end 352538 x_scroll 768 x_zoom 24 colour 2
+@ 38
+model 67
+loop_length 1152 start 0 end 433893 x_scroll 768 x_zoom 24 colour 2
+@ 40
+model 68
+loop_length 1152 start 0 end 433893 x_scroll 1152 x_zoom 24 colour 2
+popups 16
+popup 4 : 1 : 1
+
+@ 41
+popups 16
+popup 4 : 1 : 1
+
+@ 43
+model 68
+loop_length 1152 start 0 end 433893 x_scroll 1152 x_zoom 24 colour 4
+@ 45
+model 68
+loop_length 1464 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 4
+@ 49
+model 68
+loop_length 1440 start 0 end 515693 x_scroll 1152 x_zoom 24 colour 4
+popups 16
+popup 3 : 3 : 0
+
+@ 54
+model 68
+loop_length 1464 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 4
+popups 16
+popup 3 : 3 : 1
+
+@ 57
+popups 17
+popup 16th-notes
+
+@ 60
+popups 7
+cancel
+
+@ 63
+popups 16
+popup 4 : 1 : 1
+
+@ 67
+model 68
+loop_length 1440 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 4
+popups 16
+popup 3 : 3 : 0
+
+@ 69
+popups 17
+popup 16th-notes
+
+@ 70
+popups 21
+popup Sample cleared
+
+@ 72
+popups 7
+cancel
+
+@ 73
+popups 17
+popup 16th-notes
+
+@ 76
+popups 7
+cancel
+
+@ 79
+popups 17
+popup 16th-notes
+
+@ 80
+model 68
+loop_length 1440 start 0 end 524288 x_scroll 1152 x_zoom 12 colour 4
+popups 17
+popup 32nd-notes
+
+@ 81
+popups 7
+cancel
+
+@ 84
+model 68
+loop_length 1440 start 0 end 524288 x_scroll 1344 x_zoom 12 colour 4
+@ 87
+popups 17
+popup 32nd-notes
+
+@ 88
+model 68
+loop_length 1440 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 4
+popups 17
+popup 16th-notes
+
+@ 89
+popups 7
+cancel
+
+@ 91
+model 68
+loop_length 1464 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 4
+popups 16
+popup 3 : 3 : 1
+
+@ 93
+popups 16
+popup 4 : 1 : 1
+
+@ 95
+model 68
+loop_length 1488 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 4
+popups 16
+popup 3 : 3 : 2
+
+@ 97
+popups 17
+popup 16th-notes
+
+@ 100
+popups 7
+cancel
+
+@ 104
+model 68
+loop_length 1464 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 4
+popups 16
+popup 3 : 3 : 1
+
+@ 109
+model 68
+loop_length 1488 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 4
+popups 16
+popup 3 : 3 : 2
+
+@ 112
+model 68
+loop_length 1512 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 4
+popups 16
+popup 3 : 3 : 3
+
+@ 115
+model 68
+loop_length 1512 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 6
+@ 117
+model 67
+loop_length 1512 start 0 end 524288 x_scroll 768 x_zoom 24 colour 6
+popups 16
+popup 3 : 1 : 1
+
+@ 120
+model 68
+loop_length 1512 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 6
+@ 127
+model 68
+loop_length 1536 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 6
+popups 16
+popup 4 : 0 : 0
+
+@ 132
+model 68
+loop_length 1512 start 0 end 524288 x_scroll 1152 x_zoom 24 colour 6
+popups 16
+popup 3 : 3 : 3
+
+@ 135
+popups 17
+popup 16th-notes
+
+@ 136
+popups 21
+popup Sample cleared
+
+@ 138
+popups 7
+cancel
+
+@ 139
+model 67
+loop_length 1512 start 0 end 524288 x_scroll 768 x_zoom 24 colour 6
+popups 16
+popup 3 : 1 : 1
+
+@ 143
+model 67
+loop_length 1512 start 0 end 524288 x_scroll 768 x_zoom 24 colour 8
+@ 145
+popups 17
+popup 16th-notes
+
+@ 146
+popups 21
+popup Sample cleared
+
+@ 148
+popups 7
+cancel
+
+@ 151
+popups 17
+popup 16th-notes
+
+@ 152
+model 67
+loop_length 1512 start 0 end 524288 x_scroll 768 x_zoom 12 colour 8
+popups 17
+popup 32nd-notes
+
+@ 153
+popups 7
+cancel
+
+@ 154
+model 67
+loop_length 1512 start 0 end 524288 x_scroll 960 x_zoom 12 colour 8
+popups 16
+popup 3 : 3 : 1
+
+@ 157
+model 68
+loop_length 1512 start 0 end 524288 x_scroll 1344 x_zoom 12 colour 8
+@ 160
+popups 16
+popup 4 : 3 : 1
+
+@ 165
+popups 17
+popup 32nd-notes
+
+@ 166
+model 67
+loop_length 1512 start 0 end 524288 x_scroll 1344 x_zoom 6 colour 8
+popups 17
+popup 64th-notes
+
+@ 167
+popups 7
+cancel
+
+@ 168
+popups 17
+popup 64th-notes
+
+@ 169
+model 68
+loop_length 1512 start 0 end 524288 x_scroll 1344 x_zoom 12 colour 8
+popups 17
+popup 32nd-notes
+
+@ 170
+popups 7
+cancel
+
+@ 172
+model 69
+loop_length 1512 start 0 end 524288 x_scroll 1344 x_zoom 12 colour 10
+@ 175
+model 69
+loop_length 1500 start 0 end 524288 x_scroll 1344 x_zoom 12 colour 10
+popups 16
+popup 3 : 3 : 2
+
+@ 177
+popups 17
+popup 32nd-notes
+
+@ 180
+popups 7
+cancel
+
+@ 185
+popups 17
+popup 32nd-notes
+
+@ 186
+model 68
+loop_length 1500 start 0 end 524288 x_scroll 1344 x_zoom 6 colour 10
+popups 17
+popup 64th-notes
+
+@ 187
+popups 7
+cancel
+
+@ 192
+popups 17
+popup 64th-notes
+
+@ 195
+popups 7
+cancel
+
+@ 196
+popups 17
+popup 64th-notes
+
+@ 197
+popups 21
+popup Sample cleared
+
+@ 199
+popups 7
+cancel
+
+@ 202
+model 68
+loop_length 1500 start 0 end 524288 x_scroll 1440 x_zoom 6 colour 10
+@ 207
+model 68
+loop_length 1506 start 0 end 524288 x_scroll 1440 x_zoom 6 colour 10
+popups 16
+popup 3 : 3 : 2
+
+@ 210
+popups 17
+popup 64th-notes
+
+@ 213
+popups 7
+cancel
+
+@ 214
+popups 16
+popup 4 : 4 : 1
+
+@ 215
+popups 17
+popup 64th-notes
+
+@ 218
+popups 7
+cancel
+
+@ 221
+model 68
+loop_length 1512 start 0 end 524288 x_scroll 1440 x_zoom 6 colour 10
+popups 16
+popup 3 : 3 : 3
+
+@ 226
+model 68
+loop_length 1512 start 0 end 524288 x_scroll 1344 x_zoom 6 colour 10
+popups 16
+popup 4 : 3 : 1
+
+@ 228
+model 68
+loop_length 1512 start 0 end 524288 x_scroll 1440 x_zoom 6 colour 10

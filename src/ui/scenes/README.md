@@ -333,7 +333,7 @@ opened the scene, and `MenuScene::reroot_to_scene_opener_page()` lands the user 
 
 `pending_scene` works because every scene a menu opens lives in `src/ui/scenes`. Five items run a legacy root UI's
 behaviour instead: entering the performance view (`openUI(&performanceView)`), the stem export,
-`audioClipView.setClipLengthEqualToSampleLength()`, and the song MIDI-learn and macros context menus. Those name the
+the audio clip view's clip length to the sample's, and the song MIDI-learn and macros context menus. Those name the
 action for the host, as `MenuAction::OpenPerformanceView`, `StartStemExport`, `SetClipLengthToSampleLength`,
 `OpenSongMidiLearn` and `OpenSongMacros`:
 
@@ -671,8 +671,9 @@ because `scenes-no-root-ui` forbids the whole word `slicer`.
 
 ### The audio clip view (`audio_clip/`)
 
-`AudioClipScene` ports `AudioClipView`, a `RootUI`, so `is_root()` is true and `GlobalControls`'
-root-gated arms (SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach it.
+`AudioClipScene` is the audio clip view: `audioClipView` is a `gui::ui::ShellRootView` over it
+(`gui/views/audio_clip_root.h`). It is a root scene, so `is_root()` is true and `GlobalControls`' root-gated arms
+(SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach it.
 
 * **The play cursor is painted in `render_grid`.** Legacy hands a column to
   `PadLEDs::setTickSquares` and the driver substitutes the colour per pad; the shell has one
@@ -687,9 +688,20 @@ root-gated arms (SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach 
 * **It reads and acts through the ports the host installs** (`set_ports`) and the song's record `open` names: the clip
   and its play state on `ClipFacts`, the clocks and the arrangement's mode on `Transport`, the tempo grab on
   `TransportActions`, its clip edits on `ClipWrites` and the edit sink, and its waveform at the
-  clip's AUDIO_CLIP address ("The waveform views" below). Its timeline starts from `ClipFacts::clip_navigation`.
+  clip's AUDIO_CLIP address ("The waveform views" below). Its timeline starts from `ClipFacts::clip_navigation`, and
+  its scroll and zoom go back there (`ClipWrites::set_clip_navigation`). The arms that leave the clip or open a menu
+  go to `RootViews`: SESSION's short press, CLIP, SELECT, shift and a select turn, and every main pad, offered first
+  to the menu's shortcuts, which the host decides as `menuShortcutPadAction` does.
+* **The play cursor is frame-driven** (`Scene::frame_driven`): woken every 15 ms frame while it is live, as legacy's
+  graphics routine redraws it, not on every tick.
+* **A scroll or a zoom slides** (the shared `ui::widgets::grid::scroll_transition` and `zoom_transition`), holding
+  the scroll or zoom mode until its last step, so input waits as legacy's does.
+* **SHIFT shows the shortcut overview** over the main pads while the overlay setting is "menu and clip", greying every
+  column at once; the colours are the host's (`RootViews::clip_shortcut_overview`).
 
-**A spec that compares a rendered grid against legacy must make the comparison non-vacuous.** With no
+**Legacy's side is frozen** (`tests/golden/ui/audio_clip_oracle/`, `support/audio_clip_answers.h`): the specs compare the
+scene with `AudioClipView`'s answers and frames as they were before the view was deleted. **A spec that compares a
+rendered grid against them must make the comparison non-vacuous.** With no
 card mounted the waveform scan fails on most arms and both sides draw black, so a pad-for-pad match
 proves nothing. `expect_pads_match` takes a `PadExpectation` with no default (`waveform(n)`,
 `waveform_with_cursor(n)`, `waveform_without_cursor(n)`, `.and_column(x, colour)`) and asserts its

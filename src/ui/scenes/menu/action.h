@@ -14,7 +14,7 @@
 /// |---|---|---|
 /// | `perform_editor` | `performance_session_view::EditingMode::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`) | writes `performanceView.defaultEditingMode`/`editingParam`, resets the performance view, `openUI(&performanceView)` |
 /// | `start_stem_export` | `stem_export::Start::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`) | `soundEditor.exitCompletely()`, then `getRootUI()` chooses one of four `StemExportType`s |
-/// | `set_clip_length` | `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`) | `audioClipView.setClipLengthEqualToSampleLength()` |
+/// | `set_clip_length` | `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`) | the audio clip scene's `set_clip_length_equal_to_sample_length()` |
 /// | `song_midi_learn` | `song::MidiLearn::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) | `context_menu::midiLearnMode.setupAndCheckAvailability()` + `openUI(...)` |
 /// | `configure_song_macros` | `song::ConfigureMacros::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`) | `context_menu::configureSongMacros.setupAndCheckAvailability()` + `openUI(...)` |
 // clang-format on
@@ -103,7 +103,8 @@ enum class MenuAction : uint8_t {
 	/// cannot read, so splitting it here would only move an unanswerable question into the menu.
 	StartStemExport,
 
-	/// @brief `audioClipView.setClipLengthEqualToSampleLength()`. `arg` is unused.
+	/// @brief The clip's length to its sample's: the audio clip scene's, or the automation view's over an audio clip.
+	///        `arg` is unused.
 	SetClipLengthToSampleLength,
 
 	/// @brief Open the song MIDI-learn context menu (`context_menu::midiLearnMode`). `arg` is unused.

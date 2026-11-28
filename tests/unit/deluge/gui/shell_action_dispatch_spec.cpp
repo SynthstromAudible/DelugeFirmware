@@ -106,9 +106,10 @@ struct Rig {
 	ProbeScene base{};
 	std::array<Scene*, kMaxSceneKinds> table{};
 	SceneRegistry reg{std::span<Scene* const>{table}};
-	ShellHostUI guest;
+	deluge::gui::ui::ShellRuntime runtime;
+	ShellHostUI guest{runtime};
 
-	Rig() : guest(fill(), kDelugeBoard, deluge_profile()) {
+	Rig() : runtime(fill(), kDelugeBoard, deluge_profile()) {
 		fakelegacy::reset();
 		fakelegacyui::reset();
 		// The guest is the current UI, which is the precondition the real `UITimerManager` would
@@ -138,7 +139,7 @@ struct Rig {
 	}
 };
 
-/// @brief Put the guest's clock at \p ms: `ShellHostUI::nowMs()` counts legacy's audio-sample counter, 44 samples
+/// @brief Put the guest's clock at \p ms: `ShellRuntime::nowMs()` counts legacy's audio-sample counter, 44 samples
 ///        a millisecond.
 void set_clock_ms(uint32_t ms) {
 	AudioEngine::audioSampleTimer = ms * 44;

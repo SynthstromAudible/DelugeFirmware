@@ -275,6 +275,16 @@ and the shell is the root (the root-view program, `docs/dev/roadmap.md`); then i
 | greyout | `greys_in_send_path`: legacy's `prepareColour` greys each pad once by the guest's mask |
 | `occludes_grid()` | `canSeeViewUnderneath`, so the root view keeps animating under the menu |
 
+**One shell, two hosts.** `gui::ui::ShellRuntime` (`gui/ui/shell_runtime.h`) owns the one `Shell`, its surfaces and
+its clock. `ShellHostUI` is its guest; `gui::ui::ShellRootView<Scene>` (`gui/ui/shell_root_view.h`) is a legacy root
+view whose body is a root scene at the bottom of the same stack (the audio clip view, `gui/views/audio_clip_root.h`).
+A menu the guest opens over a root scene goes on top of it and closes back to it; while it is open the guest serves
+only the menu's pad regions and the root view the rest, and a pad the menu leaves reaches the root scene alone
+(`Shell::route_to_root`). The root view answers what legacy code asks of the view it stands for (`RootViewTraits`),
+leaves the gold knobs, the mod buttons and the notices to `root_knobs` and the legacy display as every legacy root
+view does, and resends its pads and LEDs when its focus comes back. A frame-driven scene (`Scene::frame_driven`) is
+woken once a frame (`ShellConfig::frame_ms`, the graphics routine's 15 ms), not every tick.
+
 **Host-side requests.** A request that is not a scene -- open a legacy view, start a stem export,
 claim a sample -- is not an `Action::Kind`, which would put legacy root-UI concepts into the shell.
 It reaches the host one of three ways:
@@ -323,7 +333,3 @@ snapshot. At firmware level,
 
 - **Hardware grid scroll.** `SurfaceSet` has no sink for a board's column-shift opcodes, so
   `ScrollH`/`ScrollV` tweens redraw every pair every step.
-- **A per-frame wake.** A scene returning `0u` from `next_timer()` (`AudioClipScene` while playing)
-  makes `next_wake()` report now every tick; under the guest's 1 ms floor that is a grid render and
-  legacy's timer sweep at up to 1 kHz, where legacy's `graphicsRoutine` runs at about 66 Hz. The fix
-  is a distinct per-frame cadence for the host, not a new meaning for zero.

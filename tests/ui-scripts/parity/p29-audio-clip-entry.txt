@@ -1,0 +1,33 @@
+# The audio clip view's entries and exits: from the song view's clip pad, CLIP to the clip's automation view and back,
+# a length edit, SESSION back to the song, a second clip opened, and BACK's undo taking the view back to the first
+# clip.
+# card: tests/fixtures/card-audio-clips.card
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load audioclips
+14000 snapshot song
+14200 pad 0 7 down
+14320 pad 0 7 up
+16000 snapshot clip
+16200 button Clip down
+16320 button Clip up
+18000 snapshot automation
+18200 button Clip down
+18320 button Clip up
+20000 snapshot from_automation
+20200 button Shift down
+20450 encoder Horizontal +1
+20700 button Shift up
+22000 snapshot lengthened
+22200 button Session down
+22320 button Session up
+24000 snapshot session
+24200 encoder Vertical +1
+25500 snapshot session_scrolled
+25700 pad 0 7 down
+25820 pad 0 7 up
+27500 snapshot clip_b
+27700 button Back down
+27820 button Back up
+29500 snapshot undone

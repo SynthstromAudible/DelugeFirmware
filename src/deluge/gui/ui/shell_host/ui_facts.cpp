@@ -1,6 +1,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/shell_host/shell_host.h"
-#include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h"
 #include "gui/views/performance_view.h"
 
@@ -29,7 +29,7 @@ public:
 	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
 	[[nodiscard]] bool popup_showing() const override {
 		// `display->hasPopup()` for the guest: its popups and notifications are scenes on its stack.
-		for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
+		for (const deluge::ui::shell::Scene* scene : deluge::gui::ui::shellRuntime().shell().stack().scenes()) {
 			if (scene->kind() == deluge::ui::shell::SceneKind::Popup
 			    || scene->kind() == deluge::ui::shell::SceneKind::Notification) {
 				return true;

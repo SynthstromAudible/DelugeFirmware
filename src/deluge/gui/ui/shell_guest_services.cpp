@@ -30,6 +30,7 @@
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_mode.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -49,6 +50,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/source_resources.h"
+#include "ui/scenes/audio_clip/audio_clip_scene.h"
 #include "ui/scenes/browser/browser_scene.h"
 #include "ui/scenes/context_menu/context_menu_scene.h"
 #include "ui/scenes/marker/marker_scene.h"
@@ -102,7 +104,7 @@ struct GuestServices {
 /// references to -- is a global in another one. The first call happens at boot, long after every
 /// global is constructed.
 GuestServices& guestServices() {
-	static GuestServices services{shellHostUI.shell()};
+	static GuestServices services{deluge::gui::ui::shellRuntime().shell()};
 	return services;
 }
 
@@ -187,7 +189,7 @@ void refreshShellRootFacts() {
 
 bool menuCurrent() {
 	return getCurrentUI() == &shellHostUI
-	       && &shellHostUI.shell().stack().input_top() == &deluge::ui::scenes::menu_scene();
+	       && &deluge::gui::ui::shellRuntime().shell().stack().input_top() == &deluge::ui::scenes::menu_scene();
 }
 
 bool soundMenuOpen() {
@@ -222,7 +224,7 @@ bool drumSelectionFrozen() {
 	if (getCurrentUI() != &shellHostUI) {
 		return false;
 	}
-	const deluge::ui::shell::Scene& top = shellHostUI.shell().stack().input_top();
+	const deluge::ui::shell::Scene& top = deluge::gui::ui::shellRuntime().shell().stack().input_top();
 	uint16_t which = 0;
 	if (&top == &deluge::ui::scenes::browser::browser_scene()) {
 		which = static_cast<uint16_t>(deluge::ui::scenes::browser::browser_scene().browser_id());
@@ -237,7 +239,7 @@ bool rangeDependentMenuOpen() {
 	if (getCurrentUI() != &shellHostUI) {
 		return false;
 	}
-	const deluge::ui::shell::Scene* top = &shellHostUI.shell().stack().input_top();
+	const deluge::ui::shell::Scene* top = &deluge::gui::ui::shellRuntime().shell().stack().input_top();
 	const auto& browser = deluge::ui::scenes::browser::browser_scene();
 	if ((top == &browser && browser.browser_id() == deluge::ui::scenes::browser::BrowserId::Sample)
 	    || top == &deluge::ui::scenes::recorder::recorder_scene()) {
@@ -352,7 +354,7 @@ std::optional<int32_t> dxColumnFlashRow() {
 	if (!soundMenuOpen()) {
 		return std::nullopt;
 	}
-	return deluge::ui::scenes::menu_scene().dx_column_flash(shellHostUI.nowMs());
+	return deluge::ui::scenes::menu_scene().dx_column_flash(deluge::gui::ui::shellRuntime().nowMs());
 }
 
 void refreshShellDxColumn() {
@@ -369,7 +371,7 @@ void refreshShellDxColumn() {
 }
 
 void refreshShellSamplePreviewSounds() {
-	const deluge::ui::shell::Scene* top = &shellHostUI.shell().stack().input_top();
+	const deluge::ui::shell::Scene* top = &deluge::gui::ui::shellRuntime().shell().stack().input_top();
 	const auto& browser = deluge::ui::scenes::browser::browser_scene();
 	const auto& menu = deluge::ui::scenes::context_menu::context_menu_scene();
 	using deluge::ui::scenes::context_menu::DescriptorId;
@@ -472,6 +474,8 @@ void wireShellGuestServices() {
 	services.learn.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	services.controls.set_ports(&deluge::gui::shell_host::host_ports());
 	services.controls.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
+	// `Buttons::buttonAction` runs its tail after the guest and the root views decline a button.
+	services.controls.set_host_runs_tail(true);
 	services.knobs.set_ports(&deluge::gui::shell_host::host_ports());
 	services.knobs.set_model(currentSong != nullptr ? &currentSong->project : nullptr);
 	// The clip the views have open, which the global buttons and MIDI learn ask about.
@@ -486,11 +490,13 @@ void wireShellGuestServices() {
 
 	// The ports the overlays read: the count-in's transport and the screensaver's device settings.
 	deluge::gui::shell_host::install_scene_ports();
+	// The clip-arm flash the audio clip view's macros column reads and re-arms.
+	deluge::ui::scenes::audio_clip::audio_clip_scene().set_global_controls(&services.controls);
 
 	// Installs the services into the guest's `Shell`. Safe over a live set:
 	// it re-seats `services_`, the `Router`'s copy and the deduplicated tick list together, so a
 	// second call neither double-ticks nor strands a slot (`ui/shell/shell.h`'s `set_services`).
-	shellHostUI.shell().set_services(
+	deluge::gui::ui::shellRuntime().shell().set_services(
 	    {.mod_knobs = &services.knobs, .global_controls = &services.controls, .midi_learn = &services.learn});
 }
 

@@ -100,6 +100,7 @@ against drift, not a proof.
 | `PeakCol` (core's, by its grid name), `waveform_col_colour`, `waveform_row`, `waveform_full` | `widgets/grid/waveform.h` |
 | `BlinkPlan`, `ParamBlink`, `SourceBlink`, `exclusive_blink`, `blink_step`, `ms_to_next_step`, `fire_blink_step`, the blink constants | `grid/shortcut_blink.h` |
 | `kMaxMarkers`, `MarkerStack`, `marker_tint`, `marker_column` | `markers.h` |
+| `ZoomTransition`, `begin_zoom`, `zoom_transition`; `ScrollTransition`, `begin_scroll`, `scroll_transition` (the horizontal zoom and scroll slides) | `widgets/grid/zoom_transition.h`, `widgets/grid/scroll_transition.h` |
 | `KeyboardLayoutKind`, `TextKeyboardState`, `text_keyboard_char_at`, `text_keyboard_key_colour`, `text_keyboard_is_shift_pad`, `text_keyboard` | `widgets/grid/keyboard.h` |
 | legacy bridges: `LegacyImage`, `copy_legacy_image`, `copy_legacy_column`, `keyboard<Layout>`, `control_column<Column>` | `widgets/grid/keyboard.h` |
 | `GreyoutMask`, `greyout`, `GestureEvent`, `HoldPolicy`, `gesture` | `effects.h` |

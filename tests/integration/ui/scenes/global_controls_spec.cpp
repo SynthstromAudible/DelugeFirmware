@@ -27,7 +27,7 @@
 ///
 ///   * **`openUI(&saveSongUI)` / `openUI(&loadSongUI)` / `context_menu::clearSong`**
 ///     (`View::buttonAction`'s SAVE and LOAD arms). Not ported (see `global_controls.h`): the arm's decision is
-///     compared, and the open is counted through `GlobalControls::unported_opens(UnportedOpen)`, a tally per SITE so an
+///     compared, and the open is counted through `GlobalControls::song_opens(SongOpen)`, a tally per SITE so an
 ///     assertion about one arm cannot be satisfied by another.
 ///   * **The `THRESHOLD_RECORDING_MODE` popup arm** (`buttonAction` in `hid/buttons.cpp`). Not ported, and
 ///     it is a behaviour difference rather than a missing call; there is no port-side state that
@@ -301,13 +301,17 @@ struct GcRig {
 	FakeLearn learn;
 	GlobalControls gc{stack, lowering, learn};
 	uint32_t now_ms = 0;
+	/// The app's ports with a recorder for the browsers the SAVE and LOAD arms open.
+	deluge::ui::scenes::bind::test::RecordingRootViews views;
+	deluge::ui::scenes::bind::Ports ports = deluge::gui::shell_host::host_ports();
 
 	/// A registry of exactly one rig-local scene, at `SceneKind::FirstApp` (== 16). Nothing here
 	/// touches `scene_registry()`'s singletons -- `handle_settings_menu`'s `Action::Kind::Push` is
 	/// returned and inspected, never applied, because this rig drives `handle()` directly rather
 	/// than through a `Router`.
 	GcRig() {
-		gc.set_ports(&deluge::gui::shell_host::host_ports());
+		ports.root_views = &views;
+		gc.set_ports(&ports);
 		table[16] = &root;
 		reg.by_kind = std::span<Scene* const>{table};
 		(void)stack.push({SceneKind::FirstApp});
@@ -468,6 +472,32 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(port_result).to_equal(legacy_result);
 	});
 
+	it("leaves the tail to a host that runs it: PLAY, RECORD and the tempo encoder do nothing here", _ {
+		// The firmware's `Buttons::buttonAction` runs the tail after the current UI declines a button; with this service
+		// running it as well, PLAY would start the transport and stop it again.
+		static spec::SongFixture fixture = spec::make_synth_song();
+		release_all_legacy_buttons();
+		GcRig rig;
+		rig.gc.set_model(&fixture.song->project);
+		rig.gc.set_host_runs_tail(true);
+		expect(reset_transport(100'000)).to_be_true();
+		const uint32_t before = playbackHandler.playbackState;
+		expect(rig.press(ButtonId::Play, true, 1'000).handled).to_be_false();
+		(void)rig.press(ButtonId::Play, false, 1'010);
+		expect(playbackHandler.playbackState).to_equal(before);
+		expect(rig.press(ButtonId::Record, true, 1'100).handled).to_be_false();
+		(void)rig.press(ButtonId::Record, false, 1'110);
+		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
+		expect(rig.press(ButtonId::TempoEnc, true, 1'200).handled).to_be_false();
+		(void)rig.press(ButtonId::TempoEnc, false, 1'210);
+		// Without the switch the tail is this service's again.
+		rig.gc.set_host_runs_tail(false);
+		expect(rig.press(ButtonId::Play, true, 2'000).handled).to_be_true();
+		(void)rig.press(ButtonId::Play, false, 2'010);
+		expect(playbackHandler.playbackState).not_().to_equal(before);
+		expect(reset_transport(100'000)).to_be_true();
+	});
+
 	it("transport tail: suppresses the RECORD release after a PLAY press -- the record combo, both sides", _ {
 		// `hid/buttons.cpp`'s `recordButtonPressUsedUp = true` on a PLAY press, read by
 		// the RECORD release arm. A single-press example cannot see it: it is only
@@ -503,7 +533,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		expect(port_result).to_equal(RecordingMode::OFF);
 		expect(port_result).to_equal(legacy_result);
-		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
+		expect(rig.gc.song_opens_total()).to_equal(uint32_t(0));
 	});
 
 	it("transport tail: shift+RECORD begins an output recording, both sides", _ {
@@ -900,12 +930,13 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.press(ButtonId::Save, true, 10'000).handled).to_be_true();
 		expect(rig.gc.holding_save()).to_be_true(); // the press enters the hold
 		expect(rig.gc.effective_ui_mode()).to_equal(GlobalControls::UiMode::HoldingSave);
-		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
+		expect(rig.gc.song_opens_total()).to_equal(uint32_t(0));
 
 		rig.press(ButtonId::Save, false, 10'000 + GlobalControls::kShortPressMs - 1);
 		expect(rig.gc.holding_save()).to_be_false(); // the short release leaves it
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t(1)); // `openUI(&saveSongUI)`
-		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(1));
+		expect(rig.gc.song_opens(GlobalControls::SongOpen::SaveSong)).to_equal(uint32_t(1)); // `openUI(&saveSongUI)`
+		expect(rig.gc.song_opens_total()).to_equal(uint32_t(1));
+		expect(rig.views.calls).to_equal(std::vector<std::string>{"song saver"});
 	});
 
 	it("SAVE/LOAD decision: does not open on a long press, and does not hold with shift or a type button", _ {
@@ -919,7 +950,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Save, true, 11'000);
 		rig.press(ButtonId::Save, false, 11'000 + GlobalControls::kShortPressMs);
 		expect(rig.gc.holding_save()).to_be_false();
-		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
+		expect(rig.gc.song_opens_total()).to_equal(uint32_t(0));
 
 		// Shift: the press arm's `&& !Buttons::isShiftButtonPressed()`.
 		rig.press(ButtonId::Shift, true, 12'000);
@@ -927,7 +958,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_save()).to_be_false();
 		rig.press(ButtonId::Save, false, 12'010);
 		rig.press(ButtonId::Shift, false, 12'015);
-		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
+		expect(rig.gc.song_opens_total()).to_equal(uint32_t(0));
 
 		// SYNTH held: the arm's four-button guard suppresses the whole body -- but the arm is still reported handled,
 		// because legacy still reaches the `DEALT_WITH` return at the end of `View::buttonAction`.
@@ -936,7 +967,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_save()).to_be_false();
 		rig.press(ButtonId::Save, false, 13'010);
 		rig.press(ButtonId::Synth, false, 13'015);
-		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
+		expect(rig.gc.song_opens_total()).to_equal(uint32_t(0));
 	});
 
 	it("SAVE/LOAD decision: refuses to save while overdubs are pending, with legacy's own popup string", _ {
@@ -952,7 +983,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Save, true, 14'000);
 		const Result plain = rig.press(ButtonId::Save, false, 14'010);
 		expect(plain.actions.size()).to_equal(size_t(0));
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t(1));
+		expect(rig.gc.song_opens(GlobalControls::SongOpen::SaveSong)).to_equal(uint32_t(1));
 	});
 
 	it("SAVE/LOAD decision: takes the clear-song branch on shift+LOAD and the hold branch otherwise", _ {
@@ -966,7 +997,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Shift, true, 15'000);
 		expect(rig.press(ButtonId::Load, true, 15'005).handled).to_be_true();
 		expect(rig.gc.holding_load()).to_be_false();                // the clear-song branch was taken instead
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::ClearSong)).to_equal(uint32_t(1)); // `clearSong` opens
+		expect(rig.gc.song_opens(GlobalControls::SongOpen::ClearSong)).to_equal(uint32_t(1)); // `clearSong` opens
 		rig.press(ButtonId::Load, false, 15'010);
 		rig.press(ButtonId::Shift, false, 15'015);
 
@@ -974,8 +1005,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_load()).to_be_true(); // the hold branch is entered
 		rig.press(ButtonId::Load, false, 16'010);
 		expect(rig.gc.holding_load()).to_be_false();                // the short release leaves it
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::LoadSong)).to_equal(uint32_t(1)); // `openUI(&loadSongUI)`
-		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(2));
+		expect(rig.gc.song_opens(GlobalControls::SongOpen::LoadSong)).to_equal(uint32_t(1)); // `openUI(&loadSongUI)`
+		expect(rig.gc.song_opens_total()).to_equal(uint32_t(2));
+		expect(rig.views.calls).to_equal(std::vector<std::string>{"clear song", "song loader"});
 	});
 
 	it("sync scaling: sets and clears the song's sync-scaling clip exactly as legacy does", _ {
@@ -1367,6 +1399,25 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.next_timer().has_value()).to_be_false();
 	});
 
+	it("time: does not postpone a flash already scheduled, and its toggle repaints the pads that read the phase", _ {
+		// `View::flashPlayEnable` arms only when `PLAY_ENABLE_FLASH` is not already set: a view that re-arms on every
+		// render must not push the flash back for ever.
+		GcRig rig;
+		expect(rig.gc.timer_repaints().grid).to_be_false();
+		rig.gc.tick(40'000, 0);
+		rig.gc.flash_play_enable(40'000);
+		rig.gc.tick(40'030, 30);
+		rig.gc.flash_play_enable(40'030);
+		expect(*rig.gc.next_timer()).to_equal(GlobalControls::kClipArmFlashMs - 30);
+		// The phase's readers are pad renderers (`View::flashPlayRoutine` asks the current UI for its sidebar), so the
+		// armed flash repaints the grid and nothing else.
+		expect(rig.gc.timer_repaints().grid).to_be_true();
+		expect(rig.gc.timer_repaints().oled).to_be_false();
+		rig.gc.tick(40'000 + GlobalControls::kClipArmFlashMs, 30);
+		expect(rig.gc.clip_arm_flash_on()).to_be_true();
+		expect(rig.gc.timer_repaints().grid).to_be_false();
+	});
+
 	it("time: blinks SYNC_SCALING on the shared normal phase, which the shell wakes for", _ {
 		// The blinking SYNC_SCALING LED (`View::setTimeBaseScaleLedState`, `blinkLed(SYNC_SCALING)`): declared on the phase every
 		// normal blink shares, whose toggles the shell wakes for (`shell::led_next_change`), so the service asks for
@@ -1636,14 +1687,14 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 			expect(refused.actions[0].popup_string)
 			    .to_equal(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
 		}
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t{0});
+		expect(rig.gc.song_opens(GlobalControls::SongOpen::SaveSong)).to_equal(uint32_t{0});
 
 		// With none pending the same press opens the saver.
 		host.transport.overdubs = false;
 		rig.press(ButtonId::Save, true, 48'100);
 		const Result plain = rig.press(ButtonId::Save, false, 48'110);
 		expect(plain.actions.size()).to_equal(size_t{0});
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t{1});
+		expect(rig.gc.song_opens(GlobalControls::SongOpen::SaveSong)).to_equal(uint32_t{1});
 	});
 
 	it("on fakes: the LEDs follow the transport's playback, recording and metronome", _ {

@@ -31,6 +31,7 @@
 namespace shell_host_ui_rig {
 
 using deluge::gui::ui::ShellHostUI;
+using deluge::gui::ui::ShellRuntime;
 using deluge::hid::display::OLED;
 using namespace deluge::ui::shell;
 
@@ -252,14 +253,15 @@ struct Rig {
 	PatternScene marker{deluge::ui::scenes::marker::kMarkerSceneKind};
 	std::array<Scene*, kMaxSceneKinds> table{};
 	SceneRegistry reg{std::span<Scene* const>{table}};
-	ShellHostUI guest;
+	ShellRuntime runtime;
+	ShellHostUI guest{runtime};
 
-	Rig() : guest(fill(), kDelugeBoard, deluge_profile()) {
+	Rig() : runtime(fill(), kDelugeBoard, deluge_profile()) {
 		fakelegacy::reset();
 		fakelegacyui::reset();
 		fakelegacyui::current_ui = &guest;
 	}
-	explicit Rig(const DelugeBoard& board, const BoardProfile& profile) : guest(fill(), board, profile) {
+	explicit Rig(const DelugeBoard& board, const BoardProfile& profile) : runtime(fill(), board, profile) {
 		fakelegacy::reset();
 		fakelegacyui::reset();
 		fakelegacyui::current_ui = &guest;
@@ -422,7 +424,7 @@ public:
 	}
 };
 
-/// @brief Put the guest's clock at \p ms: `ShellHostUI::nowMs()` counts legacy's audio-sample counter, 44 samples
+/// @brief Put the guest's clock at \p ms: `ShellRuntime::nowMs()` counts legacy's audio-sample counter, 44 samples
 ///        a millisecond.
 inline void set_clock_ms(uint32_t ms) {
 	AudioEngine::audioSampleTimer = ms * 44;

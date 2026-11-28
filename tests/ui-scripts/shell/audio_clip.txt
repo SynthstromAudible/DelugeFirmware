@@ -29,7 +29,7 @@
                                  # the pads, and the service LEDs/indicators in `.state`
 # `end_square` is `(loopLength - xScroll - 1) / xZoom` = (768 - 0 - 1) / 48 = 15
 # (`AudioClipScene::pad_action`, `audio_clip_scene.cpp`; legacy's `AudioClipView::padAction`,
-# `audio_clip_view.cpp`).
+# `origin/main:src/deluge/gui/views/audio_clip_view.cpp`).
 100   pad 15 3 down 64
 120   pad 15 3 up
 200   snapshot end_marker        # `AudioClipView::padAction`'s no-marker-visible arm: the end column, tapped with no
@@ -86,11 +86,11 @@
                                   # (`PlaybackHandler::setLedStates`). RECORD is still lit, and the
                                   # playhead appears at column 0: the booted app's clock runs, so
                                   # `AudioClipView::graphicsRoutine`'s `getTickSquare()` arm draws it
-                                  # (`audio_clip_view.cpp`), as it does through the clear below
+                                  # (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`), as it does through the clear below
 2100  button XEnc down
 2150  button Back down
 2170  button Back up
-2250  snapshot after_clear       # `AudioClipView::buttonAction` (`audio_clip_view.cpp`): BACK while the horizontal
+2250  snapshot after_clear       # `AudioClipView::buttonAction` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`): BACK while the horizontal
                                  # encoder is held clears the clip -- the sample is detached, so the pads go dark -- and
                                  # files the CLEARED popup
 # Snapshotted BEFORE the X-encoder is released, deliberately: the release arm takes the popup down again

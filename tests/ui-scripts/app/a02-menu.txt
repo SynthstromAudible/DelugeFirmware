@@ -75,7 +75,7 @@
 # **The route is the gesture a user performs**, not a back door: convert the boot song's one (empty) synth clip to an
 # audio clip in the song view -- hold its pad, press the select encoder (`SessionView::buttonAction` in
 # `gui/views/session_view.cpp`, which calls `replaceInstrumentClipWithAudioClip`) -- enter it, open its menu (site 5,
-# `AudioClipView::buttonAction` (`gui/views/audio_clip_view.cpp`)), and walk ACTIONS -> SET CLIP LENGTH.
+# `AudioClipView::buttonAction` (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`)), and walk ACTIONS -> SET CLIP LENGTH.
 #
 # **The timings below are not padding, and three of them are load-bearing.**
 #
@@ -129,15 +129,15 @@
 
 # One detent onto SET CLIP LENGTH EQUAL TO SAMPLE LENGTH (RENAME is first), then the press that
 # performs the verb: `MenuScene`'s `ActionItem` files `MenuAction::SetClipLengthToSampleLength`
-# (`ui/scenes/menu/nodes/actions.h`) and `dispatchShellActions` calls
-# `audioClipView.setClipLengthEqualToSampleLength()`, the method `main`'s `selectButtonPress` calls.
+# (`ui/scenes/menu/nodes/actions.h`) and `dispatchShellActions` makes the audio clip scene's edit, the one `main`'s
+# `selectButtonPress` makes through `audioClipView.setClipLengthEqualToSampleLength()`.
 6000   encoder Select +1
 6100   snapshot set-clip-length
 6150   button SelectEnc down
 6170   button SelectEnc up
 
 # The popup is the verb's own output: `AudioClipView::setClipLengthEqualToSampleLength`
-# (`gui/views/audio_clip_view.cpp`) ends in one of two `displayPopup`s, and this clip has a
+# (`origin/main:src/deluge/gui/views/audio_clip_view.cpp`) ends in one of two `displayPopup`s, and this clip has a
 # sample holder, so it is the CLIP LENGTH ADJUSTED arm. Break the dispatcher's
 # `SetClipLengthToSampleLength` arm and this panel loses the popup, which reds the golden.
 6350   snapshot verb-done

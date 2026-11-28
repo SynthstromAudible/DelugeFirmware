@@ -26,7 +26,7 @@
 #include "gui/ui/shell_guest_knobs.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host/host_ports.h"
-#include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_runtime.h"
 #include "gui/ui/ui.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
@@ -141,7 +141,7 @@ void turn(int32_t knob, int32_t offset) {
 		return;
 	}
 	if (ModKnobs* knobs = knobs_now()) {
-		knobs->turn(slot->index, offset, shellHostUI.nowMs(), root_presentation);
+		knobs->turn(slot->index, offset, deluge::gui::ui::shellRuntime().nowMs(), root_presentation);
 	}
 }
 

@@ -45,6 +45,16 @@ public:
 	/// @brief Record @p x_scroll as the view a redo of @p clip's last length change returns to: the view scrolls after
 	/// the change, so the step learns it after.
 	virtual void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) = 0;
+	/// @brief Keep @p x_scroll and @p x_zoom as the song's clip navigation, the view every clip view opens on and the
+	/// song file saves.
+	/// @param x_scroll The first tick shown.
+	/// @param x_zoom   Ticks per square.
+	virtual void set_clip_navigation(int32_t x_scroll, uint32_t x_zoom) = 0;
+	/// @brief Shift the clip's contents by @p amount ticks, as a Y_ENC turn in a clip view does, with its undo step:
+	///        the automation too unless the device's "shift automation only in the automation view" setting is on.
+	/// @param clip The clip. @param amount Signed ticks, a whole number of squares.
+	/// @return Whether anything moved.
+	virtual bool shift_clip_horizontally(project::ClipAddress clip, int32_t amount) = 0;
 };
 
 } // namespace deluge::ui::scenes::bind

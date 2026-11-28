@@ -60,6 +60,7 @@ add_library(deluge_ui_widgets_grid STATIC
   grid/markers.cpp
   grid/rows.cpp
   grid/shortcut_blink.cpp
+  grid/scroll_transition.cpp
   grid/sidebar.cpp
   grid/waveform.cpp
   grid/zoom_transition.cpp
