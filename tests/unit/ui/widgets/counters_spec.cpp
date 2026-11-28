@@ -61,6 +61,13 @@ describe level_lines_w("ui::widgets::oled::level_lines", $ {
 		expect(r.lit(2, 41 + kTop)).to_be_true();
 	});
 
+	it("draws only L in a one-row rect", _ {
+		uitest::Rig48 r;
+		level_lines(r.frame, {0, 40, 128, 1}, 1.f, 1.f);
+		expect(r.lit(10, 40 + kTop)).to_be_true();
+		expect(r.lit(10, 41 + kTop)).to_be_false();
+	});
+
 	it("matches its goldens", _ {
 		uitest::Rig48 r48;
 		level_lines(r48.frame, {0, 41, 128, 2}, 0.72f, 0.66f);
@@ -89,6 +96,32 @@ describe beat_boxes_w("ui::widgets::oled::beat_boxes", $ {
 		expect(r.lit(7, 39 + kTop)).to_be_false();
 		expect(r.lit(126, 39 + kTop)).to_be_true();
 		expect(r.lit(0, 39 + kTop)).to_be_false();
+	});
+
+	it("shrinks gaps, then boxes, to fit the rect", _ {
+		uitest::Rig48 r;
+		const Rect a{20, 17, 88, 6};
+		beat_boxes(r.frame, a, 16, 16);
+		int32_t outside = 0;
+		int32_t runs = 0; // filled boxes counted as runs of lit columns on the middle row
+		bool in_run = false;
+		for (int32_t x = 0; x < 128; x++) {
+			for (int32_t y = 0; y < 43; y++) {
+				const bool in = x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h;
+				outside += (!in && r.lit(x, y + kTop)) ? 1 : 0;
+			}
+			const bool lit = r.lit(x, 20 + kTop);
+			runs += (lit && !in_run) ? 1 : 0;
+			in_run = lit;
+		}
+		expect(outside).to_equal(0);
+		expect(runs).to_equal(16);
+	});
+
+	it("draws nothing for a zero box width", _ {
+		uitest::Rig48 r;
+		beat_boxes(r.frame, {0, 37, 128, 5}, 4, 2, 0);
+		expect(lit_count(r)).to_equal(0);
 	});
 
 	it("draws nothing for zero boxes", _ {

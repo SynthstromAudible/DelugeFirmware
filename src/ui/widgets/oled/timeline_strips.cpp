@@ -123,7 +123,7 @@ void quantize_graph(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, int32
 	const int32_t tick_h = std::max(1, static_cast<int32_t>(std::lround(static_cast<float>(r.h) / 5.f)));
 	const int32_t block_h = std::max(1, static_cast<int32_t>(std::lround(static_cast<float>(r.h) / 4.f)));
 	const int32_t block_top = r.y + r.h - block_h;
-	const auto col = [&](int64_t t) { return std::min(right, column(r, t, length_ticks)); };
+	const auto col = [&](int64_t t) { return std::clamp(column(r, t, length_ticks), r.x, right); };
 	if (grid_ticks > 0) {
 		for (int64_t g = 0; g <= length_ticks; g += grid_ticks) {
 			for (int32_t y = block_top; y < r.y + r.h; y += 2) {

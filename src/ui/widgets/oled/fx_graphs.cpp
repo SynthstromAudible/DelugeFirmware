@@ -169,7 +169,8 @@ void distortion_graph(OledFrame& panel, const DistortionGraph& d, int32_t focuse
 
 void swing_graph(OledFrame& panel, int32_t amount, int32_t focused) {
 	const PageBody b = page_body(panel);
-	const int32_t pitch = (b.right - b.left) / 8;
+	// room for the last step pushed a whole pitch late, 2 px wide, inside the body
+	const int32_t pitch = (b.right - b.left - 3) / 8;
 	const int32_t late =
 	    round_i(static_cast<float>(std::clamp<int32_t>(amount, 1, 99) - 50) / 50.f * static_cast<float>(pitch));
 	const int32_t top = b.top + 5;

@@ -69,7 +69,8 @@ void distortion_graph(OledFrame& panel, const DistortionGraph& d, int32_t focuse
 /// @brief Eight steps of swing across the page body: each straight place a dotted guide, each step a 2-px-wide
 ///        solid line from `b.top + 5` to `b.bottom`, the odd steps pushed late.
 ///
-/// With `b = page_body(panel)` and `pitch = (b.right - b.left) / 8`, step i's straight place is
+/// With `b = page_body(panel)` and `pitch = (b.right - b.left - 3) / 8` (so a step pushed a whole pitch late still
+/// fits), step i's straight place is
 /// `xs(i) = b.left + 2 + i * pitch`; an odd step sits `round((amount - 50) / 50 * pitch)` later. Handles in column
 /// order: AMOUNT on step 1's top, INTERVAL on step 2's top.
 /// @param panel   The frame a menu hands a page drawing.

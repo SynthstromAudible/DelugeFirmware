@@ -17,15 +17,29 @@ void amount_line(OledFrame& f, int32_t y, int32_t x0, int32_t x1, float v) {
 
 void level_lines(OledFrame& f, gfx::oled::Rect r, float left, float right) {
 	amount_line(f, r.y, r.x, r.x + r.w - 1, left);
-	amount_line(f, r.y + 1, r.x, r.x + r.w - 1, right);
+	if (r.h >= 2) {
+		amount_line(f, r.y + 1, r.x, r.x + r.w - 1, right);
+	}
 }
 
 void beat_boxes(OledFrame& f, gfx::oled::Rect r, int32_t n, int32_t filled, int32_t box_w, int32_t gap) {
-	if (n <= 0) {
+	if (n <= 0 || box_w <= 0) {
 		return;
 	}
 	filled = std::clamp(filled, 0, n);
-	const int32_t total = n * box_w + (n - 1) * gap;
+	gap = std::max(0, gap);
+	// too wide for the rect: narrower gaps (down to 1), then narrower boxes (down to 1)
+	const auto width = [&] { return n * box_w + (n - 1) * gap; };
+	while (width() > r.w && gap > 1) {
+		gap--;
+	}
+	while (width() > r.w && box_w > 1) {
+		box_w--;
+	}
+	if (width() > r.w) {
+		return; // more boxes than columns
+	}
+	const int32_t total = width();
 	const int32_t x0 = r.x + (r.w - total) / 2;
 	for (int32_t i = 0; i < n; i++) {
 		const gfx::oled::Rect box{x0 + i * (box_w + gap), r.y, box_w, r.h};

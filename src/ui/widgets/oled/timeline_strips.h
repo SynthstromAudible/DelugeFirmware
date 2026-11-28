@@ -64,7 +64,8 @@ void note_strip(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, std::span
 /// note is a 1-px tick at its current column; on the bottom quarter (rounded, at least a row) a dotted line (every 2nd
 /// row) marks every `grid_ticks`, and each note is a 3-px-wide block at `x0 + round((snap - x0) * amount)`, where
 /// snap is the column of the nearest grid line (a tie goes to the later one). A 1-px line joins each tick's foot to
-/// the top of its block. @p amount is clamped to 0..1; columns are clipped to @p r.
+/// the top of its block. @p amount is clamped to 0..1; columns (a tick before the clip's start among them) are clamped
+/// into @p r.
 void quantize_graph(OledFrame& f, gfx::oled::Rect r, int32_t length_ticks, int32_t grid_ticks,
                     std::span<const int32_t> note_ticks, float amount);
 

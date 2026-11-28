@@ -286,6 +286,14 @@ describe quantize_graph_w("ui::widgets::oled::quantize_graph", $ {
 		expect(r.lit(65, 40 + kTop)).to_be_true();
 	});
 
+	it("keeps a tick before the clip inside the rect", _ {
+		uitest::Rig48 r;
+		const Rect a{10, 17, 100, 20};
+		const std::array<int32_t, 1> note{{-10 * 24}};
+		quantize_graph(r.frame, a, 64 * 24, 8 * 24, note, 0.5f);
+		expect(inside(r, a)).to_be_true();
+	});
+
 	it("draws only the grid for no notes", _ {
 		uitest::Rig48 r;
 		quantize_graph(r.frame, area, 64 * 24, 8 * 24, {}, 0.6f);

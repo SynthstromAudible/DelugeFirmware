@@ -282,7 +282,8 @@ describe swing_graph_w("ui::widgets::oled::swing_graph", $ {
 		}
 		return y;
 	};
-	const auto pitch_of = [](const PageBody& b) { return (b.right - b.left) / 8; };
+	// room for the last step pushed a whole pitch late, 2 px wide, inside the body
+	const auto pitch_of = [](const PageBody& b) { return (b.right - b.left - 3) / 8; };
 
 	it("draws every step on its straight place at 50", _ {
 		uitest::Rig48 r;
@@ -305,6 +306,17 @@ describe swing_graph_w("ui::widgets::oled::swing_graph", $ {
 		expect(r.lit(late, y)).to_be_true();
 		expect(r.lit(x1, y)).to_be_false();
 		expect(r.lit(b.left + 2 + 2 * p, y)).to_be_true();
+	});
+
+	it("keeps the last step inside the body at 99", _ {
+		uitest::Rig48 r;
+		const PageBody b = page_body(r.frame);
+		swing_graph(r.frame, 99, -1);
+		for (int32_t y = 0; y < 43; y++) {
+			for (int32_t x = b.right + 1; x < 128; x++) {
+				expect(r.lit(x, y + kTop)).to_be_false();
+			}
+		}
 	});
 
 	it("clamps the amount to 1..99", _ {
