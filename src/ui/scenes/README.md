@@ -23,7 +23,7 @@ in `website/src/data/generated/menu-tree.json`.
 | `bind/` | `deluge_ui_scenes_bind`, its own library: what a node edits (`bind::Target`), read from the model's records and the engines' descriptors; the ports (`bind/ports/`, collected in `bind::Ports`) a scene reads and writes the host through; writes leave as requests |
 | `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens; each of these scenes but the context menu holds its const present members in `rename/present.cpp`, `browser/present.cpp`, `marker/present.cpp` and `recorder/present.cpp` |
 | `overlay/` | the param popup, the count-in digit and the screensaver drawing |
-| `slicing/`, `audio_clip/`, `timeline/` | the slicer (its present members in `slicing/present.cpp`), the audio clip view (the first root scene), and the scroll/zoom state clip views share |
+| `slicing/`, `audio_clip/`, `timeline/` | the slicer (its present members in `slicing/present.cpp`), the audio clip view (the first root scene; its present members in `audio_clip/present.cpp`), and the scroll/zoom state clip views share |
 | `services/` | `ModKnobs`, `GlobalControls`, `MidiLearn` and what they share (knob pushes, source names, view state, the waveform read and paint, the peak retry, favourites) |
 
 | `SceneKind` | scene |
@@ -69,7 +69,8 @@ scene          state, input, ports, clocks, repaint gates
   returns. No heap.
 * **A snapshot replay and a slide are views too:** pads painted back from what the scene kept
   (`views::grid::pads`) and a zoom's slide (`views::grid::zoom_slide`) are drawn by views; taking the snapshot and
-  starting the slide (`begin_zoom`, its frame) stay in `render_*`. The audio clip's split meets both.
+  starting the slide (`begin_zoom`, its frame) stay in `render_*`. The audio clip view has both: its SHIFT overview
+  through `views::grid::pads`, its slides through `views::grid::scroll_slide` and `zoom_slide`.
 
 The scenes on views: the recorder (`present_status` and `present_blink`, over `views::oled::recorder_status` and
 `views::grid::blink`), and the marker editor (`present_position`, `present_waveform`, `present_overlay` and

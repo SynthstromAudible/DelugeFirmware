@@ -1334,7 +1334,7 @@ void audioClipResizeTarget(Song* song) {
 // set-sample-then-undo case that lands in the non-empty branch is not driveable headless. The empty branch IS
 // driveable, and still exercises exactly the setter routing under test: start from a clip with NO sample assigned
 // (filePath already empty, like a freshly-created/blank audio track slot), then replicate the mutation
-// AudioClip::finishLinearRecording performs (`audio_clip.cpp`: record the consequence *before* mutating
+// AudioClip::finishLinearRecording performs (`model/clip/audio_clip.cpp`: record the consequence *before* mutating
 // filePath/endPos, then set them) -- i.e. simulate "a sample got set onto a blank clip". Undoing that action makes
 // filePathToRevertTo == "" at revert time, landing in the empty branch, which still round-trips filePath/endPos
 // through setSampleFilePath/setSampleEndPos back to docAudioClip_ + sampleHolder. That's a genuine regression
@@ -1369,8 +1369,8 @@ void audioClipSetSampleTarget(Song* song) {
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
 
-	// Mirrors AudioClip::finishLinearRecording (`audio_clip.cpp`): the consequence is recorded BEFORE mutating
-	// filePath/endPos ("Call this *before* you change the Sample or its filePath" -- the comment on
+	// Mirrors AudioClip::finishLinearRecording (`model/clip/audio_clip.cpp`): the consequence is recorded BEFORE
+	// mutating filePath/endPos ("Call this *before* you change the Sample or its filePath" -- the comment on
 	// `Action::recordAudioClipSampleChange` in `action.cpp`).
 	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::NOT_ALLOWED);
 	check(action != nullptr, "set-sample: harness opened an Action");

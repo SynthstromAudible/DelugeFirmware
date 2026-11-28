@@ -1,12 +1,15 @@
 # deluge_ui_views_grid — whole pad pictures, each drawn from a plain description of what it shows. Includes only
 # ui/widgets/grid, ui/widgets/core, ui/gfx/grid and the standard library (scripts/layers.toml).
 add_library(deluge_ui_views_grid STATIC
+  audio_clip.cpp
   blink.cpp
+  clip_sidebar.cpp
   favourites.cpp
   keyboard.cpp
   marker.cpp
   pad_image.cpp
   playhead.cpp
+  scroll_slide.cpp
   slicer.cpp
   waveform.cpp
   zoom_slide.cpp

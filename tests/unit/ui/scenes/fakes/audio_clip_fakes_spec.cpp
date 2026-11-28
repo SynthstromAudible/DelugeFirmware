@@ -11,12 +11,14 @@
 #include "project/features.h"
 #include "project/song.h"
 #include "ui/scenes/services/peak_retry.h"
+#include "ui/scenes/services/waveform_paint.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/scene.h"
 #include "ui/views/waveform/peaks.h"
 #include "ui/widgets/grid/waveform.h"
 
 #include "fakes.h"
+#include "support/printers/rgb_printer.h"
 #include "support/printers/transport_action_printer.h"
 #include "unit/ui/widgets/support/frames.h"
 
@@ -711,6 +713,108 @@ describe audio_clip_fakes("audio_clip::AudioClipScene over the ports' fakes", ${
 		});
 	});
 });
+
+describe audio_clip_present("audio_clip::AudioClipScene's present members over the ports' fakes", ${
+	it("presents the output's type, an unnamed output's empty name, and the clip's section line", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		AudioClipScene::NameText text;
+		const std::optional<deluge::ui::views::oled::AudioClipName> d = scene.present_name(text);
+		expect(d.has_value()).to_be_true();
+		expect(d->type_text.empty()).to_be_false();
+		expect(std::string{d->name}).to_equal(std::string{});
+		expect(std::string{d->info}).to_equal(std::string{"Section 1"});
+		h.model.clip_structure.getOrCreate(kClipId).name = "VERSE";
+		h.model.clip_structure.getOrCreate(kClipId).section = 2;
+		expect(std::string{scene.present_name(text)->info}).to_equal(std::string{"3: VERSE"});
+	});
+
+	it("presents nothing with no clip open", _ {
+		AudioClipScene scene;
+		AudioClipScene::NameText text;
+		expect(scene.present_name(text).has_value()).to_be_false();
+	});
+
+	it("presents the start on column 0 and the end on column 15 for the whole loop at zoom 24, unlit", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		const deluge::ui::views::grid::ClipMarkers m = scene.present_markers();
+		expect(m.start_square).to_equal(0);
+		expect(m.end_square).to_equal(15);
+		expect(m.start_visible).to_be_false();
+		expect(m.end_visible).to_be_false();
+	});
+
+	it("presents the waveform's columns, mirrored when reversed, and none under a lit end marker", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		const std::optional<deluge::ui::scenes::services::WaveformFrame> wf = deluge::ui::scenes::services::read_waveform(
+		    h.host.waveforms, at_clip(), deluge::ui::views::waveform::Window{.scroll = 0, .zoom = 1000});
+		expect(wf.has_value()).to_be_true();
+		const deluge::ui::views::grid::ClipMarkers unlit{
+		    .start_square = 0, .end_square = 15, .start_visible = false, .end_visible = false, .blink_on = false};
+		const auto forward = scene.present_waveform(*wf, unlit, false);
+		const auto reversed = scene.present_waveform(*wf, unlit, true);
+		expect(forward[15].valid).to_be_true();
+		expect(reversed[0].max24).to_equal(forward[15].max24);
+		expect(reversed[0].min24).to_equal(forward[15].min24);
+		deluge::ui::views::grid::ClipMarkers lit = unlit;
+		lit.end_visible = true;
+		lit.blink_on = true;
+		expect(scene.present_waveform(*wf, lit, false)[15].valid).to_be_false();
+		expect(scene.present_waveform(*wf, lit, false)[14].valid).to_be_true();
+	});
+
+	it("presents the clip's colour from its colour offset", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		h.model.clip_structure.getOrCreate(kClipId).colour_offset = 3;
+		expect(scene.present_colour()).to_equal(RGB::fromHuePastel(3 * -8 / 3));
+	});
+
+	it("presents the root views' overview pad for pad", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		const deluge::ui::views::grid::PadImage image = scene.present_overview();
+		expect(image.pads[3][5]).to_equal(RGB{.r = 80, .g = 96, .b = 7});
+		expect(image.pads[7][15]).to_equal(RGB{.r = 240, .g = 224, .b = 7});
+	});
+
+	it("presents the macros only while SESSION is held, each held pad marked", _ {
+		AudioClipHost h;
+		h.host.macros.slots[2] = deluge::ui::scenes::bind::MacroFact{.kind = deluge::ui::scenes::bind::MacroKind::SECTION};
+		AudioClipScene scene;
+		opened(scene, h);
+		std::array<bool, 8> held{};
+		held[2] = true;
+		expect(scene.present_sidebar(false, held).macros).to_be_false();
+		const deluge::ui::views::grid::ClipSidebar d = scene.present_sidebar(true, held);
+		expect(d.macros).to_be_true();
+		expect(static_cast<int>(d.cells[2].kind)).to_equal(static_cast<int>(deluge::ui::widgets::grid::MacroKind::Section));
+		expect(d.cells[2].held).to_be_true();
+		expect(static_cast<int>(d.cells[0].kind)).to_equal(static_cast<int>(deluge::ui::widgets::grid::MacroKind::None));
+		expect(d.cells[0].held).to_be_false();
+	});
+
+	it("presents the playhead's column on every row, black for the unreachable muted colour, flashing as asked", _ {
+		AudioClipHost h;
+		AudioClipScene scene;
+		opened(scene, h);
+		const deluge::ui::views::grid::Playhead d = scene.present_playhead(4, true);
+		for (const auto& sq : d.per_row) {
+			expect(static_cast<int32_t>(sq.col)).to_equal(4);
+		}
+		expect(d.flash).to_be_true();
+		expect(d.muted).to_equal(RGB{});
+		expect(scene.present_playhead(4, false).flash).to_be_false();
+		expect(scene.present_playhead(deluge::ui::widgets::grid::kNoTickSquare, true).paint).to_be_false();
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(audio_clip_fakes_spec, audio_clip_fakes)
+DELUGE_SPEC(audio_clip_fakes_spec, audio_clip_fakes, audio_clip_present)
