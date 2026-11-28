@@ -25,6 +25,7 @@
 /// legacy, puts the song back, then plays it into the scene. The README beside this file says how a view's spec
 /// writes its two sides and its cases.
 
+#include "support/popup_capture.h"
 #include "ui/shell/input_lowering.h"
 #include "ui/widgets/core/input.h"
 
@@ -40,6 +41,22 @@
 #include <vector>
 
 namespace deluge::ui::test::differential {
+
+/// @brief A step's popups as a frame holds them: each popup's text after `popup `, each cancel as `cancel`, one a line;
+///        nothing else a capture records (a banner, an error, the working animation) is compared.
+[[nodiscard]] inline std::string popups_text(const std::vector<deluge::ui::scenes::spec::PopupEvent>& events) {
+	using Kind = deluge::ui::scenes::spec::PopupEvent::Kind;
+	std::string out;
+	for (const deluge::ui::scenes::spec::PopupEvent& e : events) {
+		if (e.kind == Kind::POPUP || e.kind == Kind::PERSISTENT || e.kind == Kind::TEMPORARY) {
+			out += "popup " + e.text + '\n';
+		}
+		else if (e.kind == Kind::CANCEL) {
+			out += "cancel\n";
+		}
+	}
+	return out;
+}
 
 /// @brief One input event, as a parity script would write it.
 struct Step {

@@ -97,13 +97,8 @@ void restore_sample(Rig& r) {
 	r.f.clip->setColourOffset(0);
 }
 
-/// @brief An l10n string id's English text, as both sides' popups name their strings.
-std::string l10n_text(uint16_t id) {
-	return deluge::l10n::get(static_cast<deluge::l10n::String>(id));
-}
-
-/// @brief `AudioClipScene`, fed through a real input lowering and rendered by the rig's shell, with its popups taken
-///        as text before the shell would draw them.
+/// @brief `AudioClipScene`, fed through a real input lowering and rendered by the rig's shell, its popups captured
+///        (`spec::PopupCapture`) before the shell would draw them.
 class SceneSide final : public diff::Side {
 public:
 	/// @param r The rig. @param start The clip's numbers and the play position every case starts from.
@@ -186,7 +181,8 @@ public:
 			}
 		}
 		f.model = model_digest(r_);
-		f.popups = std::exchange(popups_, {});
+		f.popups = diff::popups_text(popups_.events());
+		popups_.clear();
 		return f;
 	}
 
@@ -196,30 +192,21 @@ private:
 		                 lowering_->profile(), lowering_.get()};
 	}
 
-	/// @brief Keep the text of every popup @p r asks for, and whether it asks for a repaint.
+	/// @brief Keep every popup @p r asks for, and whether it asks for a repaint.
 	void note(const Result& r) {
+		popups_.take(r);
 		for (const ShellAction& a : r.actions) {
-			if (a.kind == ShellAction::Kind::Popup) {
-				popups_ += "popup " + l10n_text(a.popup_string) + '\n';
-			}
-			else if (a.kind == ShellAction::Kind::RepaintAll || a.kind == ShellAction::Kind::Repaint) {
+			if (a.kind == ShellAction::Kind::RepaintAll || a.kind == ShellAction::Kind::Repaint) {
 				repaint_ = true;
 			}
 		}
 	}
 
-	/// @brief Take every queued notice the shell would draw as a popup, keeping its text, so the frame's OLED is the
-	///        scene's own page as legacy's is.
-	void drain_notices() {
+	/// @brief Take every queued notice before the shell would draw it, so the frame's OLED is the scene's own page as
+	///        legacy's is; the capture has kept each as it was raised.
+	static void drain_notices() {
 		deluge::base::notify::Notice n;
-		while (deluge::base::notify::notices().pop(n)) {
-			if (n.kind == deluge::base::notify::Notice::Kind::Text) {
-				popups_ += "popup " + (n.string_id != 0 ? l10n_text(n.string_id) : std::string{n.text}) + '\n';
-			}
-			else if (n.kind == deluge::base::notify::Notice::Kind::CancelPopup) {
-				popups_ += "cancel\n";
-			}
-		}
+		while (deluge::base::notify::notices().pop(n)) {}
 	}
 
 	/// @brief Where this case's clock starts: every case's own times start again at zero.
@@ -227,7 +214,7 @@ private:
 	Rig& r_;
 	Sentinel start_;
 	std::unique_ptr<InputLowering> lowering_;
-	std::string popups_;
+	deluge::ui::scenes::spec::PopupCapture popups_;
 	bool repaint_ = false;
 };
 
