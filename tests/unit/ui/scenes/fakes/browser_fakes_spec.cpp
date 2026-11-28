@@ -15,10 +15,12 @@
 #include "project/device_settings.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
+#include "ui/views/oled/browser.h"
 #include "ui/widgets/core/style.h"
 #include "ui/widgets/grid/favourites.h"
 #include "ui/widgets/grid/keyboard.h"
 #include "ui/widgets/grid/shortcut_blink.h"
+#include "unit/ui/widgets/support/frames.h"
 
 #include "fakes.h"
 #include "support/mocks/fake_surfaces.h"
@@ -287,10 +289,36 @@ describe browser_fakes("the browser, the context menu and the rename scene over 
 		expect(r.fake.pbm(0) == with_tail).to_equal(false);
 	});
 
+	it("keeps every glyph of a long ASCII name that reaches the row", _ {
+		std::string name;
+		for (int32_t i = 0; i < 30; i++) {
+			name += "ABCDE";
+		}
+		deluge::ui::scenes::bind::test::ModelFixture f;
+		Rig r;
+		open_midi(r, f, {{"A.XML", false}, {name + ".XML", false}});
+		std::array<deluge::ui::views::oled::BrowserRow, deluge::ui::scenes::browser::kMaxBrowserRows> rows{};
+		deluge::ui::scenes::browser::BrowserScene::BrowserText text;
+		deluge::ui::views::oled::BrowserList list =
+		    browser_scene().present_list(deluge::ui::widgets::core::kDelugeStyle48, 128, rows, text);
+		expect(list.rows.size()).to_equal(std::size_t{2});
+		if (list.rows.size() == 2) {
+			rows[1].label = name;
+			list.rows = std::span<const deluge::ui::views::oled::BrowserRow>{rows.data(), 2};
+			deluge::ui::test::Rig48 full;
+			deluge::ui::widgets::oled::TextEditState edit{};
+			edit.cursor_lit = true;
+			deluge::ui::widgets::core::ScrollText scroll{};
+			deluge::ui::views::oled::browser_list(full.frame, list, edit, scroll);
+			expect(r.fake.pbm(0)).to_equal(full.pbm());
+		}
+	});
+
 	it("presents the favourites over the banks, the current favourite and bank flashing when a period turns", _ {
 		deluge::ui::scenes::bind::test::ModelFixture f;
-		static_cast<void>(f.host.device.write(deluge::project::device_path::kFavouritesLayout,
-		                                      static_cast<int32_t>(deluge::project::FavouritesLayout::FAVOURITES_AND_BANKS)));
+		static_cast<void>(
+		    f.host.device.write(deluge::project::device_path::kFavouritesLayout,
+		                        static_cast<int32_t>(deluge::project::FavouritesLayout::FAVOURITES_AND_BANKS)));
 		deluge::ui::scenes::bind::test::FakeFavourites fake;
 		fake.slots[2] = 4;
 		fake.current = 2;
@@ -319,7 +347,8 @@ describe browser_fakes("the browser, the context menu and the rename scene over 
 		}
 	});
 
-	it("presents the file selector's BROWSE blink on the audio clip's column, its step played on the pass that drew it", _ {
+	it("presents the file selector's BROWSE blink on the audio clip's column, its step played on the pass that drew it",
+	   _ {
 		deluge::ui::scenes::bind::test::ModelFixture f;
 		Rig r;
 		open_sample(r, f);
