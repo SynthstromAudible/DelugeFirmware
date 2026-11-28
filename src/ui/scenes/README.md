@@ -627,8 +627,9 @@ because `scenes-no-root-ui` forbids the whole word `slicer`.
 
 ### The audio clip view (`audio_clip/`)
 
-`AudioClipScene` ports `AudioClipView`, a `RootUI`, so `is_root()` is true and `GlobalControls`'
-root-gated arms (SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach it.
+`AudioClipScene` is the audio clip view: `audioClipView` is a `gui::ui::ShellRootView` over it
+(`gui/views/audio_clip_root.h`). It is a root scene, so `is_root()` is true and `GlobalControls`' root-gated arms
+(SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach it.
 
 * **The play cursor is painted in `render_grid`.** Legacy hands a column to
   `PadLEDs::setTickSquares` and the driver substitutes the colour per pad; the shell has one
@@ -649,8 +650,14 @@ root-gated arms (SAVE, LOAD, SYNC_SCALING, TAP_TEMPO, BACK, shift+SELECT) reach 
   to the menu's shortcuts, which the host decides as `menuShortcutPadAction` does.
 * **The play cursor is frame-driven** (`Scene::frame_driven`): woken every 15 ms frame while it is live, as legacy's
   graphics routine redraws it, not on every tick.
+* **A scroll or a zoom slides** (the shared `ui::widgets::grid::scroll_transition` and `zoom_transition`), holding
+  the scroll or zoom mode until its last step, so input waits as legacy's does.
+* **SHIFT shows the shortcut overview** over the main pads while the overlay setting is "menu and clip", greying every
+  column at once; the colours are the host's (`RootViews::clip_shortcut_overview`).
 
-**A spec that compares a rendered grid against legacy must make the comparison non-vacuous.** With no
+**Legacy's side is frozen** (`tests/golden/ui/audio_clip_oracle/`, `support/audio_clip_answers.h`): the specs compare the
+scene with `AudioClipView`'s answers and frames as they were before the view was deleted. **A spec that compares a
+rendered grid against them must make the comparison non-vacuous.** With no
 card mounted the waveform scan fails on most arms and both sides draw black, so a pad-for-pad match
 proves nothing. `expect_pads_match` takes a `PadExpectation` with no default (`waveform(n)`,
 `waveform_with_cursor(n)`, `waveform_without_cursor(n)`, `.and_column(x, colour)`) and asserts its

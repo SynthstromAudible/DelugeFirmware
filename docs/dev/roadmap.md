@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-27 (params C5b done: the model names params by target, the automation selection a plugin param; C5a done: the UI names params by plugin id; R2 done: every scene on the UI's ports, and the scenes' link to the app cut; Track A step 3, the Deluge synth's state, done: plans A to E merged into `next`; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-21). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-28 (the root-view program's first root scene: the audio clip view is `AudioClipScene`, `AudioClipView` deleted; params C5b done: the model names params by target, the automation selection a plugin param; C5a done: the UI names params by plugin id; R2 done: every scene on the UI's ports, and the scenes' link to the app cut; Track A step 3, the Deluge synth's state, done: plans A to E merged into `next`; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-21). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -185,12 +185,16 @@ opens over a legacy root view, and the host hands that view whatever no scene cl
 root views become scenes one at a time, and once none is left the shell is the root and `ShellHostUI` is deleted.
 
 **Exists.** The menu, the sample, MIDI-definition and `.syx` browsers, the recorder, the marker editor, the slicer,
-the rename screen and the context menu the menu opens, all hosted by `ShellHostUI`; `AudioClipScene`, a root scene
-with its spec that the firmware does not push yet; `GlobalControls`' root-view arms and its `UnportedOpen` counters.
+the rename screen and the context menu the menu opens, all hosted by `ShellHostUI`; the first root scene,
+`AudioClipScene`, which is the audio clip view (`AudioClipView` is deleted): `gui::ui::ShellRootView` roots it on the
+one shell `gui::ui::ShellRuntime` owns, under any menu the guest opens over it, woken every frame while its play cursor
+moves (`Scene::frame_driven`); `GlobalControls`' root-view arms, whose song browsers the host opens through
+`RootViews`. A root view's spec compares it with the legacy view's answers and frames, frozen before the view went
+(`tests/golden/ui/audio_clip_oracle/`), through the differential driver (`tests/integration/ui/scenes/support/differential/`).
 
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
-| Small UIs | 3 | Scenes for the audio clip view (`AudioClipScene` shipped, its not-yet-ported arms closed), the keyboard view, the performance view, the song, preset, pattern and kit-row load and save browsers, the qwerty and rename screens, the song context menus and the clip view's MIDI-definition browser | R2 |
+| Small UIs | 3 | Scenes for the audio clip view (done), the keyboard view, the performance view, the song, preset, pattern and kit-row load and save browsers, the qwerty and rename screens, the song context menus and the clip view's MIDI-definition browser | R2 |
 | Big views | 3 | Scenes for the instrument clip view, the session view, the arranger and the automation view, built on P5's topology (track = chain, kit = a `Kit` of `KitRow`s) beside R3's re-keyed readers | Small UIs; P5 topology |
 | Shell as root | 3 | The shell boots into the root scenes; `ShellHostUI` and the glue that forwards input to legacy root views are deleted | Big views |
 

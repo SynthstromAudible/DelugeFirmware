@@ -3,7 +3,8 @@
 ///        root of the shared stack, a menu the guest opens over it goes on top and closes back to it, and the input
 ///        the menu leaves reaches the root scene.
 ///
-/// The instance here is the spec's own, over `AudioClipScene`; the firmware does not push one yet.
+/// The instance here is the spec's own, over `AudioClipScene`, beside the firmware's `audioClipView`
+/// (`gui/views/audio_clip_root.h`).
 
 #include "support/audio_clip_rig.h"
 
