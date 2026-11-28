@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/root_ui.h"
 #include "gui/ui/shell_runtime.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
@@ -98,8 +99,8 @@ bool ShellHostUI::opened() {
 	// scene takes `on_enter` twice with no `on_exit` between and both indices share a single
 	// `SceneState` slot (`SceneStack`'s one-scene-per-kind rule). Legacy's equivalent is
 	// `SoundEditor::opened` calling `beginScreen()`, which
-	// begins a menu session rather than resuming one.
-	shell().stack().reset();
+	// begins a menu session rather than resuming one. A root view whose body is a scene keeps it: the menu goes on top.
+	clearToRoot();
 	// Legacy has owned the LEDs since the last session closed.
 	surfaces().begin_session();
 
@@ -362,40 +363,7 @@ void ShellHostUI::syncPads() {
 // ---------------------------------------------------------------------------------------------
 
 void ShellHostUI::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
-	// **This exists because legacy clears the panel first.** `doAnyPendingOLEDRendering` calls
-	// `OLED::clearMainImage()` and then asks each open UI to draw into `OLED::main`
-	// (`gui/ui/ui.cpp`: the clear, then the `renderOLED` call). The shell is
-	// retained-mode -- `Shell::flush` blits a surface only when a repaint raised its `blit_pending`
-	// (`Shell::flush`) -- so a frame legacy zeroed between two shell renders would stay
-	// zeroed with nothing to tell the shell to paint it again. The guest keeping its *own* copy of
-	// the frame (the copy-not-alias decision in `gui/ui/shell_guest_surfaces.h`) is what makes that recoverable: this
-	// hook hands that copy back every time legacy asks.
-	//
-	// It is the same bytes `GuestSurfaceSet::blit` writes, so the two paths are idempotent with
-	// each other rather than in competition; `blit` additionally raises `OLED::markChanged`, which
-	// this must not, because legacy has already decided to send this frame by the time it calls
-	// here (`doAnyPendingOLEDRendering`'s "Don't need to mark dirty because clearMainImage has already done that").
-	if (!canOpen()) {
-		return;
-	}
-	const deluge::ui::shell::OledSurface* main = surfaces().oled(SurfaceRole::Main);
-	if (main == nullptr) {
-		return;
-	}
-	const std::span<const uint8_t> src = main->canvas.bytes();
-	const std::span<uint8_t> dest = canvas.bytes();
-	if (src.size() != dest.size()) {
-		// **Unreachable, and stated as unreachable rather than left to look like coverage.**
-		// `canOpen()` above is a *shape* predicate (`GuestSurfaceSet::canReachMainPanel`), so past
-		// it the Main surface is 128x48 and `Canvas::bytes()` is geometry-sized; `dest` is an
-		// `oled_canvas::Canvas`, which is `OwnedCanvas<kDelugeOled>` by type
-		// (`hid/display/oled_canvas/canvas.h`) and therefore the same 768 bytes on every
-		// instance that exists. No board this suite can build reaches here, and deleting this line
-		// is a mutation nothing kills. It stays because the alternative failure is a `std::copy` past the end of
-		// legacy's buffer, not a wrong pixel.
-		return;
-	}
-	std::copy(src.begin(), src.end(), dest.begin());
+	runtime_.copyOled(canvas);
 }
 
 bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1,
@@ -409,39 +377,7 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 		return isOpaque;
 	}
 
-	const deluge::ui::gfx::grid::PadGrid& grid = surfaces().grid().grid();
-	const deluge::ui::gfx::grid::GridDimensions dims = grid.dims();
-	// **Both clamps are load-bearing, and neither is covered by `canOpen()`.**
-	// `GuestSurfaceSet::canReachMainPanel` asks about the *panel's* shape and says nothing about the
-	// grid (`gui/ui/shell_guest_surfaces.h`), and `SurfaceSet::build` sizes the grid straight from
-	// `DelugeBoard::pad_grid_width`/`pad_grid_height` and `BoardProfile::sidebar_cols`
-	// (`SurfaceSet::build` in `ui/shell/surfaces.cpp`) with no reference to legacy's numbers at all -- a `PadGrid` may
-	// be up to `kMaxGridRows` x `kMaxGridCols` = 16 x 32 (`ui/gfx/grid/pad_grid.h`) while `PadLEDs::image` is fixed at
-	// `[kDisplayHeight][kDisplayWidth + kSideBarWidth]` = 8 x 18
-	// (`hid/led/pad_leds.h`). So a profile with a taller or wider grid than legacy's is the case
-	// these two `min`s exist for, and dropping either writes past the end of legacy's buffer rather
-	// than merely painting a wrong pad. Both are mutation-covered by the tall/wide-grid board in
-	// `tests/unit/deluge/gui/shell_host_ui_drawing_spec.cpp`.
-	const int32_t rows = std::min<int32_t>(dims.rows, kDisplayHeight);
-	const int32_t last = std::min<int32_t>(x1, dims.cols());
-	for (int32_t y = 0; y < rows; y++) {
-		if ((whichRows & (1u << y)) == 0) {
-			continue;
-		}
-		for (int32_t x = x0; x < last; x++) {
-			image[y][x] = grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
-		}
-	}
-	// **Two paths write `PadLEDs::image` while the guest owns a region**: `GuestSurfaceSet::send_columns`
-	// on the shell's own flush, and this when legacy pulls. They agree -- same grid, same rows. For a
-	// region it does not own, neither writes: the UI underneath draws those pads, as under
-	// `SoundEditor` (`SoundEditor::renderMainPads`); an overlay's shortcut blink reaches the PIC as
-	// a flash (`send_columns`). Legacy greys every pad once, owned or not, by the mask
-	// `getGreyoutColsAndRows` reports.
-	//
-	// `occupancyMask` is deliberately untouched, and the same gap `GuestSurfaceSet::send_columns`
-	// has: nothing in the shell populates an occupancy map, and
-	// inventing one here would be the guest making up a fact about legacy's buffer.
+	runtime_.copyGrid(whichRows, image, x0, x1);
 	return isOpaque;
 }
 
@@ -564,7 +500,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// deliver this guest's `timerCallback` to that UI (`UITimerManager::routine`).
 	// Nothing left that takes input -- an empty stack, or only passive overlays (a knob popup, a console line) -- is a
 	// guest with nothing to offer: it closes, and `closeGuest` hands a showing knob popup to legacy and drops the rest.
-	if (!shell().stack().has_input_scene()) {
+	if (!shell().stack().has_input_scene_above_root()) {
 		closeGuest();
 		return ActionResult::DEALT_WITH;
 	}
@@ -665,68 +601,16 @@ uint32_t ShellHostUI::nowMs() const {
 	return runtime_.nowMs();
 }
 
-void ShellHostUI::syncHoldTime() {
-	// **Re-read the tap threshold on every event, which is what legacy does.**
-	// `LoweringConfig::hold_time_ms` is `FlashStorage::holdTime` -- a setting, in **audio samples**
-	// (`defaultHoldTime * kSampleRate / 20`, `storage/flash_storage.cpp`), which legacy reads
-	// *live* at shift-release time (`hid/buttons.cpp`) and the shell reads out of a config field.
-	// `InputLowering::set_hold_time_ms` (`ui/shell/input_lowering.h`) is the setter written for this
-	// line, and the conversion to milliseconds is `* 1000 / kSampleRate`. Legacy's default 2 gives
-	// 4410 samples and 100 ms, exactly what `LoweringConfig`'s own default documents; the settings
-	// item's range is 1..20, re-clamped on read (`storage/flash_storage.cpp`), i.e.
-	// 50..1000 ms, so the `uint16_t` cannot overflow.
-	//
-	// **Here rather than in `opened()`.** Seeding once per open would assume that "a guest that is not open cannot be
-	// observing the threshold" -- which is backwards for the one writer that can only be reached *while the guest is
-	// open*: the menu's hold-time item (`nodes::default_hold_time`), whose DEVICE row's store
-	// (`gui/ui/shell_host/device_settings.cpp`) writes `FlashStorage::holdTime` from inside the shell. A per-open seed
-	// lags it by a whole guest session. This is the same hole the screensaver settings have from the menu, and unlike
-	// that one it is closable here, because the *reader* is on this side of the seam.
-	//
-	// This is the funnel every pad and every button passes through (`padAction`, `buttonAction`), so
-	// it is where legacy's own read happens: two loads, a divide and a compare-free store, on a path
-	// that already builds an event and takes the SD lock. Encoder turns deliberately do not come
-	// through here and do not need to -- `hold_time_ms` gates the sticky-shift tap and nothing else.
-	shell().lowering().set_hold_time_ms(
-	    static_cast<uint16_t>(static_cast<uint32_t>(FlashStorage::holdTime) * 1000u / kSampleRate));
-}
-
 void ShellHostUI::feed(const DelugeInputEvent& ev) {
-	syncHoldTime();
-	shell().on_board_event(ev, nowMs());
+	runtime_.feed(ev);
 }
 
 void ShellHostUI::feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutWithoutShift) {
-	syncHoldTime();
-	shell().on_host_pad(x, y, static_cast<uint8_t>(velocity), shortcutWithoutShift, nowMs());
+	runtime_.feedPad(x, y, velocity, shortcutWithoutShift);
 }
 
 void ShellHostUI::feedDetents(EncoderRole role, int32_t detents, uint64_t time_us) {
-	if (detents == 0) {
-		// `interpretEncoders` (`hid/encoder_input.cpp`) only calls a hook when `fe.pending()`, so a zero is
-		// not something legacy produces -- but `selectEncoderAction` is also reachable from its SD test
-		// mode (`SD_TEST_MODE_ENABLED`) and from anything else that decides to drive a UI directly,
-		// and a zero-edge feed would still set `had_input_this_tick` and wake the repaint gate.
-		return;
-	}
-	const std::span<const deluge::ui::widgets::core::EncoderRole> byIndex =
-	    shell().lowering().profile().encoder_by_index;
-	const int32_t per =
-	    runtime_.config().lowering.edges_per_detent > 0 ? runtime_.config().lowering.edges_per_detent : 1;
-	// See the `@warning` on the declaration: the clamp is in detents, before the multiply, so the
-	// product lands inside `int8_t` for any `edges_per_detent`.
-	const int32_t limit = 127 / per;
-	const int8_t edges = static_cast<int8_t>(std::clamp(detents, -limit, limit) * per);
-	for (size_t i = 0; i < byIndex.size(); i++) {
-		if (byIndex[i] != role) {
-			continue;
-		}
-		shell().on_encoder_edges(static_cast<uint8_t>(i), edges, nowMs(), time_us);
-		return;
-	}
-	// A profile with no encoder in that role. Dropped rather than guessed at, the same way
-	// `InputLowering::apply_encoder_edges` drops an index past the table
-	// (`InputLowering::apply_encoder_edges`).
+	runtime_.feedDetents(role, detents, time_us);
 }
 
 bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
@@ -1133,12 +1017,19 @@ void ShellHostUI::uisTakenDown() {
 	// guest is up or not.
 	forgetMenuContext();
 	if (!isUIOpen(this)) {
+		// A root view's scene names the outgoing song too, guest or not; the root view that follows opens its own.
+		if (runtime_.rootHost() != nullptr) {
+			shell().stack().reset();
+			runtime_.setRootHost(nullptr);
+		}
 		return;
 	}
 	// The recorder's take ends with no `ClearWorking`: the legacy display, which shows notices once the guest is gone,
 	// would take the taker-down's own animation down with it. The shell's animation goes here instead.
 	endShellRecorderTakeForTeardown();
+	// Everything, a root scene too: it names the outgoing song, and the root view that follows opens its own.
 	shell().stack().reset();
+	runtime_.setRootHost(nullptr);
 	// As at the close: what the exits asked of the browser host is answered now.
 	deliverShellBrowserAnswers();
 	shell().notices().disarm_working();
@@ -1245,10 +1136,10 @@ ActionResult ShellHostUI::exitUI() {
 	    && shell().stack().input_top().kind() == deluge::ui::scenes::context_menu::kContextMenuSceneKind) {
 		return ActionResult::DEALT_WITH;
 	}
-	if (shell().stack().has_input_scene()) {
+	if (shell().stack().has_input_scene_above_root()) {
 		(void)shell().stack().remove(shell().stack().input_top().kind());
 	}
-	if (shell().stack().has_input_scene()) {
+	if (shell().stack().has_input_scene_above_root()) {
 		// The stack moved, so the next tick will re-render everything (`SceneStack::pop` sets
 		// `changed_`, which `Shell::tick` turns into a repaint request
 		// on every gate) -- but nothing schedules that tick. This hook is
@@ -1259,6 +1150,15 @@ ActionResult ShellHostUI::exitUI() {
 	}
 	closeGuest();
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+}
+
+void ShellHostUI::clearToRoot() {
+	if (runtime_.rootHost() != nullptr && static_cast<const ::UI*>(getRootUI()) == runtime_.rootHost()) {
+		shell().stack().pop_to_root();
+		return;
+	}
+	shell().stack().reset();
+	runtime_.setRootHost(nullptr);
 }
 
 void ShellHostUI::closeGuest() {
@@ -1334,7 +1234,7 @@ void ShellHostUI::closeGuest() {
 	// it is still on legacy's stack for `uiNeedsRendering` to find. They are the regions `syncPads`
 	// last recorded, not the stack's: on the short-Back path the tick has already emptied it.
 	const deluge::ui::shell::PadRegions answered = padsAnswered_;
-	shell().stack().reset();
+	clearToRoot();
 	// The exits just run may have asked the browser host for something (the sample browser stops its preview), and the
 	// answer it held would otherwise wait for a tick this guest no longer has.
 	deliverShellBrowserAnswers();

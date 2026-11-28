@@ -370,6 +370,12 @@ public:
 	/// @param now_ms The wall clock, for the `UiContext` and the screensaver.
 	/// @return True if the top scene or a service reported `handled`.
 	bool route_lowered_turn(widgets::core::EncoderRole role, int8_t offset, uint32_t now_ms);
+	/// @brief Hand @p event to the stack's root scene alone, applying its result: the input a host above the root
+	///        passed down because none of its own scenes takes it (a pad outside the menu's regions). Like
+	///        `route_midi`, it does not enter the lowering or open its tick window.
+	/// @param event The event. @param now_ms The wall clock, for the `UiContext` and the screensaver.
+	/// @return True if the root scene reported `handled`; false with no root scene stacked.
+	bool route_to_root(const UiEvent& event, uint32_t now_ms);
 	/// @}
 
 	/// @brief Take or release the SD-routine lock, deferring board input while it is held.

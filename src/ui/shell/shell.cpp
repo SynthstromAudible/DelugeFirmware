@@ -332,6 +332,17 @@ bool Shell::route_lowered_turn(widgets::core::EncoderRole role, int8_t offset, u
 	return router_.route(e, make_context(now_ms));
 }
 
+bool Shell::route_to_root(const UiEvent& event, uint32_t now_ms) {
+	Scene* const root = stack_.root();
+	if (root == nullptr || !root->is_root()) {
+		return false;
+	}
+	screensaver_.note_activity(now_ms);
+	const Result r = root->handle(event, make_context(now_ms));
+	router_.apply(r);
+	return r.handled;
+}
+
 void Shell::set_sd_busy(bool busy) {
 	// Releasing the lock replays the whole deferred queue through the ordinary lowering path
 	// (`InputLowering::set_sd_busy`), which writes the tick-scoped state -- the detent sums, the pad

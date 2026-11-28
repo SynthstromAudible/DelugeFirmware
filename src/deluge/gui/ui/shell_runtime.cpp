@@ -24,11 +24,13 @@
 #include "gui/ui_timer_manager.h"
 #include "libdeluge/scheduler.h"             // getSystemTime()
 #include "processing/engines/audio_engine.h" // audioSampleTimer
+#include "storage/flash_storage.h"
 #include "ui/scenes/profile.h"
 #include "ui/scenes/registry.h"
 
 #include <algorithm>
 #include <optional>
+#include <span>
 #include <utility>
 
 namespace deluge::gui::ui {
@@ -109,6 +111,77 @@ void ShellRuntime::rearm(uint32_t now_ms, const ::UI* owner) {
 
 void ShellRuntime::armTickSoon() {
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kMinRearmMs);
+}
+
+namespace {
+/// @brief Take up the device's hold time, which the settings menu may have moved since the last event: legacy re-reads
+///        `FlashStorage::holdTime` on every press.
+void syncHoldTime(deluge::ui::shell::Shell& shell) {
+	shell.lowering().set_hold_time_ms(
+	    static_cast<uint16_t>(static_cast<uint32_t>(FlashStorage::holdTime) * 1000u / kSampleRate));
+}
+} // namespace
+
+void ShellRuntime::feed(const DelugeInputEvent& ev) {
+	syncHoldTime(shell_);
+	shell_.on_board_event(ev, nowMs());
+}
+
+void ShellRuntime::feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutWithoutShift) {
+	syncHoldTime(shell_);
+	shell_.on_host_pad(x, y, static_cast<uint8_t>(velocity), shortcutWithoutShift, nowMs());
+}
+
+void ShellRuntime::feedDetents(deluge::ui::widgets::core::EncoderRole role, int32_t detents, uint64_t time_us) {
+	if (detents == 0) {
+		return;
+	}
+	const std::span<const deluge::ui::widgets::core::EncoderRole> byIndex =
+	    shell_.lowering().profile().encoder_by_index;
+	const int32_t per = config_.lowering.edges_per_detent > 0 ? config_.lowering.edges_per_detent : 1;
+	const int32_t limit = 127 / per;
+	const auto edges = static_cast<int8_t>(std::clamp(detents, -limit, limit) * per);
+	for (size_t i = 0; i < byIndex.size(); i++) {
+		if (byIndex[i] != role) {
+			continue;
+		}
+		shell_.on_encoder_edges(static_cast<uint8_t>(i), edges, nowMs(), time_us);
+		return;
+	}
+}
+
+void ShellRuntime::copyGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1) {
+	if (image == nullptr) {
+		return;
+	}
+	const deluge::ui::gfx::grid::PadGrid& grid = surfaces_.grid().grid();
+	const deluge::ui::gfx::grid::GridDimensions dims = grid.dims();
+	const int32_t rows = std::min<int32_t>(dims.rows, kDisplayHeight);
+	const int32_t last = std::min<int32_t>(x1, dims.cols());
+	for (int32_t y = 0; y < rows; y++) {
+		if ((whichRows & (1u << y)) == 0) {
+			continue;
+		}
+		for (int32_t x = x0; x < last; x++) {
+			image[y][x] = grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+		}
+	}
+}
+
+void ShellRuntime::copyOled(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (!surfaces_.canReachMainPanel()) {
+		return;
+	}
+	const deluge::ui::shell::OledSurface* main = surfaces_.oled(deluge::ui::shell::SurfaceRole::Main);
+	if (main == nullptr) {
+		return;
+	}
+	const std::span<const uint8_t> src = main->canvas.bytes();
+	const std::span<uint8_t> dest = canvas.bytes();
+	if (src.size() != dest.size()) {
+		return;
+	}
+	std::copy(src.begin(), src.end(), dest.begin());
 }
 
 } // namespace deluge::gui::ui

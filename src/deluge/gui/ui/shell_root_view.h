@@ -1,0 +1,218 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+/// @file
+/// @brief A legacy root view whose body is a scene: the scene sits at the bottom of the shared shell's stack, and the
+///        view feeds it, ticks the shell and serves what the shell drew to legacy's renderers.
+
+#include "gui/ui/root_ui.h"
+#include "gui/ui/shell_runtime.h"
+#include "gui/ui/ui.h"
+#include "hid/button.h"
+#include "hid/encoder_input.h"
+#include "model/edits/clip_address_for.h"
+#include "model/song/song.h"
+#include "ui/shell/scene.h"
+
+#include <algorithm>
+#include <cstdint>
+
+namespace deluge::gui::ui {
+
+/// @brief A legacy root view whose body is a scene.
+///
+/// The scene is the root of the shared shell (`ShellRuntime`): a menu the guest opens over this view goes on top of
+/// it, and closes back to it. While this view is the current UI it feeds the shell like the guest does; while a menu
+/// is open over it, the input the menu leaves (a pad outside its regions) reaches the root scene directly.
+/// @tparam SceneT A root scene (`is_root()`) with `open(std::optional<project::ClipAddress>, const project::Song*)`.
+template <typename SceneT>
+class ShellRootView final : public RootUI {
+public:
+	/// @brief What the root view does to the shared legacy `View` as its focus comes back (the knobs onto its clip),
+	///        which the scene, below `View`, cannot.
+	using FocusHook = void (*)();
+
+	/// @param scene    The scene's singleton.
+	/// @param kind     The kind it is registered under.
+	/// @param type     What `getUIType()` answers: the legacy view's own type, which legacy code compares.
+	/// @param focus    The `View` half of a focus coming back, or null.
+	/// @param runtime  The shell it hosts the scene on.
+	ShellRootView(SceneT& (*scene)(), deluge::ui::shell::SceneKind kind, UIType type, FocusHook focus,
+	              ShellRuntime& (*runtime)() = &shellRuntime)
+	    : scene_(scene), kind_(kind), type_(type), focus_(focus), runtime_(runtime) {}
+
+	/// @return The scene.
+	[[nodiscard]] SceneT& scene() const { return scene_(); }
+
+	bool opened() override {
+		ShellRuntime& rt = runtime_();
+		::Clip* clip = currentSong != nullptr ? currentSong->getCurrentClip() : nullptr;
+		scene().open(clip != nullptr ? deluge::edits::clipAddressFor(*clip) : std::nullopt,
+		             currentSong != nullptr ? &currentSong->project : nullptr);
+		if (!rt.shell().stack().replace_root(deluge::ui::shell::SceneId{kind_, 0})) {
+			return false;
+		}
+		rt.setRootHost(this);
+		rt.shell().boot();
+		focusRegained();
+		return true;
+	}
+
+	void focusRegained() override {
+		if (focus_ != nullptr) {
+			focus_();
+		}
+		ShellRuntime& rt = runtime_();
+		if (rt.shell().stack().depth() > 0) {
+			rt.shell().stack().input_top().on_resume();
+		}
+		ShellRuntime::armTickSoon();
+	}
+
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override {
+		const Cartesian xy = deluge::hid::button::toXY(b);
+		const DelugeInputEvent ev{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
+		                          static_cast<int16_t>(on ? 255 : 0)};
+		if (!current()) {
+			// Passed down from a menu open over this view: the root scene's alone.
+			(void)runtime_().shell().route_to_root(
+			    deluge::ui::shell::UiEvent{
+			        .kind = deluge::ui::shell::UiEvent::Kind::Button, .on = on, .button = buttonAt(xy.x, xy.y)},
+			    runtime_().nowMs());
+			return ActionResult::DEALT_WITH;
+		}
+		runtime_().feed(ev);
+		ShellRuntime::armTickSoon();
+		// As the guest: the transport and SHIFT arms after the current UI's are legacy's tail, which the shell does
+		// not take.
+		return ActionResult::NOT_DEALT_WITH;
+	}
+
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override {
+		if (!current()) {
+			(void)runtime_().shell().route_to_root(
+			    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Pad,
+			                               .x = static_cast<uint8_t>(x),
+			                               .y = static_cast<uint8_t>(y),
+			                               .velocity = static_cast<uint8_t>(std::clamp<int32_t>(velocity, 0, 127)),
+			                               .on = velocity != 0},
+			    runtime_().nowMs());
+			return ActionResult::DEALT_WITH;
+		}
+		runtime_().feedPad(static_cast<uint8_t>(x), static_cast<uint8_t>(y), velocity, false);
+		ShellRuntime::armTickSoon();
+		return ActionResult::DEALT_WITH;
+	}
+
+	ActionResult horizontalEncoderAction(int32_t offset) override {
+		feedTurn(deluge::ui::widgets::core::EncoderRole::Horizontal, offset);
+		return ActionResult::DEALT_WITH;
+	}
+
+	ActionResult verticalEncoderAction(int32_t offset) override {
+		feedTurn(deluge::ui::widgets::core::EncoderRole::Vertical, offset);
+		return ActionResult::DEALT_WITH;
+	}
+
+	void selectEncoderAction(int8_t offset) override {
+		runtime_().feedDetents(deluge::ui::widgets::core::EncoderRole::Select, offset,
+		                       deluge::hid::encoders::selectTurnTimeUs());
+		ShellRuntime::armTickSoon();
+	}
+
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override {
+		// The gold knobs are the shell's `ModKnobs`, as under the guest.
+		(void)runtime_().shell().route_lowered_turn(
+		    whichModEncoder == 0 ? deluge::ui::widgets::core::EncoderRole::GoldLower
+		                         : deluge::ui::widgets::core::EncoderRole::GoldUpper,
+		    static_cast<int8_t>(std::clamp<int32_t>(offset, -127, 127)), runtime_().nowMs());
+		ShellRuntime::armTickSoon();
+	}
+
+	void modButtonAction(uint8_t whichButton, bool on) override {
+		if (whichButton >= std::size(deluge::hid::button::ZmodButtonX)) {
+			return;
+		}
+		runtime_().feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, deluge::hid::button::ZmodButtonX[whichButton],
+		                                 deluge::hid::button::ZmodButtonY[whichButton],
+		                                 static_cast<int16_t>(on ? 255 : 0)});
+		ShellRuntime::armTickSoon();
+	}
+
+	ActionResult timerCallback() override {
+		ShellRuntime& rt = runtime_();
+		const uint32_t now = rt.nowMs();
+		rt.tick(now, this);
+		rt.rearm(now, this);
+		return ActionResult::DEALT_WITH;
+	}
+
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) override {
+		(void)occupancyMask;
+		(void)drawUndefinedArea;
+		runtime_().copyGrid(whichRows, image, 0, kDisplayWidth);
+		return true;
+	}
+
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override {
+		(void)occupancyMask;
+		runtime_().copyGrid(whichRows, image, kDisplayWidth, kDisplayWidth + kSideBarWidth);
+		return true;
+	}
+
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override { runtime_().copyOled(canvas); }
+
+	UIType getUIType() override { return type_; }
+
+private:
+	/// @return The profile's button at matrix cell (@p x, @p y), or `None`.
+	[[nodiscard]] deluge::ui::shell::ButtonId buttonAt(int32_t x, int32_t y) const {
+		const deluge::ui::shell::BoardProfile& p = runtime_().shell().lowering().profile();
+		const auto i = static_cast<size_t>(y) * p.button_cols + static_cast<size_t>(x);
+		return x >= 0 && y >= 0 && i < p.button_by_matrix.size() ? p.button_by_matrix[i]
+		                                                         : deluge::ui::shell::ButtonId::None;
+	}
+
+	/// @return Whether this view is the current UI (nothing open over it).
+	[[nodiscard]] bool current() const { return getCurrentUI() == this; }
+
+	/// @brief An encoder turn: fed while current, otherwise the root scene's alone.
+	void feedTurn(deluge::ui::widgets::core::EncoderRole role, int32_t offset) {
+		if (!current()) {
+			(void)runtime_().shell().route_to_root(
+			    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Encoder,
+			                               .encoder = role,
+			                               .delta = static_cast<int8_t>(std::clamp<int32_t>(offset, -127, 127))},
+			    runtime_().nowMs());
+			return;
+		}
+		runtime_().feedDetents(role, offset);
+		ShellRuntime::armTickSoon();
+	}
+
+	SceneT& (*scene_)();
+	deluge::ui::shell::SceneKind kind_;
+	UIType type_;
+	FocusHook focus_;
+	ShellRuntime& (*runtime_)();
+};
+
+} // namespace deluge::gui::ui

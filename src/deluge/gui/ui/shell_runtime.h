@@ -17,10 +17,15 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "gui/ui/shell_clock.h"
 #include "gui/ui/shell_guest_surfaces.h"
+#include "hid/display/oled_canvas/canvas.h"
+#include "libdeluge/control_surface.h"
 #include "ui/shell/profiles/deluge.h"
 #include "ui/shell/shell.h"
+#include "ui/widgets/core/input.h"
 
 #include <cstdint>
 
@@ -140,6 +145,14 @@ public:
 	/// @brief Whether a tick is running now; a stack reset from inside one would pull the stack from under it.
 	[[nodiscard]] bool ticking() const { return ticking_; }
 
+	/// @brief The legacy root view whose body is the root scene at the bottom of the stack, or null: the root view
+	///        sets it as it opens, and the guest keeps that scene across its own sessions only while that view is
+	///        still the root.
+	[[nodiscard]] const ::UI* rootHost() const { return root_host_; }
+	/// @brief Record @p host as the root scene's root view, or null when none is.
+	/// @param host The root view.
+	void setRootHost(const ::UI* host) { root_host_ = host; }
+
 	/// @brief Re-arm `TimerName::UI_SPECIFIC` from the shell's own deadline, while @p owner is the current UI.
 	///
 	/// `UI_SPECIFIC` is the current UI's timer: `UITimerManager::routine` dispatches it to `getCurrentUI()`, so an
@@ -157,6 +170,31 @@ public:
 	/// shell until something else happens to.
 	static void armTickSoon();
 
+	/// @name Feeding the shell, as every host does
+	/// @{
+	/// @brief Feed one decoded board event, stamped with `nowMs()`, after taking up the device's hold time.
+	/// @param ev The event.
+	void feed(const DelugeInputEvent& ev);
+	/// @brief Feed one pad a host claimed, with the reason it claimed it (`Shell::on_host_pad`).
+	/// @param x The column. @param y The row. @param velocity 0 is a release.
+	/// @param shortcutWithoutShift An audition held over the instrument clip view made the press a shortcut.
+	void feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutWithoutShift);
+	/// @brief Feed @p detents of @p role's encoder as the board's edges, clamped to what one edge count holds.
+	/// @param role The encoder. @param detents Signed detents. @param time_us When the board decoded the turn.
+	void feedDetents(deluge::ui::widgets::core::EncoderRole role, int32_t detents, uint64_t time_us = 0);
+	/// @}
+
+	/// @name Serving what the shell drew to legacy's renderers
+	/// @{
+	/// @brief Copy the shell's grid into @p image for columns @p x0 to @p x1 and the rows @p whichRows selects.
+	/// @param whichRows Bit `y` selects row `y`. @param image Legacy's pad image; null copies nothing.
+	/// @param x0 First column. @param x1 One past the last.
+	void copyGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1);
+	/// @brief Copy the shell's main OLED page into @p canvas, when the two are the same shape.
+	/// @param canvas Legacy's main canvas.
+	void copyOled(deluge::hid::display::oled_canvas::Canvas& canvas);
+	/// @}
+
 private:
 	/// The milliseconds `nowMs()` counts from the audio-sample counter; a reading moves it on, hence `mutable`.
 	mutable SampleClockMs clock_;
@@ -166,6 +204,7 @@ private:
 	GuestSurfaceSet surfaces_;
 	deluge::ui::shell::Shell shell_;
 	bool ticking_ = false;
+	const ::UI* root_host_ = nullptr;
 };
 
 /// @brief The firmware's one shell runtime.

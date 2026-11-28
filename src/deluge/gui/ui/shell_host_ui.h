@@ -380,9 +380,6 @@ private:
 	/// @brief Feed one decoded board event, stamped with `nowMs()`.
 	/// @param ev The event.
 	void feed(const DelugeInputEvent& ev);
-	/// @brief Re-read legacy's hold time into the lowering's tap threshold (`FlashStorage::holdTime`, in samples): the
-	///        first thing every feed does.
-	void syncHoldTime();
 	/// @brief Feed a pad the guest claimed, with why the menu may take it as a shortcut without SHIFT
 	///        (`Shell::on_host_pad`).
 	/// @param shortcutWithoutShift An audition held over the instrument clip view made the press a shortcut
@@ -408,6 +405,10 @@ private:
 	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself
 	/// (`gui/ui/ui.cpp`). Callers must not re-arm after it.
 	void closeGuest();
+	/// @brief Empty the stack down to the root scene of the root view that is still the root
+	/// (`ShellRuntime::rootHost`),
+	///        or entirely when there is none.
+	void clearToRoot();
 	/// @brief Run the tick a close would otherwise skip: input fed since the last tick reaches the scenes it was fed
 	///        to, as legacy hands a turn or press to the current UI at once, before they go. Ticks only when input is
 	///        pending, and never inside its own tick.
